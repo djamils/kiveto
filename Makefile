@@ -85,7 +85,7 @@ endef
 ## PHONY TARGETS
 ##
 .PHONY: help \
-	build kill install reset clean start stop vendor wait-db init-db check-web ready \
+	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage
 
 ##
@@ -121,7 +121,7 @@ reset:
 install:
 	@set -e; \
 	$(MAKE) build; \
-	$(MAKE) start; \
+	$(MAKE) start-containers; \
 	$(MAKE) vendor; \
 	$(MAKE) wait-db; \
 	$(MAKE) init-db; \
@@ -137,10 +137,12 @@ build:
 	$(Q)$(call run,$(DOCKER_COMPOSE) build)
 	@$(call ok,Images built)
 
-start:
+start-containers:
 	@$(call step,Starting containers...)
 	$(Q)$(call run,$(DOCKER_COMPOSE) up -d --remove-orphans --force-recreate)
 	@$(call ok,Containers started)
+
+start: start-containers ready
 
 stop:
 	@$(call step,Stopping containers...)
