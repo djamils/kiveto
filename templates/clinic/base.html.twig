@@ -1,0 +1,72 @@
+<!doctype html>
+<html  class="h-full" data-kt-theme="true" data-kt-theme-mode="light" dir="ltr" lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <link rel="stylesheet" href="{{ asset('theme/vendors/keenicons/styles.bundle.css') }}">
+        <link rel="stylesheet" href="{{ asset('theme/css/styles.css') }}">
+
+        <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+
+        <title>{% block title %}Tableau de bord{% endblock %}</title>
+
+        {% block stylesheets %}{% endblock %}
+    </head>
+
+    <body class="antialiased flex h-full text-base text-foreground bg-background text-foreground bg-background flex h-full text-base antialiased">
+    <script>
+        const defaultThemeMode = 'light'; // light|dark|system
+        let themeMode;
+
+        if (document.documentElement) {
+            if (localStorage.getItem('kt-theme')) {
+                themeMode = localStorage.getItem('kt-theme');
+            } else if (
+                document.documentElement.hasAttribute('data-kt-theme-mode')
+            ) {
+                themeMode =
+                    document.documentElement.getAttribute('data-kt-theme-mode');
+            } else {
+                themeMode = defaultThemeMode;
+            }
+
+            if (themeMode === 'system') {
+                themeMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark'
+                    : 'light';
+            }
+
+            document.documentElement.classList.add(themeMode);
+        }
+    </script>
+        <!-- Page -->
+        <!-- Main -->
+        <div class="flex grow">
+
+            <!-- Wrapper -->
+            <div class="flex grow h-screen flex-col [--header-height:40px] [--content-header-height:54px] [--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:45px] [--sidebar-footer-collapsed-height:90px]">
+                {% include 'clinic/partials/_header.html.twig' %}
+
+                <!-- Content -->
+                <main class="grow pt-5" id="content" role="content">
+                    {% block content %}{% endblock %}
+                </main>
+                <!-- End of Content -->
+
+            </div>
+            <!-- End of Wrapper -->
+        </div>
+        <!-- End of Main -->
+        <!-- End of Page -->
+
+        {% block javascripts %}
+            <script src="{{ asset('theme/js/core.bundle.js') }}" defer></script>
+            <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}" defer></script>
+            <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}" defer></script>
+            <script src="{{ asset('theme/js/widgets/general.js') }}" defer></script>
+
+            {% block importmap %}{{ importmap('app') }}{% endblock %}
+        {% endblock %}
+    </body>
+</html>

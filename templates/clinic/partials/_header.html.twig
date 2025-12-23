@@ -1,0 +1,72 @@
+
+<!-- Header -->
+<link as="image" href="{{ asset('theme/media/avatars/300-1.png') }}" rel="preload"/>
+<link as="image" href="{{ asset('theme/media/avatars/300-3.png') }}" rel="preload"/>
+<link as="image" href="{{ asset('theme/media/avatars/300-4.png') }}" rel="preload"/>
+<header class="fixed top-0 start-0 end-0 z-[10] flex items-center justify-between h-[var(--header-height)] bg-zinc-950 border-b border-zinc-950 dark:border-border transition-[start] duration-200 ease-in-out pe-[var(--removed-body-scroll-bar-size,0px)]">
+    <div class="container-fluid flex justify-between items-stretch lg:gap-4">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2.5 lg:hidden">
+                <a class="shrink-0" href="#">
+                    <img alt="" class="h-4" src="{{ asset('theme/media/app/mini-logo.svg') }}"/>
+                </a>
+                <button class="cursor-pointer group focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800" data-kt-drawer-toggle="#sidebar" type="button">
+                    <i class="ki-filled ki-menu">
+                    </i>
+                </button>
+            </div>
+            <div class="hidden lg:flex items-center -ms-1">
+                <img alt="" class="h-4" src="{{ asset('theme/media/app/mini-logo.svg') }}"/>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+        </div>
+        <div class="flex items-center gap-2">
+            <div>
+                <button class="kt-btn kt-btn-sm" type="button">
+                    <i class="ki-filled ki-award text-lg">
+                    </i>
+                    Upgrade
+                </button>
+            </div>
+            <div>
+                <button class="cursor-pointer group focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800" type="button">
+                    <i class="ki-filled ki-plus text-lg">
+                    </i>
+                    New
+                </button>
+            </div>
+            <div class="kt-separator kt-separator-vertical shrink-0 w-px bg-zinc-600 h-4 mx-1">
+            </div>
+            <div>
+                <button class="cursor-pointer group focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 data-[state=open]:bg-accent data-[state=open]:text-accent-foreground h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800" type="button">
+                    <i class="ki-filled ki-question-2 text-lg">
+                    </i>
+                </button>
+            </div>
+            <div class="kt-separator kt-separator-vertical shrink-0 w-px bg-zinc-600 h-4 mx-1">
+            </div>
+            <div class="flex -space-x-2">
+                <div class="kt-avatar size-7">
+                    <div class="kt-avatar-image border-2 border-zinc-950 hover:z-10">
+                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-1.png') }}">
+                        </img>
+                    </div>
+                </div>
+                <div class="kt-avatar size-7">
+                    <div class="kt-avatar-image border-2 border-zinc-950 hover:z-10">
+                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-3.png') }}">
+                        </img>
+                    </div>
+                </div>
+                <div class="kt-avatar size-7">
+                    <div class="kt-avatar-image border-2 border-zinc-950 hover:z-10">
+                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-4.png') }}"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- End of Header -->
