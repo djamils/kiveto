@@ -1,0 +1,225 @@
+{% extends 'clinic/layout-14.html.twig' %}
+
+{% block title %}Tableau de bord - Kiveto{% endblock %}
+
+{% block app_name %}Kiveto Clinic{% endblock %}
+
+{% block user_name %}Administrateur{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="kt-breadcrumb-item">
+        <a class="kt-breadcrumb-link" href="{{ path('app_home') }}">
+            Accueil
+        </a>
+    </li>
+    <li class="kt-breadcrumb-separator">/</li>
+    <li class="kt-breadcrumb-item">
+        <span class="kt-breadcrumb-page">
+            Tableau de bord
+        </span>
+    </li>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="flex flex-col gap-5 lg:gap-7.5">
+            <!-- Page Header -->
+            <div class="flex flex-wrap items-center gap-5 justify-between">
+                <div class="flex flex-col justify-center gap-2">
+                    <h1 class="text-xl font-semibold leading-none text-foreground">
+                        Tableau de bord
+                    </h1>
+                    <div class="flex items-center gap-2 text-sm font-normal text-muted-foreground">
+                        Bienvenue sur votre tableau de bord
+                    </div>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <a href="#" class="kt-btn kt-btn-sm kt-btn-mono">
+                        <i class="ki-filled ki-exit-up"></i>
+                        Exporter
+                    </a>
+                </div>
+            </div>
+            <!-- End of Page Header -->
+
+            <!-- Stats Cards -->
+            <div class="grid gap-5 lg:gap-7.5 grid-cols-1 lg:grid-cols-2 xl:grid-cols-4">
+                <!-- Card 1 -->
+                <div class="kt-card">
+                    <div class="kt-card-body gap-6">
+                        <div class="flex items-center justify-between gap-2.5">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-2xl font-semibold text-foreground">2,847</span>
+                                <span class="text-2sm font-normal text-muted-foreground">Total Patients</span>
+                            </div>
+                            <div class="flex items-center justify-center size-12 rounded-lg bg-primary-light">
+                                <i class="ki-filled ki-users text-2xl text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="kt-badge kt-badge-xs kt-badge-success">+12%</span>
+                            <span class="text-2xs text-muted-foreground">vs le mois dernier</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="kt-card">
+                    <div class="kt-card-body gap-6">
+                        <div class="flex items-center justify-between gap-2.5">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-2xl font-semibold text-foreground">147</span>
+                                <span class="text-2sm font-normal text-muted-foreground">Rendez-vous aujourd'hui</span>
+                            </div>
+                            <div class="flex items-center justify-center size-12 rounded-lg bg-success-light">
+                                <i class="ki-filled ki-calendar text-2xl text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="kt-badge kt-badge-xs kt-badge-success">+8%</span>
+                            <span class="text-2xs text-muted-foreground">vs hier</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="kt-card">
+                    <div class="kt-card-body gap-6">
+                        <div class="flex items-center justify-between gap-2.5">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-2xl font-semibold text-foreground">89.2%</span>
+                                <span class="text-2sm font-normal text-muted-foreground">Taux de satisfaction</span>
+                            </div>
+                            <div class="flex items-center justify-center size-12 rounded-lg bg-warning-light">
+                                <i class="ki-filled ki-star text-2xl text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="kt-badge kt-badge-xs kt-badge-success">+2.3%</span>
+                            <span class="text-2xs text-muted-foreground">vs la semaine dernière</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="kt-card">
+                    <div class="kt-card-body gap-6">
+                        <div class="flex items-center justify-between gap-2.5">
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-2xl font-semibold text-foreground">€42,583</span>
+                                <span class="text-2sm font-normal text-muted-foreground">Revenus du mois</span>
+                            </div>
+                            <div class="flex items-center justify-center size-12 rounded-lg bg-info-light">
+                                <i class="ki-filled ki-chart-line text-2xl text-info"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="kt-badge kt-badge-xs kt-badge-danger">-5%</span>
+                            <span class="text-2xs text-muted-foreground">vs le mois dernier</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End of Stats Cards -->
+
+            <!-- Content Grid -->
+            <div class="grid gap-5 lg:gap-7.5 grid-cols-1 lg:grid-cols-2">
+                <!-- Recent Activity -->
+                <div class="kt-card">
+                    <div class="kt-card-header">
+                        <h3 class="kt-card-title">Activités récentes</h3>
+                    </div>
+                    <div class="kt-card-body">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="kt-avatar size-9">
+                                    <div class="kt-avatar-image">
+                                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-1.png') }}"/>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-sm font-medium text-foreground">Nouveau patient enregistré</span>
+                                    <span class="text-2xs text-muted-foreground">Il y a 5 minutes</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="kt-avatar size-9">
+                                    <div class="kt-avatar-image">
+                                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-2.png') }}"/>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-sm font-medium text-foreground">Rendez-vous confirmé</span>
+                                    <span class="text-2xs text-muted-foreground">Il y a 15 minutes</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="kt-avatar size-9">
+                                    <div class="kt-avatar-image">
+                                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-3.png') }}"/>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-0.5">
+                                    <span class="text-sm font-medium text-foreground">Prescription envoyée</span>
+                                    <span class="text-2xs text-muted-foreground">Il y a 30 minutes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Appointments -->
+                <div class="kt-card">
+                    <div class="kt-card-header">
+                        <h3 class="kt-card-title">Prochains rendez-vous</h3>
+                    </div>
+                    <div class="kt-card-body">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex flex-col items-center justify-center size-12 rounded-lg bg-primary text-primary-foreground">
+                                        <span class="text-xs font-medium">MAR</span>
+                                        <span class="text-lg font-bold">23</span>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-sm font-medium text-foreground">Dr. Martin Dubois</span>
+                                        <span class="text-2xs text-muted-foreground">Consultation générale</span>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-foreground">09:00</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex flex-col items-center justify-center size-12 rounded-lg bg-success text-success-foreground">
+                                        <span class="text-xs font-medium">MAR</span>
+                                        <span class="text-lg font-bold">23</span>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-sm font-medium text-foreground">Dr. Sophie Laurent</span>
+                                        <span class="text-2xs text-muted-foreground">Cardiologie</span>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-foreground">11:30</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex flex-col items-center justify-center size-12 rounded-lg bg-warning text-warning-foreground">
+                                        <span class="text-xs font-medium">MAR</span>
+                                        <span class="text-lg font-bold">23</span>
+                                    </div>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="text-sm font-medium text-foreground">Dr. Jean Moreau</span>
+                                        <span class="text-2xs text-muted-foreground">Pédiatrie</span>
+                                    </div>
+                                </div>
+                                <span class="text-sm font-medium text-foreground">14:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End of Content Grid -->
+        </div>
+    </div>
+{% endblock %}
+

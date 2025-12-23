@@ -1,0 +1,46 @@
+<!-- Header -->
+<header class="flex items-stretch fixed z-10 top-0 start-0 end-0 shrink-0 bg-background/95 border-b border-border backdrop-blur-sm supports-backdrop-filter:bg-background/60 h-(--header-height-mobile) lg:h-(--header-height) pe-[var(--removed-body-scroll-bar-size,0px)]">
+    <div class="@container grow pe-5 flex items-stretch justify-between gap-2.5">
+        
+        <!-- Left Section -->
+        <div class="flex items-stretch gap-x-6">
+            <!-- Logo & Mobile Menu -->
+            <div class="flex border-e border-border items-center gap-2 lg:w-(--sidebar-width)">
+                <div class="flex items-center w-full">
+                    {% include 'clinic/partials/header/_logo.html.twig' %}
+                    
+                    <div class="flex w-full grow items-center justify-between px-5 gap-2.5">
+                        <!-- Mobile Menu Toggle -->
+                        <button class="kt-btn kt-btn-ghost lg:hidden" data-kt-drawer-toggle="#sidebar">
+                            <i class="ki-filled ki-menu"></i>
+                        </button>
+                        
+                        <!-- Application Switcher -->
+                        {% include 'clinic/partials/header/_app_switcher.html.twig' %}
+                        
+                        <!-- Grid Button -->
+                        <button class="cursor-pointer group focus-visible:outline-hidden items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-accent-foreground rounded-md gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shrink-0 w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4 hidden lg:inline-flex text-muted-foreground hover:text-foreground" data-slot="button">
+                            <i class="ki-filled ki-grid"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Breadcrumbs -->
+            {% include 'clinic/partials/header/_breadcrumbs.html.twig' %}
+        </div>
+        <!-- End Left Section -->
+        
+        <!-- Navigation -->
+        <nav class="flex items-center gap-2.5">
+            {% include 'clinic/partials/header/_actions.html.twig' %}
+            
+            <!-- User Dropdown -->
+            {% include 'clinic/partials/header/user/_dropdown.html.twig' %}
+        </nav>
+        <!-- End Navigation -->
+        
+    </div>
+</header>
+<!-- End of Header -->
+

@@ -1,0 +1,17 @@
+<!-- Desktop Collapsed Sidebar (visible on desktop) -->
+<div class="flex flex-col items-center justify-center shrink-0 py-2.5 gap-5 lg:w-(--sidebar-collapsed-width) border-e border-input bg-muted hidden lg:flex">
+    <div class="relative overflow-hidden grow w-full h-[calc(100vh-10rem)] lg:h-[calc(100vh-5.5rem)]" data-slot="scroll-area" dir="ltr" style="position: relative; --radix-scroll-area-corner-width: 0px; --radix-scroll-area-corner-height: 0px;">
+        <div class="h-full w-full rounded-[inherit]">
+            <div style="min-width: 100%; display: table;">
+                <div class="grow gap-1 shrink-0 flex items-center flex-col">
+                    {% include 'clinic/partials/sidebar/shared/_icon_links.html.twig' %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex flex-col items-center gap-2.5 shrink-0">
+        {% include 'clinic/partials/sidebar/shared/_bottom_icons.html.twig' %}
+        {% include 'clinic/partials/header/user/_dropdown.html.twig' %}
+    </div>
+</div>
+

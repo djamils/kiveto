@@ -1,0 +1,20 @@
+<!-- User Dropdown -->
+<div data-kt-dropdown="true" data-kt-dropdown-offset="10px, 10px" data-kt-dropdown-offset-rtl="-20px, 10px" data-kt-dropdown-placement="top-end" data-kt-dropdown-placement-rtl="top-start" data-kt-dropdown-trigger="click">
+    <div class="cursor-pointer shrink-0" data-kt-dropdown-toggle="true">
+        <link as="image" href="{{ asset('theme/media/avatars/300-2.png') }}" rel="preload"/>
+        <div class="kt-avatar size-7">
+            <div class="kt-avatar-image">
+                <img alt="avatar" src="{{ asset('theme/media/avatars/300-2.png') }}"/>
+            </div>
+            <div class="kt-avatar-indicator -end-1.5 -top-1.5">
+                <div class="kt-avatar-status kt-avatar-status-online size-2.5"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kt-dropdown-menu w-[250px]" data-kt-dropdown-menu="true">
+        {% include 'clinic/partials/header/user/_dropdown_content.html.twig' %}
+    </div>
+</div>
+<!-- End of User Dropdown -->
+

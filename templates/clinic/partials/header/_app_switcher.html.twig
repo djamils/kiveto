@@ -1,0 +1,17 @@
+<!-- Application Switcher -->
+<button 
+    aria-expanded="false" 
+    aria-haspopup="menu" 
+    class="cursor-pointer group focus-visible:outline-hidden items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 hover:bg-accent data-[state=open]:bg-accent data-[state=open]:text-accent-foreground h-8.5 rounded-md gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 select-none inline-flex text-muted-foreground hover:text-foreground px-1.5 -ms-1.5" 
+    data-slot="dropdown-menu-trigger" 
+    data-state="closed" 
+    type="button">
+    <div class="size-6 flex items-center justify-center rounded-md bg-teal-600 text-white">
+        <i class="ki-filled ki-flash-circle"></i>
+    </div>
+    <span class="text-mono text-sm font-medium hidden lg:block">
+        {% block app_name %}Kiveto{% endblock %}
+    </span>
+    <i class="ki-filled ki-arrow-up-down"></i>
+</button>
+

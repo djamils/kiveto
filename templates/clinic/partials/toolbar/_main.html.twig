@@ -1,0 +1,48 @@
+<!-- Toolbar -->
+<div class="py-2.5 lg:py-0 lg:fixed top-(--header-height) start-[calc(var(--sidebar-width))] lg:in-data-[sidebar-open=false]:start-[calc(var(--sidebar-collapsed-width))] transition-all duration-300 end-0 z-10 px-5 flex flex-wrap items-center justify-between gap-2.5 min-h-(--toolbar-height) bg-background border-b border-border shrink-0">
+    <div class="flex flex-col md:flex-row md:items-center flex-wrap gap-1 lg:gap-5">
+        <div class="flex items-stretch">
+            <nav class="list-none flex items-stretch gap-2">
+                {% block toolbar_tabs %}
+                <a class="kt-btn kt-btn-ghost" data-discover="true" data-slot="button" href="#">
+                    <i class="ki-filled ki-clipboard"></i>
+                    Liste
+                </a>
+                <a class="kt-btn kt-btn-ghost" data-discover="true" data-slot="button" href="#">
+                    <i class="ki-filled ki-kanban"></i>
+                    Kanban
+                </a>
+                <a class="kt-btn kt-btn-ghost" data-discover="true" data-slot="button" href="#">
+                    <i class="ki-filled ki-calendar"></i>
+                    Calendrier
+                </a>
+                <a class="kt-btn kt-btn-ghost" data-discover="true" data-slot="button" href="#">
+                    <i class="ki-filled ki-chart"></i>
+                    Tableau de bord
+                </a>
+                {% endblock %}
+            </nav>
+        </div>
+    </div>
+    <div class="flex items-center gap-2.5">
+        {% block toolbar_actions %}
+        <button class="kt-btn kt-btn-outline kt-btn-sm" data-slot="button">
+            <i class="ki-filled ki-sort"></i>
+            Trier
+        </button>
+        <button class="kt-btn kt-btn-outline kt-btn-sm" data-slot="button">
+            <i class="ki-filled ki-eye"></i>
+            Vue
+        </button>
+        <button class="kt-btn kt-btn-outline kt-btn-sm" data-slot="button">
+            <i class="ki-filled ki-setting"></i>
+            Filtrer
+        </button>
+        <button class="kt-btn kt-btn-outline kt-btn-sm" data-slot="button">
+            <i class="ki-filled ki-magnifier"></i>
+        </button>
+        {% endblock %}
+    </div>
+</div>
+<!-- End of Toolbar -->
+

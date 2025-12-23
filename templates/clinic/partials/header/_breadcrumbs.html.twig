@@ -1,0 +1,19 @@
+<!-- Breadcrumbs -->
+<div class="flex flex-row items-center flex-wrap gap-1 lg:gap-5 mb-5 lg:mb-0 hidden lg:flex">
+    <ol class="kt-breadcrumb">
+        {% block breadcrumbs %}
+        <li class="kt-breadcrumb-item">
+            <a class="kt-breadcrumb-link" href="{{ path('app_home') }}">
+                Accueil
+            </a>
+        </li>
+        <li class="kt-breadcrumb-separator">/</li>
+        <li class="kt-breadcrumb-item">
+            <span class="kt-breadcrumb-page">
+                Tableau de bord
+            </span>
+        </li>
+        {% endblock %}
+    </ol>
+</div>
+

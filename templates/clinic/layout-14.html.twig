@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html class="h-full" data-kt-theme="true" data-kt-theme-mode="light" dir="ltr" lang="fr">
+<head>
+    <base href="/">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="robots" content="follow, index"/>
+    
+    <title>{% block title %}Kiveto - Application{% endblock %}</title>
+    
+    <meta name="description" content="{% block meta_description %}{% endblock %}"/>
+    
+    <!-- Favicons -->
+    <link href="{{ asset('theme/media/app/apple-touch-icon.png') }}" rel="apple-touch-icon" sizes="180x180"/>
+    <link href="{{ asset('theme/media/app/favicon-32x32.png') }}" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="{{ asset('theme/media/app/favicon-16x16.png') }}" rel="icon" sizes="16x16" type="image/png"/>
+    <link href="{{ asset('theme/media/app/favicon.ico') }}" rel="shortcut icon"/>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    
+    <!-- Stylesheets -->
+    <link href="{{ asset('theme/vendors/apexcharts/apexcharts.css') }}" rel="stylesheet"/>
+    <link href="{{ asset('theme/vendors/keenicons/styles.bundle.css') }}" rel="stylesheet"/>
+    <link href="{{ asset('theme/css/styles.css') }}" rel="stylesheet"/>
+    
+    {% block stylesheets %}{% endblock %}
+</head>
+
+<body class="antialiased flex h-full text-base text-foreground bg-background">
+    {% include 'clinic/partials/utils/_theme_mode_script.html.twig' %}
+    
+    <!-- Page -->
+    <div class="flex grow" id="root">
+        <!-- Wrapper -->
+        <div class="flex grow" style="--sidebar-width: 300px; --sidebar-collapsed-width: 60px; --header-height: 60px; --toolbar-height: 54px; --sidebar-header-height: 54px; --header-height-mobile: 60px;">
+            
+            {% include 'clinic/partials/header/_main.html.twig' %}
+            
+            {% include 'clinic/partials/sidebar/_main.html.twig' %}
+            
+            <!-- Main Content Area -->
+            <div class="grow overflow-y-auto pt-(--header-height-mobile) lg:pt-[calc(var(--header-height)+var(--toolbar-height))] lg:ps-(--sidebar-width) lg:in-data-[sidebar-open=false]:ps-(--sidebar-collapsed-width) transition-all duration-300">
+                
+                {% include 'clinic/partials/toolbar/_main.html.twig' %}
+                
+                <!-- Main Content -->
+                <main class="grow p-5" role="content">
+                    {% block content %}
+                    <div class="animate-pulse bg-accent rounded-lg grow h-screen" data-slot="skeleton">
+                    </div>
+                    {% endblock %}
+                </main>
+                <!-- End of Main Content -->
+            </div>
+            <!-- End of Main Content Area -->
+            
+        </div>
+        <!-- End of Wrapper -->
+    </div>
+    <!-- End of Page -->
+    
+    <!-- Scripts -->
+    {% block javascripts %}
+        <script src="{{ asset('theme/js/core.bundle.js') }}"></script>
+        <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}"></script>
+        <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}"></script>
+        <script src="{{ asset('theme/js/widgets/general.js') }}"></script>
+        
+        {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% endblock %}
+</body>
+</html>

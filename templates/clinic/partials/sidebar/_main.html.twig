@@ -1,0 +1,17 @@
+<!-- Sidebar -->
+<aside class="fixed overflow-hidden top-(--header-height) start-0 z-20 bottom-0 transition-all duration-300 flex items-stretch flex-shrink-0 w-(--sidebar-width) in-data-[sidebar-open=false]:w-(--sidebar-collapsed-width) border-e border-border [--kt-drawer-enable:true] lg:[--kt-drawer-enable:false]" data-kt-drawer="true" data-kt-drawer-class="kt-drawer kt-drawer-start top-0 bottom-0" id="sidebar">
+    
+    <!-- Mobile Full Sidebar (visible on mobile) -->
+    <div class="flex flex-row grow lg:hidden">
+        {% include 'clinic/partials/sidebar/mobile/_icons.html.twig' %}
+        {% include 'clinic/partials/sidebar/mobile/_menu.html.twig' %}
+    </div>
+    
+    <!-- Desktop Collapsed Sidebar (visible on desktop) -->
+    {% include 'clinic/partials/sidebar/desktop/_icons.html.twig' %}
+    
+    <!-- Sidebar Menu Content (responsive to sidebar state) -->
+    {% include 'clinic/partials/sidebar/desktop/_menu.html.twig' %}
+</aside>
+<!-- End of Sidebar -->
+

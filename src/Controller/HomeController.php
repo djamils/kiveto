@@ -15,4 +15,10 @@ class HomeController extends AbstractController
     {
         return $this->render('clinic/index.html.twig');
     }
+
+    #[Route('/dashboard-layout14', name: 'app_dashboard_layout14')]
+    public function dashboardLayout14(): Response
+    {
+        return $this->render('clinic/dashboard-layout14.html.twig');
+    }
 }

@@ -1,0 +1,125 @@
+<!-- User Dropdown Content -->
+<div class="flex items-center justify-between px-2.5 py-1.5 gap-1.5">
+    <div class="flex items-center gap-2">
+        <link as="image" href="{{ asset('theme/media/avatars/300-2.png') }}" rel="preload"/>
+        <div class="kt-avatar">
+            <div class="kt-avatar-image">
+                <img alt="avatar" src="{{ asset('theme/media/avatars/300-2.png') }}"/>
+            </div>
+            <div class="kt-avatar-indicator -end-1.5 -top-1.5">
+                <div class="kt-avatar-status kt-avatar-status-online size-2.5"></div>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+            <span class="text-sm text-foreground font-semibold leading-none">
+                {% block user_name %}Utilisateur{% endblock %}
+            </span>
+            <span class="text-xs text-secondary-foreground leading-none">
+                En ligne
+            </span>
+        </div>
+    </div>
+</div>
+
+<ul class="kt-dropdown-menu-sub">
+    <!-- Set Status -->
+    <li>
+        <a class="kt-dropdown-menu-link py-1 rounded-md border border-border hover:bg-muted" href="#">
+            <i class="ki-filled ki-user-edit"></i>
+            Définir le statut
+        </a>
+    </li>
+    <li>
+        <div class="kt-dropdown-menu-separator"></div>
+    </li>
+    
+    <!-- Mute Notifications Sub-menu -->
+    <li data-kt-dropdown="true" data-kt-dropdown-placement="right-start" data-kt-dropdown-trigger="hover">
+        <button class="kt-dropdown-menu-toggle" data-kt-dropdown-toggle="true">
+            <i class="ki-filled ki-notification-status"></i>
+            Désactiver les notifications
+            <span class="kt-dropdown-menu-indicator">
+                <i class="ki-filled ki-right text-xs"></i>
+            </span>
+        </button>
+        <div class="kt-dropdown-menu w-[192px]" data-kt-dropdown-menu="true">
+            <ul class="kt-dropdown-menu-sub">
+                <li><a class="kt-dropdown-menu-link" href="#">Pendant 30 minutes</a></li>
+                <li><a class="kt-dropdown-menu-link" href="#">Pendant 1 heure</a></li>
+                <li><a class="kt-dropdown-menu-link" href="#">Pendant 4 heures</a></li>
+                <li><a class="kt-dropdown-menu-link" href="#">Jusqu'à demain</a></li>
+                <li><a class="kt-dropdown-menu-link" href="#">Jusqu'à la semaine prochaine</a></li>
+                <li><a class="kt-dropdown-menu-link" href="#">Date et heure personnalisées</a></li>
+            </ul>
+        </div>
+    </li>
+    
+    <!-- Profile and Settings -->
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-user"></i>
+            Profil
+        </a>
+    </li>
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-setting"></i>
+            Paramètres
+        </a>
+    </li>
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-notification"></i>
+            Paramètres de notification
+        </a>
+    </li>
+    <li>
+        <div class="kt-dropdown-menu-separator"></div>
+    </li>
+    
+    <!-- Additional Options -->
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-code"></i>
+            Raccourcis clavier
+        </a>
+    </li>
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-message-add"></i>
+            Parrainages
+            <span class="kt-badge kt-badge-sm kt-badge-info kt-badge-light ms-auto">Nouveau</span>
+        </a>
+    </li>
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-file-down"></i>
+            Télécharger les applications
+            <i class="ki-filled ki-right text-xs ms-auto"></i>
+        </a>
+    </li>
+    <li>
+        <a class="kt-dropdown-menu-link" href="#">
+            <i class="ki-filled ki-message-question"></i>
+            Aide
+            <i class="ki-filled ki-right text-xs ms-auto"></i>
+        </a>
+    </li>
+    <li>
+        <div class="kt-dropdown-menu-separator"></div>
+    </li>
+</ul>
+
+<div class="px-2.5 pt-1.5 mb-2.5 flex flex-col gap-3.5">
+    <div class="flex items-center gap-2 justify-between">
+        <span class="flex items-center gap-2">
+            <i class="ki-filled ki-moon text-base text-muted-foreground"></i>
+            <span class="font-medium text-2sm">Mode sombre</span>
+        </span>
+        <input class="kt-switch" data-kt-theme-switch-state="dark" data-kt-theme-switch-toggle="true" name="check" type="checkbox" value="1"/>
+    </div>
+    <a class="kt-btn kt-btn-outline justify-center w-full" href="#">
+        Déconnexion
+    </a>
+</div>
+
