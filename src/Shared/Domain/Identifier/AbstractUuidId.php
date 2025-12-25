@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Domain\Identifier;
 
-abstract readonly class AbstractUuidId
+abstract class AbstractUuidId
 {
     public function __construct(protected string $value)
     {
