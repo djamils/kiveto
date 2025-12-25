@@ -13,21 +13,21 @@ namespace App\Shared\Domain\Event;
  *
  * Event type format: "<bounded-context>.<aggregate>.<action>.v<version>"
  */
-abstract class AbstractDomainEvent implements DomainEventInterface
+abstract readonly class AbstractDomainEvent implements DomainEventInterface
 {
     /**
      * Override in child event (e.g. "auth", "clinic", "billing").
      *
      * @var string
      */
-    protected const BOUNDED_CONTEXT = 'shared';
+    protected const string BOUNDED_CONTEXT = 'shared';
 
     /**
      * Increment only for breaking payload changes.
      *
      * @var int
      */
-    protected const VERSION = 1;
+    protected const int VERSION = 1;
 
     final public function type(): string
     {

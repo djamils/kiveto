@@ -13,17 +13,33 @@ framework:
                     max_retries: 3
                     multiplier: 2
             failed: 'doctrine://default?queue_name=failed'
-            # sync: 'sync://'
+            sync: 'sync://'
 
-        default_bus: messenger.bus.default
+        # Separate bus definitions for CQRS
+        default_bus: messenger.bus.command
 
         buses:
-            messenger.bus.default: []
+            # Bus for commands (write operations)
+            messenger.bus.command:
+                middleware:
+                    - validation
+                    - doctrine_transaction
+
+            # Bus for queries (read operations)
+            messenger.bus.query:
+                middleware:
+                    - validation
+
+            # Bus for domain events
+            messenger.bus.event:
+                default_middleware:
+                    enabled: true
+                    allow_no_handlers: false
+                    allow_no_senders: true
 
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
-
-            # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            # Domain Events (default sync; can be routed async later)
+            App\Shared\Domain\Event\DomainEventInterface: sync

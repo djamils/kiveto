@@ -21,3 +21,35 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # ============================================================================
+    # BOUNDED CONTEXT: SHARED
+    # ============================================================================
+
+    # Clock - System Clock by default
+    App\Shared\Domain\Time\ClockInterface:
+        class: App\Shared\Infrastructure\Time\SystemClock
+
+    # UUID Generator - Symfony UUIDv7 by default
+    App\Shared\Domain\Identifier\UuidGeneratorInterface:
+        class: App\Shared\Infrastructure\Identifier\SymfonyUuidV7Generator
+
+    # Domain Event Factory
+    App\Shared\Application\Event\DomainEventFactoryInterface:
+        class: App\Shared\Application\Event\DomainEventFactory
+
+    # Bus Interfaces
+    App\Shared\Application\Bus\CommandBusInterface:
+        class: App\Shared\Infrastructure\Bus\Messenger\CommandBus
+        arguments:
+            $bus: '@messenger.bus.command'
+
+    App\Shared\Application\Bus\QueryBusInterface:
+        class: App\Shared\Infrastructure\Bus\Messenger\QueryBus
+        arguments:
+            $bus: '@messenger.bus.query'
+
+    App\Shared\Application\Bus\EventBusInterface:
+        class: App\Shared\Infrastructure\Bus\Messenger\EventBus
+        arguments:
+            $bus: '@messenger.bus.event'
