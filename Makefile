@@ -238,7 +238,7 @@ php-cs-fixer.dry-run:
 
 test:
 	@$(call step,Running PHPUnit...)
-	$(Q)$(EXEC_PHP) bin/phpunit
+	$(Q)$(EXEC_PHP) bin/phpunit --display-notices --fail-on-notice
 	@$(call ok,Tests passed)
 
 test-coverage:

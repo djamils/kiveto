@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Domain\Aggregate;
 
-use App\Shared\Domain\Aggregate\AggregateRoot;
-use App\Shared\Domain\Event\DomainEventInterface;
+use App\Tests\Unit\Shared\Domain\Aggregate\Fixture\TestAggregate;
+use App\Tests\Unit\Shared\Domain\Aggregate\Fixture\TestEvent;
 use PHPUnit\Framework\TestCase;
 
 final class AggregateRootTest extends TestCase
@@ -57,54 +57,5 @@ final class AggregateRootTest extends TestCase
 
         $events = $aggregate->recordedDomainEvents();
         self::assertCount(2, $events);
-    }
-}
-
-// Test fixtures
-
-final class TestAggregate extends AggregateRoot
-{
-    public function doSomething(): void
-    {
-        $this->recordDomainEvent(new TestEvent('event-1', 'aggregate-1'));
-    }
-
-    public function doSomethingElse(): void
-    {
-        $this->recordDomainEvent(new TestEvent('event-2', 'aggregate-1'));
-    }
-}
-
-final class TestEvent implements DomainEventInterface
-{
-    public function __construct(
-        private readonly string $eventId,
-        private readonly string $aggregateId,
-    ) {
-    }
-
-    public function eventId(): string
-    {
-        return $this->eventId;
-    }
-
-    public function aggregateId(): string
-    {
-        return $this->aggregateId;
-    }
-
-    public function occurredAt(): \DateTimeImmutable
-    {
-        return new \DateTimeImmutable();
-    }
-
-    public function type(): string
-    {
-        return 'test.aggregate.event.v1';
-    }
-
-    public function payload(): array
-    {
-        return [];
     }
 }

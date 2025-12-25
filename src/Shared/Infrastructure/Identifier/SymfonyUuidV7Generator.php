@@ -11,8 +11,6 @@ final class SymfonyUuidV7Generator implements UuidGeneratorInterface
 {
     public function generate(): string
     {
-        $uuid = new UuidV7();
-
-        return $uuid->toString();
+        return (string) new UuidV7();
     }
 }

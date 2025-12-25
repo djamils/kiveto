@@ -17,11 +17,15 @@ abstract class AbstractDomainEvent implements DomainEventInterface
 {
     /**
      * Override in child event (e.g. "auth", "clinic", "billing").
+     *
+     * @var string
      */
     protected const BOUNDED_CONTEXT = 'shared';
 
     /**
      * Increment only for breaking payload changes.
+     *
+     * @var int
      */
     protected const VERSION = 1;
 
@@ -29,7 +33,7 @@ abstract class AbstractDomainEvent implements DomainEventInterface
 
     private readonly \DateTimeImmutable $occurredAt;
 
-    final public function __construct(string $eventId, \DateTimeImmutable $occurredAt)
+    public function __construct(string $eventId, \DateTimeImmutable $occurredAt)
     {
         $this->eventId    = $eventId;
         $this->occurredAt = $occurredAt;
@@ -49,12 +53,17 @@ abstract class AbstractDomainEvent implements DomainEventInterface
     {
         [$aggregate, $action] = self::inferAggregateAndActionFromClass(static::class);
 
+        /** @var string $boundedContext */
+        $boundedContext = static::BOUNDED_CONTEXT;
+        /** @var int $version */
+        $version = static::VERSION;
+
         return \sprintf(
             '%s.%s.%s.v%d',
-            static::BOUNDED_CONTEXT,
+            $boundedContext,
             self::toKebabLower($aggregate),
             self::toKebabLower($action),
-            static::VERSION,
+            $version,
         );
     }
 
