@@ -213,35 +213,35 @@ ci: php-cs-fixer.dry-run phpcs phpstan test
 
 phpstan:
 	@$(call step,Running PHPStan...)
-	$(Q)$(call run,$(EXEC_PHP) vendor/bin/phpstan analyse)
+	$(Q)$(EXEC_PHP) vendor/bin/phpstan analyse
 	@$(call ok,PHPStan passed)
 
 phpcs:
 	@$(call step,Running PHPCS...)
-	$(Q)$(call run,$(EXEC_PHP) vendor/bin/phpcs)
+	$(Q)$(EXEC_PHP) vendor/bin/phpcs
 	@$(call ok,PHPCS passed)
 
 phpcbf:
 	@$(call step,Running PHPCBF...)
-	$(Q)$(call run,$(EXEC_PHP) vendor/bin/phpcbf src/ tests/ -v)
+	$(Q)$(EXEC_PHP) vendor/bin/phpcbf src/ tests/ -v
 	@$(call ok,PHPCBF finished)
 
 php-cs-fixer:
 	@$(call step,Running PHP-CS-Fixer...)
-	$(Q)$(call run,$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose)
+	$(Q)$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose
 	@$(call ok,PHP-CS-Fixer finished)
 
 php-cs-fixer.dry-run:
 	@$(call step,Running PHP-CS-Fixer (dry-run)...)
-	$(Q)$(call run,$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose --diff --dry-run)
+	$(Q)$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose --diff --dry-run
 	@$(call ok,PHP-CS-Fixer dry-run passed)
 
 test:
 	@$(call step,Running PHPUnit...)
-	$(Q)$(call run,$(EXEC_PHP) bin/phpunit)
+	$(Q)$(EXEC_PHP) bin/phpunit
 	@$(call ok,Tests passed)
 
 test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(call run,$(EXEC_PHP) bin/phpunit --coverage-html coverage --coverage-filter src/)
+	$(Q)$(EXEC_PHP) bin/phpunit --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
