@@ -129,8 +129,7 @@ final class RegisterUserHandler
 
         $event = $this->domainEventFactory->create(
             UserRegistered::class,
-            $userId,
-            $email
+            [$userId, $email]
         );
 
         $user->recordDomainEvent($event);
@@ -256,14 +255,13 @@ Crée des événements avec métadonnées auto-générées.
 
 **Convention** :
 - Les événements DOIVENT avoir `eventId` et `occurredAt` comme paramètres nommés
-- Les arguments du payload sont passés avant
+- Les arguments du payload sont passés dans un tableau
 
 ```php
 // ✅ Correct
 $event = $domainEventFactory->create(
     UserRegistered::class,
-    $userId,        // payload arg 1
-    $email          // payload arg 2
+    [$userId, $email]  // tableau d'arguments positionnels
     // eventId + occurredAt sont générés automatiquement
 );
 

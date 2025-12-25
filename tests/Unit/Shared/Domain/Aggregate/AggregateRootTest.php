@@ -58,4 +58,18 @@ final class AggregateRootTest extends TestCase
         $events = $aggregate->recordedDomainEvents();
         self::assertCount(2, $events);
     }
+
+    public function testClearDomainEventsRemovesAllRecordedEvents(): void
+    {
+        $aggregate = new TestAggregate();
+
+        $aggregate->doSomething();
+        $aggregate->doSomethingElse();
+
+        self::assertCount(2, $aggregate->recordedDomainEvents());
+
+        $aggregate->clearEvents();
+
+        self::assertCount(0, $aggregate->recordedDomainEvents());
+    }
 }

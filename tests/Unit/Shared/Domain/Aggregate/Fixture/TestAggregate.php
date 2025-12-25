@@ -17,4 +17,9 @@ final class TestAggregate extends AggregateRoot
     {
         $this->recordDomainEvent(new TestEvent('event-2', 'aggregate-1'));
     }
+
+    public function clearEvents(): void
+    {
+        $this->clearDomainEvents();
+    }
 }

@@ -16,11 +16,11 @@ final class DomainEventFactory implements DomainEventFactoryInterface
     ) {
     }
 
-    public function create(string $eventClass, mixed ...$payloadArgs): DomainEventInterface
+    public function create(string $eventClass, array $args): DomainEventInterface
     {
-        /* @var DomainEventInterface $event */
+        /** @var DomainEventInterface $event */
         return new $eventClass(
-            ...$payloadArgs,
+            ...$args,
             eventId: $this->uuidGenerator->generate(),
             occurredAt: $this->clock->now(),
         );

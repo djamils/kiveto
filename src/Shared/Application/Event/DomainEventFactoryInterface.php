@@ -18,8 +18,9 @@ interface DomainEventFactoryInterface
      * @template T of DomainEventInterface
      *
      * @param class-string<T> $eventClass
+     * @param array<string, mixed> $args
      *
      * @return T
      */
-    public function create(string $eventClass, mixed ...$payloadArgs): DomainEventInterface;
+    public function create(string $eventClass, array $args): DomainEventInterface;
 }

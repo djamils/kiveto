@@ -26,8 +26,8 @@ final class DomainEventFactoryTest extends TestCase
         $factory = new DomainEventFactory($uuidGenerator, $clock);
 
         $event = $factory->create(FactoryEvent::class, [
-            'userId' => 'user-123',
-            'email' => 'test@example.com',
+            'user-123',
+            'test@example.com',
         ]);
 
         self::assertInstanceOf(FactoryEvent::class, $event);
