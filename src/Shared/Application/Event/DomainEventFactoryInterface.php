@@ -13,12 +13,12 @@ interface DomainEventFactoryInterface
      *
      * Convention:
      * - Event constructors MUST accept named parameters "eventId" and "occurredAt".
-     * - Payload arguments are passed positionally before them.
+     * - Payload arguments are passed as an array.
      *
      * @template T of DomainEventInterface
      *
      * @param class-string<T> $eventClass
-     * @param array<string, mixed> $args
+     * @param list<mixed>     $args
      *
      * @return T
      */

@@ -24,4 +24,3 @@ final class InvoiceItemAdded extends AbstractDomainEvent
         ];
     }
 }
-

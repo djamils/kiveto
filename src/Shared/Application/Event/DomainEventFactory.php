@@ -18,7 +18,7 @@ final class DomainEventFactory implements DomainEventFactoryInterface
 
     public function create(string $eventClass, array $args): DomainEventInterface
     {
-        /** @var DomainEventInterface $event */
+        /* @var DomainEventInterface $event */
         return new $eventClass(
             ...$args,
             eventId: $this->uuidGenerator->generate(),

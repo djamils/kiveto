@@ -14,7 +14,7 @@ final class DomainEventFactoryTest extends TestCase
 {
     public function testCreatesEventWithGeneratedMetadata(): void
     {
-        $expectedEventId = '01234567-89ab-cdef-0123-456789abcdef';
+        $expectedEventId    = '01234567-89ab-cdef-0123-456789abcdef';
         $expectedOccurredAt = new \DateTimeImmutable('2025-01-01 12:00:00');
 
         $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);

@@ -23,4 +23,3 @@ final class UserRegistered extends AbstractDomainEvent
         ];
     }
 }
-

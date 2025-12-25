@@ -24,4 +24,3 @@ final class AnimalCreated extends AbstractDomainEvent
         ];
     }
 }
-
