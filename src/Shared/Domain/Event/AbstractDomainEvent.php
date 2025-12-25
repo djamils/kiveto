@@ -29,26 +29,6 @@ abstract class AbstractDomainEvent implements DomainEventInterface
      */
     protected const VERSION = 1;
 
-    private readonly string $eventId;
-
-    private readonly \DateTimeImmutable $occurredAt;
-
-    public function __construct(string $eventId, \DateTimeImmutable $occurredAt)
-    {
-        $this->eventId    = $eventId;
-        $this->occurredAt = $occurredAt;
-    }
-
-    final public function eventId(): string
-    {
-        return $this->eventId;
-    }
-
-    final public function occurredAt(): \DateTimeImmutable
-    {
-        return $this->occurredAt;
-    }
-
     final public function type(): string
     {
         [$aggregate, $action] = self::inferAggregateAndActionFromClass(static::class);

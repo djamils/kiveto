@@ -9,11 +9,7 @@ use App\Shared\Domain\Event\DomainEventInterface;
 interface DomainEventFactoryInterface
 {
     /**
-     * Creates a domain event with generated eventId + occurredAt.
-     *
-     * Convention:
-     * - Event constructors MUST accept named parameters "eventId" and "occurredAt".
-     * - Payload arguments are passed as an array.
+     * Creates a domain event (pure event, no metadata).
      *
      * @template T of DomainEventInterface
      *

@@ -7,19 +7,9 @@ namespace App\Shared\Domain\Event;
 interface DomainEventInterface
 {
     /**
-     * Unique event identifier (tracing/idempotency/replay).
-     */
-    public function eventId(): string;
-
-    /**
      * Aggregate identifier related to this event.
      */
     public function aggregateId(): string;
-
-    /**
-     * When the event occurred.
-     */
-    public function occurredAt(): \DateTimeImmutable;
 
     /**
      * Stable event type used for routing/serialization.
