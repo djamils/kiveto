@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Presentation\Controller;
 
 use App\IdentityAccess\Application\Command\RegisterUser\RegisterUser;
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetails;
