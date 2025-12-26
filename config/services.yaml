@@ -42,17 +42,17 @@ services:
     App\Shared\Application\Bus\CommandBusInterface:
         class: App\Shared\Infrastructure\Bus\Messenger\CommandBus
         arguments:
-            $bus: '@messenger.bus.command'
+            $messageBus: '@messenger.bus.command'
 
     App\Shared\Application\Bus\QueryBusInterface:
         class: App\Shared\Infrastructure\Bus\Messenger\QueryBus
         arguments:
-            $bus: '@messenger.bus.query'
+            $messageBus: '@messenger.bus.query'
 
     App\Shared\Application\Bus\EventBusInterface:
         class: App\Shared\Infrastructure\Bus\Messenger\EventBus
         arguments:
-            $bus: '@messenger.bus.event'
+            $messageBus: '@messenger.bus.event'
 
     # Doctrine naming strategy with BC prefix
     app.orm.naming_strategy.bounded_context_prefix:
