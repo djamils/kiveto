@@ -18,12 +18,12 @@ final class DomainEventMessageFactoryTest extends TestCase
         $uuidGenerator->method('generate')->willReturn('00000000-0000-0000-0000-000000000001');
 
         $occurredAt = new \DateTimeImmutable('2025-01-01T12:00:00+00:00');
-        $clock = $this->createStub(ClockInterface::class);
+        $clock      = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn($occurredAt);
 
         $factory = new DomainEventMessageFactory($uuidGenerator, $clock);
 
-        $event = new class() implements DomainEventInterface {
+        $event = new class implements DomainEventInterface {
             public function aggregateId(): string
             {
                 return 'agg-1';
@@ -47,4 +47,3 @@ final class DomainEventMessageFactoryTest extends TestCase
         self::assertSame($event, $message->event());
     }
 }
-

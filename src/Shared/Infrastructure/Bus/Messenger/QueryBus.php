@@ -27,4 +27,3 @@ class QueryBus implements QueryBusInterface
         }
     }
 }
-

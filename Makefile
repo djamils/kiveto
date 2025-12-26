@@ -15,6 +15,8 @@ APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 
 LOG_FILE ?= var/log/make.log
 
+PHPSTAN_MEMORY ?= 512M
+
 # Verbose mode: make reset V=1
 V ?= 0
 
@@ -244,7 +246,7 @@ ci: php-cs-fixer.dry-run phpcs phpstan test
 
 phpstan:
 	@$(call step,Running PHPStan...)
-	$(Q)$(EXEC_PHP) vendor/bin/phpstan analyse
+	$(Q)$(EXEC_PHP) vendor/bin/phpstan analyse --memory-limit=$(PHPSTAN_MEMORY)
 	@$(call ok,PHPStan passed)
 
 phpcs:

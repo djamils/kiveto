@@ -8,6 +8,10 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+
+        # Custom types for Value Objects
+        types:
+            user_id: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Type\UserIdType
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
@@ -18,12 +22,19 @@ doctrine:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
         auto_mapping: false
         mappings:
-            App:
+            IdentityAccess:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
+                dir: '%kernel.project_dir%/src/IdentityAccess/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity'
+                alias: IdentityAccess
+            # Add other BC mappings here when they have Doctrine entities, e.g.:
+            # FeatureFlag:
+            #     type: attribute
+            #     is_bundle: false
+            #     dir: '%kernel.project_dir%/src/FeatureFlag/Infrastructure/Persistence/Doctrine/Entity'
+            #     prefix: 'App\FeatureFlag\Infrastructure\Persistence\Doctrine\Entity'
+            #     alias: FeatureFlag
         controller_resolver:
             auto_mapping: false
 

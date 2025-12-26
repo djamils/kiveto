@@ -20,4 +20,3 @@ readonly class EventBus implements EventBusInterface
         }
     }
 }
-

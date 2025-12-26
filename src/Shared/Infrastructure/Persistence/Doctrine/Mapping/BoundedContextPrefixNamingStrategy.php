@@ -19,10 +19,10 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
     public function classToTableName($className): string
     {
         $prefix = $this->prefixFor($className);
-        $table = $this->inner->classToTableName($className);
+        $table  = $this->inner->classToTableName($className);
         $plural = $this->pluralize($table);
 
-        return '' === $prefix ? $plural : $prefix.'__'.$plural;
+        return '' === $prefix ? $plural : $prefix . '__' . $plural;
     }
 
     public function propertyToColumnName($propertyName, $className = null): string
@@ -30,7 +30,7 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         return $this->inner->propertyToColumnName($propertyName, $className);
     }
 
-    public function embeddedFieldToColumnName($propertyName, $embeddedColumnName, $className = null, string $embeddedClassName): string
+    public function embeddedFieldToColumnName($propertyName, $embeddedColumnName, $className, string $embeddedClassName): string
     {
         return $this->inner->embeddedFieldToColumnName($propertyName, $embeddedColumnName, $className, $embeddedClassName);
     }
@@ -48,9 +48,9 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
     public function joinTableName($sourceEntity, $targetEntity, $propertyName = null): string
     {
         $prefix = $this->prefixFor($sourceEntity);
-        $table = $this->inner->joinTableName($sourceEntity, $targetEntity, $propertyName);
+        $table  = $this->inner->joinTableName($sourceEntity, $targetEntity, $propertyName);
 
-        return '' === $prefix ? $table : $prefix.'__'.$table;
+        return '' === $prefix ? $table : $prefix . '__' . $table;
     }
 
     public function joinKeyColumnName($entityName, $referencedColumnName = null): string
@@ -83,4 +83,3 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         return $plural[0] ?? $table;
     }
 }
-

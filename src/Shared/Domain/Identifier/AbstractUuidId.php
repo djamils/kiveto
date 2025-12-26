@@ -8,7 +8,7 @@ abstract class AbstractUuidId
 {
     public function __construct(protected string $value)
     {
-        $value = \trim($value);
+        $value = mb_trim($value);
 
         if ('' === $value) {
             throw new \InvalidArgumentException('Identifier cannot be empty.');
@@ -17,12 +17,12 @@ abstract class AbstractUuidId
         $this->value = $value;
     }
 
-    public function toString(): string
+    public function __toString(): string
     {
         return $this->value;
     }
 
-    public function __toString(): string
+    public function toString(): string
     {
         return $this->value;
     }
@@ -32,4 +32,3 @@ abstract class AbstractUuidId
         return static::class === $other::class && $this->value === $other->value;
     }
 }
-

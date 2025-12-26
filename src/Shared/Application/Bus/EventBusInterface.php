@@ -11,4 +11,3 @@ interface EventBusInterface
      */
     public function publish(object ...$events): void;
 }
-

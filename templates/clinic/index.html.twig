@@ -4,4 +4,16 @@
     <h1>Kiveto</h1>
 
     <span data-controller="hello"></span>
+
+    {% if demo_user_id is defined %}
+        <div class="alert alert-success mt-3">
+            <div><strong>User created:</strong> {{ demo_user_id }}</div>
+            {% if demo_user %}
+                <div>Email: {{ demo_user.email }}</div>
+                <div>Created at: {{ demo_user.createdAt }}</div>
+            {% else %}
+                <div class="text-warning">No user details found.</div>
+            {% endif %}
+        </div>
+    {% endif %}
 {% endblock %}
