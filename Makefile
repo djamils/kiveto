@@ -132,6 +132,7 @@ install:
 	$(MAKE) vendor; \
 	$(MAKE) wait-db; \
 	$(MAKE) init-db; \
+	$(MAKE) migrate-db; \
 	$(MAKE) ready
 
 clean:

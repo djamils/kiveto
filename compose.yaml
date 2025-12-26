@@ -47,6 +47,20 @@ services:
     networks:
       - kiveto-network
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2
+    depends_on:
+      - db
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=k!v3t0
+    ports:
+      - "8081:80"
+    networks:
+      - kiveto-network
+
 volumes:
   mysql_data:
     driver: local
