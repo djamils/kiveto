@@ -1,6 +1,10 @@
 doctrine_migrations:
     migrations_paths:
-        # namespace is arbitrary but should be different from App\Migrations
-        # as migrations classes should NOT be autoloaded
-        'DoctrineMigrations': '%kernel.project_dir%/migrations'
-    enable_profiler: false
+        'DoctrineMigrations\IdentityAccess': '%kernel.project_dir%/migrations/IdentityAccess'
+        'DoctrineMigrations\Shared': '%kernel.project_dir%/migrations/Shared'
+    enable_profiler: '%kernel.debug%'
+    transactional: true
+    check_database_platform: true
+    storage:
+        table_storage:
+            table_name: shared__migration_versions

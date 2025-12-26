@@ -53,3 +53,18 @@ services:
         class: App\Shared\Infrastructure\Bus\Messenger\EventBus
         arguments:
             $bus: '@messenger.bus.event'
+
+    # Doctrine naming strategy with BC prefix
+    app.orm.naming_strategy.bounded_context_prefix:
+        class: App\Shared\Infrastructure\Persistence\Doctrine\Mapping\BoundedContextPrefixNamingStrategy
+        arguments:
+            - '@doctrine.orm.naming_strategy.underscore_number_aware'
+
+    # ============================================================================
+    # BOUNDED CONTEXT: IDENTITY ACCESS
+    # ============================================================================
+
+    App\IdentityAccess\Domain\Repository\UserRepositoryInterface:
+        class: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineUserRepository
+
+    App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~

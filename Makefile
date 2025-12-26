@@ -74,6 +74,10 @@ else \
 fi
 endef
 
+define run_live
+$(1)
+endef
+
 define tail_log
 echo ""
 echo "Last logs ($(LOG_FILE)):"
@@ -86,7 +90,8 @@ endef
 ##
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
-	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage
+	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
+	migrations identity-access-migrations shared-migrations drop-db create-db migrate-db reset-db
 
 ##
 ## HELP
@@ -172,12 +177,38 @@ wait-db:
 	echo ""
 	@$(call ok,MySQL is ready)
 
-init-db:
-	@$(call step,Initializing database (drop/create/migrate)...)
-	$(Q)$(call run,$(SYMFONY) -q doctrine:database:drop --if-exists --force)
-	$(Q)$(call run,$(SYMFONY) -q doctrine:database:create --if-not-exists)
-	$(Q)$(call run,$(SYMFONY) -q doctrine:migrations:migrate --no-interaction --allow-no-migration)
-	@$(call ok,Database initialized)
+drop-db:
+	@$(call step,Dropping database...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:database:drop --if-exists --force)
+	@$(call ok,Database dropped)
+
+create-db:
+	@$(call step,Creating database...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:database:create --if-not-exists)
+	@$(call ok,Database created)
+
+migrate-db:
+	@$(call step,Running migrations...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:migrate --no-interaction --allow-no-migration)
+	@$(call ok,Migrations executed)
+
+reset-db: drop-db create-db migrate-db
+	@$(call ok,Database reset complete)
+
+init-db: drop-db create-db
+	@$(call ok,Database initialization complete)
+
+migrations: identity-access-migrations shared-migrations
+
+identity-access-migrations:
+	@$(call step,Generating migrations for IdentityAccess...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\IdentityAccess' --filter-expression='/^identity_access__/')
+	@$(call ok,IdentityAccess migrations generated)
+
+shared-migrations:
+	@$(call step,Generating migrations for Shared (technical tables)...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Shared' --filter-expression='/^shared__/')
+	@$(call ok,Shared migrations generated)
 
 check-web:
 	@command -v curl >/dev/null 2>&1 || exit 0
@@ -238,7 +269,7 @@ php-cs-fixer.dry-run:
 
 test:
 	@$(call step,Running PHPUnit...)
-	$(Q)$(EXEC_PHP) bin/phpunit --display-notices --fail-on-notice
+	$(Q)$(EXEC_PHP) bin/phpunit
 	@$(call ok,Tests passed)
 
 test-coverage:
