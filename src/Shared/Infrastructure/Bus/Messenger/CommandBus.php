@@ -13,9 +13,9 @@ class CommandBus implements CommandBusInterface
 {
     use HandleTrait;
 
-    public function __construct(private readonly MessageBusInterface $bus)
+    public function __construct(MessageBusInterface $messageBus)
     {
-        $this->messageBus = $bus;
+        $this->messageBus = $messageBus;
     }
 
     public function dispatch(object $command): mixed

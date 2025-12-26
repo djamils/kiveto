@@ -24,6 +24,7 @@ class HomeController extends AbstractController
     public function index(): Response
     {
         // Demo: dispatch a command then query
+        /** @var string $userId */
         $userId = $this->commandBus->dispatch(new RegisterUser(
             email: 'demo@example.com',
             passwordHash: '$argon2id$dummy-hash',

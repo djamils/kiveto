@@ -6,10 +6,10 @@ namespace App\Tests\Unit\Shared\Domain\Event\Fixture;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
-final class InvoiceItemAdded extends AbstractDomainEvent
+final readonly class InvoiceItemAdded extends AbstractDomainEvent
 {
-    protected const BOUNDED_CONTEXT = 'test-bc';
-    protected const VERSION         = 1;
+    protected const string BOUNDED_CONTEXT = 'test-bc';
+    protected const int    VERSION         = 1;
 
     public function aggregateId(): string
     {

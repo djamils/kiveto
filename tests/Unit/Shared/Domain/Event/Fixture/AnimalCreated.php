@@ -6,10 +6,10 @@ namespace App\Tests\Unit\Shared\Domain\Event\Fixture;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
-final class AnimalCreated extends AbstractDomainEvent
+final readonly class AnimalCreated extends AbstractDomainEvent
 {
-    protected const BOUNDED_CONTEXT = 'test-bc';
-    protected const VERSION         = 2;
+    protected const string BOUNDED_CONTEXT = 'test-bc';
+    protected const int    VERSION         = 2;
 
     public function aggregateId(): string
     {

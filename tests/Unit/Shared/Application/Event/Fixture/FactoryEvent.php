@@ -6,18 +6,15 @@ namespace App\Tests\Unit\Shared\Application\Event\Fixture;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
-final class FactoryEvent extends AbstractDomainEvent
+final readonly class FactoryEvent extends AbstractDomainEvent
 {
-    protected const BOUNDED_CONTEXT = 'test';
-    protected const VERSION         = 1;
+    protected const string BOUNDED_CONTEXT = 'test';
+    protected const int    VERSION         = 1;
 
     public function __construct(
-        private readonly string $userId,
-        private readonly string $email,
-        string $eventId,
-        \DateTimeImmutable $occurredAt,
+        private string $userId,
+        private string $email,
     ) {
-        parent::__construct($eventId, $occurredAt);
     }
 
     public function aggregateId(): string

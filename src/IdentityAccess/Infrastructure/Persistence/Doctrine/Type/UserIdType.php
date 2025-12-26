@@ -22,9 +22,7 @@ final class UserIdType extends Type
         return $platform->getGuidTypeDeclarationSQL($column);
     }
 
-    /**
-     * @param UserId|string|null $value
-     */
+    /** @param mixed $value */
     public function convertToDatabaseValue($value, AbstractPlatform $platform): ?string
     {
         if (null === $value) {

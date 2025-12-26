@@ -16,7 +16,7 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         $this->inflector = new EnglishInflector();
     }
 
-    public function classToTableName($className): string
+    public function classToTableName(string $className): string
     {
         $prefix = $this->prefixFor($className);
         $table  = $this->inner->classToTableName($className);
@@ -25,14 +25,26 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         return '' === $prefix ? $plural : $prefix . '__' . $plural;
     }
 
-    public function propertyToColumnName($propertyName, $className = null): string
+    /**
+     * @param class-string $className
+     */
+    public function propertyToColumnName(string $propertyName, string $className): string
     {
         return $this->inner->propertyToColumnName($propertyName, $className);
     }
 
-    public function embeddedFieldToColumnName($propertyName, $embeddedColumnName, $className, string $embeddedClassName): string
-    {
-        return $this->inner->embeddedFieldToColumnName($propertyName, $embeddedColumnName, $className, $embeddedClassName);
+    public function embeddedFieldToColumnName(
+        string $propertyName,
+        string $embeddedColumnName,
+        string $className,
+        string $embeddedClassName,
+    ): string {
+        return $this->inner->embeddedFieldToColumnName(
+            $propertyName,
+            $embeddedColumnName,
+            $className,
+            $embeddedClassName,
+        );
     }
 
     public function referenceColumnName(): string
@@ -40,20 +52,26 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         return $this->inner->referenceColumnName();
     }
 
-    public function joinColumnName($propertyName, $className = null): string
+    /**
+     * @param class-string $className
+     */
+    public function joinColumnName(string $propertyName, string $className): string
     {
         return $this->inner->joinColumnName($propertyName, $className);
     }
 
-    public function joinTableName($sourceEntity, $targetEntity, $propertyName = null): string
-    {
+    public function joinTableName(
+        string $sourceEntity,
+        string $targetEntity,
+        string $propertyName,
+    ): string {
         $prefix = $this->prefixFor($sourceEntity);
         $table  = $this->inner->joinTableName($sourceEntity, $targetEntity, $propertyName);
 
         return '' === $prefix ? $table : $prefix . '__' . $table;
     }
 
-    public function joinKeyColumnName($entityName, $referencedColumnName = null): string
+    public function joinKeyColumnName(string $entityName, ?string $referencedColumnName = null): string
     {
         return $this->inner->joinKeyColumnName($entityName, $referencedColumnName);
     }

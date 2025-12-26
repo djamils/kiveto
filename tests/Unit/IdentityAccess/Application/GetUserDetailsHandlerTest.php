@@ -22,7 +22,6 @@ final class GetUserDetailsHandlerTest extends TestCase
             $userId,
             'user@example.com',
             '$hash',
-            '22222222-2222-2222-2222-222222222222',
             $createdAt,
         );
         $repo->save($user);
