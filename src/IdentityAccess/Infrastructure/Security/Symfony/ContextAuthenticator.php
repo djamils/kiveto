@@ -43,7 +43,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
             $email    = $payload['email'] ?? null;
             $password = $payload['password'] ?? null;
 
-            if (!\is_string($email) || !\is_string($password) || '' === trim($email) || '' === $password) {
+            if (!\is_string($email) || !\is_string($password) || '' === mb_trim($email) || '' === $password) {
                 throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
             }
 
