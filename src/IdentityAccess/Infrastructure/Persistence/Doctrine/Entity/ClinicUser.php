@@ -15,4 +15,3 @@ final class ClinicUser extends User
         return UserType::CLINIC;
     }
 }
-

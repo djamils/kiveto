@@ -13,10 +13,10 @@ final readonly class SecurityUser implements UserInterface
      * @param list<string> $roles
      */
     public function __construct(
-        private string   $id,
-        private string   $email,
+        private string $id,
+        private string $email,
         private UserType $type,
-        private array    $roles = ['ROLE_USER'],
+        private array $roles = ['ROLE_USER'],
     ) {
     }
 
@@ -50,4 +50,3 @@ final readonly class SecurityUser implements UserInterface
         return $this->type;
     }
 }
-

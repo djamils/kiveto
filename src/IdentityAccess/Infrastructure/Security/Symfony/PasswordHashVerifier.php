@@ -21,4 +21,3 @@ final readonly class PasswordHashVerifier implements PasswordHashVerifierInterfa
         return $hasher->verify($passwordHash, $plainPassword);
     }
 }
-

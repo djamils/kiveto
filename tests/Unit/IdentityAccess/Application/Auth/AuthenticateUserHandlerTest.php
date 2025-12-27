@@ -28,7 +28,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         $this->repo = new InMemoryUserRepository();
     }
 
-    public function test_success_when_credentials_and_context_match(): void
+    public function testSuccessWhenCredentialsAndContextMatch(): void
     {
         $user = User::register(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
@@ -53,7 +53,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         self::assertSame(UserType::CLINIC, $identity->type);
     }
 
-    public function test_denies_wrong_password(): void
+    public function testDeniesWrongPassword(): void
     {
         $user = User::register(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
@@ -75,7 +75,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         $handler(new AuthenticateUserQuery('clinic@example.com', 'wrong', AuthenticationContext::CLINIC));
     }
 
-    public function test_denies_wrong_context(): void
+    public function testDeniesWrongContext(): void
     {
         $user = User::register(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
@@ -97,7 +97,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 
-    public function test_denies_inactive_user(): void
+    public function testDeniesInactiveUser(): void
     {
         $user = User::reconstitute(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
@@ -121,7 +121,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::CLINIC));
     }
 
-    public function test_denies_portal_user_without_verified_email(): void
+    public function testDeniesPortalUserWithoutVerifiedEmail(): void
     {
         $user = User::reconstitute(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
@@ -145,4 +145,3 @@ final class AuthenticateUserHandlerTest extends TestCase
         $handler(new AuthenticateUserQuery('portal@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 }
-

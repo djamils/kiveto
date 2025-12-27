@@ -33,4 +33,3 @@ final class AuthenticationController extends AbstractController
         throw new \LogicException('Logout is handled by the firewall.');
     }
 }
-

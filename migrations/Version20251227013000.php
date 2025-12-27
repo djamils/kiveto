@@ -30,4 +30,3 @@ final class Version20251227013000 extends AbstractMigration
         $this->addSql('ALTER TABLE `user` DROP COLUMN user_type');
     }
 }
-

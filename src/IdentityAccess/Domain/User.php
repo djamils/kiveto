@@ -56,14 +56,14 @@ final class User extends AggregateRoot
         ?\DateTimeImmutable $emailVerifiedAt = null,
         ?UserType $type = null,
     ): self {
-        $user               = new self();
-        $user->id           = $id;
-        $user->email        = $email;
-        $user->passwordHash = $passwordHash;
-        $user->createdAt    = $createdAt;
-        $user->status       = $status;
+        $user                  = new self();
+        $user->id              = $id;
+        $user->email           = $email;
+        $user->passwordHash    = $passwordHash;
+        $user->createdAt       = $createdAt;
+        $user->status          = $status;
         $user->emailVerifiedAt = $emailVerifiedAt;
-        $user->type         = $type ?? UserType::CLINIC;
+        $user->type            = $type ?? UserType::CLINIC;
 
         return $user;
     }

@@ -15,4 +15,3 @@ final class PortalUser extends User
         return UserType::PORTAL;
     }
 }
-

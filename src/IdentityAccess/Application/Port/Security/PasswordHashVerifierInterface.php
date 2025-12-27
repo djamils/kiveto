@@ -8,4 +8,3 @@ interface PasswordHashVerifierInterface
 {
     public function verify(string $plainPassword, string $passwordHash): bool;
 }
-

@@ -10,4 +10,3 @@ enum UserType: string
     case PORTAL     = 'PORTAL';
     case BACKOFFICE = 'BACKOFFICE';
 }
-

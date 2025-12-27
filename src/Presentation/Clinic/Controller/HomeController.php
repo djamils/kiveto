@@ -7,6 +7,7 @@ namespace App\Presentation\Clinic\Controller;
 use App\IdentityAccess\Application\Command\RegisterUser\RegisterUser;
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetails;
 use App\IdentityAccess\Application\Query\GetUserDetails\UserDetails;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,16 +27,17 @@ class HomeController extends AbstractController
     {
         // Demo: dispatch a command then query
         /** @var string $userId */
-        /*$userId = $this->commandBus->dispatch(new RegisterUser(
-            email: 'demo@example.com',
+        $userId = $this->commandBus->dispatch(new RegisterUser(
+            email: \sprintf('demo%s@example.com', random_int(0, 1000000)),
             plainPassword: 'demo-password',
-        ));*/
+            type: UserType::CLINIC
+        ));
 
         /** @var UserDetails $user */
-        $user = $this->queryBus->ask(new GetUserDetails('019b5fc7-0b1d-7336-ba8c-150ecef42832'));
+        $user = $this->queryBus->ask(new GetUserDetails($userId));
 
         return $this->render('clinic/index.html.twig', [
-            'demo_user_id' => $user->id,
+            'demo_user_id' => $userId,
             'demo_user'    => $user,
         ]);
     }

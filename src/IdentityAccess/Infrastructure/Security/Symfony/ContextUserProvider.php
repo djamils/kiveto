@@ -29,7 +29,7 @@ final readonly class ContextUserProvider implements UserProviderInterface
 {
     public function __construct(
         private UserRepositoryInterface $users,
-        private UserType                $type,
+        private UserType $type,
     ) {
     }
 
@@ -38,7 +38,7 @@ final readonly class ContextUserProvider implements UserProviderInterface
         $user = $this->users->findByEmailAndType($identifier, $this->type);
 
         if (null === $user) {
-            throw new UserNotFoundException(sprintf('User "%s" not found.', $identifier));
+            throw new UserNotFoundException(\sprintf('User "%s" not found.', $identifier));
         }
 
         return new SecurityUser(
@@ -52,7 +52,7 @@ final readonly class ContextUserProvider implements UserProviderInterface
     public function refreshUser(UserInterface $user): UserInterface
     {
         if (!$user instanceof SecurityUser) {
-            throw new UnsupportedUserException(sprintf('Unsupported user class "%s".', $user::class));
+            throw new UnsupportedUserException(\sprintf('Unsupported user class "%s".', $user::class));
         }
 
         return $this->loadUserByIdentifier($user->getUserIdentifier());

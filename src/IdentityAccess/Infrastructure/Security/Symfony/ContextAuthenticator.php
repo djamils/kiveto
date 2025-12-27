@@ -7,10 +7,7 @@ namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationDeniedException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -42,7 +39,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
             $email    = $payload['email'] ?? null;
             $password = $payload['password'] ?? null;
 
-            if (!\is_string($email) || !\is_string($password) || '' === trim($email) || '' === $password) {
+            if (!\is_string($email) || !\is_string($password) || '' === mb_trim($email) || '' === $password) {
                 throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
             }
 
@@ -53,9 +50,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
             ));
         } catch (\JsonException $e) {
             throw new CustomUserMessageAuthenticationException('Invalid JSON payload.', [], 0, $e);
-        } catch (InvalidCredentialsException $e) {
-            throw new CustomUserMessageAuthenticationException($e->getMessage(), [], 0, $e);
-        } catch (AuthenticationContextMismatchException|AccountStatusNotAllowedException|EmailVerificationRequiredException $e) {
+        } catch (AuthenticationDeniedException $e) {
             throw new CustomUserMessageAuthenticationException($e->getMessage(), [], 0, $e);
         }
 
@@ -74,7 +69,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        $status = $this->statusCodeFor($exception);
+        $status  = $this->statusCodeFor($exception);
         $message = $exception->getMessageKey();
 
         return new JsonResponse(['message' => $message], $status);
@@ -101,15 +96,10 @@ final class ContextAuthenticator extends AbstractAuthenticator
     {
         $previous = $exception->getPrevious();
 
-        if ($previous instanceof InvalidCredentialsException) {
-            return JsonResponse::HTTP_UNAUTHORIZED;
-        }
-
-        if ($previous instanceof AuthenticationContextMismatchException || $previous instanceof AccountStatusNotAllowedException || $previous instanceof EmailVerificationRequiredException) {
-            return JsonResponse::HTTP_FORBIDDEN;
+        if ($previous instanceof AuthenticationDeniedException) {
+            return $previous->httpStatusCode();
         }
 
         return JsonResponse::HTTP_UNAUTHORIZED;
     }
 }
-

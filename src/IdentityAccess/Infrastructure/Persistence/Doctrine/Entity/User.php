@@ -14,8 +14,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'user_type', type: 'string')]
 #[ORM\DiscriminatorMap([
-    'CLINIC' => ClinicUser::class,
-    'PORTAL' => PortalUser::class,
+    'CLINIC'     => ClinicUser::class,
+    'PORTAL'     => PortalUser::class,
     'BACKOFFICE' => BackofficeUser::class,
 ])]
 abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -121,4 +121,3 @@ abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     abstract public function getType(): UserType;
 }
-
