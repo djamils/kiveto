@@ -21,7 +21,7 @@ class HomeController extends AbstractController
     ) {
     }
 
-    #[Route('/', name: 'app_home')]
+    #[Route('/', name: 'clinic_home')]
     public function index(): Response
     {
         // Demo: dispatch a command then query
@@ -40,7 +40,7 @@ class HomeController extends AbstractController
         ]);
     }
 
-    #[Route('/dashboard-layout14', name: 'app_dashboard_layout14')]
+    #[Route('/dashboard-layout14', name: 'clinic_dashboard_layout14')]
     public function dashboardLayout14(): Response
     {
         return $this->render('clinic/dashboard-layout14.html.twig');

@@ -7,16 +7,16 @@ namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 use App\IdentityAccess\Domain\UserType;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-final class SecurityUser implements UserInterface
+final readonly class SecurityUser implements UserInterface
 {
     /**
      * @param list<string> $roles
      */
     public function __construct(
-        private readonly string $id,
-        private readonly string $email,
-        private readonly UserType $type,
-        private array $roles = ['ROLE_USER'],
+        private string   $id,
+        private string   $email,
+        private UserType $type,
+        private array    $roles = ['ROLE_USER'],
     ) {
     }
 

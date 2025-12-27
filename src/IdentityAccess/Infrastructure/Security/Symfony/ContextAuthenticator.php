@@ -24,7 +24,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
 
 final class ContextAuthenticator extends AbstractAuthenticator
 {
-    public function __construct(private AuthenticateUserHandler $handler)
+    public function __construct(private readonly AuthenticateUserHandler $handler)
     {
     }
 
