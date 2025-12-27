@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Application\Query\AuthenticateUser;
 
 use App\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\IdentityAccess\Domain\UserStatus;
+use App\IdentityAccess\Domain\ValueObject\UserStatus;
 
 final readonly class AuthenticateUserHandler
 {

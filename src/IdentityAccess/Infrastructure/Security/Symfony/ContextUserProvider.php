@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\IdentityAccess\Domain\UserType;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserInterface;

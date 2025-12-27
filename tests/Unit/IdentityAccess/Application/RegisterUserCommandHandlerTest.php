@@ -32,7 +32,7 @@ final class RegisterUserCommandHandlerTest extends TestCase
 
         $userId = $handler(new RegisterUser('user@example.com', '$hashed'));
 
-        $stored = $repository->findById(\App\IdentityAccess\Domain\UserId::fromString($userId));
+        $stored = $repository->findById(\App\IdentityAccess\Domain\ValueObject\UserId::fromString($userId));
 
         self::assertNotNull($stored);
         self::assertSame('user@example.com', $stored->email());

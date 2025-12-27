@@ -7,7 +7,7 @@ namespace App\Tests\Unit\IdentityAccess\Application;
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetails;
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetailsHandler;
 use App\IdentityAccess\Domain\User;
-use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Infrastructure\Repository\InMemoryUserRepository;
 use PHPUnit\Framework\TestCase;
 
@@ -23,7 +23,7 @@ final class GetUserDetailsHandlerTest extends TestCase
             'user@example.com',
             '$hash',
             $createdAt,
-            \App\IdentityAccess\Domain\UserType::CLINIC,
+            \App\IdentityAccess\Domain\ValueObject\UserType::CLINIC,
         );
         $repo->save($user);
 

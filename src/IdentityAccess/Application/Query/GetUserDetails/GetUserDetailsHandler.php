@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Application\Query\GetUserDetails;
 
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Application\Query\AuthenticateUser;
 
-use App\IdentityAccess\Domain\UserType;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 
 final readonly class AuthenticatedUser
 {

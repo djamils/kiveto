@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Domain\Repository;
 
 use App\IdentityAccess\Domain\User;
-use App\IdentityAccess\Domain\UserId;
-use App\IdentityAccess\Domain\UserType;
+use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 
 interface UserRepositoryInterface
 {

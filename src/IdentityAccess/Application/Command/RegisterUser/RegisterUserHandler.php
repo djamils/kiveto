@@ -6,12 +6,12 @@ namespace App\IdentityAccess\Application\Command\RegisterUser;
 
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
-use App\IdentityAccess\Domain\UserId;
-use App\IdentityAccess\Domain\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as DoctrineUser;
+use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserType;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as DoctrineUser;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

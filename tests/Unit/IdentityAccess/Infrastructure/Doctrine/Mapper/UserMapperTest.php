@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\IdentityAccess\Infrastructure\Doctrine\Mapper;
 
 use App\IdentityAccess\Domain\User;
-use App\IdentityAccess\Domain\UserId;
-use App\IdentityAccess\Domain\UserStatus;
+use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as DoctrineUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use PHPUnit\Framework\TestCase;
@@ -22,7 +22,7 @@ final class UserMapperTest extends TestCase
             new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
             UserStatus::ACTIVE,
             new \DateTimeImmutable('2025-01-02T10:00:00+00:00'),
-            \App\IdentityAccess\Domain\UserType::PORTAL,
+            \App\IdentityAccess\Domain\ValueObject\UserType::PORTAL,
         );
 
         $mapper    = new UserMapper();

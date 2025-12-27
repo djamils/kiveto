@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Domain;
 
 use App\IdentityAccess\Domain\Event\UserRegistered;
+use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserStatus;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 use App\Shared\Domain\Aggregate\AggregateRoot;
-use App\IdentityAccess\Domain\UserType;
 
 final class User extends AggregateRoot
 {

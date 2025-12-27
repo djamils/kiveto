@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\IdentityAccess\Domain;
+namespace App\IdentityAccess\Domain\ValueObject;
 
 enum UserStatus: string
 {

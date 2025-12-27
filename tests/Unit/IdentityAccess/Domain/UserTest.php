@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\IdentityAccess\Domain;
 
 use App\IdentityAccess\Domain\User;
-use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserId;
 use PHPUnit\Framework\TestCase;
 
 final class UserTest extends TestCase
@@ -20,7 +20,7 @@ final class UserTest extends TestCase
             'user@example.com',
             '$hashed',
             $createdAt,
-            \App\IdentityAccess\Domain\UserType::CLINIC,
+            \App\IdentityAccess\Domain\ValueObject\UserType::CLINIC,
         );
 
         $events = $user->recordedDomainEvents();
@@ -29,7 +29,7 @@ final class UserTest extends TestCase
 
         self::assertSame('identity-access.user.registered.v1', $event->type());
         self::assertSame('11111111-1111-1111-1111-111111111111', $event->aggregateId());
-        self::assertSame(\App\IdentityAccess\Domain\UserStatus::ACTIVE->value, $user->status()->value);
+        self::assertSame(\App\IdentityAccess\Domain\ValueObject\UserStatus::ACTIVE->value, $user->status()->value);
         self::assertNull($user->emailVerifiedAt());
     }
 }

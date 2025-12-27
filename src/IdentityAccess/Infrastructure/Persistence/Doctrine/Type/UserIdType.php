@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Type;
 
-use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserId;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 

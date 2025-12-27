@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
-use App\IdentityAccess\Domain\UserType;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 final readonly class SecurityUser implements UserInterface

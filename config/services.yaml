@@ -35,19 +35,19 @@ services:
         class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\UserType::CLINIC
+            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::CLINIC
 
     App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
         class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\UserType::PORTAL
+            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::PORTAL
 
     App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
         class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\UserType::BACKOFFICE
+            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::BACKOFFICE
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

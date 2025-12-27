@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\IdentityAccess\Domain\User as DomainUser;
-use App\IdentityAccess\Domain\UserId;
-use App\IdentityAccess\Domain\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
+use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\IdentityAccess\Domain\ValueObject\UserType;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
 
 final class UserMapper
 {

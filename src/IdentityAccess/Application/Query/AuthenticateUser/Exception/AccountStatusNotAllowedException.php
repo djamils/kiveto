@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Application\Query\AuthenticateUser\Exception;
 
-use App\IdentityAccess\Domain\UserStatus;
+use App\IdentityAccess\Domain\ValueObject\UserStatus;
 
 final class AccountStatusNotAllowedException extends \RuntimeException
 {

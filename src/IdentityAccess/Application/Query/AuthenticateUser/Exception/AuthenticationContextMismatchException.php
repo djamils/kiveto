@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\IdentityAccess\Application\Query\AuthenticateUser\Exception;
 
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
-use App\IdentityAccess\Domain\UserType;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 
 final class AuthenticationContextMismatchException extends \RuntimeException
 {
