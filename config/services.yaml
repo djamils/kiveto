@@ -19,9 +19,17 @@ services:
     App\:
         resource: '../src/'
 
-    App\Presentation\Controller\:
-        resource: '../src/Presentation/Controller/'
-        tags: [ 'controller.service_arguments' ]
+    App\Presentation\Clinic\Controller\:
+        resource: '../src/Presentation/Clinic/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Presentation\Portal\Controller\:
+        resource: '../src/Presentation/Portal/Controller/'
+        tags: ['controller.service_arguments']
+
+    App\Presentation\Backoffice\Controller\:
+        resource: '../src/Presentation/Backoffice/Controller/'
+        tags: ['controller.service_arguments']
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

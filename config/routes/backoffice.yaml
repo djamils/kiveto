@@ -1,0 +1,4 @@
+backoffice:
+    resource: ../../src/Presentation/Backoffice/Controller/
+    type: attribute
+    host: 'backoffice.kiveto.local'

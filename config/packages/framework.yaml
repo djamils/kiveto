@@ -12,7 +12,7 @@ framework:
         - '^localhost(:\d+)?$'
         - '^clinic\.kiveto\.local(:\d+)?$'
         - '^portal\.kiveto\.local(:\d+)?$'
-        - '^platform\.kiveto\.local(:\d+)?$'
+        - '^backoffice\.kiveto\.local(:\d+)?$'
 
 when@test:
     framework:

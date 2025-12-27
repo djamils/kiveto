@@ -1,0 +1,4 @@
+portal:
+    resource: ../../src/Presentation/Portal/Controller/
+    type: attribute
+    host: 'portal.kiveto.local'

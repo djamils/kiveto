@@ -1,0 +1,4 @@
+clinic:
+    resource: ../../src/Presentation/Clinic/Controller/
+    type: attribute
+    host: 'clinic.kiveto.local'
