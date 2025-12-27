@@ -47,24 +47,29 @@
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', // important for session cookies
                     body: JSON.stringify(payload),
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (response.ok) {
-                    message.textContent = 'Logged in successfully.';
+                    message.textContent = data.message ?? 'Logged in successfully.';
                     message.className = 'success';
-                    // Redirect to home/dashboard if needed
-                    // window.location.href = '/';
-                } else {
-                    const data = await response.json().catch(() => ({}));
-                    message.textContent = data.message ?? 'Login failed.';
-                    message.className = 'error';
+                    window.location.href = '/';
+                    return;
                 }
+
+                message.textContent = data.message ??
+                    data?.error?.code ??
+                    'Login failed.';
+                message.className = 'error';
             } catch (error) {
                 message.textContent = 'Network error.';
                 message.className = 'error';
             }
         });
+
     </script>
 </body>
 </html>

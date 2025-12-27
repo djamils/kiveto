@@ -17,4 +17,9 @@ final class AccountStatusNotAllowedException extends AuthenticationDeniedExcepti
     {
         return 403;
     }
+
+    public function errorCode(): string
+    {
+        return 'ACCOUNT_STATUS_NOT_ALLOWED';
+    }
 }

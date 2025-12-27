@@ -15,4 +15,9 @@ final class EmailVerificationRequiredException extends AuthenticationDeniedExcep
     {
         return 403;
     }
+
+    public function errorCode(): string
+    {
+        return 'EMAIL_VERIFICATION_REQUIRED';
+    }
 }

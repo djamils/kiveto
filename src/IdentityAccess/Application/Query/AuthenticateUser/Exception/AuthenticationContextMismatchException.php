@@ -18,4 +18,9 @@ final class AuthenticationContextMismatchException extends AuthenticationDeniedE
     {
         return 403;
     }
+
+    public function errorCode(): string
+    {
+        return 'CONTEXT_MISMATCH';
+    }
 }

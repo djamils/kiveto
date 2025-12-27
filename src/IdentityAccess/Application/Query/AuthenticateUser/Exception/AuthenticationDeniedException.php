@@ -10,4 +10,6 @@ abstract class AuthenticationDeniedException extends \RuntimeException
     {
         return 401;
     }
+
+    abstract public function errorCode(): string;
 }

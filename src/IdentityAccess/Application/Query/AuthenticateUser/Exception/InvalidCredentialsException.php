@@ -10,4 +10,9 @@ final class InvalidCredentialsException extends AuthenticationDeniedException
     {
         parent::__construct('Invalid email or password.');
     }
+
+    public function errorCode(): string
+    {
+        return 'INVALID_CREDENTIALS';
+    }
 }

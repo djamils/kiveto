@@ -73,10 +73,23 @@ final class ContextAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        $status  = $this->statusCodeFor($exception);
-        $message = $exception->getMessageKey();
+        $previous = $exception->getPrevious();
 
-        return new JsonResponse(['message' => $message], $status);
+        if ($previous instanceof AuthenticationDeniedException) {
+            return new JsonResponse([
+                'error' => [
+                    'code'    => $previous->errorCode(),
+                    'message' => $previous->getMessage(),
+                ],
+            ], $previous->httpStatusCode());
+        }
+
+        return new JsonResponse([
+            'error' => [
+                'code'    => 'AUTHENTICATION_FAILED',
+                'message' => 'Authentication failed.',
+            ],
+        ], JsonResponse::HTTP_UNAUTHORIZED);
     }
 
     private function resolveContext(Request $request): AuthenticationContext
@@ -94,16 +107,5 @@ final class ContextAuthenticator extends AbstractAuthenticator
         }
 
         throw new CustomUserMessageAuthenticationException('Unknown login context.');
-    }
-
-    private function statusCodeFor(AuthenticationException $exception): int
-    {
-        $previous = $exception->getPrevious();
-
-        if ($previous instanceof AuthenticationDeniedException) {
-            return $previous->httpStatusCode();
-        }
-
-        return JsonResponse::HTTP_UNAUTHORIZED;
     }
 }
