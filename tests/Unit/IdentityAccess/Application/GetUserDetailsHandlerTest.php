@@ -23,6 +23,7 @@ final class GetUserDetailsHandlerTest extends TestCase
             'user@example.com',
             '$hash',
             $createdAt,
+            \App\IdentityAccess\Domain\UserType::CLINIC,
         );
         $repo->save($user);
 
@@ -34,6 +35,8 @@ final class GetUserDetailsHandlerTest extends TestCase
         self::assertSame($userId->toString(), $dto->id);
         self::assertSame('user@example.com', $dto->email);
         self::assertSame($createdAt->format(\DateTimeInterface::ATOM), $dto->createdAt);
+        self::assertSame('ACTIVE', $dto->status);
+        self::assertNull($dto->emailVerifiedAt);
     }
 
     public function testReturnsNullWhenUserNotFound(): void

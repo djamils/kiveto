@@ -6,6 +6,7 @@ namespace App\IdentityAccess\Domain;
 
 use App\IdentityAccess\Domain\Event\UserRegistered;
 use App\Shared\Domain\Aggregate\AggregateRoot;
+use App\IdentityAccess\Domain\UserType;
 
 final class User extends AggregateRoot
 {
@@ -13,6 +14,9 @@ final class User extends AggregateRoot
     private string $email;
     private string $passwordHash;
     private \DateTimeImmutable $createdAt;
+    private UserStatus $status;
+    private ?\DateTimeImmutable $emailVerifiedAt = null;
+    private UserType $type;
 
     private function __construct()
     {
@@ -23,12 +27,15 @@ final class User extends AggregateRoot
         string $email,
         string $passwordHash,
         \DateTimeImmutable $createdAt,
+        UserType $type,
     ): self {
         $user               = new self();
         $user->id           = $id;
         $user->email        = $email;
         $user->passwordHash = $passwordHash;
         $user->createdAt    = $createdAt;
+        $user->status       = UserStatus::ACTIVE;
+        $user->type         = $type;
 
         $user->recordDomainEvent(new UserRegistered(
             userId: $id->toString(),
@@ -43,12 +50,18 @@ final class User extends AggregateRoot
         string $email,
         string $passwordHash,
         \DateTimeImmutable $createdAt,
+        UserStatus $status,
+        ?\DateTimeImmutable $emailVerifiedAt = null,
+        ?UserType $type = null,
     ): self {
         $user               = new self();
         $user->id           = $id;
         $user->email        = $email;
         $user->passwordHash = $passwordHash;
         $user->createdAt    = $createdAt;
+        $user->status       = $status;
+        $user->emailVerifiedAt = $emailVerifiedAt;
+        $user->type         = $type ?? UserType::CLINIC;
 
         return $user;
     }
@@ -71,5 +84,20 @@ final class User extends AggregateRoot
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function status(): UserStatus
+    {
+        return $this->status;
+    }
+
+    public function emailVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->emailVerifiedAt;
+    }
+
+    public function type(): UserType
+    {
+        return $this->type;
     }
 }

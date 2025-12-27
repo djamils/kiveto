@@ -3,13 +3,20 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
         App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User: 'auto'
+        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser: 'auto'
+        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser: 'auto'
+        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser: 'auto'
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        app_user_provider:
-            entity:
-                class: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User
-                property: email
+        clinic_user_provider:
+            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.clinic
+
+        portal_user_provider:
+            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.portal
+
+        backoffice_user_provider:
+            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.backoffice
 
     firewalls:
         dev:
@@ -18,49 +25,34 @@ security:
             security: false
 
         clinic:
-            # Clinic app (host-based firewall)
-            host: '^clinic\.kiveto\.local$'
-            pattern: ^/
             lazy: true
-            provider: app_user_provider
-            user_checker: App\IdentityAccess\Infrastructure\Security\UserChecker
-            json_login:
-                check_path: /login
-                username_path: email
-                password_path: password
-                failure_handler: App\IdentityAccess\Infrastructure\Security\JsonLoginFailureHandler
+            pattern: ^/
+            host: '^clinic\.kiveto\.local$'
+            provider: clinic_user_provider
+            custom_authenticators:
+                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
 
         portal:
-            # Portal app (host-based firewall)
-            host: '^portal\.kiveto\.local$'
-            pattern: ^/
             lazy: true
-            provider: app_user_provider
-            user_checker: App\IdentityAccess\Infrastructure\Security\UserChecker
-            json_login:
-                check_path: /login
-                username_path: email
-                password_path: password
-                failure_handler: App\IdentityAccess\Infrastructure\Security\JsonLoginFailureHandler
+            pattern: ^/
+            host: '^portal\.kiveto\.local$'
+            provider: portal_user_provider
+            custom_authenticators:
+                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
 
         backoffice:
-            # backoffice app (host-based firewall)
-            host: '^backoffice\.kiveto\.local$'
-            pattern: ^/
             lazy: true
-            provider: app_user_provider
-            user_checker: App\IdentityAccess\Infrastructure\Security\UserChecker
-            json_login:
-                check_path: /login
-                username_path: email
-                password_path: password
-                failure_handler: App\IdentityAccess\Infrastructure\Security\JsonLoginFailureHandler
+            pattern: ^/
+            host: '^backoffice\.kiveto\.local$'
+            provider: backoffice_user_provider
+            custom_authenticators:
+                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true

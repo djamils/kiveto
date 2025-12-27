@@ -28,6 +28,8 @@ readonly class GetUserDetailsHandler
             $user->id()->toString(),
             $user->email(),
             $user->createdAt()->format(\DateTimeInterface::ATOM),
+            $user->status()->value,
+            $user->emailVerifiedAt()?->format(\DateTimeInterface::ATOM),
         );
     }
 }

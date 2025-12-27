@@ -6,6 +6,7 @@ namespace App\IdentityAccess\Domain\Repository;
 
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\UserType;
 
 interface UserRepositoryInterface
 {
@@ -14,4 +15,6 @@ interface UserRepositoryInterface
     public function findById(UserId $id): ?User;
 
     public function findByEmail(string $email): ?User;
+
+    public function findByEmailAndType(string $email, UserType $type): ?User;
 }

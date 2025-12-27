@@ -10,6 +10,8 @@ readonly class UserDetails
         public string $id,
         public string $email,
         public string $createdAt,
+        public string $status,
+        public ?string $emailVerifiedAt,
     ) {
     }
 }

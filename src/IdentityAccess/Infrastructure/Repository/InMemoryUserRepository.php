@@ -7,6 +7,7 @@ namespace App\IdentityAccess\Infrastructure\Repository;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\UserId;
+use App\IdentityAccess\Domain\UserType;
 
 final class InMemoryUserRepository implements UserRepositoryInterface
 {
@@ -32,5 +33,10 @@ final class InMemoryUserRepository implements UserRepositoryInterface
         $userId = $this->emailIndex[$email] ?? null;
 
         return null === $userId ? null : $this->byId[$userId];
+    }
+
+    public function findByEmailAndType(string $email, UserType $type): ?User
+    {
+        // TODO: Implement findByEmailAndType() method.
     }
 }

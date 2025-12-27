@@ -20,6 +20,7 @@ final class UserTest extends TestCase
             'user@example.com',
             '$hashed',
             $createdAt,
+            \App\IdentityAccess\Domain\UserType::CLINIC,
         );
 
         $events = $user->recordedDomainEvents();
@@ -28,5 +29,7 @@ final class UserTest extends TestCase
 
         self::assertSame('identity-access.user.registered.v1', $event->type());
         self::assertSame('11111111-1111-1111-1111-111111111111', $event->aggregateId());
+        self::assertSame(\App\IdentityAccess\Domain\UserStatus::ACTIVE->value, $user->status()->value);
+        self::assertNull($user->emailVerifiedAt());
     }
 }

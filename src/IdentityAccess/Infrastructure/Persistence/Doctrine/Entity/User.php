@@ -4,23 +4,40 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity;
 
+use App\IdentityAccess\Domain\UserStatus;
+use App\IdentityAccess\Domain\UserType;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity]
-class User
+#[ORM\InheritanceType('SINGLE_TABLE')]
+#[ORM\DiscriminatorColumn(name: 'user_type', type: 'string')]
+#[ORM\DiscriminatorMap([
+    'CLINIC' => ClinicUser::class,
+    'PORTAL' => PortalUser::class,
+    'BACKOFFICE' => BackofficeUser::class,
+])]
+abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: 'user_id', unique: true)]
-    private string $id;
+    protected string $id;
 
     #[ORM\Column(type: 'string', length: 180, unique: true)]
-    private string $email;
+    protected string $email;
 
     #[ORM\Column(type: 'string', length: 255)]
-    private string $passwordHash;
+    protected string $passwordHash;
 
     #[ORM\Column(type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
+    protected \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(type: 'string', length: 20, enumType: UserStatus::class)]
+    protected UserStatus $status;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    protected ?\DateTimeImmutable $emailVerifiedAt = null;
 
     public function getId(): string
     {
@@ -61,4 +78,47 @@ class User
     {
         $this->createdAt = $createdAt;
     }
+
+    public function getStatus(): UserStatus
+    {
+        return $this->status;
+    }
+
+    public function setStatus(UserStatus $status): void
+    {
+        $this->status = $status;
+    }
+
+    public function getEmailVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->emailVerifiedAt;
+    }
+
+    public function setEmailVerifiedAt(?\DateTimeImmutable $emailVerifiedAt): void
+    {
+        $this->emailVerifiedAt = $emailVerifiedAt;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->email;
+    }
+
+    public function getRoles(): array
+    {
+        return ['ROLE_USER'];
+    }
+
+    public function eraseCredentials(): void
+    {
+        // no-op
+    }
+
+    public function getPassword(): string
+    {
+        return $this->passwordHash;
+    }
+
+    abstract public function getType(): UserType;
 }
+
