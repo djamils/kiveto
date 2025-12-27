@@ -7,9 +7,9 @@ namespace App\IdentityAccess\Application\Query\AuthenticateUser;
 final readonly class AuthenticateUserQuery
 {
     public function __construct(
-        public string $email,
-        public string $plainPassword,
-        public LoginContext $context,
+        public string                $email,
+        public string                $plainPassword,
+        public AuthenticationContext $context,
     ) {
     }
 }

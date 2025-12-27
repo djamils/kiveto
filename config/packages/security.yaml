@@ -30,7 +30,7 @@ security:
             host: '^clinic\.kiveto\.local$'
             provider: clinic_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -41,7 +41,7 @@ security:
             host: '^portal\.kiveto\.local$'
             provider: portal_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -52,7 +52,7 @@ security:
             host: '^backoffice\.kiveto\.local$'
             provider: backoffice_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\HostLoginContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true

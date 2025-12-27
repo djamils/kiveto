@@ -11,7 +11,7 @@ use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailNotVeri
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InactiveUserException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\WrongContextException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\LoginContext;
+use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\UserId;
 use App\IdentityAccess\Domain\UserStatus;
@@ -46,7 +46,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             }
         });
 
-        $identity = $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', LoginContext::CLINIC));
+        $identity = $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::CLINIC));
 
         self::assertSame('clinic@example.com', $identity->email);
         self::assertSame('11111111-1111-1111-1111-111111111111', $identity->id);
@@ -72,7 +72,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         });
 
         $this->expectException(InvalidCredentialsException::class);
-        $handler(new AuthenticateUserQuery('clinic@example.com', 'wrong', LoginContext::CLINIC));
+        $handler(new AuthenticateUserQuery('clinic@example.com', 'wrong', AuthenticationContext::CLINIC));
     }
 
     public function test_denies_wrong_context(): void
@@ -94,7 +94,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         });
 
         $this->expectException(WrongContextException::class);
-        $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', LoginContext::PORTAL));
+        $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 
     public function test_denies_inactive_user(): void
@@ -118,7 +118,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         });
 
         $this->expectException(InactiveUserException::class);
-        $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', LoginContext::CLINIC));
+        $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::CLINIC));
     }
 
     public function test_denies_portal_user_without_verified_email(): void
@@ -142,7 +142,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         });
 
         $this->expectException(EmailNotVerifiedException::class);
-        $handler(new AuthenticateUserQuery('portal@example.com', 'secret', LoginContext::PORTAL));
+        $handler(new AuthenticateUserQuery('portal@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 }
 

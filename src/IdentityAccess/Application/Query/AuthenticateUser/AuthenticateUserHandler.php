@@ -27,7 +27,7 @@ final readonly class AuthenticateUserHandler
             throw new InvalidCredentialsException();
         }
 
-        $expectedType = $query->context->toUserType();
+        $expectedType = $query->context->allowedUserType();
         if ($user->type() !== $expectedType) {
             throw new WrongContextException($query->context, $user->type());
         }
@@ -36,7 +36,7 @@ final readonly class AuthenticateUserHandler
             throw new InactiveUserException($user->status());
         }
 
-        if (LoginContext::PORTAL === $query->context && null === $user->emailVerifiedAt()) {
+        if (AuthenticationContext::PORTAL === $query->context && null === $user->emailVerifiedAt()) {
             throw new EmailNotVerifiedException();
         }
 

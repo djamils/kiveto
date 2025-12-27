@@ -10,7 +10,7 @@ use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailNotVeri
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InactiveUserException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\WrongContextException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\LoginContext;
+use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 
-final class HostLoginContextAuthenticator extends AbstractAuthenticator
+final class ContextAuthenticator extends AbstractAuthenticator
 {
     public function __construct(private AuthenticateUserHandler $handler)
     {
@@ -80,18 +80,18 @@ final class HostLoginContextAuthenticator extends AbstractAuthenticator
         return new JsonResponse(['message' => $message], $status);
     }
 
-    private function resolveContext(Request $request): LoginContext
+    private function resolveContext(Request $request): AuthenticationContext
     {
         $host = $request->getHost();
 
         if (str_contains($host, 'clinic.')) {
-            return LoginContext::CLINIC;
+            return AuthenticationContext::CLINIC;
         }
         if (str_contains($host, 'portal.')) {
-            return LoginContext::PORTAL;
+            return AuthenticationContext::PORTAL;
         }
         if (str_contains($host, 'backoffice.')) {
-            return LoginContext::BACKOFFICE;
+            return AuthenticationContext::BACKOFFICE;
         }
 
         throw new CustomUserMessageAuthenticationException('Unknown login context.');
