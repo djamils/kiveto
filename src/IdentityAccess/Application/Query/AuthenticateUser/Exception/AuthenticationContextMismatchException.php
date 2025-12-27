@@ -7,7 +7,7 @@ namespace App\IdentityAccess\Application\Query\AuthenticateUser\Exception;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\IdentityAccess\Domain\UserType;
 
-final class WrongContextException extends \RuntimeException
+final class AuthenticationContextMismatchException extends \RuntimeException
 {
     public function __construct(AuthenticationContext $context, UserType $userType)
     {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Application\Query\AuthenticateUser\Exception;
 
-final class EmailNotVerifiedException extends \RuntimeException
+final class EmailVerificationRequiredException extends \RuntimeException
 {
     public function __construct()
     {

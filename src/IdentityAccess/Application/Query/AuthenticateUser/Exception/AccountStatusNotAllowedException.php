@@ -6,7 +6,7 @@ namespace App\IdentityAccess\Application\Query\AuthenticateUser\Exception;
 
 use App\IdentityAccess\Domain\UserStatus;
 
-final class InactiveUserException extends \RuntimeException
+final class AccountStatusNotAllowedException extends \RuntimeException
 {
     public function __construct(UserStatus $status)
     {

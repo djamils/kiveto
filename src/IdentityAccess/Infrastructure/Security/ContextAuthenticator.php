@@ -6,10 +6,10 @@ namespace App\IdentityAccess\Infrastructure\Security;
 
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailNotVerifiedException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InactiveUserException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\WrongContextException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,7 +55,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
             throw new CustomUserMessageAuthenticationException('Invalid JSON payload.', [], 0, $e);
         } catch (InvalidCredentialsException $e) {
             throw new CustomUserMessageAuthenticationException($e->getMessage(), [], 0, $e);
-        } catch (WrongContextException|InactiveUserException|EmailNotVerifiedException $e) {
+        } catch (AuthenticationContextMismatchException|AccountStatusNotAllowedException|EmailVerificationRequiredException $e) {
             throw new CustomUserMessageAuthenticationException($e->getMessage(), [], 0, $e);
         }
 
@@ -105,7 +105,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
             return JsonResponse::HTTP_UNAUTHORIZED;
         }
 
-        if ($previous instanceof WrongContextException || $previous instanceof InactiveUserException || $previous instanceof EmailNotVerifiedException) {
+        if ($previous instanceof AuthenticationContextMismatchException || $previous instanceof AccountStatusNotAllowedException || $previous instanceof EmailVerificationRequiredException) {
             return JsonResponse::HTTP_FORBIDDEN;
         }
 

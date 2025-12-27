@@ -7,10 +7,10 @@ namespace App\Tests\Unit\IdentityAccess\Application\Auth;
 use App\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailNotVerifiedException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InactiveUserException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\WrongContextException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\UserId;
@@ -93,7 +93,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             }
         });
 
-        $this->expectException(WrongContextException::class);
+        $this->expectException(AuthenticationContextMismatchException::class);
         $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 
@@ -117,7 +117,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             }
         });
 
-        $this->expectException(InactiveUserException::class);
+        $this->expectException(AccountStatusNotAllowedException::class);
         $handler(new AuthenticateUserQuery('clinic@example.com', 'secret', AuthenticationContext::CLINIC));
     }
 
@@ -141,7 +141,7 @@ final class AuthenticateUserHandlerTest extends TestCase
             }
         });
 
-        $this->expectException(EmailNotVerifiedException::class);
+        $this->expectException(EmailVerificationRequiredException::class);
         $handler(new AuthenticateUserQuery('portal@example.com', 'secret', AuthenticationContext::PORTAL));
     }
 }
