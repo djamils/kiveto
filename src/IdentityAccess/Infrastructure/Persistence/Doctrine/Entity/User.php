@@ -101,7 +101,13 @@ abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getUserIdentifier(): string
     {
-        return $this->email;
+        $identifier = $this->email;
+
+        if ('' === $identifier) {
+            throw new \LogicException('User identifier must not be empty.');
+        }
+
+        return $identifier;
     }
 
     public function getRoles(): array

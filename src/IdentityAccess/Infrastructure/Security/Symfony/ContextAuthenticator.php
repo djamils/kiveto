@@ -25,7 +25,7 @@ final class ContextAuthenticator extends AbstractAuthenticator
     {
     }
 
-    public function supports(Request $request): ?bool
+    public function supports(Request $request): bool
     {
         return 'POST' === $request->getMethod() && '/login' === $request->getPathInfo();
     }
@@ -36,10 +36,14 @@ final class ContextAuthenticator extends AbstractAuthenticator
             $context = $this->resolveContext($request);
             $payload = json_decode((string) $request->getContent(), true, flags: \JSON_THROW_ON_ERROR);
 
+            if (!\is_array($payload)) {
+                throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
+            }
+
             $email    = $payload['email'] ?? null;
             $password = $payload['password'] ?? null;
 
-            if (!\is_string($email) || !\is_string($password) || '' === mb_trim($email) || '' === $password) {
+            if (!\is_string($email) || !\is_string($password) || '' === trim($email) || '' === $password) {
                 throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
             }
 
@@ -62,12 +66,12 @@ final class ContextAuthenticator extends AbstractAuthenticator
         );
     }
 
-    public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
+    public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response
     {
         return new JsonResponse(['message' => 'Authenticated'], JsonResponse::HTTP_OK);
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $status  = $this->statusCodeFor($exception);
         $message = $exception->getMessageKey();

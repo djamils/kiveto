@@ -37,6 +37,12 @@ final class InMemoryUserRepository implements UserRepositoryInterface
 
     public function findByEmailAndType(string $email, UserType $type): ?User
     {
-        // TODO: Implement findByEmailAndType() method.
+        $user = $this->findByEmail($email);
+
+        if (null === $user) {
+            return null;
+        }
+
+        return $user->type()->value === $type->value ? $user : null;
     }
 }
