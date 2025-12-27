@@ -8,6 +8,12 @@ framework:
     #esi: true
     #fragments: true
 
+    trusted_hosts:
+        - '^localhost(:\d+)?$'
+        - '^clinic\.kiveto\.local(:\d+)?$'
+        - '^portal\.kiveto\.local(:\d+)?$'
+        - '^platform\.kiveto\.local(:\d+)?$'
+
 when@test:
     framework:
         test: true
