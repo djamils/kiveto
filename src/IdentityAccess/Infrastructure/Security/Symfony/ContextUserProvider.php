@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\IdentityAccess\Infrastructure\Security;
+namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\UserType;

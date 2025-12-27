@@ -31,20 +31,20 @@ services:
         resource: '../src/Presentation/Backoffice/Controller/'
         tags: ['controller.service_arguments']
 
-    App\IdentityAccess\Infrastructure\Security\ContextUserProvider.clinic:
-        class: App\IdentityAccess\Infrastructure\Security\ContextUserProvider
+    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic:
+        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\IdentityAccess\Domain\UserType::CLINIC
 
-    App\IdentityAccess\Infrastructure\Security\ContextUserProvider.portal:
-        class: App\IdentityAccess\Infrastructure\Security\ContextUserProvider
+    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
+        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\IdentityAccess\Domain\UserType::PORTAL
 
-    App\IdentityAccess\Infrastructure\Security\ContextUserProvider.backoffice:
-        class: App\IdentityAccess\Infrastructure\Security\ContextUserProvider
+    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
+        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
             $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
             $type: !php/const App\IdentityAccess\Domain\UserType::BACKOFFICE

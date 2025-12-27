@@ -10,13 +10,13 @@ security:
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         clinic_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.clinic
+            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic
 
         portal_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.portal
+            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal
 
         backoffice_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\ContextUserProvider.backoffice
+            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice
 
     firewalls:
         dev:
@@ -30,7 +30,7 @@ security:
             host: '^clinic\.kiveto\.local$'
             provider: clinic_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -41,7 +41,7 @@ security:
             host: '^portal\.kiveto\.local$'
             provider: portal_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -52,7 +52,7 @@ security:
             host: '^backoffice\.kiveto\.local$'
             provider: backoffice_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\ContextAuthenticator
+                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true

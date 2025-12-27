@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\IdentityAccess\Infrastructure\Security;
+namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
-use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
+use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
