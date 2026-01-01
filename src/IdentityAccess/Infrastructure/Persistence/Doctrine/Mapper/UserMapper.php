@@ -6,17 +6,18 @@ namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\IdentityAccess\Domain\User as DomainUser;
 use App\IdentityAccess\Domain\ValueObject\UserId;
-use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 
-final class UserMapper
+final readonly class UserMapper
 {
+    public function __construct(private DoctrineUserFactory $doctrineUserFactory)
+    {
+    }
+
     public function toEntity(DomainUser $domainUser): User
     {
-        $entity = $this->newEntityForType($domainUser->type());
+        $entity = $this->doctrineUserFactory->createForType($domainUser->type());
         $entity->setId($domainUser->id()->toString());
         $entity->setEmail($domainUser->email());
         $entity->setPasswordHash($domainUser->passwordHash());
@@ -38,14 +39,5 @@ final class UserMapper
             $entity->getEmailVerifiedAt(),
             $entity->getType(),
         );
-    }
-
-    private function newEntityForType(UserType $type): User
-    {
-        return match ($type) {
-            UserType::CLINIC     => new ClinicUser(),
-            UserType::PORTAL     => new PortalUser(),
-            UserType::BACKOFFICE => new BackofficeUser(),
-        };
     }
 }

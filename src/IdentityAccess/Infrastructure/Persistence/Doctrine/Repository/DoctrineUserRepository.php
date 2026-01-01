@@ -15,7 +15,7 @@ use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as UserEn
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class DoctrineUserRepository implements UserRepositoryInterface
+final readonly class DoctrineUserRepository implements UserRepositoryInterface
 {
     public function __construct(
         private EntityManagerInterface $em,

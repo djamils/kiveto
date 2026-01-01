@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\IdentityAccess\Infrastructure\Doctrine\Mapper;
+namespace App\Tests\Unit\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as DoctrineUser;
+use App\IdentityAccess\Domain\ValueObject\UserType;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use PHPUnit\Framework\TestCase;
 
@@ -22,14 +23,13 @@ final class UserMapperTest extends TestCase
             new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
             UserStatus::ACTIVE,
             new \DateTimeImmutable('2025-01-02T10:00:00+00:00'),
-            \App\IdentityAccess\Domain\ValueObject\UserType::PORTAL,
+            UserType::PORTAL,
         );
 
-        $mapper    = new UserMapper();
+        $mapper    = new UserMapper(new DoctrineUserFactory());
         $entity    = $mapper->toEntity($domain);
         $roundTrip = $mapper->toDomain($entity);
 
-        self::assertInstanceOf(DoctrineUser::class, $entity);
         self::assertSame($domain->id()->toString(), $entity->getId());
         self::assertSame($domain->email(), $entity->getEmail());
         self::assertSame($domain->passwordHash(), $entity->getPasswordHash());

@@ -272,10 +272,10 @@ php-cs-fixer.dry-run:
 
 test:
 	@$(call step,Running PHPUnit...)
-	$(Q)$(EXEC_PHP) bin/phpunit
+	$(Q)$(EXEC_PHP) bin/phpunit --colors=always
 	@$(call ok,Tests passed)
 
 test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(EXEC_PHP) bin/phpunit --coverage-html coverage --coverage-filter src/
+	$(Q)$(EXEC_PHP) bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))

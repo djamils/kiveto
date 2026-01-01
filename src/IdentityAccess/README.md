@@ -17,7 +17,6 @@ src/IdentityAccess/
 │   ├── Query/GetUserDetails/GetUserDetailsHandler.php
 │   └── Query/GetUserDetails/UserDetails.php
 └── Infrastructure/
-    └── Repository/InMemoryUserRepository.php
 ```
 
 ## Domain Events

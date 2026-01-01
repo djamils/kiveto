@@ -10,7 +10,7 @@ use Doctrine\DBAL\Types\Type;
 
 final class UserIdType extends Type
 {
-    public const NAME = 'user_id';
+    public const string NAME = 'user_id';
 
     public function getName(): string
     {

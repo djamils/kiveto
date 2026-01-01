@@ -2,20 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\IdentityAccess\Application;
+namespace App\Tests\Unit\IdentityAccess\Application\Query\GetUserDetails;
 
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetails;
 use App\IdentityAccess\Application\Query\GetUserDetails\GetUserDetailsHandler;
+use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
-use App\IdentityAccess\Infrastructure\Repository\InMemoryUserRepository;
+use App\IdentityAccess\Domain\ValueObject\UserType;
 use PHPUnit\Framework\TestCase;
 
 final class GetUserDetailsHandlerTest extends TestCase
 {
     public function testReturnsDtoWhenUserExists(): void
     {
-        $repo      = new InMemoryUserRepository();
+        $repo      = $this->createStub(UserRepositoryInterface::class);
         $userId    = UserId::fromString('11111111-1111-1111-1111-111111111111');
         $createdAt = new \DateTimeImmutable('2025-01-01T10:00:00+00:00');
         $user      = User::register(
@@ -23,9 +24,9 @@ final class GetUserDetailsHandlerTest extends TestCase
             'user@example.com',
             '$hash',
             $createdAt,
-            \App\IdentityAccess\Domain\ValueObject\UserType::CLINIC,
+            UserType::CLINIC,
         );
-        $repo->save($user);
+        $repo->method('findById')->willReturn($user);
 
         $handler = new GetUserDetailsHandler($repo);
 
@@ -41,7 +42,8 @@ final class GetUserDetailsHandlerTest extends TestCase
 
     public function testReturnsNullWhenUserNotFound(): void
     {
-        $repo    = new InMemoryUserRepository();
+        $repo = $this->createStub(UserRepositoryInterface::class);
+        $repo->method('findById')->willReturn(null);
         $handler = new GetUserDetailsHandler($repo);
 
         $dto = $handler(new GetUserDetails('non-existing'));
