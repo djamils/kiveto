@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Shared\Domain\Event;
 
 use App\Tests\Unit\Shared\Domain\Event\Fixture\AnimalCreated;
 use App\Tests\Unit\Shared\Domain\Event\Fixture\InvoiceItemAdded;
+use App\Tests\Unit\Shared\Domain\Event\Fixture\Ping;
 use App\Tests\Unit\Shared\Domain\Event\Fixture\UserRegistered;
 use PHPUnit\Framework\TestCase;
 
@@ -23,6 +24,13 @@ final class DomainEventTest extends TestCase
         $event = new AnimalCreated();
 
         self::assertSame('test-bc.animal.created.v2', $event->type());
+    }
+
+    public function testEventTypeDefaultsToOccurredWhenNoActionInName(): void
+    {
+        $event = new Ping();
+
+        self::assertSame('test-bc.ping.occurred.v1', $event->type());
     }
 
     public function testEventTypeHandlesMultiWordAggregate(): void

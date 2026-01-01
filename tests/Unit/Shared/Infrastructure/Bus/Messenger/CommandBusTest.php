@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Shared\Infrastructure\Bus\Messenger;
+
+use App\Shared\Infrastructure\Bus\Messenger\CommandBus;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\HandlerFailedException;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
+use Symfony\Component\Messenger\MessageBusInterface;
+
+final class CommandBusTest extends TestCase
+{
+    public function testDispatchReturnsHandledResult(): void
+    {
+        $command      = new \stdClass();
+        $handledStamp = new HandledStamp('ok', 'handler');
+        $envelope     = new Envelope($command, [$handledStamp]);
+
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())
+            ->method('dispatch')
+            ->with($command)
+            ->willReturn($envelope);
+
+        $commandBus = new CommandBus($bus);
+
+        self::assertSame('ok', $commandBus->dispatch($command));
+    }
+
+    public function testDispatchRethrowsPreviousException(): void
+    {
+        $command = new \stdClass();
+        $inner   = new \RuntimeException('boom');
+        $envelope = new Envelope($command);
+        $failure = new HandlerFailedException($envelope, [$inner]);
+
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())
+            ->method('dispatch')
+            ->willThrowException($failure);
+
+        $commandBus = new CommandBus($bus);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('boom');
+
+        $commandBus->dispatch($command);
+    }
+}
+

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\Shared\Time;
+namespace App\Tests\Unit\Shared\Infrastructure\Time;
 
 use App\Shared\Infrastructure\Time\SystemClock;
 use App\Tests\Shared\Time\FrozenClock;
