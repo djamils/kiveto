@@ -8,11 +8,11 @@ use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 
-final class DomainEventMessageFactory
+final readonly class DomainEventMessageFactory
 {
     public function __construct(
-        private readonly UuidGeneratorInterface $uuidGenerator,
-        private readonly ClockInterface $clock,
+        private UuidGeneratorInterface $uuidGenerator,
+        private ClockInterface $clock,
     ) {
     }
 
