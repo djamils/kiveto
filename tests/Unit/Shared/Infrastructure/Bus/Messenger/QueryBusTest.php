@@ -8,8 +8,8 @@ use App\Shared\Infrastructure\Bus\Messenger\QueryBus;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
-use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 
 final class QueryBusTest extends TestCase
 {
@@ -23,7 +23,8 @@ final class QueryBusTest extends TestCase
         $bus->expects(self::once())
             ->method('dispatch')
             ->with($query)
-            ->willReturn($envelope);
+            ->willReturn($envelope)
+        ;
 
         $queryBus = new QueryBus($bus);
 
@@ -40,7 +41,8 @@ final class QueryBusTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::once())
             ->method('dispatch')
-            ->willThrowException($failure);
+            ->willThrowException($failure)
+        ;
 
         $queryBus = new QueryBus($bus);
 
@@ -50,4 +52,3 @@ final class QueryBusTest extends TestCase
         $queryBus->ask($query);
     }
 }
-

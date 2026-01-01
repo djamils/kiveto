@@ -8,8 +8,8 @@ use App\Shared\Infrastructure\Bus\Messenger\CommandBus;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
-use Symfony\Component\Messenger\Stamp\HandledStamp;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\HandledStamp;
 
 final class CommandBusTest extends TestCase
 {
@@ -23,7 +23,8 @@ final class CommandBusTest extends TestCase
         $bus->expects(self::once())
             ->method('dispatch')
             ->with($command)
-            ->willReturn($envelope);
+            ->willReturn($envelope)
+        ;
 
         $commandBus = new CommandBus($bus);
 
@@ -32,15 +33,16 @@ final class CommandBusTest extends TestCase
 
     public function testDispatchRethrowsPreviousException(): void
     {
-        $command = new \stdClass();
-        $inner   = new \RuntimeException('boom');
+        $command  = new \stdClass();
+        $inner    = new \RuntimeException('boom');
         $envelope = new Envelope($command);
-        $failure = new HandlerFailedException($envelope, [$inner]);
+        $failure  = new HandlerFailedException($envelope, [$inner]);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::once())
             ->method('dispatch')
-            ->willThrowException($failure);
+            ->willThrowException($failure)
+        ;
 
         $commandBus = new CommandBus($bus);
 
@@ -50,4 +52,3 @@ final class CommandBusTest extends TestCase
         $commandBus->dispatch($command);
     }
 }
-

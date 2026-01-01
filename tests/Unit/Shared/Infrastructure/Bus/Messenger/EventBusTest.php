@@ -6,8 +6,8 @@ namespace App\Tests\Unit\Shared\Infrastructure\Bus\Messenger;
 
 use App\Shared\Infrastructure\Bus\Messenger\EventBus;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 final class EventBusTest extends TestCase
 {
@@ -25,7 +25,8 @@ final class EventBusTest extends TestCase
                 $dispatched[] = $event;
 
                 return new Envelope($event);
-            });
+            })
+        ;
 
         $eventBus = new EventBus($bus);
 
@@ -34,4 +35,3 @@ final class EventBusTest extends TestCase
         self::assertSame([$event1, $event2], $dispatched);
     }
 }
-
