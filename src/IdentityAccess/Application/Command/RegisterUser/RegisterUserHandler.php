@@ -32,7 +32,7 @@ readonly class RegisterUserHandler
     {
         $userId    = UserId::fromString($this->uuidGenerator->generate());
         $createdAt = $this->clock->now();
-        // Hash using Symfony's configured password hasher
+
         $passwordHash = $this->passwordHasher->hashPassword(
             $this->newEntityForType($command->type), // transient user just for hashing context
             $command->plainPassword,
