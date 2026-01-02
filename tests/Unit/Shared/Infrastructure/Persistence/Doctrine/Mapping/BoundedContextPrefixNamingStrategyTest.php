@@ -31,6 +31,40 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
         ));
     }
 
+    public function testNormalizeRemovesPrefixAndEntitySuffix(): void
+    {
+        $fqcn = 'App\\Translation\\Infrastructure\\Persistence\\Doctrine\\Entity\\TranslationEntryEntity';
+
+        $inner = $this->createMock(NamingStrategy::class);
+        $inner->expects(self::once())
+            ->method('classToTableName')
+            ->with($fqcn)
+            ->willReturn('translation_entry_entity')
+        ;
+
+        $strategy = new BoundedContextPrefixNamingStrategy($inner);
+
+        // translation prefix stripped, _entity suffix stripped, then pluralized
+        self::assertSame('translation__entries', $strategy->classToTableName($fqcn));
+    }
+
+    public function testNormalizeOnlySuffix(): void
+    {
+        $fqcn = 'App\\Foo\\Infrastructure\\Persistence\\Doctrine\\Entity\\UserEntity';
+
+        $inner = $this->createMock(NamingStrategy::class);
+        $inner->expects(self::once())
+            ->method('classToTableName')
+            ->with($fqcn)
+            ->willReturn('user_entity')
+        ;
+
+        $strategy = new BoundedContextPrefixNamingStrategy($inner);
+
+        // Prefix "foo" detected and "_entity" suffix removed before pluralization
+        self::assertSame('foo__users', $strategy->classToTableName($fqcn));
+    }
+
     public function testClassToTableNameWithoutPrefixKeepsPlural(): void
     {
         $fqcn = Foo::class;
