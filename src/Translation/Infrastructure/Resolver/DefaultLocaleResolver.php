@@ -34,9 +34,7 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
             ?? $this->fromAcceptLanguage($request?->headers->get('Accept-Language'));
 
         if (\is_string($candidate) && '' !== trim($candidate)) {
-            $normalized = str_replace('-', '_', $candidate);
-
-            return Locale::fromString($normalized);
+            return Locale::fromString($this->normalizeCandidate($candidate));
         }
 
         return Locale::fromString($this->defaultLocale);
@@ -59,5 +57,17 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         }
 
         return $language;
+    }
+
+    private function normalizeCandidate(string $candidate): string
+    {
+        $normalized = str_replace('-', '_', trim($candidate));
+        $short      = mb_strtolower($normalized);
+
+        return match ($short) {
+            'fr' => 'fr_FR',
+            'en' => 'en_GB',
+            default => $normalized,
+        };
     }
 }

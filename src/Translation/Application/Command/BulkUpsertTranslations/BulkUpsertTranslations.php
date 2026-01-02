@@ -10,7 +10,8 @@ namespace App\Translation\Application\Command\BulkUpsertTranslations;
  *     locale: string,
  *     domain: string,
  *     key: string,
- *     value: string
+ *     value: string,
+ *     description?: string|null
  * }
  */
 readonly class BulkUpsertTranslations

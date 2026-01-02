@@ -10,10 +10,12 @@ use App\Translation\Application\Port\LocaleResolverInterface;
 use App\Translation\Application\Query\GetTranslation\GetTranslation;
 use App\Translation\Application\Query\GetTranslation\TranslationView;
 use Symfony\Component\Translation\Formatter\MessageFormatterInterface;
+use Symfony\Component\Translation\MessageCatalogueInterface;
+use Symfony\Component\Translation\TranslatorBagInterface;
 use Symfony\Contracts\Translation\LocaleAwareInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterface
+final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterface, TranslatorBagInterface
 {
     public function __construct(
         private readonly TranslatorInterface $fallbackTranslator,
@@ -31,6 +33,8 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
     {
         $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();
         $resolvedDomain = $domain ?? 'messages';
+
+        dump($id);
 
         /** @var TranslationView|null $translation */
         $translation = $this->queryBus->ask(
@@ -59,5 +63,28 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
         if ($this->fallbackTranslator instanceof LocaleAwareInterface) {
             $this->fallbackTranslator->setLocale($locale);
         }
+    }
+
+    public function getCatalogue(string $locale = null): MessageCatalogueInterface
+    {
+        if (!$this->fallbackTranslator instanceof TranslatorBagInterface) {
+            throw new \LogicException('Fallback translator must implement TranslatorBagInterface.');
+        }
+
+        $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();
+
+        return $this->fallbackTranslator->getCatalogue($resolvedLocale);
+    }
+
+    /**
+     * @return array<MessageCatalogueInterface>
+     */
+    public function getCatalogues(): array
+    {
+        if (!$this->fallbackTranslator instanceof TranslatorBagInterface) {
+            throw new \LogicException('Fallback translator must implement TranslatorBagInterface.');
+        }
+
+        return $this->fallbackTranslator->getCatalogues();
     }
 }

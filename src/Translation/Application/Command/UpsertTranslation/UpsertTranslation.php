@@ -12,6 +12,7 @@ readonly class UpsertTranslation
         public string $domain,
         public string $key,
         public string $value,
+        public ?string $description = null,
         public ?string $actorId = null,
     ) {
     }

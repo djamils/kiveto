@@ -14,9 +14,9 @@ final readonly class HostnameAppScopeResolver implements AppScopeResolverInterfa
         private RequestStack $requestStack,
         /** @var array<string, AppScope> */
         private array $hostMap = [
-            'clinic.kiveto.com'     => AppScope::CLINIC,
-            'portal.kiveto.com'     => AppScope::PORTAL,
-            'backoffice.kiveto.com' => AppScope::BACKOFFICE,
+            'clinic.kiveto.local'     => AppScope::CLINIC,
+            'portal.kiveto.local'     => AppScope::PORTAL,
+            'backoffice.kiveto.local' => AppScope::BACKOFFICE,
         ],
     ) {
     }

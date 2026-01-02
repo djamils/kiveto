@@ -10,7 +10,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class LoginController extends AbstractController
 {
-    #[Route(path: '/login', name: 'backoffice_login', methods: ['GET'])]
+    #[Route(path: '/login', name: 'backoffice_login', methods: ['GET', 'POST'])]
     public function __invoke(): Response
     {
         return $this->render('security/login.html.twig', [

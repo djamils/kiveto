@@ -27,6 +27,8 @@ final readonly class SearchTranslationsHandler
             'valueContains' => $query->valueContains,
             'updatedBy'     => $query->updatedBy,
             'updatedAfter'  => $query->updatedAfter,
+            'createdBy'     => $query->createdBy,
+            'createdAfter'  => $query->createdAfter,
         ];
 
         $page    = max(1, $query->page);
@@ -41,6 +43,9 @@ final readonly class SearchTranslationsHandler
                 (string) $row['domain'],
                 (string) $row['key'],
                 (string) $row['value'],
+                $row['description'],
+                $row['createdAt'],
+                $row['createdBy'],
                 $row['updatedAt'],
                 $row['updatedBy'],
             ),

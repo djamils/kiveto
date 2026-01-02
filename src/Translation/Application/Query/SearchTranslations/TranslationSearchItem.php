@@ -12,6 +12,9 @@ final readonly class TranslationSearchItem
         public string $domain,
         public string $key,
         public string $value,
+        public ?string $description,
+        public \DateTimeImmutable $createdAt,
+        public ?string $createdBy,
         public \DateTimeImmutable $updatedAt,
         public ?string $updatedBy,
     ) {

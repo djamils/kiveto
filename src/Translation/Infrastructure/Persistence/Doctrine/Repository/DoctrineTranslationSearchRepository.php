@@ -58,7 +58,9 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
      *     keyContains?: string|null,
      *     valueContains?: string|null,
      *     updatedBy?: string|null,
-     *     updatedAfter?: \DateTimeImmutable|null
+     *     updatedAfter?: \DateTimeImmutable|null,
+     *     createdBy?: string|null,
+     *     createdAfter?: \DateTimeImmutable|null
      * } $criteria
      *
      * @return array{
@@ -68,6 +70,9 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
      *         domain: string,
      *         key: string,
      *         value: string,
+     *         description: string|null,
+     *         createdAt: \DateTimeImmutable,
+     *         createdBy: string|null,
      *         updatedAt: \DateTimeImmutable,
      *         updatedBy: string|null
      *     }>,
@@ -77,7 +82,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     public function search(array $criteria, int $page, int $perPage): array
     {
         $qb = $this->connection->createQueryBuilder()
-            ->select('*')
+            ->select('translation_entry.*')
             ->from('translation_entry')
             ->orderBy('updated_at', 'DESC')
             ->addOrderBy('translation_key', 'ASC')
@@ -106,6 +111,11 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
                     'domain'    => \is_string($row['domain'] ?? null) ? (string) $row['domain'] : '',
                     'key'       => \is_string($row['translation_key'] ?? null) ? (string) $row['translation_key'] : '', // phpcs:ignore
                     'value'     => \is_string($row['translation_value'] ?? null) ? (string) $row['translation_value'] : '', // phpcs:ignore
+                    'description' => \is_string($row['description'] ?? null) ? (string) $row['description'] : null,
+                    'createdAt' => new \DateTimeImmutable(\is_string($row['created_at'] ?? null) ? (string) $row['created_at'] : 'now'),
+                    'createdBy' => null !== ($row['created_by'] ?? null) && \is_string($row['created_by'])
+                        ? Uuid::fromBinary($row['created_by'])->toRfc4122()
+                        : null,
                     'updatedAt' => new \DateTimeImmutable(\is_string($row['updated_at'] ?? null) ? (string) $row['updated_at'] : 'now'), // phpcs:ignore
                     'updatedBy' => null !== ($row['updated_by'] ?? null) && \is_string($row['updated_by'])
                         ? Uuid::fromBinary($row['updated_by'])->toRfc4122()
@@ -224,6 +234,20 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
             $qb
                 ->andWhere('updated_at >= :updatedAfter')
                 ->setParameter('updatedAfter', $criteria['updatedAfter']->format('Y-m-d H:i:s.u'))
+            ;
+        }
+
+        if (\is_string($criteria['createdBy'] ?? null)) {
+            $qb
+                ->andWhere('created_by = :createdBy')
+                ->setParameter('createdBy', Uuid::fromString($criteria['createdBy'])->toBinary(), Types::BINARY)
+            ;
+        }
+
+        if (($criteria['createdAfter'] ?? null) instanceof \DateTimeImmutable) {
+            $qb
+                ->andWhere('created_at >= :createdAfter')
+                ->setParameter('createdAfter', $criteria['createdAfter']->format('Y-m-d H:i:s.u'))
             ;
         }
     }

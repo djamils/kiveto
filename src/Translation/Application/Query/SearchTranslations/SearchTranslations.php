@@ -14,6 +14,8 @@ readonly class SearchTranslations
         public ?string $valueContains = null,
         public ?string $updatedBy = null,
         public ?\DateTimeImmutable $updatedAfter = null,
+        public ?string $createdBy = null,
+        public ?\DateTimeImmutable $createdAfter = null,
         public int $page = 1,
         public int $perPage = 50,
     ) {

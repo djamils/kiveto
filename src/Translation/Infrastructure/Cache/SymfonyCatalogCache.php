@@ -59,6 +59,18 @@ final readonly class SymfonyCatalogCache implements CatalogCacheInterface
 
     private function key(TranslationCatalogId $id): string
     {
-        return self::PREFIX . $id->cacheKeyPart();
+        $raw = self::PREFIX . $id->cacheKeyPart();
+
+        // Symfony cache keys forbid {}()/\@:; replace reserved chars.
+        return strtr($raw, [
+            ':' => '.',
+            '{' => '_',
+            '}' => '_',
+            '(' => '_',
+            ')' => '_',
+            '/' => '_',
+            '\\' => '_',
+            '@' => '_',
+        ]);
     }
 }

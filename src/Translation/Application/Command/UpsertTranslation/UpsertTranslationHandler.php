@@ -38,6 +38,7 @@ final readonly class UpsertTranslationHandler
             TranslationText::fromString($command->value),
             $this->clock->now(),
             null !== $command->actorId ? ActorId::fromString($command->actorId) : null,
+            $command->description,
         );
 
         $this->catalogs->save($catalog);

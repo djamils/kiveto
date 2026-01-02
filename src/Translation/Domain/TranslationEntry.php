@@ -13,8 +13,11 @@ final class TranslationEntry
     public function __construct(
         private TranslationKey $key,
         private TranslationText $text,
+        private \DateTimeImmutable $createdAt,
         private \DateTimeImmutable $updatedAt,
+        private ?ActorId $createdBy = null,
         private ?ActorId $updatedBy = null,
+        private ?string $description = null,
     ) {
     }
 
@@ -28,9 +31,19 @@ final class TranslationEntry
         return $this->text;
     }
 
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
     public function updatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function createdBy(): ?ActorId
+    {
+        return $this->createdBy;
     }
 
     public function updatedBy(): ?ActorId
@@ -38,8 +51,21 @@ final class TranslationEntry
         return $this->updatedBy;
     }
 
-    public function replaceText(TranslationText $text, \DateTimeImmutable $updatedAt, ?ActorId $updatedBy): self
+    public function description(): ?string
     {
-        return new self($this->key, $text, $updatedAt, $updatedBy);
+        return $this->description;
+    }
+
+    public function replaceText(TranslationText $text, \DateTimeImmutable $updatedAt, ?ActorId $updatedBy, ?string $description): self
+    {
+        return new self(
+            $this->key,
+            $text,
+            $this->createdAt,
+            $updatedAt,
+            $this->createdBy,
+            $updatedBy,
+            $description,
+        );
     }
 }

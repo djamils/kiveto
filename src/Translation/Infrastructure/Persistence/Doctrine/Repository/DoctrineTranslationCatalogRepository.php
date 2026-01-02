@@ -73,11 +73,12 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
         $connection->executeStatement(
             <<<'SQL'
                 INSERT INTO translation_entry
-                    (id, app_scope, locale, domain, translation_key, translation_value, updated_at, updated_by)
+                    (id, app_scope, locale, domain, translation_key, translation_value, description, created_at, created_by, updated_at, updated_by)
                 VALUES
-                    (:id, :scope, :locale, :domain, :key, :value, :updatedAt, :updatedBy)
+                    (:id, :scope, :locale, :domain, :key, :value, :description, :createdAt, :createdBy, :updatedAt, :updatedBy)
                 ON DUPLICATE KEY UPDATE
                     translation_value = VALUES(translation_value),
+                    description = VALUES(description),
                     updated_at = VALUES(updated_at),
                     updated_by = VALUES(updated_by)
             SQL,
@@ -88,6 +89,11 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
                 'domain'    => $catalogId->domain()->toString(),
                 'key'       => $entry->key()->toString(),
                 'value'     => $entry->text()->toString(),
+                'description' => $entry->description(),
+                'createdAt' => $entry->createdAt()->format('Y-m-d H:i:s.u'),
+                'createdBy' => null !== $entry->createdBy()
+                    ? Uuid::fromString($entry->createdBy()->toString())->toBinary()
+                    : null,
                 'updatedAt' => $entry->updatedAt()->format('Y-m-d H:i:s.u'),
                 'updatedBy' => null !== $entry->updatedBy()
                     ? Uuid::fromString($entry->updatedBy()->toString())->toBinary()
@@ -95,6 +101,7 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
             ],
             [
                 'id'        => Types::BINARY,
+                'createdBy' => Types::BINARY,
                 'updatedBy' => Types::BINARY,
             ],
         );

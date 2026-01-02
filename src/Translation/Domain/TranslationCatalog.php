@@ -54,15 +54,16 @@ final class TranslationCatalog extends AggregateRoot
     public function upsert(
         TranslationKey $key,
         TranslationText $text,
-        \DateTimeImmutable $updatedAt,
+        \DateTimeImmutable $now,
         ?ActorId $actorId = null,
+        ?string $description = null,
     ): void {
         $entry = $this->entries[$key->toString()] ?? null;
 
         if (null !== $entry) {
-            $this->entries[$key->toString()] = $entry->replaceText($text, $updatedAt, $actorId);
+            $this->entries[$key->toString()] = $entry->replaceText($text, $now, $actorId, $description);
         } else {
-            $this->entries[$key->toString()] = new TranslationEntry($key, $text, $updatedAt, $actorId);
+            $this->entries[$key->toString()] = new TranslationEntry($key, $text, $now, $now, $actorId, $actorId, $description);
         }
 
         unset($this->removedKeys[$key->toString()]);

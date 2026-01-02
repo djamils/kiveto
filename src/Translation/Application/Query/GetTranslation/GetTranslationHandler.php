@@ -26,7 +26,6 @@ final readonly class GetTranslationHandler
     {
         $catalogId    = TranslationCatalogId::fromStrings($query->scope, $query->locale, $query->domain);
         $scopeCatalog = $this->loadCatalog($catalogId);
-
         $value = $scopeCatalog[$query->key] ?? null;
 
         if (null !== $value) {

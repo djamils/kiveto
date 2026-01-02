@@ -18,10 +18,15 @@ final class TranslationEntryMapper
         return new TranslationEntry(
             TranslationKey::fromString($entity->getTranslationKey()),
             TranslationText::fromString($entity->getTranslationValue()),
+            $entity->getCreatedAt(),
             $entity->getUpdatedAt(),
+            null !== $entity->getCreatedBy()
+                ? ActorId::fromString(Uuid::fromBinary($entity->getCreatedBy())->toRfc4122())
+                : null,
             null !== $entity->getUpdatedBy()
                 ? ActorId::fromString(Uuid::fromBinary($entity->getUpdatedBy())->toRfc4122())
                 : null,
+            $entity->getDescription(),
         );
     }
 }

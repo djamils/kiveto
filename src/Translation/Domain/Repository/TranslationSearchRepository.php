@@ -26,7 +26,9 @@ interface TranslationSearchRepository
      *     keyContains?: string|null,
      *     valueContains?: string|null,
      *     updatedBy?: string|null,
-     *     updatedAfter?: \DateTimeImmutable|null
+     *     updatedAfter?: \DateTimeImmutable|null,
+     *     createdBy?: string|null,
+     *     createdAfter?: \DateTimeImmutable|null
      * } $criteria
      *
      * @return array{
@@ -36,6 +38,9 @@ interface TranslationSearchRepository
      *         domain: string,
      *         key: string,
      *         value: string,
+     *         description: string|null,
+     *         createdAt: \DateTimeImmutable,
+     *         createdBy: string|null,
      *         updatedAt: \DateTimeImmutable,
      *         updatedBy: string|null
      *     }>,

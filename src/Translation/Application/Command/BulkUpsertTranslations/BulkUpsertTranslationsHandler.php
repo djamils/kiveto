@@ -43,6 +43,7 @@ final readonly class BulkUpsertTranslationsHandler
                     TranslationText::fromString($entry['value']),
                     $this->clock->now(),
                     $actorId,
+                    $entry['description'] ?? null,
                 );
             }
 
@@ -53,9 +54,9 @@ final readonly class BulkUpsertTranslationsHandler
     }
 
     /**
-     * @param list<array{scope: string, locale: string, domain: string, key: string, value: string}> $entries
+     * @param list<array{scope: string, locale: string, domain: string, key: string, value: string, description?: string|null}> $entries
      *
-     * @return array<string, list<array{scope: string, locale: string, domain: string, key: string, value: string}>>
+     * @return array<string, list<array{scope: string, locale: string, domain: string, key: string, value: string, description?: string|null}>>
      */
     private function groupByCatalog(array $entries): array
     {

@@ -44,6 +44,15 @@ class TranslationEntryEntity
     #[ORM\Column(type: 'text')]
     private string $translationValue;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $description = null;
+
+    #[ORM\Column(type: 'datetime_immutable', precision: 6)]
+    private \DateTimeImmutable $createdAt;
+
+    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
+    private ?string $createdBy = null;
+
     #[ORM\Column(type: 'datetime_immutable', precision: 6)]
     private \DateTimeImmutable $updatedAt;
 
@@ -108,6 +117,36 @@ class TranslationEntryEntity
     public function setTranslationValue(string $translationValue): void
     {
         $this->translationValue = $translationValue;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): void
+    {
+        $this->description = $description;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): void
+    {
+        $this->createdAt = $createdAt;
+    }
+
+    public function getCreatedBy(): ?string
+    {
+        return $this->createdBy;
+    }
+
+    public function setCreatedBy(?string $createdBy): void
+    {
+        $this->createdBy = $createdBy;
     }
 
     public function getUpdatedAt(): \DateTimeImmutable
