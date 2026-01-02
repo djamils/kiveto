@@ -98,3 +98,35 @@ services:
         class: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineUserRepository
 
     App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~
+
+    # ============================================================================
+    # BOUNDED CONTEXT: TRANSLATION
+    # ============================================================================
+
+    App\Translation\Domain\Repository\TranslationCatalogRepository:
+        class: App\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationCatalogRepository
+
+    App\Translation\Domain\Repository\TranslationSearchRepository:
+        class: App\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationSearchRepository
+
+    App\Translation\Application\Port\CatalogCache:
+        class: App\Translation\Infrastructure\Cache\SymfonyCatalogCache
+        arguments:
+            $cachePool: '@cache.translation_catalog'
+
+    App\Translation\Application\Port\AppScopeResolver:
+        class: App\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
+
+    App\Translation\Application\Port\LocaleResolver:
+        class: App\Translation\Infrastructure\Resolver\DefaultLocaleResolver
+
+    App\Translation\Infrastructure\Persistence\Doctrine\Mapper\TranslationEntryMapper: ~
+
+    App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator:
+        decorates: translator
+        arguments:
+            $fallbackTranslator: '@App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator.inner'
+            $queryBus: '@App\Shared\Application\Bus\QueryBusInterface'
+            $scopeResolver: '@App\Translation\Application\Port\AppScopeResolver'
+            $localeResolver: '@App\Translation\Application\Port\LocaleResolver'
+            $formatter: '@translator.formatter'

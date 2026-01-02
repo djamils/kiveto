@@ -28,6 +28,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/IdentityAccess/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity'
                 alias: IdentityAccess
+            Translation:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Translation/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Translation\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Translation
             # Add other BC mappings here when they have Doctrine entities, e.g.:
             # FeatureFlag:
             #     type: attribute
