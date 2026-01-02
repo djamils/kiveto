@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Shared\Infrastructure\Persistence\Doctrine\Mapping;
 
 use App\Billing\Infrastructure\Persistence\Doctrine\Entity\Invoice;
 use App\Billing\Infrastructure\Persistence\Doctrine\Entity\Line;
+use App\Foo\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use App\Shared\Infrastructure\Persistence\Doctrine\Mapping\BoundedContextPrefixNamingStrategy;
 use App\Shared\Infrastructure\Something\Foo;
 use Doctrine\ORM\Mapping\NamingStrategy;
@@ -50,10 +51,11 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
     public function testNormalizeOnlySuffix(): void
     {
-        $fqcn = 'App\\Foo\\Infrastructure\\Persistence\\Doctrine\\Entity\\UserEntity';
+        $fqcn = UserEntity::class;
 
         $inner = $this->createMock(NamingStrategy::class);
-        $inner->expects(self::once())
+        $inner
+            ->expects(self::once())
             ->method('classToTableName')
             ->with($fqcn)
             ->willReturn('user_entity')

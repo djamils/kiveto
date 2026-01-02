@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Infrastructure\Bus\Messenger\Handler;
 
-use App\Shared\Application\Event\DomainEventMessage;
 use App\Shared\Application\Event\DomainEventMessageFactory;
 use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
@@ -30,8 +29,10 @@ final class IgnoreDomainEventMessageHandlerTest extends TestCase
         $this->factory = new DomainEventMessageFactory($uuid, $clock);
     }
 
-    public function test_handler_is_noop(): void
+    public function testHandlerIsNoop(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $event = new class implements DomainEventInterface {
             public function aggregateId(): string
             {
@@ -49,13 +50,10 @@ final class IgnoreDomainEventMessageHandlerTest extends TestCase
             }
         };
 
-        $message  = $this->factory->wrap($event);
-        $handler  = new IgnoreDomainEventMessageHandler();
+        $message = $this->factory->wrap($event);
+        $handler = new IgnoreDomainEventMessageHandler();
 
         // Should not throw and do nothing
         $handler($message);
-
-        self::assertTrue(true);
     }
 }
-
