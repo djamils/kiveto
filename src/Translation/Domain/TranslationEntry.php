@@ -56,8 +56,12 @@ final class TranslationEntry
         return $this->description;
     }
 
-    public function replaceText(TranslationText $text, \DateTimeImmutable $updatedAt, ?ActorId $updatedBy, ?string $description): self
-    {
+    public function replaceText(
+        TranslationText $text,
+        \DateTimeImmutable $updatedAt,
+        ?ActorId $updatedBy,
+        ?string $description,
+    ): self {
         return new self(
             $this->key,
             $text,

@@ -32,7 +32,7 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
 
         foreach ($catalog->removedKeys() as $key) {
             $connection->delete(
-                'translation_entry',
+                'translation__entries',
                 [
                     'app_scope'       => $id->scope()->value,
                     'locale'          => $id->locale()->toString(),
@@ -72,10 +72,31 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
     {
         $connection->executeStatement(
             <<<'SQL'
-                INSERT INTO translation_entry
-                    (id, app_scope, locale, domain, translation_key, translation_value, description, created_at, created_by, updated_at, updated_by)
-                VALUES
-                    (:id, :scope, :locale, :domain, :key, :value, :description, :createdAt, :createdBy, :updatedAt, :updatedBy)
+                INSERT INTO translation__entries (
+                     id,
+                     app_scope,
+                     locale,
+                     domain,
+                     translation_key,
+                     translation_value,
+                     description,
+                     created_at,
+                     created_by,
+                     updated_at,
+                     updated_by
+                ) VALUES (
+                     :id,
+                     :scope,
+                     :locale,
+                     :domain,
+                     :key,
+                     :value,
+                     :description,
+                     :createdAt,
+                     :createdBy,
+                     :updatedAt,
+                     :updatedBy
+                )
                 ON DUPLICATE KEY UPDATE
                     translation_value = VALUES(translation_value),
                     description = VALUES(description),
@@ -83,15 +104,15 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
                     updated_by = VALUES(updated_by)
             SQL,
             [
-                'id'        => Uuid::fromString($this->uuidGenerator->generate())->toBinary(),
-                'scope'     => $catalogId->scope()->value,
-                'locale'    => $catalogId->locale()->toString(),
-                'domain'    => $catalogId->domain()->toString(),
-                'key'       => $entry->key()->toString(),
-                'value'     => $entry->text()->toString(),
+                'id'          => Uuid::fromString($this->uuidGenerator->generate())->toBinary(),
+                'scope'       => $catalogId->scope()->value,
+                'locale'      => $catalogId->locale()->toString(),
+                'domain'      => $catalogId->domain()->toString(),
+                'key'         => $entry->key()->toString(),
+                'value'       => $entry->text()->toString(),
                 'description' => $entry->description(),
-                'createdAt' => $entry->createdAt()->format('Y-m-d H:i:s.u'),
-                'createdBy' => null !== $entry->createdBy()
+                'createdAt'   => $entry->createdAt()->format('Y-m-d H:i:s.u'),
+                'createdBy'   => null !== $entry->createdBy()
                     ? Uuid::fromString($entry->createdBy()->toString())->toBinary()
                     : null,
                 'updatedAt' => $entry->updatedAt()->format('Y-m-d H:i:s.u'),

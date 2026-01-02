@@ -20,6 +20,7 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
     {
         $prefix = $this->prefixFor($className);
         $table  = $this->inner->classToTableName($className);
+        $table  = $this->normalizeTableName($table, $prefix);
         $plural = $this->pluralize($table);
 
         return '' === $prefix ? $plural : $prefix . '__' . $plural;
@@ -99,5 +100,20 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
         $plural = $this->inflector->pluralize($table);
 
         return $plural[0] ?? $table;
+    }
+
+    private function normalizeTableName(string $table, string $prefix): string
+    {
+        $normalized = $table;
+
+        if ('' !== $prefix && str_starts_with($normalized, $prefix . '_')) {
+            $normalized = mb_substr($normalized, mb_strlen($prefix) + 1);
+        }
+
+        if (str_ends_with($normalized, '_entity')) {
+            $normalized = mb_substr($normalized, 0, -7);
+        }
+
+        return $normalized;
     }
 }

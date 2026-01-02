@@ -34,8 +34,6 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
         $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();
         $resolvedDomain = $domain ?? 'messages';
 
-        dump($id);
-
         /** @var TranslationView|null $translation */
         $translation = $this->queryBus->ask(
             new GetTranslation(
@@ -65,7 +63,7 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
         }
     }
 
-    public function getCatalogue(string $locale = null): MessageCatalogueInterface
+    public function getCatalogue(?string $locale = null): MessageCatalogueInterface
     {
         if (!$this->fallbackTranslator instanceof TranslatorBagInterface) {
             throw new \LogicException('Fallback translator must implement TranslatorBagInterface.');

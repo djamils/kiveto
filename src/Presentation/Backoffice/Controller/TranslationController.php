@@ -48,18 +48,21 @@ final class TranslationController extends AbstractController
         /** @var TranslationSearchResult $result */
         $result = $this->queryBus->ask($criteria);
 
-        return $this->render('backoffice/translations/index.html.twig', [
-            'result' => $result,
-            'filters' => [
-                'scope' => (string) $request->query->get('scope', ''),
-                'locale' => (string) $request->query->get('locale', ''),
-                'domain' => (string) $request->query->get('domain', ''),
-                'key' => (string) $request->query->get('key', ''),
-                'value' => (string) $request->query->get('value', ''),
-                'page' => (int) $request->query->get('page', 1),
+        return $this->render(
+            'backoffice/translations/index.html.twig',
+            [
+                'result'  => $result,
+                'filters' => [
+                    'scope'  => (string) $request->query->get('scope', ''),
+                    'locale' => (string) $request->query->get('locale', ''),
+                    'domain' => (string) $request->query->get('domain', ''),
+                    'key'    => (string) $request->query->get('key', ''),
+                    'value'  => (string) $request->query->get('value', ''),
+                    'page'   => (int) $request->query->get('page', 1),
+                ],
+                'csrf_token' => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
             ],
-            'csrf_token' => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
-        ]);
+        );
     }
 
     #[Route(path: '/translations/upsert', name: 'backoffice_translations_upsert', methods: ['POST'])]
@@ -67,11 +70,11 @@ final class TranslationController extends AbstractController
     {
         $this->assertCsrf($request);
 
-        $scope  = (string) $request->request->get('scope');
-        $locale = (string) $request->request->get('locale');
-        $domain = (string) $request->request->get('domain');
-        $key    = (string) $request->request->get('key');
-        $value  = (string) $request->request->get('value');
+        $scope       = (string) $request->request->get('scope');
+        $locale      = (string) $request->request->get('locale');
+        $domain      = (string) $request->request->get('domain');
+        $key         = (string) $request->request->get('key');
+        $value       = (string) $request->request->get('value');
         $description = $request->request->get('description');
 
         if ('' === trim($scope) || '' === trim($locale) || '' === trim($domain) || '' === trim($key) || '' === $value) {
@@ -92,7 +95,10 @@ final class TranslationController extends AbstractController
 
         $this->addFlash('success', 'Traduction enregistrée.');
 
-        return $this->redirectToRoute('backoffice_translations', $this->redirectParams($request, $scope, $locale, $domain));
+        return $this->redirectToRoute(
+            'backoffice_translations',
+            $this->redirectParams($request, $scope, $locale, $domain),
+        );
     }
 
     #[Route(path: '/translations/delete', name: 'backoffice_translations_delete', methods: ['POST'])]
@@ -121,7 +127,10 @@ final class TranslationController extends AbstractController
 
         $this->addFlash('success', 'Traduction supprimée (si elle existait).');
 
-        return $this->redirectToRoute('backoffice_translations', $this->redirectParams($request, $scope, $locale, $domain));
+        return $this->redirectToRoute(
+            'backoffice_translations',
+            $this->redirectParams($request, $scope, $locale, $domain),
+        );
     }
 
     private function assertCsrf(Request $request): void
@@ -136,17 +145,20 @@ final class TranslationController extends AbstractController
     /**
      * @return array<string, string>
      */
-    private function redirectParams(Request $request, ?string $scope = null, ?string $locale = null, ?string $domain = null): array
-    {
+    private function redirectParams(
+        Request $request,
+        ?string $scope = null,
+        ?string $locale = null,
+        ?string $domain = null,
+    ): array {
         return [
-            'scope' => $scope ?? (string) $request->request->get('scope', ''),
-            'locale' => $locale ?? (string) $request->request->get('locale', ''),
-            'domain' => $domain ?? (string) $request->request->get('domain', ''),
-            'key' => (string) $request->request->get('key', $request->query->get('key', '')),
-            'value' => (string) $request->request->get('value', $request->query->get('value', '')),
+            'scope'       => $scope ?? (string) $request->request->get('scope', ''),
+            'locale'      => $locale ?? (string) $request->request->get('locale', ''),
+            'domain'      => $domain ?? (string) $request->request->get('domain', ''),
+            'key'         => (string) $request->request->get('key', $request->query->get('key', '')),
+            'value'       => (string) $request->request->get('value', $request->query->get('value', '')),
             'description' => (string) $request->request->get('description', $request->query->get('description', '')),
-            'page' => (int) $request->query->get('page', 1),
+            'page'        => (string) $request->query->get('page', '1'),
         ];
     }
 }
-

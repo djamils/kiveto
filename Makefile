@@ -93,7 +93,8 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
-	migrations identity-access-migrations shared-migrations drop-db create-db migrate-db reset-db
+	migrations identity-access-migrations identity-access-migrations shared-migrations \
+	drop-db create-db migrate-db reset-db
 
 ##
 ## HELP
@@ -201,12 +202,17 @@ reset-db: drop-db create-db migrate-db
 init-db: drop-db create-db
 	@$(call ok,Database initialization complete)
 
-migrations: identity-access-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\IdentityAccess' --filter-expression='/^identity_access__/')
 	@$(call ok,IdentityAccess migrations generated)
+
+translations-migrations:
+	@$(call step,Generating migrations for Translation...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Translation' --filter-expression='/^translation__/')
+	@$(call ok,Translation migrations generated)
 
 shared-migrations:
 	@$(call step,Generating migrations for Shared (technical tables)...)

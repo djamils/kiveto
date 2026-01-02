@@ -63,14 +63,14 @@ final readonly class SymfonyCatalogCache implements CatalogCacheInterface
 
         // Symfony cache keys forbid {}()/\@:; replace reserved chars.
         return strtr($raw, [
-            ':' => '.',
-            '{' => '_',
-            '}' => '_',
-            '(' => '_',
-            ')' => '_',
-            '/' => '_',
+            ':'  => '.',
+            '{'  => '_',
+            '}'  => '_',
+            '('  => '_',
+            ')'  => '_',
+            '/'  => '_',
             '\\' => '_',
-            '@' => '_',
+            '@'  => '_',
         ]);
     }
 }

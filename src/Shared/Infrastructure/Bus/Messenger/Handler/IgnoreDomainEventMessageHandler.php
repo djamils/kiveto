@@ -18,4 +18,3 @@ final class IgnoreDomainEventMessageHandler
         // no-op
     }
 }
-

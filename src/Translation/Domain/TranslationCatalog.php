@@ -61,9 +61,22 @@ final class TranslationCatalog extends AggregateRoot
         $entry = $this->entries[$key->toString()] ?? null;
 
         if (null !== $entry) {
-            $this->entries[$key->toString()] = $entry->replaceText($text, $now, $actorId, $description);
+            $this->entries[$key->toString()] = $entry->replaceText(
+                $text,
+                $now,
+                $actorId,
+                $description,
+            );
         } else {
-            $this->entries[$key->toString()] = new TranslationEntry($key, $text, $now, $now, $actorId, $actorId, $description);
+            $this->entries[$key->toString()] = new TranslationEntry(
+                $key,
+                $text,
+                $now,
+                $now,
+                $actorId,
+                $actorId,
+                $description,
+            );
         }
 
         unset($this->removedKeys[$key->toString()]);

@@ -54,9 +54,23 @@ final readonly class BulkUpsertTranslationsHandler
     }
 
     /**
-     * @param list<array{scope: string, locale: string, domain: string, key: string, value: string, description?: string|null}> $entries
+     * @param list<array{
+     *     scope: string,
+     *     locale: string,
+     *     domain: string,
+     *     key: string,
+     *     value: string,
+     *     description?: string|null
+     * }> $entries
      *
-     * @return array<string, list<array{scope: string, locale: string, domain: string, key: string, value: string, description?: string|null}>>
+     * @return array<string, list<array{
+     *     scope: string,
+     *     locale: string,
+     *     domain: string,
+     *     key: string,
+     *     value: string,
+     *     description?: string|null
+     * }>>
      */
     private function groupByCatalog(array $entries): array
     {

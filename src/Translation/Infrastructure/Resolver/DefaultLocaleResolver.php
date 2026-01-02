@@ -65,8 +65,8 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         $short      = mb_strtolower($normalized);
 
         return match ($short) {
-            'fr' => 'fr_FR',
-            'en' => 'en_GB',
+            'fr'    => 'fr_FR',
+            'en'    => 'en_GB',
             default => $normalized,
         };
     }

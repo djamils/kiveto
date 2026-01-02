@@ -15,10 +15,10 @@ class HomeController extends AbstractController
     {
         return $this->render('clinic/index.html.twig', [
             'translations' => [
-                'hello' => 'hello', // already defined fr_FR
-                'clinic.home.title' => 'clinic.home.title',
+                'hello'                => 'hello', // already defined fr_FR
+                'clinic.home.title'    => 'clinic.home.title',
                 'clinic.home.subtitle' => 'clinic.home.subtitle',
-                'clinic.home.cta' => 'clinic.home.cta',
+                'clinic.home.cta'      => 'clinic.home.cta',
             ],
         ]);
     }

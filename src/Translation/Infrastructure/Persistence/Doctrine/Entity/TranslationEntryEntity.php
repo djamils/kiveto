@@ -7,21 +7,15 @@ namespace App\Translation\Infrastructure\Persistence\Doctrine\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(
-    name: 'translation_entry',
-    uniqueConstraints: [
-        new ORM\UniqueConstraint(
-            name: 'uniq_translation_entry_scope_locale_domain_key',
-            columns: ['app_scope', 'locale', 'domain', 'translation_key'],
-        ),
-    ],
-    indexes: [
-        new ORM\Index(columns: ['app_scope', 'locale', 'domain'], name: 'idx_translation_scope_locale_domain'),
-        new ORM\Index(columns: ['translation_key'], name: 'idx_translation_key'),
-        new ORM\Index(columns: ['domain'], name: 'idx_translation_domain'),
-        new ORM\Index(columns: ['locale'], name: 'idx_translation_locale'),
-        new ORM\Index(columns: ['updated_at'], name: 'idx_translation_updated_at'),
-    ],
+#[ORM\Table]
+#[ORM\Index(name: 'idx_translation_scope_locale_domain', columns: ['app_scope', 'locale', 'domain'])]
+#[ORM\Index(name: 'idx_translation_key', columns: ['translation_key'])]
+#[ORM\Index(name: 'idx_translation_domain', columns: ['domain'])]
+#[ORM\Index(name: 'idx_translation_locale', columns: ['locale'])]
+#[ORM\Index(name: 'idx_translation_updated_at', columns: ['updated_at'])]
+#[ORM\UniqueConstraint(
+    name: 'uniq_translation_entry_scope_locale_domain_key',
+    columns: ['app_scope', 'locale', 'domain', 'translation_key'],
 )]
 class TranslationEntryEntity
 {
