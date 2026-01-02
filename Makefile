@@ -8,6 +8,7 @@ DOCKER_COMPOSE = HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker-compose
 EXEC_PHP = $(DOCKER_COMPOSE) exec -T php-fpm
 COMPOSER = $(EXEC_PHP) composer
 SYMFONY = $(EXEC_PHP) bin/console
+SYMFONY_TEST = $(EXEC_PHP) bin/console --env=test --no-debug
 
 APP_HOST ?= localhost
 APP_PORT ?= 81
@@ -94,7 +95,7 @@ endef
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	migrations identity-access-migrations identity-access-migrations shared-migrations \
-	drop-db create-db migrate-db reset-db
+	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db
 
 ##
 ## HELP
@@ -202,6 +203,25 @@ reset-db: drop-db create-db migrate-db
 init-db: drop-db create-db
 	@$(call ok,Database initialization complete)
 
+drop-test-db:
+	@$(call step,Dropping TEST database...)
+	$(Q)$(call run_live,$(SYMFONY_TEST) doctrine:database:drop --if-exists --force)
+	@$(call ok,TEST database dropped)
+
+create-test-db:
+	@$(call step,Creating TEST database...)
+	$(Q)$(call run_live,$(SYMFONY_TEST) doctrine:database:create --if-not-exists)
+	@$(call ok,TEST database created)
+
+migrate-test-db:
+	@$(call step,Running TEST migrations...)
+	$(Q)$(call run_live,$(SYMFONY_TEST) doctrine:migrations:migrate --no-interaction --allow-no-migration)
+	@$(call ok,TEST migrations executed)
+
+reset-test-db: drop-test-db create-test-db migrate-test-db
+	@$(call ok,TEST database reset complete)
+
+
 migrations: identity-access-migrations translations-migrations shared-migrations
 
 identity-access-migrations:
@@ -276,12 +296,12 @@ php-cs-fixer.dry-run:
 	$(Q)$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose --diff --dry-run
 	@$(call ok,PHP-CS-Fixer dry-run passed)
 
-test:
+test: reset-test-db
 	@$(call step,Running PHPUnit...)
 	$(Q)$(EXEC_PHP) bin/phpunit --colors=always
 	@$(call ok,Tests passed)
 
-test-coverage:
+test-coverage: reset-test-db
 	@$(call step,Running PHPUnit with coverage...)
 	$(Q)$(EXEC_PHP) bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
