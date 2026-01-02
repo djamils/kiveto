@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Query\GetCatalog;
 
-use App\Translation\Application\Port\CatalogCache;
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
+use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -17,7 +17,7 @@ final readonly class GetCatalogHandler
 
     public function __construct(
         private TranslationSearchRepository $repository,
-        private CatalogCache $cache,
+        private CatalogCacheInterface $cache,
         private int $catalogTtl = self::DEFAULT_TTL,
     ) {
     }

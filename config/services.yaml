@@ -109,15 +109,15 @@ services:
     App\Translation\Domain\Repository\TranslationSearchRepository:
         class: App\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationSearchRepository
 
-    App\Translation\Application\Port\CatalogCache:
+    App\Translation\Application\Port\CatalogCacheInterface:
         class: App\Translation\Infrastructure\Cache\SymfonyCatalogCache
         arguments:
             $cachePool: '@cache.translation_catalog'
 
-    App\Translation\Application\Port\AppScopeResolver:
+    App\Translation\Application\Port\AppScopeResolverInterface:
         class: App\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
 
-    App\Translation\Application\Port\LocaleResolver:
+    App\Translation\Application\Port\LocaleResolverInterface:
         class: App\Translation\Infrastructure\Resolver\DefaultLocaleResolver
 
     App\Translation\Infrastructure\Persistence\Doctrine\Mapper\TranslationEntryMapper: ~
@@ -127,6 +127,6 @@ services:
         arguments:
             $fallbackTranslator: '@App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator.inner'
             $queryBus: '@App\Shared\Application\Bus\QueryBusInterface'
-            $scopeResolver: '@App\Translation\Application\Port\AppScopeResolver'
-            $localeResolver: '@App\Translation\Application\Port\LocaleResolver'
+            $scopeResolver: '@App\Translation\Application\Port\AppScopeResolverInterface'
+            $localeResolver: '@App\Translation\Application\Port\LocaleResolverInterface'
             $formatter: '@translator.formatter'

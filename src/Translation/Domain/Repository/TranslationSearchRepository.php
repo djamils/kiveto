@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Translation\Domain\Repository;
 
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\Locale;
-use App\Translation\Domain\Model\ValueObject\TranslationDomain;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\Locale;
+use App\Translation\Domain\ValueObject\TranslationDomain;
 
 /**
  * Read-side optimized repository for translations.
@@ -19,8 +19,26 @@ interface TranslationSearchRepository
     public function findCatalog(AppScope $scope, Locale $locale, TranslationDomain $domain): array;
 
     /**
+     * @param array{
+     *     scope?: AppScope|null,
+     *     locale?: Locale|null,
+     *     domain?: TranslationDomain|null,
+     *     keyContains?: string|null,
+     *     valueContains?: string|null,
+     *     updatedBy?: string|null,
+     *     updatedAfter?: \DateTimeImmutable|null
+     * } $criteria
+     *
      * @return array{
-     *     items: list<array<string, mixed>>,
+     *     items: list<array{
+     *         scope: string,
+     *         locale: string,
+     *         domain: string,
+     *         key: string,
+     *         value: string,
+     *         updatedAt: \DateTimeImmutable,
+     *         updatedBy: string|null
+     *     }>,
      *     total: int
      * }
      */

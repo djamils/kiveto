@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Resolver;
 
-use App\Translation\Application\Port\AppScopeResolver;
-use App\Translation\Domain\Model\ValueObject\AppScope;
+use App\Translation\Application\Port\AppScopeResolverInterface;
+use App\Translation\Domain\ValueObject\AppScope;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-final readonly class HostnameAppScopeResolver implements AppScopeResolver
+final readonly class HostnameAppScopeResolver implements AppScopeResolverInterface
 {
     public function __construct(
         private RequestStack $requestStack,
+        /** @var array<string, AppScope> */
         private array $hostMap = [
             'clinic.kiveto.com'     => AppScope::CLINIC,
             'portal.kiveto.com'     => AppScope::PORTAL,
@@ -24,8 +25,12 @@ final readonly class HostnameAppScopeResolver implements AppScopeResolver
     {
         $host = $this->requestStack->getCurrentRequest()?->getHost();
 
-        if (null !== $host && isset($this->hostMap[$host])) {
-            return $this->hostMap[$host];
+        if (null !== $host) {
+            $mapped = $this->hostMap[$host] ?? null;
+
+            if ($mapped instanceof AppScope) {
+                return $mapped;
+            }
         }
 
         return AppScope::SHARED;

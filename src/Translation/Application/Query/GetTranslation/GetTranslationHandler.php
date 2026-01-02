@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Query\GetTranslation;
 
-use App\Translation\Application\Port\CatalogCache;
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
+use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -17,7 +17,7 @@ final readonly class GetTranslationHandler
 
     public function __construct(
         private TranslationSearchRepository $repository,
-        private CatalogCache $cache,
+        private CatalogCacheInterface $cache,
         private int $catalogTtl = self::DEFAULT_TTL,
     ) {
     }
@@ -45,7 +45,13 @@ final readonly class GetTranslationHandler
             return null;
         }
 
-        return new TranslationView($sharedId->scope()->value, $sharedId->locale()->toString(), $sharedId->domain()->toString(), $query->key, $fallbackValue);
+        return new TranslationView(
+            $sharedId->scope()->value,
+            $sharedId->locale()->toString(),
+            $sharedId->domain()->toString(),
+            $query->key,
+            $fallbackValue
+        );
     }
 
     /**

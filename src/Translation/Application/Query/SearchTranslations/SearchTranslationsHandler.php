@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Query\SearchTranslations;
 
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\Locale;
-use App\Translation\Domain\Model\ValueObject\TranslationDomain;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\Locale;
+use App\Translation\Domain\ValueObject\TranslationDomain;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -36,11 +36,11 @@ final readonly class SearchTranslationsHandler
 
         $items = array_map(
             static fn (array $row): TranslationSearchItem => new TranslationSearchItem(
-                $row['scope'],
-                $row['locale'],
-                $row['domain'],
-                $row['key'],
-                $row['value'],
+                (string) $row['scope'],
+                (string) $row['locale'],
+                (string) $row['domain'],
+                (string) $row['key'],
+                (string) $row['value'],
                 $row['updatedAt'],
                 $row['updatedBy'],
             ),

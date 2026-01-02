@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Translation\Domain\Model\ValueObject;
+namespace App\Translation\Domain\ValueObject;
 
 final class TranslationText
 {
@@ -12,7 +12,6 @@ final class TranslationText
 
     public static function fromString(string $value): self
     {
-        // Do not trim to preserve intentional leading/trailing spaces.
         if ('' === $value) {
             throw new \InvalidArgumentException('Translation text cannot be empty.');
         }

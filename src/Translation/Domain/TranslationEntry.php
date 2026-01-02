@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Translation\Domain\Model;
+namespace App\Translation\Domain;
 
-use App\Translation\Domain\Model\ValueObject\ActorId;
-use App\Translation\Domain\Model\ValueObject\TranslationKey;
-use App\Translation\Domain\Model\ValueObject\TranslationText;
+use App\Translation\Domain\ValueObject\ActorId;
+use App\Translation\Domain\ValueObject\TranslationKey;
+use App\Translation\Domain\ValueObject\TranslationText;
 
 final class TranslationEntry
 {

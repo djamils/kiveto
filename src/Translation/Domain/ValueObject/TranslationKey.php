@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Translation\Domain\Model\ValueObject;
+namespace App\Translation\Domain\ValueObject;
 
 final class TranslationKey
 {

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Persistence\Doctrine\Repository;
 
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\Locale;
-use App\Translation\Domain\Model\ValueObject\TranslationDomain;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\Locale;
+use App\Translation\Domain\ValueObject\TranslationDomain;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
@@ -39,12 +39,41 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
         $catalog = [];
 
         foreach ($rows as $row) {
-            $catalog[(string) $row['translation_key']] = (string) $row['translation_value'];
+            $keyRaw   = $row['translation_key'] ?? null;
+            $valueRaw = $row['translation_value'] ?? null;
+
+            if (\is_string($keyRaw) && '' !== $keyRaw && \is_string($valueRaw)) {
+                $catalog[$keyRaw] = $valueRaw;
+            }
         }
 
         return $catalog;
     }
 
+    /**
+     * @param array{
+     *     scope?: AppScope|null,
+     *     locale?: Locale|null,
+     *     domain?: TranslationDomain|null,
+     *     keyContains?: string|null,
+     *     valueContains?: string|null,
+     *     updatedBy?: string|null,
+     *     updatedAfter?: \DateTimeImmutable|null
+     * } $criteria
+     *
+     * @return array{
+     *     items: list<array{
+     *         scope: string,
+     *         locale: string,
+     *         domain: string,
+     *         key: string,
+     *         value: string,
+     *         updatedAt: \DateTimeImmutable,
+     *         updatedBy: string|null
+     *     }>,
+     *     total: int
+     * }
+     */
     public function search(array $criteria, int $page, int $perPage): array
     {
         $qb = $this->connection->createQueryBuilder()
@@ -56,24 +85,31 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
 
         $this->applyCriteria($qb, $criteria);
 
-        $countQb = clone $qb;
-        $countQb->resetQueryPart('orderBy')->select('COUNT(*) AS total_count');
+        $countQb = $this->connection->createQueryBuilder()
+            ->select('COUNT(*) AS total_count')
+            ->from('translation_entry')
+        ;
+        $this->applyCriteria($countQb, $criteria);
 
         $qb->setFirstResult(($page - 1) * $perPage)->setMaxResults($perPage);
 
-        $rows  = $qb->executeQuery()->fetchAllAssociative();
-        $total = (int) $countQb->executeQuery()->fetchOne();
+        $rows = $qb->executeQuery()->fetchAllAssociative();
+
+        $totalRaw = $countQb->executeQuery()->fetchOne();
+        $total    = \is_int($totalRaw) ? $totalRaw : (is_numeric($totalRaw) ? (int) $totalRaw : 0);
 
         $items = array_map(
             static function (array $row): array {
                 return [
-                    'scope'     => (string) $row['app_scope'],
-                    'locale'    => (string) $row['locale'],
-                    'domain'    => (string) $row['domain'],
-                    'key'       => (string) $row['translation_key'],
-                    'value'     => (string) $row['translation_value'],
-                    'updatedAt' => new \DateTimeImmutable((string) $row['updated_at']),
-                    'updatedBy' => null !== $row['updated_by'] ? Uuid::fromBinary($row['updated_by'])->toRfc4122() : null,
+                    'scope'     => \is_string($row['app_scope'] ?? null) ? (string) $row['app_scope'] : '',
+                    'locale'    => \is_string($row['locale'] ?? null) ? (string) $row['locale'] : '',
+                    'domain'    => \is_string($row['domain'] ?? null) ? (string) $row['domain'] : '',
+                    'key'       => \is_string($row['translation_key'] ?? null) ? (string) $row['translation_key'] : '', // phpcs:ignore
+                    'value'     => \is_string($row['translation_value'] ?? null) ? (string) $row['translation_value'] : '', // phpcs:ignore
+                    'updatedAt' => new \DateTimeImmutable(\is_string($row['updated_at'] ?? null) ? (string) $row['updated_at'] : 'now'), // phpcs:ignore
+                    'updatedBy' => null !== ($row['updated_by'] ?? null) && \is_string($row['updated_by'])
+                        ? Uuid::fromBinary($row['updated_by'])->toRfc4122()
+                        : null,
                 ];
             },
             $rows,
@@ -102,7 +138,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
         }
 
         return array_map(
-            static fn (array $row): string => (string) $row['domain'],
+            static fn (array $row): string => \is_string($row['domain'] ?? null) ? (string) $row['domain'] : '',
             $qb->executeQuery()->fetchAllAssociative(),
         );
     }
@@ -124,39 +160,71 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
         }
 
         return array_map(
-            static fn (array $row): string => (string) $row['locale'],
+            static fn (array $row): string => \is_string($row['locale'] ?? null) ? (string) $row['locale'] : '',
             $qb->executeQuery()->fetchAllAssociative(),
         );
     }
 
+    /**
+     * @param array{
+     *     scope?: AppScope|null,
+     *     locale?: Locale|null,
+     *     domain?: TranslationDomain|null,
+     *     keyContains?: string|null,
+     *     valueContains?: string|null,
+     *     updatedBy?: string|null,
+     *     updatedAfter?: \DateTimeImmutable|null
+     * } $criteria
+     */
     private function applyCriteria(QueryBuilder $qb, array $criteria): void
     {
-        if ($criteria['scope'] instanceof AppScope) {
-            $qb->andWhere('app_scope = :scope')->setParameter('scope', $criteria['scope']->value);
+        if (($criteria['scope'] ?? null) instanceof AppScope) {
+            $qb
+                ->andWhere('app_scope = :scope')
+                ->setParameter('scope', $criteria['scope']->value)
+            ;
         }
 
-        if ($criteria['locale'] instanceof Locale) {
-            $qb->andWhere('locale = :locale')->setParameter('locale', $criteria['locale']->toString());
+        if (($criteria['locale'] ?? null) instanceof Locale) {
+            $qb
+                ->andWhere('locale = :locale')
+                ->setParameter('locale', $criteria['locale']->toString())
+            ;
         }
 
-        if ($criteria['domain'] instanceof TranslationDomain) {
-            $qb->andWhere('domain = :domain')->setParameter('domain', $criteria['domain']->toString());
+        if (($criteria['domain'] ?? null) instanceof TranslationDomain) {
+            $qb
+                ->andWhere('domain = :domain')
+                ->setParameter('domain', $criteria['domain']->toString())
+            ;
         }
 
-        if (null !== $criteria['keyContains']) {
-            $qb->andWhere('translation_key LIKE :keyContains')->setParameter('keyContains', '%' . $criteria['keyContains'] . '%');
+        if (\is_string($criteria['keyContains'] ?? null)) {
+            $qb
+                ->andWhere('translation_key LIKE :keyContains')
+                ->setParameter('keyContains', '%' . $criteria['keyContains'] . '%')
+            ;
         }
 
-        if (null !== $criteria['valueContains']) {
-            $qb->andWhere('translation_value LIKE :valueContains')->setParameter('valueContains', '%' . $criteria['valueContains'] . '%');
+        if (\is_string($criteria['valueContains'] ?? null)) {
+            $qb
+                ->andWhere('translation_value LIKE :valueContains')
+                ->setParameter('valueContains', '%' . $criteria['valueContains'] . '%')
+            ;
         }
 
-        if (null !== $criteria['updatedBy']) {
-            $qb->andWhere('updated_by = :updatedBy')->setParameter('updatedBy', Uuid::fromString($criteria['updatedBy'])->toBinary(), Types::BINARY);
+        if (\is_string($criteria['updatedBy'] ?? null)) {
+            $qb
+                ->andWhere('updated_by = :updatedBy')
+                ->setParameter('updatedBy', Uuid::fromString($criteria['updatedBy'])->toBinary(), Types::BINARY)
+            ;
         }
 
-        if ($criteria['updatedAfter'] instanceof \DateTimeImmutable) {
-            $qb->andWhere('updated_at >= :updatedAfter')->setParameter('updatedAfter', $criteria['updatedAfter']->format('Y-m-d H:i:s.u'));
+        if (($criteria['updatedAfter'] ?? null) instanceof \DateTimeImmutable) {
+            $qb
+                ->andWhere('updated_at >= :updatedAfter')
+                ->setParameter('updatedAfter', $criteria['updatedAfter']->format('Y-m-d H:i:s.u'))
+            ;
         }
     }
 }

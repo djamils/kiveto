@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Port;
 
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 
-interface CatalogCache
+interface CatalogCacheInterface
 {
     /**
      * @return array<string, string>|null

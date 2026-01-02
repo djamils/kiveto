@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Resolver;
 
-use App\Translation\Application\Port\AppScopeResolver;
-use App\Translation\Application\Port\LocaleResolver;
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\Locale;
+use App\Translation\Application\Port\AppScopeResolverInterface;
+use App\Translation\Application\Port\LocaleResolverInterface;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\Locale;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-final readonly class DefaultLocaleResolver implements LocaleResolver
+final readonly class DefaultLocaleResolver implements LocaleResolverInterface
 {
     public function __construct(
         private RequestStack $requestStack,
-        private AppScopeResolver $scopeResolver,
+        private AppScopeResolverInterface $scopeResolver,
         private string $defaultLocale = 'fr_FR',
     ) {
     }
@@ -49,10 +49,6 @@ final readonly class DefaultLocaleResolver implements LocaleResolver
         }
 
         $parts = explode(',', $header);
-
-        if ([] === $parts) {
-            return null;
-        }
 
         $language = trim($parts[0]);
 

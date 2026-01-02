@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Translation\Infrastructure\Symfony\Translator;
 
 use App\Shared\Application\Bus\QueryBusInterface;
-use App\Translation\Application\Port\AppScopeResolver;
-use App\Translation\Application\Port\LocaleResolver;
+use App\Translation\Application\Port\AppScopeResolverInterface;
+use App\Translation\Application\Port\LocaleResolverInterface;
 use App\Translation\Application\Query\GetTranslation\GetTranslation;
 use App\Translation\Application\Query\GetTranslation\TranslationView;
 use Symfony\Component\Translation\Formatter\MessageFormatterInterface;
@@ -18,12 +18,15 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
     public function __construct(
         private readonly TranslatorInterface $fallbackTranslator,
         private readonly QueryBusInterface $queryBus,
-        private readonly AppScopeResolver $scopeResolver,
-        private readonly LocaleResolver $localeResolver,
+        private readonly AppScopeResolverInterface $scopeResolver,
+        private readonly LocaleResolverInterface $localeResolver,
         private readonly MessageFormatterInterface $formatter,
     ) {
     }
 
+    /**
+     * @param array<string, mixed> $parameters
+     */
     public function trans(string $id, array $parameters = [], ?string $domain = null, ?string $locale = null): string
     {
         $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Cache;
 
-use App\Translation\Application\Port\CatalogCache;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
+use App\Translation\Application\Port\CatalogCacheInterface;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use Psr\Cache\CacheItemPoolInterface;
 
-final readonly class SymfonyCatalogCache implements CatalogCache
+final readonly class SymfonyCatalogCache implements CatalogCacheInterface
 {
     private const string PREFIX = 'translation:catalog:v1:';
 
@@ -16,6 +16,9 @@ final readonly class SymfonyCatalogCache implements CatalogCache
     {
     }
 
+    /**
+     * @return array<string, string>|null
+     */
     public function get(TranslationCatalogId $id): ?array
     {
         $item = $this->cachePool->getItem($this->key($id));
@@ -26,7 +29,19 @@ final readonly class SymfonyCatalogCache implements CatalogCache
 
         $value = $item->get();
 
-        return \is_array($value) ? $value : null;
+        if (!\is_array($value)) {
+            return null;
+        }
+
+        $catalog = [];
+
+        foreach ($value as $key => $val) {
+            if (\is_string($key) && \is_string($val)) {
+                $catalog[$key] = $val;
+            }
+        }
+
+        return $catalog;
     }
 
     public function save(TranslationCatalogId $id, array $catalog, int $ttl): void

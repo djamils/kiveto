@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Domain\Repository;
 
-use App\Translation\Domain\Model\TranslationCatalog;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
+use App\Translation\Domain\TranslationCatalog;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 
 interface TranslationCatalogRepository
 {

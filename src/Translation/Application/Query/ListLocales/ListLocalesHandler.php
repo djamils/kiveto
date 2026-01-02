@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Query\ListLocales;
 
-use App\Translation\Domain\Model\ValueObject\AppScope;
-use App\Translation\Domain\Model\ValueObject\TranslationDomain;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
+use App\Translation\Domain\ValueObject\AppScope;
+use App\Translation\Domain\ValueObject\TranslationDomain;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

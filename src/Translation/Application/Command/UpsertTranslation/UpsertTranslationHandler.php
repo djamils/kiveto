@@ -7,13 +7,13 @@ namespace App\Translation\Application\Command\UpsertTranslation;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventMessageFactory;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Translation\Application\Port\CatalogCache;
-use App\Translation\Domain\Model\TranslationCatalog;
-use App\Translation\Domain\Model\ValueObject\ActorId;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
-use App\Translation\Domain\Model\ValueObject\TranslationKey;
-use App\Translation\Domain\Model\ValueObject\TranslationText;
+use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\Translation\Domain\TranslationCatalog;
+use App\Translation\Domain\ValueObject\ActorId;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
+use App\Translation\Domain\ValueObject\TranslationKey;
+use App\Translation\Domain\ValueObject\TranslationText;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -21,7 +21,7 @@ final readonly class UpsertTranslationHandler
 {
     public function __construct(
         private TranslationCatalogRepository $catalogs,
-        private CatalogCache $cache,
+        private CatalogCacheInterface $cache,
         private ClockInterface $clock,
         private EventBusInterface $eventBus,
         private DomainEventMessageFactory $eventMessageFactory,

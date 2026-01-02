@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Translation\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
-use App\Translation\Domain\Model\TranslationCatalog;
-use App\Translation\Domain\Model\TranslationEntry;
-use App\Translation\Domain\Model\ValueObject\TranslationCatalogId;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\Translation\Domain\TranslationCatalog;
+use App\Translation\Domain\TranslationEntry;
+use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use App\Translation\Infrastructure\Persistence\Doctrine\Entity\TranslationEntryEntity;
 use App\Translation\Infrastructure\Persistence\Doctrine\Mapper\TranslationEntryMapper;
 use Doctrine\DBAL\Connection;
@@ -72,9 +72,14 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
     {
         $connection->executeStatement(
             <<<'SQL'
-                INSERT INTO translation_entry (id, app_scope, locale, domain, translation_key, translation_value, updated_at, updated_by)
-                VALUES (:id, :scope, :locale, :domain, :key, :value, :updatedAt, :updatedBy)
-                ON DUPLICATE KEY UPDATE translation_value = VALUES(translation_value), updated_at = VALUES(updated_at), updated_by = VALUES(updated_by)
+                INSERT INTO translation_entry
+                    (id, app_scope, locale, domain, translation_key, translation_value, updated_at, updated_by)
+                VALUES
+                    (:id, :scope, :locale, :domain, :key, :value, :updatedAt, :updatedBy)
+                ON DUPLICATE KEY UPDATE
+                    translation_value = VALUES(translation_value),
+                    updated_at = VALUES(updated_at),
+                    updated_by = VALUES(updated_by)
             SQL,
             [
                 'id'        => Uuid::fromString($this->uuidGenerator->generate())->toBinary(),
@@ -84,7 +89,9 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
                 'key'       => $entry->key()->toString(),
                 'value'     => $entry->text()->toString(),
                 'updatedAt' => $entry->updatedAt()->format('Y-m-d H:i:s.u'),
-                'updatedBy' => null !== $entry->updatedBy() ? Uuid::fromString($entry->updatedBy()->toString())->toBinary() : null,
+                'updatedBy' => null !== $entry->updatedBy()
+                    ? Uuid::fromString($entry->updatedBy()->toString())->toBinary()
+                    : null,
             ],
             [
                 'id'        => Types::BINARY,
