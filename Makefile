@@ -136,6 +136,7 @@ install:
 	$(MAKE) wait-db; \
 	$(MAKE) init-db; \
 	$(MAKE) migrate-db; \
+	$(MAKE) load-fixtures; \
 	$(MAKE) ready
 
 clean:
