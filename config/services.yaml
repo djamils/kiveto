@@ -120,13 +120,21 @@ services:
     App\Translation\Application\Port\LocaleResolverInterface:
         class: App\Translation\Infrastructure\Resolver\DefaultLocaleResolver
 
-    App\Translation\Infrastructure\Persistence\Doctrine\Mapper\TranslationEntryMapper: ~
+    App\Translation\Infrastructure\Provider\TranslationCatalogProvider:
+        arguments:
+            $repository: '@App\Translation\Domain\Repository\TranslationSearchRepository'
+            $cache: '@App\Translation\Application\Port\CatalogCacheInterface'
+            $ttl: 3600
+        tags:
+            - { name: kernel.reset, method: reset }
 
     App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator:
         decorates: translator
         arguments:
             $fallbackTranslator: '@App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator.inner'
-            $queryBus: '@App\Shared\Application\Bus\QueryBusInterface'
+            $catalogProvider: '@App\Translation\Infrastructure\Provider\TranslationCatalogProvider'
             $scopeResolver: '@App\Translation\Application\Port\AppScopeResolverInterface'
             $localeResolver: '@App\Translation\Application\Port\LocaleResolverInterface'
             $formatter: '@translator.formatter'
+        tags:
+            - { name: kernel.reset, method: reset }

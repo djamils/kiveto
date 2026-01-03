@@ -92,7 +92,6 @@ return (new PhpCsFixer\Config())
         PhpCsFixerCustomFixers\Fixer\PhpdocNoSuperfluousParamFixer::name() => true,
         PhpCsFixerCustomFixers\Fixer\PhpdocParamTypeFixer::name() => true,
         PhpCsFixerCustomFixers\Fixer\PhpUnitNoUselessReturnFixer::name() => true,
-        PhpCsFixerCustomFixers\Fixer\SingleSpaceAfterStatementFixer::name() => true,
         PhpCsFixerCustomFixers\Fixer\SingleSpaceBeforeStatementFixer::name() => true,
     ])
     ->setFinder($finder)

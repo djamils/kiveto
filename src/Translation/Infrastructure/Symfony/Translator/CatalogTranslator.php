@@ -4,26 +4,44 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Symfony\Translator;
 
-use App\Shared\Application\Bus\QueryBusInterface;
 use App\Translation\Application\Port\AppScopeResolverInterface;
 use App\Translation\Application\Port\LocaleResolverInterface;
-use App\Translation\Application\Query\GetTranslation\GetTranslation;
-use App\Translation\Application\Query\GetTranslation\TranslationView;
+use App\Translation\Domain\ValueObject\Locale as DomainLocale;
+use App\Translation\Infrastructure\Provider\TranslationCatalogProvider;
 use Symfony\Component\Translation\Formatter\MessageFormatterInterface;
+use Symfony\Component\Translation\MessageCatalogue;
 use Symfony\Component\Translation\MessageCatalogueInterface;
 use Symfony\Component\Translation\TranslatorBagInterface;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\Contracts\Translation\LocaleAwareInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterface, TranslatorBagInterface
+final class CatalogTranslator implements
+    TranslatorInterface,
+    LocaleAwareInterface,
+    TranslatorBagInterface,
+    ResetInterface
 {
+    /** @var array<string, true> */
+    private array $touchedDomains = [];
+
     public function __construct(
         private readonly TranslatorInterface $fallbackTranslator,
-        private readonly QueryBusInterface $queryBus,
+        private readonly TranslationCatalogProvider $catalogProvider,
         private readonly AppScopeResolverInterface $scopeResolver,
         private readonly LocaleResolverInterface $localeResolver,
         private readonly MessageFormatterInterface $formatter,
     ) {
+    }
+
+    /**
+     * Clears request-scoped state to avoid leaking debug/profiler-related data across requests
+     * in long-running runtimes.
+     */
+    public function reset(): void
+    {
+        // Track domains only for the current request.
+        $this->touchedDomains = [];
     }
 
     /**
@@ -34,18 +52,15 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
         $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();
         $resolvedDomain = $domain ?? 'messages';
 
-        /** @var TranslationView|null $translation */
-        $translation = $this->queryBus->ask(
-            new GetTranslation(
-                $this->scopeResolver->resolve()->value,
-                $resolvedLocale,
-                $resolvedDomain,
-                $id,
-            ),
-        );
+        $this->touchedDomains[$resolvedDomain] = true;
 
-        if ($translation instanceof TranslationView) {
-            return $this->formatter->format($translation->value, $resolvedLocale, $parameters);
+        $scope = $this->scopeResolver->resolve();
+        $loc   = DomainLocale::fromString($resolvedLocale);
+
+        $catalog = $this->catalogProvider->getEffectiveCatalog($scope, $loc, $resolvedDomain);
+
+        if (isset($catalog[$id])) {
+            return $this->formatter->format($catalog[$id], $resolvedLocale, $parameters);
         }
 
         return $this->fallbackTranslator->trans($id, $parameters, $domain, $locale);
@@ -69,9 +84,33 @@ final class CatalogTranslator implements TranslatorInterface, LocaleAwareInterfa
             throw new \LogicException('Fallback translator must implement TranslatorBagInterface.');
         }
 
-        $resolvedLocale = $locale ?? $this->localeResolver->resolve()->toString();
+        $resolvedLocale    = $locale ?? $this->localeResolver->resolve()->toString();
+        $fallbackCatalogue = $this->fallbackTranslator->getCatalogue($resolvedLocale);
 
-        return $this->fallbackTranslator->getCatalogue($resolvedLocale);
+        if ([] === $this->touchedDomains) {
+            return $fallbackCatalogue;
+        }
+
+        $catalogue = new MessageCatalogue($resolvedLocale);
+
+        foreach ($fallbackCatalogue->all() as $domain => $messages) {
+            /** @var array<string, string> $messages */
+            foreach ($messages as $key => $value) {
+                $catalogue->set($key, $value, $domain);
+            }
+        }
+
+        $scope = $this->scopeResolver->resolve();
+        $loc   = DomainLocale::fromString($resolvedLocale);
+
+        foreach (array_keys($this->touchedDomains) as $domain) {
+            $effective = $this->catalogProvider->getEffectiveCatalog($scope, $loc, $domain);
+            foreach ($effective as $key => $rawValue) {
+                $catalogue->set($key, $rawValue, $domain);
+            }
+        }
+
+        return $catalogue;
     }
 
     /**
