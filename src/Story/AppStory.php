@@ -2,6 +2,7 @@
 
 namespace App\Story;
 
+use App\Factory\BackofficeUserFactory;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 
@@ -11,5 +12,6 @@ final class AppStory extends Story
     public function build(): void
     {
         // SomeFactory::createOne();
+        BackofficeUserFactory::createOne();
     }
 }

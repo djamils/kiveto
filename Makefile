@@ -95,7 +95,8 @@ endef
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	migrations identity-access-migrations identity-access-migrations shared-migrations \
-	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db
+	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
+	load-fixtures
 
 ##
 ## HELP
@@ -221,6 +222,10 @@ migrate-test-db:
 reset-test-db: drop-test-db create-test-db migrate-test-db
 	@$(call ok,TEST database reset complete)
 
+load-fixtures:
+	@$(call step,Loading fixtures (dev) with Foundry...)
+	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --no-interaction --quiet)
+	@$(call ok,Fixtures loaded)
 
 migrations: identity-access-migrations translations-migrations shared-migrations
 

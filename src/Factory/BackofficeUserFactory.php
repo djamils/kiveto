@@ -4,6 +4,7 @@ namespace App\Factory;
 
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
+use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
@@ -35,10 +36,11 @@ final class BackofficeUserFactory extends PersistentObjectFactory
     protected function defaults(): array|callable
     {
         return [
+            'id' => Uuid::v7()->toRfc4122(),
             'createdAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
-            'email' => self::faker()->text(180),
-            'passwordHash' => self::faker()->text(255),
-            'status' => self::faker()->randomElement(UserStatus::cases()),
+            'email' => self::faker()->unique()->safeEmail(),
+            'passwordHash' => '$2y$13$dSCsQpIYdXhxsQy7/A3JNuktm.08Dj.aHTdyZupOchXMx5a32W/4.',
+            'status' => UserStatus::ACTIVE,
         ];
     }
 
