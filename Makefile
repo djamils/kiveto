@@ -198,7 +198,7 @@ migrate-db:
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:migrate --no-interaction --allow-no-migration)
 	@$(call ok,Migrations executed)
 
-reset-db: drop-db create-db migrate-db
+reset-db: drop-db create-db migrate-db load-fixtures
 	@$(call ok,Database reset complete)
 
 init-db: drop-db create-db
@@ -224,7 +224,7 @@ reset-test-db: drop-test-db create-test-db migrate-test-db
 
 load-fixtures:
 	@$(call step,Loading fixtures (dev) with Foundry...)
-	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --no-interaction --quiet)
+	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
 migrations: identity-access-migrations translations-migrations shared-migrations
