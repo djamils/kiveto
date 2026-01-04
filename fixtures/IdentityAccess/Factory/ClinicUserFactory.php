@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Factory;
+namespace App\Fixtures\IdentityAccess\Factory;
 
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
- * @extends PersistentObjectFactory<PortalUser>
+ * @extends PersistentObjectFactory<ClinicUser>
  */
-final class PortalUserFactory extends PersistentObjectFactory
+final class ClinicUserFactory extends PersistentObjectFactory
 {
     /**
      * @see https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#factories-as-services
@@ -23,7 +23,7 @@ final class PortalUserFactory extends PersistentObjectFactory
     #[\Override]
     public static function class(): string
     {
-        return PortalUser::class;
+        return ClinicUser::class;
     }
 
     /**
@@ -49,7 +49,7 @@ final class PortalUserFactory extends PersistentObjectFactory
     protected function initialize(): static
     {
         return $this
-            // ->afterInstantiate(function(PortalUser $portalUser): void {})
+            // ->afterInstantiate(function(ClinicUser $clinicUser): void {})
         ;
     }
 }

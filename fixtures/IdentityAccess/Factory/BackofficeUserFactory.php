@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Factory;
+namespace App\Fixtures\IdentityAccess\Factory;
 
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;

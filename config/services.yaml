@@ -138,3 +138,12 @@ services:
             $formatter: '@translator.formatter'
         tags:
             - { name: kernel.reset, method: reset }
+
+when@dev: &services_dev
+    services:
+        App\Fixtures\:
+            resource: '../fixtures/'
+            autowire: true
+            autoconfigure: true
+
+when@test: *services_dev

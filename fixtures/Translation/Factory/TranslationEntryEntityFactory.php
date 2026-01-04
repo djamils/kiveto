@@ -1,15 +1,14 @@
 <?php
 
-namespace App\Factory;
+namespace App\Fixtures\Translation\Factory;
 
-use App\IdentityAccess\Domain\ValueObject\UserStatus;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
+use App\Translation\Infrastructure\Persistence\Doctrine\Entity\TranslationEntryEntity;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
- * @extends PersistentObjectFactory<ClinicUser>
+ * @extends PersistentObjectFactory<TranslationEntryEntity>
  */
-final class ClinicUserFactory extends PersistentObjectFactory
+final class TranslationEntryEntityFactory extends PersistentObjectFactory
 {
     /**
      * @see https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#factories-as-services
@@ -23,7 +22,7 @@ final class ClinicUserFactory extends PersistentObjectFactory
     #[\Override]
     public static function class(): string
     {
-        return ClinicUser::class;
+        return TranslationEntryEntity::class;
     }
 
     /**
@@ -35,10 +34,13 @@ final class ClinicUserFactory extends PersistentObjectFactory
     protected function defaults(): array|callable
     {
         return [
+            'appScope' => self::faker()->text(32),
             'createdAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
-            'email' => self::faker()->text(180),
-            'passwordHash' => self::faker()->text(255),
-            'status' => self::faker()->randomElement(UserStatus::cases()),
+            'domain' => self::faker()->text(64),
+            'locale' => self::faker()->text(16),
+            'translationKey' => self::faker()->text(190),
+            'translationValue' => self::faker()->text(),
+            'updatedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
         ];
     }
 
@@ -49,7 +51,7 @@ final class ClinicUserFactory extends PersistentObjectFactory
     protected function initialize(): static
     {
         return $this
-            // ->afterInstantiate(function(ClinicUser $clinicUser): void {})
+            // ->afterInstantiate(function(TranslationEntryEntity $translationEntryEntity): void {})
         ;
     }
 }

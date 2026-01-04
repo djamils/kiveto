@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Story;
+namespace App\Fixtures\Story;
 
-use App\Factory\BackofficeUserFactory;
+use App\Fixtures\IdentityAccess\Factory\BackofficeUserFactory;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 

@@ -4,7 +4,7 @@
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 
-DOCKER_COMPOSE = HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker-compose
+DOCKER_COMPOSE = HOST_UID=$(HOST_UID) HOST_GID=$(HOST_GID) docker compose
 EXEC_PHP = $(DOCKER_COMPOSE) exec -T php-fpm
 COMPOSER = $(EXEC_PHP) composer
 SYMFONY = $(EXEC_PHP) bin/console
