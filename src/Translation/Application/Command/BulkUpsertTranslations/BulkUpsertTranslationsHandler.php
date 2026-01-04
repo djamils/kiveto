@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\BulkUpsertTranslations;
 
-use App\Shared\Application\Bus\EventBusInterface;
-use App\Shared\Application\Event\DomainEventMessageFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
@@ -23,13 +22,14 @@ final readonly class BulkUpsertTranslationsHandler
         private TranslationCatalogRepository $catalogs,
         private CatalogCacheInterface $cache,
         private ClockInterface $clock,
-        private EventBusInterface $eventBus,
-        private DomainEventMessageFactory $eventMessageFactory,
+        private DomainEventPublisher $eventPublisher,
     ) {
     }
 
     public function __invoke(BulkUpsertTranslations $command): void
     {
+        $now = $this->clock->now();
+
         $grouped = $this->groupByCatalog($command->entries);
         $actorId = null !== $command->actorId ? ActorId::fromString($command->actorId) : null;
 
@@ -41,7 +41,7 @@ final readonly class BulkUpsertTranslationsHandler
                 $catalog->upsert(
                     TranslationKey::fromString($entry['key']),
                     TranslationText::fromString($entry['value']),
-                    $this->clock->now(),
+                    $now,
                     $actorId,
                     $entry['description'] ?? null,
                 );
@@ -49,7 +49,8 @@ final readonly class BulkUpsertTranslationsHandler
 
             $this->catalogs->save($catalog);
             $this->cache->delete($catalogIdVo);
-            $this->publishDomainEvents($catalog);
+
+            $this->eventPublisher->publishFrom($catalog, $now);
         }
     }
 
@@ -90,18 +91,5 @@ final readonly class BulkUpsertTranslationsHandler
         [$scope, $locale, $domain] = explode('|', $serialized, 3);
 
         return TranslationCatalogId::fromStrings($scope, $locale, $domain);
-    }
-
-    private function publishDomainEvents(TranslationCatalog $catalog): void
-    {
-        $messages = [];
-
-        foreach ($catalog->pullDomainEvents() as $event) {
-            $messages[] = $this->eventMessageFactory->wrap($event);
-        }
-
-        if ([] !== $messages) {
-            $this->eventBus->publish(...$messages);
-        }
     }
 }

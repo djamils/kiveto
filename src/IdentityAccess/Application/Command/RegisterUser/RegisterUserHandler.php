@@ -8,6 +8,7 @@ use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -22,13 +23,14 @@ readonly class RegisterUserHandler
         private ClockInterface $clock,
         private UserPasswordHasherInterface $passwordHasher,
         private DoctrineUserFactory $doctrineUserFactory,
+        private DomainEventPublisher $eventPublisher,
     ) {
     }
 
     public function __invoke(RegisterUser $command): string
     {
-        $userId    = UserId::fromString($this->uuidGenerator->generate());
-        $createdAt = $this->clock->now();
+        $userId = UserId::fromString($this->uuidGenerator->generate());
+        $now    = $this->clock->now();
 
         $passwordHash = $this->passwordHasher->hashPassword(
             $this->doctrineUserFactory->createForType($command->type), // transient user just for hashing context
@@ -39,11 +41,13 @@ readonly class RegisterUserHandler
             $userId,
             $command->email,
             $passwordHash,
-            $createdAt,
+            $now,
             $command->type,
         );
 
         $this->userRepository->save($user);
+
+        $this->eventPublisher->publishFrom($user, $now);
 
         return $userId->toString();
     }

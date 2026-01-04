@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\DeleteTranslation;
 
-use App\Shared\Application\Bus\EventBusInterface;
-use App\Shared\Application\Event\DomainEventMessageFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
@@ -22,38 +21,26 @@ final readonly class DeleteTranslationHandler
         private TranslationCatalogRepository $catalogs,
         private CatalogCacheInterface $cache,
         private ClockInterface $clock,
-        private EventBusInterface $eventBus,
-        private DomainEventMessageFactory $eventMessageFactory,
+        private DomainEventPublisher $eventPublisher,
     ) {
     }
 
     public function __invoke(DeleteTranslation $command): void
     {
+        $now = $this->clock->now();
+
         $catalogId = TranslationCatalogId::fromStrings($command->scope, $command->locale, $command->domain);
         $catalog   = $this->catalogs->find($catalogId) ?? TranslationCatalog::createEmpty($catalogId);
 
         $catalog->remove(
             TranslationKey::fromString($command->key),
             null !== $command->actorId ? ActorId::fromString($command->actorId) : null,
-            $this->clock->now(),
+            $now,
         );
 
         $this->catalogs->save($catalog);
         $this->cache->delete($catalogId);
 
-        $this->publishDomainEvents($catalog);
-    }
-
-    private function publishDomainEvents(TranslationCatalog $catalog): void
-    {
-        $messages = [];
-
-        foreach ($catalog->pullDomainEvents() as $event) {
-            $messages[] = $this->eventMessageFactory->wrap($event);
-        }
-
-        if ([] !== $messages) {
-            $this->eventBus->publish(...$messages);
-        }
+        $this->eventPublisher->publishFrom($catalog, $now);
     }
 }

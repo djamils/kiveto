@@ -33,10 +33,8 @@ abstract readonly class AbstractDomainEvent implements DomainEventInterface
     {
         [$aggregate, $action] = self::inferAggregateAndActionFromClass(static::class);
 
-        /** @var string $boundedContext */
         $boundedContext = static::BOUNDED_CONTEXT;
-        /** @var int $version */
-        $version = static::VERSION;
+        $version        = static::VERSION;
 
         return \sprintf(
             '%s.%s.%s.v%d',
