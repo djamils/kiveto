@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\DeleteTranslation;
 
-use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
 use App\Translation\Domain\TranslationCatalog;
@@ -15,13 +15,14 @@ use App\Translation\Domain\ValueObject\TranslationKey;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
-final readonly class DeleteTranslationHandler
+final class DeleteTranslationHandler
 {
+    use DomainEventPublisherAware;
+
     public function __construct(
-        private TranslationCatalogRepository $catalogs,
-        private CatalogCacheInterface $cache,
-        private ClockInterface $clock,
-        private DomainEventPublisher $eventPublisher,
+        private readonly TranslationCatalogRepository $catalogs,
+        private readonly CatalogCacheInterface $cache,
+        private readonly ClockInterface $clock,
     ) {
     }
 

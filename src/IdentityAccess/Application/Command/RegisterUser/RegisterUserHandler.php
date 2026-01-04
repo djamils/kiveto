@@ -8,22 +8,23 @@ use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
-use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[AsMessageHandler]
-readonly class RegisterUserHandler
+final class RegisterUserHandler
 {
+    use DomainEventPublisherAware;
+
     public function __construct(
-        private UserRepositoryInterface $userRepository,
-        private UuidGeneratorInterface $uuidGenerator,
-        private ClockInterface $clock,
-        private UserPasswordHasherInterface $passwordHasher,
-        private DoctrineUserFactory $doctrineUserFactory,
-        private DomainEventPublisher $eventPublisher,
+        private readonly UserRepositoryInterface $userRepository,
+        private readonly UuidGeneratorInterface $uuidGenerator,
+        private readonly ClockInterface $clock,
+        private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly DoctrineUserFactory $doctrineUserFactory,
     ) {
     }
 
