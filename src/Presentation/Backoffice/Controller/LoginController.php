@@ -13,6 +13,10 @@ final class LoginController extends AbstractController
     #[Route(path: '/login', name: 'backoffice_login', methods: ['GET', 'POST'])]
     public function __invoke(): Response
     {
+        if ($this->getUser() !== null) {
+            return $this->redirectToRoute('clinic_home');
+        }
+
         return $this->render('security/login.html.twig', [
             'app' => 'backoffice',
         ]);

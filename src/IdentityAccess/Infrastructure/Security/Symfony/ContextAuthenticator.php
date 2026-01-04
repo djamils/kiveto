@@ -9,8 +9,10 @@ use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationDeniedException;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
@@ -18,11 +20,29 @@ use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
 
-final class ContextAuthenticator extends AbstractAuthenticator
+final class ContextAuthenticator extends AbstractAuthenticator implements AuthenticationEntryPointInterface
 {
-    public function __construct(private readonly AuthenticateUserHandler $handler)
+    public function __construct(
+        private readonly AuthenticateUserHandler $handler,
+        private readonly UrlGeneratorInterface $urlGenerator,
+    )
     {
+    }
+
+    public function start(Request $request, ?AuthenticationException $authException = null): RedirectResponse
+    {
+        $host = $request->getHost();
+
+        $route = match (true) {
+            str_starts_with($host, 'clinic.') => 'clinic_login',
+            str_starts_with($host, 'portal.') => 'portal_login',
+            str_starts_with($host, 'backoffice.') => 'backoffice_login',
+            default => 'clinic_login',
+        };
+
+        return new RedirectResponse($this->urlGenerator->generate($route));
     }
 
     public function supports(Request $request): bool

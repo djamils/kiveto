@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Presentation\Portal\Controller;
+namespace App\Presentation\Clinic\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,7 +10,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class LoginController extends AbstractController
 {
-    #[Route(path: '/login', name: 'portal_login', methods: ['GET', 'POST'])]
+    #[Route(path: '/login', name: 'clinic_login', methods: ['GET', 'POST'])]
     public function __invoke(): Response
     {
         if ($this->getUser() !== null) {
@@ -18,7 +18,7 @@ final class LoginController extends AbstractController
         }
 
         return $this->render('security/login.html.twig', [
-            'app' => 'portal',
+            'app' => 'clinic',
         ]);
     }
 }
