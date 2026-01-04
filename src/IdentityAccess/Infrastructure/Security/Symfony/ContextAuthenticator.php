@@ -27,8 +27,7 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
     public function __construct(
         private readonly AuthenticateUserHandler $handler,
         private readonly UrlGeneratorInterface $urlGenerator,
-    )
-    {
+    ) {
     }
 
     public function start(Request $request, ?AuthenticationException $authException = null): RedirectResponse
@@ -36,10 +35,10 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         $host = $request->getHost();
 
         $route = match (true) {
-            str_starts_with($host, 'clinic.') => 'clinic_login',
-            str_starts_with($host, 'portal.') => 'portal_login',
+            str_starts_with($host, 'clinic.')     => 'clinic_login',
+            str_starts_with($host, 'portal.')     => 'portal_login',
             str_starts_with($host, 'backoffice.') => 'backoffice_login',
-            default => 'clinic_login',
+            default                               => 'clinic_login',
         };
 
         return new RedirectResponse($this->urlGenerator->generate($route));
