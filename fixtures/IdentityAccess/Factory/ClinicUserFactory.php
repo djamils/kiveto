@@ -1,55 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Fixtures\IdentityAccess\Factory;
 
-use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
- * @extends PersistentObjectFactory<ClinicUser>
+ * @extends AbstractUserFactory<ClinicUser>
  */
-final class ClinicUserFactory extends PersistentObjectFactory
+final class ClinicUserFactory extends AbstractUserFactory
 {
-    /**
-     * @see https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#factories-as-services
-     *
-     * @todo inject services if required
-     */
-    public function __construct()
-    {
-    }
-
-    #[\Override]
     public static function class(): string
     {
         return ClinicUser::class;
-    }
-
-    /**
-     * @see https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#model-factories
-     *
-     * @todo add your default values here
-     */
-    #[\Override]
-    protected function defaults(): array|callable
-    {
-        return [
-            'createdAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
-            'email' => self::faker()->text(180),
-            'passwordHash' => self::faker()->text(255),
-            'status' => self::faker()->randomElement(UserStatus::cases()),
-        ];
-    }
-
-    /**
-     * @see https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#initialization
-     */
-    #[\Override]
-    protected function initialize(): static
-    {
-        return $this
-            // ->afterInstantiate(function(ClinicUser $clinicUser): void {})
-        ;
     }
 }

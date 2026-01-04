@@ -225,7 +225,7 @@ reset-test-db: drop-test-db create-test-db migrate-test-db
 
 load-fixtures:
 	@$(call step,Loading fixtures (dev) with Foundry...)
-	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append --no-interaction --quiet)
+	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
 migrations: identity-access-migrations translations-migrations shared-migrations
