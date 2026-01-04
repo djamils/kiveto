@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Fixtures\Translation\Factory;
 
 use App\Translation\Infrastructure\Persistence\Doctrine\Entity\TranslationEntryEntity;
@@ -34,13 +36,13 @@ final class TranslationEntryEntityFactory extends PersistentObjectFactory
     protected function defaults(): array|callable
     {
         return [
-            'appScope' => self::faker()->text(32),
-            'createdAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
-            'domain' => self::faker()->text(64),
-            'locale' => self::faker()->text(16),
-            'translationKey' => self::faker()->text(190),
+            'appScope'         => self::faker()->text(32),
+            'createdAt'        => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
+            'domain'           => self::faker()->text(64),
+            'locale'           => self::faker()->text(16),
+            'translationKey'   => self::faker()->text(190),
             'translationValue' => self::faker()->text(),
-            'updatedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
+            'updatedAt'        => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
         ];
     }
 
@@ -50,8 +52,7 @@ final class TranslationEntryEntityFactory extends PersistentObjectFactory
     #[\Override]
     protected function initialize(): static
     {
-        return $this
-            // ->afterInstantiate(function(TranslationEntryEntity $translationEntryEntity): void {})
-        ;
+        return $this;
+        // ->afterInstantiate(function(TranslationEntryEntity $translationEntryEntity): void {})
     }
 }

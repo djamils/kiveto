@@ -14,6 +14,7 @@ final class BackofficeAdminStory extends Story
         BackofficeUserFactory::new()
             ->withEmail('admin.backoffice@local.test')
             ->withPlainPassword('admin')
-            ->create();
+            ->create()
+        ;
     }
 }

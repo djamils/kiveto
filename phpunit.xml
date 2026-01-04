@@ -8,7 +8,7 @@
          failOnNotice="true"
          failOnWarning="true"
          bootstrap="tests/bootstrap.php"
-         cacheDirectory="var"
+         cacheDirectory="var/cache"
          displayDetailsOnAllIssues="true"
 >
     <php>

@@ -14,6 +14,7 @@ final class ClinicVetStory extends Story
         ClinicUserFactory::new()
             ->withEmail('vet@local.test')
             ->withPlainPassword('vet')
-            ->create();
+            ->create()
+        ;
     }
 }

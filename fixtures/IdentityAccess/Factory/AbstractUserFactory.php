@@ -12,6 +12,7 @@ use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
  * @template T of User
+ *
  * @extends PersistentObjectFactory<T>
  */
 abstract class AbstractUserFactory extends PersistentObjectFactory
@@ -19,17 +20,6 @@ abstract class AbstractUserFactory extends PersistentObjectFactory
     public function __construct(protected readonly UserPasswordHasherInterface $hasher)
     {
         parent::__construct();
-    }
-
-    protected function defaults(): array|callable
-    {
-        return [
-            'id'           => Uuid::v7()->toRfc4122(),
-            'createdAt'    => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
-            'email'        => self::faker()->unique()->safeEmail(),
-            'passwordHash' => self::faker()->sha256(),
-            'status'       => UserStatus::ACTIVE,
-        ];
     }
 
     public function active(): static
@@ -49,8 +39,19 @@ abstract class AbstractUserFactory extends PersistentObjectFactory
 
     public function withPlainPassword(string $plain): static
     {
-        return $this->afterInstantiate(function(User $user) use ($plain): void {
+        return $this->afterInstantiate(function (User $user) use ($plain): void {
             $user->setPasswordHash($this->hasher->hashPassword($user, $plain));
         });
+    }
+
+    protected function defaults(): array|callable
+    {
+        return [
+            'id'           => Uuid::v7()->toRfc4122(),
+            'createdAt'    => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
+            'email'        => self::faker()->unique()->safeEmail(),
+            'passwordHash' => self::faker()->sha256(),
+            'status'       => UserStatus::ACTIVE,
+        ];
     }
 }

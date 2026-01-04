@@ -14,6 +14,7 @@ final class PortalUserStory extends Story
         PortalUserFactory::new()
             ->withEmail('user@local.test')
             ->withPlainPassword('user')
-            ->create();
+            ->create()
+        ;
     }
 }

@@ -4,11 +4,13 @@
          xsi:noNamespaceSchemaLocation="vendor/squizlabs/php_codesniffer/phpcs.xsd">
     <config name="ignore_warnings_on_exit" value="1"/>
     <arg name="basepath" value="."/>
-    <arg name="cache" value="var/.phpcs-cache"/>
+    <arg name="cache" value="var/cache/.phpcs-cache"/>
     <arg name="colors"/>
     <arg name="extensions" value="php"/>
     <file>src/</file>
     <file>tests/</file>
+    <file>migrations/</file>
+    <file>fixtures/</file>
     <rule ref="PSR1"/>
     <rule ref="PSR2"/>
     <rule ref="PSR12"/>
