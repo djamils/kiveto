@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Application\Command;
 
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventMessage;
+use App\Shared\Application\Event\DomainEventMessageFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Translation\Application\Command\DeleteTranslation\DeleteTranslation;
 use App\Translation\Application\Command\DeleteTranslation\DeleteTranslationHandler;
@@ -51,6 +56,18 @@ final class DeleteTranslationHandlerTest extends TestCase
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
 
         $handler = new DeleteTranslationHandler($repo, $cache, $clock);
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::once())
+            ->method('publish')
+            ->with(self::isInstanceOf(DomainEventMessage::class))
+        ;
+
+        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn('test-uuid');
+        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
+        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $handler->setDomainEventPublisher($eventPublisher);
 
         $handler(new DeleteTranslation('portal', 'en_GB', 'messages', 'cta', 'actor-x'));
     }

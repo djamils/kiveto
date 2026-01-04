@@ -13,6 +13,10 @@ use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventMessage;
+use App\Shared\Application\Event\DomainEventMessageFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Tests\Shared\Time\FrozenClock;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -73,6 +77,18 @@ final class RegisterUserHandlerTest extends TestCase
             new DoctrineUserFactory(),
         );
 
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::once())
+            ->method('publish')
+            ->with(self::callback(static function (DomainEventMessage $message): bool {
+                return 'identity-access.user.registered.v1' === $message->event()->type();
+            }))
+        ;
+
+        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
+        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $handler->setDomainEventPublisher($eventPublisher);
+
         $userId = $handler(new RegisterUser(
             'user@example.com',
             'plain-password',
@@ -83,8 +99,6 @@ final class RegisterUserHandlerTest extends TestCase
         self::assertSame($userId, $savedUser->id()->toString());
 
         self::assertSame('user@example.com', $savedUser->email());
-        self::assertCount(1, $savedUser->recordedDomainEvents());
-        self::assertSame('identity-access.user.registered.v1', $savedUser->recordedDomainEvents()[0]->type());
     }
 
     #[DataProvider('providePasswordHasherReceivesCorrectDoctrineUserForTypeCases')]
@@ -130,6 +144,16 @@ final class RegisterUserHandlerTest extends TestCase
             $passwordHasher,
             new DoctrineUserFactory(),
         );
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::once())
+            ->method('publish')
+            ->with(self::isInstanceOf(DomainEventMessage::class))
+        ;
+
+        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
+        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $handler->setDomainEventPublisher($eventPublisher);
 
         $userId = $handler(new RegisterUser(
             'user+' . $type->value . '@example.com',

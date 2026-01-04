@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Application\Command;
 
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventMessage;
+use App\Shared\Application\Event\DomainEventMessageFactory;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslations;
 use App\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslationsHandler;
@@ -37,6 +42,18 @@ final class BulkUpsertTranslationsHandlerTest extends TestCase
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
 
         $handler = new BulkUpsertTranslationsHandler($repo, $cache, $clock);
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::exactly(2))
+            ->method('publish')
+            ->with(self::isInstanceOf(DomainEventMessage::class))
+        ;
+
+        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn('test-uuid');
+        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
+        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $handler->setDomainEventPublisher($eventPublisher);
 
         $handler(new BulkUpsertTranslations([
             ['scope' => 'clinic', 'locale' => 'fr_FR', 'domain' => 'messages', 'key' => 'k1', 'value' => 'v1'],
