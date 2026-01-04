@@ -7,7 +7,7 @@ namespace App\Tests\Unit\Shared\Application\Event;
 use App\Shared\Application\Event\DomainEventMessageFactory;
 use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
-use App\Shared\Domain\Time\ClockInterface;
+use App\Tests\Shared\Time\FrozenClock;
 use PHPUnit\Framework\TestCase;
 
 final class DomainEventMessageFactoryTest extends TestCase
@@ -17,11 +17,10 @@ final class DomainEventMessageFactoryTest extends TestCase
         $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
         $uuidGenerator->method('generate')->willReturn('00000000-0000-0000-0000-000000000001');
 
-        $occurredAt = new \DateTimeImmutable('2025-01-01T12:00:00+00:00');
-        $clock      = $this->createStub(ClockInterface::class);
-        $clock->method('now')->willReturn($occurredAt);
+        $fixedTime = new \DateTimeImmutable('2025-01-01T12:00:00+00:00');
+        $clock     = new FrozenClock($fixedTime);
 
-        $factory = new DomainEventMessageFactory($uuidGenerator, $clock);
+        $factory = new DomainEventMessageFactory($uuidGenerator);
 
         $event = new class implements DomainEventInterface {
             public function aggregateId(): string
@@ -40,10 +39,10 @@ final class DomainEventMessageFactoryTest extends TestCase
             }
         };
 
-        $message = $factory->wrap($event);
+        $message = $factory->wrap($event, $clock->now());
 
         self::assertSame('00000000-0000-0000-0000-000000000001', $message->eventId());
-        self::assertSame($occurredAt, $message->occurredAt());
+        self::assertSame($fixedTime, $message->occurredAt());
         self::assertSame($event, $message->event());
     }
 }
