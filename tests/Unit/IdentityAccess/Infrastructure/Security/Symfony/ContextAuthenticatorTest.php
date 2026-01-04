@@ -16,6 +16,8 @@ use App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
@@ -24,7 +26,7 @@ final class ContextAuthenticatorTest extends TestCase
 {
     public function testSupportsOnlyLoginPost(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
 
         self::assertTrue($authenticator->supports(Request::create('/login', 'POST')));
         self::assertFalse($authenticator->supports(Request::create('/login', 'GET')));
@@ -33,7 +35,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateReturnsPassport(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -50,7 +52,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateThrowsOnInvalidJson(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -64,7 +66,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateThrowsOnInvalidPayloadStructure(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -78,7 +80,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateThrowsOnContextError(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create(
             'https://unknown.example/login',
             'POST',
@@ -92,7 +94,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testOnAuthenticationFailureForDomainException(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create('https://clinic.example/login', 'POST');
         $response      = $authenticator->onAuthenticationFailure(
             $request,
@@ -105,7 +107,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testOnAuthenticationFailureDefault(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create('https://clinic.example/login', 'POST');
         $response      = $authenticator->onAuthenticationFailure($request, new AuthenticationException());
 
@@ -115,8 +117,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testOnAuthenticationSuccess(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $response      = $authenticator->onAuthenticationSuccess(
             Request::create('/login', 'POST'),
             $this->createStub(\Symfony\Component\Security\Core\Authentication\Token\TokenInterface::class),
@@ -128,7 +129,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateThrowsOnInvalidCredentialsPayload(): void
     {
-        $authenticator = new ContextAuthenticator($this->handlerFor(UserType::CLINIC));
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -148,7 +149,7 @@ final class ContextAuthenticatorTest extends TestCase
         $verifier = $this->createStub(PasswordHashVerifierInterface::class);
         $handler  = new AuthenticateUserHandler($repo, $verifier);
 
-        $authenticator = new ContextAuthenticator($handler);
+        $authenticator = new ContextAuthenticator($handler, $this->urlGenerator());
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -162,7 +163,7 @@ final class ContextAuthenticatorTest extends TestCase
 
     public function testAuthenticateSupportsPortalAndBackofficeContexts(): void
     {
-        $authenticatorPortal = new ContextAuthenticator($this->handlerFor(UserType::PORTAL));
+        $authenticatorPortal = $this->authenticatorFor(UserType::PORTAL);
         $passportPortal      = $authenticatorPortal->authenticate(Request::create(
             'https://portal.example/login',
             'POST',
@@ -172,7 +173,7 @@ final class ContextAuthenticatorTest extends TestCase
 
         self::assertNotNull($passportPortal->getBadge(UserBadge::class));
 
-        $authenticatorBo = new ContextAuthenticator($this->handlerFor(UserType::BACKOFFICE));
+        $authenticatorBo = $this->authenticatorFor(UserType::BACKOFFICE);
         $passportBo      = $authenticatorBo->authenticate(Request::create(
             'https://backoffice.example/login',
             'POST',
@@ -210,5 +211,35 @@ final class ContextAuthenticatorTest extends TestCase
         };
 
         return new AuthenticateUserHandler($repo, $verifier);
+    }
+
+    private function authenticatorFor(UserType $type): ContextAuthenticator
+    {
+        return new ContextAuthenticator($this->handlerFor($type), $this->urlGenerator());
+    }
+
+    private function urlGenerator(): UrlGeneratorInterface
+    {
+        return new class implements UrlGeneratorInterface {
+            /**
+             * @param array<string, string|int> $parameters
+             */
+            public function generate(
+                string $name,
+                array $parameters = [],
+                int $referenceType = self::ABSOLUTE_PATH,
+            ): string {
+                return '/' . $name;
+            }
+
+            public function setContext(RequestContext $context): void
+            {
+            }
+
+            public function getContext(): RequestContext
+            {
+                return new RequestContext();
+            }
+        };
     }
 }
