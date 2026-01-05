@@ -45,6 +45,6 @@ final class UpsertTranslationHandler
         $this->catalogs->save($catalog);
         $this->cache->delete($catalogId);
 
-        $this->eventPublisher->publishFrom($catalog, $now);
+        $this->domainEventPublisher->publish($catalog, $now);
     }
 }

@@ -15,7 +15,7 @@ final readonly class DomainEventPublisher
     ) {
     }
 
-    public function publishFrom(AggregateRoot $aggregate, \DateTimeImmutable $occurredAt): void
+    public function publish(AggregateRoot $aggregate, \DateTimeImmutable $occurredAt): void
     {
         $messages = [];
 

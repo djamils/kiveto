@@ -9,11 +9,11 @@ use Symfony\Contracts\Service\Attribute\Required;
 
 trait DomainEventPublisherAware
 {
-    protected DomainEventPublisher $eventPublisher;
+    protected DomainEventPublisher $domainEventPublisher;
 
     #[Required]
-    public function setDomainEventPublisher(DomainEventPublisher $eventPublisher): void
+    public function setDomainEventPublisher(DomainEventPublisher $domainEventPublisher): void
     {
-        $this->eventPublisher = $eventPublisher;
+        $this->domainEventPublisher = $domainEventPublisher;
     }
 }

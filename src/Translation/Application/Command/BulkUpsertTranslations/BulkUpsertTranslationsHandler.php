@@ -51,7 +51,7 @@ final class BulkUpsertTranslationsHandler
             $this->catalogs->save($catalog);
             $this->cache->delete($catalogIdVo);
 
-            $this->eventPublisher->publishFrom($catalog, $now);
+            $this->domainEventPublisher->publish($catalog, $now);
         }
     }
 
