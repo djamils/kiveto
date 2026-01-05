@@ -68,6 +68,15 @@ services:
     App\Shared\Application\Event\DomainEventFactoryInterface:
         class: App\Shared\Application\Event\DomainEventFactory
 
+    # Message Context and Actor Context (singletons)
+    App\Shared\Application\Messaging\MessageContext: ~
+    App\Shared\Application\Security\ActorContext: ~
+
+    # Messenger Middlewares
+    App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware: ~
+    App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware: ~
+    App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware: ~
+
     # Bus Interfaces
     App\Shared\Application\Bus\CommandBusInterface:
         class: App\Shared\Infrastructure\Bus\Messenger\CommandBus

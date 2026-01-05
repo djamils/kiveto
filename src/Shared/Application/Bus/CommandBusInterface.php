@@ -8,6 +8,8 @@ interface CommandBusInterface
 {
     /**
      * Dispatch a command message.
+     *
+     * @param object ...$stamps Optional Messenger stamps (e.g. MessageMetadataStamp)
      */
-    public function dispatch(object $command): mixed;
+    public function dispatch(object $command, object ...$stamps): mixed;
 }

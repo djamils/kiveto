@@ -23,12 +23,18 @@ framework:
             # Bus for commands (write operations)
             messenger.bus.command:
                 middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
                     - validation
                     - doctrine_transaction
 
             # Bus for queries (read operations)
             messenger.bus.query:
                 middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
                     - validation
 
             # Bus for domain events
@@ -37,6 +43,10 @@ framework:
                     enabled: true
                     allow_no_handlers: false
                     allow_no_senders: true
+                middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
 
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async

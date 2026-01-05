@@ -17,13 +17,14 @@ final class CommandBusTest extends TestCase
     {
         $command      = new \stdClass();
         $handledStamp = new HandledStamp('ok', 'handler');
-        $envelope     = new Envelope($command, [$handledStamp]);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::once())
             ->method('dispatch')
-            ->with($command)
-            ->willReturn($envelope)
+            ->with(self::callback(function (Envelope $envelope) use ($command): bool {
+                return $envelope->getMessage() === $command;
+            }))
+            ->willReturn(new Envelope($command, [$handledStamp]))
         ;
 
         $commandBus = new CommandBus($bus);

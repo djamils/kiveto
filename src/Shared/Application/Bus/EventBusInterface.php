@@ -8,6 +8,8 @@ interface EventBusInterface
 {
     /**
      * Publish one or many events.
+     *
+     * @param list<object> $stamps Optional Messenger stamps (e.g. MessageMetadataStamp)
      */
-    public function publish(object ...$events): void;
+    public function publish(array $stamps, object ...$events): void;
 }

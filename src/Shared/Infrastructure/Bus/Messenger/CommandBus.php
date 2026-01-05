@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Infrastructure\Bus\Messenger;
 
 use App\Shared\Application\Bus\CommandBusInterface;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\HandleTrait;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -18,10 +19,14 @@ class CommandBus implements CommandBusInterface
         $this->messageBus = $messageBus;
     }
 
-    public function dispatch(object $command): mixed
+    public function dispatch(object $command, object ...$stamps): mixed
     {
         try {
-            return $this->handle($command);
+            /** @var array<\Symfony\Component\Messenger\Stamp\StampInterface> $stampsArray */
+            $stampsArray = $stamps;
+            $envelope    = Envelope::wrap($command, $stampsArray);
+
+            return $this->handle($envelope);
         } catch (HandlerFailedException $e) {
             throw $e->getPrevious() ?? $e;
         }

@@ -8,6 +8,8 @@ interface QueryBusInterface
 {
     /**
      * Dispatch a query and return its handler result.
+     *
+     * @param object ...$stamps Optional Messenger stamps (e.g. MessageMetadataStamp)
      */
-    public function ask(object $query): mixed;
+    public function ask(object $query, object ...$stamps): mixed;
 }

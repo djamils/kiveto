@@ -6,6 +6,7 @@ namespace App\Tests\Unit\IdentityAccess\Application\Command\RegisterUser;
 
 use App\IdentityAccess\Application\Command\RegisterUser\RegisterUser;
 use App\IdentityAccess\Application\Command\RegisterUser\RegisterUserHandler;
+use App\IdentityAccess\Domain\Event\UserRegistered;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserType;
@@ -14,8 +15,6 @@ use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use App\Shared\Application\Bus\EventBusInterface;
-use App\Shared\Application\Event\DomainEventMessage;
-use App\Shared\Application\Event\DomainEventMessageFactory;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Tests\Shared\Time\FrozenClock;
@@ -80,13 +79,10 @@ final class RegisterUserHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
-            ->with(self::callback(static function (DomainEventMessage $message): bool {
-                return 'identity-access.user.registered.v1' === $message->event()->type();
-            }))
+            ->with([], self::isInstanceOf(UserRegistered::class))
         ;
 
-        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
-        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $eventPublisher = new DomainEventPublisher($eventBus);
         $handler->setDomainEventPublisher($eventPublisher);
 
         $userId = $handler(new RegisterUser(
@@ -148,11 +144,10 @@ final class RegisterUserHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
-            ->with(self::isInstanceOf(DomainEventMessage::class))
+            ->with([], self::isInstanceOf(UserRegistered::class))
         ;
 
-        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
-        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $eventPublisher = new DomainEventPublisher($eventBus);
         $handler->setDomainEventPublisher($eventPublisher);
 
         $userId = $handler(new RegisterUser(

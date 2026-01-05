@@ -17,13 +17,14 @@ final class QueryBusTest extends TestCase
     {
         $query        = new \stdClass();
         $handledStamp = new HandledStamp('result', 'handler');
-        $envelope     = new Envelope($query, [$handledStamp]);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::once())
             ->method('dispatch')
-            ->with($query)
-            ->willReturn($envelope)
+            ->with(self::callback(function (Envelope $envelope) use ($query): bool {
+                return $envelope->getMessage() === $query;
+            }))
+            ->willReturn(new Envelope($query, [$handledStamp]))
         ;
 
         $queryBus = new QueryBus($bus);

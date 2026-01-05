@@ -21,16 +21,16 @@ final class EventBusTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::exactly(2))
             ->method('dispatch')
-            ->willReturnCallback(function (object $event) use (&$dispatched): Envelope {
-                $dispatched[] = $event;
+            ->willReturnCallback(function (Envelope $envelope) use (&$dispatched): Envelope {
+                $dispatched[] = $envelope->getMessage();
 
-                return new Envelope($event);
+                return $envelope;
             })
         ;
 
         $eventBus = new EventBus($bus);
 
-        $eventBus->publish($event1, $event2);
+        $eventBus->publish([], $event1, $event2);
 
         self::assertSame([$event1, $event2], $dispatched);
     }

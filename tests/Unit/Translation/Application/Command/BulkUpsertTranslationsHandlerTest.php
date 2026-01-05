@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Translation\Application\Command;
 
 use App\Shared\Application\Bus\EventBusInterface;
-use App\Shared\Application\Event\DomainEventMessage;
-use App\Shared\Application\Event\DomainEventMessageFactory;
 use App\Shared\Application\Event\DomainEventPublisher;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslations;
 use App\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslationsHandler;
@@ -46,13 +44,10 @@ final class BulkUpsertTranslationsHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::exactly(2))
             ->method('publish')
-            ->with(self::isInstanceOf(DomainEventMessage::class))
+            ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
-        $uuidGenerator->method('generate')->willReturn('test-uuid');
-        $messageFactory = new DomainEventMessageFactory($uuidGenerator);
-        $eventPublisher = new DomainEventPublisher($eventBus, $messageFactory);
+        $eventPublisher = new DomainEventPublisher($eventBus);
         $handler->setDomainEventPublisher($eventPublisher);
 
         $handler(new BulkUpsertTranslations([
