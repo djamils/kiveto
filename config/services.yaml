@@ -75,7 +75,9 @@ services:
     # Messenger Middlewares
     App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware: ~
     App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware: ~
-    App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware: ~
+    App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware:
+        arguments:
+            $logger: '@monolog.logger.messenger'
 
     # Bus Interfaces
     App\Shared\Application\Bus\CommandBusInterface:

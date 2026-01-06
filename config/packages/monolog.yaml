@@ -1,6 +1,7 @@
 monolog:
     channels:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
+        - messenger   # Channel for Messenger bus tracing logs
 
 when@dev:
     monolog:
