@@ -6,7 +6,9 @@ namespace App\Shared\Infrastructure\Bus\Messenger;
 
 use App\Shared\Application\Bus\EventBusInterface;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\StampInterface;
 
 readonly class EventBus implements EventBusInterface
 {
@@ -15,14 +17,14 @@ readonly class EventBus implements EventBusInterface
     }
 
     /**
-     * @param list<object> $stamps
+     * @param array<StampInterface> $stamps
+     *
+     * @throws ExceptionInterface
      */
     public function publish(array $stamps, object ...$events): void
     {
         foreach ($events as $event) {
-            /** @var array<\Symfony\Component\Messenger\Stamp\StampInterface> $stampsArray */
-            $stampsArray = $stamps;
-            $envelope    = Envelope::wrap($event, $stampsArray);
+            $envelope = Envelope::wrap($event, $stamps);
             $this->messageBus->dispatch($envelope);
         }
     }

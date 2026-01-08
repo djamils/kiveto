@@ -18,7 +18,7 @@ final readonly class DomainEventPublisher
     {
     }
 
-    public function publish(AggregateRoot $aggregate, \DateTimeImmutable $occurredAt): void
+    public function publish(AggregateRoot $aggregate): void
     {
         $events = $aggregate->pullDomainEvents();
 

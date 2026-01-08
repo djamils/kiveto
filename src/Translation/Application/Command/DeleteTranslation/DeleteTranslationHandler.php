@@ -42,6 +42,6 @@ final class DeleteTranslationHandler
         $this->catalogs->save($catalog);
         $this->cache->delete($catalogId);
 
-        $this->domainEventPublisher->publish($catalog, $now);
+        $this->domainEventPublisher->publish($catalog);
     }
 }

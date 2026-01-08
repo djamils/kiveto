@@ -9,6 +9,7 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\HandleTrait;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\StampInterface;
 
 class QueryBus implements QueryBusInterface
 {
@@ -22,7 +23,7 @@ class QueryBus implements QueryBusInterface
     public function ask(object $query, object ...$stamps): mixed
     {
         try {
-            /** @var array<\Symfony\Component\Messenger\Stamp\StampInterface> $stampsArray */
+            /** @var array<StampInterface> $stampsArray */
             $stampsArray = $stamps;
             $envelope    = Envelope::wrap($query, $stampsArray);
 

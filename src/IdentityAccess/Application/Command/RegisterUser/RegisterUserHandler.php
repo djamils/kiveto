@@ -48,7 +48,7 @@ final class RegisterUserHandler
 
         $this->userRepository->save($user);
 
-        $this->domainEventPublisher->publish($user, $now);
+        $this->domainEventPublisher->publish($user);
 
         return $userId->toString();
     }
