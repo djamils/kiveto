@@ -12,7 +12,7 @@ final class PortalUserStory extends Story
     public function build(): void
     {
         PortalUserFactory::new()
-            ->withEmail('user@kiveto.test')
+            ->withEmail('user@kiveto.local')
             ->withPlainPassword('user')
             ->create()
         ;

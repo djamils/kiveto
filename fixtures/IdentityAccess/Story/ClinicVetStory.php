@@ -12,7 +12,7 @@ final class ClinicVetStory extends Story
     public function build(): void
     {
         ClinicUserFactory::new()
-            ->withEmail('vet@kiveto.test')
+            ->withEmail('vet@kiveto.local')
             ->withPlainPassword('vet')
             ->create()
         ;

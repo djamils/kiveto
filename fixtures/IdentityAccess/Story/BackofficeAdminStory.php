@@ -12,7 +12,7 @@ final class BackofficeAdminStory extends Story
     public function build(): void
     {
         BackofficeUserFactory::new()
-            ->withEmail('admin@kiveto.test')
+            ->withEmail('admin@kiveto.local')
             ->withPlainPassword('admin')
             ->create()
         ;
