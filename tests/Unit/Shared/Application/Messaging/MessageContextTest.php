@@ -14,9 +14,10 @@ final class MessageContextTest extends TestCase
     {
         $context = new MessageContext();
 
-        $metadata = new MessageMetadataStamp(
+        $occurredAt = new \DateTimeImmutable('2025-01-05 10:00:00');
+        $metadata   = new MessageMetadataStamp(
             messageId: 'msg-123',
-            occurredAt: new \DateTimeImmutable('2025-01-05 10:00:00'),
+            occurredAt: $occurredAt,
             correlationId: 'corr-123',
             causationId: null,
             actorId: 'user-456',
@@ -26,6 +27,7 @@ final class MessageContextTest extends TestCase
 
         self::assertSame($metadata, $context->current());
         self::assertSame('msg-123', $context->messageId());
+        self::assertSame($occurredAt, $context->occurredAt());
         self::assertSame('corr-123', $context->correlationId());
         self::assertSame('user-456', $context->actorId());
     }
