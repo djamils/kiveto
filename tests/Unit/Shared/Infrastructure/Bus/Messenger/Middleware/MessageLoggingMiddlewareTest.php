@@ -51,7 +51,9 @@ final class MessageLoggingMiddlewareTest extends TestCase
         self::assertSame('info', $loggedMessages[1]['level']);
         self::assertSame('Message processed successfully', $loggedMessages[1]['message']);
         self::assertArrayHasKey('duration', $loggedMessages[1]['context']);
-        self::assertMatchesRegularExpression('/^\d+(\.\d+)? ms$/', $loggedMessages[1]['context']['duration']);
+        $duration = $loggedMessages[1]['context']['duration'];
+        self::assertIsString($duration);
+        self::assertMatchesRegularExpression('/^\d+(\.\d+)? ms$/', $duration);
     }
 
     public function testLogsMessageProcessingWithoutMetadata(): void
@@ -113,7 +115,9 @@ final class MessageLoggingMiddlewareTest extends TestCase
         self::assertSame('error', $loggedMessages[1]['level']);
         self::assertSame('Message processing failed', $loggedMessages[1]['message']);
         self::assertArrayHasKey('duration', $loggedMessages[1]['context']);
-        self::assertMatchesRegularExpression('/^\d+(\.\d+)? ms$/', $loggedMessages[1]['context']['duration']);
+        $duration = $loggedMessages[1]['context']['duration'];
+        self::assertIsString($duration);
+        self::assertMatchesRegularExpression('/^\d+(\.\d+)? ms$/', $duration);
         self::assertSame(\RuntimeException::class, $loggedMessages[1]['context']['exception']);
         self::assertSame('Handler failed', $loggedMessages[1]['context']['exceptionMessage']);
     }
@@ -160,6 +164,8 @@ final class MessageLoggingMiddlewareTest extends TestCase
         self::assertCount(2, $loggedMessages);
 
         $duration = $loggedMessages[1]['context']['duration'];
+        self::assertIsString($duration);
+        $matches = [];
         preg_match('/^(\d+(?:\.\d+)?) ms$/', $duration, $matches);
 
         self::assertNotEmpty($matches);
@@ -176,53 +182,83 @@ final class MessageLoggingMiddlewareTest extends TestCase
         return new class($loggedMessages) implements LoggerInterface {
             /**
              * @param array<array{level: string, message: string, context: array<string, mixed>}> $loggedMessages
+             *
+             * @phpstan-ignore-next-line property.onlyWritten
              */
             public function __construct(private array &$loggedMessages)
             {
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function emergency(string|\Stringable $message, array $context = []): void
             {
                 $this->log('emergency', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function alert(string|\Stringable $message, array $context = []): void
             {
                 $this->log('alert', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function critical(string|\Stringable $message, array $context = []): void
             {
                 $this->log('critical', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function error(string|\Stringable $message, array $context = []): void
             {
                 $this->log('error', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function warning(string|\Stringable $message, array $context = []): void
             {
                 $this->log('warning', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function notice(string|\Stringable $message, array $context = []): void
             {
                 $this->log('notice', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function info(string|\Stringable $message, array $context = []): void
             {
                 $this->log('info', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function debug(string|\Stringable $message, array $context = []): void
             {
                 $this->log('debug', $message, $context);
             }
 
+            /**
+             * @param array<string, mixed> $context
+             */
             public function log($level, string|\Stringable $message, array $context = []): void
             {
+                \assert(\is_string($level));
                 $this->loggedMessages[] = [
                     'level'   => $level,
                     'message' => (string) $message,
@@ -238,6 +274,9 @@ final class MessageLoggingMiddlewareTest extends TestCase
         ?callable $beforeReturn = null,
     ): StackInterface {
         return new class($envelope, $exceptionToThrow, $beforeReturn) implements StackInterface {
+            /**
+             * @param callable(): void|null $beforeReturn
+             */
             public function __construct(
                 private Envelope $envelope,
                 private ?\Throwable $exceptionToThrow,
@@ -247,7 +286,11 @@ final class MessageLoggingMiddlewareTest extends TestCase
 
             public function next(): MiddlewareInterface
             {
-                return new class($this->envelope, $this->exceptionToThrow, $this->beforeReturn) implements MiddlewareInterface { // phpcs:ignore
+                // phpcs:ignore
+                return new class($this->envelope, $this->exceptionToThrow, $this->beforeReturn) implements MiddlewareInterface {
+                    /**
+                     * @param callable(): void|null $beforeReturn
+                     */
                     public function __construct(
                         private Envelope $envelope,
                         private ?\Throwable $exceptionToThrow,
@@ -257,8 +300,9 @@ final class MessageLoggingMiddlewareTest extends TestCase
 
                     public function handle(Envelope $envelope, StackInterface $stack): Envelope
                     {
-                        if (null !== $this->beforeReturn) {
-                            ($this->beforeReturn)();
+                        $callback = $this->beforeReturn;
+                        if (null !== $callback) {
+                            $callback();
                         }
 
                         if (null !== $this->exceptionToThrow) {

@@ -19,8 +19,8 @@ final class DomainEventPublisherTest extends TestCase
 
         $aggregate = new class($event1, $event2) extends AggregateRoot {
             public function __construct(
-                private readonly DomainEventInterface $event1,
-                private readonly DomainEventInterface $event2,
+                DomainEventInterface $event1,
+                DomainEventInterface $event2,
             ) {
                 $this->recordDomainEvent($event1);
                 $this->recordDomainEvent($event2);
@@ -58,7 +58,7 @@ final class DomainEventPublisherTest extends TestCase
         $event = $this->createEvent('agg-1', 'event.single.v1');
 
         $aggregate = new class($event) extends AggregateRoot {
-            public function __construct(private readonly DomainEventInterface $event)
+            public function __construct(DomainEventInterface $event)
             {
                 $this->recordDomainEvent($event);
             }
@@ -101,6 +101,7 @@ final class DomainEventPublisherTest extends TestCase
         $eventBus->expects(self::exactly(2))
             ->method('publish')
             ->willReturnCallback(function (array $stamps, object ...$events) use ($event1, $event2): void {
+                /** @var int $call */
                 static $call = 0;
                 ++$call;
 
