@@ -184,6 +184,77 @@ final class ContextAuthenticatorTest extends TestCase
         self::assertNotNull($passportBo->getBadge(UserBadge::class));
     }
 
+    public function testStartRedirectsToClinicLoginForClinicHost(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
+        $request       = Request::create(
+            'https://clinic.example/protected',
+            server: ['HTTP_HOST' => 'clinic.example']
+        );
+
+        $response = $authenticator->start($request);
+
+        self::assertSame('/clinic_login', $response->getTargetUrl());
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testStartRedirectsToPortalLoginForPortalHost(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::PORTAL);
+        $request       = Request::create(
+            'https://portal.example/protected',
+            server: ['HTTP_HOST' => 'portal.example']
+        );
+
+        $response = $authenticator->start($request);
+
+        self::assertSame('/portal_login', $response->getTargetUrl());
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testStartRedirectsToBackofficeLoginForBackofficeHost(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
+        $request       = Request::create(
+            'https://backoffice.example/protected',
+            server: ['HTTP_HOST' => 'backoffice.example']
+        );
+
+        $response = $authenticator->start($request);
+
+        self::assertSame('/backoffice_login', $response->getTargetUrl());
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testStartRedirectsToClinicLoginByDefaultForUnknownHost(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
+        $request       = Request::create(
+            'https://unknown.example/protected',
+            server: ['HTTP_HOST' => 'unknown.example']
+        );
+
+        $response = $authenticator->start($request);
+
+        self::assertSame('/clinic_login', $response->getTargetUrl());
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testStartCanHandleAuthenticationException(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
+        $request       = Request::create(
+            'https://clinic.example/protected',
+            server: ['HTTP_HOST' => 'clinic.example']
+        );
+        $authException = new AuthenticationException('Test exception');
+
+        $response = $authenticator->start($request, $authException);
+
+        self::assertSame('/clinic_login', $response->getTargetUrl());
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
     private function handlerFor(UserType $type): AuthenticateUserHandler
     {
         $user = User::reconstitute(
