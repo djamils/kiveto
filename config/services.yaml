@@ -64,10 +64,6 @@ services:
     App\Shared\Domain\Identifier\UuidGeneratorInterface:
         class: App\Shared\Infrastructure\Identifier\SymfonyUuidV7Generator
 
-    # Domain Event Factory
-    App\Shared\Application\Event\DomainEventFactoryInterface:
-        class: App\Shared\Application\Event\DomainEventFactory
-
     # Message Context and Actor Context (singletons)
     App\Shared\Application\Messaging\MessageContext: ~
     App\Shared\Application\Security\ActorContext: ~
