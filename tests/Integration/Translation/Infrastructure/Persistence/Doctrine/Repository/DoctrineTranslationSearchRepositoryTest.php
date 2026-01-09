@@ -78,6 +78,11 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
             ['en_US', 'fr_FR'],
             $repo->listLocales(AppScope::fromString('shared'), null),
         );
+
+        self::assertSame(
+            ['fr_FR'],
+            $repo->listLocales(AppScope::fromString('shared'), TranslationDomain::fromString('messages')),
+        );
     }
 
     public function testSearchSupportsCriteriaAndPagination(): void
@@ -124,6 +129,8 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
             'valueContains' => 'Sal',
             'updatedBy'     => $bobUuid,
             'updatedAfter'  => new \DateTimeImmutable('2026-01-09 10:30:00.000000'),
+            'createdBy'     => $aliceUuid,
+            'createdAfter'  => new \DateTimeImmutable('2026-01-09 09:30:00.000000'),
         ];
 
         $page1 = $repo->search($criteria, 1, 10);
