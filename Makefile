@@ -10,7 +10,11 @@ COMPOSER = $(EXEC_PHP) composer
 SYMFONY = $(EXEC_PHP) bin/console
 SYMFONY_TEST = $(EXEC_PHP) bin/console --env=test --no-debug
 
-APP_HOST ?= clinic.kiveto.local
+CLINIC_HOST ?= clinic.kiveto.local
+PORTAL_HOST ?= portal.kiveto.local
+BACKOFFICE_HOST ?= backoffice.kiveto.local
+
+APP_HOST ?= $(CLINIC_HOST)
 APP_PORT ?= 81
 APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 
@@ -266,7 +270,10 @@ ready:
 		echo "=============================================="; \
 		printf "$(C_GREEN)Environment ready$(C_RESET)\n"; \
 		echo "----------------------------------------------"; \
-		echo "Application URL: $(APP_URL)"; \
+		echo "Application URLs:"; \
+		echo "  Clinic:     http://$(CLINIC_HOST):$(APP_PORT)"; \
+		echo "  Portal:     http://$(PORTAL_HOST):$(APP_PORT)"; \
+		echo "  Backoffice: http://$(BACKOFFICE_HOST):$(APP_PORT)"; \
 		echo "=============================================="; \
 		echo ""; \
 	else \
