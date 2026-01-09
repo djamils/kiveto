@@ -10,7 +10,7 @@ COMPOSER = $(EXEC_PHP) composer
 SYMFONY = $(EXEC_PHP) bin/console
 SYMFONY_TEST = $(EXEC_PHP) bin/console --env=test --no-debug
 
-APP_HOST ?= localhost
+APP_HOST ?= clinic.kiveto.local
 APP_PORT ?= 81
 APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 
@@ -246,12 +246,22 @@ shared-migrations:
 	@$(call ok,Shared migrations generated)
 
 check-web:
+	@$(call step,Checking web endpoint...)
+	@command -v curl >/dev/null 2>&1 || { $(call warn,curl not installed - skipping check); exit 0; }
+	@if curl -fsS --resolve "$(APP_HOST):$(APP_PORT):127.0.0.1" "$(APP_URL)" >/dev/null 2>&1; then \
+		$(call ok,Web reachable at $(APP_URL)); \
+	else \
+		$(call fail,Web check failed for $(APP_URL)); \
+		exit 22; \
+	fi
+
+check-web.silent:
 	@command -v curl >/dev/null 2>&1 || exit 0
-	@curl -fsS "$(APP_URL)" >/dev/null 2>&1
+	@curl -fsS --resolve "$(APP_HOST):$(APP_PORT):127.0.0.1" "$(APP_URL)" >/dev/null 2>&1
 
 ready:
 	@$(call step,Finalizing...)
-	@if $(MAKE) check-web; then \
+	@if $(MAKE) check-web.silent; then \
 		echo ""; \
 		echo "=============================================="; \
 		printf "$(C_GREEN)Environment ready$(C_RESET)\n"; \
