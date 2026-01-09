@@ -2,9 +2,6 @@ FROM php:8.5.0-fpm-bookworm
 
 WORKDIR /var/www/html
 
-ENV APP_ENV=dev
-ENV APP_DEBUG=1
-
 # System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git unzip libzip-dev libicu-dev \

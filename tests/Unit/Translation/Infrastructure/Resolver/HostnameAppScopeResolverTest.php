@@ -25,7 +25,7 @@ final class HostnameAppScopeResolverTest extends TestCase
     public function testDefaultsToShared(): void
     {
         $stack = new RequestStack();
-        $stack->push(Request::create('https://unknown.kiveto.com/'));
+        $stack->push(Request::create('https://unknown.kiveto.test/'));
 
         $resolver = new HostnameAppScopeResolver($stack);
 

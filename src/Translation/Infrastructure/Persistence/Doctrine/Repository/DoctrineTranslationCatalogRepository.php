@@ -45,6 +45,10 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
         foreach ($catalog->entries() as $entry) {
             $this->upsertEntry($connection, $id, $entry);
         }
+
+        // We write through DBAL (bypassing ORM), so ensure the ORM identity map
+        // doesn't return stale TranslationEntryEntity instances on subsequent reads.
+        $this->em->clear();
     }
 
     public function find(TranslationCatalogId $id): ?TranslationCatalog
