@@ -23,7 +23,7 @@ final class TranslationEntryEntityFactory extends PersistentObjectFactory
         $now = \DateTimeImmutable::createFromMutable(self::faker()->dateTime());
 
         return [
-            'id'               => Uuid::v7()->toBinary(),
+            'id'               => Uuid::v7(),
             'appScope'         => 'shared',
             'locale'           => 'fr_FR',
             'domain'           => 'messages',

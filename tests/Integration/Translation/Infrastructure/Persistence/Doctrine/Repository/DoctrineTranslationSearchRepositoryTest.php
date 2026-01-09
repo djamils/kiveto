@@ -101,9 +101,9 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
             'translationValue' => 'Salut',
             'description'      => 'Informal greeting',
             'createdAt'        => $t0,
-            'createdBy'        => Uuid::fromString($aliceUuid)->toBinary(),
+            'createdBy'        => Uuid::fromString($aliceUuid),
             'updatedAt'        => $t1,
-            'updatedBy'        => Uuid::fromString($bobUuid)->toBinary(),
+            'updatedBy'        => Uuid::fromString($bobUuid),
         ]);
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
@@ -113,9 +113,9 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
             'translationValue' => 'Bienvenue',
             'description'      => 'Welcome message',
             'createdAt'        => $t0,
-            'createdBy'        => Uuid::fromString($aliceUuid)->toBinary(),
+            'createdBy'        => Uuid::fromString($aliceUuid),
             'updatedAt'        => $t0,
-            'updatedBy'        => Uuid::fromString($aliceUuid)->toBinary(),
+            'updatedBy'        => Uuid::fromString($aliceUuid),
         ]);
 
         /** @var TranslationSearchRepository $repo */

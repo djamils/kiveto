@@ -14,6 +14,7 @@ use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as UserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineUserRepository implements UserRepositoryInterface
 {
@@ -32,7 +33,7 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
 
     public function findById(UserId $id): ?User
     {
-        $entity = $this->em->getRepository(UserEntity::class)->find($id->toString());
+        $entity = $this->em->getRepository(UserEntity::class)->find(Uuid::fromString($id->toString()));
 
         if (null === $entity) {
             return null;

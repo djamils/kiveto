@@ -47,7 +47,7 @@ abstract class AbstractUserFactory extends PersistentObjectFactory
     protected function defaults(): array|callable
     {
         return [
-            'id'           => Uuid::v7()->toRfc4122(),
+            'id'           => Uuid::v7(),
             'createdAt'    => \DateTimeImmutable::createFromMutable(self::faker()->dateTime()),
             'email'        => self::faker()->unique()->safeEmail(),
             'passwordHash' => self::faker()->sha256(),

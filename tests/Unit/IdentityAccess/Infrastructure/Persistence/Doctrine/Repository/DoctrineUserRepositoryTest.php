@@ -18,6 +18,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DoctrineUserRepositoryTest extends TestCase
 {
@@ -46,7 +47,7 @@ final class DoctrineUserRepositoryTest extends TestCase
         $repoObj = $this->createMock(EntityRepository::class);
         $repoObj->expects(self::once())
             ->method('find')
-            ->with('11111111-1111-1111-1111-111111111111')
+            ->with(Uuid::fromString('11111111-1111-1111-1111-111111111111'))
             ->willReturn($entity)
         ;
 
@@ -223,7 +224,7 @@ final class DoctrineUserRepositoryTest extends TestCase
         };
 
         $entity = new $entityClass();
-        $entity->setId('11111111-1111-1111-1111-111111111111');
+        $entity->setId(Uuid::fromString('11111111-1111-1111-1111-111111111111'));
         $entity->setEmail('user@example.com');
         $entity->setPasswordHash('$hash');
         $entity->setCreatedAt(new \DateTimeImmutable('2025-01-01T10:00:00+00:00'));

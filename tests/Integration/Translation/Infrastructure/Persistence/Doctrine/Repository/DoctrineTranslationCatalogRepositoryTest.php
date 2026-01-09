@@ -32,9 +32,9 @@ final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
             'translationValue' => 'Bonjour',
             'description'      => 'Greeting',
             'createdAt'        => new \DateTimeImmutable('2026-01-09 10:00:00.123456'),
-            'createdBy'        => Uuid::fromString('00000000-0000-0000-0000-000000000001')->toBinary(),
+            'createdBy'        => Uuid::fromString('00000000-0000-0000-0000-000000000001'),
             'updatedAt'        => new \DateTimeImmutable('2026-01-09 10:00:00.123456'),
-            'updatedBy'        => Uuid::fromString('00000000-0000-0000-0000-000000000001')->toBinary(),
+            'updatedBy'        => Uuid::fromString('00000000-0000-0000-0000-000000000001'),
         ]);
 
         /** @var TranslationCatalogRepository $repo */
@@ -67,9 +67,9 @@ final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
             'translationValue' => 'Bonjour',
             'description'      => 'Greeting',
             'createdAt'        => $t0,
-            'createdBy'        => Uuid::fromString($alice->toString())->toBinary(),
+            'createdBy'        => Uuid::fromString($alice->toString()),
             'updatedAt'        => $t0,
-            'updatedBy'        => Uuid::fromString($alice->toString())->toBinary(),
+            'updatedBy'        => Uuid::fromString($alice->toString()),
         ]);
 
         $catalog = $repo->find($catalogId);

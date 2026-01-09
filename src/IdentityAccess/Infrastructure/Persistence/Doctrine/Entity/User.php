@@ -7,8 +7,10 @@ namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity;
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Domain\ValueObject\UserType;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
 #[ORM\InheritanceType('SINGLE_TABLE')]
@@ -21,8 +23,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
-    #[ORM\Column(type: 'user_id', unique: true)]
-    protected string $id;
+    #[ORM\Column(type: UuidType::NAME)]
+    protected Uuid $id;
 
     #[ORM\Column(type: 'string', length: 180, unique: true)]
     protected string $email;
@@ -39,12 +41,12 @@ abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     protected ?\DateTimeImmutable $emailVerifiedAt = null;
 
-    public function getId(): string
+    public function getId(): Uuid
     {
         return $this->id;
     }
 
-    public function setId(string $id): void
+    public function setId(Uuid $id): void
     {
         $this->id = $id;
     }

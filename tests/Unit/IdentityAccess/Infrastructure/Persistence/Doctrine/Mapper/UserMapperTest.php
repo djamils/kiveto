@@ -30,7 +30,7 @@ final class UserMapperTest extends TestCase
         $entity    = $mapper->toEntity($domain);
         $roundTrip = $mapper->toDomain($entity);
 
-        self::assertSame($domain->id()->toString(), $entity->getId());
+        self::assertSame($domain->id()->toString(), $entity->getId()->toRfc4122());
         self::assertSame($domain->email(), $entity->getEmail());
         self::assertSame($domain->passwordHash(), $entity->getPasswordHash());
         self::assertSame(

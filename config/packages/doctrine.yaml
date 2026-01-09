@@ -10,8 +10,7 @@ doctrine:
         use_savepoints: true
 
         # Custom types for Value Objects
-        types:
-            user_id: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Type\UserIdType
+        types: {  }
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true

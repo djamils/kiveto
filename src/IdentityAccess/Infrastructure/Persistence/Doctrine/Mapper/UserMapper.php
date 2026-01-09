@@ -8,6 +8,7 @@ use App\IdentityAccess\Domain\User as DomainUser;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class UserMapper
 {
@@ -18,7 +19,7 @@ final readonly class UserMapper
     public function toEntity(DomainUser $domainUser): User
     {
         $entity = $this->doctrineUserFactory->createForType($domainUser->type());
-        $entity->setId($domainUser->id()->toString());
+        $entity->setId(Uuid::fromString($domainUser->id()->toString()));
         $entity->setEmail($domainUser->email());
         $entity->setPasswordHash($domainUser->passwordHash());
         $entity->setCreatedAt($domainUser->createdAt());
@@ -31,7 +32,7 @@ final readonly class UserMapper
     public function toDomain(User $entity): DomainUser
     {
         return DomainUser::reconstitute(
-            UserId::fromString($entity->getId()),
+            UserId::fromString($entity->getId()->toRfc4122()),
             $entity->getEmail(),
             $entity->getPasswordHash(),
             $entity->getCreatedAt(),

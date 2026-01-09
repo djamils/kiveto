@@ -9,7 +9,6 @@ use App\Translation\Domain\ValueObject\ActorId;
 use App\Translation\Domain\ValueObject\TranslationKey;
 use App\Translation\Domain\ValueObject\TranslationText;
 use App\Translation\Infrastructure\Persistence\Doctrine\Entity\TranslationEntryEntity;
-use Symfony\Component\Uid\Uuid;
 
 final class TranslationEntryMapper
 {
@@ -21,10 +20,10 @@ final class TranslationEntryMapper
             $entity->getCreatedAt(),
             $entity->getUpdatedAt(),
             null !== $entity->getCreatedBy()
-                ? ActorId::fromString(Uuid::fromBinary($entity->getCreatedBy())->toRfc4122())
+                ? ActorId::fromString($entity->getCreatedBy()->toRfc4122())
                 : null,
             null !== $entity->getUpdatedBy()
-                ? ActorId::fromString(Uuid::fromBinary($entity->getUpdatedBy())->toRfc4122())
+                ? ActorId::fromString($entity->getUpdatedBy()->toRfc4122())
                 : null,
             $entity->getDescription(),
         );

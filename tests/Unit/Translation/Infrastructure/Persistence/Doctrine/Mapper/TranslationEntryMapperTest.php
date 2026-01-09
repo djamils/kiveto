@@ -14,7 +14,7 @@ final class TranslationEntryMapperTest extends TestCase
     public function testToDomain(): void
     {
         $entity = new TranslationEntryEntity();
-        $entity->setId(Uuid::v7()->toBinary());
+        $entity->setId(Uuid::v7());
         $entity->setAppScope('clinic');
         $entity->setLocale('fr_FR');
         $entity->setDomain('messages');
@@ -23,8 +23,8 @@ final class TranslationEntryMapperTest extends TestCase
         $entity->setDescription('desc');
         $entity->setCreatedAt(new \DateTimeImmutable('2024-01-01T10:00:00Z'));
         $entity->setUpdatedAt(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
-        $entity->setCreatedBy(Uuid::v7()->toBinary());
-        $entity->setUpdatedBy(Uuid::v7()->toBinary());
+        $entity->setCreatedBy(Uuid::v7());
+        $entity->setUpdatedBy(Uuid::v7());
 
         $mapper = new TranslationEntryMapper();
 

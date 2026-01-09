@@ -10,6 +10,7 @@ use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class UserEntityTest extends TestCase
 {
@@ -20,14 +21,15 @@ final class UserEntityTest extends TestCase
         $createdAt       = new \DateTimeImmutable('2025-01-01T10:00:00+00:00');
         $emailVerifiedAt = new \DateTimeImmutable('2025-01-02T10:00:00+00:00');
 
-        $user->setId('11111111-1111-1111-1111-111111111111');
+        $id = Uuid::fromString('11111111-1111-1111-1111-111111111111');
+        $user->setId($id);
         $user->setEmail('clinic@example.com');
         $user->setPasswordHash('$hash');
         $user->setCreatedAt($createdAt);
         $user->setStatus(UserStatus::ACTIVE);
         $user->setEmailVerifiedAt($emailVerifiedAt);
 
-        self::assertSame('11111111-1111-1111-1111-111111111111', $user->getId());
+        self::assertSame($id, $user->getId());
         self::assertSame('clinic@example.com', $user->getEmail());
         self::assertSame('$hash', $user->getPasswordHash());
         self::assertSame(UserStatus::ACTIVE, $user->getStatus());

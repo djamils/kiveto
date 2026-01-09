@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Translation\Infrastructure\Persistence\Doctrine\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
 #[ORM\Table]
@@ -20,8 +22,8 @@ use Doctrine\ORM\Mapping as ORM;
 class TranslationEntryEntity
 {
     #[ORM\Id]
-    #[ORM\Column(type: 'binary', length: 16)]
-    private string $id;
+    #[ORM\Column(type: UuidType::NAME)]
+    private Uuid $id;
 
     #[ORM\Column(type: 'string', length: 32)]
     private string $appScope;
@@ -44,21 +46,21 @@ class TranslationEntryEntity
     #[ORM\Column(type: 'datetime_immutable', precision: 6)]
     private \DateTimeImmutable $createdAt;
 
-    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
-    private ?string $createdBy = null;
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    private ?Uuid $createdBy = null;
 
     #[ORM\Column(type: 'datetime_immutable', precision: 6)]
     private \DateTimeImmutable $updatedAt;
 
-    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
-    private ?string $updatedBy = null;
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    private ?Uuid $updatedBy = null;
 
-    public function getId(): string
+    public function getId(): Uuid
     {
         return $this->id;
     }
 
-    public function setId(string $id): void
+    public function setId(Uuid $id): void
     {
         $this->id = $id;
     }
@@ -133,12 +135,12 @@ class TranslationEntryEntity
         $this->createdAt = $createdAt;
     }
 
-    public function getCreatedBy(): ?string
+    public function getCreatedBy(): ?Uuid
     {
         return $this->createdBy;
     }
 
-    public function setCreatedBy(?string $createdBy): void
+    public function setCreatedBy(?Uuid $createdBy): void
     {
         $this->createdBy = $createdBy;
     }
@@ -153,12 +155,12 @@ class TranslationEntryEntity
         $this->updatedAt = $updatedAt;
     }
 
-    public function getUpdatedBy(): ?string
+    public function getUpdatedBy(): ?Uuid
     {
         return $this->updatedBy;
     }
 
-    public function setUpdatedBy(?string $updatedBy): void
+    public function setUpdatedBy(?Uuid $updatedBy): void
     {
         $this->updatedBy = $updatedBy;
     }
