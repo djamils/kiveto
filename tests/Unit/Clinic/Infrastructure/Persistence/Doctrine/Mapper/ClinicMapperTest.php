@@ -49,6 +49,7 @@ final class ClinicMapperTest extends TestCase
         self::assertSame($entity->getCreatedAt(), $domain->createdAt());
         self::assertSame($entity->getUpdatedAt(), $domain->updatedAt());
         self::assertNotNull($domain->clinicGroupId());
+        self::assertNotNull($entity->getClinicGroupId());
         self::assertSame($entity->getClinicGroupId()->toString(), $domain->clinicGroupId()->toString());
     }
 
@@ -91,6 +92,7 @@ final class ClinicMapperTest extends TestCase
         self::assertSame('fr-FR', $entity->getLocale());
         self::assertSame(ClinicStatus::ACTIVE, $entity->getStatus());
         self::assertNotNull($entity->getClinicGroupId());
+        self::assertNotNull($clinic->clinicGroupId());
         self::assertSame($clinic->clinicGroupId()->toString(), $entity->getClinicGroupId()->toString());
     }
 
@@ -124,7 +126,7 @@ final class ClinicMapperTest extends TestCase
         $entity->setUpdatedAt(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
         $entity->setClinicGroupId(Uuid::v7());
 
-        $domain = $this->mapper->toDomain($entity);
+        $domain     = $this->mapper->toDomain($entity);
         $entityBack = $this->mapper->toEntity($domain);
 
         self::assertSame($entity->getId()->toString(), $entityBack->getId()->toString());
@@ -133,6 +135,8 @@ final class ClinicMapperTest extends TestCase
         self::assertSame($entity->getTimeZone(), $entityBack->getTimeZone());
         self::assertSame($entity->getLocale(), $entityBack->getLocale());
         self::assertSame($entity->getStatus(), $entityBack->getStatus());
+        self::assertNotNull($entity->getClinicGroupId());
+        self::assertNotNull($entityBack->getClinicGroupId());
         self::assertSame($entity->getClinicGroupId()->toString(), $entityBack->getClinicGroupId()->toString());
     }
 }

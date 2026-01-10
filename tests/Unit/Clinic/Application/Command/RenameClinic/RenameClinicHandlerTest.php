@@ -23,7 +23,7 @@ final class RenameClinicHandlerTest extends TestCase
     public function testRenameClinicSuccessfully(): void
     {
         $clinicId = ClinicId::fromString('018f1b1e-1234-7890-abcd-0123456789ab');
-        $clinic = Clinic::create(
+        $clinic   = Clinic::create(
             $clinicId,
             'Old Name',
             ClinicSlug::fromString('old-name'),
@@ -71,7 +71,7 @@ final class RenameClinicHandlerTest extends TestCase
             ->willReturn(null)
         ;
 
-        $clock = $this->createStub(ClockInterface::class);
+        $clock   = $this->createStub(ClockInterface::class);
         $handler = new RenameClinicHandler($repo, $clock);
 
         $this->expectException(\RuntimeException::class);

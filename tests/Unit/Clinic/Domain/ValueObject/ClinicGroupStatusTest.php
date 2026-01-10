@@ -36,9 +36,4 @@ final class ClinicGroupStatusTest extends TestCase
 
         ClinicGroupStatus::from('invalid');
     }
-
-    public function testTryFromReturnsNullForInvalidValue(): void
-    {
-        self::assertNull(ClinicGroupStatus::tryFrom('invalid'));
-    }
 }

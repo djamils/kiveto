@@ -33,12 +33,16 @@ final class GetClinicHandlerTest extends TestCase
         $repo = $this->createMock(ClinicRepositoryInterface::class);
         $repo->expects(self::once())
             ->method('findById')
-            ->with(self::callback(static fn ($id) => '018f1b1e-1234-7890-abcd-0123456789ab' === $id->toString()))
+            ->with(self::callback(static function ($id): bool {
+                \assert($id instanceof ClinicId);
+
+                return '018f1b1e-1234-7890-abcd-0123456789ab' === $id->toString();
+            }))
             ->willReturn($clinic)
         ;
 
         $handler = new GetClinicHandler($repo);
-        $dto = $handler(new GetClinic('018f1b1e-1234-7890-abcd-0123456789ab'));
+        $dto     = $handler(new GetClinic('018f1b1e-1234-7890-abcd-0123456789ab'));
 
         self::assertNotNull($dto);
         self::assertSame('018f1b1e-1234-7890-abcd-0123456789ab', $dto->id);
@@ -60,7 +64,7 @@ final class GetClinicHandlerTest extends TestCase
         ;
 
         $handler = new GetClinicHandler($repo);
-        $dto = $handler(new GetClinic('018f1b1e-1234-7890-abcd-0123456789ab'));
+        $dto     = $handler(new GetClinic('018f1b1e-1234-7890-abcd-0123456789ab'));
 
         self::assertNull($dto);
     }

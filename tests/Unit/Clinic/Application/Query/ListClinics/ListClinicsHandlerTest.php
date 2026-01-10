@@ -25,7 +25,7 @@ final class ListClinicsHandlerTest extends TestCase
         ;
 
         $handler = new ListClinicsHandler($repo);
-        $result = $handler(new ListClinics(
+        $result  = $handler(new ListClinics(
             status: ClinicStatus::ACTIVE,
             clinicGroupId: 'group-123',
             search: 'search-term',
@@ -46,7 +46,7 @@ final class ListClinicsHandlerTest extends TestCase
         ;
 
         $handler = new ListClinicsHandler($repo);
-        $result = $handler(new ListClinics(
+        $result  = $handler(new ListClinics(
             status: null,
             clinicGroupId: null,
             search: null,

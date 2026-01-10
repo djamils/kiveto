@@ -25,12 +25,16 @@ final class GetClinicGroupHandlerTest extends TestCase
         $repo = $this->createMock(ClinicGroupRepositoryInterface::class);
         $repo->expects(self::once())
             ->method('findById')
-            ->with(self::callback(static fn ($id) => '018f1b1e-1234-7890-abcd-0123456789ab' === $id->toString()))
+            ->with(self::callback(static function ($id): bool {
+                \assert($id instanceof ClinicGroupId);
+
+                return '018f1b1e-1234-7890-abcd-0123456789ab' === $id->toString();
+            }))
             ->willReturn($group)
         ;
 
         $handler = new GetClinicGroupHandler($repo);
-        $dto = $handler(new GetClinicGroup('018f1b1e-1234-7890-abcd-0123456789ab'));
+        $dto     = $handler(new GetClinicGroup('018f1b1e-1234-7890-abcd-0123456789ab'));
 
         self::assertNotNull($dto);
         self::assertSame('018f1b1e-1234-7890-abcd-0123456789ab', $dto->id);
@@ -48,7 +52,7 @@ final class GetClinicGroupHandlerTest extends TestCase
         ;
 
         $handler = new GetClinicGroupHandler($repo);
-        $dto = $handler(new GetClinicGroup('018f1b1e-1234-7890-abcd-0123456789ab'));
+        $dto     = $handler(new GetClinicGroup('018f1b1e-1234-7890-abcd-0123456789ab'));
 
         self::assertNull($dto);
     }

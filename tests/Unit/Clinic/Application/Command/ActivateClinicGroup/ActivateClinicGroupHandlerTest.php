@@ -17,7 +17,7 @@ final class ActivateClinicGroupHandlerTest extends TestCase
     public function testActivateClinicGroupSuccessfully(): void
     {
         $groupId = ClinicGroupId::fromString('018f1b1e-1234-7890-abcd-0123456789ab');
-        $group = ClinicGroup::create(
+        $group   = ClinicGroup::create(
             $groupId,
             'Test Group',
             new \DateTimeImmutable('2024-01-01T10:00:00Z'),
@@ -33,6 +33,6 @@ final class ActivateClinicGroupHandlerTest extends TestCase
 
         $handler(new ActivateClinicGroup($groupId->toString()));
 
-        self::assertTrue($group->status()->value === 'active');
+        self::assertTrue('active' === $group->status()->value);
     }
 }

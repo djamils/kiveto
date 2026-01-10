@@ -22,7 +22,7 @@ final class ChangeClinicSlugHandlerTest extends TestCase
     public function testChangeSlugSuccessfully(): void
     {
         $clinicId = ClinicId::fromString('018f1b1e-1234-7890-abcd-0123456789ab');
-        $clinic = Clinic::create(
+        $clinic   = Clinic::create(
             $clinicId,
             'Test Clinic',
             ClinicSlug::fromString('old-slug'),
@@ -51,7 +51,7 @@ final class ChangeClinicSlugHandlerTest extends TestCase
     public function testThrowsExceptionWhenSlugAlreadyExists(): void
     {
         $clinicId = ClinicId::fromString('018f1b1e-2222-7890-abcd-0123456789ab');
-        $clinic = Clinic::create(
+        $clinic   = Clinic::create(
             $clinicId,
             'Test Clinic',
             ClinicSlug::fromString('old-slug'),
@@ -66,7 +66,7 @@ final class ChangeClinicSlugHandlerTest extends TestCase
         $repo->expects(self::once())->method('existsBySlug')->willReturn(true);
         $repo->expects(self::never())->method('save');
 
-        $clock = $this->createStub(ClockInterface::class);
+        $clock   = $this->createStub(ClockInterface::class);
         $handler = new ChangeClinicSlugHandler($repo, $clock);
 
         $this->expectException(DuplicateClinicSlugException::class);

@@ -13,7 +13,6 @@ use App\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
-use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
@@ -24,7 +23,7 @@ final class ChangeClinicStatusHandlerTest extends TestCase
     public function testSuspendClinic(): void
     {
         $clinicId = ClinicId::fromString('018f1b1e-1234-7890-abcd-0123456789ab');
-        $clinic = Clinic::create(
+        $clinic   = Clinic::create(
             $clinicId,
             'Test Clinic',
             ClinicSlug::fromString('test-clinic'),
@@ -56,7 +55,7 @@ final class ChangeClinicStatusHandlerTest extends TestCase
     public function testCloseClinic(): void
     {
         $clinicId = ClinicId::fromString('018f1b1e-2222-7890-abcd-0123456789ab');
-        $clinic = Clinic::create(
+        $clinic   = Clinic::create(
             $clinicId,
             'Test Clinic',
             ClinicSlug::fromString('test-clinic'),

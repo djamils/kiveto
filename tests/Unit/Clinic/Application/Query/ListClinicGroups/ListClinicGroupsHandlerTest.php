@@ -25,7 +25,7 @@ final class ListClinicGroupsHandlerTest extends TestCase
         ;
 
         $handler = new ListClinicGroupsHandler($repo);
-        $result = $handler(new ListClinicGroups(status: ClinicGroupStatus::ACTIVE));
+        $result  = $handler(new ListClinicGroups(status: ClinicGroupStatus::ACTIVE));
 
         self::assertSame($collection, $result);
     }
@@ -42,7 +42,7 @@ final class ListClinicGroupsHandlerTest extends TestCase
         ;
 
         $handler = new ListClinicGroupsHandler($repo);
-        $result = $handler(new ListClinicGroups(status: null));
+        $result  = $handler(new ListClinicGroups(status: null));
 
         self::assertSame($collection, $result);
     }

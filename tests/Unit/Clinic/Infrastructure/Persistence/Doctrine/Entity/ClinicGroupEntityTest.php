@@ -13,8 +13,8 @@ final class ClinicGroupEntityTest extends TestCase
 {
     public function testGettersAndSetters(): void
     {
-        $entity = new ClinicGroupEntity();
-        $id     = Uuid::v7();
+        $entity    = new ClinicGroupEntity();
+        $id        = Uuid::v7();
         $createdAt = new \DateTimeImmutable('2024-01-01T10:00:00Z');
 
         $entity->setId($id);

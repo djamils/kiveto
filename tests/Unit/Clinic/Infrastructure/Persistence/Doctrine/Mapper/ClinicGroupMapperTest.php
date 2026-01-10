@@ -61,7 +61,7 @@ final class ClinicGroupMapperTest extends TestCase
         $entity->setStatus(ClinicGroupStatus::SUSPENDED);
         $entity->setCreatedAt(new \DateTimeImmutable('2024-01-01T10:00:00Z'));
 
-        $domain = $this->mapper->toDomain($entity);
+        $domain     = $this->mapper->toDomain($entity);
         $entityBack = $this->mapper->toEntity($domain);
 
         self::assertSame($entity->getId()->toString(), $entityBack->getId()->toString());

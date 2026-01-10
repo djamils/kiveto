@@ -10,7 +10,6 @@ use App\Clinic\Domain\ClinicGroup;
 use App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Shared\Application\Event\DomainEventPublisher;
-use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
 final class RenameClinicGroupHandlerTest extends TestCase
@@ -18,7 +17,7 @@ final class RenameClinicGroupHandlerTest extends TestCase
     public function testRenameClinicGroupSuccessfully(): void
     {
         $groupId = ClinicGroupId::fromString('018f1b1e-1234-7890-abcd-0123456789ab');
-        $group = ClinicGroup::create(
+        $group   = ClinicGroup::create(
             $groupId,
             'Old Name',
             new \DateTimeImmutable('2024-01-01T10:00:00Z'),
