@@ -98,7 +98,7 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
-	migrations identity-access-migrations identity-access-migrations shared-migrations \
+	migrations identity-access-migrations translations-migrations clinic-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures
 
