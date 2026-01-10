@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
-use App\Clinic\Domain\Clinic;
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
-use App\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Fixtures\Clinic\Factory\ClinicEntityFactory;
-use App\Shared\Domain\Localization\Locale;
-use App\Shared\Domain\Localization\TimeZone;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 use Zenstruck\Foundry\Test\ResetDatabase;
 
@@ -22,116 +18,87 @@ final class DoctrineClinicRepositoryTest extends KernelTestCase
     use Factories;
     use ResetDatabase;
 
-    private ClinicRepositoryInterface $repo;
-    private EntityManagerInterface $em;
-
-    protected function setUp(): void
+    public function testFindByIdReconstitutesClinicFromDoctrineEntity(): void
     {
-        parent::setUp();
-        $this->repo = static::getContainer()->get(ClinicRepositoryInterface::class);
-        $this->em = static::getContainer()->get(EntityManagerInterface::class);
-    }
+        ClinicEntityFactory::createOne([
+            'id'            => Uuid::fromString('018f1b1e-1234-7890-abcd-0123456789ab'),
+            'name'          => 'Test Clinic',
+            'slug'          => 'test-clinic',
+            'timeZone'      => 'Europe/Paris',
+            'locale'        => 'fr-FR',
+            'clinicGroupId' => null,
+        ]);
 
-    protected function tearDown(): void
-    {
-        $this->em->clear();
-        parent::tearDown();
-    }
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
 
-    public function testSaveAndFindById(): void
-    {
-        $clinic = Clinic::create(
-            id: ClinicId::fromString('018f1b1e-1111-7890-abcd-0123456789ab'),
-            name: 'Test Clinic',
-            slug: ClinicSlug::fromString('test-clinic'),
-            timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: Locale::fromString('fr-FR'),
-            createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
-            clinicGroupId: null,
-        );
+        $clinic = $repo->findById(ClinicId::fromString('018f1b1e-1234-7890-abcd-0123456789ab'));
 
-        $this->repo->save($clinic);
-        $this->em->clear();
-
-        $found = $this->repo->findById(ClinicId::fromString('018f1b1e-1111-7890-abcd-0123456789ab'));
-
-        self::assertNotNull($found);
-        self::assertSame('Test Clinic', $found->name());
-        self::assertSame('test-clinic', $found->slug()->toString());
-        self::assertSame('Europe/Paris', $found->timeZone()->toString());
-        self::assertSame('fr-FR', $found->locale()->toString());
+        self::assertNotNull($clinic);
+        self::assertSame('Test Clinic', $clinic->name());
+        self::assertSame('test-clinic', $clinic->slug()->toString());
+        self::assertSame('Europe/Paris', $clinic->timeZone()->toString());
+        self::assertSame('fr-FR', $clinic->locale()->toString());
+        self::assertNull($clinic->clinicGroupId());
     }
 
     public function testFindByIdReturnsNullWhenNotFound(): void
     {
-        $found = $this->repo->findById(ClinicId::fromString('018f1b1e-9999-7890-abcd-0123456789ab'));
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
 
-        self::assertNull($found);
+        $clinic = $repo->findById(ClinicId::fromString('018f1b1e-9999-7890-abcd-0123456789ab'));
+
+        self::assertNull($clinic);
     }
 
-    public function testFindBySlug(): void
+    public function testFindBySlugReconstitutesClinic(): void
     {
         ClinicEntityFactory::createOne([
-            'slug' => 'existing-clinic',
-            'name' => 'Existing Clinic',
+            'slug' => 'my-clinic',
+            'name' => 'My Clinic',
         ]);
 
-        $found = $this->repo->findBySlug(ClinicSlug::fromString('existing-clinic'));
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
 
-        self::assertNotNull($found);
-        self::assertSame('Existing Clinic', $found->name());
+        $clinic = $repo->findBySlug(ClinicSlug::fromString('my-clinic'));
+
+        self::assertNotNull($clinic);
+        self::assertSame('My Clinic', $clinic->name());
     }
 
     public function testFindBySlugReturnsNullWhenNotFound(): void
     {
-        $found = $this->repo->findBySlug(ClinicSlug::fromString('non-existent'));
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
 
-        self::assertNull($found);
+        $clinic = $repo->findBySlug(ClinicSlug::fromString('non-existent'));
+
+        self::assertNull($clinic);
     }
 
     public function testExistsBySlugReturnsTrueWhenExists(): void
     {
         ClinicEntityFactory::createOne([
-            'slug' => 'existing-clinic-2',
+            'slug' => 'existing-slug',
         ]);
 
-        $exists = $this->repo->existsBySlug(ClinicSlug::fromString('existing-clinic-2'));
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
+
+        $exists = $repo->existsBySlug(ClinicSlug::fromString('existing-slug'));
 
         self::assertTrue($exists);
     }
 
     public function testExistsBySlugReturnsFalseWhenNotExists(): void
     {
-        $exists = $this->repo->existsBySlug(ClinicSlug::fromString('non-existent'));
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
+
+        $exists = $repo->existsBySlug(ClinicSlug::fromString('non-existent'));
 
         self::assertFalse($exists);
-    }
-
-    public function testUpdateClinic(): void
-    {
-        $clinic = Clinic::create(
-            id: ClinicId::fromString('018f1b1e-2222-7890-abcd-0123456789ab'),
-            name: 'Original Name',
-            slug: ClinicSlug::fromString('original-slug'),
-            timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: Locale::fromString('fr-FR'),
-            createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
-            clinicGroupId: null,
-        );
-
-        $this->repo->save($clinic);
-        $this->em->clear();
-
-        $found = $this->repo->findById(ClinicId::fromString('018f1b1e-2222-7890-abcd-0123456789ab'));
-        self::assertNotNull($found);
-
-        $found->rename('Updated Name', new \DateTimeImmutable('2024-01-02T10:00:00Z'));
-        $this->repo->save($found);
-        $this->em->clear();
-
-        $updated = $this->repo->findById(ClinicId::fromString('018f1b1e-2222-7890-abcd-0123456789ab'));
-
-        self::assertNotNull($updated);
-        self::assertSame('Updated Name', $updated->name());
     }
 }

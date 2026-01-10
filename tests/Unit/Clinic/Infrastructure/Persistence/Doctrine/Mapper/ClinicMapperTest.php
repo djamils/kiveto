@@ -78,6 +78,7 @@ final class ClinicMapperTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             clinicGroupId: ClinicGroupId::fromString('018f1b1e-9999-7890-abcd-0123456789ab'),
         );
 
@@ -101,6 +102,7 @@ final class ClinicMapperTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             clinicGroupId: null,
         );
 

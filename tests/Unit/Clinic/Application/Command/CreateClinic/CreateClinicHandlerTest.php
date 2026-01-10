@@ -70,6 +70,8 @@ final class CreateClinicHandlerTest extends TestCase
         $repo->expects(self::never())->method('save');
 
         $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn('018f1b1e-1234-7890-abcd-0123456789ab');
+
         $clock = $this->createStub(ClockInterface::class);
 
         $handler = new CreateClinicHandler($repo, $uuidGenerator, $clock);

@@ -62,8 +62,9 @@ final class ChangeClinicSlugHandlerTest extends TestCase
         );
 
         $repo = $this->createMock(ClinicRepositoryInterface::class);
-        $repo->method('findById')->willReturn($clinic);
-        $repo->method('existsBySlug')->willReturn(true);
+        $repo->expects(self::once())->method('findById')->willReturn($clinic);
+        $repo->expects(self::once())->method('existsBySlug')->willReturn(true);
+        $repo->expects(self::never())->method('save');
 
         $clock = $this->createStub(ClockInterface::class);
         $handler = new ChangeClinicSlugHandler($repo, $clock);
