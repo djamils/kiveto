@@ -106,10 +106,6 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
     {
         $normalized = $table;
 
-        if ('' !== $prefix && str_starts_with($normalized, $prefix . '_')) {
-            $normalized = mb_substr($normalized, mb_strlen($prefix) + 1);
-        }
-
         if (str_ends_with($normalized, '_entity')) {
             $normalized = mb_substr($normalized, 0, -7);
         }

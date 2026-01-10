@@ -17,8 +17,8 @@ final class Version20260102182306 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->addSql(<<<'SQL'
-            CREATE TABLE translation__entries (
-              id VARBINARY(16) NOT NULL,
+            CREATE TABLE translation__translation_entries (
+              id BINARY(16) NOT NULL,
               app_scope VARCHAR(32) NOT NULL,
               locale VARCHAR(16) NOT NULL,
               domain VARCHAR(64) NOT NULL,
@@ -26,9 +26,9 @@ final class Version20260102182306 extends AbstractMigration
               translation_value LONGTEXT NOT NULL,
               description LONGTEXT DEFAULT NULL,
               created_at DATETIME NOT NULL,
-              created_by VARBINARY(16) DEFAULT NULL,
+              created_by BINARY(16) DEFAULT NULL,
               updated_at DATETIME NOT NULL,
-              updated_by VARBINARY(16) DEFAULT NULL,
+              updated_by BINARY(16) DEFAULT NULL,
               INDEX idx_translation_scope_locale_domain (app_scope, locale, domain),
               INDEX idx_translation_key (translation_key),
               INDEX idx_translation_domain (domain),
@@ -44,6 +44,6 @@ final class Version20260102182306 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE translation__entries');
+        $this->addSql('DROP TABLE translation__translation_entries');
     }
 }

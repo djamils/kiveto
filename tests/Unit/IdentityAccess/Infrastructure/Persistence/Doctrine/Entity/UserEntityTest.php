@@ -6,9 +6,9 @@ namespace App\Tests\Unit\IdentityAccess\Infrastructure\Persistence\Doctrine\Enti
 
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,7 +16,7 @@ final class UserEntityTest extends TestCase
 {
     public function testGettersAndSetters(): void
     {
-        $user = new ClinicUser();
+        $user = new ClinicUserEntity();
 
         $createdAt       = new \DateTimeImmutable('2025-01-01T10:00:00+00:00');
         $emailVerifiedAt = new \DateTimeImmutable('2025-01-02T10:00:00+00:00');
@@ -49,7 +49,7 @@ final class UserEntityTest extends TestCase
 
     public function testGetUserIdentifierThrowsWhenEmpty(): void
     {
-        $user = new ClinicUser();
+        $user = new ClinicUserEntity();
         $user->setEmail('');
 
         $this->expectException(\LogicException::class);
@@ -58,17 +58,17 @@ final class UserEntityTest extends TestCase
 
     public function testGetTypePerSubclass(): void
     {
-        self::assertSame(UserType::CLINIC, (new ClinicUser())->getType());
-        self::assertSame(UserType::PORTAL, (new PortalUser())->getType());
-        self::assertSame(UserType::BACKOFFICE, (new BackofficeUser())->getType());
+        self::assertSame(UserType::CLINIC, (new ClinicUserEntity())->getType());
+        self::assertSame(UserType::PORTAL, (new PortalUserEntity())->getType());
+        self::assertSame(UserType::BACKOFFICE, (new BackofficeUserEntity())->getType());
     }
 
     public function testEraseCredentialsIsNoOp(): void
     {
-        $user = new ClinicUser();
+        $user = new ClinicUserEntity();
         $user->eraseCredentials(); // no exception expected
         self::assertSame('$hash', (function () {
-            $u = new ClinicUser();
+            $u = new ClinicUserEntity();
             $u->setPasswordHash('$hash');
 
             return $u->getPassword();

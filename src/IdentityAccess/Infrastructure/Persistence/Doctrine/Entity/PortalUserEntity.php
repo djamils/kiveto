@@ -8,10 +8,10 @@ use App\IdentityAccess\Domain\ValueObject\UserType;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-final class BackofficeUser extends User
+final class PortalUserEntity extends UserEntity
 {
     public function getType(): UserType
     {
-        return UserType::BACKOFFICE;
+        return UserType::PORTAL;
     }
 }

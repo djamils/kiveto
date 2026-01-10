@@ -16,11 +16,11 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'user_type', type: 'string')]
 #[ORM\DiscriminatorMap([
-    'CLINIC'     => ClinicUser::class,
-    'PORTAL'     => PortalUser::class,
-    'BACKOFFICE' => BackofficeUser::class,
+    'CLINIC'     => ClinicUserEntity::class,
+    'PORTAL'     => PortalUserEntity::class,
+    'BACKOFFICE' => BackofficeUserEntity::class,
 ])]
-abstract class User implements UserInterface, PasswordAuthenticatedUserInterface
+abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
