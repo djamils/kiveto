@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Infrastructure\Cache;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use App\Translation\Domain\ValueObject\TranslationDomain;
 use App\Translation\Infrastructure\Cache\SymfonyCatalogCache;
@@ -20,7 +20,7 @@ final class SymfonyCatalogCacheTest extends TestCase
         $cache     = new SymfonyCatalogCache($pool);
         $catalogId = new TranslationCatalogId(
             AppScope::CLINIC,
-            Locale::fromString('fr_FR'),
+            Locale::fromString('fr-FR'),
             TranslationDomain::fromString('messages'),
         );
 
@@ -39,11 +39,11 @@ final class SymfonyCatalogCacheTest extends TestCase
         $cache = new SymfonyCatalogCache($pool);
         $id    = new TranslationCatalogId(
             AppScope::CLINIC,
-            Locale::fromString('fr_FR'),
+            Locale::fromString('fr-FR'),
             TranslationDomain::fromString('common'),
         );
 
-        $item = $pool->getItem('translation.catalog.v1.clinic.fr_FR.common');
+        $item = $pool->getItem('translation.catalog.v1.clinic.fr-FR.common');
         $item->set('not-an-array');
         $pool->save($item);
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Resolver;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Application\Port\AppScopeResolverInterface;
 use App\Translation\Application\Port\LocaleResolverInterface;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 final readonly class DefaultLocaleResolver implements LocaleResolverInterface
@@ -15,7 +15,7 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
     public function __construct(
         private RequestStack $requestStack,
         private AppScopeResolverInterface $scopeResolver,
-        private string $defaultLocale = 'fr_FR',
+        private string $defaultLocale = 'fr-FR',
     ) {
     }
 
@@ -24,7 +24,7 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         $scope = $this->scopeResolver->resolve();
 
         if (AppScope::BACKOFFICE === $scope) {
-            return Locale::fromString('fr_FR');
+            return Locale::fromString('fr-FR');
         }
 
         $request = $this->requestStack->getCurrentRequest();
@@ -61,12 +61,12 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
 
     private function normalizeCandidate(string $candidate): string
     {
-        $normalized = str_replace('-', '_', trim($candidate));
+        $normalized = str_replace('_', '-', trim($candidate));
         $short      = mb_strtolower($normalized);
 
         return match ($short) {
-            'fr'    => 'fr_FR',
-            'en'    => 'en_GB',
+            'fr'    => 'fr-FR',
+            'en'    => 'en-GB',
             default => $normalized,
         };
     }

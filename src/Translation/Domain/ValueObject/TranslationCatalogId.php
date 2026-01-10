@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Domain\ValueObject;
 
+use App\Shared\Domain\Localization\Locale;
+
 final class TranslationCatalogId
 {
     public function __construct(

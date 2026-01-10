@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Translation\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Fixtures\Translation\Factory\TranslationEntryEntityFactory;
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationDomain;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -23,14 +23,14 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
     {
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'hello',
             'translationValue' => 'Bonjour',
         ]);
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'bye',
             'translationValue' => 'Au revoir',
@@ -41,7 +41,7 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
 
         $catalog = $repo->findCatalog(
             AppScope::fromString('shared'),
-            Locale::fromString('fr_FR'),
+            Locale::fromString('fr-FR'),
             TranslationDomain::fromString('messages'),
         );
 
@@ -53,14 +53,14 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
     {
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'k1',
             'translationValue' => 'v1',
         ]);
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'en_US',
+            'locale'           => 'en-US',
             'domain'           => 'validators',
             'translationKey'   => 'k2',
             'translationValue' => 'v2',
@@ -71,16 +71,16 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
 
         self::assertSame(
             ['messages'],
-            $repo->listDomains(AppScope::fromString('shared'), Locale::fromString('fr_FR')),
+            $repo->listDomains(AppScope::fromString('shared'), Locale::fromString('fr-FR')),
         );
 
         self::assertSame(
-            ['en_US', 'fr_FR'],
+            ['en-US', 'fr-FR'],
             $repo->listLocales(AppScope::fromString('shared'), null),
         );
 
         self::assertSame(
-            ['fr_FR'],
+            ['fr-FR'],
             $repo->listLocales(AppScope::fromString('shared'), TranslationDomain::fromString('messages')),
         );
     }
@@ -95,7 +95,7 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
 
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'hello',
             'translationValue' => 'Salut',
@@ -107,7 +107,7 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
         ]);
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'welcome',
             'translationValue' => 'Bienvenue',
@@ -123,7 +123,7 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
 
         $criteria = [
             'scope'         => AppScope::fromString('shared'),
-            'locale'        => Locale::fromString('fr_FR'),
+            'locale'        => Locale::fromString('fr-FR'),
             'domain'        => TranslationDomain::fromString('messages'),
             'keyContains'   => 'hel',
             'valueContains' => 'Sal',
@@ -146,7 +146,7 @@ final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
         $page2 = $repo->search(
             [
                 'scope'  => AppScope::fromString('shared'),
-                'locale' => Locale::fromString('fr_FR'),
+                'locale' => Locale::fromString('fr-FR'),
                 'domain' => TranslationDomain::fromString('messages'),
             ],
             2,

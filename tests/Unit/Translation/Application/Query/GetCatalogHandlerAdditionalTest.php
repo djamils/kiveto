@@ -29,7 +29,7 @@ final class GetCatalogHandlerAdditionalTest extends TestCase
 
         $handler = new GetCatalogHandler($repo, $cache);
 
-        $result = $handler(new GetCatalog('shared', 'fr_FR', 'messages'));
+        $result = $handler(new GetCatalog('shared', 'fr-FR', 'messages'));
 
         self::assertSame(['foo' => 'bar'], $result);
     }
@@ -48,7 +48,7 @@ final class GetCatalogHandlerAdditionalTest extends TestCase
 
         $handler = new GetCatalogHandler($repo, $cache);
 
-        $result = $handler(new GetCatalog('clinic', 'fr_FR', 'messages'));
+        $result = $handler(new GetCatalog('clinic', 'fr-FR', 'messages'));
 
         self::assertSame(['cached' => 'yes'], $result);
     }

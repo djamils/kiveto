@@ -6,7 +6,7 @@ namespace App\Clinic\Application\Command\ChangeClinicTimeZone;
 
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
-use App\Clinic\Domain\ValueObject\TimeZone;
+use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

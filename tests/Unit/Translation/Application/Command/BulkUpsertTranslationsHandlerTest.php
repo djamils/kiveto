@@ -51,9 +51,9 @@ final class BulkUpsertTranslationsHandlerTest extends TestCase
         $handler->setDomainEventPublisher($eventPublisher);
 
         $handler(new BulkUpsertTranslations([
-            ['scope' => 'clinic', 'locale' => 'fr_FR', 'domain' => 'messages', 'key' => 'k1', 'value' => 'v1'],
-            ['scope' => 'clinic', 'locale' => 'fr_FR', 'domain' => 'messages', 'key' => 'k2', 'value' => 'v2'],
-            ['scope' => 'portal', 'locale' => 'en_GB', 'domain' => 'auth', 'key' => 'k3', 'value' => 'v3'],
+            ['scope' => 'clinic', 'locale' => 'fr-FR', 'domain' => 'messages', 'key' => 'k1', 'value' => 'v1'],
+            ['scope' => 'clinic', 'locale' => 'fr-FR', 'domain' => 'messages', 'key' => 'k2', 'value' => 'v2'],
+            ['scope' => 'portal', 'locale' => 'en-GB', 'domain' => 'auth', 'key' => 'k3', 'value' => 'v3'],
         ]));
     }
 }

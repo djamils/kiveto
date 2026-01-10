@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Symfony\Translator;
 
+use App\Shared\Domain\Localization\Locale as DomainLocale;
 use App\Translation\Application\Port\AppScopeResolverInterface;
 use App\Translation\Application\Port\LocaleResolverInterface;
-use App\Translation\Domain\ValueObject\Locale as DomainLocale;
 use App\Translation\Infrastructure\Provider\TranslationCatalogProvider;
 use Symfony\Component\Translation\Formatter\MessageFormatterInterface;
 use Symfony\Component\Translation\MessageCatalogue;

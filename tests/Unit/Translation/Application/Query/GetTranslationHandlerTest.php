@@ -38,10 +38,10 @@ final class GetTranslationHandlerTest extends TestCase
         $handler = new GetTranslationHandler($repo, $cache);
 
         /** @var TranslationView $view */
-        $view = $handler(new GetTranslation('clinic', 'fr_FR', 'messages', 'bar'));
+        $view = $handler(new GetTranslation('clinic', 'fr-FR', 'messages', 'bar'));
 
         self::assertSame('shared', $view->scope);
-        self::assertSame('fr_FR', $view->locale);
+        self::assertSame('fr-FR', $view->locale);
         self::assertSame('messages', $view->domain);
         self::assertSame('bar', $view->key);
         self::assertSame('2', $view->value);
@@ -67,7 +67,7 @@ final class GetTranslationHandlerTest extends TestCase
 
         $handler = new GetTranslationHandler($repo, $cache);
 
-        $view = $handler(new GetTranslation('clinic', 'fr_FR', 'messages', 'foo'));
+        $view = $handler(new GetTranslation('clinic', 'fr-FR', 'messages', 'foo'));
 
         self::assertInstanceOf(TranslationView::class, $view);
         self::assertSame('clinic', $view->scope);
@@ -94,7 +94,7 @@ final class GetTranslationHandlerTest extends TestCase
 
         $handler = new GetTranslationHandler($repo, $cache);
 
-        $view = $handler(new GetTranslation('shared', 'fr_FR', 'messages', 'missing'));
+        $view = $handler(new GetTranslation('shared', 'fr-FR', 'messages', 'missing'));
 
         self::assertNull($view);
     }
@@ -119,7 +119,7 @@ final class GetTranslationHandlerTest extends TestCase
 
         $handler = new GetTranslationHandler($repo, $cache);
 
-        $view = $handler(new GetTranslation('clinic', 'fr_FR', 'messages', 'missing'));
+        $view = $handler(new GetTranslation('clinic', 'fr-FR', 'messages', 'missing'));
 
         self::assertNull($view);
     }
@@ -138,7 +138,7 @@ final class GetTranslationHandlerTest extends TestCase
 
         $handler = new GetTranslationHandler($repo, $cache);
 
-        $view = $handler(new GetTranslation('clinic', 'fr_FR', 'messages', 'cached'));
+        $view = $handler(new GetTranslation('clinic', 'fr-FR', 'messages', 'cached'));
 
         self::assertNotNull($view);
         self::assertSame('ok', $view->value);

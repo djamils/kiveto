@@ -22,11 +22,11 @@ final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
 
     public function testFindReconstitutesCatalogFromDoctrineEntities(): void
     {
-        $catalogId = TranslationCatalogId::fromStrings('shared', 'fr_FR', 'messages');
+        $catalogId = TranslationCatalogId::fromStrings('shared', 'fr-FR', 'messages');
 
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'hello',
             'translationValue' => 'Bonjour',
@@ -51,7 +51,7 @@ final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
         /** @var TranslationCatalogRepository $repo */
         $repo = static::getContainer()->get(TranslationCatalogRepository::class);
 
-        $catalogId = TranslationCatalogId::fromStrings('shared', 'fr_FR', 'messages');
+        $catalogId = TranslationCatalogId::fromStrings('shared', 'fr-FR', 'messages');
         $alice     = ActorId::fromString('00000000-0000-0000-0000-0000000000aa');
         $bob       = ActorId::fromString('00000000-0000-0000-0000-0000000000bb');
 
@@ -61,7 +61,7 @@ final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
         // Seed initial row via Foundry
         TranslationEntryEntityFactory::createOne([
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => 'hello',
             'translationValue' => 'Bonjour',

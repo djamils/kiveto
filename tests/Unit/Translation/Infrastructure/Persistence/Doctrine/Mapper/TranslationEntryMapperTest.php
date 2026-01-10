@@ -16,7 +16,7 @@ final class TranslationEntryMapperTest extends TestCase
         $entity = new TranslationEntryEntity();
         $entity->setId(Uuid::v7());
         $entity->setAppScope('clinic');
-        $entity->setLocale('fr_FR');
+        $entity->setLocale('fr-FR');
         $entity->setDomain('messages');
         $entity->setTranslationKey('hello');
         $entity->setTranslationValue('Bonjour');

@@ -20,7 +20,7 @@ final class DummyTranslator implements TranslatorInterface, TranslatorBagInterfa
     /**
      * @param array<string, string> $messages
      */
-    public function __construct(private array $messages = [], string $locale = 'fr_FR')
+    public function __construct(private array $messages = [], string $locale = 'fr-FR')
     {
         $this->locale = $locale;
     }

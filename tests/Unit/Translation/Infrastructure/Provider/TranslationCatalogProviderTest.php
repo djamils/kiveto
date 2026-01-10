@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Infrastructure\Provider;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use App\Translation\Domain\ValueObject\TranslationDomain;
 use App\Translation\Infrastructure\Provider\TranslationCatalogProvider;
@@ -21,7 +21,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
         $scope  = AppScope::SHARED;
-        $locale = Locale::fromString('fr');
+        $locale = Locale::fromString('fr-FR');
         $domain = TranslationDomain::fromString('messages');
 
         $sharedCatalog = ['key1' => 'value1', 'key2' => 'value2'];
@@ -41,7 +41,7 @@ final class TranslationCatalogProviderTest extends TestCase
             ->method('save')
             ->with(
                 self::callback(static fn (TranslationCatalogId $id): bool => $id->scope() === $scope
-                    && 'fr' === $id->locale()->toString()
+                    && 'fr-FR' === $id->locale()->toString()
                     && 'messages' === $id->domain()->toString()),
                 $sharedCatalog,
                 3600,
@@ -61,7 +61,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
         $scope  = AppScope::CLINIC;
-        $locale = Locale::fromString('fr');
+        $locale = Locale::fromString('fr-FR');
         $domain = TranslationDomain::fromString('messages');
 
         $clinicCatalog = ['key1' => 'clinic_value1', 'key3' => 'clinic_value3'];
@@ -94,7 +94,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
         $scope  = AppScope::SHARED;
-        $locale = Locale::fromString('en');
+        $locale = Locale::fromString('en-GB');
         $domain = TranslationDomain::fromString('validators');
 
         $catalog = ['error.required' => 'This field is required'];
@@ -124,7 +124,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
         $scope  = AppScope::PORTAL;
-        $locale = Locale::fromString('de_DE');
+        $locale = Locale::fromString('de-DE');
         $domain = TranslationDomain::fromString('emails');
 
         $cachedPortalCatalog = ['subject.welcome' => 'Willkommen'];
@@ -153,7 +153,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
         $scope  = AppScope::BACKOFFICE;
-        $locale = Locale::fromString('fr_FR');
+        $locale = Locale::fromString('fr-FR');
         $domain = TranslationDomain::fromString('menu');
 
         $backofficeCatalog = ['dashboard' => 'Tableau de bord'];
@@ -186,7 +186,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $customTtl = 7200;
 
         $scope  = AppScope::SHARED;
-        $locale = Locale::fromString('es');
+        $locale = Locale::fromString('es-ES');
         $domain = TranslationDomain::fromString('forms');
 
         $catalog = ['submit' => 'Enviar'];
@@ -220,7 +220,7 @@ final class TranslationCatalogProviderTest extends TestCase
         $repository = $this->createMock(TranslationSearchRepository::class);
         $cache      = $this->createMock(CatalogCacheInterface::class);
 
-        $locale = Locale::fromString('en');
+        $locale = Locale::fromString('en-GB');
         $domain = TranslationDomain::fromString('actions');
 
         $clinicCatalog     = ['save' => 'Save patient'];

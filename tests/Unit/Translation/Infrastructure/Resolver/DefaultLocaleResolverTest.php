@@ -18,24 +18,24 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::BACKOFFICE);
 
-        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en_GB');
+        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en-GB');
 
-        self::assertSame('fr_FR', $resolver->resolve()->toString());
+        self::assertSame('fr-FR', $resolver->resolve()->toString());
     }
 
     public function testCandidateNormalizedAndMapped(): void
     {
         $stack   = new RequestStack();
         $request = Request::create('/');
-        $request->attributes->set('_locale', 'en-gb');
+        $request->attributes->set('_locale', 'en-GB');
         $stack->push($request);
 
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr_FR');
+        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
 
-        self::assertSame('en_GB', $resolver->resolve()->toString());
+        self::assertSame('en-GB', $resolver->resolve()->toString());
     }
 
     public function testAcceptLanguageFallback(): void
@@ -48,9 +48,9 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'en_GB');
+        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'en-GB');
 
-        self::assertSame('fr_FR', $resolver->resolve()->toString());
+        self::assertSame('fr-FR', $resolver->resolve()->toString());
     }
 
     public function testAcceptLanguageFirstValueParsed(): void
@@ -63,24 +63,24 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr_FR');
+        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
 
-        self::assertSame('en_GB', $resolver->resolve()->toString());
+        self::assertSame('en-GB', $resolver->resolve()->toString());
     }
 
     public function testNormalizeCandidateDefault(): void
     {
         $stack   = new RequestStack();
         $request = Request::create('/');
-        $request->attributes->set('_locale', 'es_ES');
+        $request->attributes->set('_locale', 'es-ES');
         $stack->push($request);
 
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr_FR');
+        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
 
-        self::assertSame('es_ES', $resolver->resolve()->toString());
+        self::assertSame('es-ES', $resolver->resolve()->toString());
     }
 
     public function testDefaultLocaleUsedWhenNoCandidate(): void
@@ -88,8 +88,8 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en_GB');
+        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en-GB');
 
-        self::assertSame('en_GB', $resolver->resolve()->toString());
+        self::assertSame('en-GB', $resolver->resolve()->toString());
     }
 }

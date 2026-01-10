@@ -35,7 +35,7 @@ class ClinicEntity
     #[ORM\Column(name: 'time_zone', type: 'string', length: 64)]
     private string $timeZone;
 
-    #[ORM\Column(type: 'string', length: 10)]
+    #[ORM\Column(type: 'string', length: 16)]
     private string $locale;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]

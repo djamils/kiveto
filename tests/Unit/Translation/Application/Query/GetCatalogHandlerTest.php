@@ -36,7 +36,7 @@ final class GetCatalogHandlerTest extends TestCase
 
         $handler = new GetCatalogHandler($repo, $cache);
 
-        $result = $handler(new GetCatalog('clinic', 'fr_FR', 'messages'));
+        $result = $handler(new GetCatalog('clinic', 'fr-FR', 'messages'));
 
         self::assertSame(['a' => '1', 'b' => '2'], $result);
     }

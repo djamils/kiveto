@@ -6,7 +6,7 @@ namespace App\Clinic\Application\Command\ChangeClinicLocale;
 
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
-use App\Clinic\Domain\ValueObject\LocaleCode;
+use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -32,7 +32,7 @@ final class ChangeClinicLocaleHandler
         }
 
         $clinic->changeLocale(
-            LocaleCode::fromString($command->locale),
+            Locale::fromString($command->locale),
             $this->clock->now(),
         );
 

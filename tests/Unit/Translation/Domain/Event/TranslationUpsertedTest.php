@@ -11,13 +11,13 @@ final class TranslationUpsertedTest extends TestCase
 {
     public function testPayloadAndAggregateId(): void
     {
-        $event = new TranslationUpserted('clinic', 'fr_FR', 'messages', 'foo', 'actor-1');
+        $event = new TranslationUpserted('clinic', 'fr-FR', 'messages', 'foo', 'actor-1');
 
-        self::assertSame('clinic:fr_FR:messages', $event->aggregateId());
+        self::assertSame('clinic:fr-FR:messages', $event->aggregateId());
         self::assertSame(
             [
                 'scope'   => 'clinic',
-                'locale'  => 'fr_FR',
+                'locale'  => 'fr-FR',
                 'domain'  => 'messages',
                 'key'     => 'foo',
                 'actorId' => 'actor-1',

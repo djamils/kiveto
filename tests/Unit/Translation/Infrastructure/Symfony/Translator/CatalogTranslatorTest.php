@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Infrastructure\Symfony\Translator;
 
+use App\Shared\Domain\Localization\Locale as DomainLocale;
 use App\Translation\Application\Port\AppScopeResolverInterface;
 use App\Translation\Application\Port\LocaleResolverInterface;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale as DomainLocale;
 use App\Translation\Infrastructure\Provider\TranslationCatalogProvider;
 use App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator;
 use PHPUnit\Framework\TestCase;
@@ -30,7 +30,7 @@ final class CatalogTranslatorTest extends TestCase
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
         $localeResolver = $this->createStub(LocaleResolverInterface::class);
-        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr_FR'));
+        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr-FR'));
 
         $formatter = $this->createStub(MessageFormatterInterface::class);
         $formatter->method('format')->willReturn('Bonjour');
@@ -54,7 +54,7 @@ final class CatalogTranslatorTest extends TestCase
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
         $localeResolver = $this->createStub(LocaleResolverInterface::class);
-        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr_FR'));
+        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr-FR'));
 
         $formatter = $this->createStub(MessageFormatterInterface::class);
         $formatter->method('format')->willReturn('unused');
@@ -82,20 +82,20 @@ final class CatalogTranslatorTest extends TestCase
 
     public function testGetAndSetLocale(): void
     {
-        $fallback = new DummyTranslator([], 'en');
+        $fallback = new DummyTranslator([], 'en-GB');
 
         $provider       = $this->createStub(TranslationCatalogProvider::class);
         $scopeResolver  = $this->createStub(AppScopeResolverInterface::class);
         $localeResolver = $this->createStub(LocaleResolverInterface::class);
-        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('en'));
+        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('en-GB'));
         $formatter = $this->createStub(MessageFormatterInterface::class);
 
         $translator = new CatalogTranslator($fallback, $provider, $scopeResolver, $localeResolver, $formatter);
 
-        self::assertSame('en', $translator->getLocale());
+        self::assertSame('en-GB', $translator->getLocale());
 
-        $translator->setLocale('fr');
-        self::assertSame('fr', $fallback->getLocale());
+        $translator->setLocale('fr-FR');
+        self::assertSame('fr-FR', $fallback->getLocale());
     }
 
     public function testGetCatalogueThrowsWithoutTranslatorBag(): void
@@ -130,7 +130,7 @@ final class CatalogTranslatorTest extends TestCase
 
     public function testGetCatalogueMergesTouchedDomains(): void
     {
-        $fallback = new DummyTranslator(['hello' => 'fallback'], 'fr_FR');
+        $fallback = new DummyTranslator(['hello' => 'fallback'], 'fr-FR');
 
         $provider = $this->createStub(TranslationCatalogProvider::class);
         $provider->method('getEffectiveCatalog')->willReturn(['hello' => 'from-db']);
@@ -139,7 +139,7 @@ final class CatalogTranslatorTest extends TestCase
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
         $localeResolver = $this->createStub(LocaleResolverInterface::class);
-        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr_FR'));
+        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr-FR'));
 
         $formatter = $this->createStub(MessageFormatterInterface::class);
         $formatter->method('format')->willReturn('from-db');
@@ -147,14 +147,14 @@ final class CatalogTranslatorTest extends TestCase
         $translator = new CatalogTranslator($fallback, $provider, $scopeResolver, $localeResolver, $formatter);
 
         $translator->trans('hello'); // touch domain
-        $catalogue = $translator->getCatalogue('fr_FR');
+        $catalogue = $translator->getCatalogue('fr-FR');
 
         self::assertSame('from-db', $catalogue->get('hello', 'messages'));
     }
 
     public function testResetClearsTouchedDomains(): void
     {
-        $fallback = new DummyTranslator(['hello' => 'fallback'], 'fr_FR');
+        $fallback = new DummyTranslator(['hello' => 'fallback'], 'fr-FR');
 
         $provider = $this->createStub(TranslationCatalogProvider::class);
         $provider->method('getEffectiveCatalog')->willReturn(['hello' => 'from-db']);
@@ -163,7 +163,7 @@ final class CatalogTranslatorTest extends TestCase
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
         $localeResolver = $this->createStub(LocaleResolverInterface::class);
-        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr_FR'));
+        $localeResolver->method('resolve')->willReturn(DomainLocale::fromString('fr-FR'));
 
         $formatter = $this->createStub(MessageFormatterInterface::class);
         $formatter->method('format')->willReturn('from-db');
@@ -172,7 +172,7 @@ final class CatalogTranslatorTest extends TestCase
 
         $translator->trans('hello'); // touch domain
         $translator->reset();        // clear touched domains
-        $catalogue = $translator->getCatalogue('fr_FR');
+        $catalogue = $translator->getCatalogue('fr-FR');
 
         self::assertSame('fallback', $catalogue->get('hello', 'messages'));
     }

@@ -54,12 +54,14 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
         $now = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year'));
 
         return [
-            'id'            => Uuid::v7(),
-            'slug'          => self::faker()->unique()->slug(2),
-            'name'          => self::faker()->company() . ' Clinic',
-            'status'        => ClinicStatus::ACTIVE,
-            'timeZone'      => self::faker()->randomElement(['Europe/Paris', 'Europe/London', 'America/New_York', 'UTC']),
-            'locale'        => self::faker()->randomElement(['fr', 'en', 'fr_FR', 'en_US']),
+            'id'       => Uuid::v7(),
+            'slug'     => self::faker()->unique()->slug(2),
+            'name'     => self::faker()->company() . ' Clinic',
+            'status'   => ClinicStatus::ACTIVE,
+            'timeZone' => self::faker()->randomElement([
+                'Europe/Paris', 'Europe/London', 'America/New_York', 'UTC',
+            ]),
+            'locale'        => self::faker()->randomElement(['fr-FR', 'en-US', 'en-GB', 'de-DE']),
             'clinicGroupId' => null,
             'createdAt'     => $now,
             'updatedAt'     => $now,

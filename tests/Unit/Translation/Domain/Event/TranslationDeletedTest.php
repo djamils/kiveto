@@ -12,13 +12,13 @@ final class TranslationDeletedTest extends TestCase
     public function testPayloadAndAggregateId(): void
     {
         $removedAt = new \DateTimeImmutable('2024-01-01T12:00:00Z');
-        $event     = new TranslationDeleted('portal', 'en_GB', 'common', 'bar', 'actor-2', $removedAt);
+        $event     = new TranslationDeleted('portal', 'en-GB', 'common', 'bar', 'actor-2', $removedAt);
 
-        self::assertSame('portal:en_GB:common', $event->aggregateId());
+        self::assertSame('portal:en-GB:common', $event->aggregateId());
         self::assertSame(
             [
                 'scope'     => 'portal',
-                'locale'    => 'en_GB',
+                'locale'    => 'en-GB',
                 'domain'    => 'common',
                 'key'       => 'bar',
                 'actorId'   => 'actor-2',

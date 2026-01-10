@@ -33,7 +33,7 @@ final class Version20260110012338 extends AbstractMigration
               name VARCHAR(255) NOT NULL,
               status VARCHAR(20) NOT NULL,
               time_zone VARCHAR(64) NOT NULL,
-              locale VARCHAR(10) NOT NULL,
+              locale VARCHAR(16) NOT NULL,
               created_at DATETIME NOT NULL,
               updated_at DATETIME NOT NULL,
               INDEX idx_clinic_group_id (clinic_group_id),

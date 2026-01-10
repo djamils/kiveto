@@ -25,7 +25,7 @@ final class TranslationEntryEntityFactory extends PersistentObjectFactory
         return [
             'id'               => Uuid::v7(),
             'appScope'         => 'shared',
-            'locale'           => 'fr_FR',
+            'locale'           => 'fr-FR',
             'domain'           => 'messages',
             'translationKey'   => self::faker()->unique()->slug(3),
             'translationValue' => self::faker()->sentence(),

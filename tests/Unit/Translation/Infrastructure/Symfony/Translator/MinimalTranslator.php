@@ -14,7 +14,7 @@ final class MinimalTranslator implements TranslatorInterface, LocaleAwareInterfa
 {
     private string $locale;
 
-    public function __construct(string $locale = 'fr_FR')
+    public function __construct(string $locale = 'fr-FR')
     {
         $this->locale = $locale;
     }

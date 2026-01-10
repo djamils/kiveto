@@ -21,7 +21,7 @@ final class SearchTranslationsHandlerTest extends TestCase
                 'items' => [
                     [
                         'scope'       => 'clinic',
-                        'locale'      => 'fr_FR',
+                        'locale'      => 'fr-FR',
                         'domain'      => 'messages',
                         'key'         => 'hello',
                         'value'       => 'Bonjour',
@@ -39,13 +39,13 @@ final class SearchTranslationsHandlerTest extends TestCase
         $handler = new SearchTranslationsHandler($repo);
 
         /** @var TranslationSearchResult $result */
-        $result = $handler(new SearchTranslations(scope: 'clinic', locale: 'fr_FR', domain: 'messages'));
+        $result = $handler(new SearchTranslations(scope: 'clinic', locale: 'fr-FR', domain: 'messages'));
 
         self::assertSame(1, $result->total);
         self::assertCount(1, $result->items);
         $item = $result->items[0];
         self::assertSame('clinic', $item->scope);
-        self::assertSame('fr_FR', $item->locale);
+        self::assertSame('fr-FR', $item->locale);
         self::assertSame('messages', $item->domain);
         self::assertSame('hello', $item->key);
         self::assertSame('Bonjour', $item->value);

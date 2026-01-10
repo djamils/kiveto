@@ -8,9 +8,9 @@ use App\Clinic\Domain\Clinic;
 use App\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
-use App\Clinic\Domain\ValueObject\LocaleCode;
-use App\Clinic\Domain\ValueObject\TimeZone;
 use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
+use App\Shared\Domain\Localization\Locale;
+use App\Shared\Domain\Localization\TimeZone;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ClinicMapper
@@ -22,7 +22,7 @@ final readonly class ClinicMapper
             name: $entity->getName(),
             slug: ClinicSlug::fromString($entity->getSlug()),
             timeZone: TimeZone::fromString($entity->getTimeZone()),
-            locale: LocaleCode::fromString($entity->getLocale()),
+            locale: Locale::fromString($entity->getLocale()),
             status: $entity->getStatus(),
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),

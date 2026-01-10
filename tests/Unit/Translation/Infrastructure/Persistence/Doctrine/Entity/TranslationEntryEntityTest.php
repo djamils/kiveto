@@ -16,7 +16,7 @@ final class TranslationEntryEntityTest extends TestCase
         $id     = Uuid::v7();
         $entity->setId($id);
         $entity->setAppScope('clinic');
-        $entity->setLocale('fr_FR');
+        $entity->setLocale('fr-FR');
         $entity->setDomain('messages');
         $entity->setTranslationKey('hello');
         $entity->setTranslationValue('Bonjour');
@@ -26,7 +26,7 @@ final class TranslationEntryEntityTest extends TestCase
 
         self::assertSame($id, $entity->getId());
         self::assertSame('clinic', $entity->getAppScope());
-        self::assertSame('fr_FR', $entity->getLocale());
+        self::assertSame('fr-FR', $entity->getLocale());
         self::assertSame('messages', $entity->getDomain());
     }
 }

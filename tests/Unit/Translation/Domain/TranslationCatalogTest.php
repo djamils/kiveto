@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Translation\Domain;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Domain\Event\TranslationDeleted;
 use App\Translation\Domain\Event\TranslationUpserted;
 use App\Translation\Domain\TranslationCatalog;
 use App\Translation\Domain\ValueObject\ActorId;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use App\Translation\Domain\ValueObject\TranslationDomain;
 use App\Translation\Domain\ValueObject\TranslationKey;
@@ -22,7 +22,7 @@ final class TranslationCatalogTest extends TestCase
     {
         $id = new TranslationCatalogId(
             AppScope::CLINIC,
-            Locale::fromString('fr_FR'),
+            Locale::fromString('fr-FR'),
             TranslationDomain::fromString('messages')
         );
 
@@ -65,7 +65,7 @@ final class TranslationCatalogTest extends TestCase
     {
         $id = new TranslationCatalogId(
             AppScope::PORTAL,
-            Locale::fromString('en_GB'),
+            Locale::fromString('en-GB'),
             TranslationDomain::fromString('messages')
         );
 
@@ -95,7 +95,7 @@ final class TranslationCatalogTest extends TestCase
     {
         $id = new TranslationCatalogId(
             AppScope::SHARED,
-            Locale::fromString('en_GB'),
+            Locale::fromString('en-GB'),
             TranslationDomain::fromString('common')
         );
 

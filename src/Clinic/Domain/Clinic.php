@@ -16,9 +16,9 @@ use App\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
-use App\Clinic\Domain\ValueObject\LocaleCode;
-use App\Clinic\Domain\ValueObject\TimeZone;
 use App\Shared\Domain\Aggregate\AggregateRoot;
+use App\Shared\Domain\Localization\Locale;
+use App\Shared\Domain\Localization\TimeZone;
 
 final class Clinic extends AggregateRoot
 {
@@ -28,7 +28,7 @@ final class Clinic extends AggregateRoot
     private string $name;
     private ClinicStatus $status;
     private TimeZone $timeZone;
-    private LocaleCode $locale;
+    private Locale $locale;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -41,7 +41,7 @@ final class Clinic extends AggregateRoot
         string $name,
         ClinicSlug $slug,
         TimeZone $timeZone,
-        LocaleCode $locale,
+        Locale $locale,
         \DateTimeImmutable $createdAt,
         ?ClinicGroupId $clinicGroupId = null,
     ): self {
@@ -77,7 +77,7 @@ final class Clinic extends AggregateRoot
         string $name,
         ClinicSlug $slug,
         TimeZone $timeZone,
-        LocaleCode $locale,
+        Locale $locale,
         ClinicStatus $status,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
@@ -146,7 +146,7 @@ final class Clinic extends AggregateRoot
         ));
     }
 
-    public function changeLocale(LocaleCode $newLocale, \DateTimeImmutable $updatedAt): void
+    public function changeLocale(Locale $newLocale, \DateTimeImmutable $updatedAt): void
     {
         if ($newLocale->equals($this->locale)) {
             return;
@@ -227,7 +227,7 @@ final class Clinic extends AggregateRoot
         return $this->timeZone;
     }
 
-    public function locale(): LocaleCode
+    public function locale(): Locale
     {
         return $this->locale;
     }

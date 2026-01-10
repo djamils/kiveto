@@ -22,7 +22,7 @@ final class DeleteTranslationHandlerTest extends TestCase
 {
     public function testDeleteRemovesEntryInvalidatesAndPublishes(): void
     {
-        $catalogId = TranslationCatalogId::fromStrings('portal', 'en_GB', 'messages');
+        $catalogId = TranslationCatalogId::fromStrings('portal', 'en-GB', 'messages');
         $catalog   = TranslationCatalog::createEmpty($catalogId);
         $now       = new \DateTimeImmutable('2024-01-01T10:00:00Z');
         $catalog->upsert(
@@ -64,6 +64,6 @@ final class DeleteTranslationHandlerTest extends TestCase
         $eventPublisher = new DomainEventPublisher($eventBus);
         $handler->setDomainEventPublisher($eventPublisher);
 
-        $handler(new DeleteTranslation('portal', 'en_GB', 'messages', 'cta', 'actor-x'));
+        $handler(new DeleteTranslation('portal', 'en-GB', 'messages', 'cta', 'actor-x'));
     }
 }

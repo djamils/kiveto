@@ -16,8 +16,8 @@ use App\Clinic\Domain\Event\ClinicTimeZoneChanged;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
-use App\Clinic\Domain\ValueObject\LocaleCode;
-use App\Clinic\Domain\ValueObject\TimeZone;
+use App\Shared\Domain\Localization\Locale;
+use App\Shared\Domain\Localization\TimeZone;
 use PHPUnit\Framework\TestCase;
 
 final class ClinicTest extends TestCase
@@ -32,7 +32,7 @@ final class ClinicTest extends TestCase
             name: 'Test Clinic',
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: LocaleCode::fromString('fr'),
+            locale: Locale::fromString('fr-FR'),
             createdAt: $now,
         );
 
@@ -56,7 +56,7 @@ final class ClinicTest extends TestCase
             name: '',
             slug: ClinicSlug::fromString('test'),
             timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: LocaleCode::fromString('fr'),
+            locale: Locale::fromString('fr-FR'),
             createdAt: new \DateTimeImmutable(),
         );
     }
@@ -111,14 +111,14 @@ final class ClinicTest extends TestCase
         $clinic = $this->createClinic();
         $now    = new \DateTimeImmutable('2025-01-02T10:00:00+00:00');
 
-        $clinic->changeLocale(LocaleCode::fromString('en'), $now);
+        $clinic->changeLocale(Locale::fromString('en-US'), $now);
 
         $events = $clinic->recordedDomainEvents();
         self::assertCount(2, $events);
 
         $event = $events[1];
         self::assertInstanceOf(ClinicLocaleChanged::class, $event);
-        self::assertSame('en', $clinic->locale()->toString());
+        self::assertSame('en-US', $clinic->locale()->toString());
     }
 
     public function testSuspendRecordsDomainEvent(): void
@@ -185,7 +185,7 @@ final class ClinicTest extends TestCase
             name: 'Test Clinic',
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: LocaleCode::fromString('fr'),
+            locale: Locale::fromString('fr-FR'),
             status: ClinicStatus::ACTIVE,
             createdAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
             updatedAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
@@ -201,7 +201,7 @@ final class ClinicTest extends TestCase
             name: 'Test Clinic',
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
-            locale: LocaleCode::fromString('fr'),
+            locale: Locale::fromString('fr-FR'),
             createdAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
         );
     }

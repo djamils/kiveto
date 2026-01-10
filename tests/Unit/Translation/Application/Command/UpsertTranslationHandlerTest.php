@@ -20,7 +20,7 @@ final class UpsertTranslationHandlerTest extends TestCase
 {
     public function testUpsertPersistsInvalidatesAndPublishesEvent(): void
     {
-        $catalogId = TranslationCatalogId::fromStrings('clinic', 'fr_FR', 'messages');
+        $catalogId = TranslationCatalogId::fromStrings('clinic', 'fr-FR', 'messages');
 
         $repo = $this->createMock(TranslationCatalogRepository::class);
         $repo->expects(self::once())
@@ -57,6 +57,6 @@ final class UpsertTranslationHandlerTest extends TestCase
         $eventPublisher = new DomainEventPublisher($eventBus);
         $handler->setDomainEventPublisher($eventPublisher);
 
-        $handler(new UpsertTranslation('clinic', 'fr_FR', 'messages', 'hello', 'Hello', null, 'actor-1'));
+        $handler(new UpsertTranslation('clinic', 'fr-FR', 'messages', 'hello', 'Hello', null, 'actor-1'));
     }
 }

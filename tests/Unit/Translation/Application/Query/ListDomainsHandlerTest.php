@@ -21,7 +21,7 @@ final class ListDomainsHandlerTest extends TestCase
 
         $handler = new ListDomainsHandler($repo);
 
-        $result = $handler(new ListDomains(scope: 'clinic', locale: 'fr_FR'));
+        $result = $handler(new ListDomains(scope: 'clinic', locale: 'fr-FR'));
 
         self::assertSame(['messages', 'auth'], $result);
     }

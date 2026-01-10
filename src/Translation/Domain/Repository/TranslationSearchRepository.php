@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Domain\Repository;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationDomain;
 
 /**

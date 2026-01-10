@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Port;
 
-use App\Translation\Domain\ValueObject\Locale;
+use App\Shared\Domain\Localization\Locale;
 
 interface LocaleResolverInterface
 {

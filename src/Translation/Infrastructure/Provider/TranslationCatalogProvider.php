@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Translation\Infrastructure\Provider;
 
+use App\Shared\Domain\Localization\Locale;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
 use App\Translation\Domain\ValueObject\AppScope;
-use App\Translation\Domain\ValueObject\Locale;
 use App\Translation\Domain\ValueObject\TranslationCatalogId;
 use Symfony\Contracts\Service\ResetInterface;
 
