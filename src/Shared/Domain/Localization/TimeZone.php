@@ -31,7 +31,10 @@ final class TimeZone
         }
 
         if (!isset(self::$validTimezones[$value])) {
-            throw new \InvalidArgumentException(\sprintf('Invalid timezone: "%s". Must be a valid IANA timezone.', $value));
+            throw new \InvalidArgumentException(\sprintf(
+                'Invalid timezone: "%s". Must be a valid IANA timezone.',
+                $value
+            ));
         }
 
         return new self($value);

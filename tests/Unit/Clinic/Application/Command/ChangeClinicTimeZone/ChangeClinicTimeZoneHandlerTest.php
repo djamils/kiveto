@@ -10,6 +10,7 @@ use App\Clinic\Domain\Clinic;
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
@@ -39,7 +40,7 @@ final class ChangeClinicTimeZoneHandlerTest extends TestCase
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
         $handler = new ChangeClinicTimeZoneHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
 
         $handler(new ChangeClinicTimeZone($clinicId->toString(), 'America/New_York'));
 
@@ -53,7 +54,7 @@ final class ChangeClinicTimeZoneHandlerTest extends TestCase
 
         $clock   = $this->createStub(ClockInterface::class);
         $handler = new ChangeClinicTimeZoneHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic with ID');

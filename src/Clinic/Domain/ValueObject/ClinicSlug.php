@@ -27,7 +27,11 @@ final class ClinicSlug
         }
 
         if (1 !== preg_match(self::PATTERN, $value)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid clinic slug format: "%s". Must match pattern %s', $value, self::PATTERN));
+            throw new \InvalidArgumentException(\sprintf(
+                'Invalid clinic slug format: "%s". Must match pattern %s',
+                $value,
+                self::PATTERN
+            ));
         }
 
         return new self($value);

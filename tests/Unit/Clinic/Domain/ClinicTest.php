@@ -213,7 +213,10 @@ final class ClinicTest extends TestCase
         $clinic = $this->createClinic();
         $events = $clinic->pullDomainEvents();
 
-        $clinic->changeTimeZone(TimeZone::fromString('Europe/Paris'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+        $clinic->changeTimeZone(
+            TimeZone::fromString('Europe/Paris'),
+            new \DateTimeImmutable('2025-01-02T10:00:00+00:00')
+        );
 
         self::assertSame([], $clinic->recordedDomainEvents());
     }

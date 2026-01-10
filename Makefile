@@ -100,7 +100,7 @@ endef
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	migrations identity-access-migrations translations-migrations clinic-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
-	load-fixtures
+	load-fixtures test-unit test-integration
 
 ##
 ## HELP

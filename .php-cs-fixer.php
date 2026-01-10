@@ -65,7 +65,7 @@ return (new PhpCsFixer\Config())
         'self_accessor' => false,
         'semicolon_after_instruction' => true,
         'simplified_null_return' => true,
-        'single_line_throw' => true,
+        'single_line_throw' => false,
         'strict_comparison' => true,
         'strict_param' => true,
         'string_line_ending' => true,

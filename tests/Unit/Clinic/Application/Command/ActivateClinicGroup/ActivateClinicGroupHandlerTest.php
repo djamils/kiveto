@@ -9,6 +9,7 @@ use App\Clinic\Application\Command\ActivateClinicGroup\ActivateClinicGroupHandle
 use App\Clinic\Domain\ClinicGroup;
 use App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicGroupId;
+use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +30,7 @@ final class ActivateClinicGroupHandlerTest extends TestCase
         $repo->expects(self::once())->method('save')->with($group);
 
         $handler = new ActivateClinicGroupHandler($repo);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
 
         $handler(new ActivateClinicGroup($groupId->toString()));
 
@@ -42,7 +43,7 @@ final class ActivateClinicGroupHandlerTest extends TestCase
         $repo->method('findById')->willReturn(null);
 
         $handler = new ActivateClinicGroupHandler($repo);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic group with ID "018f1b1e-1234-7890-abcd-0123456789ab" not found.');

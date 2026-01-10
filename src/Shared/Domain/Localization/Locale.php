@@ -26,7 +26,10 @@ final class Locale
         }
 
         if (1 !== preg_match(self::PATTERN, $value)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid locale: "%s". Expected BCP47 "xx-YY" like "fr-FR" or "en-US".', $value));
+            throw new \InvalidArgumentException(\sprintf(
+                'Invalid locale: "%s". Expected BCP47 "xx-YY" like "fr-FR" or "en-US".',
+                $value
+            ));
         }
 
         return new self($value);
