@@ -45,4 +45,19 @@ final class ChangeClinicTimeZoneHandlerTest extends TestCase
 
         self::assertSame('America/New_York', $clinic->timeZone()->toString());
     }
+
+    public function testThrowsExceptionWhenClinicNotFound(): void
+    {
+        $repo = $this->createStub(ClinicRepositoryInterface::class);
+        $repo->method('findById')->willReturn(null);
+
+        $clock   = $this->createStub(ClockInterface::class);
+        $handler = new ChangeClinicTimeZoneHandler($repo, $clock);
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Clinic with ID');
+
+        $handler(new ChangeClinicTimeZone('018f1b1e-1234-7890-abcd-0123456789ab', 'America/New_York'));
+    }
 }

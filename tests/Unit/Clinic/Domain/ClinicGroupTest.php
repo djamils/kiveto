@@ -90,6 +90,47 @@ final class ClinicGroupTest extends TestCase
         self::assertSame(ClinicGroupStatus::ACTIVE, $group->status());
     }
 
+    public function testRenameRejectsEmptyName(): void
+    {
+        $group = $this->createGroup();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Clinic group name cannot be empty');
+
+        $group->rename('');
+    }
+
+    public function testRenameDoesNothingWhenSameName(): void
+    {
+        $group = $this->createGroup();
+        $group->pullDomainEvents();
+
+        $group->rename('Test Group');
+
+        self::assertSame([], $group->recordedDomainEvents());
+    }
+
+    public function testSuspendDoesNothingWhenAlreadySuspended(): void
+    {
+        $group = $this->createGroup();
+        $group->suspend();
+        $group->pullDomainEvents();
+
+        $group->suspend();
+
+        self::assertSame([], $group->recordedDomainEvents());
+    }
+
+    public function testActivateDoesNothingWhenAlreadyActive(): void
+    {
+        $group = $this->createGroup();
+        $group->pullDomainEvents();
+
+        $group->activate();
+
+        self::assertSame([], $group->recordedDomainEvents());
+    }
+
     public function testReconstituteDoesNotRecordEvents(): void
     {
         $group = ClinicGroup::reconstitute(

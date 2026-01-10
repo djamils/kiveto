@@ -178,6 +178,88 @@ final class ClinicTest extends TestCase
         $clinic->activate(new \DateTimeImmutable('2025-01-03T10:00:00+00:00'));
     }
 
+    public function testRenameRejectsEmptyName(): void
+    {
+        $clinic = $this->createClinic();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Clinic name cannot be empty');
+
+        $clinic->rename('', new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+    }
+
+    public function testRenameDoesNothingWhenSameName(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->pullDomainEvents(); // Clear create event
+
+        $clinic->rename('Test Clinic', new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testChangeSlugDoesNothingWhenSameSlug(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->pullDomainEvents();
+
+        $clinic->changeSlug(ClinicSlug::fromString('test-clinic'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testChangeTimeZoneDoesNothingWhenSameTimeZone(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->pullDomainEvents();
+
+        $clinic->changeTimeZone(TimeZone::fromString('Europe/Paris'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testChangeLocaleDoesNothingWhenSameLocale(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->pullDomainEvents();
+
+        $clinic->changeLocale(Locale::fromString('fr-FR'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testSuspendDoesNothingWhenAlreadySuspended(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->suspend(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+        $clinic->pullDomainEvents();
+
+        $clinic->suspend(new \DateTimeImmutable('2025-01-03T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testActivateDoesNothingWhenAlreadyActive(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->pullDomainEvents();
+
+        $clinic->activate(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
+    public function testCloseDoesNothingWhenAlreadyClosed(): void
+    {
+        $clinic = $this->createClinic();
+        $clinic->close(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
+        $clinic->pullDomainEvents();
+
+        $clinic->close(new \DateTimeImmutable('2025-01-03T10:00:00+00:00'));
+
+        self::assertSame([], $clinic->recordedDomainEvents());
+    }
+
     public function testReconstituteDoesNotRecordEvents(): void
     {
         $clinic = Clinic::reconstitute(

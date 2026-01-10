@@ -34,4 +34,18 @@ final class RenameClinicGroupHandlerTest extends TestCase
 
         self::assertSame('New Name', $group->name());
     }
+
+    public function testThrowsExceptionWhenGroupNotFound(): void
+    {
+        $repo = $this->createStub(ClinicGroupRepositoryInterface::class);
+        $repo->method('findById')->willReturn(null);
+
+        $handler = new RenameClinicGroupHandler($repo);
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(\App\Shared\Application\Bus\EventBusInterface::class)));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Clinic group with ID "018f1b1e-1234-7890-abcd-0123456789ab" not found.');
+
+        $handler(new RenameClinicGroup('018f1b1e-1234-7890-abcd-0123456789ab', 'New Name'));
+    }
 }

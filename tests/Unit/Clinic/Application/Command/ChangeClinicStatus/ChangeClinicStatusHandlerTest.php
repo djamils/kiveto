@@ -79,4 +79,19 @@ final class ChangeClinicStatusHandlerTest extends TestCase
 
         self::assertSame(ClinicStatus::CLOSED, $clinic->status());
     }
+
+    public function testThrowsExceptionWhenClinicNotFound(): void
+    {
+        $repo = $this->createStub(ClinicRepositoryInterface::class);
+        $repo->method('findById')->willReturn(null);
+
+        $clock   = $this->createStub(ClockInterface::class);
+        $handler = new ChangeClinicStatusHandler($repo, $clock);
+        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Clinic with ID');
+
+        $handler(new ChangeClinicStatus('018f1b1e-1234-7890-abcd-0123456789ab', ClinicStatus::SUSPENDED));
+    }
 }
