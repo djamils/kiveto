@@ -1,0 +1,18 @@
+services:
+    # Repositories (write)
+    App\Clinic\Domain\Repository\ClinicRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicRepository
+
+    App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupRepository
+
+    # Repositories (read)
+    App\Clinic\Application\Port\ClinicReadRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicReadRepository
+
+    App\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
+
+    # Mappers
+    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
+    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~

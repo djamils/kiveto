@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Dataset;
 
+use App\Fixtures\Clinic\Story\ClinicDataStory;
 use App\Fixtures\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\IdentityAccess\Story\ClinicVetStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
@@ -14,6 +15,10 @@ final class ClinicDataset extends Story
 {
     public function build(): void
     {
+        // Create Clinic BC entities first
+        ClinicDataStory::load();
+
+        // Then create users
         ClinicVetStory::load();
 
         ClinicUserFactory::createMany(5);

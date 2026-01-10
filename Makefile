@@ -232,7 +232,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -243,6 +243,11 @@ translations-migrations:
 	@$(call step,Generating migrations for Translation...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Translation' --filter-expression='/^translation__/')
 	@$(call ok,Translation migrations generated)
+
+clinic-migrations:
+	@$(call step,Generating migrations for Clinic...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Clinic' --filter-expression='/^clinic__/')
+	@$(call ok,Clinic migrations generated)
 
 shared-migrations:
 	@$(call step,Generating migrations for Shared (technical tables)...)

@@ -1,0 +1,63 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Backoffice · Nouvelle Clinique{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Créer une Clinique</h1>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="{{ path('backoffice_clinics_create') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token }}">
+
+                <div class="mb-3">
+                    <label class="form-label">Nom*</label>
+                    <input name="name" class="form-control" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Slug* <small>(format: a-z, 0-9, -)</small></label>
+                    <input name="slug" class="form-control" pattern="[a-z0-9-]+" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Timezone* <small>(IANA format)</small></label>
+                    <input name="time_zone" class="form-control" value="Europe/Paris" required>
+                    <small class="text-muted">Ex: Europe/Paris, America/New_York, UTC</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Locale* <small>(format: fr, en_US)</small></label>
+                    <input name="locale" class="form-control" value="fr" pattern="[a-z]{2}(_[A-Z]{2})?" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Groupe (optionnel)</label>
+                    <select name="clinic_group_id" class="form-select">
+                        <option value="">(aucun)</option>
+                        {% for group in groups.clinicGroups %}
+                            {% if group.status.value == 'active' %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mt-4">
+                    <button class="btn btn-success" type="submit">Créer la clinique</button>
+                    <a href="{{ path('backoffice_clinics') }}" class="btn btn-secondary">Annuler</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -33,13 +33,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Translation/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Translation\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Translation
-            # Add other BC mappings here when they have Doctrine entities, e.g.:
-            # FeatureFlag:
-            #     type: attribute
-            #     is_bundle: false
-            #     dir: '%kernel.project_dir%/src/FeatureFlag/Infrastructure/Persistence/Doctrine/Entity'
-            #     prefix: 'App\FeatureFlag\Infrastructure\Persistence\Doctrine\Entity'
-            #     alias: FeatureFlag
+            Clinic:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Clinic/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Clinic\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Clinic
         controller_resolver:
             auto_mapping: false
 

@@ -3,6 +3,7 @@ doctrine_migrations:
         'DoctrineMigrations\IdentityAccess': '%kernel.project_dir%/migrations/IdentityAccess'
         'DoctrineMigrations\Shared': '%kernel.project_dir%/migrations/Shared'
         'DoctrineMigrations\Translation': '%kernel.project_dir%/migrations/Translation'
+        'DoctrineMigrations\Clinic': '%kernel.project_dir%/migrations/Clinic'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

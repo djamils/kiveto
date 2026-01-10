@@ -146,6 +146,25 @@ services:
         tags:
             - { name: kernel.reset, method: reset }
 
+    # ============================================================================
+    # BOUNDED CONTEXT: CLINIC
+    # ============================================================================
+
+    App\Clinic\Domain\Repository\ClinicRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicRepository
+
+    App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupRepository
+
+    App\Clinic\Application\Port\ClinicReadRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicReadRepository
+
+    App\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
+        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
+
+    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
+    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

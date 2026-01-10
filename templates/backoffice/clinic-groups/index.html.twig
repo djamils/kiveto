@@ -1,0 +1,106 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Backoffice · Clinic Groups{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Groupes de Cliniques</h1>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="card mb-4">
+        <div class="card-header">Créer un groupe</div>
+        <div class="card-body">
+            <form method="post" action="{{ path('backoffice_clinic_groups_create') }}" class="row g-3">
+                <input type="hidden" name="_token" value="{{ csrf_token }}">
+                <div class="col-md-8">
+                    <label class="form-label">Nom du groupe*</label>
+                    <input name="name" class="form-control" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-success" type="submit">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Filtrer</div>
+        <div class="card-body">
+            <form method="get" action="{{ path('backoffice_clinic_groups') }}" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Statut</label>
+                    <select name="status" class="form-select">
+                        <option value="">(tous)</option>
+                        <option value="active" {{ filters.status == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="suspended" {{ filters.status == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <button class="btn btn-primary" type="submit">Rechercher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            Résultats ({{ collection.total }})
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nom</th>
+                        <th>Statut</th>
+                        <th>Créé le (UTC)</th>
+                        <th style="width: 200px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for group in collection.clinicGroups %}
+                    <tr>
+                        <td><small><code>{{ group.id|slice(0, 8) }}</code></small></td>
+                        <td>{{ group.name }}</td>
+                        <td>
+                            <span class="badge bg-{{ group.status.value == 'active' ? 'success' : 'warning' }}">
+                                {{ group.status.value }}
+                            </span>
+                        </td>
+                        <td>{{ group.createdAt|date('Y-m-d H:i:s') }}</td>
+                        <td>
+                            <form method="post" action="{{ path('backoffice_clinic_groups_rename', {id: group.id}) }}" style="display:inline;" onsubmit="var name = prompt('Nouveau nom:'); if (!name) return false; this.querySelector('input[name=name]').value = name;">
+                                <input type="hidden" name="_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="name" value="">
+                                <button class="btn btn-sm btn-outline-primary" type="submit">Renommer</button>
+                            </form>
+
+                            {% if group.status.value == 'active' %}
+                                <form method="post" action="{{ path('backoffice_clinic_groups_suspend', {id: group.id}) }}" style="display:inline;" onsubmit="return confirm('Suspendre ce groupe ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token }}">
+                                    <button class="btn btn-sm btn-outline-warning" type="submit">Suspendre</button>
+                                </form>
+                            {% else %}
+                                <form method="post" action="{{ path('backoffice_clinic_groups_activate', {id: group.id}) }}" style="display:inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token }}">
+                                    <button class="btn btn-sm btn-outline-success" type="submit">Activer</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5" class="text-center">Aucun résultat</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
