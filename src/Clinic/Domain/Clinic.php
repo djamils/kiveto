@@ -49,16 +49,16 @@ final class Clinic extends AggregateRoot
             throw new \InvalidArgumentException('Clinic name cannot be empty.');
         }
 
-        $clinic                  = new self();
-        $clinic->id              = $id;
-        $clinic->name            = $name;
-        $clinic->slug            = $slug;
-        $clinic->timeZone        = $timeZone;
-        $clinic->locale          = $locale;
-        $clinic->clinicGroupId   = $clinicGroupId;
-        $clinic->status          = ClinicStatus::ACTIVE;
-        $clinic->createdAt       = $createdAt;
-        $clinic->updatedAt       = $createdAt;
+        $clinic                = new self();
+        $clinic->id            = $id;
+        $clinic->name          = $name;
+        $clinic->slug          = $slug;
+        $clinic->timeZone      = $timeZone;
+        $clinic->locale        = $locale;
+        $clinic->clinicGroupId = $clinicGroupId;
+        $clinic->status        = ClinicStatus::ACTIVE;
+        $clinic->createdAt     = $createdAt;
+        $clinic->updatedAt     = $createdAt;
 
         $clinic->recordDomainEvent(new ClinicCreated(
             clinicId: $id->toString(),
@@ -83,16 +83,16 @@ final class Clinic extends AggregateRoot
         \DateTimeImmutable $updatedAt,
         ?ClinicGroupId $clinicGroupId = null,
     ): self {
-        $clinic                  = new self();
-        $clinic->id              = $id;
-        $clinic->name            = $name;
-        $clinic->slug            = $slug;
-        $clinic->timeZone        = $timeZone;
-        $clinic->locale          = $locale;
-        $clinic->status          = $status;
-        $clinic->clinicGroupId   = $clinicGroupId;
-        $clinic->createdAt       = $createdAt;
-        $clinic->updatedAt       = $updatedAt;
+        $clinic                = new self();
+        $clinic->id            = $id;
+        $clinic->name          = $name;
+        $clinic->slug          = $slug;
+        $clinic->timeZone      = $timeZone;
+        $clinic->locale        = $locale;
+        $clinic->status        = $status;
+        $clinic->clinicGroupId = $clinicGroupId;
+        $clinic->createdAt     = $createdAt;
+        $clinic->updatedAt     = $updatedAt;
 
         return $clinic;
     }

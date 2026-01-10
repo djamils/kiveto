@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Clinic\Factory;
 
-use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentProxyObjectFactory;
 
@@ -17,23 +17,6 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
     public static function class(): string
     {
         return ClinicEntity::class;
-    }
-
-    protected function defaults(): array
-    {
-        $now = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year'));
-
-        return [
-            'id' => Uuid::v7(),
-            'slug' => self::faker()->unique()->slug(2),
-            'name' => self::faker()->company() . ' Clinic',
-            'status' => ClinicStatus::ACTIVE,
-            'timeZone' => self::faker()->randomElement(['Europe/Paris', 'Europe/London', 'America/New_York', 'UTC']),
-            'locale' => self::faker()->randomElement(['fr', 'en', 'fr_FR', 'en_US']),
-            'clinicGroupId' => null,
-            'createdAt' => $now,
-            'updatedAt' => $now,
-        ];
     }
 
     public function withId(string $id): self
@@ -64,5 +47,22 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
     public function closed(): self
     {
         return $this->with(['status' => ClinicStatus::CLOSED]);
+    }
+
+    protected function defaults(): array
+    {
+        $now = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year'));
+
+        return [
+            'id'            => Uuid::v7(),
+            'slug'          => self::faker()->unique()->slug(2),
+            'name'          => self::faker()->company() . ' Clinic',
+            'status'        => ClinicStatus::ACTIVE,
+            'timeZone'      => self::faker()->randomElement(['Europe/Paris', 'Europe/London', 'America/New_York', 'UTC']),
+            'locale'        => self::faker()->randomElement(['fr', 'en', 'fr_FR', 'en_US']),
+            'clinicGroupId' => null,
+            'createdAt'     => $now,
+            'updatedAt'     => $now,
+        ];
     }
 }

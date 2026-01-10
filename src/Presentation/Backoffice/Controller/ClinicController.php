@@ -157,7 +157,7 @@ final class ClinicController extends AbstractController
         $slug     = trim((string) $request->request->get('slug'));
         $timeZone = trim((string) $request->request->get('time_zone'));
         $locale   = trim((string) $request->request->get('locale'));
-        $status   = $request->request->get('status');
+        $status   = (string) $request->request->get('status');
 
         if ('' === $name || '' === $slug || '' === $timeZone || '' === $locale || '' === $status) {
             $this->addFlash('error', 'Tous les champs obligatoires doivent être remplis.');

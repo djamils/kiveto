@@ -24,15 +24,17 @@ final readonly class DoctrineClinicGroupReadRepository implements ClinicGroupRea
 
         if (null !== $status) {
             $qb->andWhere('cg.status = :status')
-                ->setParameter('status', $status);
+                ->setParameter('status', $status)
+            ;
         }
 
         $qb->orderBy('cg.name', 'ASC');
 
+        /** @var list<ClinicGroupEntity> $entities */
         $entities = $qb->getQuery()->getResult();
 
-        $dtos = \array_map(
-            fn (ClinicGroupEntity $entity) => new ClinicGroupDto(
+        $dtos = array_map(
+            static fn (ClinicGroupEntity $entity): ClinicGroupDto => new ClinicGroupDto(
                 id: $entity->getId()->toString(),
                 name: $entity->getName(),
                 status: $entity->getStatus(),

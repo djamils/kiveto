@@ -27,25 +27,29 @@ final readonly class DoctrineClinicReadRepository implements ClinicReadRepositor
 
         if (null !== $status) {
             $qb->andWhere('c.status = :status')
-                ->setParameter('status', $status);
+                ->setParameter('status', $status)
+            ;
         }
 
         if (null !== $clinicGroupId) {
             $qb->andWhere('c.clinicGroupId = :clinicGroupId')
-                ->setParameter('clinicGroupId', $clinicGroupId);
+                ->setParameter('clinicGroupId', $clinicGroupId)
+            ;
         }
 
         if (null !== $search && '' !== trim($search)) {
             $qb->andWhere('c.name LIKE :search OR c.slug LIKE :search')
-                ->setParameter('search', '%' . $search . '%');
+                ->setParameter('search', '%' . $search . '%')
+            ;
         }
 
         $qb->orderBy('c.name', 'ASC');
 
+        /** @var list<ClinicEntity> $entities */
         $entities = $qb->getQuery()->getResult();
 
-        $dtos = \array_map(
-            fn (ClinicEntity $entity) => new ClinicDto(
+        $dtos = array_map(
+            static fn (ClinicEntity $entity): ClinicDto => new ClinicDto(
                 id: $entity->getId()->toString(),
                 name: $entity->getName(),
                 slug: $entity->getSlug(),

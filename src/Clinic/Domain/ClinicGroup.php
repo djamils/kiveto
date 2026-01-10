@@ -32,11 +32,11 @@ final class ClinicGroup extends AggregateRoot
             throw new \InvalidArgumentException('Clinic group name cannot be empty.');
         }
 
-        $group                = new self();
-        $group->id            = $id;
-        $group->name          = $name;
-        $group->status        = ClinicGroupStatus::ACTIVE;
-        $group->createdAt     = $createdAt;
+        $group            = new self();
+        $group->id        = $id;
+        $group->name      = $name;
+        $group->status    = ClinicGroupStatus::ACTIVE;
+        $group->createdAt = $createdAt;
 
         $group->recordDomainEvent(new ClinicGroupCreated(
             clinicGroupId: $id->toString(),
@@ -52,11 +52,11 @@ final class ClinicGroup extends AggregateRoot
         ClinicGroupStatus $status,
         \DateTimeImmutable $createdAt,
     ): self {
-        $group                = new self();
-        $group->id            = $id;
-        $group->name          = $name;
-        $group->status        = $status;
-        $group->createdAt     = $createdAt;
+        $group            = new self();
+        $group->id        = $id;
+        $group->name      = $name;
+        $group->status    = $status;
+        $group->createdAt = $createdAt;
 
         return $group;
     }
