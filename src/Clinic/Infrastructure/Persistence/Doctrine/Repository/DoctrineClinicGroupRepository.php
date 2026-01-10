@@ -23,7 +23,16 @@ final readonly class DoctrineClinicGroupRepository implements ClinicGroupReposit
     public function save(ClinicGroup $clinicGroup): void
     {
         $entity = $this->mapper->toEntity($clinicGroup);
-        $this->em->persist($entity);
+
+        $existing = $this->em->find(ClinicGroupEntity::class, $entity->getId());
+
+        if (null === $existing) {
+            $this->em->persist($entity);
+        } else {
+            $existing->setName($entity->getName());
+            $existing->setStatus($entity->getStatus());
+        }
+
         $this->em->flush();
     }
 

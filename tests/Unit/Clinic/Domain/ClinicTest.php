@@ -191,7 +191,7 @@ final class ClinicTest extends TestCase
     public function testRenameDoesNothingWhenSameName(): void
     {
         $clinic = $this->createClinic();
-        $clinic->pullDomainEvents(); // Clear create event
+        $events = $clinic->pullDomainEvents(); // Clear create event
 
         $clinic->rename('Test Clinic', new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
 
@@ -201,7 +201,7 @@ final class ClinicTest extends TestCase
     public function testChangeSlugDoesNothingWhenSameSlug(): void
     {
         $clinic = $this->createClinic();
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->changeSlug(ClinicSlug::fromString('test-clinic'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
 
@@ -211,7 +211,7 @@ final class ClinicTest extends TestCase
     public function testChangeTimeZoneDoesNothingWhenSameTimeZone(): void
     {
         $clinic = $this->createClinic();
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->changeTimeZone(TimeZone::fromString('Europe/Paris'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
 
@@ -221,7 +221,7 @@ final class ClinicTest extends TestCase
     public function testChangeLocaleDoesNothingWhenSameLocale(): void
     {
         $clinic = $this->createClinic();
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->changeLocale(Locale::fromString('fr-FR'), new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
 
@@ -232,7 +232,7 @@ final class ClinicTest extends TestCase
     {
         $clinic = $this->createClinic();
         $clinic->suspend(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->suspend(new \DateTimeImmutable('2025-01-03T10:00:00+00:00'));
 
@@ -242,7 +242,7 @@ final class ClinicTest extends TestCase
     public function testActivateDoesNothingWhenAlreadyActive(): void
     {
         $clinic = $this->createClinic();
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->activate(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
 
@@ -253,7 +253,7 @@ final class ClinicTest extends TestCase
     {
         $clinic = $this->createClinic();
         $clinic->close(new \DateTimeImmutable('2025-01-02T10:00:00+00:00'));
-        $clinic->pullDomainEvents();
+        $events = $clinic->pullDomainEvents();
 
         $clinic->close(new \DateTimeImmutable('2025-01-03T10:00:00+00:00'));
 

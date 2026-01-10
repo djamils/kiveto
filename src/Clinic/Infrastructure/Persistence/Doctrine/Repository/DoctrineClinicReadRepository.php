@@ -10,6 +10,8 @@ use App\Clinic\Application\Query\ListClinics\ClinicsCollection;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClinicReadRepository implements ClinicReadRepositoryInterface
 {
@@ -33,7 +35,7 @@ final readonly class DoctrineClinicReadRepository implements ClinicReadRepositor
 
         if (null !== $clinicGroupId) {
             $qb->andWhere('c.clinicGroupId = :clinicGroupId')
-                ->setParameter('clinicGroupId', $clinicGroupId)
+                ->setParameter('clinicGroupId', Uuid::fromString($clinicGroupId), UuidType::NAME)
             ;
         }
 

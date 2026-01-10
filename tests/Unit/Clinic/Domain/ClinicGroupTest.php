@@ -102,8 +102,8 @@ final class ClinicGroupTest extends TestCase
 
     public function testRenameDoesNothingWhenSameName(): void
     {
-        $group = $this->createGroup();
-        $group->pullDomainEvents();
+        $group  = $this->createGroup();
+        $events = $group->pullDomainEvents();
 
         $group->rename('Test Group');
 
@@ -114,7 +114,7 @@ final class ClinicGroupTest extends TestCase
     {
         $group = $this->createGroup();
         $group->suspend();
-        $group->pullDomainEvents();
+        $events = $group->pullDomainEvents();
 
         $group->suspend();
 
@@ -123,8 +123,8 @@ final class ClinicGroupTest extends TestCase
 
     public function testActivateDoesNothingWhenAlreadyActive(): void
     {
-        $group = $this->createGroup();
-        $group->pullDomainEvents();
+        $group  = $this->createGroup();
+        $events = $group->pullDomainEvents();
 
         $group->activate();
 

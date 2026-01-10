@@ -24,7 +24,21 @@ final readonly class DoctrineClinicRepository implements ClinicRepositoryInterfa
     public function save(Clinic $clinic): void
     {
         $entity = $this->mapper->toEntity($clinic);
-        $this->em->persist($entity);
+
+        $existing = $this->em->find(ClinicEntity::class, $entity->getId());
+
+        if (null === $existing) {
+            $this->em->persist($entity);
+        } else {
+            $existing->setName($entity->getName());
+            $existing->setSlug($entity->getSlug());
+            $existing->setTimeZone($entity->getTimeZone());
+            $existing->setLocale($entity->getLocale());
+            $existing->setStatus($entity->getStatus());
+            $existing->setClinicGroupId($entity->getClinicGroupId());
+            $existing->setUpdatedAt($entity->getUpdatedAt());
+        }
+
         $this->em->flush();
     }
 
