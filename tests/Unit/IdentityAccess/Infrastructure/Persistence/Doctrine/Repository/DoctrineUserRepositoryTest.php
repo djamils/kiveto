@@ -7,10 +7,10 @@ namespace App\Tests\Unit\IdentityAccess\Infrastructure\Persistence\Doctrine\Repo
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as UserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineUserRepository;
@@ -183,7 +183,7 @@ final class DoctrineUserRepositoryTest extends TestCase
 
         $em->expects(self::once())
             ->method('getRepository')
-            ->with(ClinicUser::class)
+            ->with(ClinicUserEntity::class)
             ->willReturn($repoObj)
         ;
 
@@ -198,9 +198,9 @@ final class DoctrineUserRepositoryTest extends TestCase
     public static function provideFindByEmailAndTypeReturnsDomainUserCases(): iterable
     {
         return [
-            'clinic'     => [UserType::CLINIC, ClinicUser::class],
-            'portal'     => [UserType::PORTAL, PortalUser::class],
-            'backoffice' => [UserType::BACKOFFICE, BackofficeUser::class],
+            'clinic'     => [UserType::CLINIC, ClinicUserEntity::class],
+            'portal'     => [UserType::PORTAL, PortalUserEntity::class],
+            'backoffice' => [UserType::BACKOFFICE, BackofficeUserEntity::class],
         ];
     }
 
@@ -218,9 +218,9 @@ final class DoctrineUserRepositoryTest extends TestCase
     private function entity(UserType $type): UserEntity
     {
         $entityClass = match ($type) {
-            UserType::CLINIC     => ClinicUser::class,
-            UserType::PORTAL     => PortalUser::class,
-            UserType::BACKOFFICE => BackofficeUser::class,
+            UserType::CLINIC     => ClinicUserEntity::class,
+            UserType::PORTAL     => PortalUserEntity::class,
+            UserType::BACKOFFICE => BackofficeUserEntity::class,
         };
 
         $entity = new $entityClass();

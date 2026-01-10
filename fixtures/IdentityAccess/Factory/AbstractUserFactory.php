@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Fixtures\IdentityAccess\Factory;
 
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
- * @template T of User
+ * @template T of UserEntity
  *
  * @extends PersistentObjectFactory<T>
  */
@@ -39,7 +39,7 @@ abstract class AbstractUserFactory extends PersistentObjectFactory
 
     public function withPlainPassword(string $plain): static
     {
-        return $this->afterInstantiate(function (User $user) use ($plain): void {
+        return $this->afterInstantiate(function (UserEntity $user) use ($plain): void {
             $user->setPasswordHash($this->hasher->hashPassword($user, $plain));
         });
     }

@@ -46,7 +46,7 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
         // translation prefix stripped, _entity suffix stripped, then pluralized
-        self::assertSame('translation__entries', $strategy->classToTableName($fqcn));
+        self::assertSame('translation__translation_entries', $strategy->classToTableName($fqcn));
     }
 
     public function testNormalizeOnlySuffix(): void

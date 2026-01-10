@@ -18,7 +18,7 @@ final class Version20251226232304 extends AbstractMigration
     {
         $this->addSql(<<<'SQL'
             CREATE TABLE identity_access__users (
-              id VARBINARY(16) NOT NULL,
+              id BINARY(16) NOT NULL,
               email VARCHAR(180) NOT NULL,
               password_hash VARCHAR(255) NOT NULL,
               created_at DATETIME NOT NULL,

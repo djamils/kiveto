@@ -32,7 +32,7 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
 
         foreach ($catalog->removedKeys() as $key) {
             $connection->delete(
-                'translation__entries',
+                'translation__translation_entries',
                 [
                     'app_scope'       => $id->scope()->value,
                     'locale'          => $id->locale()->toString(),
@@ -76,7 +76,7 @@ final readonly class DoctrineTranslationCatalogRepository implements Translation
     {
         $connection->executeStatement(
             <<<'SQL'
-                INSERT INTO translation__entries (
+                INSERT INTO translation__translation_entries (
                      id,
                      app_scope,
                      locale,

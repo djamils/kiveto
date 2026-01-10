@@ -8,10 +8,10 @@ use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User as UserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -56,9 +56,9 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
     public function findByEmailAndType(string $email, UserType $type): ?User
     {
         $entityClass = match ($type) {
-            UserType::CLINIC     => ClinicUser::class,
-            UserType::PORTAL     => PortalUser::class,
-            UserType::BACKOFFICE => BackofficeUser::class,
+            UserType::CLINIC     => ClinicUserEntity::class,
+            UserType::PORTAL     => PortalUserEntity::class,
+            UserType::BACKOFFICE => BackofficeUserEntity::class,
         };
 
         /** @var UserEntity|null $entity */

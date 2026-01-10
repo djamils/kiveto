@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Fixtures\IdentityAccess\Factory;
 
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 
 /**
- * @extends AbstractUserFactory<PortalUser>
+ * @extends AbstractUserFactory<PortalUserEntity>
  */
 final class PortalUserFactory extends AbstractUserFactory
 {
     public static function class(): string
     {
-        return PortalUser::class;
+        return PortalUserEntity::class;
     }
 }

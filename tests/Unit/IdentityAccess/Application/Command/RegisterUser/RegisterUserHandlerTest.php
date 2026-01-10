@@ -10,9 +10,9 @@ use App\IdentityAccess\Domain\Event\UserRegistered;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -168,9 +168,9 @@ final class RegisterUserHandlerTest extends TestCase
     public static function providePasswordHasherReceivesCorrectDoctrineUserForTypeCases(): iterable
     {
         return [
-            'clinic'     => [UserType::CLINIC, ClinicUser::class],
-            'portal'     => [UserType::PORTAL, PortalUser::class],
-            'backoffice' => [UserType::BACKOFFICE, BackofficeUser::class],
+            'clinic'     => [UserType::CLINIC, ClinicUserEntity::class],
+            'portal'     => [UserType::PORTAL, PortalUserEntity::class],
+            'backoffice' => [UserType::BACKOFFICE, BackofficeUserEntity::class],
         ];
     }
 }

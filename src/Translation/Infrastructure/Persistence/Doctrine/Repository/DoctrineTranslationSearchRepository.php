@@ -23,7 +23,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     {
         $rows = $this->connection->createQueryBuilder()
             ->select('translation_key', 'translation_value')
-            ->from('translation__entries')
+            ->from('translation__translation_entries')
             ->where('app_scope = :scope')
             ->andWhere('locale = :locale')
             ->andWhere('domain = :domain')
@@ -82,8 +82,8 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     public function search(array $criteria, int $page, int $perPage): array
     {
         $qb = $this->connection->createQueryBuilder()
-            ->select('translation__entries.*')
-            ->from('translation__entries')
+            ->select('translation__translation_entries.*')
+            ->from('translation__translation_entries')
             ->orderBy('updated_at', 'DESC')
             ->addOrderBy('translation_key', 'ASC')
         ;
@@ -92,7 +92,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
 
         $countQb = $this->connection->createQueryBuilder()
             ->select('COUNT(*) AS total_count')
-            ->from('translation__entries')
+            ->from('translation__translation_entries')
         ;
         $this->applyCriteria($countQb, $criteria);
 
@@ -143,7 +143,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     {
         $qb = $this->connection->createQueryBuilder()
             ->select('DISTINCT domain')
-            ->from('translation__entries')
+            ->from('translation__translation_entries')
             ->orderBy('domain', 'ASC')
         ;
 
@@ -165,7 +165,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     {
         $qb = $this->connection->createQueryBuilder()
             ->select('DISTINCT locale')
-            ->from('translation__entries')
+            ->from('translation__translation_entries')
             ->orderBy('locale', 'ASC')
         ;
 

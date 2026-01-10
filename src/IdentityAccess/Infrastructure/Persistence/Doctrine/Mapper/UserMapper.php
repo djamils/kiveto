@@ -6,7 +6,7 @@ namespace App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\IdentityAccess\Domain\User as DomainUser;
 use App\IdentityAccess\Domain\ValueObject\UserId;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use Symfony\Component\Uid\Uuid;
 
@@ -16,7 +16,7 @@ final readonly class UserMapper
     {
     }
 
-    public function toEntity(DomainUser $domainUser): User
+    public function toEntity(DomainUser $domainUser): UserEntity
     {
         $entity = $this->doctrineUserFactory->createForType($domainUser->type());
         $entity->setId(Uuid::fromString($domainUser->id()->toString()));
@@ -29,7 +29,7 @@ final readonly class UserMapper
         return $entity;
     }
 
-    public function toDomain(User $entity): DomainUser
+    public function toDomain(UserEntity $entity): DomainUser
     {
         return DomainUser::reconstitute(
             UserId::fromString($entity->getId()->toRfc4122()),

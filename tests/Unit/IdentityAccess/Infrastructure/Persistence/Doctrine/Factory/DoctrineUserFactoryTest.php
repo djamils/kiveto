@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory;
 
 use App\IdentityAccess\Domain\ValueObject\UserType;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser;
-use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 use App\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -33,9 +33,9 @@ final class DoctrineUserFactoryTest extends TestCase
     public static function provideCreateForTypeReturnsExpectedEntityCases(): iterable
     {
         return [
-            'clinic'     => [UserType::CLINIC, ClinicUser::class],
-            'portal'     => [UserType::PORTAL, PortalUser::class],
-            'backoffice' => [UserType::BACKOFFICE, BackofficeUser::class],
+            'clinic'     => [UserType::CLINIC, ClinicUserEntity::class],
+            'portal'     => [UserType::PORTAL, PortalUserEntity::class],
+            'backoffice' => [UserType::BACKOFFICE, BackofficeUserEntity::class],
         ];
     }
 }
