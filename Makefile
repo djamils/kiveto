@@ -100,7 +100,7 @@ endef
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	migrations identity-access-migrations translations-migrations clinic-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
-	load-fixtures test-unit test-integration
+	load-fixtures test-unit test-integration init-test-db
 
 ##
 ## HELP
@@ -140,6 +140,8 @@ install:
 	$(MAKE) wait-db; \
 	$(MAKE) init-db; \
 	$(MAKE) migrate-db; \
+	$(MAKE) init-test-db; \
+	$(MAKE) migrate-test-db; \
 	$(MAKE) load-fixtures; \
 	$(MAKE) ready
 
@@ -208,6 +210,9 @@ reset-db: drop-db create-db migrate-db load-fixtures
 
 init-db: drop-db create-db
 	@$(call ok,Database initialization complete)
+
+init-test-db: drop-test-db create-test-db
+	@$(call ok,TEST Database initialization complete)
 
 drop-test-db:
 	@$(call step,Dropping TEST database...)
