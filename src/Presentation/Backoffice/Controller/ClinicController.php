@@ -12,9 +12,9 @@ use App\Clinic\Application\Command\CreateClinic\CreateClinic;
 use App\Clinic\Application\Command\RenameClinic\RenameClinic;
 use App\Clinic\Application\Query\GetClinic\ClinicDto;
 use App\Clinic\Application\Query\GetClinic\GetClinic;
-use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupsCollection;
+use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupCollection;
 use App\Clinic\Application\Query\ListClinicGroups\ListClinicGroups;
-use App\Clinic\Application\Query\ListClinics\ClinicsCollection;
+use App\Clinic\Application\Query\ListClinics\ClinicCollection;
 use App\Clinic\Application\Query\ListClinics\ListClinics;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -47,14 +47,14 @@ final class ClinicController extends AbstractController
         $search       = trim((string) $request->query->get('search'));
         $groupId      = $request->query->get('group_id');
 
-        /** @var ClinicsCollection $collection */
+        /** @var ClinicCollection $collection */
         $collection = $this->queryBus->ask(new ListClinics(
             status: $status,
             clinicGroupId: $groupId,
             search: '' !== $search ? $search : null,
         ));
 
-        /** @var ClinicGroupsCollection $groups */
+        /** @var ClinicGroupCollection $groups */
         $groups = $this->queryBus->ask(new ListClinicGroups());
 
         return $this->render(
@@ -75,7 +75,7 @@ final class ClinicController extends AbstractController
     #[Route(path: '/clinics/new', name: 'backoffice_clinics_new', methods: ['GET'])]
     public function new(Request $request): Response
     {
-        /** @var ClinicGroupsCollection $groups */
+        /** @var ClinicGroupCollection $groups */
         $groups = $this->queryBus->ask(new ListClinicGroups());
 
         return $this->render(
@@ -135,7 +135,7 @@ final class ClinicController extends AbstractController
             return $this->redirectToRoute('backoffice_clinics');
         }
 
-        /** @var ClinicGroupsCollection $groups */
+        /** @var ClinicGroupCollection $groups */
         $groups = $this->queryBus->ask(new ListClinicGroups());
 
         return $this->render(

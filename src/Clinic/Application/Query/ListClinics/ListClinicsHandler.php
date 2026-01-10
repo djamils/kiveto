@@ -15,7 +15,7 @@ final readonly class ListClinicsHandler
     ) {
     }
 
-    public function __invoke(ListClinics $query): ClinicsCollection
+    public function __invoke(ListClinics $query): ClinicCollection
     {
         return $this->clinicReadRepository->findAllFiltered(
             $query->status,

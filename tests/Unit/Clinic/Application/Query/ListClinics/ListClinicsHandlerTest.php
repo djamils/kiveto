@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Clinic\Application\Query\ListClinics;
 
 use App\Clinic\Application\Port\ClinicReadRepositoryInterface;
-use App\Clinic\Application\Query\ListClinics\ClinicsCollection;
+use App\Clinic\Application\Query\ListClinics\ClinicCollection;
 use App\Clinic\Application\Query\ListClinics\ListClinics;
 use App\Clinic\Application\Query\ListClinics\ListClinicsHandler;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
@@ -15,7 +15,7 @@ final class ListClinicsHandlerTest extends TestCase
 {
     public function testReturnsClinicsCollection(): void
     {
-        $collection = new ClinicsCollection([], 0);
+        $collection = new ClinicCollection([], 0);
 
         $repo = $this->createMock(ClinicReadRepositoryInterface::class);
         $repo->expects(self::once())
@@ -36,7 +36,7 @@ final class ListClinicsHandlerTest extends TestCase
 
     public function testReturnsAllClinicsWithoutFilters(): void
     {
-        $collection = new ClinicsCollection([], 0);
+        $collection = new ClinicCollection([], 0);
 
         $repo = $this->createMock(ClinicReadRepositoryInterface::class);
         $repo->expects(self::once())

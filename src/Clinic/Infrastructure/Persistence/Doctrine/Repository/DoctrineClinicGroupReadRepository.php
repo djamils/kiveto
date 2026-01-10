@@ -6,7 +6,7 @@ namespace App\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Clinic\Application\Port\ClinicGroupReadRepositoryInterface;
 use App\Clinic\Application\Query\GetClinicGroup\ClinicGroupDto;
-use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupsCollection;
+use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupCollection;
 use App\Clinic\Domain\ValueObject\ClinicGroupStatus;
 use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicGroupEntity;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,7 +18,7 @@ final readonly class DoctrineClinicGroupReadRepository implements ClinicGroupRea
     ) {
     }
 
-    public function findAllFiltered(?ClinicGroupStatus $status = null): ClinicGroupsCollection
+    public function findAllFiltered(?ClinicGroupStatus $status = null): ClinicGroupCollection
     {
         $qb = $this->em->getRepository(ClinicGroupEntity::class)->createQueryBuilder('cg');
 
@@ -43,7 +43,7 @@ final readonly class DoctrineClinicGroupReadRepository implements ClinicGroupRea
             $entities,
         );
 
-        return new ClinicGroupsCollection(
+        return new ClinicGroupCollection(
             clinicGroups: $dtos,
             total: \count($dtos),
         );

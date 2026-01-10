@@ -8,7 +8,7 @@ use App\Clinic\Application\Command\ActivateClinicGroup\ActivateClinicGroup;
 use App\Clinic\Application\Command\CreateClinicGroup\CreateClinicGroup;
 use App\Clinic\Application\Command\RenameClinicGroup\RenameClinicGroup;
 use App\Clinic\Application\Command\SuspendClinicGroup\SuspendClinicGroup;
-use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupsCollection;
+use App\Clinic\Application\Query\ListClinicGroups\ClinicGroupCollection;
 use App\Clinic\Application\Query\ListClinicGroups\ListClinicGroups;
 use App\Clinic\Domain\ValueObject\ClinicGroupStatus;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -39,7 +39,7 @@ final class ClinicGroupController extends AbstractController
         $statusFilter = $request->query->get('status');
         $status       = $statusFilter ? ClinicGroupStatus::from($statusFilter) : null;
 
-        /** @var ClinicGroupsCollection $collection */
+        /** @var ClinicGroupCollection $collection */
         $collection = $this->queryBus->ask(new ListClinicGroups($status));
 
         return $this->render(

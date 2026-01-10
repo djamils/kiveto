@@ -6,7 +6,7 @@ namespace App\Clinic\Application\Query\ListClinics;
 
 use App\Clinic\Application\Query\GetClinic\ClinicDto;
 
-final readonly class ClinicsCollection
+final readonly class ClinicCollection
 {
     /**
      * @param list<ClinicDto> $clinics

@@ -6,7 +6,7 @@ namespace App\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Clinic\Application\Port\ClinicReadRepositoryInterface;
 use App\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Clinic\Application\Query\ListClinics\ClinicsCollection;
+use App\Clinic\Application\Query\ListClinics\ClinicCollection;
 use App\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,7 +24,7 @@ final readonly class DoctrineClinicReadRepository implements ClinicReadRepositor
         ?ClinicStatus $status = null,
         ?string $clinicGroupId = null,
         ?string $search = null,
-    ): ClinicsCollection {
+    ): ClinicCollection {
         $qb = $this->em->getRepository(ClinicEntity::class)->createQueryBuilder('c');
 
         if (null !== $status) {
@@ -65,7 +65,7 @@ final readonly class DoctrineClinicReadRepository implements ClinicReadRepositor
             $entities,
         );
 
-        return new ClinicsCollection(
+        return new ClinicCollection(
             clinics: $dtos,
             total: \count($dtos),
         );
