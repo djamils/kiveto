@@ -1552,6 +1552,12 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
  *         default_namespace?: scalar|null, // Default namespace where stories will be created by maker. // Default: "Story"
  *     },
  * }
+ * @psalm-type DamaDoctrineTestConfig = array{
+ *     enable_static_connection?: mixed, // Default: true
+ *     enable_static_meta_data_cache?: bool, // Default: true
+ *     enable_static_query_cache?: bool, // Default: true
+ *     connection_keys?: list<mixed>,
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -1612,6 +1618,7 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
  *         security?: SecurityConfig,
  *         monolog?: MonologConfig,
  *         zenstruck_foundry?: ZenstruckFoundryConfig,
+ *         dama_doctrine_test?: DamaDoctrineTestConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

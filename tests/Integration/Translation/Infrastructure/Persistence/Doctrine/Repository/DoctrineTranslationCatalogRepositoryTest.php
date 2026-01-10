@@ -13,12 +13,10 @@ use App\Translation\Domain\ValueObject\TranslationText;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
-use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class DoctrineTranslationCatalogRepositoryTest extends KernelTestCase
 {
     use Factories;
-    use ResetDatabase;
 
     public function testFindReconstitutesCatalogFromDoctrineEntities(): void
     {

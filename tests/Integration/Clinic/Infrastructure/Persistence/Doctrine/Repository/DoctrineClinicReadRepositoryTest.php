@@ -11,12 +11,10 @@ use App\Fixtures\Clinic\Factory\ClinicGroupEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
-use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class DoctrineClinicReadRepositoryTest extends KernelTestCase
 {
     use Factories;
-    use ResetDatabase;
 
     public function testFindAllReturnsAllClinics(): void
     {

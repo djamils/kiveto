@@ -13,12 +13,10 @@ use Doctrine\Bundle\DoctrineBundle\Registry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
-use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class DoctrineClinicGroupRepositoryTest extends KernelTestCase
 {
     use Factories;
-    use ResetDatabase;
 
     public function testFindByIdReconstitutesClinicGroupFromDoctrineEntity(): void
     {

@@ -324,12 +324,27 @@ php-cs-fixer.dry-run:
 	$(Q)$(EXEC_PHP) vendor/bin/php-cs-fixer fix --verbose --diff --dry-run
 	@$(call ok,PHP-CS-Fixer dry-run passed)
 
-test: reset-test-db
-	@$(call step,Running PHPUnit...)
-	$(Q)$(EXEC_PHP) bin/phpunit --colors=always
+test:
+	@$(call step,Running PHPUnit (full)...)
+	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
+		bin/phpunit --colors=always
 	@$(call ok,Tests passed)
 
-test-coverage: reset-test-db
+test-unit:
+	@$(call step,Running PHPUnit (unit)...)
+	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
+		bin/phpunit --colors=always --testsuite=unit
+	@$(call ok,Unit tests passed)
+
+test-integration:
+	@$(call step,Running PHPUnit (integration)...)
+	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
+		bin/phpunit --colors=always --testsuite=integration --order-by=duration --reverse-order
+	@$(call ok,Integration tests passed)
+
+test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(EXEC_PHP) bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
+	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off \
+		bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
+

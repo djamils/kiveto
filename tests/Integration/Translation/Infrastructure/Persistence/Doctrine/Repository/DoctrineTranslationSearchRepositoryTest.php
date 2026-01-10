@@ -12,12 +12,10 @@ use App\Translation\Domain\ValueObject\TranslationDomain;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
-use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class DoctrineTranslationSearchRepositoryTest extends KernelTestCase
 {
     use Factories;
-    use ResetDatabase;
 
     public function testFindCatalogReturnsKeyValueMap(): void
     {

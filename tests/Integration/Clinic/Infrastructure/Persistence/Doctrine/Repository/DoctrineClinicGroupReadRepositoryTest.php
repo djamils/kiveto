@@ -9,12 +9,10 @@ use App\Clinic\Domain\ValueObject\ClinicGroupStatus;
 use App\Fixtures\Clinic\Factory\ClinicGroupEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
-use Zenstruck\Foundry\Test\ResetDatabase;
 
 final class DoctrineClinicGroupReadRepositoryTest extends KernelTestCase
 {
     use Factories;
-    use ResetDatabase;
 
     public function testFindAllReturnsAllClinicGroups(): void
     {
