@@ -41,7 +41,7 @@ framework:
             messenger.bus.event:
                 default_middleware:
                     enabled: true
-                    allow_no_handlers: false
+                    allow_no_handlers: true
                     allow_no_senders: true
                 middleware:
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
