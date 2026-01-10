@@ -165,6 +165,23 @@ services:
     App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
     App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: CLINIC ACCESS
+    # ============================================================================
+
+    App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface:
+        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
+
+    App\ClinicAccess\Application\Port\ClinicMembershipReadRepositoryInterface:
+        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
+
+    App\ClinicAccess\Application\Port\MembershipAdminRepositoryInterface:
+        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
+
+    App\ClinicAccess\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+
+    App\Shared\Application\Context\SelectedClinicContext: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

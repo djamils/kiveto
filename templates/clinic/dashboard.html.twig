@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Dashboard - Clinic{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Dashboard Clinique</h1>
+
+    <div class="alert alert-info">
+        Clinique sélectionnée: <code>{{ selectedClinicId }}</code>
+    </div>
+
+    <p>Bienvenue sur le dashboard de la clinique !</p>
+    <p>Toutes les opérations suivantes seront filtrées sur cette clinique tenant-scoped.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Aucune clinique accessible{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="mb-3">Aucune clinique accessible</h3>
+
+                    {% for label, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
+                    <p class="text-muted">
+                        Vous n'avez accès à aucune clinique active pour le moment.
+                    </p>
+                    <p>
+                        Veuillez contacter un administrateur pour obtenir l'accès.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

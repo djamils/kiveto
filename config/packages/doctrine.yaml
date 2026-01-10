@@ -39,6 +39,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Clinic/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Clinic\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Clinic
+            ClinicAccess:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/ClinicAccess/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\ClinicAccess\Infrastructure\Persistence\Doctrine\Entity'
+                alias: ClinicAccess
         controller_resolver:
             auto_mapping: false
 
