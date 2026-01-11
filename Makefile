@@ -98,7 +98,7 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
-	migrations identity-access-migrations translations-migrations clinic-migrations shared-migrations \
+	migrations identity-access-migrations translations-migrations clinic-migrations clinic-access-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
 
@@ -237,7 +237,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations clinic-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations clinic-access-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -252,6 +252,11 @@ translations-migrations:
 clinic-migrations:
 	@$(call step,Generating migrations for Clinic...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Clinic' --filter-expression='/^clinic__/')
+	@$(call ok,Clinic migrations generated)
+
+clinic-access-migrations:
+	@$(call step,Generating migrations for ClinicAccess...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\ClinicAccess' --filter-expression='/^clinic_access__/')
 	@$(call ok,Clinic migrations generated)
 
 shared-migrations:
