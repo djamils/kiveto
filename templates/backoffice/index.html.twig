@@ -1,1 +1,91 @@
-<h1>Backoffice Index</h1>
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}📊 Dashboard{% endblock %}
+
+{% block body %}
+    <div class="card">
+        <h3>Bienvenue dans le Backoffice Kiveto</h3>
+        <p>Gestion centralisée de la plateforme vétérinaire</p>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card primary">
+            <div class="label">Cliniques</div>
+            <div class="value">—</div>
+        </div>
+        
+        <div class="stat-card success">
+            <div class="label">Groupes</div>
+            <div class="value">—</div>
+        </div>
+        
+        <div class="stat-card warning">
+            <div class="label">Membres</div>
+            <div class="value">—</div>
+        </div>
+        
+        <div class="stat-card danger">
+            <div class="label">Traductions</div>
+            <div class="value">—</div>
+        </div>
+    </div>
+    
+    <div class="card" style="margin-top: 30px;">
+        <h3>🚀 Accès rapide</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+            <a href="{{ path('backoffice_clinics_new') }}" style="display: block; padding: 15px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
+                ➕ Créer une clinique
+            </a>
+            
+            <a href="{{ path('backoffice_clinic_memberships_new') }}" style="display: block; padding: 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
+                👤 Ajouter un membre
+            </a>
+            
+            <a href="{{ path('backoffice_translations') }}" style="display: block; padding: 15px; background: #f39c12; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
+                🌐 Gérer les traductions
+            </a>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3>📋 Navigation</h3>
+        <ul style="list-style: none; padding-left: 0;">
+            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
+                <a href="{{ path('backoffice_clinics') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
+                    🏥 Gérer les cliniques
+                </a>
+                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
+                    Voir, créer et modifier les cliniques vétérinaires
+                </p>
+            </li>
+            
+            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
+                <a href="{{ path('backoffice_clinic_groups') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
+                    🏢 Gérer les groupes de cliniques
+                </a>
+                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
+                    Organiser les cliniques en groupes
+                </p>
+            </li>
+            
+            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
+                <a href="{{ path('backoffice_clinic_memberships') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
+                    👥 Gérer les membres des cliniques
+                </a>
+                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
+                    Attribuer des utilisateurs aux cliniques avec des rôles
+                </p>
+            </li>
+            
+            <li style="padding: 10px 0;">
+                <a href="{{ path('backoffice_translations') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
+                    🌐 Gérer les traductions
+                </a>
+                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
+                    Traduire l'interface dans différentes langues
+                </p>
+            </li>
+        </ul>
+    </div>
+{% endblock %}

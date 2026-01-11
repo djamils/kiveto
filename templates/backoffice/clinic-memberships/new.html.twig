@@ -1,21 +1,10 @@
-{% extends 'base.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Backoffice · Nouvelle Clinic Membership{% endblock %}
+{% block title %}Nouvelle membership{% endblock %}
+{% block page_title %}➕ Créer une Clinic Membership{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Créer une Clinic Membership</h1>
-
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="card">
-        <div class="card-body">
+<div class="card">
             <form method="post" action="{{ path('backoffice_clinic_memberships_create') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token }}">
 

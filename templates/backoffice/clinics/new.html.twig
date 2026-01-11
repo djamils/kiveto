@@ -1,48 +1,37 @@
-{% extends 'base.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Backoffice · Nouvelle Clinique{% endblock %}
+{% block title %}Nouvelle clinique{% endblock %}
+{% block page_title %}➕ Créer une Clinique{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Créer une Clinique</h1>
-
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="card">
-        <div class="card-body">
+<div class="card">
             <form method="post" action="{{ path('backoffice_clinics_create') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token }}">
 
-                <div class="mb-3">
-                    <label class="form-label">Nom*</label>
-                    <input name="name" class="form-control" required>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Nom*</label>
+                    <input name="name" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Slug* <small>(format: a-z, 0-9, -)</small></label>
-                    <input name="slug" class="form-control" pattern="[a-z0-9-]+" required>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Slug* <small>(format: a-z, 0-9, -)</small></label>
+                    <input name="slug" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" pattern="[a-z0-9-]+" required>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Timezone* <small>(IANA format)</small></label>
-                    <input name="time_zone" class="form-control" value="Europe/Paris" required>
-                    <small class="text-muted">Ex: Europe/Paris, America/New_York, UTC</small>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Timezone* <small>(IANA format)</small></label>
+                    <input name="time_zone" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="Europe/Paris" required>
+                    <small style="color: #95a5a6;">Ex: Europe/Paris, America/New_York, UTC</small>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Locale* <small>(format: fr-FR, en-US)</small></label>
-                    <input name="locale" class="form-control" value="fr-FR" pattern="[a-z]{2}-[A-Z]{2}" required>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Locale* <small>(format: fr-FR, en-US)</small></label>
+                    <input name="locale" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="fr-FR" pattern="[a-z]{2}-[A-Z]{2}" required>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Groupe (optionnel)</label>
-                    <select name="clinic_group_id" class="form-select">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Groupe (optionnel)</label>
+                    <select name="clinic_group_id" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
                         <option value="">(aucun)</option>
                         {% for group in groups.clinicGroups %}
                             {% if group.status.value == 'active' %}
@@ -52,12 +41,11 @@
                     </select>
                 </div>
 
-                <div class="mt-4">
-                    <button class="btn btn-success" type="submit">Créer la clinique</button>
-                    <a href="{{ path('backoffice_clinics') }}" class="btn btn-secondary">Annuler</a>
+                <div style="margin-top: 20px;">
+                    <button type="submit" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Créer la clinique</button>
+                    <a href="{{ path('backoffice_clinics') }}" style="display: inline-block; padding: 10px 20px; background: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-weight: 500; margin-left: 10px;">Annuler</a>
                 </div>
             </form>
         </div>
     </div>
-</div>
 {% endblock %}

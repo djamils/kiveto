@@ -1,34 +1,22 @@
-{% extends 'base.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Backoffice · Clinic Groups{% endblock %}
+{% block title %}Groupes de cliniques{% endblock %}
+{% block page_title %}🏢 Groupes de Cliniques{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Groupes de Cliniques</h1>
-
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="card mb-4">
-        <div class="card-header">Créer un groupe</div>
-        <div class="card-body">
-            <form method="post" action="{{ path('backoffice_clinic_groups_create') }}" class="row g-3">
-                <input type="hidden" name="_token" value="{{ csrf_token }}">
-                <div class="col-md-8">
-                    <label class="form-label">Nom du groupe*</label>
-                    <input name="name" class="form-control" required>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-success" type="submit">Créer</button>
-                </div>
-            </form>
+<div class="card">
+    <h3>Créer un groupe</h3>
+    <form method="post" action="{{ path('backoffice_clinic_groups_create') }}" style="display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end;">
+        <input type="hidden" name="_token" value="{{ csrf_token }}">
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Nom du groupe*</label>
+            <input name="name" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
         </div>
-    </div>
+        <div>
+            <button type="submit" style="padding: 8px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Créer</button>
+        </div>
+    </form>
+</div>
 
     <div class="card mb-4">
         <div class="card-header">Filtrer</div>

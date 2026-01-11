@@ -1,21 +1,10 @@
-{% extends 'base.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Backoffice · Éditer Clinique{% endblock %}
+{% block title %}Éditer clinique{% endblock %}
+{% block page_title %}✏️ Éditer la Clinique{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Éditer la Clinique</h1>
-
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="card">
-        <div class="card-body">
+<div class="card">
             <form method="post" action="{{ path('backoffice_clinics_update', {id: clinic.id}) }}">
                 <input type="hidden" name="_token" value="{{ csrf_token }}">
 

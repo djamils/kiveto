@@ -1,22 +1,14 @@
-{% extends 'base.html.twig' %}
+{% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Backoffice · Clinic Memberships{% endblock %}
+{% block title %}Membres cliniques{% endblock %}
+{% block page_title %}👥 Clinic Memberships{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Clinic Memberships</h1>
-
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    <div class="mb-3">
-        <a href="{{ path('backoffice_clinic_memberships_new') }}" class="btn btn-success">Créer une membership</a>
-    </div>
+<div style="margin-bottom: 20px;">
+    <a href="{{ path('backoffice_clinic_memberships_new') }}" style="display: inline-block; padding: 10px 20px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">
+        ➕ Créer une membership
+    </a>
+</div>
 
     <div class="card mb-4">
         <div class="card-header">Filtrer</div>
