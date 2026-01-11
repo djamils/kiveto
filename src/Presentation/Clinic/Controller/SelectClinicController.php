@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller;
 
 use App\Clinic\Domain\ValueObject\ClinicId;
+use App\ClinicAccess\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\ClinicAccess\Application\Query\ListClinicsForUser\ListClinicsForUser;
+use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\SelectedClinicContext;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,12 +35,11 @@ final class SelectClinicController extends AbstractController
     {
         $user = $this->getUser();
 
-        if (null === $user) {
+        if (!$user instanceof SecurityUser) {
             return $this->redirectToRoute('clinic_login');
         }
 
-        // Récupérer l'ID user depuis le SecurityUser (adapter selon votre implémentation)
-        $userId = $user->getUserIdentifier(); // ou méthode custom getId()
+        $userId = $user->id();
 
         $accessibleClinics = $this->queryBus->ask(new ListClinicsForUser($userId));
         \assert(\is_array($accessibleClinics));
@@ -50,15 +51,13 @@ final class SelectClinicController extends AbstractController
         }
 
         if (1 === \count($accessibleClinics)) {
-            // Une seule clinique : auto-sélection
             $clinic = $accessibleClinics[0];
-            \assert($clinic instanceof \App\ClinicAccess\Application\Query\ListClinicsForUser\AccessibleClinic);
+            \assert($clinic instanceof AccessibleClinic);
             $this->selectedClinicContext->setSelectedClinicId(ClinicId::fromString($clinic->clinicId));
 
             return $this->redirectToRoute('clinic_dashboard');
         }
 
-        // Plusieurs cliniques : afficher la page de sélection
         return $this->render('clinic/select-clinic.html.twig', [
             'clinics'    => $accessibleClinics,
             'csrf_token' => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),

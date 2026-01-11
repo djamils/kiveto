@@ -10,14 +10,28 @@ use App\ClinicAccess\Application\Query\ListAllMemberships\MembershipListItem;
 use App\ClinicAccess\Domain\ValueObject\ClinicMemberRole;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipEngagement;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipStatus;
+use App\ClinicAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineMembershipAdminRepository implements MembershipAdminRepositoryInterface
 {
+    /**
+     * Technical coupling: This repository performs cross-BC SQL joins for admin read models.
+     * Table names are hardcoded to avoid direct infrastructure dependencies on other BCs.
+     * This is an acceptable technical coupling at the infrastructure layer for read models.
+     */
+    private const string CLINIC_TABLE_NAME = 'clinic__clinics';
+    private const string USER_TABLE_NAME   = 'identity_access__users';
+
+    private string $membershipTableName;
+
     public function __construct(
         private Connection $connection,
+        EntityManagerInterface $entityManager,
     ) {
+        $this->membershipTableName = $entityManager->getClassMetadata(ClinicMembershipEntity::class)->getTableName();
     }
 
     public function listAll(
@@ -57,7 +71,8 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
 
         $whereClause = \count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        $sql = <<<SQL
+        $sql = \sprintf(
+            <<<'SQL'
             SELECT
                 BIN_TO_UUID(m.id) AS membership_id,
                 BIN_TO_UUID(m.clinic_id) AS clinic_id,
@@ -70,12 +85,17 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
                 m.valid_from_utc,
                 m.valid_until_utc,
                 m.created_at_utc
-            FROM clinic_access__memberships m
-            INNER JOIN clinic__clinics c ON c.id = m.clinic_id
-            INNER JOIN identity_access__users u ON u.id = m.user_id
-            {$whereClause}
+            FROM %s m
+            INNER JOIN %s c ON c.id = m.clinic_id
+            INNER JOIN %s u ON u.id = m.user_id
+            %s
             ORDER BY m.created_at_utc DESC
-        SQL;
+        SQL,
+            $this->membershipTableName,
+            self::CLINIC_TABLE_NAME,
+            self::USER_TABLE_NAME,
+            $whereClause
+        );
 
         $results = $this->connection->fetchAllAssociative($sql, $params);
 

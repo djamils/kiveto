@@ -9,24 +9,38 @@ use App\ClinicAccess\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\ClinicAccess\Domain\ValueObject\ClinicMemberRole;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipEngagement;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipStatus;
+use App\ClinicAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClinicMembershipReadRepository implements ClinicMembershipReadRepositoryInterface
 {
+    /**
+     * Technical coupling: This repository performs a cross-BC SQL join with the Clinic BC.
+     * The table name is hardcoded to avoid direct infrastructure dependency on Clinic BC.
+     * This is an acceptable technical coupling at the infrastructure layer for read models.
+     */
+    private const string CLINIC_TABLE_NAME = 'clinic__clinics';
+
+    private string $membershipTableName;
+
     public function __construct(
         private Connection $connection,
         private ClockInterface $clock,
+        EntityManagerInterface $entityManager,
     ) {
+        $this->membershipTableName = $entityManager->getClassMetadata(ClinicMembershipEntity::class)->getTableName();
     }
 
     public function findAccessibleClinicsForUser(UserId $userId): array
     {
         $now = $this->clock->now();
 
-        $sql = <<<'SQL'
+        $sql = \sprintf(
+            <<<'SQL'
             SELECT
                 BIN_TO_UUID(m.clinic_id) AS clinic_id,
                 c.name AS clinic_name,
@@ -36,15 +50,18 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                 m.engagement,
                 m.valid_from_utc,
                 m.valid_until_utc
-            FROM clinic_access__memberships m
-            INNER JOIN clinic__clinics c ON c.id = m.clinic_id
+            FROM %s m
+            INNER JOIN %s c ON c.id = m.clinic_id
             WHERE m.user_id = :userId
               AND m.status = :activeStatus
               AND m.valid_from_utc <= :now
               AND (m.valid_until_utc IS NULL OR m.valid_until_utc >= :now)
               AND c.status = 'active'
             ORDER BY c.name ASC
-        SQL;
+        SQL,
+            $this->membershipTableName,
+            self::CLINIC_TABLE_NAME
+        );
 
         $results = $this->connection->fetchAllAssociative($sql, [
             'userId'       => Uuid::fromString($userId->toString())->toBinary(),

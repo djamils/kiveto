@@ -15,7 +15,7 @@ final class MessengerHandlersRegistrationTest extends TestCase
      */
     public function testAllHandlersHaveAsMessageHandlerAttribute(): void
     {
-        $srcPath = \dirname(__DIR__, 3).'/src';
+        $srcPath = \dirname(__DIR__, 3) . '/src';
 
         $finder = new Finder();
         $finder->files()
@@ -31,12 +31,12 @@ final class MessengerHandlersRegistrationTest extends TestCase
             $content = $file->getContents();
 
             // Skip if it's not a handler class (final readonly class *Handler)
-            if (!\preg_match('/final\s+readonly\s+class\s+\w+Handler/', $content)) {
+            if (!preg_match('/final\s+readonly\s+class\s+\w+Handler/', $content)) {
                 continue;
             }
 
             // Check if it has the AsMessageHandler attribute
-            if (!\str_contains($content, '#[AsMessageHandler]')) {
+            if (!str_contains($content, '#[AsMessageHandler]')) {
                 $handlersWithoutAttribute[] = $file->getRelativePathname();
             }
         }
@@ -45,7 +45,7 @@ final class MessengerHandlersRegistrationTest extends TestCase
             $handlersWithoutAttribute,
             \sprintf(
                 "The following handlers are missing the #[AsMessageHandler] attribute:\n- %s",
-                \implode("\n- ", $handlersWithoutAttribute)
+                implode("\n- ", $handlersWithoutAttribute)
             )
         );
     }

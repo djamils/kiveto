@@ -5,62 +5,65 @@
 
 {% block body %}
 <div class="card">
-            <form method="post" action="{{ path('backoffice_clinic_memberships_create') }}">
-                <input type="hidden" name="_token" value="{{ csrf_token }}">
+    <form method="post" action="{{ path('backoffice_clinic_memberships_create') }}" style="display: flex; flex-direction: column; gap: 20px;">
+        <input type="hidden" name="_token" value="{{ csrf_token }}">
 
-                <div class="mb-3">
-                    <label class="form-label">Clinic *</label>
-                    <select name="clinic_id" class="form-select" required>
-                        <option value="">-- Sélectionner une clinique --</option>
-                        {% for clinic in clinics.clinics %}
-                            <option value="{{ clinic.id }}">{{ clinic.name }} ({{ clinic.slug }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">User ID (UUID) *</label>
-                    <input type="text" name="user_id" class="form-control" required placeholder="ex: 01234567-89ab-cdef-0123-456789abcdef">
-                    <small class="form-text text-muted">Saisissez l'UUID de l'utilisateur depuis IdentityAccess</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Rôle *</label>
-                    <select name="role" class="form-select" required>
-                        <option value="">-- Sélectionner un rôle --</option>
-                        <option value="CLINIC_ADMIN">Clinic Admin</option>
-                        <option value="VETERINARY">Veterinary</option>
-                        <option value="ASSISTANT_VETERINARY">Assistant Veterinary</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Engagement *</label>
-                    <select name="engagement" class="form-select" required>
-                        <option value="">-- Sélectionner un engagement --</option>
-                        <option value="EMPLOYEE">Employee</option>
-                        <option value="CONTRACTOR">Contractor (freelance)</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Valid From (UTC)</label>
-                    <input type="datetime-local" name="valid_from" class="form-control">
-                    <small class="form-text text-muted">Laisser vide pour utiliser la date actuelle</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Valid Until (UTC)</label>
-                    <input type="datetime-local" name="valid_until" class="form-control">
-                    <small class="form-text text-muted">Optionnel. Laisser vide pour pas de limite (recommandé pour EMPLOYEE)</small>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success">Créer</button>
-                    <a href="{{ path('backoffice_clinic_memberships') }}" class="btn btn-outline-secondary">Annuler</a>
-                </div>
-            </form>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Clinic *</label>
+            <select name="clinic_id" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                <option value="">-- Sélectionner une clinique --</option>
+                {% for clinic in clinics.clinics %}
+                    <option value="{{ clinic.id }}">{{ clinic.name }} ({{ clinic.slug }})</option>
+                {% endfor %}
+            </select>
         </div>
-    </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">
+                User ID (UUID) * 
+                <a href="{{ path('backoffice_users') }}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 0.75rem;">📋 Voir la liste des users</a>
+            </label>
+            <input type="text" name="user_id" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-family: monospace;" 
+                   required placeholder="ex: 01234567-89ab-cdef-0123-456789abcdef"
+                   value="{{ app.request.query.get('user_id', '') }}">
+            <small style="color: #95a5a6; font-size: 0.75rem;">Saisissez l'UUID de l'utilisateur ou utilisez le bouton "Ajouter à une clinique" depuis la liste des users</small>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Rôle *</label>
+            <select name="role" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                <option value="">-- Sélectionner un rôle --</option>
+                <option value="CLINIC_ADMIN">Clinic Admin</option>
+                <option value="VETERINARY">Veterinary</option>
+                <option value="ASSISTANT_VETERINARY">Assistant Veterinary</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Engagement *</label>
+            <select name="engagement" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                <option value="">-- Sélectionner un engagement --</option>
+                <option value="EMPLOYEE">Employee</option>
+                <option value="CONTRACTOR">Contractor (freelance)</option>
+            </select>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Valid From (UTC)</label>
+            <input type="datetime-local" name="valid_from" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+            <small style="color: #95a5a6; font-size: 0.75rem;">Laisser vide pour utiliser la date actuelle</small>
+        </div>
+
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Valid Until (UTC)</label>
+            <input type="datetime-local" name="valid_until" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+            <small style="color: #95a5a6; font-size: 0.75rem;">Optionnel. Laisser vide pour pas de limite (recommandé pour EMPLOYEE)</small>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="submit" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Créer</button>
+            <a href="{{ path('backoffice_clinic_memberships') }}" style="display: inline-block; padding: 10px 20px; background: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">Annuler</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

@@ -14,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
 #[ORM\InheritanceType('SINGLE_TABLE')]
-#[ORM\DiscriminatorColumn(name: 'user_type', type: 'string')]
+#[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
 #[ORM\DiscriminatorMap([
     'CLINIC'     => ClinicUserEntity::class,
     'PORTAL'     => PortalUserEntity::class,

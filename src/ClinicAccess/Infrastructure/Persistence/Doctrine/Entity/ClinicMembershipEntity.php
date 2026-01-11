@@ -12,7 +12,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'clinic_access__memberships')]
+#[ORM\Table]
 #[ORM\UniqueConstraint(name: 'uniq_clinic_user', columns: ['clinic_id', 'user_id'])]
 #[ORM\Index(name: 'idx_user_id', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_clinic_id', columns: ['clinic_id'])]

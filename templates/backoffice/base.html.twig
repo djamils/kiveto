@@ -94,6 +94,12 @@
                         <li class="nav-section">Accès & Membres</li>
                         
                         <li class="nav-item">
+                            <a href="{{ path('backoffice_users') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_users' %}active{% endif %}">
+                                👤 Utilisateurs
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item">
                             <a href="{{ path('backoffice_clinic_memberships') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_clinic_memberships' or app.request.get('_route') starts with 'backoffice_memberships' %}active{% endif %}">
                                 👥 Membres cliniques
                             </a>

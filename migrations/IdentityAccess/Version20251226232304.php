@@ -24,7 +24,7 @@ final class Version20251226232304 extends AbstractMigration
               created_at DATETIME NOT NULL,
               status VARCHAR(20) NOT NULL,
               email_verified_at DATETIME DEFAULT NULL,
-              user_type VARCHAR(255) NOT NULL,
+              type VARCHAR(255) NOT NULL,
               UNIQUE INDEX UNIQ_770DC570E7927C74 (email),
               PRIMARY KEY (id)
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`

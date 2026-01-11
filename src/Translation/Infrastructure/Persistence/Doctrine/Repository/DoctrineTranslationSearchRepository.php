@@ -8,22 +8,29 @@ use App\Shared\Domain\Localization\Locale;
 use App\Translation\Domain\Repository\TranslationSearchRepository;
 use App\Translation\Domain\ValueObject\AppScope;
 use App\Translation\Domain\ValueObject\TranslationDomain;
+use App\Translation\Infrastructure\Persistence\Doctrine\Entity\TranslationEntryEntity;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineTranslationSearchRepository implements TranslationSearchRepository
 {
-    public function __construct(private Connection $connection)
-    {
+    private string $tableName;
+
+    public function __construct(
+        private Connection $connection,
+        EntityManagerInterface $entityManager,
+    ) {
+        $this->tableName = $entityManager->getClassMetadata(TranslationEntryEntity::class)->getTableName();
     }
 
     public function findCatalog(AppScope $scope, Locale $locale, TranslationDomain $domain): array
     {
         $rows = $this->connection->createQueryBuilder()
             ->select('translation_key', 'translation_value')
-            ->from('translation__translation_entries')
+            ->from($this->tableName)
             ->where('app_scope = :scope')
             ->andWhere('locale = :locale')
             ->andWhere('domain = :domain')
@@ -82,8 +89,8 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     public function search(array $criteria, int $page, int $perPage): array
     {
         $qb = $this->connection->createQueryBuilder()
-            ->select('translation__translation_entries.*')
-            ->from('translation__translation_entries')
+            ->select($this->tableName . '.*')
+            ->from($this->tableName)
             ->orderBy('updated_at', 'DESC')
             ->addOrderBy('translation_key', 'ASC')
         ;
@@ -92,7 +99,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
 
         $countQb = $this->connection->createQueryBuilder()
             ->select('COUNT(*) AS total_count')
-            ->from('translation__translation_entries')
+            ->from($this->tableName)
         ;
         $this->applyCriteria($countQb, $criteria);
 
@@ -143,7 +150,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     {
         $qb = $this->connection->createQueryBuilder()
             ->select('DISTINCT domain')
-            ->from('translation__translation_entries')
+            ->from($this->tableName)
             ->orderBy('domain', 'ASC')
         ;
 
@@ -165,7 +172,7 @@ final readonly class DoctrineTranslationSearchRepository implements TranslationS
     {
         $qb = $this->connection->createQueryBuilder()
             ->select('DISTINCT locale')
-            ->from('translation__translation_entries')
+            ->from($this->tableName)
             ->orderBy('locale', 'ASC')
         ;
 
