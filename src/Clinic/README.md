@@ -13,7 +13,7 @@ Le Bounded Context **Clinic** gère les informations relatives aux cliniques vé
 - Clients et animaux
 - Dossiers médicaux
 - Finance
-- Accès VET/ASV (géré par un futur BC ClinicMembership/ClinicAccess)
+- Accès VET/ASV (géré par un futur BC ClinicMembership/AccessControl)
 
 ## Architecture
 

@@ -98,7 +98,7 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
-	migrations identity-access-migrations translations-migrations clinic-migrations clinic-access-migrations shared-migrations \
+	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
 
@@ -237,7 +237,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations clinic-migrations clinic-access-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -254,9 +254,9 @@ clinic-migrations:
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Clinic' --filter-expression='/^clinic__/')
 	@$(call ok,Clinic migrations generated)
 
-clinic-access-migrations:
-	@$(call step,Generating migrations for ClinicAccess...)
-	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\ClinicAccess' --filter-expression='/^clinic_access__/')
+access-control-migrations:
+	@$(call step,Generating migrations for AccessControl...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\AccessControl' --filter-expression='/^access_control__/')
 	@$(call ok,Clinic migrations generated)
 
 shared-migrations:
@@ -354,7 +354,6 @@ test-integration:
 
 test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off \
-		bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
+	$(Q)$(EXEC_PHP) bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
 

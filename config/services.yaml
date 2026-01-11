@@ -169,16 +169,16 @@ services:
     # BOUNDED CONTEXT: CLINIC ACCESS
     # ============================================================================
 
-    App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface:
-        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
+    App\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface:
+        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
 
-    App\ClinicAccess\Application\Port\ClinicMembershipReadRepositoryInterface:
-        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
+    App\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface:
+        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
 
-    App\ClinicAccess\Application\Port\MembershipAdminRepositoryInterface:
-        class: App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
+    App\AccessControl\Application\Port\MembershipAdminRepositoryInterface:
+        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
 
-    App\ClinicAccess\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+    App\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
 
     App\Shared\Application\Context\SelectedClinicContext: ~
 

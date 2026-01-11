@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller;
 
+use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
+use App\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
 use App\Clinic\Domain\ValueObject\ClinicId;
-use App\ClinicAccess\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\ClinicAccess\Application\Query\ListClinicsForUser\ListClinicsForUser;
 use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\SelectedClinicContext;
