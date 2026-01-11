@@ -1,0 +1,100 @@
+{% extends 'backoffice/base.html.twig' %}
+
+{% block title %}Utilisateurs{% endblock %}
+{% block page_title %}👤 Utilisateurs{% endblock %}
+
+{% block body %}
+<div class="card">
+    <h3>Filtrer</h3>
+    <form method="get" action="{{ path('backoffice_users') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Recherche (email)</label>
+            <input name="search" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="{{ filters.search }}" placeholder="user@example.com">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Type</label>
+            <select name="type" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                <option value="">(tous)</option>
+                <option value="CLINIC_MEMBER" {{ filters.type == 'CLINIC_MEMBER' ? 'selected' : '' }}>Clinic Member</option>
+                <option value="CLINIC_ADMIN" {{ filters.type == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
+                <option value="PLATFORM_ADMIN" {{ filters.type == 'PLATFORM_ADMIN' ? 'selected' : '' }}>Platform Admin</option>
+            </select>
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Statut</label>
+            <select name="status" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                <option value="">(tous)</option>
+                <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
+                <option value="SUSPENDED" {{ filters.status == 'SUSPENDED' ? 'selected' : '' }}>Suspended</option>
+                <option value="PENDING" {{ filters.status == 'PENDING' ? 'selected' : '' }}>Pending</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: end;">
+            <button type="submit" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Rechercher</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Résultats ({{ collection.total }})</h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #ecf0f1;">
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">ID (UUID)</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Email</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Type</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Statut</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Email vérifié</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Créé le</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in collection.users %}
+                <tr style="border-bottom: 1px solid #ecf0f1;">
+                    <td style="padding: 12px;">
+                        <code style="font-size: 0.75rem; background: #ecf0f1; padding: 4px 6px; border-radius: 3px; display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">{{ user.id }}</code>
+                        <button onclick="navigator.clipboard.writeText('{{ user.id }}'); this.textContent='✓'" style="margin-left: 5px; padding: 2px 6px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;">📋</button>
+                    </td>
+                    <td style="padding: 12px;">{{ user.email }}</td>
+                    <td style="padding: 12px;">
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; font-weight: 500; background: {{ user.type == 'PLATFORM_ADMIN' ? '#e74c3c' : (user.type == 'CLINIC_ADMIN' ? '#f39c12' : '#95a5a6') }}; color: white;">
+                            {{ user.type }}
+                        </span>
+                    </td>
+                    <td style="padding: 12px;">
+                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; font-weight: 500; background: {{ user.status == 'ACTIVE' ? '#27ae60' : (user.status == 'SUSPENDED' ? '#e74c3c' : '#95a5a6') }}; color: white;">
+                            {{ user.status }}
+                        </span>
+                    </td>
+                    <td style="padding: 12px;">
+                        {% if user.emailVerifiedAt %}
+                            <span style="color: #27ae60;">✓ {{ user.emailVerifiedAt|date('Y-m-d H:i') }}</span>
+                        {% else %}
+                            <span style="color: #e74c3c;">✗ Non vérifié</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px;">{{ user.createdAt|date('Y-m-d H:i') }}</td>
+                    <td style="padding: 12px;">
+                        <a href="{{ path('backoffice_clinic_memberships_new') }}?user_id={{ user.id }}" style="padding: 6px 12px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-size: 0.875rem;">
+                            ➕ Ajouter à une clinique
+                        </a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" style="padding: 20px; text-align: center; color: #95a5a6;">Aucun utilisateur trouvé</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h3>💡 Info</h3>
+    <p style="color: #7f8c8d; margin: 0;">
+        Pour créer des utilisateurs, utilisez l'interface Portal (inscription) ou créez-les via fixture/migration.
+        Cette page permet de voir les UUIDs des utilisateurs pour les assigner aux cliniques.
+    </p>
+</div>
+{% endblock %}
