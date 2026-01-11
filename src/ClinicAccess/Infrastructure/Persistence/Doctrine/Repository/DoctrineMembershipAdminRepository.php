@@ -55,7 +55,7 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
             $params['engagement'] = $engagement->value;
         }
 
-        $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
+        $whereClause = \count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $sql = <<<SQL
             SELECT
@@ -80,25 +80,44 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
         $results = $this->connection->fetchAllAssociative($sql, $params);
 
         $memberships = array_map(
-            fn (array $row) => new MembershipListItem(
-                membershipId: $row['membership_id'],
-                clinicId: $row['clinic_id'],
-                clinicName: $row['clinic_name'],
-                userId: $row['user_id'],
-                userEmail: $row['user_email'],
-                role: ClinicMemberRole::from($row['role']),
-                engagement: ClinicMembershipEngagement::from($row['engagement']),
-                status: ClinicMembershipStatus::from($row['status']),
-                validFrom: new \DateTimeImmutable($row['valid_from_utc']),
-                validUntil: null !== $row['valid_until_utc'] ? new \DateTimeImmutable($row['valid_until_utc']) : null,
-                createdAt: new \DateTimeImmutable($row['created_at_utc']),
-            ),
+            function (array $row): MembershipListItem {
+                \assert(\is_string($row['membership_id']));
+                \assert(\is_string($row['clinic_id']));
+                \assert(\is_string($row['clinic_name']));
+                \assert(\is_string($row['user_id']));
+                \assert(\is_string($row['user_email']));
+                \assert(\is_string($row['valid_from_utc']));
+                \assert(\is_string($row['created_at_utc']));
+                \assert(\is_string($row['role']) || \is_int($row['role']));
+                \assert(\is_string($row['engagement']) || \is_int($row['engagement']));
+                \assert(\is_string($row['status']) || \is_int($row['status']));
+
+                return new MembershipListItem(
+                    membershipId: $row['membership_id'],
+                    clinicId: $row['clinic_id'],
+                    clinicName: $row['clinic_name'],
+                    userId: $row['user_id'],
+                    userEmail: $row['user_email'],
+                    role: ClinicMemberRole::from($row['role']),
+                    engagement: ClinicMembershipEngagement::from($row['engagement']),
+                    status: ClinicMembershipStatus::from($row['status']),
+                    validFrom: new \DateTimeImmutable($row['valid_from_utc']),
+                    validUntil: null !== $row['valid_until_utc']
+                        ? (function ($val): \DateTimeImmutable {
+                            \assert(\is_string($val));
+
+                            return new \DateTimeImmutable($val);
+                        })($row['valid_until_utc'])
+                        : null,
+                    createdAt: new \DateTimeImmutable($row['created_at_utc']),
+                );
+            },
             $results
         );
 
         return new MembershipCollection(
             memberships: $memberships,
-            total: count($memberships),
+            total: \count($memberships),
         );
     }
 }

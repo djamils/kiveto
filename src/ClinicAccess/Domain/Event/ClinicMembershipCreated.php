@@ -30,13 +30,13 @@ readonly class ClinicMembershipCreated extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'membershipId'   => $this->membershipId,
-            'clinicId'       => $this->clinicId,
-            'userId'         => $this->userId,
-            'role'           => $this->role,
-            'engagement'     => $this->engagement,
-            'validFrom'      => $this->validFrom,
-            'validUntil'     => $this->validUntil,
+            'membershipId' => $this->membershipId,
+            'clinicId'     => $this->clinicId,
+            'userId'       => $this->userId,
+            'role'         => $this->role,
+            'engagement'   => $this->engagement,
+            'validFrom'    => $this->validFrom,
+            'validUntil'   => $this->validUntil,
         ];
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
+use App\Clinic\Application\Query\ListClinics\ClinicCollection;
+use App\Clinic\Application\Query\ListClinics\ListClinics;
 use App\ClinicAccess\Application\Command\AddUserToClinic\AddUserToClinic;
 use App\ClinicAccess\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
 use App\ClinicAccess\Application\Command\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
@@ -15,8 +17,6 @@ use App\ClinicAccess\Application\Query\ListAllMemberships\MembershipCollection;
 use App\ClinicAccess\Domain\ValueObject\ClinicMemberRole;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipEngagement;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipStatus;
-use App\Clinic\Application\Query\ListClinics\ClinicCollection;
-use App\Clinic\Application\Query\ListClinics\ListClinics;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -42,11 +42,11 @@ final class ClinicMembershipController extends AbstractController
     #[Route(path: '/clinic-memberships', name: 'backoffice_clinic_memberships', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $clinicIdFilter    = $request->query->get('clinic_id');
-        $userIdFilter      = $request->query->get('user_id');
-        $statusFilter      = $request->query->get('status');
-        $roleFilter        = $request->query->get('role');
-        $engagementFilter  = $request->query->get('engagement');
+        $clinicIdFilter   = $request->query->get('clinic_id');
+        $userIdFilter     = $request->query->get('user_id');
+        $statusFilter     = $request->query->get('status');
+        $roleFilter       = $request->query->get('role');
+        $engagementFilter = $request->query->get('engagement');
 
         $status     = $statusFilter ? ClinicMembershipStatus::from($statusFilter) : null;
         $role       = $roleFilter ? ClinicMemberRole::from($roleFilter) : null;
@@ -97,12 +97,12 @@ final class ClinicMembershipController extends AbstractController
     {
         $this->assertCsrf($request);
 
-        $clinicId       = trim((string) $request->request->get('clinic_id'));
-        $userId         = trim((string) $request->request->get('user_id'));
-        $roleStr        = trim((string) $request->request->get('role'));
-        $engagementStr  = trim((string) $request->request->get('engagement'));
-        $validFromStr   = trim((string) $request->request->get('valid_from'));
-        $validUntilStr  = trim((string) $request->request->get('valid_until'));
+        $clinicId      = trim((string) $request->request->get('clinic_id'));
+        $userId        = trim((string) $request->request->get('user_id'));
+        $roleStr       = trim((string) $request->request->get('role'));
+        $engagementStr = trim((string) $request->request->get('engagement'));
+        $validFromStr  = trim((string) $request->request->get('valid_from'));
+        $validUntilStr = trim((string) $request->request->get('valid_until'));
 
         if ('' === $clinicId || '' === $userId || '' === $roleStr || '' === $engagementStr) {
             $this->addFlash('error', 'Tous les champs obligatoires doivent être remplis.');
@@ -168,7 +168,7 @@ final class ClinicMembershipController extends AbstractController
         return $this->redirectToRoute('backoffice_clinic_memberships');
     }
 
-    #[Route(path: '/clinic-memberships/{id}/role', name: 'backoffice_clinic_memberships_change_role', methods: ['POST'])]
+    #[Route('/clinic-memberships/{id}/role', name: 'backoffice_memberships_change_role', methods: ['POST'])]
     public function changeRole(string $id, Request $request): RedirectResponse
     {
         $this->assertCsrf($request);
@@ -193,7 +193,7 @@ final class ClinicMembershipController extends AbstractController
         return $this->redirectToRoute('backoffice_clinic_memberships');
     }
 
-    #[Route(path: '/clinic-memberships/{id}/engagement', name: 'backoffice_clinic_memberships_change_engagement', methods: ['POST'])]
+    #[Route('/clinic-memberships/{id}/engagement', name: 'backoffice_memberships_engagement', methods: ['POST'])]
     public function changeEngagement(string $id, Request $request): RedirectResponse
     {
         $this->assertCsrf($request);
@@ -218,7 +218,7 @@ final class ClinicMembershipController extends AbstractController
         return $this->redirectToRoute('backoffice_clinic_memberships');
     }
 
-    #[Route(path: '/clinic-memberships/{id}/validity', name: 'backoffice_clinic_memberships_change_validity', methods: ['POST'])]
+    #[Route('/clinic-memberships/{id}/validity', name: 'backoffice_memberships_validity', methods: ['POST'])]
     public function changeValidity(string $id, Request $request): RedirectResponse
     {
         $this->assertCsrf($request);

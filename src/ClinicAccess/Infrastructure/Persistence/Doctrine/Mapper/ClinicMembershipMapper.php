@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\ClinicAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Domain\ClinicMembership;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
 use App\ClinicAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
-use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use Symfony\Component\Uid\Uuid;
 

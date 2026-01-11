@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\ClinicAccess\Domain;
 
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Domain\ClinicMembership;
 use App\ClinicAccess\Domain\Event\ClinicMembershipCreated;
 use App\ClinicAccess\Domain\Event\ClinicMembershipDisabled;
@@ -15,13 +16,12 @@ use App\ClinicAccess\Domain\ValueObject\ClinicMemberRole;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipEngagement;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipStatus;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use PHPUnit\Framework\TestCase;
 
 final class ClinicMembershipTest extends TestCase
 {
-    public function test_create_membership_with_valid_data(): void
+    public function testCreateMembershipWithValidData(): void
     {
         $membershipId = MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef');
         $clinicId     = ClinicId::fromString('11111111-1111-1111-1111-111111111111');
@@ -55,7 +55,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipCreated::class, $events[0]);
     }
 
-    public function test_create_membership_fails_when_validFrom_after_validUntil(): void
+    public function testCreateMembershipFailsWhenValidFromAfterValidUntil(): void
     {
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('validFrom must be before or equal to validUntil.');
@@ -72,7 +72,7 @@ final class ClinicMembershipTest extends TestCase
         );
     }
 
-    public function test_disable_membership(): void
+    public function testDisableMembership(): void
     {
         $membership = $this->createSampleMembership();
 
@@ -85,11 +85,12 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipDisabled::class, $events[1]);
     }
 
-    public function test_disable_already_disabled_membership_does_nothing(): void
+    public function testDisableAlreadyDisabledMembershipDoesNothing(): void
     {
         $membership = $this->createSampleMembership();
         $membership->disable();
-        $membership->pullDomainEvents(); // clear events
+        $pulledEvents = $membership->pullDomainEvents(); // clear events
+        unset($pulledEvents);
 
         $membership->disable();
 
@@ -97,11 +98,12 @@ final class ClinicMembershipTest extends TestCase
         self::assertCount(0, $events); // no new event
     }
 
-    public function test_enable_membership(): void
+    public function testEnableMembership(): void
     {
         $membership = $this->createSampleMembership();
         $membership->disable();
-        $membership->pullDomainEvents(); // clear previous events
+        $pulledEvents = $membership->pullDomainEvents(); // clear previous events
+        unset($pulledEvents);
 
         $membership->enable();
 
@@ -112,10 +114,11 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipEnabled::class, $events[0]);
     }
 
-    public function test_change_role(): void
+    public function testChangeRole(): void
     {
-        $membership = $this->createSampleMembership();
-        $membership->pullDomainEvents(); // clear created event
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents(); // clear created event
+        unset($pulledEvents);
 
         $membership->changeRole(ClinicMemberRole::CLINIC_ADMIN);
 
@@ -126,10 +129,11 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipRoleChanged::class, $events[0]);
     }
 
-    public function test_change_role_to_same_does_nothing(): void
+    public function testChangeRoleToSameDoesNothing(): void
     {
-        $membership = $this->createSampleMembership();
-        $membership->pullDomainEvents();
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
 
         $membership->changeRole(ClinicMemberRole::VETERINARY);
 
@@ -137,10 +141,11 @@ final class ClinicMembershipTest extends TestCase
         self::assertCount(0, $events);
     }
 
-    public function test_change_engagement(): void
+    public function testChangeEngagement(): void
     {
-        $membership = $this->createSampleMembership();
-        $membership->pullDomainEvents();
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
 
         $membership->changeEngagement(ClinicMembershipEngagement::EMPLOYEE);
 
@@ -151,10 +156,11 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipEngagementChanged::class, $events[0]);
     }
 
-    public function test_change_validity(): void
+    public function testChangeValidity(): void
     {
-        $membership = $this->createSampleMembership();
-        $membership->pullDomainEvents();
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
 
         $newValidFrom  = new \DateTimeImmutable('2026-01-01');
         $newValidUntil = new \DateTimeImmutable('2026-12-31');
@@ -169,7 +175,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipValidityChanged::class, $events[0]);
     }
 
-    public function test_change_validity_fails_when_invalid_window(): void
+    public function testChangeValidityFailsWhenInvalidWindow(): void
     {
         $this->expectException(\DomainException::class);
 
@@ -181,7 +187,7 @@ final class ClinicMembershipTest extends TestCase
         );
     }
 
-    public function test_is_effective_at_returns_true_when_active_and_in_validity_window(): void
+    public function testIsEffectiveAtReturnsTrueWhenActiveAndInValidityWindow(): void
     {
         $membership = ClinicMembership::create(
             id: MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
@@ -199,7 +205,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertTrue($membership->isEffectiveAt($now));
     }
 
-    public function test_is_effective_at_returns_false_when_disabled(): void
+    public function testIsEffectiveAtReturnsFalseWhenDisabled(): void
     {
         $membership = $this->createSampleMembership();
         $membership->disable();
@@ -209,7 +215,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertFalse($membership->isEffectiveAt($now));
     }
 
-    public function test_is_effective_at_returns_false_when_before_validFrom(): void
+    public function testIsEffectiveAtReturnsFalseWhenBeforeValidFrom(): void
     {
         $membership = ClinicMembership::create(
             id: MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
@@ -227,7 +233,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertFalse($membership->isEffectiveAt($now));
     }
 
-    public function test_is_effective_at_returns_false_when_after_validUntil(): void
+    public function testIsEffectiveAtReturnsFalseWhenAfterValidUntil(): void
     {
         $membership = ClinicMembership::create(
             id: MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
@@ -245,7 +251,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertFalse($membership->isEffectiveAt($now));
     }
 
-    public function test_is_effective_at_returns_true_when_validUntil_is_null(): void
+    public function testIsEffectiveAtReturnsTrueWhenValidUntilIsNull(): void
     {
         $membership = ClinicMembership::create(
             id: MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef'),

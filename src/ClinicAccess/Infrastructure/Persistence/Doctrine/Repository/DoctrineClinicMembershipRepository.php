@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\ClinicAccess\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Domain\ClinicMembership;
 use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
 use App\ClinicAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use App\ClinicAccess\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper;
-use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;

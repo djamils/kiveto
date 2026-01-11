@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ClinicAccess\Domain;
 
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Domain\Event\ClinicMembershipCreated;
 use App\ClinicAccess\Domain\Event\ClinicMembershipDisabled;
 use App\ClinicAccess\Domain\Event\ClinicMembershipEnabled;
@@ -14,7 +15,6 @@ use App\ClinicAccess\Domain\ValueObject\ClinicMemberRole;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipEngagement;
 use App\ClinicAccess\Domain\ValueObject\ClinicMembershipStatus;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
@@ -46,16 +46,16 @@ final class ClinicMembership extends AggregateRoot
     ): self {
         self::validateValidityWindow($validFrom, $validUntil);
 
-        $membership                  = new self();
-        $membership->id              = $id;
-        $membership->clinicId        = $clinicId;
-        $membership->userId          = $userId;
-        $membership->role            = $role;
-        $membership->engagement      = $engagement;
-        $membership->status          = ClinicMembershipStatus::ACTIVE;
-        $membership->validFrom       = $validFrom;
-        $membership->validUntil      = $validUntil;
-        $membership->createdAt       = $createdAt;
+        $membership             = new self();
+        $membership->id         = $id;
+        $membership->clinicId   = $clinicId;
+        $membership->userId     = $userId;
+        $membership->role       = $role;
+        $membership->engagement = $engagement;
+        $membership->status     = ClinicMembershipStatus::ACTIVE;
+        $membership->validFrom  = $validFrom;
+        $membership->validUntil = $validUntil;
+        $membership->createdAt  = $createdAt;
 
         $membership->recordDomainEvent(new ClinicMembershipCreated(
             membershipId: $id->toString(),
@@ -81,16 +81,16 @@ final class ClinicMembership extends AggregateRoot
         ?\DateTimeImmutable $validUntil,
         \DateTimeImmutable $createdAt,
     ): self {
-        $membership                  = new self();
-        $membership->id              = $id;
-        $membership->clinicId        = $clinicId;
-        $membership->userId          = $userId;
-        $membership->role            = $role;
-        $membership->engagement      = $engagement;
-        $membership->status          = $status;
-        $membership->validFrom       = $validFrom;
-        $membership->validUntil      = $validUntil;
-        $membership->createdAt       = $createdAt;
+        $membership             = new self();
+        $membership->id         = $id;
+        $membership->clinicId   = $clinicId;
+        $membership->userId     = $userId;
+        $membership->role       = $role;
+        $membership->engagement = $engagement;
+        $membership->status     = $status;
+        $membership->validFrom  = $validFrom;
+        $membership->validUntil = $validUntil;
+        $membership->createdAt  = $createdAt;
 
         return $membership;
     }
@@ -163,7 +163,7 @@ final class ClinicMembership extends AggregateRoot
     ): void {
         self::validateValidityWindow($validFrom, $validUntil);
 
-        if ($validFrom == $this->validFrom && $validUntil == $this->validUntil) {
+        if ($validFrom === $this->validFrom && $validUntil === $this->validUntil) {
             return;
         }
 

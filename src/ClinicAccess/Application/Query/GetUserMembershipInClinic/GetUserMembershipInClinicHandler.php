@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\ClinicAccess\Application\Query\GetUserMembershipInClinic;
 
-use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
+use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 

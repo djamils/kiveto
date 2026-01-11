@@ -7,6 +7,8 @@ namespace App\Tests\Unit\ClinicAccess\Application\Command\AddUserToClinic;
 use App\Clinic\Domain\Clinic;
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
+use App\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Clinic\Domain\ValueObject\ClinicStatus;
 use App\ClinicAccess\Application\Command\AddUserToClinic\AddUserToClinic;
 use App\ClinicAccess\Application\Command\AddUserToClinic\AddUserToClinicHandler;
 use App\ClinicAccess\Application\Exception\ClinicMembershipAlreadyExistsException;
@@ -18,6 +20,8 @@ use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\User;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Localization\Locale;
+use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -28,8 +32,26 @@ final class AddUserToClinicHandlerTest extends TestCase
         $clinicId = '11111111-1111-1111-1111-111111111111';
         $userId   = '22222222-2222-2222-2222-222222222222';
 
-        $clinic = $this->createStub(Clinic::class);
-        $user   = $this->createStub(User::class);
+        $clinic = Clinic::reconstitute(
+            id: ClinicId::fromString($clinicId),
+            name: 'Test Clinic',
+            slug: ClinicSlug::fromString('test-clinic'),
+            timeZone: TimeZone::fromString('Europe/Paris'),
+            locale: Locale::fromString('fr-FR'),
+            status: ClinicStatus::ACTIVE,
+            createdAt: new \DateTimeImmutable('2024-01-01'),
+            updatedAt: new \DateTimeImmutable('2024-01-01'),
+        );
+
+        $user = User::reconstitute(
+            id: UserId::fromString($userId),
+            email: 'test@example.com',
+            passwordHash: 'hash',
+            createdAt: new \DateTimeImmutable('2024-01-01'),
+            status: \App\IdentityAccess\Domain\ValueObject\UserStatus::ACTIVE,
+            emailVerifiedAt: new \DateTimeImmutable('2024-01-01'),
+            type: \App\IdentityAccess\Domain\ValueObject\UserType::PORTAL,
+        );
 
         $clinicRepo = $this->createMock(ClinicRepositoryInterface::class);
         $clinicRepo->expects(self::once())
@@ -55,11 +77,11 @@ final class AddUserToClinicHandlerTest extends TestCase
             ->with(self::isInstanceOf(ClinicMembership::class))
         ;
 
-        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
-        $uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+        $uuidGenerator = $this->createMock(UuidGeneratorInterface::class);
+        $uuidGenerator->expects(self::once())->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
 
-        $clock = $this->createStub(ClockInterface::class);
-        $clock->method('now')->willReturn(new \DateTimeImmutable('2025-01-01T12:00:00Z'));
+        $clock = $this->createMock(ClockInterface::class);
+        $clock->expects(self::atLeastOnce())->method('now')->willReturn(new \DateTimeImmutable('2025-01-01T12:00:00Z'));
 
         $handler = new AddUserToClinicHandler(
             $membershipRepo,
@@ -76,7 +98,7 @@ final class AddUserToClinicHandlerTest extends TestCase
             engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
 
-        self::assertTrue(true); // No exception thrown
+        // Test passes if no exception is thrown
     }
 
     public function testThrowsExceptionWhenClinicDoesNotExist(): void
@@ -119,7 +141,16 @@ final class AddUserToClinicHandlerTest extends TestCase
         $clinicId = '11111111-1111-1111-1111-111111111111';
         $userId   = '22222222-2222-2222-2222-222222222222';
 
-        $clinic = $this->createStub(Clinic::class);
+        $clinic = Clinic::reconstitute(
+            id: ClinicId::fromString($clinicId),
+            name: 'Test Clinic',
+            slug: ClinicSlug::fromString('test-clinic'),
+            timeZone: TimeZone::fromString('Europe/Paris'),
+            locale: Locale::fromString('fr-FR'),
+            status: ClinicStatus::ACTIVE,
+            createdAt: new \DateTimeImmutable('2024-01-01'),
+            updatedAt: new \DateTimeImmutable('2024-01-01'),
+        );
 
         $clinicRepo = $this->createMock(ClinicRepositoryInterface::class);
         $clinicRepo->expects(self::once())
@@ -161,8 +192,26 @@ final class AddUserToClinicHandlerTest extends TestCase
         $clinicId = '11111111-1111-1111-1111-111111111111';
         $userId   = '22222222-2222-2222-2222-222222222222';
 
-        $clinic = $this->createStub(Clinic::class);
-        $user   = $this->createStub(User::class);
+        $clinic = Clinic::reconstitute(
+            id: ClinicId::fromString($clinicId),
+            name: 'Test Clinic',
+            slug: ClinicSlug::fromString('test-clinic'),
+            timeZone: TimeZone::fromString('Europe/Paris'),
+            locale: Locale::fromString('fr-FR'),
+            status: ClinicStatus::ACTIVE,
+            createdAt: new \DateTimeImmutable('2024-01-01'),
+            updatedAt: new \DateTimeImmutable('2024-01-01'),
+        );
+
+        $user = User::reconstitute(
+            id: UserId::fromString($userId),
+            email: 'test@example.com',
+            passwordHash: 'hash',
+            createdAt: new \DateTimeImmutable('2024-01-01'),
+            status: \App\IdentityAccess\Domain\ValueObject\UserStatus::ACTIVE,
+            emailVerifiedAt: new \DateTimeImmutable('2024-01-01'),
+            type: \App\IdentityAccess\Domain\ValueObject\UserType::PORTAL,
+        );
 
         $clinicRepo = $this->createMock(ClinicRepositoryInterface::class);
         $clinicRepo->expects(self::once())

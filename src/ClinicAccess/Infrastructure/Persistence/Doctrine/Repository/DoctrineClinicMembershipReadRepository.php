@@ -53,16 +53,32 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
         ]);
 
         return array_map(
-            fn (array $row) => new AccessibleClinic(
-                clinicId: $row['clinic_id'],
-                clinicName: $row['clinic_name'],
-                clinicSlug: $row['clinic_slug'],
-                clinicStatus: $row['clinic_status'],
-                memberRole: ClinicMemberRole::from($row['role']),
-                engagement: ClinicMembershipEngagement::from($row['engagement']),
-                validFrom: new \DateTimeImmutable($row['valid_from_utc']),
-                validUntil: null !== $row['valid_until_utc'] ? new \DateTimeImmutable($row['valid_until_utc']) : null,
-            ),
+            function (array $row): AccessibleClinic {
+                \assert(\is_string($row['clinic_id']));
+                \assert(\is_string($row['clinic_name']));
+                \assert(\is_string($row['clinic_slug']));
+                \assert(\is_string($row['clinic_status']));
+                \assert(\is_string($row['valid_from_utc']));
+                \assert(\is_string($row['role']) || \is_int($row['role']));
+                \assert(\is_string($row['engagement']) || \is_int($row['engagement']));
+
+                return new AccessibleClinic(
+                    clinicId: $row['clinic_id'],
+                    clinicName: $row['clinic_name'],
+                    clinicSlug: $row['clinic_slug'],
+                    clinicStatus: $row['clinic_status'],
+                    memberRole: ClinicMemberRole::from($row['role']),
+                    engagement: ClinicMembershipEngagement::from($row['engagement']),
+                    validFrom: new \DateTimeImmutable($row['valid_from_utc']),
+                    validUntil: null !== $row['valid_until_utc']
+                        ? (function ($val): \DateTimeImmutable {
+                            \assert(\is_string($val));
+
+                            return new \DateTimeImmutable($val);
+                        })($row['valid_until_utc'])
+                        : null,
+                );
+            },
             $results
         );
     }

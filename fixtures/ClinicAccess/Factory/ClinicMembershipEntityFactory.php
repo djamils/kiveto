@@ -77,15 +77,15 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
         $validFrom = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-6 months'));
 
         return [
-            'id'            => Uuid::v7(),
-            'clinicId'      => Uuid::v7(),
-            'userId'        => Uuid::v7(),
-            'role'          => self::faker()->randomElement(ClinicMemberRole::cases()),
-            'engagement'    => self::faker()->randomElement(ClinicMembershipEngagement::cases()),
-            'status'        => ClinicMembershipStatus::ACTIVE,
-            'validFrom'     => $validFrom,
-            'validUntil'    => null,
-            'createdAt'     => $createdAt,
+            'id'         => Uuid::v7(),
+            'clinicId'   => Uuid::v7(),
+            'userId'     => Uuid::v7(),
+            'role'       => self::faker()->randomElement(ClinicMemberRole::cases()),
+            'engagement' => self::faker()->randomElement(ClinicMembershipEngagement::cases()),
+            'status'     => ClinicMembershipStatus::ACTIVE,
+            'validFrom'  => $validFrom,
+            'validUntil' => null,
+            'createdAt'  => $createdAt,
         ];
     }
 }

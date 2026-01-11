@@ -28,11 +28,11 @@ readonly class ClinicMembershipValidityChanged extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'membershipId'   => $this->membershipId,
-            'clinicId'       => $this->clinicId,
-            'userId'         => $this->userId,
-            'validFrom'      => $this->validFrom,
-            'validUntil'     => $this->validUntil,
+            'membershipId' => $this->membershipId,
+            'clinicId'     => $this->clinicId,
+            'userId'       => $this->userId,
+            'validFrom'    => $this->validFrom,
+            'validUntil'   => $this->validUntil,
         ];
     }
 }

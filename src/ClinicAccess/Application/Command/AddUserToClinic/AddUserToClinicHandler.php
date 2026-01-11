@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\ClinicAccess\Application\Command\AddUserToClinic;
 
+use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Application\Exception\ClinicMembershipAlreadyExistsException;
 use App\ClinicAccess\Domain\ClinicMembership;
 use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
-use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
@@ -34,19 +34,19 @@ final readonly class AddUserToClinicHandler
         // Vérifier que la clinic existe
         $clinic = $this->clinicRepository->findById($clinicId);
         if (null === $clinic) {
-            throw new \InvalidArgumentException(sprintf('Clinic with ID "%s" does not exist.', $command->clinicId));
+            throw new \InvalidArgumentException(\sprintf('Clinic with ID "%s" does not exist.', $command->clinicId));
         }
 
         // Vérifier que le user existe
         $user = $this->userRepository->findById($userId);
         if (null === $user) {
-            throw new \InvalidArgumentException(sprintf('User with ID "%s" does not exist.', $command->userId));
+            throw new \InvalidArgumentException(\sprintf('User with ID "%s" does not exist.', $command->userId));
         }
 
         // Vérifier qu'il n'y a pas déjà une membership pour ce couple (clinic, user)
         if ($this->membershipRepository->existsByClinicAndUser($clinicId, $userId)) {
             throw new ClinicMembershipAlreadyExistsException(
-                sprintf('User "%s" already has a membership in clinic "%s".', $command->userId, $command->clinicId)
+                \sprintf('User "%s" already has a membership in clinic "%s".', $command->userId, $command->clinicId)
             );
         }
 

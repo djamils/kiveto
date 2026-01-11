@@ -20,7 +20,7 @@ final readonly class ChangeClinicMembershipEngagementHandler
 
         $membership = $this->membershipRepository->findById($membershipId);
         if (null === $membership) {
-            throw new \InvalidArgumentException(\sprintf('Membership with ID "%s" does not exist.', $command->membershipId));
+            throw new \InvalidArgumentException(\sprintf('Membership "%s" not found.', $command->membershipId));
         }
 
         $membership->changeEngagement($command->engagement);

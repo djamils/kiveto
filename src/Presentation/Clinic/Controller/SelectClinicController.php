@@ -41,6 +41,7 @@ final class SelectClinicController extends AbstractController
         $userId = $user->getUserIdentifier(); // ou méthode custom getId()
 
         $accessibleClinics = $this->queryBus->ask(new ListClinicsForUser($userId));
+        \assert(\is_array($accessibleClinics));
 
         if (0 === \count($accessibleClinics)) {
             $this->addFlash('error', 'Vous n\'avez accès à aucune clinique active. Contactez un administrateur.');
@@ -51,6 +52,7 @@ final class SelectClinicController extends AbstractController
         if (1 === \count($accessibleClinics)) {
             // Une seule clinique : auto-sélection
             $clinic = $accessibleClinics[0];
+            \assert($clinic instanceof \App\ClinicAccess\Application\Query\ListClinicsForUser\AccessibleClinic);
             $this->selectedClinicContext->setSelectedClinicId(ClinicId::fromString($clinic->clinicId));
 
             return $this->redirectToRoute('clinic_dashboard');
@@ -95,6 +97,7 @@ final class SelectClinicController extends AbstractController
         }
 
         $selectedClinicId = $this->selectedClinicContext->getSelectedClinicId();
+        \assert(null !== $selectedClinicId);
 
         return $this->render('clinic/dashboard.html.twig', [
             'selectedClinicId' => $selectedClinicId->toString(),
