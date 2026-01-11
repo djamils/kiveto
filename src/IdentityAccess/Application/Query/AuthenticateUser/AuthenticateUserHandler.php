@@ -11,7 +11,9 @@ use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerific
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler]
 final readonly class AuthenticateUserHandler
 {
     public function __construct(

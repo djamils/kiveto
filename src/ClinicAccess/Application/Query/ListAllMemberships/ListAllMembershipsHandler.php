@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\ClinicAccess\Application\Query\ListAllMemberships;
 
 use App\ClinicAccess\Application\Port\MembershipAdminRepositoryInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler]
 final readonly class ListAllMembershipsHandler
 {
     public function __construct(

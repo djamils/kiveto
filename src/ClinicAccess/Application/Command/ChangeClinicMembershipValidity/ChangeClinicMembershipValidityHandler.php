@@ -6,7 +6,9 @@ namespace App\ClinicAccess\Application\Command\ChangeClinicMembershipValidity;
 
 use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler]
 final readonly class ChangeClinicMembershipValidityHandler
 {
     public function __construct(

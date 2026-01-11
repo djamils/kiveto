@@ -6,7 +6,9 @@ namespace App\ClinicAccess\Application\Command\DisableClinicMembership;
 
 use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\ClinicAccess\Domain\ValueObject\MembershipId;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler]
 final readonly class DisableClinicMembershipHandler
 {
     public function __construct(

@@ -8,7 +8,9 @@ use App\Clinic\Domain\ValueObject\ClinicId;
 use App\ClinicAccess\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+#[AsMessageHandler]
 final readonly class GetUserMembershipInClinicHandler
 {
     public function __construct(
