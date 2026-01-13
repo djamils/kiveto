@@ -9,7 +9,7 @@ use App\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\QueryBusInterface;
-use App\Shared\Application\Context\SelectedClinicContext;
+use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,7 +25,7 @@ final class SelectClinicController extends AbstractController
 
     public function __construct(
         private readonly QueryBusInterface $queryBus,
-        private readonly SelectedClinicContext $selectedClinicContext,
+        private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
     ) {
     }
@@ -53,7 +53,7 @@ final class SelectClinicController extends AbstractController
         if (1 === \count($accessibleClinics)) {
             $clinic = $accessibleClinics[0];
             \assert($clinic instanceof AccessibleClinic);
-            $this->selectedClinicContext->setSelectedClinicId(ClinicId::fromString($clinic->clinicId));
+            $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($clinic->clinicId));
 
             return $this->redirectToRoute('clinic_dashboard');
         }
@@ -78,7 +78,7 @@ final class SelectClinicController extends AbstractController
         }
 
         try {
-            $this->selectedClinicContext->setSelectedClinicId(ClinicId::fromString($clinicId));
+            $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($clinicId));
 
             return $this->redirectToRoute('clinic_dashboard');
         } catch (\Throwable $e) {
@@ -91,15 +91,15 @@ final class SelectClinicController extends AbstractController
     #[Route(path: '/dashboard', name: 'clinic_dashboard', methods: ['GET'])]
     public function dashboard(): Response
     {
-        if (!$this->selectedClinicContext->hasSelectedClinic()) {
+        if (!$this->currentClinicContext->hasCurrentClinic()) {
             return $this->redirectToRoute('clinic_select_clinic');
         }
 
-        $selectedClinicId = $this->selectedClinicContext->getSelectedClinicId();
-        \assert(null !== $selectedClinicId);
+        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
+        \assert(null !== $currentClinicId);
 
         return $this->render('clinic/dashboard.html.twig', [
-            'selectedClinicId' => $selectedClinicId->toString(),
+            'currentClinicId' => $currentClinicId->toString(),
         ]);
     }
 

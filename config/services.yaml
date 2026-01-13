@@ -180,7 +180,9 @@ services:
 
     App\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
 
-    App\Shared\Application\Context\SelectedClinicContext: ~
+    # Context
+    App\Shared\Application\Context\CurrentClinicContextInterface:
+        class: App\Shared\Application\Context\CurrentClinicContext
 
 when@dev: &services_dev
     services:

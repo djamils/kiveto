@@ -7,22 +7,22 @@ namespace App\Shared\Application\Context;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-final readonly class SelectedClinicContext
+final readonly class CurrentClinicContext implements CurrentClinicContextInterface
 {
-    private const string SESSION_KEY = 'selected_clinic_id';
+    private const string SESSION_KEY = 'current_clinic_id';
 
     public function __construct(
         private RequestStack $requestStack,
     ) {
     }
 
-    public function setSelectedClinicId(ClinicId $clinicId): void
+    public function setCurrentClinicId(ClinicId $clinicId): void
     {
         $session = $this->requestStack->getSession();
         $session->set(self::SESSION_KEY, $clinicId->toString());
     }
 
-    public function getSelectedClinicId(): ?ClinicId
+    public function getCurrentClinicId(): ?ClinicId
     {
         $session     = $this->requestStack->getSession();
         $clinicIdStr = $session->get(self::SESSION_KEY);
@@ -34,12 +34,12 @@ final readonly class SelectedClinicContext
         return ClinicId::fromString($clinicIdStr);
     }
 
-    public function hasSelectedClinic(): bool
+    public function hasCurrentClinic(): bool
     {
-        return null !== $this->getSelectedClinicId();
+        return null !== $this->getCurrentClinicId();
     }
 
-    public function clearSelectedClinic(): void
+    public function clearCurrentClinic(): void
     {
         $session = $this->requestStack->getSession();
         $session->remove(self::SESSION_KEY);
