@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\AccessControl\Domain\Repository;
 
 use App\AccessControl\Domain\ClinicMembership;
+use App\AccessControl\Domain\ValueObject\ClinicId;
 use App\AccessControl\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\AccessControl\Domain\ValueObject\UserId;
 
 interface ClinicMembershipRepositoryInterface
 {

@@ -10,12 +10,12 @@ use App\AccessControl\Domain\Event\ClinicMembershipEnabled;
 use App\AccessControl\Domain\Event\ClinicMembershipEngagementChanged;
 use App\AccessControl\Domain\Event\ClinicMembershipRoleChanged;
 use App\AccessControl\Domain\Event\ClinicMembershipValidityChanged;
+use App\AccessControl\Domain\ValueObject\ClinicId;
 use App\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\AccessControl\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\AccessControl\Domain\ValueObject\UserId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class ClinicMembership extends AggregateRoot
@@ -157,7 +157,7 @@ final class ClinicMembership extends AggregateRoot
         ));
     }
 
-    public function changeValidity(
+    public function changeValidityWindow(
         \DateTimeImmutable $validFrom,
         ?\DateTimeImmutable $validUntil,
     ): void {
@@ -179,17 +179,17 @@ final class ClinicMembership extends AggregateRoot
         ));
     }
 
-    public function isEffectiveAt(\DateTimeImmutable $nowUtc): bool
+    public function isEffectiveAt(\DateTimeImmutable $now): bool
     {
         if (ClinicMembershipStatus::DISABLED === $this->status) {
             return false;
         }
 
-        if ($nowUtc < $this->validFrom) {
+        if ($now < $this->validFrom) {
             return false;
         }
 
-        if (null !== $this->validUntil && $nowUtc > $this->validUntil) {
+        if (null !== $this->validUntil && $now > $this->validUntil) {
             return false;
         }
 

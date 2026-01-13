@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\AccessControl\Application\Command\AddUserToClinic;
+namespace App\AccessControl\Application\Command\CreateClinicMembership;
 
 use App\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 
-final readonly class AddUserToClinic
+final readonly class CreateClinicMembership
 {
     public function __construct(
         public string $clinicId,

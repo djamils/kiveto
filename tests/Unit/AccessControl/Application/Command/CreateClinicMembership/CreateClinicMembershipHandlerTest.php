@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\AccessControl\Application\Command\AddUserToClinic;
+namespace App\Tests\Unit\AccessControl\Application\Command\CreateClinicMembership;
 
-use App\AccessControl\Application\Command\AddUserToClinic\AddUserToClinic;
-use App\AccessControl\Application\Command\AddUserToClinic\AddUserToClinicHandler;
+use App\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembership;
+use App\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembershipHandler;
 use App\AccessControl\Application\Exception\ClinicMembershipAlreadyExistsException;
 use App\AccessControl\Domain\ClinicMembership;
 use App\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
@@ -25,9 +25,9 @@ use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
-final class AddUserToClinicHandlerTest extends TestCase
+final class CreateClinicMembershipHandlerTest extends TestCase
 {
-    public function testAddUserToClinicSuccessfully(): void
+    public function testCreateClinicMembershipSuccessfully(): void
     {
         $clinicId = '11111111-1111-1111-1111-111111111111';
         $userId   = '22222222-2222-2222-2222-222222222222';
@@ -83,7 +83,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $clock = $this->createMock(ClockInterface::class);
         $clock->expects(self::atLeastOnce())->method('now')->willReturn(new \DateTimeImmutable('2025-01-01T12:00:00Z'));
 
-        $handler = new AddUserToClinicHandler(
+        $handler = new CreateClinicMembershipHandler(
             $membershipRepo,
             $clinicRepo,
             $userRepo,
@@ -91,7 +91,7 @@ final class AddUserToClinicHandlerTest extends TestCase
             $clock,
         );
 
-        $handler(new AddUserToClinic(
+        $handler(new CreateClinicMembership(
             clinicId: $clinicId,
             userId: $userId,
             role: ClinicMemberRole::VETERINARY,
@@ -117,7 +117,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $uuidGenerator  = $this->createStub(UuidGeneratorInterface::class);
         $clock          = $this->createStub(ClockInterface::class);
 
-        $handler = new AddUserToClinicHandler(
+        $handler = new CreateClinicMembershipHandler(
             $membershipRepo,
             $clinicRepo,
             $userRepo,
@@ -128,7 +128,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Clinic with ID "' . $clinicId . '" does not exist.');
 
-        $handler(new AddUserToClinic(
+        $handler(new CreateClinicMembership(
             clinicId: $clinicId,
             userId: $userId,
             role: ClinicMemberRole::VETERINARY,
@@ -168,7 +168,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $uuidGenerator  = $this->createStub(UuidGeneratorInterface::class);
         $clock          = $this->createStub(ClockInterface::class);
 
-        $handler = new AddUserToClinicHandler(
+        $handler = new CreateClinicMembershipHandler(
             $membershipRepo,
             $clinicRepo,
             $userRepo,
@@ -179,7 +179,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('User with ID "' . $userId . '" does not exist.');
 
-        $handler(new AddUserToClinic(
+        $handler(new CreateClinicMembership(
             clinicId: $clinicId,
             userId: $userId,
             role: ClinicMemberRole::VETERINARY,
@@ -235,7 +235,7 @@ final class AddUserToClinicHandlerTest extends TestCase
         $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
         $clock         = $this->createStub(ClockInterface::class);
 
-        $handler = new AddUserToClinicHandler(
+        $handler = new CreateClinicMembershipHandler(
             $membershipRepo,
             $clinicRepo,
             $userRepo,
@@ -245,7 +245,7 @@ final class AddUserToClinicHandlerTest extends TestCase
 
         $this->expectException(ClinicMembershipAlreadyExistsException::class);
 
-        $handler(new AddUserToClinic(
+        $handler(new CreateClinicMembership(
             clinicId: $clinicId,
             userId: $userId,
             role: ClinicMemberRole::VETERINARY,

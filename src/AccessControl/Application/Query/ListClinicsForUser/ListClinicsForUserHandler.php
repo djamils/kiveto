@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\AccessControl\Application\Query\ListClinicsForUser;
 
 use App\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface;
-use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\AccessControl\Domain\ValueObject\UserId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

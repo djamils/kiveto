@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\AccessControl\Application\Port;
 
 use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\AccessControl\Domain\ValueObject\UserId;
 
 interface ClinicMembershipReadRepositoryInterface
 {

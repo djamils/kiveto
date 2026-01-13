@@ -28,17 +28,19 @@ src/AccessControl/
 │   │   └── ClinicMembershipRepositoryInterface.php
 │   └── ValueObject/
 │       ├── MembershipId.php
+│       ├── ClinicId.php (local VO, autonomous)
+│       ├── UserId.php (local VO, autonomous)
 │       ├── ClinicMemberRole.php (enum)
 │       ├── ClinicMembershipStatus.php (enum)
 │       └── ClinicMembershipEngagement.php (enum)
 ├── Application/
 │   ├── Command/
-│   │   ├── AddUserToClinic/
+│   │   ├── CreateClinicMembership/
 │   │   ├── DisableClinicMembership/
 │   │   ├── EnableClinicMembership/
 │   │   ├── ChangeClinicMembershipRole/
 │   │   ├── ChangeClinicMembershipEngagement/
-│   │   └── ChangeClinicMembershipValidity/
+│   │   └── ChangeClinicMembershipValidityWindow/
 │   ├── Query/
 │   │   ├── ListClinicsForUser/ (liste des cliniques accessibles pour un user)
 │   │   ├── GetUserMembershipInClinic/ (récupère la membership d'un user dans une clinic)
@@ -85,24 +87,32 @@ src/AccessControl/
 ### Propriétés
 
 - `MembershipId` : Identifiant unique
-- `ClinicId` : Référence à la clinique (BC Clinic)
-- `UserId` : Référence au user (BC IdentityAccess)
+- `ClinicId` : Référence à la clinique (VO local, autonome)
+- `UserId` : Référence à l'utilisateur (VO local, autonome)
 - `role` : Rôle du user dans la clinique (ClinicMemberRole)
 - `engagement` : Type d'engagement (ClinicMembershipEngagement)
 - `status` : Statut (ClinicMembershipStatus)
-- `validFromUtc` : Date de début de validité (non-null, default = createdAt)
-- `validUntilUtc` : Date de fin de validité (nullable, recommandé pour CONTRACTOR)
-- `createdAtUtc` : Date de création
+- `validFrom` : Date de début de validité (non-null, default = createdAt)
+- `validUntil` : Date de fin de validité (nullable, recommandé pour CONTRACTOR)
+- `createdAt` : Date de création
+
+### DDD Autonomy
+
+**Important** : Le Domain AccessControl est 100% autonome. Il ne dépend d'AUCUN autre BC au niveau Domain.
+
+- `ClinicId` et `UserId` sont des **Value Objects locaux** au BC AccessControl
+- Ils encapsulent un UUID (string) mais sont définis dans `App\AccessControl\Domain\ValueObject\`
+- Les intégrations avec Clinic BC et IdentityAccess BC se font au niveau Application (anti-corruption layer)
 
 ### Invariants
 
 1. **Unicité** : Un user ne peut avoir qu'une seule membership par clinique
    - Contrainte UNIQUE (clinic_id, user_id) en BDD
-2. **Window de validité** : `validFromUtc <= validUntilUtc` si validUntilUtc non null
+2. **Window de validité** : `validFrom <= validUntil` si validUntil non null
 3. **Membership effective** : Une membership est considérée "effective" si :
    - status = ACTIVE
-   - validFromUtc <= now
-   - (validUntilUtc is null OR now <= validUntilUtc)
+   - validFrom <= now
+   - (validUntil is null OR now <= validUntil)
 
 ### Méthodes métier
 
@@ -110,8 +120,8 @@ src/AccessControl/
 - `enable()` : Réactiver la membership
 - `changeRole(ClinicMemberRole)` : Changer le rôle
 - `changeEngagement(ClinicMembershipEngagement)` : Changer le type d'engagement
-- `changeValidity(validFromUtc, validUntilUtc)` : Changer la période de validité
-- `isEffectiveAt(DateTimeImmutable)` : Vérifier si la membership est effective à une date donnée
+- `changeValidityWindow(validFrom, validUntil)` : Changer la fenêtre de validité
+- `isEffectiveAt(DateTimeImmutable $now)` : Vérifier si la membership est effective à une date donnée
 
 ## Use Cases (MVP)
 
@@ -149,10 +159,10 @@ src/AccessControl/
 
 ### Base de données
 
-**Table** : `access_control__memberships`
+**Table** : `access_control__clinic_memberships`
 
 ```sql
-CREATE TABLE access_control__memberships (
+CREATE TABLE access_control__clinic_memberships (
   id BINARY(16) NOT NULL,
   clinic_id BINARY(16) NOT NULL,
   user_id BINARY(16) NOT NULL,
@@ -170,7 +180,7 @@ CREATE TABLE access_control__memberships (
 );
 ```
 
-**Migrations** : `migrations/AccessControl/Version20260110180000.php`
+**Migrations** : `migrations/AccessControl/Version20260111224021.php`
 
 ### Repositories
 

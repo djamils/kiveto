@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
-use App\AccessControl\Application\Command\AddUserToClinic\AddUserToClinic;
 use App\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
 use App\AccessControl\Application\Command\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
-use App\AccessControl\Application\Command\ChangeClinicMembershipValidity\ChangeClinicMembershipValidity;
+use App\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
+use App\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembership;
 use App\AccessControl\Application\Command\DisableClinicMembership\DisableClinicMembership;
 use App\AccessControl\Application\Command\EnableClinicMembership\EnableClinicMembership;
 use App\AccessControl\Application\Query\ListAllMemberships\ListAllMemberships;
@@ -117,7 +117,7 @@ final class ClinicMembershipController extends AbstractController
             $validFrom  = '' !== $validFromStr ? new \DateTimeImmutable($validFromStr) : null;
             $validUntil = '' !== $validUntilStr ? new \DateTimeImmutable($validUntilStr) : null;
 
-            $this->commandBus->dispatch(new AddUserToClinic(
+            $this->commandBus->dispatch(new CreateClinicMembership(
                 clinicId: $clinicId,
                 userId: $userId,
                 role: $role,
@@ -236,7 +236,7 @@ final class ClinicMembershipController extends AbstractController
             $validFrom  = new \DateTimeImmutable($validFromStr);
             $validUntil = '' !== $validUntilStr ? new \DateTimeImmutable($validUntilStr) : null;
 
-            $this->commandBus->dispatch(new ChangeClinicMembershipValidity($id, $validFrom, $validUntil));
+            $this->commandBus->dispatch(new ChangeClinicMembershipValidityWindow($id, $validFrom, $validUntil));
 
             $this->addFlash('success', 'Période de validité modifiée avec succès.');
         } catch (\Throwable $e) {

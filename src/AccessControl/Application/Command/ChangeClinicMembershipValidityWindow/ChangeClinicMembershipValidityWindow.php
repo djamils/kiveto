@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\AccessControl\Application\Command\ChangeClinicMembershipValidity;
+namespace App\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow;
 
-final readonly class ChangeClinicMembershipValidity
+final readonly class ChangeClinicMembershipValidityWindow
 {
     public function __construct(
         public string $membershipId,

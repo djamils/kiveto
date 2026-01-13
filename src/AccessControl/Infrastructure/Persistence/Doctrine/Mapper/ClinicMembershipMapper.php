@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\AccessControl\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\AccessControl\Domain\ClinicMembership;
+use App\AccessControl\Domain\ValueObject\ClinicId;
 use App\AccessControl\Domain\ValueObject\MembershipId;
+use App\AccessControl\Domain\ValueObject\UserId;
 use App\AccessControl\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Domain\ValueObject\UserId;
 use Symfony\Component\Uid\Uuid;
 
 final class ClinicMembershipMapper

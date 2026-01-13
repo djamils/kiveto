@@ -6,11 +6,11 @@ namespace App\AccessControl\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\AccessControl\Domain\ClinicMembership;
 use App\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
+use App\AccessControl\Domain\ValueObject\ClinicId;
 use App\AccessControl\Domain\ValueObject\MembershipId;
+use App\AccessControl\Domain\ValueObject\UserId;
 use App\AccessControl\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use App\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Domain\ValueObject\UserId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 

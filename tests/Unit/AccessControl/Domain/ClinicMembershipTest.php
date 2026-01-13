@@ -11,12 +11,12 @@ use App\AccessControl\Domain\Event\ClinicMembershipEnabled;
 use App\AccessControl\Domain\Event\ClinicMembershipEngagementChanged;
 use App\AccessControl\Domain\Event\ClinicMembershipRoleChanged;
 use App\AccessControl\Domain\Event\ClinicMembershipValidityChanged;
+use App\AccessControl\Domain\ValueObject\ClinicId;
 use App\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\AccessControl\Domain\ValueObject\MembershipId;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Domain\ValueObject\UserId;
+use App\AccessControl\Domain\ValueObject\UserId;
 use PHPUnit\Framework\TestCase;
 
 final class ClinicMembershipTest extends TestCase
@@ -156,7 +156,7 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipEngagementChanged::class, $events[0]);
     }
 
-    public function testChangeValidity(): void
+    public function testChangeValidityWindow(): void
     {
         $membership   = $this->createSampleMembership();
         $pulledEvents = $membership->pullDomainEvents();
@@ -165,7 +165,7 @@ final class ClinicMembershipTest extends TestCase
         $newValidFrom  = new \DateTimeImmutable('2026-01-01');
         $newValidUntil = new \DateTimeImmutable('2026-12-31');
 
-        $membership->changeValidity($newValidFrom, $newValidUntil);
+        $membership->changeValidityWindow($newValidFrom, $newValidUntil);
 
         self::assertSame($newValidFrom, $membership->validFrom());
         self::assertSame($newValidUntil, $membership->validUntil());
@@ -175,13 +175,13 @@ final class ClinicMembershipTest extends TestCase
         self::assertInstanceOf(ClinicMembershipValidityChanged::class, $events[0]);
     }
 
-    public function testChangeValidityFailsWhenInvalidWindow(): void
+    public function testChangeValidityWindowFailsWhenInvalidWindow(): void
     {
         $this->expectException(\DomainException::class);
 
         $membership = $this->createSampleMembership();
 
-        $membership->changeValidity(
+        $membership->changeValidityWindow(
             new \DateTimeImmutable('2026-12-31'),
             new \DateTimeImmutable('2026-01-01'),
         );
