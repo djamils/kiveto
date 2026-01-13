@@ -20,7 +20,7 @@ final class CurrentClinicContextTest extends TestCase
     protected function setUp(): void
     {
         $this->session = new Session(new MockArraySessionStorage());
-        $requestStack  = $this->createMock(RequestStack::class);
+        $requestStack  = $this->createStub(RequestStack::class);
         $requestStack->method('getSession')->willReturn($this->session);
 
         $this->context = new CurrentClinicContext($requestStack);
