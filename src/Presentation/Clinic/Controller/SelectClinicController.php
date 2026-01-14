@@ -69,6 +69,12 @@ final class SelectClinicController extends AbstractController
     {
         $this->assertCsrf($request);
 
+        $user = $this->getUser();
+
+        if (!$user instanceof SecurityUser) {
+            return $this->redirectToRoute('clinic_login');
+        }
+
         $clinicId = trim((string) $request->request->get('clinic_id'));
 
         if ('' === $clinicId) {
@@ -78,6 +84,24 @@ final class SelectClinicController extends AbstractController
         }
 
         try {
+            // Security: verify clinic_id is in user's accessible clinics
+            $accessibleClinics = $this->queryBus->ask(new ListClinicsForUser($user->id()));
+            \assert(\is_array($accessibleClinics));
+
+            $isAccessible = false;
+            foreach ($accessibleClinics as $clinic) {
+                if ($clinic->clinicId === $clinicId) {
+                    $isAccessible = true;
+                    break;
+                }
+            }
+
+            if (!$isAccessible) {
+                $this->addFlash('error', 'Vous n\'avez pas accès à cette clinique.');
+
+                return $this->redirectToRoute('clinic_select_clinic');
+            }
+
             $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($clinicId));
 
             return $this->redirectToRoute('clinic_dashboard');

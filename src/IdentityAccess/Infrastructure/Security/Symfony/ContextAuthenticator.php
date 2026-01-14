@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ClinicSelectionDecision;
+use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ClinicSelectionType;
+use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ResolveClinicSelectionForUser;
+use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationDeniedException;
+use App\Shared\Application\Bus\QueryBusInterface;
+use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,6 +33,8 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
     public function __construct(
         private readonly AuthenticateUserHandler $handler,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly QueryBusInterface $queryBus,
+        private readonly CurrentClinicContextInterface $currentClinicContext,
     ) {
     }
 
@@ -87,9 +95,26 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response
     {
-        return new JsonResponse(['message' => 'Authenticated'], JsonResponse::HTTP_OK);
-    }
+        $context = $this->resolveContext($request);
+        $userId  = trim($token->getUserIdentifier());
 
+        if ('' === $userId) {
+            return new RedirectResponse($this->urlGenerator->generate($this->loginRouteForContext($context)));
+        }
+
+        if (AuthenticationContext::CLINIC !== $context) {
+            return new RedirectResponse($this->urlGenerator->generate($this->successRouteForContext($context)));
+        }
+
+        $decision = $this->queryBus->ask(new ResolveClinicSelectionForUser($userId));
+        \assert($decision instanceof ClinicSelectionDecision);
+
+        return match ($decision->type) {
+            ClinicSelectionType::NONE     => new RedirectResponse($this->urlGenerator->generate('clinic_no_access')),
+            ClinicSelectionType::SINGLE   => $this->handleSingleClinic($decision),
+            ClinicSelectionType::MULTIPLE => new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')),
+        };
+    }
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $previous = $exception->getPrevious();
@@ -111,6 +136,14 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         ], JsonResponse::HTTP_UNAUTHORIZED);
     }
 
+    private function handleSingleClinic(mixed $decision): RedirectResponse
+    {
+        \assert(null !== $decision->singleClinic);
+        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($decision->singleClinic->clinicId));
+
+        return new RedirectResponse($this->urlGenerator->generate('clinic_dashboard'));
+    }
+
     private function resolveContext(Request $request): AuthenticationContext
     {
         $host = $request->getHost();
@@ -126,5 +159,23 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         }
 
         throw new CustomUserMessageAuthenticationException('Unknown login context.');
+    }
+
+    private function loginRouteForContext(AuthenticationContext $context): string
+    {
+        return match ($context) {
+            AuthenticationContext::CLINIC     => 'clinic_login',
+            AuthenticationContext::PORTAL     => 'portal_login',
+            AuthenticationContext::BACKOFFICE => 'backoffice_login',
+        };
+    }
+
+    private function successRouteForContext(AuthenticationContext $context): string
+    {
+        return match ($context) {
+            AuthenticationContext::CLINIC     => 'clinic_dashboard',
+            AuthenticationContext::PORTAL     => 'portal_home',
+            AuthenticationContext::BACKOFFICE => 'backoffice_home',
+        };
     }
 }
