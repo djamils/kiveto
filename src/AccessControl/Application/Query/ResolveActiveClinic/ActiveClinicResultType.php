@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\AccessControl\Application\Query\ResolveClinicSelectionForUser;
+namespace App\AccessControl\Application\Query\ResolveActiveClinic;
 
-enum ClinicSelectionType: string
+enum ActiveClinicResultType: string
 {
     case NONE     = 'none';
     case SINGLE   = 'single';

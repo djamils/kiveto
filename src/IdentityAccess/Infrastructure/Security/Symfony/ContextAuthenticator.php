@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\IdentityAccess\Infrastructure\Security\Symfony;
 
-use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ClinicSelectionDecision;
-use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ClinicSelectionType;
-use App\AccessControl\Application\Query\ResolveClinicSelectionForUser\ResolveClinicSelectionForUser;
+use App\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
+use App\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResultType;
+use App\AccessControl\Application\Query\ResolveActiveClinic\ResolveActiveClinic;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
@@ -60,8 +60,8 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
     public function authenticate(Request $request): Passport
     {
         try {
-            $context = $this->resolveContext($request);
-            $payload = json_decode((string) $request->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+            $authContext = $this->resolveContext($request);
+            $payload     = json_decode((string) $request->getContent(), true, flags: \JSON_THROW_ON_ERROR);
 
             if (!\is_array($payload)) {
                 throw new CustomUserMessageAuthenticationException('Invalid credentials payload.');
@@ -77,7 +77,7 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
             $identity = ($this->handler)(new AuthenticateUserQuery(
                 email: $email,
                 plainPassword: $password,
-                context: $context,
+                context: $authContext,
             ));
         } catch (\JsonException $e) {
             throw new CustomUserMessageAuthenticationException('Invalid JSON payload.', [], 0, $e);
@@ -95,24 +95,24 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response
     {
-        $context = $this->resolveContext($request);
-        $userId  = trim($token->getUserIdentifier());
+        $authContext = $this->resolveContext($request);
+        $userId      = trim($token->getUserIdentifier());
 
         if ('' === $userId) {
-            return new RedirectResponse($this->urlGenerator->generate($this->loginRouteForContext($context)));
+            return new RedirectResponse($this->urlGenerator->generate($this->loginRouteForContext($authContext)));
         }
 
-        if (AuthenticationContext::CLINIC !== $context) {
-            return new RedirectResponse($this->urlGenerator->generate($this->successRouteForContext($context)));
+        if (AuthenticationContext::CLINIC !== $authContext) {
+            return new RedirectResponse($this->urlGenerator->generate($this->successRouteForContext($authContext)));
         }
 
-        $decision = $this->queryBus->ask(new ResolveClinicSelectionForUser($userId));
-        \assert($decision instanceof ClinicSelectionDecision);
+        $result = $this->queryBus->ask(new ResolveActiveClinic($userId));
+        \assert($result instanceof ActiveClinicResult);
 
-        return match ($decision->type) {
-            ClinicSelectionType::NONE     => new RedirectResponse($this->urlGenerator->generate('clinic_no_access')),
-            ClinicSelectionType::SINGLE   => $this->handleSingleClinic($decision),
-            ClinicSelectionType::MULTIPLE => new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')),
+        return match ($result->type) {
+            ActiveClinicResultType::NONE     => new RedirectResponse($this->urlGenerator->generate('clinic_no_access')),
+            ActiveClinicResultType::SINGLE   => $this->handleSingleClinic($result),
+            ActiveClinicResultType::MULTIPLE => new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')),
         };
     }
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
@@ -136,10 +136,10 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         ], JsonResponse::HTTP_UNAUTHORIZED);
     }
 
-    private function handleSingleClinic(mixed $decision): RedirectResponse
+    private function handleSingleClinic(ActiveClinicResult $result): RedirectResponse
     {
-        \assert(null !== $decision->singleClinic);
-        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($decision->singleClinic->clinicId));
+        \assert(null !== $result->clinic);
+        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($result->clinic->clinicId));
 
         return new RedirectResponse($this->urlGenerator->generate('clinic_dashboard'));
     }

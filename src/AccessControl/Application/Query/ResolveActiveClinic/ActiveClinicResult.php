@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\AccessControl\Application\Query\ResolveClinicSelectionForUser;
+namespace App\AccessControl\Application\Query\ResolveActiveClinic;
 
 use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 
-final readonly class ClinicSelectionDecision
+final readonly class ActiveClinicResult
 {
     /**
      * @param AccessibleClinic[] $clinics
      */
     private function __construct(
-        public ClinicSelectionType $type,
-        public ?AccessibleClinic $singleClinic,
+        public ActiveClinicResultType $type,
+        public ?AccessibleClinic $clinic,
         public array $clinics,
     ) {
     }
@@ -21,8 +21,8 @@ final readonly class ClinicSelectionDecision
     public static function none(): self
     {
         return new self(
-            type: ClinicSelectionType::NONE,
-            singleClinic: null,
+            type: ActiveClinicResultType::NONE,
+            clinic: null,
             clinics: [],
         );
     }
@@ -30,8 +30,8 @@ final readonly class ClinicSelectionDecision
     public static function single(AccessibleClinic $clinic): self
     {
         return new self(
-            type: ClinicSelectionType::SINGLE,
-            singleClinic: $clinic,
+            type: ActiveClinicResultType::SINGLE,
+            clinic: $clinic,
             clinics: [$clinic],
         );
     }
@@ -42,8 +42,8 @@ final readonly class ClinicSelectionDecision
     public static function multiple(array $clinics): self
     {
         return new self(
-            type: ClinicSelectionType::MULTIPLE,
-            singleClinic: null,
+            type: ActiveClinicResultType::MULTIPLE,
+            clinic: null,
             clinics: $clinics,
         );
     }
