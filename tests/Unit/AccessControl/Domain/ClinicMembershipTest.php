@@ -269,6 +269,97 @@ final class ClinicMembershipTest extends TestCase
         self::assertTrue($membership->isEffectiveAt($now));
     }
 
+    public function testReconstituteCreatesInstanceWithoutEvents(): void
+    {
+        $membershipId = MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef');
+        $clinicId     = ClinicId::fromString('11111111-1111-1111-1111-111111111111');
+        $userId       = UserId::fromString('22222222-2222-2222-2222-222222222222');
+        $validFrom    = new \DateTimeImmutable('2025-01-01');
+        $validUntil   = new \DateTimeImmutable('2025-12-31');
+        $createdAt    = new \DateTimeImmutable('2024-12-01');
+
+        $membership = ClinicMembership::reconstitute(
+            id: $membershipId,
+            clinicId: $clinicId,
+            userId: $userId,
+            role: ClinicMemberRole::CLINIC_ADMIN,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            status: ClinicMembershipStatus::DISABLED,
+            validFrom: $validFrom,
+            validUntil: $validUntil,
+            createdAt: $createdAt,
+        );
+
+        self::assertTrue($membership->id()->equals($membershipId));
+        self::assertTrue($membership->clinicId()->equals($clinicId));
+        self::assertTrue($membership->userId()->equals($userId));
+        self::assertSame(ClinicMemberRole::CLINIC_ADMIN, $membership->role());
+        self::assertSame(ClinicMembershipEngagement::EMPLOYEE, $membership->engagement());
+        self::assertSame(ClinicMembershipStatus::DISABLED, $membership->status());
+        self::assertSame($validFrom, $membership->validFrom());
+        self::assertSame($validUntil, $membership->validUntil());
+        self::assertSame($createdAt, $membership->createdAt());
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(0, $events);
+    }
+
+    public function testCreatedAtReturnsCorrectDate(): void
+    {
+        $createdAt  = new \DateTimeImmutable('2024-11-15 10:30:00');
+        $membership = ClinicMembership::create(
+            id: MembershipId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
+            clinicId: ClinicId::fromString('11111111-1111-1111-1111-111111111111'),
+            userId: UserId::fromString('22222222-2222-2222-2222-222222222222'),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            validFrom: new \DateTimeImmutable('2025-01-01'),
+            validUntil: null,
+            createdAt: $createdAt,
+        );
+
+        self::assertSame($createdAt, $membership->createdAt());
+    }
+
+    public function testEnableAlreadyActiveMembershipDoesNothing(): void
+    {
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
+
+        $membership->enable();
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(0, $events);
+    }
+
+    public function testChangeEngagementToSameDoesNothing(): void
+    {
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
+
+        $membership->changeEngagement(ClinicMembershipEngagement::CONTRACTOR);
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(0, $events);
+    }
+
+    public function testChangeValidityWindowToSameDoesNothing(): void
+    {
+        $membership   = $this->createSampleMembership();
+        $pulledEvents = $membership->pullDomainEvents();
+        unset($pulledEvents);
+
+        $validFrom  = $membership->validFrom();
+        $validUntil = $membership->validUntil();
+
+        $membership->changeValidityWindow($validFrom, $validUntil);
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(0, $events);
+    }
+
     private function createSampleMembership(): ClinicMembership
     {
         return ClinicMembership::create(
