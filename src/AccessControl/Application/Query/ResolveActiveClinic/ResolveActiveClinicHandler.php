@@ -27,7 +27,7 @@ final readonly class ResolveActiveClinicHandler
         return match (true) {
             0 === $count => ActiveClinicResult::none(),
             1 === $count => $this->handleSingleClinic($accessibleClinics[0]),
-            default      => ActiveClinicResult::multiple($accessibleClinics),
+            default      => ActiveClinicResult::multiple($this->filterAccessibleClinics($accessibleClinics)),
         };
     }
 
@@ -36,5 +36,15 @@ final readonly class ResolveActiveClinicHandler
         \assert($clinic instanceof AccessibleClinic);
 
         return ActiveClinicResult::single($clinic);
+    }
+
+    /**
+     * @param array<mixed> $clinics
+     *
+     * @return AccessibleClinic[]
+     */
+    private function filterAccessibleClinics(array $clinics): array
+    {
+        return array_filter($clinics, static fn (mixed $item): bool => $item instanceof AccessibleClinic);
     }
 }

@@ -112,9 +112,12 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         return match ($result->type) {
             ActiveClinicResultType::NONE     => new RedirectResponse($this->urlGenerator->generate('clinic_no_access')),
             ActiveClinicResultType::SINGLE   => $this->handleSingleClinic($result),
-            ActiveClinicResultType::MULTIPLE => new RedirectResponse($this->urlGenerator->generate('clinic_select_clinic')),
+            ActiveClinicResultType::MULTIPLE => new RedirectResponse(
+                $this->urlGenerator->generate('clinic_select_clinic')
+            ),
         };
     }
+
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $previous = $exception->getPrevious();

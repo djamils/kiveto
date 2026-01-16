@@ -90,7 +90,7 @@ final class SelectClinicController extends AbstractController
 
             $isAccessible = false;
             foreach ($accessibleClinics as $clinic) {
-                if ($clinic->clinicId === $clinicId) {
+                if ($clinic instanceof AccessibleClinic && $clinic->clinicId === $clinicId) {
                     $isAccessible = true;
                     break;
                 }

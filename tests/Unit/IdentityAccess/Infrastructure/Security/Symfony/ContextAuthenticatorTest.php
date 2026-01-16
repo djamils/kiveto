@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
 use App\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
@@ -13,7 +14,10 @@ use App\IdentityAccess\Domain\ValueObject\UserId;
 use App\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\IdentityAccess\Domain\ValueObject\UserType;
 use App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator;
+use App\Shared\Application\Bus\QueryBusInterface;
+use App\Shared\Application\Context\CurrentClinicContextInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -118,13 +122,17 @@ final class ContextAuthenticatorTest extends TestCase
     public function testOnAuthenticationSuccess(): void
     {
         $authenticator = $this->authenticatorFor(UserType::CLINIC);
-        $response      = $authenticator->onAuthenticationSuccess(
-            Request::create('/login', 'POST'),
-            $this->createStub(\Symfony\Component\Security\Core\Authentication\Token\TokenInterface::class),
+
+        $token = $this->createStub(\Symfony\Component\Security\Core\Authentication\Token\TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-123');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
+            $token,
             'main',
         );
 
-        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertInstanceOf(RedirectResponse::class, $response);
     }
 
     public function testAuthenticateThrowsOnInvalidCredentialsPayload(): void
@@ -149,7 +157,10 @@ final class ContextAuthenticatorTest extends TestCase
         $verifier = $this->createStub(PasswordHashVerifierInterface::class);
         $handler  = new AuthenticateUserHandler($repo, $verifier);
 
-        $authenticator = new ContextAuthenticator($handler, $this->urlGenerator());
+        $queryBus             = $this->createStub(QueryBusInterface::class);
+        $currentClinicContext = $this->createStub(CurrentClinicContextInterface::class);
+
+        $authenticator = new ContextAuthenticator($handler, $this->urlGenerator(), $queryBus, $currentClinicContext);
         $request       = Request::create(
             'https://clinic.example/login',
             'POST',
@@ -286,7 +297,17 @@ final class ContextAuthenticatorTest extends TestCase
 
     private function authenticatorFor(UserType $type): ContextAuthenticator
     {
-        return new ContextAuthenticator($this->handlerFor($type), $this->urlGenerator());
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturn(ActiveClinicResult::none());
+
+        $currentClinicContext = $this->createStub(CurrentClinicContextInterface::class);
+
+        return new ContextAuthenticator(
+            $this->handlerFor($type),
+            $this->urlGenerator(),
+            $queryBus,
+            $currentClinicContext
+        );
     }
 
     private function urlGenerator(): UrlGeneratorInterface
