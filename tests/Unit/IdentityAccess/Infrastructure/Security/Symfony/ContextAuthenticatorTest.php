@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
+use App\AccessControl\Domain\ValueObject\ClinicMemberRole;
+use App\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
 use App\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
@@ -22,6 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
@@ -123,7 +127,7 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::CLINIC);
 
-        $token = $this->createStub(\Symfony\Component\Security\Core\Authentication\Token\TokenInterface::class);
+        $token = $this->createStub(TokenInterface::class);
         $token->method('getUserIdentifier')->willReturn('user-123');
 
         $response = $authenticator->onAuthenticationSuccess(
@@ -133,6 +137,212 @@ final class ContextAuthenticatorTest extends TestCase
         );
 
         self::assertInstanceOf(RedirectResponse::class, $response);
+    }
+
+    public function testOnAuthenticationSuccessWithEmptyUserId(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::CLINIC);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/clinic_login', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessWithEmptyUserIdForPortal(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::PORTAL);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://portal.example/login', 'POST', server: ['HTTP_HOST' => 'portal.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/portal_login', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessWithEmptyUserIdForBackoffice(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://backoffice.example/login', 'POST', server: ['HTTP_HOST' => 'backoffice.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/backoffice_login', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessForPortalContext(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::PORTAL);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-456');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://portal.example/login', 'POST', server: ['HTTP_HOST' => 'portal.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/portal_home', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessForBackofficeContext(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-789');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://backoffice.example/login', 'POST', server: ['HTTP_HOST' => 'backoffice.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/backoffice_home', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessWithSingleClinic(): void
+    {
+        $clinic = new AccessibleClinic(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            clinicName: 'Test Clinic',
+            clinicSlug: 'test-clinic',
+            clinicStatus: 'active',
+            memberRole: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            validFrom: new \DateTimeImmutable(),
+            validUntil: null,
+        );
+
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturn(ActiveClinicResult::single($clinic));
+
+        $currentClinicContext = $this->createMock(CurrentClinicContextInterface::class);
+        $currentClinicContext->expects(self::once())
+            ->method('setCurrentClinicId')
+            ->with(self::callback(static function (mixed $clinicId): bool {
+                return $clinicId instanceof \App\Clinic\Domain\ValueObject\ClinicId
+                    && '11111111-1111-1111-1111-111111111111' === $clinicId->toString();
+            }))
+        ;
+
+        $authenticator = new ContextAuthenticator(
+            $this->handlerFor(UserType::CLINIC),
+            $this->urlGenerator(),
+            $queryBus,
+            $currentClinicContext
+        );
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-123');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/clinic_dashboard', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessWithMultipleClinics(): void
+    {
+        $clinic1 = new AccessibleClinic(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            clinicName: 'Clinic 1',
+            clinicSlug: 'clinic-1',
+            clinicStatus: 'active',
+            memberRole: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            validFrom: new \DateTimeImmutable(),
+            validUntil: null,
+        );
+
+        $clinic2 = new AccessibleClinic(
+            clinicId: '22222222-2222-2222-2222-222222222222',
+            clinicName: 'Clinic 2',
+            clinicSlug: 'clinic-2',
+            clinicStatus: 'active',
+            memberRole: ClinicMemberRole::CLINIC_ADMIN,
+            engagement: ClinicMembershipEngagement::CONTRACTOR,
+            validFrom: new \DateTimeImmutable(),
+            validUntil: null,
+        );
+
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturn(ActiveClinicResult::multiple([$clinic1, $clinic2]));
+
+        $currentClinicContext = $this->createStub(CurrentClinicContextInterface::class);
+
+        $authenticator = new ContextAuthenticator(
+            $this->handlerFor(UserType::CLINIC),
+            $this->urlGenerator(),
+            $queryBus,
+            $currentClinicContext
+        );
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-123');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/clinic_select_clinic', $response->getTargetUrl());
+    }
+
+    public function testOnAuthenticationSuccessWithNoClinics(): void
+    {
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturn(ActiveClinicResult::none());
+
+        $currentClinicContext = $this->createStub(CurrentClinicContextInterface::class);
+
+        $authenticator = new ContextAuthenticator(
+            $this->handlerFor(UserType::CLINIC),
+            $this->urlGenerator(),
+            $queryBus,
+            $currentClinicContext
+        );
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-123');
+
+        $response = $authenticator->onAuthenticationSuccess(
+            Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
+            $token,
+            'main',
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame('/clinic_no_access', $response->getTargetUrl());
     }
 
     public function testAuthenticateThrowsOnInvalidCredentialsPayload(): void
