@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Infrastructure\Bus\Messenger\Middleware;
 
+use App\Shared\Application\Bus\CommandInterface;
+use App\Shared\Application\Bus\QueryInterface;
+use App\Shared\Domain\Event\DomainEventInterface;
+use App\Shared\Domain\Event\IntegrationEventInterface;
 use App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware;
 use App\Shared\Infrastructure\Bus\Messenger\Stamp\MessageMetadataStamp;
 use PHPUnit\Framework\TestCase;
@@ -42,6 +46,7 @@ final class MessageLoggingMiddlewareTest extends TestCase
         self::assertSame('info', $loggedMessages[0]['level']);
         self::assertSame('Processing message', $loggedMessages[0]['message']);
         self::assertSame(\stdClass::class, $loggedMessages[0]['context']['messageClass']);
+        self::assertSame('other', $loggedMessages[0]['context']['messageType']);
         self::assertSame('msg-123', $loggedMessages[0]['context']['messageId']);
         self::assertSame('corr-456', $loggedMessages[0]['context']['correlationId']);
         self::assertSame('cause-789', $loggedMessages[0]['context']['causationId']);
@@ -172,6 +177,144 @@ final class MessageLoggingMiddlewareTest extends TestCase
         $durationMs = (float) $matches[1];
 
         self::assertGreaterThanOrEqual(9.0, $durationMs);
+    }
+
+    public function testResolvesMessageTypeForCommand(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        $command = new class implements CommandInterface {
+        };
+        $envelope = new Envelope($command);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('command', $loggedMessages[0]['context']['messageType']);
+    }
+
+    public function testResolvesMessageTypeForQuery(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        $query = new class implements QueryInterface {
+        };
+        $envelope = new Envelope($query);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('query', $loggedMessages[0]['context']['messageType']);
+    }
+
+    public function testResolvesMessageTypeForDomainEvent(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        $event = new class implements DomainEventInterface {
+            public function aggregateId(): string
+            {
+                return 'test-123';
+            }
+
+            public function name(): string
+            {
+                return 'test.event.v1';
+            }
+
+            public function payload(): array
+            {
+                return [];
+            }
+        };
+        $envelope = new Envelope($event);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('domain_event', $loggedMessages[0]['context']['messageType']);
+    }
+
+    public function testResolvesMessageTypeForIntegrationEvent(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        $event = new class implements IntegrationEventInterface {
+            public function aggregateId(): string
+            {
+                return 'test-123';
+            }
+
+            public function name(): string
+            {
+                return 'test.integration.event.v1';
+            }
+
+            public function payload(): array
+            {
+                return [];
+            }
+        };
+        $envelope = new Envelope($event);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('integration_event', $loggedMessages[0]['context']['messageType']);
+    }
+
+    public function testResolvesMessageTypeForOther(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        $message  = new \stdClass();
+        $envelope = new Envelope($message);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('other', $loggedMessages[0]['context']['messageType']);
+    }
+
+    public function testMessageTypeResolutionPriority(): void
+    {
+        $loggedMessages = [];
+        $logger         = $this->createLogger($loggedMessages);
+        $middleware     = new MessageLoggingMiddleware($logger);
+
+        // Command takes priority over DomainEvent
+        $commandEvent = new class implements CommandInterface, DomainEventInterface {
+            public function aggregateId(): string
+            {
+                return 'test-123';
+            }
+
+            public function name(): string
+            {
+                return 'test.command.event.v1';
+            }
+
+            public function payload(): array
+            {
+                return [];
+            }
+        };
+        $envelope = new Envelope($commandEvent);
+        $stack    = $this->createTestStack($envelope);
+
+        $middleware->handle($envelope, $stack);
+
+        self::assertSame('command', $loggedMessages[0]['context']['messageType']);
     }
 
     /**

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Shared\Infrastructure\Bus\Messenger\Middleware;
 
+use App\Shared\Application\Bus\CommandInterface;
+use App\Shared\Application\Bus\QueryInterface;
+use App\Shared\Domain\Event\DomainEventInterface;
+use App\Shared\Domain\Event\IntegrationEventInterface;
 use App\Shared\Infrastructure\Bus\Messenger\Stamp\MessageMetadataStamp;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
@@ -22,13 +26,15 @@ final readonly class MessageLoggingMiddleware implements MiddlewareInterface
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
-        $messageClass = $envelope->getMessage()::class;
+        $message      = $envelope->getMessage();
+        $messageClass = $message::class;
 
         /** @var MessageMetadataStamp|null $stamp */
         $stamp = $envelope->last(MessageMetadataStamp::class);
 
         $context = [
             'messageClass'  => $messageClass,
+            'messageType'   => $this->resolveMessageType($message),
             'messageId'     => $stamp?->messageId,
             'correlationId' => $stamp?->correlationId,
             'causationId'   => $stamp?->causationId,
@@ -59,5 +65,20 @@ final readonly class MessageLoggingMiddleware implements MiddlewareInterface
 
             throw $exception;
         }
+    }
+
+    /**
+     * Resolve message type based on implemented interfaces.
+     * Priority order: command > query > integration_event > domain_event > other.
+     */
+    private function resolveMessageType(object $message): string
+    {
+        return match (true) {
+            $message instanceof CommandInterface          => 'command',
+            $message instanceof QueryInterface            => 'query',
+            $message instanceof IntegrationEventInterface => 'integration_event',
+            $message instanceof DomainEventInterface      => 'domain_event',
+            default                                       => 'other',
+        };
     }
 }
