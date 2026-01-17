@@ -91,6 +91,17 @@ services:
         arguments:
             $messageBus: '@messenger.bus.event'
 
+    App\Shared\Application\Bus\IntegrationEventBusInterface:
+        class: App\Shared\Infrastructure\Bus\Messenger\IntegrationEventBus
+        arguments:
+            $messageBus: '@messenger.bus.integration_event'
+
+    # Domain Event Publisher
+    App\Shared\Application\Event\DomainEventPublisher: ~
+
+    # Integration Event Publisher
+    App\Shared\Application\Event\IntegrationEventPublisher: ~
+
     # Doctrine naming strategy with BC prefix
     app.orm.naming_strategy.bounded_context_prefix:
         class: App\Shared\Infrastructure\Persistence\Doctrine\Mapping\BoundedContextPrefixNamingStrategy

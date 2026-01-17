@@ -15,6 +15,6 @@ final class ClinicClosedTest extends TestCase
 
         self::assertSame('clinic-123', $event->aggregateId());
         self::assertSame(['clinicId' => 'clinic-123'], $event->payload());
-        self::assertSame('clinic.clinic.closed.v1', $event->type());
+        self::assertSame('clinic.clinic.closed.v1', $event->name());
     }
 }

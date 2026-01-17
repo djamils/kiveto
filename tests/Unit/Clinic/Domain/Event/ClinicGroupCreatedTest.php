@@ -24,6 +24,6 @@ final class ClinicGroupCreatedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic-group.created.v1', $event->type());
+        self::assertSame('clinic.clinic-group.created.v1', $event->name());
     }
 }

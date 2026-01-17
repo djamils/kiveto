@@ -53,6 +53,6 @@ final class ClinicMembershipValidityChangedTest extends TestCase
             validUntil: null,
         );
 
-        self::assertSame('clinic-access.clinic-membership-validity.changed.v1', $event->type());
+        self::assertSame('clinic-access.clinic-membership-validity.changed.v1', $event->name());
     }
 }

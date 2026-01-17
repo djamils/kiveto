@@ -48,9 +48,22 @@ framework:
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
 
+            # Bus for integration events (cross-bounded contexts)
+            messenger.bus.integration_event:
+                default_middleware:
+                    enabled: true
+                    allow_no_handlers: true
+                    allow_no_senders: true
+                middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
+
         routing:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
-            # Domain Events (default sync; can be routed async later)
+            # Domain Events (sync within bounded context)
             App\Shared\Domain\Event\DomainEventInterface: sync
+            # Integration Events (async cross-bounded contexts)
+            App\Shared\Domain\Event\IntegrationEventInterface: async

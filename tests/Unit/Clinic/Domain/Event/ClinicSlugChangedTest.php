@@ -24,6 +24,6 @@ final class ClinicSlugChangedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic-slug.changed.v1', $event->type());
+        self::assertSame('clinic.clinic-slug.changed.v1', $event->name());
     }
 }

@@ -41,7 +41,7 @@ final class ClinicTest extends TestCase
 
         $event = $events[0];
         self::assertInstanceOf(ClinicCreated::class, $event);
-        self::assertSame('clinic.clinic.created.v1', $event->type());
+        self::assertSame('clinic.clinic.created.v1', $event->name());
         self::assertSame('11111111-1111-1111-1111-111111111111', $event->aggregateId());
         self::assertSame(ClinicStatus::ACTIVE, $clinic->status());
     }

@@ -36,6 +36,6 @@ final class ClinicMembershipRoleChangedTest extends TestCase
             newRole: 'VETERINARY',
         );
 
-        self::assertSame('clinic-access.clinic-membership-role.changed.v1', $event->type());
+        self::assertSame('clinic-access.clinic-membership-role.changed.v1', $event->name());
     }
 }

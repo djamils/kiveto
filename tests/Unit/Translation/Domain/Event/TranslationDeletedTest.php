@@ -26,6 +26,6 @@ final class TranslationDeletedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('translation.translation.deleted.v1', $event->type());
+        self::assertSame('translation.translation.deleted.v1', $event->name());
     }
 }

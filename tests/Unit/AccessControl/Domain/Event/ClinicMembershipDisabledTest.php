@@ -33,6 +33,6 @@ final class ClinicMembershipDisabledTest extends TestCase
             userId: '33333333-3333-3333-3333-333333333333',
         );
 
-        self::assertSame('clinic-access.clinic-membership.disabled.v1', $event->type());
+        self::assertSame('clinic-access.clinic-membership.disabled.v1', $event->name());
     }
 }

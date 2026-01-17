@@ -24,6 +24,6 @@ final class ClinicLocaleChangedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic-locale.changed.v1', $event->type());
+        self::assertSame('clinic.clinic-locale.changed.v1', $event->name());
     }
 }

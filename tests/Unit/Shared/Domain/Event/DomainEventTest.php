@@ -12,38 +12,38 @@ use PHPUnit\Framework\TestCase;
 
 final class DomainEventTest extends TestCase
 {
-    public function testEventTypeIsCorrectlyGeneratedFromClassName(): void
+    public function testEventNameIsCorrectlyGeneratedFromClassName(): void
     {
         $event = new UserRegistered();
 
-        self::assertSame('test-bc.user.registered.v1', $event->type());
+        self::assertSame('test-bc.user.registered.v1', $event->name());
     }
 
-    public function testEventTypeHandlesSingleWordAction(): void
+    public function testEventNameHandlesSingleWordAction(): void
     {
         $event = new AnimalCreated();
 
-        self::assertSame('test-bc.animal.created.v2', $event->type());
+        self::assertSame('test-bc.animal.created.v2', $event->name());
     }
 
-    public function testEventTypeDefaultsToOccurredWhenNoActionInName(): void
+    public function testEventNameDefaultsToOccurredWhenNoActionInName(): void
     {
         $event = new Ping();
 
-        self::assertSame('test-bc.ping.occurred.v1', $event->type());
+        self::assertSame('test-bc.ping.occurred.v1', $event->name());
     }
 
-    public function testEventTypeHandlesMultiWordAggregate(): void
+    public function testEventNameHandlesMultiWordAggregate(): void
     {
         $event = new InvoiceItemAdded();
 
-        self::assertSame('test-bc.invoice-item.added.v1', $event->type());
+        self::assertSame('test-bc.invoice-item.added.v1', $event->name());
     }
 
-    public function testVersionIsIncludedInType(): void
+    public function testVersionIsIncludedInName(): void
     {
         $event = new AnimalCreated();
 
-        self::assertStringContainsString('.v2', $event->type());
+        self::assertStringContainsString('.v2', $event->name());
     }
 }

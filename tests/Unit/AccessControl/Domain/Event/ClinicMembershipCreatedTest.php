@@ -61,6 +61,6 @@ final class ClinicMembershipCreatedTest extends TestCase
             validUntil: null,
         );
 
-        self::assertSame('clinic-access.clinic-membership.created.v1', $event->type());
+        self::assertSame('clinic-access.clinic-membership.created.v1', $event->name());
     }
 }

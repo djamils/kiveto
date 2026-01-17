@@ -30,7 +30,7 @@ final class TestEvent implements DomainEventInterface
         return $this->occurredAt;
     }
 
-    public function type(): string
+    public function name(): string
     {
         return 'test.aggregate.event.v1';
     }

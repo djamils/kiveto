@@ -29,7 +29,7 @@ final class UserTest extends TestCase
         self::assertCount(1, $events);
         $event = $events[0];
 
-        self::assertSame('identity-access.user.registered.v1', $event->type());
+        self::assertSame('identity-access.user.registered.v1', $event->name());
         self::assertSame('11111111-1111-1111-1111-111111111111', $event->aggregateId());
         self::assertSame(UserStatus::ACTIVE->value, $user->status()->value);
         self::assertNull($user->emailVerifiedAt());

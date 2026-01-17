@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Shared\Domain\Event;
+
+/**
+ * Base class for all events (domain and integration).
+ *
+ * Event name versioning:
+ * - Keep VERSION unchanged for backward-compatible payload changes (e.g. adding a new optional field).
+ * - Increment VERSION only for breaking changes (renaming/removing/changing meaning or format of fields).
+ *
+ * Event name format: "<bounded-context>.<aggregate>.<action>.v<version>"
+ */
+abstract readonly class AbstractEvent implements EventInterface
+{
+    /**
+     * Override in child event (e.g. "auth", "clinic", "billing").
+     *
+     * @var string
+     */
+    protected const string BOUNDED_CONTEXT = 'shared';
+
+    /**
+     * Increment only for breaking payload changes.
+     *
+     * @var int
+     */
+    protected const int VERSION = 1;
+
+    final public function name(): string
+    {
+        [$aggregate, $action] = self::inferAggregateAndActionFromClass(static::class);
+
+        $boundedContext = static::BOUNDED_CONTEXT;
+        $version        = static::VERSION;
+
+        return \sprintf(
+            '%s.%s.%s.v%d',
+            $boundedContext,
+            self::toKebabLower($aggregate),
+            self::toKebabLower($action),
+            $version,
+        );
+    }
+
+    /**
+     * @return array{0: string, 1: string} [aggregate, action]
+     */
+    private static function inferAggregateAndActionFromClass(string $fqcn): array
+    {
+        $shortNamePos = mb_strrpos($fqcn, '\\');
+        $shortName    = false === $shortNamePos ? $fqcn : mb_substr($fqcn, $shortNamePos + 1);
+
+        $tokens = self::splitCamelCase($shortName);
+
+        if (\count($tokens) < 2) {
+            return [$shortName, 'occurred'];
+        }
+
+        $action    = (string) array_pop($tokens);
+        $aggregate = implode('', $tokens);
+
+        return [$aggregate, $action];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function splitCamelCase(string $value): array
+    {
+        return preg_split('/(?<!^)(?=[A-Z])/', $value) ?: [];
+
+        /* @var list<string> $parts */
+    }
+
+    private static function toKebabLower(string $value): string
+    {
+        $value = preg_replace('/(?<!^)(?=[A-Z])/', '-', $value) ?? $value;
+
+        return mb_strtolower($value);
+    }
+}

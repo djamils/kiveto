@@ -24,6 +24,6 @@ final class TranslationUpsertedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('translation.translation.upserted.v1', $event->type());
+        self::assertSame('translation.translation.upserted.v1', $event->name());
     }
 }

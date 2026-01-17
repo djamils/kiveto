@@ -36,6 +36,6 @@ final class ClinicMembershipEngagementChangedTest extends TestCase
             newEngagement: 'EMPLOYEE',
         );
 
-        self::assertSame('clinic-access.clinic-membership-engagement.changed.v1', $event->type());
+        self::assertSame('clinic-access.clinic-membership-engagement.changed.v1', $event->name());
     }
 }

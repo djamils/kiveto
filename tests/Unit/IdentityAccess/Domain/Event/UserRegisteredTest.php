@@ -24,6 +24,6 @@ final class UserRegisteredTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('identity-access.user.registered.v1', $event->type());
+        self::assertSame('identity-access.user.registered.v1', $event->name());
     }
 }

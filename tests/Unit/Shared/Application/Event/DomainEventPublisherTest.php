@@ -126,12 +126,12 @@ final class DomainEventPublisherTest extends TestCase
         self::assertSame([], $aggregate->recordedDomainEvents());
     }
 
-    private function createEvent(string $aggregateId, string $type): DomainEventInterface
+    private function createEvent(string $aggregateId, string $name): DomainEventInterface
     {
-        return new class($aggregateId, $type) implements DomainEventInterface {
+        return new class($aggregateId, $name) implements DomainEventInterface {
             public function __construct(
                 private readonly string $aggregateId,
-                private readonly string $type,
+                private readonly string $name,
             ) {
             }
 
@@ -140,9 +140,9 @@ final class DomainEventPublisherTest extends TestCase
                 return $this->aggregateId;
             }
 
-            public function type(): string
+            public function name(): string
             {
-                return $this->type;
+                return $this->name;
             }
 
             public function payload(): array

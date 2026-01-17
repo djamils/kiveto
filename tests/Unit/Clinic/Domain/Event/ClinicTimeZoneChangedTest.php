@@ -24,6 +24,6 @@ final class ClinicTimeZoneChangedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic-time-zone.changed.v1', $event->type());
+        self::assertSame('clinic.clinic-time-zone.changed.v1', $event->name());
     }
 }

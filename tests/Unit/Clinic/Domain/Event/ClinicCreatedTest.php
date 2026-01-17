@@ -32,7 +32,7 @@ final class ClinicCreatedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic.created.v1', $event->type());
+        self::assertSame('clinic.clinic.created.v1', $event->name());
     }
 
     public function testPayloadWithoutClinicGroup(): void

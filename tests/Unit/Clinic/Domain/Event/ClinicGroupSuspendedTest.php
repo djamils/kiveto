@@ -15,6 +15,6 @@ final class ClinicGroupSuspendedTest extends TestCase
 
         self::assertSame('group-123', $event->aggregateId());
         self::assertSame(['clinicGroupId' => 'group-123'], $event->payload());
-        self::assertSame('clinic.clinic-group.suspended.v1', $event->type());
+        self::assertSame('clinic.clinic-group.suspended.v1', $event->name());
     }
 }

@@ -31,7 +31,7 @@ final class ClinicGroupTest extends TestCase
 
         $event = $events[0];
         self::assertInstanceOf(ClinicGroupCreated::class, $event);
-        self::assertSame('clinic.clinic-group.created.v1', $event->type());
+        self::assertSame('clinic.clinic-group.created.v1', $event->name());
         self::assertSame(ClinicGroupStatus::ACTIVE, $group->status());
     }
 

@@ -24,6 +24,6 @@ final class ClinicRenamedTest extends TestCase
             ],
             $event->payload(),
         );
-        self::assertSame('clinic.clinic.renamed.v1', $event->type());
+        self::assertSame('clinic.clinic.renamed.v1', $event->name());
     }
 }
