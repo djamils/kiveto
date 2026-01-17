@@ -45,6 +45,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/AccessControl/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\AccessControl\Infrastructure\Persistence\Doctrine\Entity'
                 alias: AccessControl
+            Client:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Client/Infrastructure/Persistence/Doctrine'
+                prefix: 'App\Client\Infrastructure\Persistence\Doctrine'
+                alias: Client
         controller_resolver:
             auto_mapping: false
 

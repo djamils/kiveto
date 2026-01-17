@@ -5,6 +5,7 @@ doctrine_migrations:
         'DoctrineMigrations\Translation': '%kernel.project_dir%/migrations/Translation'
         'DoctrineMigrations\Clinic': '%kernel.project_dir%/migrations/Clinic'
         'DoctrineMigrations\AccessControl': '%kernel.project_dir%/migrations/AccessControl'
+        'DoctrineMigrations\Client': '%kernel.project_dir%/migrations/Client'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true
