@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Clinic\Application\Command\CreateClinic;
 
-final readonly class CreateClinic
+use App\Shared\Application\Bus\CommandInterface;
+
+final readonly class CreateClinic implements CommandInterface
 {
     public function __construct(
         public string $name,

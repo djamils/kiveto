@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\UpsertTranslation;
 
-readonly class UpsertTranslation
+use App\Shared\Application\Bus\CommandInterface;
+
+final readonly class UpsertTranslation implements CommandInterface
 {
     public function __construct(
         public string $scope,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\BulkUpsertTranslations;
 
+use App\Shared\Application\Bus\CommandInterface;
+
 /**
  * @psalm-type BulkUpsertEntry = array{
  *     scope: string,
@@ -14,7 +16,7 @@ namespace App\Translation\Application\Command\BulkUpsertTranslations;
  *     description?: string|null
  * }
  */
-readonly class BulkUpsertTranslations
+final readonly class BulkUpsertTranslations implements CommandInterface
 {
     /**
      * @param list<BulkUpsertEntry> $entries
