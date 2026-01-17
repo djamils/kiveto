@@ -6,19 +6,18 @@ namespace App\Clinic\Application\Command\ChangeClinicTimeZone;
 
 use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 final class ChangeClinicTimeZoneHandler
 {
-    use DomainEventPublisherAware;
-
     public function __construct(
         private readonly ClinicRepositoryInterface $clinicRepository,
         private readonly ClockInterface $clock,
+        private readonly DomainEventPublisher $domainEventPublisher,
     ) {
     }
 

@@ -46,16 +46,18 @@ final class UpsertTranslationHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
 
-        $handler = new UpsertTranslationHandler($repo, $cache, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new UpsertTranslationHandler(
+            $repo,
+            $cache,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $handler(new UpsertTranslation('clinic', 'fr-FR', 'messages', 'hello', 'Hello', null, 'actor-1'));
     }

@@ -39,16 +39,18 @@ final class BulkUpsertTranslationsHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
 
-        $handler = new BulkUpsertTranslationsHandler($repo, $cache, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::exactly(2))
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new BulkUpsertTranslationsHandler(
+            $repo,
+            $cache,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $handler(new BulkUpsertTranslations([
             ['scope' => 'clinic', 'locale' => 'fr-FR', 'domain' => 'messages', 'key' => 'k1', 'value' => 'v1'],

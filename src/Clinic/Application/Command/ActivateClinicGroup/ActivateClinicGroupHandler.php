@@ -6,16 +6,15 @@ namespace App\Clinic\Application\Command\ActivateClinicGroup;
 
 use App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicGroupId;
-use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
+use App\Shared\Application\Event\DomainEventPublisher;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 final class ActivateClinicGroupHandler
 {
-    use DomainEventPublisherAware;
-
     public function __construct(
         private readonly ClinicGroupRepositoryInterface $clinicGroupRepository,
+        private readonly DomainEventPublisher $domainEventPublisher,
     ) {
     }
 

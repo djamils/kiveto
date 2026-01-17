@@ -39,8 +39,11 @@ final class ChangeClinicLocaleHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
-        $handler = new ChangeClinicLocaleHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicLocaleHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $handler(new ChangeClinicLocale($clinicId->toString(), 'en-US'));
 
@@ -53,8 +56,11 @@ final class ChangeClinicLocaleHandlerTest extends TestCase
         $repo->method('findById')->willReturn(null);
 
         $clock   = $this->createStub(ClockInterface::class);
-        $handler = new ChangeClinicLocaleHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicLocaleHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic with ID');

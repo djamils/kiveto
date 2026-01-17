@@ -68,22 +68,20 @@ final class RegisterUserHandlerTest extends TestCase
             }
         };
 
-        $handler = new RegisterUserHandler(
-            $repository,
-            $uuidGenerator,
-            $clock,
-            $passwordHasher,
-            new DoctrineUserFactory(),
-        );
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(UserRegistered::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new RegisterUserHandler(
+            $repository,
+            $uuidGenerator,
+            $clock,
+            $passwordHasher,
+            new DoctrineUserFactory(),
+            new DomainEventPublisher($eventBus),
+        );
 
         $userId = $handler(new RegisterUser(
             'user@example.com',
@@ -133,22 +131,20 @@ final class RegisterUserHandlerTest extends TestCase
             ->willReturn('hashed-pw-' . $type->value)
         ;
 
-        $handler = new RegisterUserHandler(
-            $repository,
-            $uuidGenerator,
-            $clock,
-            $passwordHasher,
-            new DoctrineUserFactory(),
-        );
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(UserRegistered::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new RegisterUserHandler(
+            $repository,
+            $uuidGenerator,
+            $clock,
+            $passwordHasher,
+            new DoctrineUserFactory(),
+            new DomainEventPublisher($eventBus),
+        );
 
         $userId = $handler(new RegisterUser(
             'user+' . $type->value . '@example.com',

@@ -40,12 +40,14 @@ final class ChangeClinicStatusHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
-        $handler = new ChangeClinicStatusHandler($repo, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())->method('publish');
 
-        $handler->setDomainEventPublisher(new DomainEventPublisher($eventBus));
+        $handler = new ChangeClinicStatusHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $handler(new ChangeClinicStatus($clinicId->toString(), ClinicStatus::SUSPENDED));
 
@@ -72,8 +74,11 @@ final class ChangeClinicStatusHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
-        $handler = new ChangeClinicStatusHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicStatusHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $handler(new ChangeClinicStatus($clinicId->toString(), ClinicStatus::CLOSED));
 
@@ -86,8 +91,11 @@ final class ChangeClinicStatusHandlerTest extends TestCase
         $repo->method('findById')->willReturn(null);
 
         $clock   = $this->createStub(ClockInterface::class);
-        $handler = new ChangeClinicStatusHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicStatusHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic with ID');

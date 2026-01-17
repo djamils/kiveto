@@ -41,8 +41,11 @@ final class ChangeClinicSlugHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
-        $handler = new ChangeClinicSlugHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicSlugHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $handler(new ChangeClinicSlug($clinicId->toString(), 'new-slug'));
 
@@ -68,7 +71,11 @@ final class ChangeClinicSlugHandlerTest extends TestCase
         $repo->expects(self::never())->method('save');
 
         $clock   = $this->createStub(ClockInterface::class);
-        $handler = new ChangeClinicSlugHandler($repo, $clock);
+        $handler = new ChangeClinicSlugHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(DuplicateClinicSlugException::class);
 
@@ -81,8 +88,11 @@ final class ChangeClinicSlugHandlerTest extends TestCase
         $repo->method('findById')->willReturn(null);
 
         $clock   = $this->createStub(ClockInterface::class);
-        $handler = new ChangeClinicSlugHandler($repo, $clock);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new ChangeClinicSlugHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic with ID');

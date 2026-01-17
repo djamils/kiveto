@@ -31,16 +31,18 @@ final class CreateClinicGroupHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
 
-        $handler = new CreateClinicGroupHandler($repo, $uuidGenerator, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new CreateClinicGroupHandler(
+            $repo,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $groupId = $handler(new CreateClinicGroup(name: 'Test Group'));
 

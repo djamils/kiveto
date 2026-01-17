@@ -53,16 +53,18 @@ final class DeleteTranslationHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
 
-        $handler = new DeleteTranslationHandler($repo, $cache, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new DeleteTranslationHandler(
+            $repo,
+            $cache,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $handler(new DeleteTranslation('portal', 'en-GB', 'messages', 'cta', 'actor-x'));
     }

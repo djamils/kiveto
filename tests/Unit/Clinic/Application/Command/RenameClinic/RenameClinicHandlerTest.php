@@ -47,16 +47,17 @@ final class RenameClinicHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02T12:00:00Z'));
 
-        $handler = new RenameClinicHandler($repo, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new RenameClinicHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $handler(new RenameClinic($clinicId->toString(), 'New Name'));
 
@@ -72,7 +73,11 @@ final class RenameClinicHandlerTest extends TestCase
         ;
 
         $clock   = $this->createStub(ClockInterface::class);
-        $handler = new RenameClinicHandler($repo, $clock);
+        $handler = new RenameClinicHandler(
+            $repo,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic with ID');

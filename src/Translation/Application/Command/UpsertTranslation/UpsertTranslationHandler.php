@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Translation\Application\Command\UpsertTranslation;
 
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use App\Translation\Application\Port\CatalogCacheInterface;
 use App\Translation\Domain\Repository\TranslationCatalogRepository;
 use App\Translation\Domain\TranslationCatalog;
@@ -18,12 +18,11 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final class UpsertTranslationHandler
 {
-    use DomainEventPublisherAware;
-
     public function __construct(
         private readonly TranslationCatalogRepository $catalogs,
         private readonly CatalogCacheInterface $cache,
         private readonly ClockInterface $clock,
+        private readonly DomainEventPublisher $domainEventPublisher,
     ) {
     }
 

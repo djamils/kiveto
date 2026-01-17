@@ -38,16 +38,18 @@ final class CreateClinicHandlerTest extends TestCase
         $clock = $this->createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
 
-        $handler = new CreateClinicHandler($repo, $uuidGenerator, $clock);
-
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())
             ->method('publish')
             ->with([], self::isInstanceOf(DomainEventInterface::class))
         ;
 
-        $eventPublisher = new DomainEventPublisher($eventBus);
-        $handler->setDomainEventPublisher($eventPublisher);
+        $handler = new CreateClinicHandler(
+            $repo,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
 
         $clinicId = $handler(new CreateClinic(
             name: 'Test Clinic',
@@ -74,7 +76,12 @@ final class CreateClinicHandlerTest extends TestCase
 
         $clock = $this->createStub(ClockInterface::class);
 
-        $handler = new CreateClinicHandler($repo, $uuidGenerator, $clock);
+        $handler = new CreateClinicHandler(
+            $repo,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(DuplicateClinicSlugException::class);
 

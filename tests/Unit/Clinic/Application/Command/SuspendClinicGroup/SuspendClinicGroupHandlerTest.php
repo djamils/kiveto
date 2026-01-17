@@ -28,8 +28,10 @@ final class SuspendClinicGroupHandlerTest extends TestCase
         $repo->method('findById')->willReturn($group);
         $repo->expects(self::once())->method('save')->with($group);
 
-        $handler = new SuspendClinicGroupHandler($repo);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new SuspendClinicGroupHandler(
+            $repo,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $handler(new SuspendClinicGroup($groupId->toString()));
 
@@ -41,8 +43,10 @@ final class SuspendClinicGroupHandlerTest extends TestCase
         $repo = $this->createStub(ClinicGroupRepositoryInterface::class);
         $repo->method('findById')->willReturn(null);
 
-        $handler = new SuspendClinicGroupHandler($repo);
-        $handler->setDomainEventPublisher(new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $handler = new SuspendClinicGroupHandler(
+            $repo,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Clinic group with ID "018f1b1e-1234-7890-abcd-0123456789ab" not found.');

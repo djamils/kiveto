@@ -10,22 +10,21 @@ use App\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Infrastructure\DependencyInjection\DomainEventPublisherAware;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 final class CreateClinicHandler
 {
-    use DomainEventPublisherAware;
-
     public function __construct(
         private readonly ClinicRepositoryInterface $clinicRepository,
         private readonly UuidGeneratorInterface $uuidGenerator,
         private readonly ClockInterface $clock,
+        private readonly DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
