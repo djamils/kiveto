@@ -13,13 +13,14 @@ final class ClinicMembershipDataStory extends Story
 {
     public function build(): void
     {
-        // Créer des users pour les tests
-        $vetUser = ClinicUserFactory::new()
-            ->withEmail('vet@kiveto.local')
-            ->withPlainPassword('vet')
-            ->create()
-        ;
+        // Retrieve existing users (created by ClinicVetStory)
+        $vetUser = ClinicUserFactory::repository()->findOneBy(['email' => 'vet@kiveto.local']);
 
+        if (null === $vetUser) {
+            throw new \RuntimeException('vet@kiveto.local user not found. ClinicVetStory must be loaded first.');
+        }
+
+        // Create other users for testing
         $assistantUser = ClinicUserFactory::new()
             ->withEmail('assistant@kiveto.local')
             ->withPlainPassword('assistant')
@@ -38,7 +39,7 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Assigner le vétérinaire à la clinic Paris
+        // Assign veterinarian to Paris clinic
         ClinicMembershipEntityFactory::new()
             ->withClinicId(ClinicDataStory::INDEPENDENT_CLINIC_ID)
             ->withUserId($vetUser->getId()->toRfc4122())
@@ -47,7 +48,16 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Assigner l'assistant à la clinic Paris
+        // Assign veterinarian to Lyon clinic as well
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId(ClinicDataStory::GROUP_CLINIC_ID)
+            ->withUserId($vetUser->getId()->toRfc4122())
+            ->asVeterinary()
+            ->asEmployee()
+            ->create()
+        ;
+
+        // Assign assistant to Paris clinic
         ClinicMembershipEntityFactory::new()
             ->withClinicId(ClinicDataStory::INDEPENDENT_CLINIC_ID)
             ->withUserId($assistantUser->getId()->toRfc4122())
@@ -56,7 +66,7 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Assigner l'admin à la clinic Lyon (groupe)
+        // Assign admin to Lyon clinic (group)
         ClinicMembershipEntityFactory::new()
             ->withClinicId(ClinicDataStory::GROUP_CLINIC_ID)
             ->withUserId($adminUser->getId()->toRfc4122())
@@ -65,7 +75,7 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Assigner le contractor à la clinic Paris (validité limitée)
+        // Assign contractor to Paris clinic (limited validity)
         $validUntil = new \DateTimeImmutable('+6 months');
         ClinicMembershipEntityFactory::new()
             ->withClinicId(ClinicDataStory::INDEPENDENT_CLINIC_ID)
@@ -75,7 +85,7 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Créer quelques memberships supplémentaires pour les tests
+        // Create some additional memberships for testing
         ClinicMembershipEntityFactory::createMany(5);
     }
 }
