@@ -3,169 +3,186 @@
 {% block title %}{{ client.firstName }} {{ client.lastName }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4 px-3 px-md-4">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1 class="h3 mb-0">
+<div class="container-fluid px-5 px-lg-10">
+    {# Header #}
+    <div class="flex items-center justify-between gap-2.5 mb-5">
+        <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-semibold text-gray-900 flex items-center gap-2">
                 {{ client.firstName }} {{ client.lastName }}
                 {% if client.status == 'active' %}
-                    <span class="badge bg-success">Actif</span>
+                    <span class="badge badge-success badge-sm">Actif</span>
                 {% else %}
-                    <span class="badge bg-secondary">Archivé</span>
+                    <span class="badge badge-secondary badge-sm">Archivé</span>
                 {% endif %}
             </h1>
-            <p class="text-muted">Détails du client</p>
+            <span class="text-sm text-gray-600">Détails du client</span>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="{{ path('clinic_clients_list') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Retour à la liste
+        <div class="flex gap-2.5">
+            <a href="{{ path('clinic_clients_list') }}" class="btn btn-sm btn-light">
+                <i class="ki-filled ki-left"></i>
+                Retour à la liste
             </a>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-8">
-            {# Identity #}
-            <div class="card mb-4">
+    <div class="grid lg:grid-cols-3 gap-5 lg:gap-7.5">
+        {# Main Content #}
+        <div class="lg:col-span-2">
+            {# Identity Card #}
+            <div class="card mb-5 lg:mb-7.5">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Identité</h5>
+                    <h3 class="card-title">Identité</h3>
                 </div>
                 <div class="card-body">
-                    <table class="table table-borderless mb-0">
+                    <table class="table-auto">
                         <tbody>
                             <tr>
-                                <th class="w-25">Prénom</th>
-                                <td>{{ client.firstName }}</td>
+                                <td class="text-sm font-medium text-gray-600 pb-3 pe-10">Prénom</td>
+                                <td class="text-sm text-gray-900 pb-3">{{ client.firstName }}</td>
                             </tr>
                             <tr>
-                                <th>Nom</th>
-                                <td>{{ client.lastName }}</td>
+                                <td class="text-sm font-medium text-gray-600 pb-3 pe-10">Nom</td>
+                                <td class="text-sm text-gray-900 pb-3">{{ client.lastName }}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {# Contact Methods #}
-            <div class="card mb-4">
+            {# Contact Methods Card #}
+            <div class="card mb-5 lg:mb-7.5">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Moyens de contact</h5>
+                    <h3 class="card-title">Moyens de contact</h3>
                 </div>
                 <div class="card-body">
                     {% if client.contactMethods|length > 0 %}
-                        <div class="list-group list-group-flush">
+                        <div class="flex flex-col gap-4">
                             {% for contact in client.contactMethods %}
-                                <div class="list-group-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            {% if contact.type == 'phone' %}
-                                                <i class="bi bi-telephone text-primary me-2"></i>
-                                            {% else %}
-                                                <i class="bi bi-envelope text-primary me-2"></i>
-                                            {% endif %}
-                                            <strong class="text-capitalize">{{ contact.label }}</strong>
-                                            {% if contact.isPrimary %}
-                                                <span class="badge bg-primary ms-2">Principal</span>
-                                            {% endif %}
+                                <div class="flex items-center justify-between gap-5 border-b border-gray-200 pb-3 last:border-0 last:pb-0">
+                                    <div class="flex items-center gap-3">
+                                        {% if contact.type == 'phone' %}
+                                            <div class="flex items-center justify-center size-9 rounded-full bg-primary-light">
+                                                <i class="ki-filled ki-phone text-primary text-base"></i>
+                                            </div>
+                                        {% else %}
+                                            <div class="flex items-center justify-center size-9 rounded-full bg-info-light">
+                                                <i class="ki-filled ki-sms text-info text-base"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="text-sm font-semibold text-gray-900 capitalize">
+                                                {{ contact.label }}
+                                                {% if contact.isPrimary %}
+                                                    <span class="badge badge-primary badge-xs ms-1">Principal</span>
+                                                {% endif %}
+                                            </span>
+                                            <span class="text-xs text-gray-600 capitalize">{{ contact.type == 'phone' ? 'Téléphone' : 'Email' }}</span>
                                         </div>
-                                        <div class="text-end">
-                                            {% if contact.type == 'phone' %}
-                                                <a href="tel:{{ contact.value }}" class="text-decoration-none">
-                                                    {{ contact.value }}
-                                                </a>
-                                            {% else %}
-                                                <a href="mailto:{{ contact.value }}" class="text-decoration-none">
-                                                    {{ contact.value }}
-                                                </a>
-                                            {% endif %}
-                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-900">
+                                        {% if contact.type == 'phone' %}
+                                            <a href="tel:{{ contact.value }}" class="text-primary hover:text-primary-active">
+                                                {{ contact.value }}
+                                            </a>
+                                        {% else %}
+                                            <a href="mailto:{{ contact.value }}" class="text-primary hover:text-primary-active">
+                                                {{ contact.value }}
+                                            </a>
+                                        {% endif %}
                                     </div>
                                 </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted mb-0">Aucun moyen de contact enregistré.</p>
+                        <div class="text-sm text-gray-600">Aucun moyen de contact enregistré.</div>
                     {% endif %}
                 </div>
             </div>
 
-            {# Postal Address #}
+            {# Postal Address Card #}
             {% if client.postalAddress %}
-                <div class="card mb-4">
+                <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Adresse postale</h5>
+                        <h3 class="card-title">Adresse postale</h3>
                     </div>
                     <div class="card-body">
-                        <address class="mb-0">
-                            {{ client.postalAddress.streetLine1 }}<br>
-                            {% if client.postalAddress.streetLine2 %}
-                                {{ client.postalAddress.streetLine2 }}<br>
-                            {% endif %}
-                            {% if client.postalAddress.postalCode %}
-                                {{ client.postalAddress.postalCode }}
-                            {% endif %}
-                            {{ client.postalAddress.city }}<br>
-                            {% if client.postalAddress.region %}
-                                {{ client.postalAddress.region }}<br>
-                            {% endif %}
-                            <strong>{{ client.postalAddress.countryCode }}</strong>
-                        </address>
+                        <div class="flex items-start gap-3">
+                            <div class="flex items-center justify-center size-9 rounded-full bg-success-light">
+                                <i class="ki-filled ki-geolocation text-success text-base"></i>
+                            </div>
+                            <div class="text-sm text-gray-700 leading-relaxed">
+                                {{ client.postalAddress.streetLine1 }}<br>
+                                {% if client.postalAddress.streetLine2 %}
+                                    {{ client.postalAddress.streetLine2 }}<br>
+                                {% endif %}
+                                {% if client.postalAddress.postalCode %}
+                                    {{ client.postalAddress.postalCode }}
+                                {% endif %}
+                                {{ client.postalAddress.city }}<br>
+                                {% if client.postalAddress.region %}
+                                    {{ client.postalAddress.region }}<br>
+                                {% endif %}
+                                <span class="font-semibold">{{ client.postalAddress.countryCode }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             {% endif %}
         </div>
 
-        <div class="col-lg-4">
-            {# Actions #}
-            <div class="card mb-4">
+        {# Sidebar #}
+        <div class="lg:col-span-1">
+            {# Actions Card #}
+            <div class="card mb-5 lg:mb-7.5">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Actions</h5>
+                    <h3 class="card-title">Actions</h3>
                 </div>
                 <div class="card-body">
                     {% if client.status == 'active' %}
-                        <div class="d-grid gap-2">
-                            <a href="{{ path('clinic_clients_edit', {id: client.id}) }}" class="btn btn-outline-primary">
-                                <i class="bi bi-pencil me-2"></i>Modifier
+                        <div class="flex flex-col gap-2.5">
+                            <a href="{{ path('clinic_clients_edit', {id: client.id}) }}" class="btn btn-sm btn-primary">
+                                <i class="ki-filled ki-pencil"></i>
+                                Modifier
                             </a>
-                            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#archiveModal">
-                                <i class="bi bi-box-arrow-in-down me-2"></i>Archiver
+                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#archiveModal">
+                                <i class="ki-filled ki-file-down"></i>
+                                Archiver
                             </button>
                         </div>
                     {% else %}
-                        <div class="alert alert-warning small mb-3">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Ce client est archivé et ne peut plus être modifié.
+                        <div class="alert alert-warning flex items-center gap-2 text-sm mb-3">
+                            <i class="ki-filled ki-information-2"></i>
+                            <span>Ce client est archivé et ne peut plus être modifié.</span>
                         </div>
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#unarchiveModal">
-                                <i class="bi bi-arrow-counterclockwise me-2"></i>Désarchiver
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-success w-full" data-bs-toggle="modal" data-bs-target="#unarchiveModal">
+                            <i class="ki-filled ki-arrow-up"></i>
+                            Désarchiver
+                        </button>
                     {% endif %}
                 </div>
             </div>
 
-            {# Info #}
+            {# Info Card #}
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Informations</h5>
+                    <h3 class="card-title">Informations</h3>
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm table-borderless mb-0">
+                    <table class="table-auto w-full">
                         <tbody>
-                            <tr>
-                                <th class="text-muted">ID</th>
-                                <td class="text-end">
-                                    <small class="font-monospace">{{ client.id|slice(0, 8) }}...</small>
+                            <tr class="border-b border-gray-200">
+                                <td class="text-xs font-medium text-gray-600 py-2.5 pe-5">ID</td>
+                                <td class="text-xs text-gray-900 py-2.5 text-end">
+                                    <code class="text-xs">{{ client.id|slice(0, 8) }}...</code>
                                 </td>
                             </tr>
-                            <tr>
-                                <th class="text-muted">Créé le</th>
-                                <td class="text-end">{{ client.createdAt|date('d/m/Y à H:i') }}</td>
+                            <tr class="border-b border-gray-200">
+                                <td class="text-xs font-medium text-gray-600 py-2.5 pe-5">Créé le</td>
+                                <td class="text-xs text-gray-900 py-2.5 text-end">{{ client.createdAt|date('d/m/Y à H:i') }}</td>
                             </tr>
                             <tr>
-                                <th class="text-muted">Modifié le</th>
-                                <td class="text-end">{{ client.updatedAt|date('d/m/Y à H:i') }}</td>
+                                <td class="text-xs font-medium text-gray-600 py-2.5 pe-5">Modifié le</td>
+                                <td class="text-xs text-gray-900 py-2.5 text-end">{{ client.updatedAt|date('d/m/Y à H:i') }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -177,25 +194,28 @@
 
 {# Archive Modal #}
 <div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
             <div class="modal-header">
-                <h5 class="modal-title" id="archiveModalLabel">Archiver le client</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h3 class="modal-title fs-5">Archiver le client</h3>
+                <button type="button" class="btn btn-sm btn-icon btn-light" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="ki-filled ki-cross"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir archiver ce client ?</p>
-                <p class="text-muted small mb-0">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Un client archivé ne pourra plus être modifié (vous pourrez le désarchiver plus tard si nécessaire).
-                </p>
+                <p class="text-gray-700 mb-3">Êtes-vous sûr de vouloir archiver ce client ?</p>
+                <div class="alert alert-warning flex items-start gap-2 text-sm">
+                    <i class="ki-filled ki-information-2 text-base"></i>
+                    <span>Un client archivé ne pourra plus être modifié (vous pourrez le désarchiver plus tard si nécessaire).</span>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form method="post" action="{{ path('clinic_clients_archive', {id: client.id}) }}" class="d-inline">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{{ path('clinic_clients_archive', {id: client.id}) }}" class="inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
-                    <button type="submit" class="btn btn-warning">
-                        <i class="bi bi-box-arrow-in-down me-2"></i>Archiver
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="ki-filled ki-file-down"></i>
+                        Archiver
                     </button>
                 </form>
             </div>
@@ -205,25 +225,28 @@
 
 {# Unarchive Modal #}
 <div class="modal fade" id="unarchiveModal" tabindex="-1" aria-labelledby="unarchiveModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg">
             <div class="modal-header">
-                <h5 class="modal-title" id="unarchiveModalLabel">Désarchiver le client</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h3 class="modal-title fs-5">Désarchiver le client</h3>
+                <button type="button" class="btn btn-sm btn-icon btn-light" data-bs-dismiss="modal" aria-label="Close">
+                    <i class="ki-filled ki-cross"></i>
+                </button>
             </div>
             <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir désarchiver ce client ?</p>
-                <p class="text-muted small mb-0">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Le client redeviendra actif et pourra de nouveau être modifié.
-                </p>
+                <p class="text-gray-700 mb-3">Êtes-vous sûr de vouloir désarchiver ce client ?</p>
+                <div class="alert alert-info flex items-start gap-2 text-sm">
+                    <i class="ki-filled ki-information text-base"></i>
+                    <span>Le client redeviendra actif et pourra de nouveau être modifié.</span>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}" class="d-inline">
+                <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}" class="inline-block">
                     <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-arrow-counterclockwise me-2"></i>Désarchiver
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="ki-filled ki-arrow-up"></i>
+                        Désarchiver
                     </button>
                 </form>
             </div>

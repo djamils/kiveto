@@ -9,13 +9,15 @@
 
         <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
 
+        {% block importmap %}{{ importmap('app') }}{% endblock %}
+
         <title>{% block title %}Tableau de bord{% endblock %}</title>
 
         {% block stylesheets %}{% endblock %}
     </head>
 
     <body class="antialiased flex h-full text-base text-foreground bg-background text-foreground bg-background flex h-full text-base antialiased">
-    <script>
+    <script data-turbo-eval="false">
         const defaultThemeMode = 'light'; // light|dark|system
         let themeMode;
 
@@ -86,8 +88,6 @@
             <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}" defer></script>
             <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}" defer></script>
             <script src="{{ asset('theme/js/widgets/general.js') }}" defer></script>
-
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </body>
 </html>
