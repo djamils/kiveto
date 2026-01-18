@@ -1,0 +1,39 @@
+<div class="row mb-3 contact-method-row">
+    <div class="col-md-2">
+        <select class="form-select" name="contact_type[]" required>
+            <option value="phone" {% if contact.type == 'phone' %}selected{% endif %}>Téléphone</option>
+            <option value="email" {% if contact.type == 'email' %}selected{% endif %}>Email</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select class="form-select" name="contact_label[]" required>
+            <option value="mobile" {% if contact.label == 'mobile' %}selected{% endif %}>Mobile</option>
+            <option value="home" {% if contact.label == 'home' %}selected{% endif %}>Domicile</option>
+            <option value="work" {% if contact.label == 'work' %}selected{% endif %}>Travail</option>
+            <option value="other" {% if contact.label == 'other' %}selected{% endif %}>Autre</option>
+        </select>
+    </div>
+    <div class="col-md-5">
+        <input type="text" 
+               class="form-control" 
+               name="contact_value[]" 
+               placeholder="Valeur" 
+               value="{{ contact.value }}"
+               required>
+    </div>
+    <div class="col-md-2">
+        <div class="form-check">
+            <input class="form-check-input" 
+                   type="checkbox" 
+                   name="contact_primary[]" 
+                   value="{{ index }}"
+                   {% if contact.isPrimary %}checked{% endif %}>
+            <label class="form-check-label">Principal</label>
+        </div>
+    </div>
+    <div class="col-md-1">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-contact">
+            <i class="bi bi-trash"></i>
+        </button>
+    </div>
+</div>

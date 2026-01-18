@@ -6,6 +6,8 @@ namespace App\Presentation\Clinic\Controller;
 
 use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
+use App\Clinic\Application\Query\GetClinic\ClinicDto;
+use App\Clinic\Application\Query\GetClinic\GetClinic;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -122,8 +124,12 @@ final class SelectClinicController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
+        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinic instanceof ClinicDto);
+
         return $this->render('clinic/dashboard.html.twig', [
-            'currentClinicId' => $currentClinicId->toString(),
+            'currentClinicId'   => $currentClinicId->toString(),
+            'currentClinicName' => $clinic->name,
         ]);
     }
 

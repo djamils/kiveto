@@ -1,0 +1,158 @@
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Clients{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 mb-0">Gestion des clients</h1>
+            <p class="text-muted">Liste de tous vos clients</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ path('clinic_clients_new') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Nouveau client
+            </a>
+        </div>
+    </div>
+
+    {# Search bar #}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get" action="{{ path('clinic_clients_list') }}">
+                <div class="input-group">
+                    <input type="text" 
+                           name="search" 
+                           class="form-control" 
+                           placeholder="Rechercher un client (nom, prénom, email, téléphone...)"
+                           value="{{ search }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i> Rechercher
+                    </button>
+                    {% if search %}
+                        <a href="{{ path('clinic_clients_list') }}" class="btn btn-outline-danger">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Clients table #}
+    {% if clients|length > 0 %}
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nom complet</th>
+                                <th>Téléphone principal</th>
+                                <th>Email principal</th>
+                                <th>Statut</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for client in clients %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ path('clinic_clients_view', {id: client.id}) }}" 
+                                           class="text-decoration-none fw-semibold">
+                                            {{ client.fullName }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if client.primaryPhone %}
+                                            <i class="bi bi-telephone me-1"></i>
+                                            {{ client.primaryPhone }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if client.primaryEmail %}
+                                            <i class="bi bi-envelope me-1"></i>
+                                            {{ client.primaryEmail }}
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if client.status == 'active' %}
+                                            <span class="badge bg-success">Actif</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Archivé</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ path('clinic_clients_view', {id: client.id}) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Pagination #}
+        {% if totalPages > 1 %}
+            <nav aria-label="Pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ path('clinic_clients_list', {page: page - 1, search: search}) }}">
+                                Précédent
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for p in 1..totalPages %}
+                        {% if p == page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ p }}</span>
+                            </li>
+                        {% elseif p == 1 or p == totalPages or (p >= page - 2 and p <= page + 2) %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path('clinic_clients_list', {page: p, search: search}) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                        {% elseif p == page - 3 or p == page + 3 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page < totalPages %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ path('clinic_clients_list', {page: page + 1, search: search}) }}">
+                                Suivant
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+
+        <p class="text-center text-muted mt-3">
+            {{ total }} client(s) trouvé(s)
+        </p>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            {% if search %}
+                Aucun client trouvé pour "<strong>{{ search }}</strong>".
+            {% else %}
+                Aucun client enregistré pour l'instant.
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

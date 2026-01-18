@@ -50,6 +50,27 @@
 
                 <!-- Content -->
                 <main class="grow pt-5" id="content" role="content">
+                    {# Flash Messages #}
+                    {% for type, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="container-fluid px-3 px-md-4 mb-3">
+                                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert">
+                                    {% if type == 'success' %}
+                                        <i class="ki-filled ki-check-circle me-2"></i>
+                                    {% elseif type == 'error' or type == 'danger' %}
+                                        <i class="ki-filled ki-information-2 me-2"></i>
+                                    {% elseif type == 'warning' %}
+                                        <i class="ki-filled ki-information-3 me-2"></i>
+                                    {% else %}
+                                        <i class="ki-filled ki-information me-2"></i>
+                                    {% endif %}
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
                     {% block content %}{% endblock %}
                 </main>
                 <!-- End of Content -->

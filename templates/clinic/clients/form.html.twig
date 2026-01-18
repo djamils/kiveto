@@ -1,0 +1,166 @@
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}{{ client ? 'Modifier' : 'Nouveau' }} client{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="h3 mb-0">{{ client ? 'Modifier' : 'Nouveau' }} client</h1>
+            <p class="text-muted">Saisissez les informations du client</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form method="post" action="{{ client ? path('clinic_clients_update', {id: client.id}) : path('clinic_clients_create') }}" id="clientForm">
+                <input type="hidden" name="_token" value="{{ csrf_token }}">
+
+                {# Identity #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Identité</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="first_name" class="form-label">Prénom <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="first_name" 
+                                       name="first_name" 
+                                       required
+                                       value="{{ client ? client.firstName : '' }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="last_name" class="form-label">Nom <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="last_name" 
+                                       name="last_name" 
+                                       required
+                                       value="{{ client ? client.lastName : '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Contact Methods #}
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Moyens de contact <span class="text-danger">*</span></h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="addContactMethod">
+                            <i class="bi bi-plus-circle"></i> Ajouter
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="contactMethodsContainer">
+                        {% if client and client.contactMethods|length > 0 %}
+                            {% for contact in client.contactMethods %}
+                                {{ include('clinic/clients/_contact_method_row.html.twig', {
+                                    contact: {
+                                        type: contact.type, 
+                                        label: contact.label, 
+                                        value: contact.value, 
+                                        isPrimary: contact.isPrimary
+                                    }, 
+                                    index: loop.index0
+                                }) }}
+                            {% endfor %}
+                        {% else %}
+                                {# Default: 1 phone + 1 email #}
+                                {{ include('clinic/clients/_contact_method_row.html.twig', {contact: {type: 'phone', label: 'mobile', value: '', isPrimary: true}, index: 0}) }}
+                                {{ include('clinic/clients/_contact_method_row.html.twig', {contact: {type: 'email', label: 'home', value: '', isPrimary: true}, index: 1}) }}
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">Au moins un moyen de contact est obligatoire. Vous pouvez marquer un téléphone et un email comme principaux.</small>
+                    </div>
+                </div>
+
+                {# Actions #}
+                <div class="card">
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>{{ client ? 'Enregistrer' : 'Créer le client' }}
+                        </button>
+                        <a href="{{ path('clinic_clients_list') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-2"></i>Annuler
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Aide</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        <strong>Champs obligatoires :</strong><br>
+                        • Prénom et Nom<br>
+                        • Au moins un moyen de contact (téléphone ou email)
+                    </p>
+                    <hr>
+                    <p class="small text-muted">
+                        <strong>Moyens de contact :</strong><br>
+                        Vous pouvez ajouter plusieurs téléphones et emails. 
+                        Marquez les principaux pour faciliter la communication.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let contactMethodIndex = {{ client ? client.contactMethods|length : 2 }};
+
+    document.getElementById('addContactMethod').addEventListener('click', function() {
+        const container = document.getElementById('contactMethodsContainer');
+        const template = `
+            <div class="row mb-3 contact-method-row">
+                <div class="col-md-2">
+                    <select class="form-select" name="contact_type[]" required>
+                        <option value="phone">Téléphone</option>
+                        <option value="email">Email</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" name="contact_label[]" required>
+                        <option value="mobile">Mobile</option>
+                        <option value="home">Domicile</option>
+                        <option value="work">Travail</option>
+                        <option value="other">Autre</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="contact_value[]" placeholder="Valeur" required>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="contact_primary[]" value="${contactMethodIndex}">
+                        <label class="form-check-label">Principal</label>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-contact">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', template);
+        contactMethodIndex++;
+    });
+
+    document.getElementById('contactMethodsContainer').addEventListener('click', function(e) {
+        if (e.target.closest('.remove-contact')) {
+            e.target.closest('.contact-method-row').remove();
+        }
+    });
+});
+</script>
+{% endblock %}
