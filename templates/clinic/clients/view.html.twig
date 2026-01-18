@@ -132,13 +132,15 @@
                             </button>
                         </div>
                     {% else %}
-                        <div class="alert alert-warning small mb-2">
+                        <div class="alert alert-warning small mb-3">
                             <i class="bi bi-info-circle me-1"></i>
                             Ce client est archivé et ne peut plus être modifié.
                         </div>
-                        <p class="text-muted small mb-0">
-                            Le désarchivage sera disponible prochainement.
-                        </p>
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#unarchiveModal">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Désarchiver
+                            </button>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -185,7 +187,7 @@
                 <p>Êtes-vous sûr de vouloir archiver ce client ?</p>
                 <p class="text-muted small mb-0">
                     <i class="bi bi-info-circle me-1"></i>
-                    Un client archivé ne pourra plus être modifié.
+                    Un client archivé ne pourra plus être modifié (vous pourrez le désarchiver plus tard si nécessaire).
                 </p>
             </div>
             <div class="modal-footer">
@@ -194,6 +196,34 @@
                     <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
                     <button type="submit" class="btn btn-warning">
                         <i class="bi bi-box-arrow-in-down me-2"></i>Archiver
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Unarchive Modal #}
+<div class="modal fade" id="unarchiveModal" tabindex="-1" aria-labelledby="unarchiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="unarchiveModalLabel">Désarchiver le client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir désarchiver ce client ?</p>
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Le client redeviendra actif et pourra de nouveau être modifié.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}" class="d-inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Désarchiver
                     </button>
                 </form>
             </div>

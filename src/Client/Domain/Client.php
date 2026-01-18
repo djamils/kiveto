@@ -9,6 +9,7 @@ use App\Client\Domain\Event\ClientContactMethodsReplaced;
 use App\Client\Domain\Event\ClientCreated;
 use App\Client\Domain\Event\ClientIdentityUpdated;
 use App\Client\Domain\Event\ClientPostalAddressUpdated;
+use App\Client\Domain\Event\ClientUnarchived;
 use App\Client\Domain\Exception\ClientAlreadyArchivedException;
 use App\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
 use App\Client\Domain\Exception\ClientMustHaveAtLeastOneContactMethodException;
@@ -140,6 +141,21 @@ final class Client extends AggregateRoot
         $this->updatedAt = $now;
 
         $this->recordDomainEvent(new ClientArchived(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+        ));
+    }
+
+    public function unarchive(\DateTimeImmutable $now): void
+    {
+        if (ClientStatus::ACTIVE === $this->status) {
+            throw new \DomainException(\sprintf('Client "%s" is already active.', $this->id->toString()));
+        }
+
+        $this->status    = ClientStatus::ACTIVE;
+        $this->updatedAt = $now;
+
+        $this->recordDomainEvent(new ClientUnarchived(
             clientId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
         ));

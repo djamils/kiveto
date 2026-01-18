@@ -9,6 +9,7 @@ use App\Client\Application\Command\CreateClient\ContactMethodDto as CreateContac
 use App\Client\Application\Command\CreateClient\CreateClient;
 use App\Client\Application\Command\ReplaceClientContactMethods\ContactMethodDto as ReplaceContactMethodDto;
 use App\Client\Application\Command\ReplaceClientContactMethods\ReplaceClientContactMethods;
+use App\Client\Application\Command\UnarchiveClient\UnarchiveClient;
 use App\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
 use App\Client\Application\Query\GetClientById\GetClientById;
 use App\Client\Application\Query\SearchClients\SearchClients;
@@ -215,6 +216,24 @@ final class ClientController extends AbstractController
         $this->addFlash('success', 'Client archivé avec succès.');
 
         return $this->redirectToRoute('clinic_clients_list');
+    }
+
+    #[Route('/{id}/unarchive', name: 'unarchive', methods: ['POST'])]
+    public function unarchive(string $id, Request $request): Response
+    {
+        $this->assertCsrf($request);
+
+        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
+        \assert(null !== $currentClinicId);
+
+        $this->commandBus->dispatch(new UnarchiveClient(
+            clinicId: $currentClinicId->toString(),
+            clientId: $id,
+        ));
+
+        $this->addFlash('success', 'Client désarchivé avec succès.');
+
+        return $this->redirectToRoute('clinic_clients_view', ['id' => $id]);
     }
 
     /**
