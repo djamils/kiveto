@@ -1,0 +1,245 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}Tableau de bord - {{ currentClinicName }}{% endblock %}
+
+{% block page_icon %}<i class="ki-filled ki-chart text-base"></i>{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">Tableau de bord</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ path('clinic_clients_new') }}" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+        <i class="ki-filled ki-plus text-base"></i>
+        <span class="hidden md:inline">Nouveau client</span>
+    </a>
+{% endblock %}
+
+{% block content %}
+    {# Stats Cards #}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {# Clients Card #}
+        <div class="card card-flush h-full">
+            <div class="card-body">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center size-10 rounded bg-primary/10">
+                            <i class="ki-filled ki-profile-circle text-primary text-xl"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-2xs text-muted-foreground">Total</span>
+                            <span class="text-sm font-semibold">Clients</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-3xl font-bold">—</span>
+                        <span class="text-2xs text-muted-foreground">clients actifs</span>
+                    </div>
+                    <a href="{{ path('clinic_clients_list') }}" class="kt-btn kt-btn-xs kt-btn-light">
+                        Voir tout
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {# Animals Card #}
+        <div class="card card-flush h-full opacity-75">
+            <div class="card-body">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center size-10 rounded bg-success/10">
+                            <i class="ki-filled ki-security-user text-success text-xl"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-2xs text-muted-foreground">Total</span>
+                            <span class="text-sm font-semibold">Animaux</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-3xl font-bold">—</span>
+                        <span class="text-2xs text-muted-foreground">patients</span>
+                    </div>
+                    <button class="kt-btn kt-btn-xs kt-btn-light" disabled>
+                        Bientôt
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {# Appointments Card #}
+        <div class="card card-flush h-full opacity-75">
+            <div class="card-body">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center size-10 rounded bg-warning/10">
+                            <i class="ki-filled ki-calendar text-warning text-xl"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-2xs text-muted-foreground">Aujourd'hui</span>
+                            <span class="text-sm font-semibold">Rendez-vous</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-3xl font-bold">—</span>
+                        <span class="text-2xs text-muted-foreground">rendez-vous</span>
+                    </div>
+                    <button class="kt-btn kt-btn-xs kt-btn-light" disabled>
+                        Bientôt
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {# Revenue Card #}
+        <div class="card card-flush h-full opacity-75">
+            <div class="card-body">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center justify-center size-10 rounded bg-info/10">
+                            <i class="ki-filled ki-dollar text-info text-xl"></i>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-2xs text-muted-foreground">Ce mois</span>
+                            <span class="text-sm font-semibold">Chiffre d'affaires</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-3xl font-bold">—</span>
+                        <span class="text-2xs text-muted-foreground">euros</span>
+                    </div>
+                    <button class="kt-btn kt-btn-xs kt-btn-light" disabled>
+                        Bientôt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Welcome Card #}
+    <div class="card card-flush mb-6">
+        <div class="card-body">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex flex-col gap-2">
+                    <h2 class="text-xl font-semibold">Bienvenue sur {{ currentClinicName }} ! 👋</h2>
+                    <p class="text-muted-foreground">
+                        Gérez vos clients, animaux, rendez-vous et bien plus encore depuis cette interface moderne.
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="{{ path('clinic_clients_new') }}" class="kt-btn kt-btn-primary">
+                        <i class="ki-filled ki-plus me-2"></i>Nouveau client
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Quick Actions Grid #}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {# Clients Module #}
+        <a href="{{ path('clinic_clients_list') }}" class="card card-flush hover:shadow-lg transition-shadow">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                        <i class="ki-filled ki-profile-circle text-primary text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Gestion des clients</h3>
+                        <p class="text-sm text-muted-foreground">Créer, modifier et consulter vos clients</p>
+                    </div>
+                    <i class="ki-filled ki-right text-muted-foreground"></i>
+                </div>
+            </div>
+        </a>
+
+        {# Animals Module #}
+        <div class="card card-flush opacity-75">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-success/10">
+                        <i class="ki-filled ki-security-user text-success text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Gestion des animaux</h3>
+                        <p class="text-sm text-muted-foreground">Bientôt disponible</p>
+                    </div>
+                    <span class="kt-badge kt-badge-light kt-badge-info">Bientôt</span>
+                </div>
+            </div>
+        </div>
+
+        {# Appointments Module #}
+        <div class="card card-flush opacity-75">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-warning/10">
+                        <i class="ki-filled ki-calendar text-warning text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Rendez-vous</h3>
+                        <p class="text-sm text-muted-foreground">Bientôt disponible</p>
+                    </div>
+                    <span class="kt-badge kt-badge-light kt-badge-info">Bientôt</span>
+                </div>
+            </div>
+        </div>
+
+        {# Consultations Module #}
+        <div class="card card-flush opacity-75">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-info/10">
+                        <i class="ki-filled ki-notepad text-info text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Consultations</h3>
+                        <p class="text-sm text-muted-foreground">Bientôt disponible</p>
+                    </div>
+                    <span class="kt-badge kt-badge-light kt-badge-info">Bientôt</span>
+                </div>
+            </div>
+        </div>
+
+        {# Billing Module #}
+        <div class="card card-flush opacity-75">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-danger/10">
+                        <i class="ki-filled ki-dollar text-danger text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Facturation</h3>
+                        <p class="text-sm text-muted-foreground">Bientôt disponible</p>
+                    </div>
+                    <span class="kt-badge kt-badge-light kt-badge-info">Bientôt</span>
+                </div>
+            </div>
+        </div>
+
+        {# Settings Module #}
+        <div class="card card-flush opacity-75">
+            <div class="card-body">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center size-12 rounded-lg bg-secondary/10">
+                        <i class="ki-filled ki-setting text-secondary text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <h3 class="text-base font-semibold">Paramètres</h3>
+                        <p class="text-sm text-muted-foreground">Bientôt disponible</p>
+                    </div>
+                    <span class="kt-badge kt-badge-light kt-badge-info">Bientôt</span>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

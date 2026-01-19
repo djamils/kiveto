@@ -1,0 +1,325 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}{{ client.firstName }} {{ client.lastName }} - Clients{% endblock %}
+
+{% block page_icon %}<i class="ki-filled ki-profile-circle text-base"></i>{% endblock %}
+{% block page_title %}{{ client.firstName }} {{ client.lastName }}{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li>
+        <a href="{{ path('clinic_clients_list') }}" class="hover:text-foreground">Clients</a>
+    </li>
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">{{ client.firstName }} {{ client.lastName }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    {% if client.status == 'active' %}
+        <a href="{{ path('clinic_clients_edit', {id: client.id}) }}" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+            <i class="ki-filled ki-pencil text-base"></i>
+            <span class="hidden md:inline">Modifier</span>
+        </a>
+        <button type="button" class="kt-btn kt-btn-sm kt-btn-light shadow-xs" data-bs-toggle="modal" data-bs-target="#archiveModal">
+            <i class="ki-filled ki-archive text-base"></i>
+            <span class="hidden md:inline">Archiver</span>
+        </button>
+    {% else %}
+        <button type="button" class="kt-btn kt-btn-sm kt-btn-success shadow-xs" data-bs-toggle="modal" data-bs-target="#unarchiveModal">
+            <i class="ki-filled ki-arrow-counterclockwise text-base"></i>
+            <span class="hidden md:inline">Désarchiver</span>
+        </button>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {# Client Header Card #}
+    <div class="card card-flush mb-6">
+        <div class="card-body">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-4">
+                {# Avatar #}
+                <div class="kt-avatar size-20">
+                    <div class="kt-avatar-initial bg-primary/10 text-primary text-3xl font-bold">
+                        {{ client.firstName|slice(0,1)|upper }}{{ client.lastName|slice(0,1)|upper }}
+                    </div>
+                </div>
+
+                {# Client Info #}
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <h2 class="text-2xl font-bold">{{ client.firstName }} {{ client.lastName }}</h2>
+                        {% if client.status == 'active' %}
+                            <span class="kt-badge kt-badge-light kt-badge-success">
+                                <i class="ki-filled ki-check-circle"></i>
+                                Actif
+                            </span>
+                        {% else %}
+                            <span class="kt-badge kt-badge-light kt-badge-secondary">
+                                <i class="ki-filled ki-archive"></i>
+                                Archivé
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <div class="flex items-center gap-2">
+                            <i class="ki-filled ki-calendar"></i>
+                            <span>Client depuis le {{ client.createdAt|date('d/m/Y') }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="ki-filled ki-code"></i>
+                            <span>ID: {{ client.id|slice(0, 8) }}...</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Quick Contact #}
+                <div class="flex gap-2">
+                    {% if client.primaryPhone %}
+                        <a href="tel:{{ client.primaryPhone }}" class="kt-btn kt-btn-light">
+                            <i class="ki-filled ki-phone"></i>
+                            <span class="hidden lg:inline">Appeler</span>
+                        </a>
+                    {% endif %}
+                    {% if client.primaryEmail %}
+                        <a href="mailto:{{ client.primaryEmail }}" class="kt-btn kt-btn-light">
+                            <i class="ki-filled ki-sms"></i>
+                            <span class="hidden lg:inline">Email</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Tabs Navigation #}
+    <div class="card card-flush">
+        <div class="card-header border-b border-gray-200">
+            <ul class="flex gap-1 -mb-px" role="tablist">
+                <li role="presentation">
+                    <button class="kt-tab-link active" id="overview-tab" data-kt-tabs-trigger="click" data-kt-tabs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                        <i class="ki-filled ki-home me-2"></i>Aperçu
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="kt-tab-link" id="animals-tab" data-kt-tabs-trigger="click" data-kt-tabs-target="#animals" type="button" role="tab" aria-controls="animals" aria-selected="false">
+                        <i class="ki-filled ki-security-user me-2"></i>Animaux
+                        <span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-2">Bientôt</span>
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="kt-tab-link" id="appointments-tab" data-kt-tabs-trigger="click" data-kt-tabs-target="#appointments" type="button" role="tab" aria-controls="appointments" aria-selected="false">
+                        <i class="ki-filled ki-calendar me-2"></i>Rendez-vous
+                        <span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-2">Bientôt</span>
+                    </button>
+                </li>
+                <li role="presentation">
+                    <button class="kt-tab-link" id="invoices-tab" data-kt-tabs-trigger="click" data-kt-tabs-target="#invoices" type="button" role="tab" aria-controls="invoices" aria-selected="false">
+                        <i class="ki-filled ki-dollar me-2"></i>Facturation
+                        <span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-2">Bientôt</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body">
+            <div class="kt-tabs-content">
+                {# Overview Tab #}
+                <div class="kt-tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {# Contact Methods #}
+                        <div class="card card-flush bg-muted/20">
+                            <div class="card-header">
+                                <h3 class="card-title text-base font-semibold">
+                                    <i class="ki-filled ki-phone me-2"></i>Moyens de contact
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                {% if client.contactMethods|length > 0 %}
+                                    <div class="flex flex-col gap-3">
+                                        {% for contact in client.contactMethods %}
+                                            <div class="flex items-center gap-3 p-3 rounded bg-background">
+                                                <div class="flex items-center justify-center size-10 rounded bg-primary/10">
+                                                    {% if contact.type == 'phone' %}
+                                                        <i class="ki-filled ki-phone text-primary"></i>
+                                                    {% else %}
+                                                        <i class="ki-filled ki-sms text-primary"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-sm font-semibold">{{ contact.label|capitalize }}</span>
+                                                        {% if contact.isPrimary %}
+                                                            <span class="kt-badge kt-badge-xs kt-badge-light kt-badge-primary">Principal</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if contact.type == 'phone' %}
+                                                        <a href="tel:{{ contact.value }}" class="text-sm text-primary hover:underline">{{ contact.value }}</a>
+                                                    {% else %}
+                                                        <a href="mailto:{{ contact.value }}" class="text-sm text-primary hover:underline">{{ contact.value }}</a>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted-foreground">Aucun moyen de contact enregistré.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {# Postal Address #}
+                        <div class="card card-flush bg-muted/20">
+                            <div class="card-header">
+                                <h3 class="card-title text-base font-semibold">
+                                    <i class="ki-filled ki-geolocation me-2"></i>Adresse postale
+                                </h3>
+                            </div>
+                            <div class="card-body">
+                                {% if client.postalAddress %}
+                                    <div class="p-3 rounded bg-background">
+                                        <address class="text-sm text-foreground not-italic">
+                                            {{ client.postalAddress.streetLine1 }}<br>
+                                            {% if client.postalAddress.streetLine2 %}
+                                                {{ client.postalAddress.streetLine2 }}<br>
+                                            {% endif %}
+                                            {% if client.postalAddress.postalCode %}
+                                                {{ client.postalAddress.postalCode }}
+                                            {% endif %}
+                                            {{ client.postalAddress.city }}<br>
+                                            {% if client.postalAddress.region %}
+                                                {{ client.postalAddress.region }}<br>
+                                            {% endif %}
+                                            <strong class="text-primary">{{ client.postalAddress.countryCode }}</strong>
+                                        </address>
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted-foreground">Aucune adresse postale enregistrée.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Activity Timeline (placeholder) #}
+                    <div class="card card-flush bg-muted/20 mt-6">
+                        <div class="card-header">
+                            <h3 class="card-title text-base font-semibold">
+                                <i class="ki-filled ki-chart-line me-2"></i>Activité récente
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="p-10 text-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div class="flex items-center justify-center size-16 rounded-full bg-muted">
+                                        <i class="ki-filled ki-chart-line text-muted-foreground text-2xl"></i>
+                                    </div>
+                                    <p class="text-muted-foreground">L'historique d'activité sera disponible prochainement.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Animals Tab #}
+                <div class="kt-tab-pane fade" id="animals" role="tabpanel" aria-labelledby="animals-tab">
+                    <div class="p-10 text-center">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="flex items-center justify-center size-20 rounded-full bg-muted">
+                                <i class="ki-filled ki-security-user text-muted-foreground text-4xl"></i>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <h3 class="text-lg font-semibold">Module Animaux</h3>
+                                <p class="text-muted-foreground">Ce module sera disponible prochainement.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Appointments Tab #}
+                <div class="kt-tab-pane fade" id="appointments" role="tabpanel" aria-labelledby="appointments-tab">
+                    <div class="p-10 text-center">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="flex items-center justify-center size-20 rounded-full bg-muted">
+                                <i class="ki-filled ki-calendar text-muted-foreground text-4xl"></i>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <h3 class="text-lg font-semibold">Module Rendez-vous</h3>
+                                <p class="text-muted-foreground">Ce module sera disponible prochainement.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Invoices Tab #}
+                <div class="kt-tab-pane fade" id="invoices" role="tabpanel" aria-labelledby="invoices-tab">
+                    <div class="p-10 text-center">
+                        <div class="flex flex-col items-center gap-4">
+                            <div class="flex items-center justify-center size-20 rounded-full bg-muted">
+                                <i class="ki-filled ki-dollar text-muted-foreground text-4xl"></i>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <h3 class="text-lg font-semibold">Module Facturation</h3>
+                                <p class="text-muted-foreground">Ce module sera disponible prochainement.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Archive Modal #}
+    <div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="archiveModalLabel">Archiver le client</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir archiver ce client ?</p>
+                    <p class="text-muted small mb-0">
+                        <i class="ki-filled ki-info-circle me-1"></i>
+                        Un client archivé ne peut plus être modifié (vous pouvez le désarchiver plus tard si nécessaire).
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="post" action="{{ path('clinic_clients_archive', {id: client.id}) }}" class="d-inline">
+                        <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="ki-filled ki-archive me-2"></i>Archiver
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Unarchive Modal #}
+    <div class="modal fade" id="unarchiveModal" tabindex="-1" aria-labelledby="unarchiveModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="unarchiveModalLabel">Désarchiver le client</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir désarchiver ce client ?</p>
+                    <p class="text-muted small mb-0">
+                        <i class="ki-filled ki-info-circle me-1"></i>
+                        Le client redeviendra actif et pourra de nouveau être modifié.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}" class="d-inline">
+                        <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+                        <button type="submit" class="btn btn-success">
+                            <i class="ki-filled ki-arrow-counterclockwise me-2"></i>Désarchiver
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

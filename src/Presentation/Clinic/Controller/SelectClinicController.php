@@ -127,7 +127,7 @@ final class SelectClinicController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/dashboard.html.twig', [
+        return $this->render('clinic/dashboard_layout15.html.twig', [
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);

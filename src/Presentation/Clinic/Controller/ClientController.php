@@ -13,6 +13,8 @@ use App\Client\Application\Command\UnarchiveClient\UnarchiveClient;
 use App\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
 use App\Client\Application\Query\GetClientById\GetClientById;
 use App\Client\Application\Query\SearchClients\SearchClients;
+use App\Clinic\Application\Query\GetClinic\ClinicDto;
+use App\Clinic\Application\Query\GetClinic\GetClinic;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -59,14 +61,13 @@ final class ClientController extends AbstractController
         \assert(\is_array($result['items']));
         \assert(\is_int($result['total']));
 
-        return $this->render('clinic/clients/list.html.twig', [
-            'clients'         => $result['items'],
-            'total'           => $result['total'],
-            'page'            => $page,
-            'limit'           => $limit,
-            'search'          => $search,
-            'totalPages'      => (int) ceil($result['total'] / $limit),
+        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinic instanceof ClinicDto);
+
+        return $this->render('clinic/clients/list_layout15.html.twig', [
+            'clients' => $this->buildPaginationArray($result['items'], $result['total'], $page, $limit),
             'currentClinicId' => $currentClinicId->toString(),
+            'currentClinicName' => $clinic->name,
         ]);
     }
 
@@ -76,10 +77,14 @@ final class ClientController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        return $this->render('clinic/clients/form.html.twig', [
+        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinic instanceof ClinicDto);
+
+        return $this->render('clinic/clients/form_layout15.html.twig', [
             'client'          => null,
             'csrf_token'      => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
             'currentClinicId' => $currentClinicId->toString(),
+            'currentClinicName' => $clinic->name,
         ]);
     }
 
@@ -131,9 +136,13 @@ final class ClientController extends AbstractController
             throw $this->createNotFoundException('Client introuvable.');
         }
 
-        return $this->render('clinic/clients/view.html.twig', [
+        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinic instanceof ClinicDto);
+
+        return $this->render('clinic/clients/view_layout15.html.twig', [
             'client'          => $client,
             'currentClinicId' => $currentClinicId->toString(),
+            'currentClinicName' => $clinic->name,
         ]);
     }
 
@@ -152,10 +161,14 @@ final class ClientController extends AbstractController
             throw $this->createNotFoundException('Client introuvable.');
         }
 
-        return $this->render('clinic/clients/form.html.twig', [
+        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinic instanceof ClinicDto);
+
+        return $this->render('clinic/clients/form_layout15.html.twig', [
             'client'          => $client,
             'csrf_token'      => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
             'currentClinicId' => $currentClinicId->toString(),
+            'currentClinicName' => $clinic->name,
         ]);
     }
 
@@ -333,5 +346,26 @@ final class ClientController extends AbstractController
         if (!$this->csrfTokenManager->isTokenValid($token)) {
             throw $this->createAccessDeniedException('Jeton CSRF invalide.');
         }
+    }
+
+    /**
+     * @param array<int, mixed> $items
+     * @return array{items: array<int, mixed>, totalItems: int, currentPage: int, totalPages: int, limit: int, hasPreviousPage: bool, hasNextPage: bool, previousPage: int, nextPage: int}
+     */
+    private function buildPaginationArray(array $items, int $total, int $page, int $limit): array
+    {
+        $totalPages = (int) ceil($total / $limit);
+
+        return [
+            'items'           => $items,
+            'totalItems'      => $total,
+            'currentPage'     => $page,
+            'totalPages'      => $totalPages,
+            'limit'           => $limit,
+            'hasPreviousPage' => $page > 1,
+            'hasNextPage'     => $page < $totalPages,
+            'previousPage'    => max(1, $page - 1),
+            'nextPage'        => min($totalPages, $page + 1),
+        ];
     }
 }

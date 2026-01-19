@@ -1,0 +1,35 @@
+<div class="bg-background flex items-center border-b border-gray-200 h-(--content-header-height) pe-(--removed-body-scroll-bar-size,0px)">
+    <div class="container-fluid flex items-center">
+        <div class="flex items-center justify-between grow space-x-2">
+            {# Title & Breadcrumbs #}
+            <div class="flex flex-col">
+                <h1 class="inline-flex items-center gap-2.5 text-sm font-semibold">
+                    {% block page_icon %}
+                        <i class="ki-filled ki-home text-base"></i>
+                    {% endblock %}
+                    {% block page_title %}Page{% endblock %}
+                </h1>
+                <nav class="text-xs text-muted-foreground">
+                    <ol class="flex items-center gap-1">
+                        <li>
+                            <a href="{{ path('clinic_home') }}" class="hover:text-foreground">
+                                Accueil
+                            </a>
+                        </li>
+                        {% block breadcrumbs %}{% endblock %}
+                    </ol>
+                </nav>
+            </div>
+
+            {# Actions #}
+            <div class="flex items-center gap-2.5">
+                {% block page_actions %}
+                    <button aria-expanded="false" aria-haspopup="menu" class="kt-btn kt-btn-sm kt-btn-outline shadow-xs" type="button">
+                        <i class="ki-filled ki-file-added text-base"></i>
+                        <span class="hidden md:inline">Rapports</span>
+                    </button>
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+</div>

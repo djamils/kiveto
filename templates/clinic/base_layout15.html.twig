@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html class="h-full" data-kt-theme="true" data-kt-theme-mode="light" dir="ltr" lang="fr">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport"/>
+    <title>{% block title %}Kiveto Clinic{% endblock %}</title>
+
+    <link href="{{ asset('theme/media/app/apple-touch-icon.png') }}" rel="apple-touch-icon" sizes="180x180"/>
+    <link href="{{ asset('theme/media/app/favicon-32x32.png') }}" rel="icon" sizes="32x32" type="image/png"/>
+    <link href="{{ asset('theme/media/app/favicon-16x16.png') }}" rel="icon" sizes="16x16" type="image/png"/>
+    <link href="{{ asset('theme/media/app/favicon.ico') }}" rel="shortcut icon"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="{{ asset('theme/vendors/apexcharts/apexcharts.css') }}" rel="stylesheet"/>
+    <link href="{{ asset('theme/vendors/keenicons/styles.bundle.css') }}" rel="stylesheet"/>
+    <link href="{{ asset('theme/css/styles.css') }}" rel="stylesheet"/>
+    <link href="{{ asset('styles/app.css') }}" rel="stylesheet"/>
+
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% block stylesheets %}{% endblock %}
+</head>
+<body class="antialiased flex h-full text-base text-foreground bg-background">
+<script data-turbo-eval="false">
+    const defaultThemeMode = 'light';
+    let themeMode;
+    if (document.documentElement) {
+        if (localStorage.getItem('kt-theme')) {
+            themeMode = localStorage.getItem('kt-theme');
+        } else if (document.documentElement.hasAttribute('data-kt-theme-mode')) {
+            themeMode = document.documentElement.getAttribute('data-kt-theme-mode');
+        } else {
+            themeMode = defaultThemeMode;
+        }
+        if (themeMode === 'system') {
+            themeMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.classList.add(themeMode);
+    }
+</script>
+
+<div class="flex grow" id="root">
+    <div class="flex grow h-screen flex-col [--header-height:40px] [--content-header-height:54px] [--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:45px] [--sidebar-footer-collapsed-height:90px]">
+        {% include 'clinic/partials/layout15/_header.html.twig' %}
+
+        <div class="flex flex-1">
+            {% include 'clinic/partials/layout15/_sidebar.html.twig' %}
+
+            {% block content_with_header %}
+            <main class="flex-1 flex flex-col mt-(--header-height) transition-[margin] duration-200 ease-in-out">
+                {% include 'clinic/partials/layout15/_content_header.html.twig' %}
+
+                <div class="container-fluid">
+                    {% for type, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="py-3">
+                                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible" role="alert">
+                                    {% if type == 'success' %}<i class="ki-filled ki-check-circle me-2"></i>
+                                    {% elseif type == 'error' or type == 'danger' %}<i class="ki-filled ki-information-2 me-2"></i>
+                                    {% elseif type == 'warning' %}<i class="ki-filled ki-information-3 me-2"></i>
+                                    {% else %}<i class="ki-filled ki-information me-2"></i>
+                                    {% endif %}
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+
+                    <div class="flex-1 block space-y-6 py-5">
+                        {% block content %}{% endblock %}
+                    </div>
+                </div>
+            </main>
+            {% endblock %}
+        </div>
+    </div>
+</div>
+
+{% block javascripts %}
+    <script src="{{ asset('theme/js/core.bundle.js') }}" defer></script>
+    <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}" defer></script>
+    <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}" defer></script>
+    <script src="{{ asset('theme/js/widgets/general.js') }}" defer></script>
+{% endblock %}
+</body>
+</html>

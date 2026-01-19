@@ -1,0 +1,106 @@
+<header class="fixed top-0 start-0 end-0 z-[10] flex items-center justify-between h-(--header-height) bg-zinc-950 border-b border-zinc-950 dark:border-border transition-[start] duration-200 ease-in-out pe-(--removed-body-scroll-bar-size,0px)">
+    <div class="container-fluid flex justify-between items-stretch lg:gap-4">
+        {# Logo & Mobile Menu #}
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2.5 lg:hidden">
+                <a class="shrink-0" href="{{ path('clinic_home') }}">
+                    <img alt="Kiveto" class="h-4" src="{{ asset('theme/media/app/mini-logo.svg') }}"/>
+                </a>
+                <button class="kt-btn kt-btn-sm text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800" data-kt-drawer-toggle="#sidebar" type="button">
+                    <i class="ki-filled ki-menu"></i>
+                </button>
+            </div>
+            <div class="hidden lg:flex items-center -ms-1">
+                <a href="{{ path('clinic_home') }}">
+                    <img alt="Kiveto" class="h-4" src="{{ asset('theme/media/app/mini-logo.svg') }}"/>
+                </a>
+            </div>
+        </div>
+
+        {# Middle - Clinic Selector #}
+        <div class="flex items-center gap-2">
+            {% if currentClinicName is defined %}
+                <div class="flex items-center gap-2 text-white/80 text-sm">
+                    <i class="ki-filled ki-bank"></i>
+                    <span class="hidden md:inline">{{ currentClinicName }}</span>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Actions #}
+        <div class="flex items-center gap-2">
+            <div>
+                <a href="{{ path('clinic_clients_new') }}" class="kt-btn kt-btn-sm">
+                    <i class="ki-filled ki-plus text-lg"></i>
+                    <span class="hidden md:inline">Nouveau</span>
+                </a>
+            </div>
+            <div class="kt-separator kt-separator-vertical shrink-0 w-px bg-zinc-600 h-4 mx-1"></div>
+            <div>
+                <button class="kt-btn kt-btn-sm text-white hover:text-white hover:bg-zinc-800 hover:border-zinc-800" type="button">
+                    <i class="ki-filled ki-question-2 text-lg"></i>
+                </button>
+            </div>
+            <div class="kt-separator kt-separator-vertical shrink-0 w-px bg-zinc-600 h-4 mx-1"></div>
+            {# User Avatar/Dropdown #}
+            <div data-kt-dropdown="true" data-kt-dropdown-offset="10px, 10px" data-kt-dropdown-placement="bottom-end" data-kt-dropdown-trigger="click">
+                <button class="kt-avatar size-7 cursor-pointer" data-kt-dropdown-toggle="true" type="button">
+                    <div class="kt-avatar-image border-2 border-zinc-950">
+                        <img alt="avatar" src="{{ asset('theme/media/avatars/300-2.png') }}"/>
+                    </div>
+                </button>
+                <div class="kt-dropdown-menu w-[250px]" data-kt-dropdown-menu="true">
+                    <div class="flex items-center justify-between px-2.5 py-1.5 gap-1.5">
+                        <div class="flex items-center gap-2">
+                            <div class="kt-avatar">
+                                <div class="kt-avatar-image">
+                                    <img alt="avatar" src="{{ asset('theme/media/avatars/300-2.png') }}"/>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <span class="text-sm text-foreground font-semibold leading-none">
+                                    {{ app.user.userIdentifier }}
+                                </span>
+                                <span class="text-xs text-secondary-foreground leading-none">
+                                    Vétérinaire
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <ul class="kt-dropdown-menu-sub">
+                        <li>
+                            <a class="kt-dropdown-menu-link" href="#">
+                                <i class="ki-filled ki-user"></i>
+                                Mon profil
+                            </a>
+                        </li>
+                        <li>
+                            <a class="kt-dropdown-menu-link" href="#">
+                                <i class="ki-filled ki-setting"></i>
+                                Paramètres
+                            </a>
+                        </li>
+                        <li>
+                            <div class="kt-dropdown-menu-separator"></div>
+                        </li>
+                        <li>
+                            <a class="kt-dropdown-menu-link" href="{{ path('_logout_clinic') }}">
+                                <i class="ki-filled ki-exit-left"></i>
+                                Déconnexion
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="px-2.5 pt-1.5 mb-2.5 flex flex-col gap-3.5">
+                        <div class="flex items-center gap-2 justify-between">
+                            <span class="flex items-center gap-2">
+                                <i class="ki-filled ki-moon text-base text-muted-foreground"></i>
+                                <span class="font-medium text-2sm">Mode sombre</span>
+                            </span>
+                            <input class="kt-switch" data-kt-theme-switch-state="dark" data-kt-theme-switch-toggle="true" name="check" type="checkbox" value="1"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>

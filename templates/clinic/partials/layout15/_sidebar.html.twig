@@ -1,0 +1,87 @@
+<aside class="flex flex-col fixed z-[10] start-0 top-[var(--header-height)] bottom-0 w-(--sidebar-width) in-data-[sidebar-collapsed]:w-(--sidebar-width-collapsed) bg-background border-e border-border [--sidebar-space-x:calc(var(--spacing)*2.5)] transition-[width] duration-200 ease-in-out">
+    <div class="group flex justify-between items-center gap-2.5 border-b border-border h-11 lg:h-(--sidebar-header-height) shrink-0 px-2.5">
+        <div class="flex items-center gap-2">
+            <button class="cursor-pointer group focus-visible:outline-hidden has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 text-accent-foreground hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground h-8.5 rounded-md text-[0.8125rem] leading-(--text-sm--line-height) [&_svg]:size-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 select-none flex items-center justify-between gap-2.5 px-1.5 hover:bg-accent -ms-0.5" type="button">
+                <span class="rounded-md bg-emerald-500 text-white text-sm shrink-0 size-6 flex items-center justify-center">K</span>
+                <span class="text-foreground text-sm font-medium in-data-[sidebar-collapsed]:hidden">Kiveto</span>
+                <i class="ki-filled ki-arrow-down text-sm"></i>
+            </button>
+        </div>
+        <button class="cursor-pointer group focus-visible:outline-hidden items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&_svg]:shrink-0 hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground rounded-md gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shrink-0 text-muted-foreground w-8.5 h-8.5 p-0 [&_svg:not([class*=size-])]:size-4 hidden lg:group-hover:flex lg:in-data-[sidebar-collapsed]:hidden!" data-kt-drawer-toggle="#sidebar">
+            <i class="ki-filled ki-grid text-base"></i>
+        </button>
+    </div>
+
+    <div class="overflow-y-auto grow flex my-2.5 px-2.5">
+        <div class="flex flex-col grow space-y-7.5">
+            <div class="kt-accordion" data-kt-accordion="true" data-kt-accordion-expand-all="true">
+                <div class="kt-accordion-item active" data-kt-accordion-item="true">
+                    <div class="kt-accordion-content" id="accordion_content_0">
+                        <div class="kt-accordion-wrapper">
+                            <ul class="kt-accordion-menu gap-px" data-kt-accordion="true">
+                                <li class="kt-accordion-menu-item {% if app.request.get('_route') starts with 'clinic_dashboard' %}selected{% endif %}" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="{{ path('clinic_dashboard') }}">
+                                        <i class="ki-filled ki-home text-base"></i>Tableau de bord
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item {% if app.request.get('_route') starts with 'clinic_clients' %}selected{% endif %}" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="{{ path('clinic_clients_list') }}">
+                                        <i class="ki-filled ki-users text-base"></i>Clients
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-security-user text-base"></i>Animaux<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-calendar text-base"></i>Rendez-vous<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-notepad text-base"></i>Consultations<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-dollar text-base"></i>Facturation<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kt-accordion-item active" data-kt-accordion-item="true">
+                    <button class="kt-accordion-toggle flex grow items-center justify-start h-8 px-0 gap-2.5 text-sm text-muted-foreground hover:text-foreground" data-kt-accordion-toggle="true" id="accordion_toggle_1">
+                        <span class="kt-accordion-title">
+                            <div class="px-2 pb-2 text-xs font-normal text-muted-foreground leading-none">Administration</div>
+                        </span>
+                        <span class="kt-accordion-indicator">
+                            <svg class="lucide lucide-plus kt-accordion-indicator-on" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                            <svg class="lucide lucide-minus kt-accordion-indicator-off" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12h14"></path></svg>
+                        </span>
+                    </button>
+                    <div class="kt-accordion-content" id="accordion_content_1">
+                        <div class="kt-accordion-wrapper">
+                            <ul class="kt-accordion-menu gap-px" data-kt-accordion="true">
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-user text-base"></i>Utilisateurs<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
+                                        <i class="ki-filled ki-setting text-base"></i>Paramètres<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>
