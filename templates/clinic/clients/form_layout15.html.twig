@@ -249,6 +249,13 @@
     </form>
 {% endblock %}
 
+{% set contactMethodRowTemplate %}
+    {% include 'clinic/clients/_contact_method_row_layout15.html.twig' with {
+        contact: null,
+        index: 'NEW_INDEX'
+    } only %}
+{% endset %}
+
 {% block javascripts %}
     {{ parent() }}
     <script data-turbo-temporary>
@@ -268,14 +275,7 @@
             contactMethodsContainer.replaceWith(newContactMethodsContainer);
 
             newAddContactMethodButton.addEventListener('click', function() {
-                const template = `
-                    {% filter escape('js') %}
-                        {% include 'clinic/clients/_contact_method_row_layout15.html.twig' with {
-                            contact: null,
-                            index: 'NEW_INDEX'
-                        } only %}
-                    {% endfilter %}
-                `;
+                const template = {{ contactMethodRowTemplate|e('js') }};
                 newContactMethodsContainer.insertAdjacentHTML('beforeend', template.replace(/NEW_INDEX/g, contactMethodIndex));
                 contactMethodIndex++;
             });
