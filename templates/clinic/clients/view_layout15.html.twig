@@ -74,14 +74,25 @@
 
                 {# Quick Contact #}
                 <div class="flex gap-2">
-                    {% if client.primaryPhone %}
-                        <a href="tel:{{ client.primaryPhone }}" class="kt-btn kt-btn-light">
+                    {% set primaryPhone = null %}
+                    {% set primaryEmail = null %}
+                    {% for contact in client.contactMethods %}
+                        {% if contact.isPrimary and contact.type == 'phone' %}
+                            {% set primaryPhone = contact.value %}
+                        {% endif %}
+                        {% if contact.isPrimary and contact.type == 'email' %}
+                            {% set primaryEmail = contact.value %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if primaryPhone %}
+                        <a href="tel:{{ primaryPhone }}" class="kt-btn kt-btn-light">
                             <i class="ki-filled ki-phone"></i>
                             <span class="hidden lg:inline">Appeler</span>
                         </a>
                     {% endif %}
-                    {% if client.primaryEmail %}
-                        <a href="mailto:{{ client.primaryEmail }}" class="kt-btn kt-btn-light">
+                    {% if primaryEmail %}
+                        <a href="mailto:{{ primaryEmail }}" class="kt-btn kt-btn-light">
                             <i class="ki-filled ki-sms"></i>
                             <span class="hidden lg:inline">Email</span>
                         </a>
