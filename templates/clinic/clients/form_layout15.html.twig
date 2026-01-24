@@ -246,6 +246,18 @@
                 {% endif %}
             </div>
         </div>
+
+        {# Form Actions (Bottom) #}
+        <div class="flex justify-end gap-3 mt-6">
+            <a href="{{ client ? path('clinic_clients_view', {id: client.id}) : path('clinic_clients_list') }}" class="kt-btn kt-btn-light">
+                <i class="ki-filled ki-cross text-base"></i>
+                Annuler
+            </a>
+            <button type="submit" class="kt-btn kt-btn-primary">
+                <i class="ki-filled ki-save text-base"></i>
+                {{ client ? 'Sauvegarder les modifications' : 'Créer le client' }}
+            </button>
+        </div>
     </form>
 {% endblock %}
 
