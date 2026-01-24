@@ -2,66 +2,23 @@
 
 {% block title %}Clients - {{ currentClinicName }}{% endblock %}
 
-{% block content_with_header %}
- <main
-     class="flex-1 flex flex-col mt-(--header-height) lg:mt-[calc(var(--header-height)+var(--content-header-height))] lg:ms-(--sidebar-width) lg:in-data-[sidebar-collapsed]:ms-(--sidebar-width-collapsed) transition-[margin] duration-200 ease-in-out"
-     style="padding-top: 54px;"
-    >
-    {# Content Header - fixe sur desktop #}
-    <div class="bg-background flex items-center border-b lg:fixed top-[var(--header-height)] start-(--sidebar-width) end-0 in-data-[sidebar-collapsed]:start-(--sidebar-width-collapsed) z-[10] h-(--content-header-height) pe-[var(--removed-body-scroll-bar-size,0px)]">
-        <div class="container-fluid flex items-center">
-            <button data-slot="button"
-                    class="cursor-pointer group focus-visible:outline-hidden items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap text-sm font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&amp;_svg]:shrink-0 text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground size-8.5 rounded-md shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&amp;_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 w-8.5 h-8.5 p-0 [&amp;_svg:not([class*=size-])]:size-4 hidden in-data-[sidebar-collapsed]:inline-flex -ms-2.5 me-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                     class="lucide lucide-panel-right-close" aria-hidden="true">
-                    <rect width="18" height="18" x="3" y="3" rx="2"></rect>
-                    <path d="M15 3v18"></path>
-                    <path d="m8 9 3 3-3 3"></path>
-                </svg>
-            </button>
-            <div class="flex items-center justify-between grow space-x-2">
-                <h1 class="inline-flex items-center gap-2.5 text-sm font-semibold">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                         class="lucide lucide-users size-4 text-primary" aria-hidden="true">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                        <path d="M16 3.128a4 4 0 0 1 0 7.744"></path>
-                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                    </svg>
-                    Contacts
-                </h1>
-                <div class="flex items-center gap-2.5">
-                    <button data-slot="dropdown-menu-trigger"
-                            class="cursor-pointer group focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&amp;_svg]:shrink-0 bg-background text-accent-foreground border border-input hover:bg-accent data-[state=open]:bg-accent h-7 rounded-md px-2.5 gap-1.25 text-xs [&amp;_svg:not([class*=size-])]:size-3.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&amp;_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60 shadow-xs shadow-black/5 select-none"
-                            type="button" id="radix-_r_128_" aria-haspopup="menu" aria-expanded="false"
-                            data-state="closed">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                             class="lucide lucide-file-check2 lucide-file-check-2" aria-hidden="true">
-                            <path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"></path>
-                            <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
-                            <path d="m3 15 2 2 4-4"></path>
-                        </svg>
-                        Reports
-                    </button>
-                    <button data-slot="button"
-                            class="cursor-pointer group focus-visible:outline-hidden inline-flex items-center justify-center has-data-[arrow=true]:justify-between whitespace-nowrap font-medium ring-offset-background transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-60 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 data-[state=open]:bg-primary/90 h-7 rounded-md px-2.5 gap-1.25 text-xs [&amp;_svg:not([class*=size-])]:size-3.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 shadow-xs shadow-black/5">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                             class="lucide lucide-plus" aria-hidden="true">
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5v14"></path>
-                        </svg>
-                        New Contact
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+{% block page_icon %}<i class="ki-filled ki-users text-base"></i>{% endblock %}
+{% block page_title %}Clients{% endblock %}
 
-    <div class="flex flex-1 py-0">
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">Clients</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ path('clinic_clients_new') }}" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+        <i class="ki-filled ki-plus text-base"></i>
+        <span class="hidden md:inline">Nouveau client</span>
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="flex flex-1">
         <div class="flex grow">
             <div class="flex flex-col items-stretch text-card-foreground rounded-xl bg-card border border-border shadow-none">
                 {# Card Header with Search & Filters #}
@@ -210,30 +167,32 @@
             </div>
         </div>
     </div>
-</main>
+{% endblock %}
 
-<script data-turbo-temporary>
-document.addEventListener('turbo:load', function() {
-    const searchInput = document.querySelector('[data-kt-filter="search"]');
-    if (!searchInput) return;
+{% block javascripts %}
+    {{ parent() }}
+    <script data-turbo-temporary>
+        document.addEventListener('turbo:load', function() {
+            const searchInput = document.querySelector('[data-kt-filter="search"]');
+            if (!searchInput) return;
 
-    let searchTimeout;
-    const newSearchInput = searchInput.cloneNode(true);
-    searchInput.replaceWith(newSearchInput);
+            let searchTimeout;
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.replaceWith(newSearchInput);
 
-    newSearchInput.addEventListener('input', function(e) {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            const url = new URL(window.location.href);
-            if (e.target.value) {
-                url.searchParams.set('search', e.target.value);
-            } else {
-                url.searchParams.delete('search');
-            }
-            url.searchParams.set('page', '1');
-            window.location.href = url.toString();
-        }, 500);
-    });
-});
-</script>
+            newSearchInput.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    if (e.target.value) {
+                        url.searchParams.set('search', e.target.value);
+                    } else {
+                        url.searchParams.delete('search');
+                    }
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                }, 500);
+            });
+        });
+    </script>
 {% endblock %}
