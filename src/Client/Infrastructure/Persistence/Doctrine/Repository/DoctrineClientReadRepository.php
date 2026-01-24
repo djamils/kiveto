@@ -26,7 +26,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
     ) {
     }
 
-    public function getById(ClinicId $clinicId, ClientId $clientId): ?ClientView
+    public function findById(ClinicId $clinicId, ClientId $clientId): ?ClientView
     {
         $clientUuid = Uuid::fromString($clientId->toString());
         $clinicUuid = Uuid::fromString($clinicId->toString());

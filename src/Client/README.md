@@ -432,7 +432,10 @@ $result = $queryBus->ask($query);
 
 ### Write vs Read repositories
 - **Write** : `ClientRepositoryInterface` → charge l'aggregate complet pour modification
+  - `get()` : throw `ClientNotFoundException` si introuvable
+  - `find()` : retourne `null` si introuvable
 - **Read** : `ClientReadRepositoryInterface` → projections optimisées (DTOs) pour les queries
+  - `findById()` : retourne `?ClientView`
 
 ### Transaction boundary
 - Une commande = une transaction

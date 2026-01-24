@@ -84,7 +84,7 @@
                             {% set primaryEmail = contact.value %}
                         {% endif %}
                     {% endfor %}
-                    
+
                     {% if primaryPhone %}
                         <a href="tel:{{ primaryPhone }}" class="kt-btn kt-btn-light">
                             <i class="ki-filled ki-phone"></i>
@@ -97,6 +97,12 @@
                             <span class="hidden lg:inline">Email</span>
                         </a>
                     {% endif %}
+
+
+                    <a href="{{ path('clinic_clients_edit', {id: client.id}) }}" class="kt-btn kt-btn-light">
+                        <i class="ki-filled ki-pencil"></i>
+                        <span class="hidden lg:inline">Modifier</span>
+                    </a>
                 </div>
             </div>
         </div>

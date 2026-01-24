@@ -22,6 +22,6 @@ final readonly class GetClientByIdHandler
         $clinicId = ClinicId::fromString($query->clinicId);
         $clientId = ClientId::fromString($query->clientId);
 
-        return $this->clientReadRepository->getById($clinicId, $clientId);
+        return $this->clientReadRepository->findById($clinicId, $clientId);
     }
 }

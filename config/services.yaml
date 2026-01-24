@@ -195,6 +195,30 @@ services:
     App\Shared\Application\Context\CurrentClinicContextInterface:
         class: App\Shared\Application\Context\CurrentClinicContext
 
+    # ============================================================================
+    # BOUNDED CONTEXT: CLIENT
+    # ============================================================================
+
+    App\Client\Application\Port\ClientRepositoryInterface:
+        class: App\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientRepository
+
+    App\Client\Application\Port\ClientReadRepositoryInterface:
+        class: App\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientReadRepository
+
+    App\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper: ~
+
+    # ============================================================================
+    # BOUNDED CONTEXT: ANIMAL
+    # ============================================================================
+
+    App\Animal\Domain\Port\AnimalRepositoryInterface:
+        class: App\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalRepository
+
+    App\Animal\Domain\Port\AnimalReadRepositoryInterface:
+        class: App\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalReadRepository
+
+    App\Animal\Infrastructure\Persistence\Doctrine\AnimalMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

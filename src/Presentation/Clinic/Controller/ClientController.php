@@ -65,8 +65,8 @@ final class ClientController extends AbstractController
         \assert($clinic instanceof ClinicDto);
 
         return $this->render('clinic/clients/list_layout15.html.twig', [
-            'clients' => $this->buildPaginationArray($result['items'], $result['total'], $page, $limit),
-            'currentClinicId' => $currentClinicId->toString(),
+            'clients'           => $this->buildPaginationArray(array_values($result['items']), $result['total'], $page, $limit),
+            'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
     }
@@ -81,9 +81,9 @@ final class ClientController extends AbstractController
         \assert($clinic instanceof ClinicDto);
 
         return $this->render('clinic/clients/form_layout15.html.twig', [
-            'client'          => null,
-            'csrf_token'      => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
-            'currentClinicId' => $currentClinicId->toString(),
+            'client'            => null,
+            'csrf_token'        => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
+            'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
     }
@@ -140,8 +140,8 @@ final class ClientController extends AbstractController
         \assert($clinic instanceof ClinicDto);
 
         return $this->render('clinic/clients/view_layout15.html.twig', [
-            'client'          => $client,
-            'currentClinicId' => $currentClinicId->toString(),
+            'client'            => $client,
+            'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
     }
@@ -165,9 +165,9 @@ final class ClientController extends AbstractController
         \assert($clinic instanceof ClinicDto);
 
         return $this->render('clinic/clients/form_layout15.html.twig', [
-            'client'          => $client,
-            'csrf_token'      => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
-            'currentClinicId' => $currentClinicId->toString(),
+            'client'            => $client,
+            'csrf_token'        => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
+            'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
     }
@@ -350,6 +350,7 @@ final class ClientController extends AbstractController
 
     /**
      * @param array<int, mixed> $items
+     *
      * @return array{items: array<int, mixed>, totalItems: int, currentPage: int, totalPages: int, limit: int, hasPreviousPage: bool, hasNextPage: bool, previousPage: int, nextPage: int}
      */
     private function buildPaginationArray(array $items, int $total, int $page, int $limit): array

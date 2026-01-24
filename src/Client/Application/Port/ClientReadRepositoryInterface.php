@@ -12,7 +12,7 @@ use App\Clinic\Domain\ValueObject\ClinicId;
 
 interface ClientReadRepositoryInterface
 {
-    public function getById(ClinicId $clinicId, ClientId $clientId): ?ClientView;
+    public function findById(ClinicId $clinicId, ClientId $clientId): ?ClientView;
 
     /**
      * @return array{items: list<ClientListItemView>, total: int}

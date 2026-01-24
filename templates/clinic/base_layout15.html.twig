@@ -45,7 +45,7 @@
             {% include 'clinic/partials/layout15/_sidebar.html.twig' %}
 
             {% block content_with_header %}
-            <main class="flex-1 flex flex-col mt-(--header-height) transition-[margin] duration-200 ease-in-out">
+                <main class="flex-1 flex flex-col mt-(--header-height) lg:mt-[calc(var(--header-height)+var(--content-header-height))] lg:ms-(--sidebar-width) lg:in-data-[sidebar-collapsed]:ms-(--sidebar-width-collapsed) transition-[margin] duration-200 ease-in-out">
                 {% include 'clinic/partials/layout15/_content_header.html.twig' %}
 
                 <div class="container-fluid">
