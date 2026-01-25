@@ -17,20 +17,20 @@ final class Version20260117210757 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->addSql(<<<'SQL'
-            CREATE TABLE client__client (
+            CREATE TABLE client__clients (
               id BINARY(16) NOT NULL,
               clinic_id BINARY(16) NOT NULL,
               first_name VARCHAR(255) NOT NULL,
               last_name VARCHAR(255) NOT NULL,
+              status VARCHAR(20) NOT NULL,
+              created_at DATETIME NOT NULL,
+              updated_at DATETIME NOT NULL,
               postal_address_street_line_1 VARCHAR(255) DEFAULT NULL,
               postal_address_street_line_2 VARCHAR(255) DEFAULT NULL,
               postal_address_postal_code VARCHAR(20) DEFAULT NULL,
               postal_address_city VARCHAR(255) DEFAULT NULL,
               postal_address_region VARCHAR(255) DEFAULT NULL,
               postal_address_country_code VARCHAR(2) DEFAULT NULL,
-              status VARCHAR(20) NOT NULL,
-              created_at DATETIME NOT NULL,
-              updated_at DATETIME NOT NULL,
               INDEX idx_client_clinic_id (clinic_id),
               INDEX idx_client_status (status),
               INDEX idx_client_created_at (created_at),
@@ -38,7 +38,7 @@ final class Version20260117210757 extends AbstractMigration
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
         SQL);
         $this->addSql(<<<'SQL'
-            CREATE TABLE client__contact_method (
+            CREATE TABLE client__contact_methods (
               id BINARY(16) NOT NULL,
               client_id BINARY(16) NOT NULL,
               type VARCHAR(20) NOT NULL,
@@ -54,7 +54,7 @@ final class Version20260117210757 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE client__client');
-        $this->addSql('DROP TABLE client__contact_method');
+        $this->addSql('DROP TABLE client__clients');
+        $this->addSql('DROP TABLE client__contact_methods');
     }
 }

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Animal\Domain\ValueObject;
 
+use App\Animal\Domain\Enum\RegistryType;
+use App\Animal\Domain\Exception\InvalidIdentification;
+
 final readonly class Identification
 {
     public function __construct(
         public ?string $microchipNumber,
         public ?string $tattooNumber,
         public ?string $passportNumber,
-        public \App\Animal\Domain\Enum\RegistryType $registryType,
+        public RegistryType $registryType,
         public ?string $registryNumber,
         public ?string $sireNumber,
     ) {
@@ -22,7 +25,7 @@ final readonly class Identification
             microchipNumber: null,
             tattooNumber: null,
             passportNumber: null,
-            registryType: \App\Animal\Domain\Enum\RegistryType::NONE,
+            registryType: RegistryType::NONE,
             registryNumber: null,
             sireNumber: null,
         );
@@ -42,8 +45,8 @@ final readonly class Identification
 
     public function ensureConsistency(): void
     {
-        if (\App\Animal\Domain\Enum\RegistryType::NONE === $this->registryType && null !== $this->registryNumber) {
-            throw new \App\Animal\Domain\Exception\InvalidIdentification('RegistryNumber must be null when RegistryType is NONE.');
+        if (RegistryType::NONE === $this->registryType && null !== $this->registryNumber) {
+            throw new InvalidIdentification('RegistryNumber must be null when RegistryType is NONE.');
         }
     }
 }

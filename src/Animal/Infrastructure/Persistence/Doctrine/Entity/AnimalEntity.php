@@ -18,7 +18,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'animal__animal')]
+#[ORM\Table]
 #[ORM\Index(name: 'idx_animal_clinic', columns: ['clinic_id'])]
 #[ORM\Index(name: 'idx_animal_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_animal_microchip', columns: ['microchip_number'])]
@@ -41,80 +41,85 @@ class AnimalEntity
     #[ORM\Column(type: 'string', length: 50, enumType: Sex::class)]
     private Sex $sex;
 
-    #[ORM\Column(name: 'reproductive_status', type: 'string', length: 50, enumType: ReproductiveStatus::class)]
+    #[ORM\Column(type: 'string', length: 50, enumType: ReproductiveStatus::class)]
     private ReproductiveStatus $reproductiveStatus;
 
-    #[ORM\Column(name: 'is_mixed_breed', type: 'boolean')]
+    #[ORM\Column(type: 'boolean')]
     private bool $isMixedBreed;
 
-    #[ORM\Column(name: 'breed_name', type: 'string', length: 255, nullable: true)]
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $breedName = null;
 
-    #[ORM\Column(name: 'birth_date', type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $birthDate = null;
 
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $color = null;
 
-    #[ORM\Column(name: 'photo_url', type: 'string', length: 500, nullable: true)]
+    #[ORM\Column(type: 'string', length: 500, nullable: true)]
     private ?string $photoUrl = null;
 
-    #[ORM\Column(name: 'microchip_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $microchipNumber = null;
 
-    #[ORM\Column(name: 'tattoo_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $tattooNumber = null;
 
-    #[ORM\Column(name: 'passport_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $passportNumber = null;
 
-    #[ORM\Column(name: 'registry_type', type: 'string', length: 50, enumType: RegistryType::class)]
+    #[ORM\Column(type: 'string', length: 50, enumType: RegistryType::class)]
     private RegistryType $registryType;
 
-    #[ORM\Column(name: 'registry_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $registryNumber = null;
 
-    #[ORM\Column(name: 'sire_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $sireNumber = null;
 
-    #[ORM\Column(name: 'life_status', type: 'string', length: 50, enumType: LifeStatus::class)]
+    #[ORM\Column(type: 'string', length: 50, enumType: LifeStatus::class)]
     private LifeStatus $lifeStatus;
 
-    #[ORM\Column(name: 'deceased_at', type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $deceasedAt = null;
 
-    #[ORM\Column(name: 'missing_since', type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $missingSince = null;
 
-    #[ORM\Column(name: 'transfer_status', type: 'string', length: 50, enumType: TransferStatus::class)]
+    #[ORM\Column(type: 'string', length: 50, enumType: TransferStatus::class)]
     private TransferStatus $transferStatus;
 
-    #[ORM\Column(name: 'sold_at', type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $soldAt = null;
 
-    #[ORM\Column(name: 'given_at', type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $givenAt = null;
 
-    #[ORM\Column(name: 'auxiliary_contact_first_name', type: 'string', length: 255, nullable: true)]
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $auxiliaryContactFirstName = null;
 
-    #[ORM\Column(name: 'auxiliary_contact_last_name', type: 'string', length: 255, nullable: true)]
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $auxiliaryContactLastName = null;
 
-    #[ORM\Column(name: 'auxiliary_contact_phone_number', type: 'string', length: 50, nullable: true)]
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $auxiliaryContactPhoneNumber = null;
 
     #[ORM\Column(type: 'string', length: 20, enumType: AnimalStatus::class)]
     private AnimalStatus $status;
 
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
-    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
     /** @var Collection<int, OwnershipEntity> */
-    #[ORM\OneToMany(targetEntity: OwnershipEntity::class, mappedBy: 'animal', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(
+        targetEntity: OwnershipEntity::class,
+        mappedBy: 'animal',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
     private Collection $ownerships;
 
     public function __construct()

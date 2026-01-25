@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'client__client')]
+#[ORM\Table]
 #[ORM\Index(name: 'idx_client_clinic_id', columns: ['clinic_id'])]
 #[ORM\Index(name: 'idx_client_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_client_created_at', columns: ['created_at'])]
@@ -21,13 +21,13 @@ class ClientEntity
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
 
-    #[ORM\Column(name: 'clinic_id', type: UuidType::NAME)]
+    #[ORM\Column(type: UuidType::NAME)]
     private Uuid $clinicId;
 
-    #[ORM\Column(name: 'first_name', type: 'string', length: 255)]
+    #[ORM\Column(type: 'string', length: 255)]
     private string $firstName;
 
-    #[ORM\Column(name: 'last_name', type: 'string', length: 255)]
+    #[ORM\Column(type: 'string', length: 255)]
     private string $lastName;
 
     #[ORM\Embedded(class: PostalAddressEmbeddable::class, columnPrefix: false)]
@@ -36,10 +36,10 @@ class ClientEntity
     #[ORM\Column(type: 'string', length: 20, enumType: ClientStatus::class)]
     private ClientStatus $status;
 
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
-    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+    #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
     public function __construct()

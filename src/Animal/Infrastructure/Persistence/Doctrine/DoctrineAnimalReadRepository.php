@@ -74,7 +74,7 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         $entities = $qb->getQuery()->getResult();
 
         /** @phpstan-ignore-next-line argument.type */
-        $items = array_values(array_map(fn (AnimalEntity $entity) => $this->mapToAnimalListItemView($entity), $entities));
+        $items = array_values(array_map(fn (AnimalEntity $entity) => $this->mapToAnimalListItemView($entity), $entities)); // phpcs:ignore
 
         return [
             'items' => $items,
@@ -198,7 +198,10 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         // Find primary owner
         $primaryOwnerClientId = null;
         foreach ($entity->getOwnerships() as $ownership) {
-            if (OwnershipRole::PRIMARY === $ownership->getRole() && OwnershipStatus::ACTIVE === $ownership->getStatus()) {
+            $isPrimary = OwnershipRole::PRIMARY === $ownership->getRole();
+            $isActive  = OwnershipStatus::ACTIVE === $ownership->getStatus();
+
+            if ($isPrimary && $isActive) {
                 $primaryOwnerClientId = $ownership->getClientId()->toString();
                 break;
             }

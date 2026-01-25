@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'client__contact_method')]
+#[ORM\Table]
 #[ORM\Index(name: 'idx_contact_method_client_id', columns: ['client_id'])]
 #[ORM\Index(name: 'idx_contact_method_type', columns: ['type'])]
 class ContactMethodEntity
@@ -32,7 +32,7 @@ class ContactMethodEntity
     #[ORM\Column(type: 'string', length: 255)]
     private string $value;
 
-    #[ORM\Column(name: 'is_primary', type: 'boolean')]
+    #[ORM\Column(type: 'boolean')]
     private bool $isPrimary;
 
     public function getId(): Uuid

@@ -11,10 +11,10 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'animal__ownership')]
-#[ORM\Index(columns: ['animal_id'], name: 'idx_ownership_animal')]
-#[ORM\Index(columns: ['client_id'], name: 'idx_ownership_client')]
-#[ORM\Index(columns: ['status'], name: 'idx_ownership_status')]
+#[ORM\Table]
+#[ORM\Index(name: 'idx_ownership_animal', columns: ['animal_id'])]
+#[ORM\Index(name: 'idx_ownership_client', columns: ['client_id'])]
+#[ORM\Index(name: 'idx_ownership_status', columns: ['status'])]
 class OwnershipEntity
 {
     #[ORM\Id]
@@ -26,7 +26,7 @@ class OwnershipEntity
     #[ORM\JoinColumn(name: 'animal_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?AnimalEntity $animal = null;
 
-    #[ORM\Column(type: UuidType::NAME, name: 'client_id')]
+    #[ORM\Column(name: 'client_id', type: UuidType::NAME)]
     private Uuid $clientId;
 
     #[ORM\Column(type: 'string', length: 50, enumType: OwnershipRole::class)]
@@ -35,10 +35,10 @@ class OwnershipEntity
     #[ORM\Column(type: 'string', length: 50, enumType: OwnershipStatus::class)]
     private OwnershipStatus $status;
 
-    #[ORM\Column(type: 'datetime_immutable', name: 'started_at')]
+    #[ORM\Column(name: 'started_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $startedAt;
 
-    #[ORM\Column(type: 'datetime_immutable', nullable: true, name: 'ended_at')]
+    #[ORM\Column(name: 'ended_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $endedAt = null;
 
     public function getId(): ?int

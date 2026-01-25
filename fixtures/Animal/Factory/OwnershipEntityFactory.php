@@ -82,8 +82,10 @@ final class OwnershipEntityFactory extends PersistentProxyObjectFactory
             'clientId'  => Uuid::v7(),
             'role'      => $role,
             'status'    => OwnershipStatus::ACTIVE,
-            'startedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-2 years', '-1 month')),
-            'endedAt'   => null,
+            'startedAt' => \DateTimeImmutable::createFromMutable(
+                self::faker()->dateTimeBetween('-2 years', '-1 month')
+            ),
+            'endedAt' => null,
         ];
     }
 }

@@ -363,7 +363,7 @@ final class Animal extends AggregateRoot
         \assert(\is_int($concernedKey), 'If ownership exists, its key must be an int');
         // If SECONDARY owner, just end the ownership
         if ($concernedOwnership->isSecondary()) {
-            $this->ownerships[$concernedKey] = $concernedOwnership->end($now); /** @phpstan-ignore assign.propertyType */
+            $this->ownerships[$concernedKey] = $concernedOwnership->end($now); /** @phpstan-ignore assign.propertyType */ // phpcs:ignore
             /** @var list<Ownership> $ownerships */
             $ownerships       = array_values($this->ownerships);
             $this->ownerships = $ownerships;
@@ -419,7 +419,7 @@ final class Animal extends AggregateRoot
             $this->updatedAt  = $now;
         } else {
             // No secondary owner => archive the animal
-            $this->ownerships[$concernedKey] = $concernedOwnership->end($now); /** @phpstan-ignore assign.propertyType */
+            $this->ownerships[$concernedKey] = $concernedOwnership->end($now); /** @phpstan-ignore assign.propertyType */ // phpcs:ignore
             /** @var list<Ownership> $ownerships */
             $ownerships       = array_values($this->ownerships);
             $this->ownerships = $ownerships;
