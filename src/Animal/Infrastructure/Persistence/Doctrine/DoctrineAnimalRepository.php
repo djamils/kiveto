@@ -6,7 +6,7 @@ namespace App\Animal\Infrastructure\Persistence\Doctrine;
 
 use App\Animal\Domain\Animal;
 use App\Animal\Domain\Exception\AnimalNotFound;
-use App\Animal\Domain\Port\AnimalRepositoryInterface;
+use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Clinic\Domain\ValueObject\ClinicId;

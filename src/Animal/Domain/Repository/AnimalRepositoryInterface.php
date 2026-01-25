@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Animal\Domain\Port;
+namespace App\Animal\Domain\Repository;
 
 use App\Animal\Domain\Animal;
 use App\Animal\Domain\Exception\AnimalNotFound;

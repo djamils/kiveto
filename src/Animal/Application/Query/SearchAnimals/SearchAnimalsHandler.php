@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Application\Query\SearchAnimals;
 
-use App\Animal\Domain\Port\AnimalReadRepositoryInterface;
+use App\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

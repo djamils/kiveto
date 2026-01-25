@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Client\Infrastructure\Persistence\Doctrine\Repository;
 
-use App\Client\Application\Port\ClientRepositoryInterface;
 use App\Client\Domain\Client;
 use App\Client\Domain\Exception\ClientNotFoundException;
+use App\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Client\Domain\ValueObject\ClientId;
 use App\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;

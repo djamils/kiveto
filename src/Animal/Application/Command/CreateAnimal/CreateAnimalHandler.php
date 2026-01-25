@@ -12,7 +12,7 @@ use App\Animal\Domain\Enum\Sex;
 use App\Animal\Domain\Enum\Species;
 use App\Animal\Domain\Enum\TransferStatus;
 use App\Animal\Domain\Exception\MicrochipAlreadyUsed;
-use App\Animal\Domain\Port\AnimalRepositoryInterface;
+use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;
 use App\Animal\Domain\ValueObject\LifeCycle;

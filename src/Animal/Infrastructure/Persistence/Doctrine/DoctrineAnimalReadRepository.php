@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Infrastructure\Persistence\Doctrine;
 
+use App\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Animal\Application\Query\GetAnimalById\AuxiliaryContactDto;
 use App\Animal\Application\Query\GetAnimalById\IdentificationDto;
@@ -14,7 +15,6 @@ use App\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Animal\Domain\Enum\OwnershipRole;
 use App\Animal\Domain\Enum\OwnershipStatus;
-use App\Animal\Domain\Port\AnimalReadRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Clinic\Domain\ValueObject\ClinicId;

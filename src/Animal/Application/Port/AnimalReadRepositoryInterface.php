@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Animal\Domain\Port;
+namespace App\Animal\Application\Port;
 
 use App\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Animal\Application\Query\SearchAnimals\AnimalListItemView;

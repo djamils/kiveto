@@ -10,7 +10,7 @@ use App\Animal\Domain\Enum\Sex;
 use App\Animal\Domain\Enum\Species;
 use App\Animal\Domain\Exception\AnimalClinicMismatch;
 use App\Animal\Domain\Exception\MicrochipAlreadyUsed;
-use App\Animal\Domain\Port\AnimalRepositoryInterface;
+use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;

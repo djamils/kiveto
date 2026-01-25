@@ -6,7 +6,7 @@ namespace App\Animal\Application\Command\UpdateAnimalLifeCycle;
 
 use App\Animal\Domain\Enum\LifeStatus;
 use App\Animal\Domain\Exception\AnimalClinicMismatch;
-use App\Animal\Domain\Port\AnimalRepositoryInterface;
+use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\LifeCycle;
 use App\Clinic\Domain\ValueObject\ClinicId;

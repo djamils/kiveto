@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Client\Application\Port;
+namespace App\Client\Domain\Repository;
 
 use App\Client\Domain\Client;
 use App\Client\Domain\Exception\ClientNotFoundException;

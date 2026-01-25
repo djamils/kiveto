@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Client\Application\Command\UpdateClientIdentity;
 
-use App\Client\Application\Port\ClientRepositoryInterface;
 use App\Client\Domain\Exception\ClientClinicMismatchException;
+use App\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Client\Domain\ValueObject\ClientId;
 use App\Client\Domain\ValueObject\ClientIdentity;
 use App\Clinic\Domain\ValueObject\ClinicId;

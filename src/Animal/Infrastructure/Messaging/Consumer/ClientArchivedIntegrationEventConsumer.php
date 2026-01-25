@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Infrastructure\Messaging\Consumer;
 
-use App\Animal\Domain\Port\AnimalRepositoryInterface;
+use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Client\Domain\Event\ClientArchivedIntegrationEvent;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;

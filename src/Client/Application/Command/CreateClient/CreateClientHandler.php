@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Client\Application\Command\CreateClient;
 
-use App\Client\Application\Port\ClientRepositoryInterface;
 use App\Client\Domain\Client;
+use App\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Client\Domain\ValueObject\ClientIdentity;
 use App\Client\Domain\ValueObject\ContactLabel;
 use App\Client\Domain\ValueObject\ContactMethod;
