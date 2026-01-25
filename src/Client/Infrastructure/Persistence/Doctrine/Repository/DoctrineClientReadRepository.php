@@ -101,14 +101,14 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         /** @var list<ClientEntity> $entities */
         $entities = $qb->getQuery()->getResult();
 
-        $clientIds = array_map(static fn (ClientEntity $e): Uuid => $e->getId(), $entities);
+        $clientIdStrings = array_map(static fn (ClientEntity $e): string => $e->getId()->toString(), $entities);
 
         $contactMethods = [];
 
-        if ([] !== $clientIds) {
+        if ([] !== $clientIdStrings) {
             $cmQb = $this->em->getRepository(ContactMethodEntity::class)->createQueryBuilder('cm');
             $cmQb->andWhere('cm.clientId IN (:clientIds)')
-                ->setParameter('clientIds', $clientIds)
+                ->setParameter('clientIds', $clientIdStrings)
             ;
 
             /** @var list<ContactMethodEntity> $cmEntities */

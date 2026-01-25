@@ -199,7 +199,7 @@ services:
     # BOUNDED CONTEXT: CLIENT
     # ============================================================================
 
-    App\Client\Application\Port\ClientRepositoryInterface:
+    App\Client\Domain\Repository\ClientRepositoryInterface:
         class: App\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientRepository
 
     App\Client\Application\Port\ClientReadRepositoryInterface:

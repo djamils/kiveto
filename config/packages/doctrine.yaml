@@ -54,8 +54,8 @@ doctrine:
             Animal:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Animal/Infrastructure/Persistence/Doctrine'
-                prefix: 'App\Animal\Infrastructure\Persistence\Doctrine'
+                dir: '%kernel.project_dir%/src/Animal/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Animal\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Animal
         controller_resolver:
             auto_mapping: false

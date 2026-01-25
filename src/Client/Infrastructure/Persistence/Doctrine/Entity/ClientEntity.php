@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table]
+#[ORM\Table(name: 'client__clients')]
 #[ORM\Index(name: 'idx_client_clinic_id', columns: ['clinic_id'])]
 #[ORM\Index(name: 'idx_client_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_client_created_at', columns: ['created_at'])]

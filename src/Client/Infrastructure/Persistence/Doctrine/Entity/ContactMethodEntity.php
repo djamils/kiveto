@@ -11,7 +11,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table]
+#[ORM\Table(name: 'client__contact_methods')]
 #[ORM\Index(name: 'idx_contact_method_client_id', columns: ['client_id'])]
 #[ORM\Index(name: 'idx_contact_method_type', columns: ['type'])]
 class ContactMethodEntity
