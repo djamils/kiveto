@@ -78,6 +78,7 @@ final class OwnershipEntityFactory extends PersistentProxyObjectFactory
         $role = self::faker()->randomElement([OwnershipRole::PRIMARY, OwnershipRole::SECONDARY]);
 
         return [
+            'id'        => Uuid::v7(),
             'animal'    => AnimalEntityFactory::new(),
             'clientId'  => Uuid::v7(),
             'role'      => $role,

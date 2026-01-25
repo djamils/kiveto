@@ -157,6 +157,7 @@ final class AnimalMapper
 
         foreach ($animal->ownerships() as $ownership) {
             $ownershipEntity = new OwnershipEntity();
+            $ownershipEntity->setId(Uuid::v7());
             $ownershipEntity->setClientId(Uuid::fromString($ownership->clientId));
             $ownershipEntity->setRole($ownership->role);
             $ownershipEntity->setStatus($ownership->status);

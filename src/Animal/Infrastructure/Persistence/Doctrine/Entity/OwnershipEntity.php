@@ -18,9 +18,8 @@ use Symfony\Component\Uid\Uuid;
 class OwnershipEntity
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(type: 'integer')]
-    private ?int $id = null; // @phpstan-ignore property.unusedType
+    #[ORM\Column(type: UuidType::NAME)]
+    private Uuid $id;
 
     #[ORM\ManyToOne(targetEntity: AnimalEntity::class, inversedBy: 'ownerships')]
     #[ORM\JoinColumn(name: 'animal_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
@@ -41,9 +40,14 @@ class OwnershipEntity
     #[ORM\Column(name: 'ended_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $endedAt = null;
 
-    public function getId(): ?int
+    public function getId(): Uuid
     {
         return $this->id;
+    }
+
+    public function setId(Uuid $id): void
+    {
+        $this->id = $id;
     }
 
     public function getAnimal(): ?AnimalEntity

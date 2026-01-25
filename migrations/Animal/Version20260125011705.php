@@ -56,7 +56,7 @@ final class Version20260125011705 extends AbstractMigration
         SQL);
         $this->addSql(<<<'SQL'
             CREATE TABLE animal__ownerships (
-              id INT AUTO_INCREMENT NOT NULL,
+              id BINARY(16) NOT NULL,
               client_id BINARY(16) NOT NULL,
               role VARCHAR(50) NOT NULL,
               status VARCHAR(50) NOT NULL,
