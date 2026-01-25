@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Animal\Infrastructure\Persistence\Doctrine\Entity;
 
-use App\Animal\Domain\Enum\AnimalStatus;
-use App\Animal\Domain\Enum\LifeStatus;
-use App\Animal\Domain\Enum\RegistryType;
-use App\Animal\Domain\Enum\ReproductiveStatus;
-use App\Animal\Domain\Enum\Sex;
-use App\Animal\Domain\Enum\Species;
-use App\Animal\Domain\Enum\TransferStatus;
+use App\Animal\Domain\ValueObject\AnimalStatus;
+use App\Animal\Domain\ValueObject\LifeStatus;
+use App\Animal\Domain\ValueObject\RegistryType;
+use App\Animal\Domain\ValueObject\ReproductiveStatus;
+use App\Animal\Domain\ValueObject\Sex;
+use App\Animal\Domain\ValueObject\Species;
+use App\Animal\Domain\ValueObject\TransferStatus;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;

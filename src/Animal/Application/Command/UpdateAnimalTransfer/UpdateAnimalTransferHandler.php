@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Animal\Application\Command\UpdateAnimalTransfer;
 
-use App\Animal\Domain\Enum\TransferStatus;
 use App\Animal\Domain\Exception\AnimalClinicMismatch;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\Transfer;
+use App\Animal\Domain\ValueObject\TransferStatus;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
-// CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+// CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 
 #[AsMessageHandler]
 final readonly class UpdateAnimalTransferHandler

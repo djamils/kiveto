@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Animal\Infrastructure\Persistence\Doctrine\Entity;
 
-use App\Animal\Domain\Enum\OwnershipRole;
-use App\Animal\Domain\Enum\OwnershipStatus;
+use App\Animal\Domain\ValueObject\OwnershipRole;
+use App\Animal\Domain\ValueObject\OwnershipStatus;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;

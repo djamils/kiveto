@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Animal\Domain\ValueObject;
 
-use App\Animal\Domain\Enum\RegistryType;
 use App\Animal\Domain\Exception\InvalidIdentification;
 
 final readonly class Identification

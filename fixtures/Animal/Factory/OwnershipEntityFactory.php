@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Animal\Factory;
 
-use App\Animal\Domain\Enum\OwnershipRole;
-use App\Animal\Domain\Enum\OwnershipStatus;
-use App\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
+use App\Animal\Domain\ValueObject\OwnershipRole;
+use App\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\OwnershipEntity;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentProxyObjectFactory;

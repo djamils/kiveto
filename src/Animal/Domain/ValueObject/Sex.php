@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Animal\Domain\Enum;
+namespace App\Animal\Domain\ValueObject;
 
 enum Sex: string
 {

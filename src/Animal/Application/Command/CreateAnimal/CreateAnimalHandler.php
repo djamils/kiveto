@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace App\Animal\Application\Command\CreateAnimal;
 
 use App\Animal\Domain\Animal;
-use App\Animal\Domain\Enum\LifeStatus;
-use App\Animal\Domain\Enum\RegistryType;
-use App\Animal\Domain\Enum\ReproductiveStatus;
-use App\Animal\Domain\Enum\Sex;
-use App\Animal\Domain\Enum\Species;
-use App\Animal\Domain\Enum\TransferStatus;
 use App\Animal\Domain\Exception\MicrochipAlreadyUsed;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;
 use App\Animal\Domain\ValueObject\LifeCycle;
+use App\Animal\Domain\ValueObject\LifeStatus;
+use App\Animal\Domain\ValueObject\RegistryType;
+use App\Animal\Domain\ValueObject\ReproductiveStatus;
+use App\Animal\Domain\ValueObject\Sex;
+use App\Animal\Domain\ValueObject\Species;
 use App\Animal\Domain\ValueObject\Transfer;
+use App\Animal\Domain\ValueObject\TransferStatus;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
-// CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+// CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 
 #[AsMessageHandler]
 final readonly class CreateAnimalHandler
