@@ -11,6 +11,7 @@ use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterface
 {
@@ -22,14 +23,20 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
 
     public function save(Animal $animal): void
     {
+        $animalUuid = Uuid::fromString($animal->id()->toString());
         $repository = $this->entityManager->getRepository(AnimalEntity::class);
-        $entity     = $repository->find($animal->id()->value());
+        $entity     = $repository->find($animalUuid);
 
         if (null === $entity) {
             $entity = $this->mapper->toEntity($animal);
             $this->entityManager->persist($entity);
         } else {
-            $this->mapper->updateEntity($animal, $entity);
+            // For updates, we need to clear and rebuild to maintain proper cascade
+            $this->entityManager->remove($entity);
+            $this->entityManager->flush();
+
+            $entity = $this->mapper->toEntity($animal);
+            $this->entityManager->persist($entity);
         }
 
         $this->entityManager->flush();
@@ -40,7 +47,7 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
         $animal = $this->find($clinicId, $animalId);
 
         if (null === $animal) {
-            throw AnimalNotFound::withId($animalId->value());
+            throw AnimalNotFound::withId($animalId->toString());
         }
 
         return $animal;
@@ -48,11 +55,13 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
 
     public function find(ClinicId $clinicId, AnimalId $animalId): ?Animal
     {
+        $animalUuid = Uuid::fromString($animalId->toString());
+        $clinicUuid = Uuid::fromString($clinicId->toString());
         $repository = $this->entityManager->getRepository(AnimalEntity::class);
 
         $entity = $repository->findOneBy([
-            'id'       => $animalId->value(),
-            'clinicId' => $clinicId->toString(),
+            'id'       => $animalUuid,
+            'clinicId' => $clinicUuid,
         ]);
 
         if (null === $entity) {
@@ -64,23 +73,25 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
 
     public function nextId(): AnimalId
     {
-        return AnimalId::fromString(\Symfony\Component\Uid\Uuid::v7()->toString());
+        return AnimalId::fromString(Uuid::v7()->toString());
     }
 
     public function existsMicrochip(ClinicId $clinicId, string $microchipNumber, ?AnimalId $exceptAnimalId = null): bool
     {
-        $qb = $this->entityManager->createQueryBuilder();
+        $clinicUuid = Uuid::fromString($clinicId->toString());
+        $qb         = $this->entityManager->createQueryBuilder();
         $qb->select('COUNT(a.id)')
             ->from(AnimalEntity::class, 'a')
             ->where('a.clinicId = :clinicId')
             ->andWhere('a.microchipNumber = :microchipNumber')
-            ->setParameter('clinicId', $clinicId->toString())
+            ->setParameter('clinicId', $clinicUuid)
             ->setParameter('microchipNumber', $microchipNumber)
         ;
 
         if (null !== $exceptAnimalId) {
+            $exceptUuid = Uuid::fromString($exceptAnimalId->toString());
             $qb->andWhere('a.id != :exceptId')
-                ->setParameter('exceptId', $exceptAnimalId->toString())
+                ->setParameter('exceptId', $exceptUuid)
             ;
         }
 
@@ -91,6 +102,9 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
 
     public function findByActiveOwner(ClinicId $clinicId, string $clientId): array
     {
+        $clinicUuid = Uuid::fromString($clinicId->toString());
+        $clientUuid = Uuid::fromString($clientId);
+
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('DISTINCT a')
             ->from(AnimalEntity::class, 'a')
@@ -98,8 +112,8 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
             ->where('a.clinicId = :clinicId')
             ->andWhere('o.clientId = :clientId')
             ->andWhere('o.status = :status')
-            ->setParameter('clinicId', $clinicId->toString())
-            ->setParameter('clientId', $clientId)
+            ->setParameter('clinicId', $clinicUuid)
+            ->setParameter('clientId', $clientUuid)
             ->setParameter('status', 'active')
         ;
 

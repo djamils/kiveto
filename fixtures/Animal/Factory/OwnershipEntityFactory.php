@@ -25,43 +25,51 @@ final class OwnershipEntityFactory extends PersistentProxyObjectFactory
     {
         return $this->afterInstantiate(function (OwnershipEntity $ownership) use ($animalId): void {
             // Find the AnimalEntity by ID and set it
-            $animal = AnimalEntityFactory::repository()->find(['id' => $animalId]);
+            $animal = AnimalEntityFactory::repository()->find(['id' => Uuid::fromString($animalId)]);
             if (null === $animal) {
                 throw new \RuntimeException(\sprintf('Animal with ID "%s" not found', $animalId));
             }
-            $ownership->animal = $animal->_real();
+            $ownership->setAnimal($animal->_real());
         });
     }
 
     public function withClientId(string $clientId): self
     {
-        return $this->with(['clientId' => $clientId]);
+        return $this->afterInstantiate(function (OwnershipEntity $ownership) use ($clientId): void {
+            $ownership->setClientId(Uuid::fromString($clientId));
+        });
     }
 
     public function primary(): self
     {
-        return $this->with(['role' => OwnershipRole::PRIMARY->value]);
+        return $this->afterInstantiate(function (OwnershipEntity $ownership): void {
+            $ownership->setRole(OwnershipRole::PRIMARY);
+        });
     }
 
     public function secondary(): self
     {
-        return $this->with(['role' => OwnershipRole::SECONDARY->value]);
+        return $this->afterInstantiate(function (OwnershipEntity $ownership): void {
+            $ownership->setRole(OwnershipRole::SECONDARY);
+        });
     }
 
     public function active(): self
     {
-        return $this->with([
-            'status'  => OwnershipStatus::ACTIVE->value,
-            'endedAt' => null,
-        ]);
+        return $this->afterInstantiate(function (OwnershipEntity $ownership): void {
+            $ownership->setStatus(OwnershipStatus::ACTIVE);
+            $ownership->setEndedAt(null);
+        });
     }
 
     public function ended(): self
     {
-        return $this->with([
-            'status'  => OwnershipStatus::ENDED->value,
-            'endedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-6 months')),
-        ]);
+        $endedAt = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-6 months'));
+
+        return $this->afterInstantiate(function (OwnershipEntity $ownership) use ($endedAt): void {
+            $ownership->setStatus(OwnershipStatus::ENDED);
+            $ownership->setEndedAt($endedAt);
+        });
     }
 
     protected function defaults(): array|callable
@@ -71,9 +79,9 @@ final class OwnershipEntityFactory extends PersistentProxyObjectFactory
 
         return [
             'animal'    => AnimalEntityFactory::new(),
-            'clientId'  => Uuid::v7()->toString(),
-            'role'      => $role->value,
-            'status'    => OwnershipStatus::ACTIVE->value,
+            'clientId'  => Uuid::v7(),
+            'role'      => $role,
+            'status'    => OwnershipStatus::ACTIVE,
             'startedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-2 years', '-1 month')),
             'endedAt'   => null,
         ];

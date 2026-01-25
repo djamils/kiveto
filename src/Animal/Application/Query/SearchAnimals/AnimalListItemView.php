@@ -13,12 +13,12 @@ final readonly class AnimalListItemView
         public string $sex,
         public ?string $breedName,
         public ?string $birthDate,
-        public ?string $photoUrl,
+        public ?string $color,
+        public ?string $microchipNumber,
         public string $status,
         public string $lifeStatus,
         public ?string $primaryOwnerClientId,
         public string $createdAt,
-        public string $updatedAt,
     ) {
     }
 }

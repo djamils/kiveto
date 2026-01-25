@@ -41,7 +41,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal1->id)
+            ->withAnimalId($animal1->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_SOPHIE_ID)
             ->primary()
             ->active()
@@ -49,7 +49,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal1->id)
+            ->withAnimalId($animal1->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_CLAIRE_ID)
             ->secondary()
             ->active()
@@ -72,7 +72,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal2->id)
+            ->withAnimalId($animal2->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_MARC_ID)
             ->primary()
             ->active()
@@ -94,7 +94,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal3->id)
+            ->withAnimalId($animal3->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_PIERRE_ID)
             ->primary()
             ->active()
@@ -105,7 +105,7 @@ final class AnimalDataStory extends Story
         $animal4 = AnimalEntityFactory::new()
             ->withClinicId($parisClinicId)
             ->withName('Max')
-            ->with(['breedName' => 'Golden Retriever', 'species' => \App\Animal\Domain\Enum\Species::DOG->value])
+            ->withBreed('Golden Retriever', \App\Animal\Domain\Enum\Species::DOG)
             ->male()
             ->neutered()
             ->withMicrochip('250269801234569')
@@ -116,7 +116,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal4->id)
+            ->withAnimalId($animal4->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_SOPHIE_ID)
             ->primary()
             ->active()
@@ -124,7 +124,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal4->id)
+            ->withAnimalId($animal4->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_MARC_ID)
             ->secondary()
             ->active()
@@ -135,7 +135,7 @@ final class AnimalDataStory extends Story
         $animal5 = AnimalEntityFactory::new()
             ->withClinicId($parisClinicId)
             ->withName('Luna')
-            ->with(['breedName' => 'Persan', 'species' => \App\Animal\Domain\Enum\Species::CAT->value])
+            ->withBreed('Persan', \App\Animal\Domain\Enum\Species::CAT)
             ->female()
             ->intact()
             ->withMicrochip('250269801234570')
@@ -146,7 +146,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal5->id)
+            ->withAnimalId($animal5->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_CLAIRE_ID)
             ->primary()
             ->active()
@@ -157,7 +157,7 @@ final class AnimalDataStory extends Story
         $animal6 = AnimalEntityFactory::new()
             ->withClinicId($parisClinicId)
             ->withName('Rocky')
-            ->with(['breedName' => 'Beagle', 'species' => \App\Animal\Domain\Enum\Species::DOG->value])
+            ->withBreed('Beagle', \App\Animal\Domain\Enum\Species::DOG)
             ->male()
             ->intact()
             ->withMicrochip('250269801234571')
@@ -168,7 +168,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal6->id)
+            ->withAnimalId($animal6->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_SOPHIE_ID)
             ->primary()
             ->active()
@@ -183,7 +183,7 @@ final class AnimalDataStory extends Story
         $animal7 = AnimalEntityFactory::new()
             ->withClinicId($lyonClinicId)
             ->withName('Felix')
-            ->with(['breedName' => 'Siamois', 'species' => \App\Animal\Domain\Enum\Species::CAT->value])
+            ->withBreed('Siamois', \App\Animal\Domain\Enum\Species::CAT)
             ->male()
             ->neutered()
             ->withMicrochip('250269801234572')
@@ -194,7 +194,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal7->id)
+            ->withAnimalId($animal7->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_EMILIE_ID)
             ->primary()
             ->active()
@@ -215,7 +215,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal8->id)
+            ->withAnimalId($animal8->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_THOMAS_ID)
             ->primary()
             ->active()
@@ -226,7 +226,7 @@ final class AnimalDataStory extends Story
         $animal9 = AnimalEntityFactory::new()
             ->withClinicId($lyonClinicId)
             ->withName('Coco')
-            ->with(['breedName' => 'Caniche', 'species' => \App\Animal\Domain\Enum\Species::DOG->value])
+            ->withBreed('Caniche', \App\Animal\Domain\Enum\Species::DOG)
             ->female()
             ->neutered()
             ->withMicrochip('250269801234573')
@@ -237,7 +237,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal9->id)
+            ->withAnimalId($animal9->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_NATHALIE_ID)
             ->primary()
             ->active()
@@ -245,7 +245,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal9->id)
+            ->withAnimalId($animal9->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_EMILIE_ID)
             ->secondary()
             ->active()
@@ -256,7 +256,7 @@ final class AnimalDataStory extends Story
         $animal10 = AnimalEntityFactory::new()
             ->withClinicId($lyonClinicId)
             ->withName('Moka')
-            ->with(['breedName' => 'Maine Coon', 'species' => \App\Animal\Domain\Enum\Species::CAT->value])
+            ->withBreed('Maine Coon', \App\Animal\Domain\Enum\Species::CAT)
             ->female()
             ->intact()
             ->withMicrochip('250269801234574')
@@ -267,7 +267,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal10->id)
+            ->withAnimalId($animal10->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_NATHALIE_ID)
             ->primary()
             ->active()
@@ -278,7 +278,7 @@ final class AnimalDataStory extends Story
         $animal11 = AnimalEntityFactory::new()
             ->withClinicId($lyonClinicId)
             ->withName('Charlie')
-            ->with(['breedName' => 'Berger Allemand', 'species' => \App\Animal\Domain\Enum\Species::DOG->value])
+            ->withBreed('Berger Allemand', \App\Animal\Domain\Enum\Species::DOG)
             ->male()
             ->neutered()
             ->withMicrochip('250269801234575')
@@ -289,7 +289,7 @@ final class AnimalDataStory extends Story
         ;
 
         OwnershipEntityFactory::new()
-            ->withAnimalId($animal11->id)
+            ->withAnimalId($animal11->getId()->toString())
             ->withClientId(ClientDataStory::CLIENT_EMILIE_ID)
             ->primary()
             ->active()

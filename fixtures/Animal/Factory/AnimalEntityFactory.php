@@ -27,108 +27,146 @@ final class AnimalEntityFactory extends PersistentProxyObjectFactory
 
     public function withId(string $id): self
     {
-        return $this->with(['id' => $id]);
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($id): void {
+            $animal->setId(Uuid::fromString($id));
+        });
     }
 
     public function withClinicId(string $clinicId): self
     {
-        return $this->with(['clinicId' => $clinicId]);
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($clinicId): void {
+            $animal->setClinicId(Uuid::fromString($clinicId));
+        });
     }
 
     public function withName(string $name): self
     {
-        return $this->with(['name' => $name]);
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($name): void {
+            $animal->setName($name);
+        });
     }
 
     public function dog(): self
     {
-        return $this->with([
-            'species'   => Species::DOG->value,
-            'breedName' => self::faker()->randomElement([
-                'Labrador',
-                'Berger Allemand',
-                'Golden Retriever',
-                'Bouledogue Français',
-                'Beagle',
-                'Caniche',
-                'Yorkshire Terrier',
-            ]),
+        /** @var string $breedName */
+        $breedName = self::faker()->randomElement([
+            'Labrador',
+            'Berger Allemand',
+            'Golden Retriever',
+            'Bouledogue Français',
+            'Beagle',
+            'Caniche',
+            'Yorkshire Terrier',
         ]);
+
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($breedName): void {
+            $animal->setSpecies(Species::DOG);
+            $animal->setBreedName($breedName);
+        });
     }
 
     public function cat(): self
     {
-        return $this->with([
-            'species'   => Species::CAT->value,
-            'breedName' => self::faker()->randomElement([
-                'Européen',
-                'Siamois',
-                'Persan',
-                'Maine Coon',
-                'Chartreux',
-                'Bengale',
-            ]),
+        /** @var string $breedName */
+        $breedName = self::faker()->randomElement([
+            'Européen',
+            'Siamois',
+            'Persan',
+            'Maine Coon',
+            'Chartreux',
+            'Bengale',
         ]);
+
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($breedName): void {
+            $animal->setSpecies(Species::CAT);
+            $animal->setBreedName($breedName);
+        });
     }
 
     public function male(): self
     {
-        return $this->with(['sex' => Sex::MALE->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setSex(Sex::MALE);
+        });
     }
 
     public function female(): self
     {
-        return $this->with(['sex' => Sex::FEMALE->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setSex(Sex::FEMALE);
+        });
     }
 
     public function neutered(): self
     {
-        return $this->with(['reproductiveStatus' => ReproductiveStatus::NEUTERED->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setReproductiveStatus(ReproductiveStatus::NEUTERED);
+        });
     }
 
     public function intact(): self
     {
-        return $this->with(['reproductiveStatus' => ReproductiveStatus::INTACT->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setReproductiveStatus(ReproductiveStatus::INTACT);
+        });
     }
 
     public function active(): self
     {
-        return $this->with(['status' => AnimalStatus::ACTIVE->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setStatus(AnimalStatus::ACTIVE);
+        });
     }
 
     public function archived(): self
     {
-        return $this->with(['status' => AnimalStatus::ARCHIVED->value]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setStatus(AnimalStatus::ARCHIVED);
+        });
     }
 
     public function alive(): self
     {
-        return $this->with([
-            'lifeStatus'   => LifeStatus::ALIVE->value,
-            'deceasedAt'   => null,
-            'missingSince' => null,
-        ]);
+        return $this->afterInstantiate(function (AnimalEntity $animal): void {
+            $animal->setLifeStatus(LifeStatus::ALIVE);
+            $animal->setDeceasedAt(null);
+            $animal->setMissingSince(null);
+        });
     }
 
     public function deceased(): self
     {
-        return $this->with([
-            'lifeStatus'   => LifeStatus::DECEASED->value,
-            'deceasedAt'   => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year')),
-            'missingSince' => null,
-        ]);
+        $deceasedAt = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-1 year'));
+
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($deceasedAt): void {
+            $animal->setLifeStatus(LifeStatus::DECEASED);
+            $animal->setDeceasedAt($deceasedAt);
+            $animal->setMissingSince(null);
+        });
     }
 
     public function withMicrochip(?string $microchipNumber = null): self
     {
-        return $this->with([
-            'microchipNumber' => $microchipNumber ?? self::faker()->numerify('250269#########'),
-        ]);
+        $microchip = $microchipNumber ?? self::faker()->numerify('250269#########');
+
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($microchip): void {
+            $animal->setMicrochipNumber($microchip);
+        });
     }
 
     public function withColor(string $color): self
     {
-        return $this->with(['color' => $color]);
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($color): void {
+            $animal->setColor($color);
+        });
+    }
+
+    public function withBreed(string $breedName, Species $species): self
+    {
+        return $this->afterInstantiate(function (AnimalEntity $animal) use ($breedName, $species): void {
+            $animal->setSpecies($species);
+            $animal->setBreedName($breedName);
+        });
     }
 
     protected function defaults(): array|callable
@@ -168,12 +206,12 @@ final class AnimalEntityFactory extends PersistentProxyObjectFactory
         $colors = ['Noir', 'Blanc', 'Marron', 'Gris', 'Roux', 'Tigré', 'Tricolore'];
 
         return [
-            'id'                          => Uuid::v7()->toString(),
-            'clinicId'                    => Uuid::v7()->toString(),
+            'id'                          => Uuid::v7(),
+            'clinicId'                    => Uuid::v7(),
             'name'                        => self::faker()->firstName(),
-            'species'                     => $species->value,
-            'sex'                         => $sex->value,
-            'reproductiveStatus'          => $reproductiveStatus->value,
+            'species'                     => $species,
+            'sex'                         => $sex,
+            'reproductiveStatus'          => $reproductiveStatus,
             'isMixedBreed'                => self::faker()->boolean(30),
             'breedName'                   => $breedName,
             'birthDate'                   => self::faker()->optional(0.8)->dateTimeBetween('-15 years', '-2 months'),
@@ -182,19 +220,19 @@ final class AnimalEntityFactory extends PersistentProxyObjectFactory
             'microchipNumber'             => self::faker()->optional(0.6)->numerify('250269#########'),
             'tattooNumber'                => null,
             'passportNumber'              => null,
-            'registryType'                => RegistryType::NONE->value,
+            'registryType'                => RegistryType::NONE,
             'registryNumber'              => null,
             'sireNumber'                  => null,
-            'lifeStatus'                  => $lifeStatus->value,
+            'lifeStatus'                  => $lifeStatus,
             'deceasedAt'                  => null,
             'missingSince'                => null,
-            'transferStatus'              => TransferStatus::NONE->value,
+            'transferStatus'              => TransferStatus::NONE,
             'soldAt'                      => null,
             'givenAt'                     => null,
             'auxiliaryContactFirstName'   => null,
             'auxiliaryContactLastName'    => null,
             'auxiliaryContactPhoneNumber' => null,
-            'status'                      => $animalStatus->value,
+            'status'                      => $animalStatus,
             'createdAt'                   => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween(
                 '-2 years',
                 '-1 month'

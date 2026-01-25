@@ -53,26 +53,26 @@
                             <div>
                                 <label for="species" class="form-label required">Espèce</label>
                                 <select class="form-select" id="species" name="species" required>
-                                    <option value="DOG" {{ animal and animal.species == 'DOG' ? 'selected' : '' }}>Chien</option>
-                                    <option value="CAT" {{ animal and animal.species == 'CAT' ? 'selected' : '' }}>Chat</option>
-                                    <option value="NAC" {{ animal and animal.species == 'NAC' ? 'selected' : '' }}>NAC</option>
-                                    <option value="OTHER" {{ animal and animal.species == 'OTHER' ? 'selected' : '' }}>Autre</option>
+                                    <option value="dog" {{ animal and animal.species == 'dog' ? 'selected' : '' }}>Chien</option>
+                                    <option value="cat" {{ animal and animal.species == 'cat' ? 'selected' : '' }}>Chat</option>
+                                    <option value="nac" {{ animal and animal.species == 'nac' ? 'selected' : '' }}>NAC</option>
+                                    <option value="other" {{ animal and animal.species == 'other' ? 'selected' : '' }}>Autre</option>
                                 </select>
                             </div>
                             <div>
                                 <label for="sex" class="form-label">Sexe</label>
                                 <select class="form-select" id="sex" name="sex">
-                                    <option value="UNKNOWN" {{ (not animal) or animal.sex == 'UNKNOWN' ? 'selected' : '' }}>Inconnu</option>
-                                    <option value="MALE" {{ animal and animal.sex == 'MALE' ? 'selected' : '' }}>Mâle</option>
-                                    <option value="FEMALE" {{ animal and animal.sex == 'FEMALE' ? 'selected' : '' }}>Femelle</option>
+                                    <option value="unknown" {{ (not animal) or animal.sex == 'unknown' ? 'selected' : '' }}>Inconnu</option>
+                                    <option value="male" {{ animal and animal.sex == 'male' ? 'selected' : '' }}>Mâle</option>
+                                    <option value="female" {{ animal and animal.sex == 'female' ? 'selected' : '' }}>Femelle</option>
                                 </select>
                             </div>
                             <div>
                                 <label for="reproductive_status" class="form-label">Statut reproductif</label>
                                 <select class="form-select" id="reproductive_status" name="reproductive_status">
-                                    <option value="UNKNOWN" {{ (not animal) or animal.reproductiveStatus == 'UNKNOWN' ? 'selected' : '' }}>Inconnu</option>
-                                    <option value="INTACT" {{ animal and animal.reproductiveStatus == 'INTACT' ? 'selected' : '' }}>Entier</option>
-                                    <option value="NEUTERED" {{ animal and animal.reproductiveStatus == 'NEUTERED' ? 'selected' : '' }}>Stérilisé</option>
+                                    <option value="unknown" {{ (not animal) or animal.reproductiveStatus == 'unknown' ? 'selected' : '' }}>Inconnu</option>
+                                    <option value="intact" {{ animal and animal.reproductiveStatus == 'intact' ? 'selected' : '' }}>Entier</option>
+                                    <option value="neutered" {{ animal and animal.reproductiveStatus == 'neutered' ? 'selected' : '' }}>Stérilisé</option>
                                 </select>
                             </div>
                             <div>
@@ -146,10 +146,10 @@
                             <div>
                                 <label for="registry_type" class="form-label">Registre</label>
                                 <select class="form-select" id="registry_type" name="registry_type">
-                                    <option value="NONE" {{ (not animal) or (animal.identification and animal.identification.registryType == 'NONE') ? 'selected' : '' }}>Aucun</option>
-                                    <option value="LOF" {{ animal and animal.identification and animal.identification.registryType == 'LOF' ? 'selected' : '' }}>LOF (Livre des Origines Français)</option>
-                                    <option value="LOOF" {{ animal and animal.identification and animal.identification.registryType == 'LOOF' ? 'selected' : '' }}>LOOF (Livre Officiel des Origines Félines)</option>
-                                    <option value="OTHER" {{ animal and animal.identification and animal.identification.registryType == 'OTHER' ? 'selected' : '' }}>Autre</option>
+                                    <option value="none" {{ (not animal) or (animal.identification and animal.identification.registryType == 'none') ? 'selected' : '' }}>Aucun</option>
+                                    <option value="lof" {{ animal and animal.identification and animal.identification.registryType == 'lof' ? 'selected' : '' }}>LOF (Livre des Origines Français)</option>
+                                    <option value="loof" {{ animal and animal.identification and animal.identification.registryType == 'loof' ? 'selected' : '' }}>LOOF (Livre Officiel des Origines Félines)</option>
+                                    <option value="other" {{ animal and animal.identification and animal.identification.registryType == 'other' ? 'selected' : '' }}>Autre</option>
                                 </select>
                             </div>
                             <div>

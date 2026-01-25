@@ -5,15 +5,6 @@ declare(strict_types=1);
 namespace App\Animal\Infrastructure\Persistence\Doctrine;
 
 use App\Animal\Domain\Animal;
-use App\Animal\Domain\Enum\AnimalStatus;
-use App\Animal\Domain\Enum\LifeStatus;
-use App\Animal\Domain\Enum\OwnershipRole;
-use App\Animal\Domain\Enum\OwnershipStatus;
-use App\Animal\Domain\Enum\RegistryType;
-use App\Animal\Domain\Enum\ReproductiveStatus;
-use App\Animal\Domain\Enum\Sex;
-use App\Animal\Domain\Enum\Species;
-use App\Animal\Domain\Enum\TransferStatus;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;
@@ -23,6 +14,7 @@ use App\Animal\Domain\ValueObject\Transfer;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Animal\Infrastructure\Persistence\Doctrine\Entity\OwnershipEntity;
 use App\Clinic\Domain\ValueObject\ClinicId;
+use Symfony\Component\Uid\Uuid;
 
 final class AnimalMapper
 {
@@ -30,78 +22,78 @@ final class AnimalMapper
     {
         // Map identification
         $identification = new Identification(
-            microchipNumber: $entity->microchipNumber,
-            tattooNumber: $entity->tattooNumber,
-            passportNumber: $entity->passportNumber,
-            registryType: RegistryType::from($entity->registryType),
-            registryNumber: $entity->registryNumber,
-            sireNumber: $entity->sireNumber,
+            microchipNumber: $entity->getMicrochipNumber(),
+            tattooNumber: $entity->getTattooNumber(),
+            passportNumber: $entity->getPassportNumber(),
+            registryType: $entity->getRegistryType(),
+            registryNumber: $entity->getRegistryNumber(),
+            sireNumber: $entity->getSireNumber(),
         );
 
         // Map lifecycle
         $lifeCycle = new LifeCycle(
-            lifeStatus: LifeStatus::from($entity->lifeStatus),
-            deceasedAt: $entity->deceasedAt,
-            missingSince: $entity->missingSince,
+            lifeStatus: $entity->getLifeStatus(),
+            deceasedAt: $entity->getDeceasedAt(),
+            missingSince: $entity->getMissingSince(),
         );
 
         // Map transfer
         $transfer = new Transfer(
-            transferStatus: TransferStatus::from($entity->transferStatus),
-            soldAt: $entity->soldAt,
-            givenAt: $entity->givenAt,
+            transferStatus: $entity->getTransferStatus(),
+            soldAt: $entity->getSoldAt(),
+            givenAt: $entity->getGivenAt(),
         );
 
         // Map auxiliary contact
         $auxiliaryContact    = null;
-        $hasAuxiliaryContact = null !== $entity->auxiliaryContactFirstName
-            && null !== $entity->auxiliaryContactLastName
-            && null !== $entity->auxiliaryContactPhoneNumber;
+        $hasAuxiliaryContact = null !== $entity->getAuxiliaryContactFirstName()
+            && null !== $entity->getAuxiliaryContactLastName()
+            && null !== $entity->getAuxiliaryContactPhoneNumber();
 
         if ($hasAuxiliaryContact) {
-            \assert(null !== $entity->auxiliaryContactFirstName);
-            \assert(null !== $entity->auxiliaryContactLastName);
-            \assert(null !== $entity->auxiliaryContactPhoneNumber);
+            \assert(null !== $entity->getAuxiliaryContactFirstName());
+            \assert(null !== $entity->getAuxiliaryContactLastName());
+            \assert(null !== $entity->getAuxiliaryContactPhoneNumber());
 
             $auxiliaryContact = new AuxiliaryContact(
-                firstName: $entity->auxiliaryContactFirstName,
-                lastName: $entity->auxiliaryContactLastName,
-                phoneNumber: $entity->auxiliaryContactPhoneNumber,
+                firstName: $entity->getAuxiliaryContactFirstName(),
+                lastName: $entity->getAuxiliaryContactLastName(),
+                phoneNumber: $entity->getAuxiliaryContactPhoneNumber(),
             );
         }
 
         // Map ownerships
         $ownerships = [];
-        foreach ($entity->ownerships as $ownershipEntity) {
+        foreach ($entity->getOwnerships() as $ownershipEntity) {
             $ownerships[] = new Ownership(
-                clientId: $ownershipEntity->clientId,
-                role: OwnershipRole::from($ownershipEntity->role),
-                status: OwnershipStatus::from($ownershipEntity->status),
-                startedAt: $ownershipEntity->startedAt,
-                endedAt: $ownershipEntity->endedAt,
+                clientId: $ownershipEntity->getClientId()->toString(),
+                role: $ownershipEntity->getRole(),
+                status: $ownershipEntity->getStatus(),
+                startedAt: $ownershipEntity->getStartedAt(),
+                endedAt: $ownershipEntity->getEndedAt(),
             );
         }
 
         return Animal::reconstituteFromPersistence(
-            id: AnimalId::fromString($entity->id),
-            clinicId: ClinicId::fromString($entity->clinicId),
-            name: $entity->name,
-            species: Species::from($entity->species),
-            sex: Sex::from($entity->sex),
-            reproductiveStatus: ReproductiveStatus::from($entity->reproductiveStatus),
-            isMixedBreed: $entity->isMixedBreed,
-            breedName: $entity->breedName,
-            birthDate: $entity->birthDate,
-            color: $entity->color,
-            photoUrl: $entity->photoUrl,
+            id: AnimalId::fromString($entity->getId()->toString()),
+            clinicId: ClinicId::fromString($entity->getClinicId()->toString()),
+            name: $entity->getName(),
+            species: $entity->getSpecies(),
+            sex: $entity->getSex(),
+            reproductiveStatus: $entity->getReproductiveStatus(),
+            isMixedBreed: $entity->isMixedBreed(),
+            breedName: $entity->getBreedName(),
+            birthDate: $entity->getBirthDate(),
+            color: $entity->getColor(),
+            photoUrl: $entity->getPhotoUrl(),
             identification: $identification,
             lifeCycle: $lifeCycle,
             transfer: $transfer,
             auxiliaryContact: $auxiliaryContact,
-            status: AnimalStatus::from($entity->status),
             ownerships: $ownerships,
-            createdAt: $entity->createdAt,
-            updatedAt: $entity->updatedAt,
+            status: $entity->getStatus(),
+            createdAt: $entity->getCreatedAt(),
+            updatedAt: $entity->getUpdatedAt(),
         );
     }
 
@@ -109,119 +101,70 @@ final class AnimalMapper
     {
         $entity = new AnimalEntity();
 
-        $entity->id                 = $animal->id()->value();
-        $entity->clinicId           = $animal->clinicId()->toString();
-        $entity->name               = $animal->name();
-        $entity->species            = $animal->species()->value;
-        $entity->sex                = $animal->sex()->value;
-        $entity->reproductiveStatus = $animal->reproductiveStatus()->value;
-        $entity->isMixedBreed       = $animal->isMixedBreed();
-        $entity->breedName          = $animal->breedName();
-        $entity->birthDate          = $animal->birthDate();
-        $entity->color              = $animal->color();
-        $entity->photoUrl           = $animal->photoUrl();
+        $entity->setId(Uuid::fromString($animal->id()->toString()));
+        $entity->setClinicId(Uuid::fromString($animal->clinicId()->toString()));
+        $entity->setName($animal->name());
+        $entity->setSpecies($animal->species());
+        $entity->setSex($animal->sex());
+        $entity->setReproductiveStatus($animal->reproductiveStatus());
+        $entity->setIsMixedBreed($animal->isMixedBreed());
+        $entity->setBreedName($animal->breedName());
+        $entity->setBirthDate($animal->birthDate());
+        $entity->setColor($animal->color());
+        $entity->setPhotoUrl($animal->photoUrl());
 
         // Identification
-        $identification          = $animal->identification();
-        $entity->microchipNumber = $identification->microchipNumber;
-        $entity->tattooNumber    = $identification->tattooNumber;
-        $entity->passportNumber  = $identification->passportNumber;
-        $entity->registryType    = $identification->registryType->value;
-        $entity->registryNumber  = $identification->registryNumber;
-        $entity->sireNumber      = $identification->sireNumber;
+        $identification = $animal->identification();
+        $entity->setMicrochipNumber($identification->microchipNumber);
+        $entity->setTattooNumber($identification->tattooNumber);
+        $entity->setPassportNumber($identification->passportNumber);
+        $entity->setRegistryType($identification->registryType);
+        $entity->setRegistryNumber($identification->registryNumber);
+        $entity->setSireNumber($identification->sireNumber);
 
-        // LifeCycle
-        $lifeCycle            = $animal->lifeCycle();
-        $entity->lifeStatus   = $lifeCycle->lifeStatus->value;
-        $entity->deceasedAt   = $lifeCycle->deceasedAt;
-        $entity->missingSince = $lifeCycle->missingSince;
-
-        // Transfer
-        $transfer               = $animal->transfer();
-        $entity->transferStatus = $transfer->transferStatus->value;
-        $entity->soldAt         = $transfer->soldAt;
-        $entity->givenAt        = $transfer->givenAt;
-
-        // AuxiliaryContact
-        $auxiliaryContact = $animal->auxiliaryContact();
-        if (null !== $auxiliaryContact) {
-            $entity->auxiliaryContactFirstName   = $auxiliaryContact->firstName;
-            $entity->auxiliaryContactLastName    = $auxiliaryContact->lastName;
-            $entity->auxiliaryContactPhoneNumber = $auxiliaryContact->phoneNumber;
-        } else {
-            $entity->auxiliaryContactFirstName   = null;
-            $entity->auxiliaryContactLastName    = null;
-            $entity->auxiliaryContactPhoneNumber = null;
-        }
-
-        $entity->status    = $animal->status()->value;
-        $entity->createdAt = $animal->createdAt();
-        $entity->updatedAt = $animal->updatedAt();
-
-        return $entity;
-    }
-
-    public function updateEntity(Animal $animal, AnimalEntity $entity): void
-    {
-        $entity->name               = $animal->name();
-        $entity->species            = $animal->species()->value;
-        $entity->sex                = $animal->sex()->value;
-        $entity->reproductiveStatus = $animal->reproductiveStatus()->value;
-        $entity->isMixedBreed       = $animal->isMixedBreed();
-        $entity->breedName          = $animal->breedName();
-        $entity->birthDate          = $animal->birthDate();
-        $entity->color              = $animal->color();
-        $entity->photoUrl           = $animal->photoUrl();
-
-        // Identification
-        $identification          = $animal->identification();
-        $entity->microchipNumber = $identification->microchipNumber;
-        $entity->tattooNumber    = $identification->tattooNumber;
-        $entity->passportNumber  = $identification->passportNumber;
-        $entity->registryType    = $identification->registryType->value;
-        $entity->registryNumber  = $identification->registryNumber;
-        $entity->sireNumber      = $identification->sireNumber;
-
-        // LifeCycle
-        $lifeCycle            = $animal->lifeCycle();
-        $entity->lifeStatus   = $lifeCycle->lifeStatus->value;
-        $entity->deceasedAt   = $lifeCycle->deceasedAt;
-        $entity->missingSince = $lifeCycle->missingSince;
+        // Life cycle
+        $lifeCycle = $animal->lifeCycle();
+        $entity->setLifeStatus($lifeCycle->lifeStatus);
+        $entity->setDeceasedAt($lifeCycle->deceasedAt);
+        $entity->setMissingSince($lifeCycle->missingSince);
 
         // Transfer
-        $transfer               = $animal->transfer();
-        $entity->transferStatus = $transfer->transferStatus->value;
-        $entity->soldAt         = $transfer->soldAt;
-        $entity->givenAt        = $transfer->givenAt;
+        $transfer = $animal->transfer();
+        $entity->setTransferStatus($transfer->transferStatus);
+        $entity->setSoldAt($transfer->soldAt);
+        $entity->setGivenAt($transfer->givenAt);
 
-        // AuxiliaryContact
+        // Auxiliary contact
         $auxiliaryContact = $animal->auxiliaryContact();
         if (null !== $auxiliaryContact) {
-            $entity->auxiliaryContactFirstName   = $auxiliaryContact->firstName;
-            $entity->auxiliaryContactLastName    = $auxiliaryContact->lastName;
-            $entity->auxiliaryContactPhoneNumber = $auxiliaryContact->phoneNumber;
+            $entity->setAuxiliaryContactFirstName($auxiliaryContact->firstName);
+            $entity->setAuxiliaryContactLastName($auxiliaryContact->lastName);
+            $entity->setAuxiliaryContactPhoneNumber($auxiliaryContact->phoneNumber);
         } else {
-            $entity->auxiliaryContactFirstName   = null;
-            $entity->auxiliaryContactLastName    = null;
-            $entity->auxiliaryContactPhoneNumber = null;
+            $entity->setAuxiliaryContactFirstName(null);
+            $entity->setAuxiliaryContactLastName(null);
+            $entity->setAuxiliaryContactPhoneNumber(null);
         }
 
-        $entity->status    = $animal->status()->value;
-        $entity->updatedAt = $animal->updatedAt();
+        $entity->setStatus($animal->status());
+        $entity->setCreatedAt($animal->createdAt());
+        $entity->setUpdatedAt($animal->updatedAt());
 
-        // Sync ownerships
-        $entity->ownerships->clear();
+        // Clear and rebuild ownerships
+        foreach ($entity->getOwnerships() as $existingOwnership) {
+            $entity->removeOwnership($existingOwnership);
+        }
 
         foreach ($animal->ownerships() as $ownership) {
-            $ownershipEntity            = new OwnershipEntity();
-            $ownershipEntity->animal    = $entity;
-            $ownershipEntity->clientId  = $ownership->clientId;
-            $ownershipEntity->role      = $ownership->role->value;
-            $ownershipEntity->status    = $ownership->status->value;
-            $ownershipEntity->startedAt = $ownership->startedAt;
-            $ownershipEntity->endedAt   = $ownership->endedAt;
-
-            $entity->ownerships->add($ownershipEntity);
+            $ownershipEntity = new OwnershipEntity();
+            $ownershipEntity->setClientId(Uuid::fromString($ownership->clientId));
+            $ownershipEntity->setRole($ownership->role);
+            $ownershipEntity->setStatus($ownership->status);
+            $ownershipEntity->setStartedAt($ownership->startedAt);
+            $ownershipEntity->setEndedAt($ownership->endedAt);
+            $entity->addOwnership($ownershipEntity);
         }
+
+        return $entity;
     }
 }

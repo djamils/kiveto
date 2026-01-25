@@ -147,7 +147,7 @@
                 <div class="card-body">
                     <div class="space-y-3">
                         {% for ownership in animal.ownerships %}
-                            {% if ownership.status == 'ACTIVE' %}
+                            {% if ownership.status == 'active' %}
                             <div class="flex items-center justify-between p-3 border rounded-lg">
                                 <div>
                                     <div class="font-medium">Client ID: {{ ownership.clientId|slice(0, 8) }}</div>
@@ -189,9 +189,9 @@
                         </div>
                         <div class="flex justify-between">
                             <span class="text-muted-foreground">Statut de vie:</span>
-                            {% if animal.lifeCycle.lifeStatus == 'ALIVE' %}
+                            {% if animal.lifeCycle.lifeStatus == 'alive' %}
                                 <span class="kt-badge kt-badge-light kt-badge-success">Vivant</span>
-                            {% elseif animal.lifeCycle.lifeStatus == 'DECEASED' %}
+                            {% elseif animal.lifeCycle.lifeStatus == 'deceased' %}
                                 <span class="kt-badge kt-badge-light kt-badge-danger">Décédé</span>
                             {% else %}
                                 <span class="kt-badge kt-badge-light kt-badge-warning">Disparu</span>
