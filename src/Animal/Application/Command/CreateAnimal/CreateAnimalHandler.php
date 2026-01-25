@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Animal\Application\Command\CreateAnimal;
 
 use App\Animal\Domain\Animal;
-use App\Animal\Domain\Exception\MicrochipAlreadyUsed;
+use App\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;
@@ -43,7 +43,7 @@ final readonly class CreateAnimalHandler
         // Check microchip uniqueness if provided
         if (null !== $command->microchipNumber && '' !== $command->microchipNumber) {
             if ($this->repository->existsMicrochip($clinicId, $command->microchipNumber)) {
-                throw MicrochipAlreadyUsed::create($command->microchipNumber, $command->clinicId);
+                throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
             }
         }
 

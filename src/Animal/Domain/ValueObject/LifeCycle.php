@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Domain\ValueObject;
 
-use App\Animal\Domain\Exception\InvalidLifeStatus;
+use App\Animal\Domain\Exception\InvalidLifeStatusException;
 
 final readonly class LifeCycle
 {
@@ -36,21 +36,25 @@ final readonly class LifeCycle
     private function ensureAlive(): void
     {
         if (null !== $this->deceasedAt || null !== $this->missingSince) {
-            throw new InvalidLifeStatus('ALIVE status requires deceasedAt and missingSince to be null.');
+            throw new InvalidLifeStatusException('ALIVE status requires deceasedAt and missingSince to be null.');
         }
     }
 
     private function ensureDeceased(): void
     {
         if (null === $this->deceasedAt || null !== $this->missingSince) {
-            throw new InvalidLifeStatus('DECEASED status requires deceasedAt to be set and missingSince to be null.');
+            throw new InvalidLifeStatusException(
+                'DECEASED status requires deceasedAt to be set and missingSince to be null.'
+            );
         }
     }
 
     private function ensureMissing(): void
     {
         if (null !== $this->deceasedAt || null === $this->missingSince) {
-            throw new InvalidLifeStatus('MISSING status requires missingSince to be set and deceasedAt to be null.');
+            throw new InvalidLifeStatusException(
+                'MISSING status requires missingSince to be set and deceasedAt to be null.'
+            );
         }
     }
 }

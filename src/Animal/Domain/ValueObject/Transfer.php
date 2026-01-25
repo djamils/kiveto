@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Domain\ValueObject;
 
-use App\Animal\Domain\Exception\InvalidTransferStatus;
+use App\Animal\Domain\Exception\InvalidTransferStatusException;
 
 final readonly class Transfer
 {
@@ -36,21 +36,21 @@ final readonly class Transfer
     private function ensureNone(): void
     {
         if (null !== $this->soldAt || null !== $this->givenAt) {
-            throw new InvalidTransferStatus('NONE status requires soldAt and givenAt to be null.');
+            throw new InvalidTransferStatusException('NONE status requires soldAt and givenAt to be null.');
         }
     }
 
     private function ensureSold(): void
     {
         if (null === $this->soldAt || null !== $this->givenAt) {
-            throw new InvalidTransferStatus('SOLD status requires soldAt to be set and givenAt to be null.');
+            throw new InvalidTransferStatusException('SOLD status requires soldAt to be set and givenAt to be null.');
         }
     }
 
     private function ensureGiven(): void
     {
         if (null !== $this->soldAt || null === $this->givenAt) {
-            throw new InvalidTransferStatus('GIVEN status requires givenAt to be set and soldAt to be null.');
+            throw new InvalidTransferStatusException('GIVEN status requires givenAt to be set and soldAt to be null.');
         }
     }
 }

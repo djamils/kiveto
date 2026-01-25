@@ -7,48 +7,48 @@ namespace App\Animal\Domain\ValueObject;
 final readonly class Ownership
 {
     public function __construct(
-        public string                                         $clientId,
-        public \App\Animal\Domain\ValueObject\OwnershipRole   $role,
-        public \App\Animal\Domain\ValueObject\OwnershipStatus $status,
-        public \DateTimeImmutable                             $startedAt,
-        public ?\DateTimeImmutable                            $endedAt,
+        public string $clientId,
+        public OwnershipRole $role,
+        public OwnershipStatus $status,
+        public \DateTimeImmutable $startedAt,
+        public ?\DateTimeImmutable $endedAt,
     ) {
     }
 
     public function isActive(): bool
     {
-        return \App\Animal\Domain\ValueObject\OwnershipStatus::ACTIVE === $this->status;
+        return OwnershipStatus::ACTIVE === $this->status;
     }
 
     public function isPrimary(): bool
     {
-        return \App\Animal\Domain\ValueObject\OwnershipRole::PRIMARY === $this->role;
+        return OwnershipRole::PRIMARY === $this->role;
     }
 
     public function isSecondary(): bool
     {
-        return \App\Animal\Domain\ValueObject\OwnershipRole::SECONDARY === $this->role;
+        return OwnershipRole::SECONDARY === $this->role;
     }
 
     public function end(\DateTimeImmutable $endedAt): self
     {
         return new self(
-            clientId:  $this->clientId,
-            role:      $this->role,
-            status:    \App\Animal\Domain\ValueObject\OwnershipStatus::ENDED,
+            clientId: $this->clientId,
+            role: $this->role,
+            status: OwnershipStatus::ENDED,
             startedAt: $this->startedAt,
-            endedAt:   $endedAt,
+            endedAt: $endedAt,
         );
     }
 
     public function promoteToprimary(): self
     {
         return new self(
-            clientId:  $this->clientId,
-            role:      \App\Animal\Domain\ValueObject\OwnershipRole::PRIMARY,
-            status:    $this->status,
+            clientId: $this->clientId,
+            role: OwnershipRole::PRIMARY,
+            status: $this->status,
             startedAt: $this->startedAt,
-            endedAt:   $this->endedAt,
+            endedAt: $this->endedAt,
         );
     }
 }

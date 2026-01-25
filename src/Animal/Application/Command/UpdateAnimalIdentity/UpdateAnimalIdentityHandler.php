@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Animal\Application\Command\UpdateAnimalIdentity;
 
-use App\Animal\Domain\Exception\AnimalClinicMismatch;
-use App\Animal\Domain\Exception\MicrochipAlreadyUsed;
+use App\Animal\Domain\Exception\AnimalClinicMismatchException;
+use App\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
@@ -40,7 +40,7 @@ final readonly class UpdateAnimalIdentityHandler
         $animal = $this->repository->get($clinicId, $animalId);
 
         if (!$animal->clinicId()->equals($clinicId)) {
-            throw AnimalClinicMismatch::create(
+            throw AnimalClinicMismatchException::create(
                 $command->animalId,
                 $command->clinicId,
                 $animal->clinicId()->toString()
@@ -56,7 +56,7 @@ final readonly class UpdateAnimalIdentityHandler
             \assert(null !== $command->microchipNumber);
 
             if ($this->repository->existsMicrochip($clinicId, $command->microchipNumber, $animalId)) {
-                throw MicrochipAlreadyUsed::create($command->microchipNumber, $command->clinicId);
+                throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
             }
         }
 

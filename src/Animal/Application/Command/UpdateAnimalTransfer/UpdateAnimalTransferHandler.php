@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Application\Command\UpdateAnimalTransfer;
 
-use App\Animal\Domain\Exception\AnimalClinicMismatch;
+use App\Animal\Domain\Exception\AnimalClinicMismatchException;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\Transfer;
@@ -35,7 +35,7 @@ final readonly class UpdateAnimalTransferHandler
         $animal = $this->repository->get($clinicId, $animalId);
 
         if (!$animal->clinicId()->equals($clinicId)) {
-            throw AnimalClinicMismatch::create(
+            throw AnimalClinicMismatchException::create(
                 $command->animalId,
                 $command->clinicId,
                 $animal->clinicId()->toString()

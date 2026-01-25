@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Animal\Application\Query\GetAnimalById;
 
 use App\Animal\Application\Port\AnimalReadRepositoryInterface;
-use App\Animal\Domain\Exception\AnimalNotFound;
+use App\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -28,7 +28,7 @@ final readonly class GetAnimalByIdHandler
         $view = $this->readRepository->findById($clinicId, $animalId);
 
         if (null === $view) {
-            throw AnimalNotFound::withId($query->animalId);
+            throw AnimalNotFoundException::withId($query->animalId);
         }
 
         return $view;

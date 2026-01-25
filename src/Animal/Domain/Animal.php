@@ -6,11 +6,11 @@ namespace App\Animal\Domain;
 
 use App\Animal\Domain\Event\AnimalArchived;
 use App\Animal\Domain\Event\AnimalCreated;
-use App\Animal\Domain\Exception\AnimalAlreadyArchived;
-use App\Animal\Domain\Exception\AnimalArchivedCannotBeModified;
-use App\Animal\Domain\Exception\AnimalMustHavePrimaryOwner;
-use App\Animal\Domain\Exception\DuplicateActiveOwner;
-use App\Animal\Domain\Exception\PrimaryOwnerConflict;
+use App\Animal\Domain\Exception\AnimalAlreadyArchivedException;
+use App\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException;
+use App\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
+use App\Animal\Domain\Exception\DuplicateActiveOwnerException;
+use App\Animal\Domain\Exception\PrimaryOwnerConflictException;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AnimalStatus;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
@@ -306,7 +306,7 @@ final class Animal extends AggregateRoot
         // Create new secondary ownerships
         foreach ($secondaryOwnerClientIds as $clientId) {
             if ($clientId === $primaryOwnerClientId) {
-                throw DuplicateActiveOwner::create($this->id->toString(), $clientId);
+                throw DuplicateActiveOwnerException::create($this->id->toString(), $clientId);
             }
 
             $this->ownerships[] = new Ownership(
@@ -324,7 +324,7 @@ final class Animal extends AggregateRoot
     public function archive(\DateTimeImmutable $now): void
     {
         if (AnimalStatus::ARCHIVED === $this->status) {
-            throw AnimalAlreadyArchived::create($this->id->toString());
+            throw AnimalAlreadyArchivedException::create($this->id->toString());
         }
 
         $this->status    = AnimalStatus::ARCHIVED;
@@ -499,7 +499,7 @@ final class Animal extends AggregateRoot
     private function ensureNotArchived(): void
     {
         if (AnimalStatus::ARCHIVED === $this->status) {
-            throw AnimalArchivedCannotBeModified::create($this->id->toString());
+            throw AnimalArchivedCannotBeModifiedException::create($this->id->toString());
         }
     }
 
@@ -511,7 +511,7 @@ final class Animal extends AggregateRoot
         );
 
         if (1 !== \count($activePrimaries)) {
-            throw AnimalMustHavePrimaryOwner::create($this->id->toString());
+            throw AnimalMustHavePrimaryOwnerException::create($this->id->toString());
         }
     }
 
@@ -521,7 +521,7 @@ final class Animal extends AggregateRoot
         $clientIds        = array_map(static fn (Ownership $o) => $o->clientId, $activeOwnerships);
 
         if (\count($clientIds) !== \count(array_unique($clientIds))) {
-            throw PrimaryOwnerConflict::create($this->id->toString());
+            throw PrimaryOwnerConflictException::create($this->id->toString());
         }
     }
 }

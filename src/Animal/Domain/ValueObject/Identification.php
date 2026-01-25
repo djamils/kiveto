@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Animal\Domain\ValueObject;
 
-use App\Animal\Domain\Exception\InvalidIdentification;
+use App\Animal\Domain\Exception\InvalidIdentificationException;
 
 final readonly class Identification
 {
@@ -45,7 +45,7 @@ final readonly class Identification
     public function ensureConsistency(): void
     {
         if (RegistryType::NONE === $this->registryType && null !== $this->registryNumber) {
-            throw new InvalidIdentification('RegistryNumber must be null when RegistryType is NONE.');
+            throw new InvalidIdentificationException('RegistryNumber must be null when RegistryType is NONE.');
         }
     }
 }
