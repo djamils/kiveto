@@ -29,9 +29,9 @@
                                         <i class="ki-filled ki-users text-base"></i>Clients
                                     </a>
                                 </li>
-                                <li class="kt-accordion-menu-item" data-kt-accordion-item="true">
-                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="#">
-                                        <i class="ki-filled ki-security-user text-base"></i>Animaux<span class="kt-badge kt-badge-xs kt-badge-light kt-badge-info ms-auto">Bientôt</span>
+                                <li class="kt-accordion-menu-item {% if app.request.get('_route') starts with 'clinic_animals' %}selected{% endif %}" data-kt-accordion-item="true">
+                                    <a class="kt-accordion-menu-link text-sm font-normal h-8.5 px-2.5" href="{{ path('clinic_animals_list') }}">
+                                        <i class="ki-filled ki-abstract-41 text-base"></i>Animaux
                                     </a>
                                 </li>
                                 <li class="kt-accordion-menu-item" data-kt-accordion-item="true">

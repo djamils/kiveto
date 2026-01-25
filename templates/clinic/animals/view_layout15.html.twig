@@ -1,0 +1,239 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}{{ animal.name }} - Animaux{% endblock %}
+
+{% block page_icon %}<i class="ki-filled ki-abstract-41 text-base"></i>{% endblock %}
+{% block page_title %}{{ animal.name }}{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li>
+        <a href="{{ path('clinic_animals_list') }}" class="hover:text-foreground">Animaux</a>
+    </li>
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">{{ animal.name }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    {% if animal.status == 'active' %}
+        <a href="{{ path('clinic_animals_edit', {id: animal.id}) }}" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+            <i class="ki-filled ki-pencil text-base"></i>
+            <span class="hidden md:inline">Modifier</span>
+        </a>
+        <button type="button" class="kt-btn kt-btn-sm kt-btn-light shadow-xs" data-bs-toggle="modal" data-bs-target="#archiveModal">
+            <i class="ki-filled ki-archive text-base"></i>
+            <span class="hidden md:inline">Archiver</span>
+        </button>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {# Main Content #}
+        <div class="lg:col-span-2 space-y-6">
+            {# Identity Card #}
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title text-base font-semibold">
+                        <i class="ki-filled ki-profile-circle me-2"></i>Identité
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label text-muted-foreground">Nom</label>
+                            <div class="font-medium">{{ animal.name }}</div>
+                        </div>
+                        <div>
+                            <label class="form-label text-muted-foreground">Espèce</label>
+                            <div>
+                                {% if animal.species == 'DOG' %}Chien
+                                {% elseif animal.species == 'CAT' %}Chat
+                                {% elseif animal.species == 'NAC' %}NAC
+                                {% else %}Autre{% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label text-muted-foreground">Sexe</label>
+                            <div>
+                                {% if animal.sex == 'MALE' %}Mâle
+                                {% elseif animal.sex == 'FEMALE' %}Femelle
+                                {% else %}Inconnu{% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label text-muted-foreground">Statut reproductif</label>
+                            <div>
+                                {% if animal.reproductiveStatus == 'INTACT' %}Entier
+                                {% elseif animal.reproductiveStatus == 'NEUTERED' %}Stérilisé
+                                {% else %}Inconnu{% endif %}
+                            </div>
+                        </div>
+                        {% if animal.breedName %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Race</label>
+                            <div>{{ animal.breedName }}{% if animal.isMixedBreed %} (croisé){% endif %}</div>
+                        </div>
+                        {% endif %}
+                        {% if animal.birthDate %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Date de naissance</label>
+                            <div>{{ animal.birthDate|date('d/m/Y') }}</div>
+                        </div>
+                        {% endif %}
+                        {% if animal.color %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Couleur</label>
+                            <div>{{ animal.color }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# Identification Card #}
+            {% set identification = animal.identification %}
+            {% if identification.microchipNumber or identification.tattooNumber or identification.passportNumber or identification.registryNumber or identification.sireNumber %}
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title text-base font-semibold">
+                        <i class="ki-filled ki-barcode me-2"></i>Identification
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% if identification.microchipNumber %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Puce électronique</label>
+                            <div class="font-mono">{{ identification.microchipNumber }}</div>
+                        </div>
+                        {% endif %}
+                        {% if identification.tattooNumber %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Tatouage</label>
+                            <div class="font-mono">{{ identification.tattooNumber }}</div>
+                        </div>
+                        {% endif %}
+                        {% if identification.passportNumber %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Passeport</label>
+                            <div class="font-mono">{{ identification.passportNumber }}</div>
+                        </div>
+                        {% endif %}
+                        {% if identification.registryNumber %}
+                        <div>
+                            <label class="form-label text-muted-foreground">Registre ({{ identification.registryType }})</label>
+                            <div class="font-mono">{{ identification.registryNumber }}</div>
+                        </div>
+                        {% endif %}
+                        {% if identification.sireNumber %}
+                        <div>
+                            <label class="form-label text-muted-foreground">SIRE</label>
+                            <div class="font-mono">{{ identification.sireNumber }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Owners Card #}
+            <div class="card card-flush">
+                <div class="card-header">
+                    <h3 class="card-title text-base font-semibold">
+                        <i class="ki-filled ki-users me-2"></i>Propriétaires
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="space-y-3">
+                        {% for ownership in animal.ownerships %}
+                            {% if ownership.status == 'ACTIVE' %}
+                            <div class="flex items-center justify-between p-3 border rounded-lg">
+                                <div>
+                                    <div class="font-medium">Client ID: {{ ownership.clientId|slice(0, 8) }}</div>
+                                    <div class="text-sm text-muted-foreground">
+                                        {% if ownership.role == 'PRIMARY' %}
+                                            <span class="kt-badge kt-badge-sm kt-badge-primary">Propriétaire principal</span>
+                                        {% else %}
+                                            <span class="kt-badge kt-badge-sm kt-badge-secondary">Propriétaire secondaire</span>
+                                        {% endif %}
+                                        • Depuis le {{ ownership.startedAt|date('d/m/Y') }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Sidebar #}
+        <div class="space-y-6">
+            {# Status Card #}
+            <div class="card card-flush bg-muted/40">
+                <div class="card-header">
+                    <h3 class="card-title text-base font-semibold">
+                        <i class="ki-filled ki-information me-2"></i>Informations
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Statut:</span>
+                            {% if animal.status == 'active' %}
+                                <span class="kt-badge kt-badge-light kt-badge-success">Actif</span>
+                            {% else %}
+                                <span class="kt-badge kt-badge-light kt-badge-secondary">Archivé</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Statut de vie:</span>
+                            {% if animal.lifeCycle.lifeStatus == 'ALIVE' %}
+                                <span class="kt-badge kt-badge-light kt-badge-success">Vivant</span>
+                            {% elseif animal.lifeCycle.lifeStatus == 'DECEASED' %}
+                                <span class="kt-badge kt-badge-light kt-badge-danger">Décédé</span>
+                            {% else %}
+                                <span class="kt-badge kt-badge-light kt-badge-warning">Disparu</span>
+                            {% endif %}
+                        </div>
+                        <div class="kt-separator"></div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Créé le:</span>
+                            <span class="font-mono text-xs">{{ animal.createdAt|date('d/m/Y H:i') }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-muted-foreground">Modifié le:</span>
+                            <span class="font-mono text-xs">{{ animal.updatedAt|date('d/m/Y H:i') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Archive Modal #}
+    {% if animal.status == 'active' %}
+    <div class="modal fade" id="archiveModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Archiver l'animal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir archiver <strong>{{ animal.name }}</strong> ?</p>
+                    <p class="text-sm text-muted-foreground">Cette action peut être annulée ultérieurement.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="kt-btn kt-btn-light" data-bs-dismiss="modal">Annuler</button>
+                    <form method="post" action="{{ path('clinic_animals_archive', {id: animal.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+                        <button type="submit" class="kt-btn kt-btn-danger">Archiver</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}

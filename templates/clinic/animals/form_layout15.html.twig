@@ -1,0 +1,239 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}{{ animal ? 'Modifier' : 'Nouvel' }} animal{% endblock %}
+
+{% block page_icon %}<i class="ki-filled ki-{{ animal ? 'pencil' : 'plus' }} text-base"></i>{% endblock %}
+{% block page_title %}{{ animal ? 'Modifier' : 'Nouvel' }} animal{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li>
+        <a href="{{ path('clinic_animals_list') }}" class="hover:text-foreground">Animaux</a>
+    </li>
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">{{ animal ? 'Modifier' : 'Nouveau' }}</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}" class="kt-btn kt-btn-sm kt-btn-light shadow-xs">
+        <i class="ki-filled ki-cross text-base"></i>
+        <span class="hidden md:inline">Annuler</span>
+    </a>
+    <button type="submit" form="animalForm" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+        <i class="ki-filled ki-save text-base"></i>
+        <span class="hidden md:inline">{{ animal ? 'Sauvegarder' : 'Créer' }}</span>
+    </button>
+{% endblock %}
+
+{% block content %}
+    <form method="post" action="{{ animal ? path('clinic_animals_update', {id: animal.id}) : path('clinic_animals_create') }}" id="animalForm">
+        <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+                {# Identity Card #}
+                <div class="card card-flush">
+                    <div class="card-header">
+                        <h3 class="card-title text-base font-semibold">
+                            <i class="ki-filled ki-profile-circle me-2"></i>Identité
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="name" class="form-label required">Nom</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="name"
+                                       name="name"
+                                       required
+                                       value="{{ animal ? animal.name : '' }}"
+                                       placeholder="Ex: Rex, Minou...">
+                            </div>
+                            <div>
+                                <label for="species" class="form-label required">Espèce</label>
+                                <select class="form-select" id="species" name="species" required>
+                                    <option value="DOG" {{ animal and animal.species == 'DOG' ? 'selected' : '' }}>Chien</option>
+                                    <option value="CAT" {{ animal and animal.species == 'CAT' ? 'selected' : '' }}>Chat</option>
+                                    <option value="NAC" {{ animal and animal.species == 'NAC' ? 'selected' : '' }}>NAC</option>
+                                    <option value="OTHER" {{ animal and animal.species == 'OTHER' ? 'selected' : '' }}>Autre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="sex" class="form-label">Sexe</label>
+                                <select class="form-select" id="sex" name="sex">
+                                    <option value="UNKNOWN" {{ (not animal) or animal.sex == 'UNKNOWN' ? 'selected' : '' }}>Inconnu</option>
+                                    <option value="MALE" {{ animal and animal.sex == 'MALE' ? 'selected' : '' }}>Mâle</option>
+                                    <option value="FEMALE" {{ animal and animal.sex == 'FEMALE' ? 'selected' : '' }}>Femelle</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="reproductive_status" class="form-label">Statut reproductif</label>
+                                <select class="form-select" id="reproductive_status" name="reproductive_status">
+                                    <option value="UNKNOWN" {{ (not animal) or animal.reproductiveStatus == 'UNKNOWN' ? 'selected' : '' }}>Inconnu</option>
+                                    <option value="INTACT" {{ animal and animal.reproductiveStatus == 'INTACT' ? 'selected' : '' }}>Entier</option>
+                                    <option value="NEUTERED" {{ animal and animal.reproductiveStatus == 'NEUTERED' ? 'selected' : '' }}>Stérilisé</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="breed_name" class="form-label">Race</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="breed_name"
+                                       name="breed_name"
+                                       value="{{ animal ? animal.breedName : '' }}"
+                                       placeholder="Ex: Labrador, Persan...">
+                            </div>
+                            <div>
+                                <label for="is_mixed_breed" class="form-label">Type</label>
+                                <div class="flex items-center gap-2 h-10">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           id="is_mixed_breed"
+                                           name="is_mixed_breed"
+                                           value="1"
+                                           {{ animal and animal.isMixedBreed ? 'checked' : '' }}>
+                                    <label for="is_mixed_breed" class="form-label mb-0">Race croisée</label>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="birth_date" class="form-label">Date de naissance</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="birth_date"
+                                       name="birth_date"
+                                       value="{{ animal and animal.birthDate ? animal.birthDate|date('Y-m-d') : '' }}">
+                            </div>
+                            <div>
+                                <label for="color" class="form-label">Couleur</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="color"
+                                       name="color"
+                                       value="{{ animal ? animal.color : '' }}"
+                                       placeholder="Ex: Noir, Tigré...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Identification Card #}
+                <div class="card card-flush">
+                    <div class="card-header">
+                        <h3 class="card-title text-base font-semibold">
+                            <i class="ki-filled ki-barcode me-2"></i>Identification
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="microchip_number" class="form-label">Puce électronique</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="microchip_number"
+                                       name="microchip_number"
+                                       value="{{ animal and animal.identification ? animal.identification.microchipNumber : '' }}"
+                                       placeholder="15 chiffres">
+                            </div>
+                            <div>
+                                <label for="tattoo_number" class="form-label">Tatouage</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="tattoo_number"
+                                       name="tattoo_number"
+                                       value="{{ animal and animal.identification ? animal.identification.tattooNumber : '' }}">
+                            </div>
+                            <div>
+                                <label for="registry_type" class="form-label">Registre</label>
+                                <select class="form-select" id="registry_type" name="registry_type">
+                                    <option value="NONE" {{ (not animal) or (animal.identification and animal.identification.registryType == 'NONE') ? 'selected' : '' }}>Aucun</option>
+                                    <option value="LOF" {{ animal and animal.identification and animal.identification.registryType == 'LOF' ? 'selected' : '' }}>LOF (Livre des Origines Français)</option>
+                                    <option value="LOOF" {{ animal and animal.identification and animal.identification.registryType == 'LOOF' ? 'selected' : '' }}>LOOF (Livre Officiel des Origines Félines)</option>
+                                    <option value="OTHER" {{ animal and animal.identification and animal.identification.registryType == 'OTHER' ? 'selected' : '' }}>Autre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="registry_number" class="form-label">Numéro de registre</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="registry_number"
+                                       name="registry_number"
+                                       value="{{ animal and animal.identification ? animal.identification.registryNumber : '' }}">
+                            </div>
+                        </div>
+                        <div class="kt-separator my-4"></div>
+                        <p class="text-xs text-muted-foreground">
+                            <i class="ki-filled ki-information-2 me-1"></i>
+                            L'identification permet de retrouver facilement l'animal en cas de perte.
+                        </p>
+                    </div>
+                </div>
+
+                {# Owner - MVP simple #}
+                {% if not animal %}
+                <div class="card card-flush">
+                    <div class="card-header">
+                        <h3 class="card-title text-base font-semibold">
+                            <i class="ki-filled ki-user me-2"></i>Propriétaire
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div>
+                            <label for="primary_owner_client_id" class="form-label required">ID du propriétaire principal</label>
+                            <input type="text"
+                                   class="form-control"
+                                   id="primary_owner_client_id"
+                                   name="primary_owner_client_id"
+                                   required
+                                   placeholder="UUID du client">
+                            <div class="text-xs text-muted-foreground mt-2">
+                                Pour le MVP, veuillez saisir l'ID du client (visible dans l'URL de la fiche client).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {# Sidebar #}
+            <div class="space-y-6">
+                <div class="card card-flush bg-muted/40">
+                    <div class="card-header">
+                        <h3 class="card-title text-base font-semibold">
+                            <i class="ki-filled ki-information me-2"></i>Aide
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-3 text-sm">
+                            <div>
+                                <h4 class="font-semibold mb-1">Identité</h4>
+                                <p class="text-muted-foreground text-xs">
+                                    Renseignez au minimum le nom et l'espèce de l'animal.
+                                </p>
+                            </div>
+                            <div class="kt-separator"></div>
+                            <div>
+                                <h4 class="font-semibold mb-1">Identification</h4>
+                                <p class="text-muted-foreground text-xs">
+                                    La puce électronique est le moyen d'identification le plus fiable.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Form Actions (Bottom) #}
+        <div class="flex justify-end gap-3 mt-6">
+            <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}" class="kt-btn kt-btn-light">
+                <i class="ki-filled ki-cross text-base"></i>
+                Annuler
+            </a>
+            <button type="submit" class="kt-btn kt-btn-primary">
+                <i class="ki-filled ki-save text-base"></i>
+                {{ animal ? 'Sauvegarder les modifications' : 'Créer l\'animal' }}
+            </button>
+        </div>
+    </form>
+{% endblock %}

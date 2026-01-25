@@ -1,0 +1,171 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}Animaux - {{ currentClinicName }}{% endblock %}
+
+{% block page_icon %}<i class="ki-filled ki-abstract-41 text-base"></i>{% endblock %}
+{% block page_title %}Animaux{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="text-muted-foreground">/</li>
+    <li class="text-foreground">Animaux</li>
+{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ path('clinic_animals_new') }}" class="kt-btn kt-btn-sm kt-btn-primary shadow-xs">
+        <i class="ki-filled ki-plus text-base"></i>
+        <span class="hidden md:inline">Nouvel animal</span>
+    </a>
+{% endblock %}
+
+{% block content %}
+    <div class="card card-flush">
+        <div class="card-header border-b">
+            <div class="flex items-center justify-between w-full">
+                <h3 class="card-title">Liste des animaux</h3>
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <i class="ki-filled ki-magnifier absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground text-base"></i>
+                        <input class="form-control form-control-sm ps-9"
+                               placeholder="Rechercher..."
+                               value="{{ app.request.query.get('search', '') }}"
+                               data-kt-filter="search">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr class="bg-muted/40">
+                            <th class="ps-6" style="width: 50px;">
+                                <input type="checkbox" class="form-check-input" aria-label="Tout sélectionner">
+                            </th>
+                            <th style="width: 250px;">Nom</th>
+                            <th style="width: 150px;">Espèce</th>
+                            <th style="width: 200px;">Race</th>
+                            <th style="width: 200px;">Propriétaire</th>
+                            <th style="width: 120px;">Statut</th>
+                            <th style="width: 150px;">Créé le</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for animal in animals.items %}
+                        <tr>
+                            <td class="ps-6">
+                                <input type="checkbox" class="form-check-input">
+                            </td>
+                            <td>
+                                <a class="font-medium text-foreground hover:text-primary" href="{{ path('clinic_animals_view', {id: animal.id}) }}">
+                                    {{ animal.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if animal.species == 'DOG' %}
+                                    <span class="kt-badge kt-badge-light kt-badge-info">Chien</span>
+                                {% elseif animal.species == 'CAT' %}
+                                    <span class="kt-badge kt-badge-light kt-badge-warning">Chat</span>
+                                {% elseif animal.species == 'NAC' %}
+                                    <span class="kt-badge kt-badge-light kt-badge-secondary">NAC</span>
+                                {% else %}
+                                    <span class="kt-badge kt-badge-light">Autre</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if animal.breedName %}
+                                    {{ animal.breedName }}
+                                {% else %}
+                                    <span class="text-muted-foreground">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted-foreground text-sm">ID: {{ animal.primaryOwnerClientId|slice(0, 8) }}</span>
+                            </td>
+                            <td>
+                                {% if animal.status == 'active' %}
+                                    <span class="kt-badge kt-badge-light kt-badge-success">Actif</span>
+                                {% else %}
+                                    <span class="kt-badge kt-badge-light kt-badge-secondary">Archivé</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted-foreground">{{ animal.createdAt|date('d/m/Y H:i') }}</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-muted-foreground">
+                                <i class="ki-filled ki-file-sheet text-2xl mb-2"></i>
+                                <p>Aucun animal trouvé.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {% if animals.totalPages > 1 %}
+        <div class="card-footer border-t">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-muted-foreground">
+                    {{ ((animals.currentPage - 1) * animals.limit) + 1 }} - {{ min(animals.currentPage * animals.limit, animals.totalItems) }} sur {{ animals.totalItems }}
+                </div>
+                <div class="flex items-center gap-2">
+                    {% if animals.hasPreviousPage %}
+                        <a href="{{ path('clinic_animals_list', {page: animals.previousPage, search: app.request.query.get('search')}) }}"
+                           class="kt-btn kt-btn-sm kt-btn-light">
+                            <i class="ki-filled ki-left text-base"></i>
+                        </a>
+                    {% else %}
+                        <button class="kt-btn kt-btn-sm kt-btn-light" disabled>
+                            <i class="ki-filled ki-left text-base"></i>
+                        </button>
+                    {% endif %}
+
+                    <span class="text-sm">Page {{ animals.currentPage }} / {{ animals.totalPages }}</span>
+
+                    {% if animals.hasNextPage %}
+                        <a href="{{ path('clinic_animals_list', {page: animals.nextPage, search: app.request.query.get('search')}) }}"
+                           class="kt-btn kt-btn-sm kt-btn-light">
+                            <i class="ki-filled ki-right text-base"></i>
+                        </a>
+                    {% else %}
+                        <button class="kt-btn kt-btn-sm kt-btn-light" disabled>
+                            <i class="ki-filled ki-right text-base"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script data-turbo-temporary>
+        document.addEventListener('turbo:load', function() {
+            const searchInput = document.querySelector('[data-kt-filter="search"]');
+            if (!searchInput) return;
+
+            let searchTimeout;
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.replaceWith(newSearchInput);
+
+            newSearchInput.addEventListener('input', function(e) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    if (e.target.value) {
+                        url.searchParams.set('search', e.target.value);
+                    } else {
+                        url.searchParams.delete('search');
+                    }
+                    url.searchParams.set('page', '1');
+                    window.location.href = url.toString();
+                }, 500);
+            });
+        });
+    </script>
+{% endblock %}

@@ -51,6 +51,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Client/Infrastructure/Persistence/Doctrine'
                 prefix: 'App\Client\Infrastructure\Persistence\Doctrine'
                 alias: Client
+            Animal:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Animal/Infrastructure/Persistence/Doctrine'
+                prefix: 'App\Animal\Infrastructure\Persistence\Doctrine'
+                alias: Animal
         controller_resolver:
             auto_mapping: false
 
