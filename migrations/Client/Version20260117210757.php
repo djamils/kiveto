@@ -47,6 +47,7 @@ final class Version20260117210757 extends AbstractMigration
               is_primary TINYINT NOT NULL,
               INDEX idx_contact_method_client_id (client_id),
               INDEX idx_contact_method_type (type),
+              INDEX idx_contact_methods_client_type_primary (client_id, type, is_primary),
               PRIMARY KEY (id)
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
         SQL);

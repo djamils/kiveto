@@ -146,6 +146,31 @@ final class DoctrineClientReadRepositoryTest extends KernelTestCase
         self::assertSame(2, $result['total']);
     }
 
+    public function testSearchReturnsEmptyWhenNoResults(): void
+    {
+        $clinicId = '12345678-9abc-def0-1234-56789abcdef0';
+
+        // Create clients for a different clinic
+        ClientEntityFactory::createOne([
+            'clinicId' => Uuid::v7(),
+        ]);
+
+        ClientEntityFactory::createOne([
+            'clinicId' => Uuid::v7(),
+        ]);
+
+        /** @var ClientReadRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClientReadRepositoryInterface::class);
+
+        $criteria = new SearchClientsCriteria();
+        $result   = $repo->search(ClinicId::fromString($clinicId), $criteria);
+
+        self::assertArrayHasKey('items', $result);
+        self::assertArrayHasKey('total', $result);
+        self::assertCount(0, $result['items']);
+        self::assertSame(0, $result['total']);
+    }
+
     public function testSearchFiltersByStatus(): void
     {
         $clinicId = '12345678-9abc-def0-1234-56789abcdef0';

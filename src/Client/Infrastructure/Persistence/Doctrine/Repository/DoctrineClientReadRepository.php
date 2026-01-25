@@ -11,12 +11,10 @@ use App\Client\Application\Query\GetClientById\PostalAddressDto;
 use App\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Client\Application\Query\SearchClients\SearchClientsCriteria;
 use App\Client\Domain\ValueObject\ClientId;
-use App\Client\Domain\ValueObject\ContactMethodType;
 use App\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Clinic\Domain\ValueObject\ClinicId;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClientReadRepository implements ClientReadRepositoryInterface
@@ -71,104 +69,83 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
 
     public function search(ClinicId $clinicId, SearchClientsCriteria $criteria): array
     {
-        $qb = $this->em->getRepository(ClientEntity::class)->createQueryBuilder('c');
+        $conn = $this->em->getConnection();
 
-        $qb->andWhere('c.clinicId = :clinicId')
-            ->setParameter('clinicId', Uuid::fromString($clinicId->toString()), UuidType::NAME)
-        ;
+        // Build WHERE clause
+        $where  = ['c.clinic_id = :clinicId'];
+        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
 
         if (null !== $criteria->status) {
-            $qb->andWhere('c.status = :status')
-                ->setParameter('status', $criteria->status)
-            ;
+            $where[]          = 'c.status = :status';
+            $params['status'] = $criteria->status;
         }
 
         if (null !== $criteria->searchTerm && '' !== trim($criteria->searchTerm)) {
-            $qb->andWhere('c.firstName LIKE :search OR c.lastName LIKE :search')
-                ->setParameter('search', '%' . $criteria->searchTerm . '%')
-            ;
+            $where[]          = '(c.first_name LIKE :search OR c.last_name LIKE :search)';
+            $params['search'] = '%' . $criteria->searchTerm . '%';
         }
 
-        $countQb = clone $qb;
-        $total   = (int) $countQb->select('COUNT(c.id)')->getQuery()->getSingleScalarResult();
+        $whereClause = implode(' AND ', $where);
 
-        $qb->orderBy('c.lastName', 'ASC')
-            ->addOrderBy('c.firstName', 'ASC')
-            ->setFirstResult($criteria->offset())
-            ->setMaxResults($criteria->limit)
-        ;
+        // Count total results
+        $countSql = "SELECT COUNT(*) FROM client__clients c WHERE {$whereClause}";
+        $count    = $conn->fetchOne($countSql, $params);
+        \assert(is_numeric($count));
+        $total = (int) $count;
 
-        /** @var list<ClientEntity> $entities */
-        $entities = $qb->getQuery()->getResult();
-
-        $clientIdStrings = array_map(static fn (ClientEntity $e): string => $e->getId()->toString(), $entities);
-
-        $contactMethods = [];
-
-        if ([] !== $clientIdStrings) {
-            $cmQb = $this->em->getRepository(ContactMethodEntity::class)->createQueryBuilder('cm');
-            $cmQb->andWhere('cm.clientId IN (:clientIds)')
-                ->setParameter('clientIds', $clientIdStrings)
-            ;
-
-            /** @var list<ContactMethodEntity> $cmEntities */
-            $cmEntities = $cmQb->getQuery()->getResult();
-
-            foreach ($cmEntities as $cme) {
-                $clientIdStr                    = $cme->getClientId()->toString();
-                $contactMethods[$clientIdStr][] = $cme;
-            }
+        if (0 === $total) {
+            return ['items' => [], 'total' => 0];
         }
+
+        // Main query with correlated subqueries for primary contact methods
+        $sql = "
+            SELECT 
+                BIN_TO_UUID(c.id) as id,
+                c.first_name as firstName,
+                c.last_name as lastName,
+                c.status,
+                c.created_at as createdAt,
+                (
+                    SELECT cm.value 
+                    FROM client__contact_methods cm
+                    WHERE cm.client_id = c.id AND cm.type = 'phone'
+                    ORDER BY cm.is_primary DESC
+                    LIMIT 1
+                ) as primaryPhone,
+                (
+                    SELECT cm.value 
+                    FROM client__contact_methods cm
+                    WHERE cm.client_id = c.id AND cm.type = 'email'
+                    ORDER BY cm.is_primary DESC
+                    LIMIT 1
+                ) as primaryEmail
+            FROM client__clients c
+            WHERE {$whereClause}
+            ORDER BY c.last_name ASC, c.first_name ASC
+            LIMIT {$criteria->limit} OFFSET {$criteria->offset()}
+        ";
+
+        $results = $conn->fetchAllAssociative($sql, $params);
 
         $items = array_map(
-            function (ClientEntity $entity) use ($contactMethods): ClientListItemView {
-                $clientIdStr = $entity->getId()->toString();
-                $cms         = $contactMethods[$clientIdStr] ?? [];
-
-                $primaryPhone = null;
-                $primaryEmail = null;
-
-                foreach ($cms as $cm) {
-                    if (ContactMethodType::PHONE === $cm->getType() && $cm->isPrimary()) {
-                        $primaryPhone = $cm->getValue();
-                    }
-
-                    if (ContactMethodType::EMAIL === $cm->getType() && $cm->isPrimary()) {
-                        $primaryEmail = $cm->getValue();
-                    }
-                }
-
-                if (null === $primaryPhone) {
-                    foreach ($cms as $cm) {
-                        if (ContactMethodType::PHONE === $cm->getType()) {
-                            $primaryPhone = $cm->getValue();
-
-                            break;
-                        }
-                    }
-                }
-
-                if (null === $primaryEmail) {
-                    foreach ($cms as $cm) {
-                        if (ContactMethodType::EMAIL === $cm->getType()) {
-                            $primaryEmail = $cm->getValue();
-
-                            break;
-                        }
-                    }
-                }
+            static function (array $row): ClientListItemView {
+                \assert(\is_string($row['id']));
+                \assert(\is_string($row['firstName']));
+                \assert(\is_string($row['lastName']));
+                \assert(\is_string($row['status']));
+                \assert(\is_string($row['createdAt']));
 
                 return new ClientListItemView(
-                    id: $entity->getId()->toString(),
-                    firstName: $entity->getFirstName(),
-                    lastName: $entity->getLastName(),
-                    status: $entity->getStatus()->value,
-                    primaryPhone: $primaryPhone,
-                    primaryEmail: $primaryEmail,
-                    createdAt: $entity->getCreatedAt()->format('c'),
+                    id: $row['id'],
+                    firstName: $row['firstName'],
+                    lastName: $row['lastName'],
+                    status: $row['status'],
+                    primaryPhone: \is_string($row['primaryPhone'] ?? null) ? $row['primaryPhone'] : null,
+                    primaryEmail: \is_string($row['primaryEmail'] ?? null) ? $row['primaryEmail'] : null,
+                    createdAt: (new \DateTimeImmutable($row['createdAt']))->format('c'),
                 );
             },
-            $entities,
+            $results
         );
 
         return [
