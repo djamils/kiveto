@@ -11,6 +11,18 @@ use Zenstruck\Foundry\Story;
 
 final class ClientDataStory extends Story
 {
+    // IDs constants for Animals to reference
+    public const CLIENT_SOPHIE_ID   = '01936e19-1111-7000-8000-000000000001';
+    public const CLIENT_MARC_ID     = '01936e19-2222-7000-8000-000000000002';
+    public const CLIENT_CLAIRE_ID   = '01936e19-3333-7000-8000-000000000003';
+    public const CLIENT_PIERRE_ID   = '01936e19-4444-7000-8000-000000000004';
+    public const CLIENT_JULIEN_ID   = '01936e19-5555-7000-8000-000000000005';
+    public const CLIENT_EMILIE_ID   = '01936e19-6666-7000-8000-000000000006';
+    public const CLIENT_THOMAS_ID   = '01936e19-7777-7000-8000-000000000007';
+    public const CLIENT_NATHALIE_ID = '01936e19-8888-7000-8000-000000000008';
+    public const CLIENT_LAURENT_ID  = '01936e19-9999-7000-8000-000000000009';
+    public const CLIENT_ISABELLE_ID = '01936e19-aaaa-7000-8000-00000000000a';
+
     public function build(): void
     {
         $parisClinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
@@ -22,6 +34,7 @@ final class ClientDataStory extends Story
 
         // 1. Active client with complete address and 2 phones + 1 email
         $client1 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_SOPHIE_ID)
             ->withClinicId($parisClinicId)
             ->withName('Sophie', 'Dupont')
             ->active()
@@ -60,6 +73,7 @@ final class ClientDataStory extends Story
 
         // 2. Active client without address, email only
         $client2 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_MARC_ID)
             ->withClinicId($parisClinicId)
             ->withName('Marc', 'Lefebvre')
             ->active()
@@ -76,6 +90,7 @@ final class ClientDataStory extends Story
 
         // 3. Active client with phone only
         $client3 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_CLAIRE_ID)
             ->withClinicId($parisClinicId)
             ->withName('Claire', 'Martin')
             ->active()
@@ -98,6 +113,7 @@ final class ClientDataStory extends Story
 
         // 4. ARCHIVED client with complete info
         $client4 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_PIERRE_ID)
             ->withClinicId($parisClinicId)
             ->withName('Pierre', 'Moreau')
             ->archived()
@@ -129,6 +145,7 @@ final class ClientDataStory extends Story
 
         // 5. Active client with international address (Switzerland)
         $client5 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_JULIEN_ID)
             ->withClinicId($parisClinicId)
             ->withName('Julien', 'Bernard')
             ->active()
@@ -164,6 +181,7 @@ final class ClientDataStory extends Story
 
         // 6. Active client with 3 different emails
         $client6 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_EMILIE_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Émilie', 'Rousseau')
             ->active()
@@ -202,6 +220,7 @@ final class ClientDataStory extends Story
 
         // 7. Simple ARCHIVED client
         $client7 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_THOMAS_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Thomas', 'Petit')
             ->archived()
@@ -218,6 +237,7 @@ final class ClientDataStory extends Story
 
         // 8. Active client with complete address including line 2
         $client8 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_NATHALIE_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Nathalie', 'Leroy')
             ->active()
@@ -250,6 +270,7 @@ final class ClientDataStory extends Story
 
         // 9. Active client with Belgium address
         $client9 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_LAURENT_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Laurent', 'Girard')
             ->active()
@@ -281,6 +302,7 @@ final class ClientDataStory extends Story
 
         // 10. ARCHIVED client with multiple contacts
         $client10 = ClientEntityFactory::new()
+            ->withId(self::CLIENT_ISABELLE_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Isabelle', 'Fontaine')
             ->archived()

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Dataset;
 
 use App\Fixtures\AccessControl\Story\ClinicMembershipDataStory;
+use App\Fixtures\Animal\Story\AnimalDataStory;
 use App\Fixtures\Client\Story\ClientDataStory;
 use App\Fixtures\Clinic\Story\ClinicDataStory;
 use App\Fixtures\IdentityAccess\Factory\ClinicUserFactory;
@@ -30,5 +31,8 @@ final class ClinicDataset extends Story
 
         // Create Client BC data
         ClientDataStory::load();
+
+        // Create Animal BC data
+        AnimalDataStory::load();
     }
 }
