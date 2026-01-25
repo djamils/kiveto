@@ -21,7 +21,10 @@ final class ClientExceptionsTest extends TestCase
         $exception = ClientNotFoundException::forId($clientId);
 
         self::assertInstanceOf(\DomainException::class, $exception);
-        self::assertSame('Client with ID "01234567-89ab-cdef-0123-456789abcdef" not found.', $exception->getMessage());
+        self::assertSame(
+            'Client with ID "01234567-89ab-cdef-0123-456789abcdef" not found.',
+            $exception->getMessage()
+        );
     }
 
     public function testClientAlreadyArchivedException(): void
@@ -30,7 +33,10 @@ final class ClientExceptionsTest extends TestCase
         $exception = ClientAlreadyArchivedException::forId($clientId);
 
         self::assertInstanceOf(\DomainException::class, $exception);
-        self::assertSame('Client "01234567-89ab-cdef-0123-456789abcdef" is already archived.', $exception->getMessage());
+        self::assertSame(
+            'Client "01234567-89ab-cdef-0123-456789abcdef" is already archived.',
+            $exception->getMessage()
+        );
     }
 
     public function testClientArchivedCannotBeModifiedException(): void
@@ -39,7 +45,10 @@ final class ClientExceptionsTest extends TestCase
         $exception = ClientArchivedCannotBeModifiedException::forId($clientId);
 
         self::assertInstanceOf(\DomainException::class, $exception);
-        self::assertSame('Archived client "01234567-89ab-cdef-0123-456789abcdef" cannot be modified.', $exception->getMessage());
+        self::assertSame(
+            'Archived client "01234567-89ab-cdef-0123-456789abcdef" cannot be modified.',
+            $exception->getMessage()
+        );
     }
 
     public function testClientClinicMismatchException(): void
@@ -50,7 +59,7 @@ final class ClientExceptionsTest extends TestCase
 
         self::assertInstanceOf(\DomainException::class, $exception);
         self::assertSame(
-            'Client "01234567-89ab-cdef-0123-456789abcdef" does not belong to clinic "12345678-9abc-def0-1234-56789abcdef0".',
+            'Client "01234567-89ab-cdef-0123-456789abcdef" does not belong to clinic "12345678-9abc-def0-1234-56789abcdef0".', // phpcs:ignore
             $exception->getMessage()
         );
     }
