@@ -59,12 +59,7 @@ final class CreateAnimalHandlerTest extends TestCase
         $clock      = $this->createMock(ClockInterface::class);
 
         $repository->expects(self::once())
-            ->method('nextId')
-            ->willReturn($animalId)
-        ;
-
-        $repository->expects(self::once())
-            ->method('existsMicrochip')
+            ->method('existsByMicrochip')
             ->with(
                 self::callback(fn (ClinicId $id) => $id->equals($clinicId)),
                 '123456789'
@@ -90,7 +85,7 @@ final class CreateAnimalHandlerTest extends TestCase
         $handler = new CreateAnimalHandler($repository, $eventBus, $clock);
         $result  = $handler($command);
 
-        self::assertSame($animalId->value(), $result);
+        self::assertNotEmpty($result);
     }
 
     public function testHandleThrowsExceptionWhenMicrochipAlreadyUsed(): void
@@ -130,12 +125,7 @@ final class CreateAnimalHandlerTest extends TestCase
         $clock      = $this->createStub(ClockInterface::class);
 
         $repository->expects(self::once())
-            ->method('nextId')
-            ->willReturn(AnimalId::fromString('01234567-89ab-cdef-0123-456789abcdef'))
-        ;
-
-        $repository->expects(self::once())
-            ->method('existsMicrochip')
+            ->method('existsByMicrochip')
             ->willReturn(true)
         ;
 

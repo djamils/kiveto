@@ -7,6 +7,7 @@ namespace App\Animal\Application\Command\CreateAnimal;
 use App\Animal\Domain\Animal;
 use App\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
+use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Animal\Domain\ValueObject\Identification;
 use App\Animal\Domain\ValueObject\LifeCycle;
@@ -21,6 +22,7 @@ use App\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 // CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 
@@ -37,12 +39,12 @@ final readonly class CreateAnimalHandler
     public function __invoke(CreateAnimal $command): string
     {
         $clinicId = ClinicId::fromString($command->clinicId);
-        $animalId = $this->repository->nextId();
+        $animalId = AnimalId::fromString(Uuid::v7()->toString());
         $now      = $this->clock->now();
 
         // Check microchip uniqueness if provided
         if (null !== $command->microchipNumber && '' !== $command->microchipNumber) {
-            if ($this->repository->existsMicrochip($clinicId, $command->microchipNumber)) {
+            if ($this->repository->existsByMicrochip($clinicId, $command->microchipNumber)) {
                 throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
             }
         }

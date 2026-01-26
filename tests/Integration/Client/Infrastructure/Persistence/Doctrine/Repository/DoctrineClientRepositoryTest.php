@@ -315,17 +315,4 @@ final class DoctrineClientRepositoryTest extends KernelTestCase
         self::assertCount(1, $updated->contactMethods());
         self::assertSame('new@example.com', $updated->contactMethods()[0]->value);
     }
-
-    public function testNextIdReturnsUniqueClientId(): void
-    {
-        /** @var ClientRepositoryInterface $repo */
-        $repo = static::getContainer()->get(ClientRepositoryInterface::class);
-
-        $id1 = $repo->nextId();
-        $id2 = $repo->nextId();
-
-        self::assertInstanceOf(ClientId::class, $id1);
-        self::assertInstanceOf(ClientId::class, $id2);
-        self::assertNotSame($id1->toString(), $id2->toString());
-    }
 }

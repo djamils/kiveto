@@ -87,9 +87,4 @@ final readonly class DoctrineClientRepository implements ClientRepositoryInterfa
 
         return $this->mapper->toDomain($entity, $contactMethodEntities);
     }
-
-    public function nextId(): ClientId
-    {
-        return ClientId::fromString(Uuid::v7()->toString());
-    }
 }

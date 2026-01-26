@@ -18,11 +18,9 @@ interface AnimalRepositoryInterface
      */
     public function get(ClinicId $clinicId, AnimalId $animalId): Animal;
 
-    public function find(ClinicId $clinicId, AnimalId $animalId): ?Animal;
+    public function findById(ClinicId $clinicId, AnimalId $animalId): ?Animal;
 
-    public function nextId(): AnimalId;
-
-    public function existsMicrochip(
+    public function existsByMicrochip(
         ClinicId $clinicId,
         string $microchipNumber,
         ?AnimalId $exceptAnimalId = null,

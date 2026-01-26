@@ -103,7 +103,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
         ;
 
         $repository->expects(self::once())
-            ->method('existsMicrochip')
+            ->method('existsByMicrochip')
             ->willReturn(false)
         ;
 

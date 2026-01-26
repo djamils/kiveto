@@ -8,6 +8,7 @@ use App\Animal\Domain\Animal;
 use App\Animal\Domain\Event\AnimalArchived;
 use App\Animal\Domain\Event\AnimalCreated;
 use App\Animal\Domain\Exception\AnimalAlreadyArchivedException;
+use App\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AnimalStatus;
 use App\Animal\Domain\ValueObject\AuxiliaryContact;
@@ -410,8 +411,20 @@ final class AnimalTest extends TestCase
             auxiliaryContact: null,
             status: AnimalStatus::ACTIVE,
             ownerships: [
-                new Ownership('client-same', OwnershipRole::PRIMARY, OwnershipStatus::ACTIVE, $baseTime, null),
-                new Ownership('client-same', OwnershipRole::SECONDARY, OwnershipStatus::ACTIVE, $baseTime, null), // Duplicate!
+                new Ownership(
+                    'client-same',
+                    OwnershipRole::PRIMARY,
+                    OwnershipStatus::ACTIVE,
+                    $baseTime,
+                    null
+                ),
+                new Ownership(
+                    'client-same',
+                    OwnershipRole::SECONDARY,
+                    OwnershipStatus::ACTIVE,
+                    $baseTime,
+                    null
+                ), // Duplicate!
             ],
             createdAt: $baseTime,
             updatedAt: $baseTime,
@@ -425,7 +438,7 @@ final class AnimalTest extends TestCase
     {
         // This should throw AnimalMustHavePrimaryOwnerException via ensureHasExactlyOnePrimaryOwner
         // Actually, let me check what happens with 2 PRIMARY owners
-        $this->expectException(\App\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException::class);
+        $this->expectException(AnimalMustHavePrimaryOwnerException::class);
 
         $baseTime = new \DateTimeImmutable('2024-01-01T10:00:00+00:00');
 
@@ -447,8 +460,20 @@ final class AnimalTest extends TestCase
             auxiliaryContact: null,
             status: AnimalStatus::ACTIVE,
             ownerships: [
-                new Ownership('client-a', OwnershipRole::PRIMARY, OwnershipStatus::ACTIVE, $baseTime, null),
-                new Ownership('client-b', OwnershipRole::PRIMARY, OwnershipStatus::ACTIVE, $baseTime, null), // 2 PRIMARY!
+                new Ownership(
+                    'client-a',
+                    OwnershipRole::PRIMARY,
+                    OwnershipStatus::ACTIVE,
+                    $baseTime,
+                    null
+                ),
+                new Ownership(
+                    'client-b',
+                    OwnershipRole::PRIMARY,
+                    OwnershipStatus::ACTIVE,
+                    $baseTime,
+                    null
+                ), // 2 PRIMARY!
             ],
             createdAt: $baseTime,
             updatedAt: $baseTime,
@@ -577,7 +602,7 @@ final class AnimalTest extends TestCase
             updatedAt: new \DateTimeImmutable('2024-01-01T10:00:00+00:00')
         );
 
-        $this->expectException(\App\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException::class);
+        $this->expectException(AnimalMustHavePrimaryOwnerException::class);
 
         $animal->ensureInvariants();
     }

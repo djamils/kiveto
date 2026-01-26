@@ -55,7 +55,7 @@ final readonly class UpdateAnimalIdentityHandler
         if ($microchipChanged) {
             \assert(null !== $command->microchipNumber);
 
-            if ($this->repository->existsMicrochip($clinicId, $command->microchipNumber, $animalId)) {
+            if ($this->repository->existsByMicrochip($clinicId, $command->microchipNumber, $animalId)) {
                 throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
             }
         }

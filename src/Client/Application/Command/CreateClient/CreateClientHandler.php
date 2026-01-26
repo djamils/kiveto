@@ -6,6 +6,7 @@ namespace App\Client\Application\Command\CreateClient;
 
 use App\Client\Domain\Client;
 use App\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Client\Domain\ValueObject\ClientId;
 use App\Client\Domain\ValueObject\ClientIdentity;
 use App\Client\Domain\ValueObject\ContactLabel;
 use App\Client\Domain\ValueObject\ContactMethod;
@@ -16,6 +17,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\EmailAddress;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
 final readonly class CreateClientHandler
@@ -30,7 +32,7 @@ final readonly class CreateClientHandler
     public function __invoke(CreateClient $command): string
     {
         $clinicId = ClinicId::fromString($command->clinicId);
-        $clientId = $this->clientRepository->nextId();
+        $clientId = ClientId::fromString(Uuid::v7()->toString());
 
         $identity = new ClientIdentity(
             firstName: $command->firstName,

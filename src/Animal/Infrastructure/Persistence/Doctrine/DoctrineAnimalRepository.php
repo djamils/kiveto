@@ -44,7 +44,7 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
 
     public function get(ClinicId $clinicId, AnimalId $animalId): Animal
     {
-        $animal = $this->find($clinicId, $animalId);
+        $animal = $this->findById($clinicId, $animalId);
 
         if (null === $animal) {
             throw AnimalNotFoundException::withId($animalId->toString());
@@ -53,7 +53,7 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
         return $animal;
     }
 
-    public function find(ClinicId $clinicId, AnimalId $animalId): ?Animal
+    public function findById(ClinicId $clinicId, AnimalId $animalId): ?Animal
     {
         $animalUuid = Uuid::fromString($animalId->toString());
         $clinicUuid = Uuid::fromString($clinicId->toString());
@@ -71,29 +71,35 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
         return $this->mapper->toDomain($entity);
     }
 
-    public function nextId(): AnimalId
-    {
-        return AnimalId::fromString(Uuid::v7()->toString());
-    }
-
-    public function existsMicrochip(ClinicId $clinicId, string $microchipNumber, ?AnimalId $exceptAnimalId = null): bool
-    {
+    public function existsByMicrochip(
+        ClinicId $clinicId,
+        string $microchipNumber,
+        ?AnimalId $exceptAnimalId = null,
+    ): bool {
         $clinicUuid = Uuid::fromString($clinicId->toString());
+        $repository = $this->entityManager->getRepository(AnimalEntity::class);
+
+        if (null === $exceptAnimalId) {
+            $count = $repository->count([
+                'clinicId'        => $clinicUuid,
+                'microchipNumber' => $microchipNumber,
+            ]);
+
+            return $count > 0;
+        }
+
+        // When we need to exclude an animal, we still need QueryBuilder
+        $exceptUuid = Uuid::fromString($exceptAnimalId->toString());
         $qb         = $this->entityManager->createQueryBuilder();
         $qb->select('COUNT(a.id)')
             ->from(AnimalEntity::class, 'a')
             ->where('a.clinicId = :clinicId')
             ->andWhere('a.microchipNumber = :microchipNumber')
+            ->andWhere('a.id != :exceptId')
             ->setParameter('clinicId', $clinicUuid)
             ->setParameter('microchipNumber', $microchipNumber)
+            ->setParameter('exceptId', $exceptUuid)
         ;
-
-        if (null !== $exceptAnimalId) {
-            $exceptUuid = Uuid::fromString($exceptAnimalId->toString());
-            $qb->andWhere('a.id != :exceptId')
-                ->setParameter('exceptId', $exceptUuid)
-            ;
-        }
 
         $count = (int) $qb->getQuery()->getSingleScalarResult();
 
@@ -105,19 +111,33 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
         $clinicUuid = Uuid::fromString($clinicId->toString());
         $clientUuid = Uuid::fromString($clientId);
 
-        $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('DISTINCT a')
-            ->from(AnimalEntity::class, 'a')
-            ->join('a.ownerships', 'o')
-            ->where('a.clinicId = :clinicId')
-            ->andWhere('o.clientId = :clientId')
-            ->andWhere('o.status = :status')
-            ->setParameter('clinicId', $clinicUuid)
-            ->setParameter('clientId', $clientUuid)
-            ->setParameter('status', 'active')
-        ;
+        // First, find all animal IDs for this client with active ownership
+        $ownershipRepository = $this->entityManager->getRepository(Entity\OwnershipEntity::class);
+        $ownerships          = $ownershipRepository->findBy([
+            'clientId' => $clientUuid,
+            'status'   => 'active',
+        ]);
 
-        $entities = $qb->getQuery()->getResult();
+        if (empty($ownerships)) {
+            return [];
+        }
+
+        // Extract animal IDs and filter by clinicId
+        $animalIds = [];
+        foreach ($ownerships as $ownership) {
+            $animal = $ownership->getAnimal();
+            if ($animal && $animal->getClinicId()->equals($clinicUuid)) {
+                $animalIds[] = $animal->getId();
+            }
+        }
+
+        if (empty($animalIds)) {
+            return [];
+        }
+
+        // Now fetch all animals with these IDs
+        $repository = $this->entityManager->getRepository(AnimalEntity::class);
+        $entities   = $repository->findBy(['id' => $animalIds]);
 
         /* @phpstan-ignore-next-line argument.type */
         return array_values(array_map(fn (AnimalEntity $entity) => $this->mapper->toDomain($entity), $entities));

@@ -19,6 +19,4 @@ interface ClientRepositoryInterface
     public function get(ClinicId $clinicId, ClientId $clientId): Client;
 
     public function find(ClinicId $clinicId, ClientId $clientId): ?Client;
-
-    public function nextId(): ClientId;
 }

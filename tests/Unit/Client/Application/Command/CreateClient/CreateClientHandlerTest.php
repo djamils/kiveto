@@ -9,7 +9,6 @@ use App\Client\Application\Command\CreateClient\CreateClient;
 use App\Client\Application\Command\CreateClient\CreateClientHandler;
 use App\Client\Domain\Client;
 use App\Client\Domain\Repository\ClientRepositoryInterface;
-use App\Client\Domain\ValueObject\ClientId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Event\DomainEventInterface;
@@ -20,7 +19,6 @@ final class CreateClientHandlerTest extends TestCase
 {
     public function testHandleCreatesClientAndReturnsId(): void
     {
-        $clientId       = ClientId::fromString('01234567-89ab-cdef-0123-456789abcdef');
         $now            = new \DateTimeImmutable('2024-01-01 10:00:00');
         $contactMethods = [
             new ContactMethodDto('email', 'work', 'john@example.com', true),
@@ -37,11 +35,6 @@ final class CreateClientHandlerTest extends TestCase
         $eventBus         = $this->createMock(EventBusInterface::class);
         $clock            = $this->createMock(ClockInterface::class);
 
-        $clientRepository->expects(self::once())
-            ->method('nextId')
-            ->willReturn($clientId)
-        ;
-
         $clock->expects(self::once())
             ->method('now')
             ->willReturn($now)
@@ -49,9 +42,8 @@ final class CreateClientHandlerTest extends TestCase
 
         $clientRepository->expects(self::once())
             ->method('save')
-            ->with(self::callback(function (Client $client) use ($clientId): bool {
-                return $client->id()->equals($clientId)
-                    && 'John' === $client->identity()->firstName
+            ->with(self::callback(function (Client $client): bool {
+                return 'John' === $client->identity()->firstName
                     && 'Doe' === $client->identity()->lastName;
             }))
         ;
@@ -64,12 +56,11 @@ final class CreateClientHandlerTest extends TestCase
         $handler = new CreateClientHandler($clientRepository, new DomainEventPublisher($eventBus), $clock);
         $result  = $handler($command);
 
-        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $result);
+        self::assertNotEmpty($result);
     }
 
     public function testHandleCreatesClientWithPhoneContactMethod(): void
     {
-        $clientId       = ClientId::fromString('01234567-89ab-cdef-0123-456789abcdef');
         $now            = new \DateTimeImmutable('2024-01-01 10:00:00');
         $contactMethods = [
             new ContactMethodDto('phone', 'mobile', '+33612345678', true),
@@ -86,7 +77,6 @@ final class CreateClientHandlerTest extends TestCase
         $eventBus         = $this->createMock(EventBusInterface::class);
         $clock            = $this->createStub(ClockInterface::class);
 
-        $clientRepository->method('nextId')->willReturn($clientId);
         $clock->method('now')->willReturn($now);
         $clientRepository->expects(self::once())->method('save');
         $eventBus->expects(self::once())->method('publish');
@@ -94,12 +84,11 @@ final class CreateClientHandlerTest extends TestCase
         $handler = new CreateClientHandler($clientRepository, new DomainEventPublisher($eventBus), $clock);
         $result  = $handler($command);
 
-        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $result);
+        self::assertNotEmpty($result);
     }
 
     public function testHandleCreatesClientWithMultipleContactMethods(): void
     {
-        $clientId       = ClientId::fromString('01234567-89ab-cdef-0123-456789abcdef');
         $now            = new \DateTimeImmutable('2024-01-01 10:00:00');
         $contactMethods = [
             new ContactMethodDto('email', 'work', 'john@example.com', true),
@@ -118,7 +107,6 @@ final class CreateClientHandlerTest extends TestCase
         $eventBus         = $this->createMock(EventBusInterface::class);
         $clock            = $this->createStub(ClockInterface::class);
 
-        $clientRepository->method('nextId')->willReturn($clientId);
         $clock->method('now')->willReturn($now);
 
         $clientRepository->expects(self::once())
@@ -133,6 +121,6 @@ final class CreateClientHandlerTest extends TestCase
         $handler = new CreateClientHandler($clientRepository, new DomainEventPublisher($eventBus), $clock);
         $result  = $handler($command);
 
-        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $result);
+        self::assertNotEmpty($result);
     }
 }
