@@ -150,11 +150,7 @@ final class AnimalMapper
         $entity->setCreatedAt($animal->createdAt());
         $entity->setUpdatedAt($animal->updatedAt());
 
-        // Clear and rebuild ownerships
-        foreach ($entity->getOwnerships() as $existingOwnership) {
-            $entity->removeOwnership($existingOwnership);
-        }
-
+        // Map ownerships
         foreach ($animal->ownerships() as $ownership) {
             $ownershipEntity = new OwnershipEntity();
             $ownershipEntity->setId(Uuid::v7());
