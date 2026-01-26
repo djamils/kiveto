@@ -282,4 +282,76 @@ final class DoctrineAnimalReadRepositoryTest extends KernelTestCase
         self::assertCount(5, $result2['items']);
         self::assertSame(25, $result2['total']);
     }
+
+    public function testFindByIdReturnsAnimalViewWithAuxiliaryContact(): void
+    {
+        $clinicId = '12345678-9abc-def0-1234-56789abcdef0';
+        $animalId = Uuid::v7();
+        $clientId = Uuid::v7();
+
+        AnimalEntityFactory::createOne([
+            'id'                          => $animalId,
+            'clinicId'                    => Uuid::fromString($clinicId),
+            'name'                        => 'Rex',
+            'species'                     => Species::DOG,
+            'auxiliaryContactFirstName'   => 'John',
+            'auxiliaryContactLastName'    => 'Doe',
+            'auxiliaryContactPhoneNumber' => '+33612345678',
+        ]);
+
+        OwnershipEntityFactory::createOne([
+            'animal'   => AnimalEntityFactory::find(['id' => $animalId]),
+            'clientId' => $clientId,
+        ]);
+
+        /* @phpstan-ignore-next-line method.nonObject, method.notFound */
+        static::getContainer()->get('doctrine')->getManager()->flush();
+
+        /** @var AnimalReadRepositoryInterface $repo */
+        $repo = static::getContainer()->get(AnimalReadRepositoryInterface::class);
+
+        $view = $repo->findById(
+            ClinicId::fromString($clinicId),
+            \App\Animal\Domain\ValueObject\AnimalId::fromString($animalId->toString())
+        );
+
+        self::assertNotNull($view);
+        self::assertNotNull($view->auxiliaryContact);
+        self::assertSame('John', $view->auxiliaryContact->firstName);
+        self::assertSame('Doe', $view->auxiliaryContact->lastName);
+        self::assertSame('+33612345678', $view->auxiliaryContact->phoneNumber);
+    }
+
+    public function testSearchReturnsAnimalsWithPrimaryOwnerClientId(): void
+    {
+        $clinicId   = '12345678-9abc-def0-1234-56789abcdef0';
+        $clinicUuid = Uuid::fromString($clinicId);
+        $clientId   = Uuid::v7();
+
+        $animal = AnimalEntityFactory::createOne([
+            'clinicId' => $clinicUuid,
+            'name'     => 'Rex',
+            'species'  => Species::DOG,
+            'status'   => AnimalStatus::ACTIVE,
+        ]);
+
+        OwnershipEntityFactory::createOne([
+            'animal'   => $animal,
+            'clientId' => $clientId,
+            'role'     => \App\Animal\Domain\ValueObject\OwnershipRole::PRIMARY,
+            'status'   => \App\Animal\Domain\ValueObject\OwnershipStatus::ACTIVE,
+        ]);
+
+        /* @phpstan-ignore-next-line method.nonObject, method.notFound */
+        static::getContainer()->get('doctrine')->getManager()->flush();
+
+        /** @var AnimalReadRepositoryInterface $repo */
+        $repo = static::getContainer()->get(AnimalReadRepositoryInterface::class);
+
+        $criteria = new SearchAnimalsCriteria();
+        $result   = $repo->search(ClinicId::fromString($clinicId), $criteria);
+
+        self::assertCount(1, $result['items']);
+        self::assertSame($clientId->toString(), $result['items'][0]->primaryOwnerClientId);
+    }
 }
