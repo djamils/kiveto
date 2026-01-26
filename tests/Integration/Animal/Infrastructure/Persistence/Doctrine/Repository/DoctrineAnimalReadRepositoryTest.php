@@ -14,11 +14,11 @@ use App\Fixtures\Animal\Factory\AnimalEntityFactory;
 use App\Fixtures\Animal\Factory\OwnershipEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
-use Zenstruck\Foundry\Test\ResetDatabase;
+use Zenstruck\Foundry\Test\Factories;
 
 final class DoctrineAnimalReadRepositoryTest extends KernelTestCase
 {
-    use ResetDatabase;
+    use Factories;
 
     public function testFindByIdReturnsAnimalView(): void
     {

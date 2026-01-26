@@ -19,8 +19,6 @@ use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
-// CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
-
 #[AsMessageHandler]
 final readonly class UpdateAnimalIdentityHandler
 {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Animal\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Animal\Domain\Animal;
+use App\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Animal\Domain\ValueObject\AnimalId;
 use App\Animal\Domain\ValueObject\AnimalStatus;
@@ -80,6 +81,58 @@ final class DoctrineAnimalRepositoryTest extends KernelTestCase
         $animal = $repo->findById($clinicId, $animalId);
 
         self::assertNull($animal);
+    }
+
+    public function testGetThrowsExceptionWhenAnimalNotFound(): void
+    {
+        $clinicId = ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0');
+        $animalId = AnimalId::fromString('01234567-89ab-cdef-0123-456789abcdef');
+
+        /** @var AnimalRepositoryInterface $repo */
+        $repo = static::getContainer()->get(AnimalRepositoryInterface::class);
+
+        $this->expectException(AnimalNotFoundException::class);
+
+        $repo->get($clinicId, $animalId);
+    }
+
+    public function testGetReturnsAnimalWhenFound(): void
+    {
+        $clinicId = ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0');
+
+        /** @var AnimalRepositoryInterface $repo */
+        $repo = static::getContainer()->get(AnimalRepositoryInterface::class);
+
+        $animalId = AnimalId::fromString(Uuid::v7()->toString());
+
+        $animal = Animal::create(
+            id: $animalId,
+            clinicId: $clinicId,
+            name: 'Rex',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: 'Labrador',
+            birthDate: new \DateTimeImmutable('2020-01-01'),
+            color: 'Golden',
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            lifeCycle: LifeCycle::alive(),
+            transfer: Transfer::none(),
+            auxiliaryContact: null,
+            primaryOwnerClientId: Uuid::v7()->toString(),
+            secondaryOwnerClientIds: [],
+            now: new \DateTimeImmutable('2024-01-01T10:00:00+00:00')
+        );
+
+        $repo->save($animal);
+
+        $foundAnimal = $repo->get($clinicId, $animalId);
+
+        self::assertSame('Rex', $foundAnimal->name());
+        self::assertSame(Species::DOG, $foundAnimal->species());
+        self::assertSame(AnimalStatus::ACTIVE, $foundAnimal->status());
     }
 
     public function testSaveUpdatesExistingAnimal(): void
