@@ -45,7 +45,7 @@ final readonly class CreateAnimalHandler
         // Check microchip uniqueness if provided
         if (null !== $command->microchipNumber && '' !== $command->microchipNumber) {
             if ($this->repository->existsByMicrochip($clinicId, $command->microchipNumber)) {
-                throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
+                throw new MicrochipAlreadyUsedException($command->microchipNumber, $command->clinicId);
             }
         }
 

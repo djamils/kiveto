@@ -6,8 +6,8 @@ namespace App\Client\Domain\Exception;
 
 final class ClientAlreadyArchivedException extends \DomainException
 {
-    public static function forId(string $clientId): self
+    public function __construct(string $clientId)
     {
-        return new self(\sprintf('Client "%s" is already archived.', $clientId));
+        parent::__construct(\sprintf('Client "%s" is already archived.', $clientId));
     }
 }

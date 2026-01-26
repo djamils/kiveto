@@ -28,7 +28,7 @@ final readonly class GetAnimalByIdHandler
         $view = $this->readRepository->findById($clinicId, $animalId);
 
         if (null === $view) {
-            throw AnimalNotFoundException::withId($query->animalId);
+            throw new AnimalNotFoundException($query->animalId);
         }
 
         return $view;

@@ -35,7 +35,7 @@ final readonly class ReplaceClientContactMethodsHandler
         $client = $this->clientRepository->get($clinicId, $clientId);
 
         if (!$client->clinicId()->equals($clinicId)) {
-            throw ClientClinicMismatchException::create(
+            throw new ClientClinicMismatchException(
                 $clientId->toString(),
                 $clinicId->toString(),
             );

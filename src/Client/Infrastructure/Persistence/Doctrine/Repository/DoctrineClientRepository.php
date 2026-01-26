@@ -61,7 +61,7 @@ final readonly class DoctrineClientRepository implements ClientRepositoryInterfa
         $client = $this->find($clinicId, $clientId);
 
         if (null === $client) {
-            throw ClientNotFoundException::forId($clientId->toString());
+            throw new ClientNotFoundException($clientId->toString());
         }
 
         return $client;

@@ -38,7 +38,7 @@ final readonly class UpdateAnimalIdentityHandler
         $animal = $this->repository->get($clinicId, $animalId);
 
         if (!$animal->clinicId()->equals($clinicId)) {
-            throw AnimalClinicMismatchException::create(
+            throw new AnimalClinicMismatchException(
                 $command->animalId,
                 $command->clinicId,
                 $animal->clinicId()->toString()
@@ -54,7 +54,7 @@ final readonly class UpdateAnimalIdentityHandler
             \assert(null !== $command->microchipNumber);
 
             if ($this->repository->existsByMicrochip($clinicId, $command->microchipNumber, $animalId)) {
-                throw MicrochipAlreadyUsedException::create($command->microchipNumber, $command->clinicId);
+                throw new MicrochipAlreadyUsedException($command->microchipNumber, $command->clinicId);
             }
         }
 

@@ -47,7 +47,7 @@ final readonly class DoctrineAnimalRepository implements AnimalRepositoryInterfa
         $animal = $this->findById($clinicId, $animalId);
 
         if (null === $animal) {
-            throw AnimalNotFoundException::withId($animalId->toString());
+            throw new AnimalNotFoundException($animalId->toString());
         }
 
         return $animal;

@@ -6,8 +6,8 @@ namespace App\Animal\Domain\Exception;
 
 final class DuplicateActiveOwnerException extends \DomainException
 {
-    public static function create(string $animalId, string $clientId): self
+    public function __construct(string $animalId, string $clientId)
     {
-        return new self(\sprintf('Client "%s" is already an active owner of animal "%s".', $clientId, $animalId));
+        parent::__construct(\sprintf('Client "%s" is already an active owner of animal "%s".', $clientId, $animalId));
     }
 }

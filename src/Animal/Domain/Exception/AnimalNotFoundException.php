@@ -6,8 +6,8 @@ namespace App\Animal\Domain\Exception;
 
 final class AnimalNotFoundException extends \DomainException
 {
-    public static function withId(string $animalId): self
+    public function __construct(string $animalId)
     {
-        return new self(\sprintf('Animal with ID "%s" not found.', $animalId));
+        parent::__construct(\sprintf('Animal with ID "%s" not found.', $animalId));
     }
 }

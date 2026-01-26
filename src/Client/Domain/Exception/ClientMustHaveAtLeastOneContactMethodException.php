@@ -6,8 +6,8 @@ namespace App\Client\Domain\Exception;
 
 final class ClientMustHaveAtLeastOneContactMethodException extends \DomainException
 {
-    public static function create(): self
+    public function __construct()
     {
-        return new self('Client must have at least one contact method (phone or email).');
+        parent::__construct('Client must have at least one contact method (phone or email).');
     }
 }

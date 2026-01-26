@@ -6,8 +6,8 @@ namespace App\Animal\Domain\Exception;
 
 final class AnimalMustHavePrimaryOwnerException extends \DomainException
 {
-    public static function create(string $animalId): self
+    public function __construct(string $animalId)
     {
-        return new self(\sprintf('Animal "%s" must have exactly one primary owner when active.', $animalId));
+        parent::__construct(\sprintf('Animal "%s" must have exactly one primary owner when active.', $animalId));
     }
 }

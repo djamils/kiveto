@@ -6,8 +6,8 @@ namespace App\Client\Domain\Exception;
 
 final class ClientNotFoundException extends \DomainException
 {
-    public static function forId(string $clientId): self
+    public function __construct(string $clientId)
     {
-        return new self(\sprintf('Client with ID "%s" not found.', $clientId));
+        parent::__construct(\sprintf('Client with ID "%s" not found.', $clientId));
     }
 }

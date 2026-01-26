@@ -134,7 +134,7 @@ final class Client extends AggregateRoot
     public function archive(\DateTimeImmutable $now): void
     {
         if (ClientStatus::ARCHIVED === $this->status) {
-            throw ClientAlreadyArchivedException::forId($this->id->toString());
+            throw new ClientAlreadyArchivedException($this->id->toString());
         }
 
         $this->status    = ClientStatus::ARCHIVED;
@@ -226,7 +226,7 @@ final class Client extends AggregateRoot
     private function ensureNotArchived(): void
     {
         if ($this->isArchived()) {
-            throw ClientArchivedCannotBeModifiedException::forId($this->id->toString());
+            throw new ClientArchivedCannotBeModifiedException($this->id->toString());
         }
     }
 
@@ -236,7 +236,7 @@ final class Client extends AggregateRoot
     private static function validateContactMethods(array $contactMethods): void
     {
         if ([] === $contactMethods) {
-            throw ClientMustHaveAtLeastOneContactMethodException::create();
+            throw new ClientMustHaveAtLeastOneContactMethodException();
         }
 
         $primaryPhones = 0;
@@ -247,7 +247,7 @@ final class Client extends AggregateRoot
             $key = \sprintf('%s:%s', $method->type->value, $method->value);
 
             if (isset($seen[$key])) {
-                throw DuplicateContactMethodException::create(
+                throw new DuplicateContactMethodException(
                     $method->type->value,
                     $method->value,
                 );

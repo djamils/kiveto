@@ -6,8 +6,8 @@ namespace App\Client\Domain\Exception;
 
 final class DuplicateContactMethodException extends \DomainException
 {
-    public static function create(string $type, string $value): self
+    public function __construct(string $type, string $value)
     {
-        return new self(\sprintf('Duplicate contact method: %s (%s) already exists.', $type, $value));
+        parent::__construct(\sprintf('Duplicate contact method: %s (%s) already exists.', $type, $value));
     }
 }

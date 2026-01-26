@@ -6,9 +6,9 @@ namespace App\Client\Domain\Exception;
 
 final class ClientClinicMismatchException extends \DomainException
 {
-    public static function create(string $clientId, string $expectedClinicId): self
+    public function __construct(string $clientId, string $expectedClinicId)
     {
-        return new self(\sprintf(
+        parent::__construct(\sprintf(
             'Client "%s" does not belong to clinic "%s".',
             $clientId,
             $expectedClinicId,

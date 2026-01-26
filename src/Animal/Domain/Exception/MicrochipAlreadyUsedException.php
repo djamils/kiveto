@@ -6,8 +6,8 @@ namespace App\Animal\Domain\Exception;
 
 final class MicrochipAlreadyUsedException extends \DomainException
 {
-    public static function create(string $microchipNumber, string $clinicId): self
+    public function __construct(string $microchipNumber, string $clinicId)
     {
-        return new self(\sprintf('Microchip number "%s" is already used in clinic "%s".', $microchipNumber, $clinicId));
+        parent::__construct(\sprintf('Microchip number "%s" is already used in clinic "%s".', $microchipNumber, $clinicId));
     }
 }

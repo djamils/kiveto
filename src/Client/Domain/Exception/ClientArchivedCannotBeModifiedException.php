@@ -6,8 +6,8 @@ namespace App\Client\Domain\Exception;
 
 final class ClientArchivedCannotBeModifiedException extends \DomainException
 {
-    public static function forId(string $clientId): self
+    public function __construct(string $clientId)
     {
-        return new self(\sprintf('Archived client "%s" cannot be modified.', $clientId));
+        parent::__construct(\sprintf('Archived client "%s" cannot be modified.', $clientId));
     }
 }

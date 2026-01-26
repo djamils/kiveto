@@ -32,7 +32,7 @@ final readonly class ArchiveAnimalHandler
         $animal = $this->repository->get($clinicId, $animalId);
 
         if (!$animal->clinicId()->equals($clinicId)) {
-            throw AnimalClinicMismatchException::create(
+            throw new AnimalClinicMismatchException(
                 $command->animalId,
                 $command->clinicId,
                 $animal->clinicId()->toString()

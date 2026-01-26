@@ -6,8 +6,8 @@ namespace App\Animal\Domain\Exception;
 
 final class PrimaryOwnerConflictException extends \DomainException
 {
-    public static function create(string $animalId): self
+    public function __construct(string $animalId)
     {
-        return new self(\sprintf('Animal "%s" cannot have multiple primary owners.', $animalId));
+        parent::__construct(\sprintf('Animal "%s" cannot have multiple primary owners.', $animalId));
     }
 }

@@ -6,9 +6,9 @@ namespace App\Animal\Domain\Exception;
 
 final class AnimalClinicMismatchException extends \DomainException
 {
-    public static function create(string $animalId, string $expectedClinicId, string $actualClinicId): self
+    public function __construct(string $animalId, string $expectedClinicId, string $actualClinicId)
     {
-        return new self(\sprintf(
+        parent::__construct(\sprintf(
             'Animal "%s" belongs to clinic "%s", expected clinic "%s".',
             $animalId,
             $actualClinicId,
