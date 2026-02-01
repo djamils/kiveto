@@ -96,12 +96,27 @@
 
                                     {# Check-in Button #}
                                     {% if appointment.status == 'PLANNED' %}
-                                        <form method="post" action="{{ path('clinic_scheduling_appointment_checkin', {appointmentId: appointment.id}) }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-success mt-2">
-                                                <i class="ki-filled ki-entrance-right me-1"></i>
-                                                Check-in
-                                            </button>
-                                        </form>
+                                        <div class="d-flex flex-column gap-2 mt-2">
+                                            <form method="post" action="{{ path('clinic_scheduling_appointment_checkin', {appointmentId: appointment.id}) }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-success w-100">
+                                                    <i class="ki-filled ki-entrance-right me-1"></i>
+                                                    Check-in
+                                                </button>
+                                            </form>
+                                            <form method="post" action="{{ path('clinic_consultation_start_from_appointment', {appointmentId: appointment.id}) }}">
+                                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                                    <i class="ki-filled ki-edit me-1"></i>
+                                                    Consultation
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if appointment.status == 'COMPLETED' %}
+                                        <small class="text-muted d-block mt-2">
+                                            <i class="ki-filled ki-check-circle me-1"></i>
+                                            Terminé
+                                        </small>
                                     {% endif %}
                                 </div>
                             </div>

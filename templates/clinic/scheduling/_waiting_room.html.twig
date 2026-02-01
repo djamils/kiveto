@@ -98,8 +98,14 @@
                             {% endif %}
 
                             {% if entry.status == 'IN_SERVICE' %}
-                                <form method="post" action="{{ path('clinic_scheduling_waitingroom_close', {entryId: entry.id}) }}" class="d-inline">
+                                <form method="post" action="{{ path('clinic_consultation_start_from_waiting_room', {entryId: entry.id}) }}" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="ki-filled ki-edit me-1"></i>
+                                        Consultation
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ path('clinic_scheduling_waitingroom_close', {entryId: entry.id}) }}" class="d-inline" onsubmit="return confirm('Terminer sans consultation ?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">
                                         <i class="ki-filled ki-check me-1"></i>
                                         Terminer
                                     </button>
