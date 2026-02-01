@@ -29,14 +29,20 @@ final class CreateWalkInController extends AbstractController
         $data = $request->request->all();
 
         try {
+            // Convert empty strings to null for optional fields
+            $ownerId = !empty($data['ownerId']) ? $data['ownerId'] : null;
+            $animalId = !empty($data['animalId']) ? $data['animalId'] : null;
+            $foundAnimalDescription = !empty($data['foundAnimalDescription']) ? $data['foundAnimalDescription'] : null;
+            $triageNotes = !empty($data['triageNotes']) ? $data['triageNotes'] : null;
+
             $this->commandBus->dispatch(new CreateWaitingRoomWalkInEntry(
                 clinicId: $currentClinicId->toString(),
-                ownerId: $data['ownerId'] ?? null,
-                animalId: $data['animalId'] ?? null,
-                foundAnimalDescription: $data['foundAnimalDescription'] ?? null,
+                ownerId: $ownerId,
+                animalId: $animalId,
+                foundAnimalDescription: $foundAnimalDescription,
                 arrivalMode: $data['arrivalMode'] ?? 'STANDARD',
                 priority: (int) ($data['priority'] ?? 0),
-                triageNotes: $data['triageNotes'] ?? null,
+                triageNotes: $triageNotes,
             ));
 
             $this->addFlash('success', 'Entrée walk-in créée avec succès.');

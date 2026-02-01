@@ -31,15 +31,22 @@ final class CreateAppointmentController extends AbstractController
         try {
             $startsAt = new \DateTimeImmutable($data['startsAtUtc'] ?? 'now');
 
+            // Convert empty strings to null for optional UUID fields
+            $ownerId = !empty($data['ownerId']) ? $data['ownerId'] : null;
+            $animalId = !empty($data['animalId']) ? $data['animalId'] : null;
+            $practitionerUserId = !empty($data['practitionerUserId']) ? $data['practitionerUserId'] : null;
+            $reason = !empty($data['reason']) ? $data['reason'] : null;
+            $notes = !empty($data['notes']) ? $data['notes'] : null;
+
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: $currentClinicId->toString(),
-                ownerId: $data['ownerId'] ?? null,
-                animalId: $data['animalId'] ?? null,
-                practitionerUserId: $data['practitionerUserId'] ?? null,
+                ownerId: $ownerId,
+                animalId: $animalId,
+                practitionerUserId: $practitionerUserId,
                 startsAtUtc: $startsAt,
                 durationMinutes: (int) ($data['durationMinutes'] ?? 30),
-                reason: $data['reason'] ?? null,
-                notes: $data['notes'] ?? null,
+                reason: $reason,
+                notes: $notes,
             ));
 
             $this->addFlash('success', 'Rendez-vous créé avec succès.');
