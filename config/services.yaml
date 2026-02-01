@@ -254,6 +254,9 @@ services:
     App\ClinicalCare\Domain\Repository\ConsultationRepositoryInterface:
         class: App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
 
+    App\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface:
+        class: App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
+
     App\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
         class: App\ClinicalCare\Infrastructure\Adapter\AccessControl\DbalPractitionerEligibilityChecker
 

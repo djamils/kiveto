@@ -9,119 +9,199 @@
             <div class="card mb-4">
                 <div class="card-header pb-0 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Consultation</h5>
-                    <span class="badge bg-success">EN COURS</span>
+                    <span class="badge {{ consultation.status == 'OPEN' ? 'bg-success' : 'bg-secondary' }}">
+                        {{ consultation.status == 'OPEN' ? 'EN COURS' : 'CLÔTURÉE' }}
+                    </span>
                 </div>
                 <div class="card-body">
-                    <p class="text-sm text-muted">ID: {{ consultationId }}</p>
+                    <p class="text-sm text-muted">ID: {{ consultation.consultationId }}</p>
+                    <p class="text-sm text-muted">Démarrée le : {{ consultation.startedAtUtc }}</p>
 
                     {# Motif de consultation #}
                     <div class="mb-4">
                         <h6 class="text-sm font-weight-bold mb-2">Motif de consultation</h6>
-                        <form method="post" action="{{ path('clinic_consultation_record_chief_complaint', {id: consultationId}) }}">
-                            <div class="input-group">
-                                <textarea 
-                                    name="chiefComplaint" 
-                                    class="form-control" 
-                                    rows="2" 
-                                    placeholder="Ex: Boiterie patte avant gauche depuis 3 jours..."
-                                    required
-                                ></textarea>
-                                <button type="submit" class="btn btn-primary">Enregistrer</button>
-                            </div>
-                        </form>
+                        {% if consultation.chiefComplaint %}
+                            <div class="alert alert-info mb-0">{{ consultation.chiefComplaint }}</div>
+                        {% else %}
+                            <form method="post" action="{{ path('clinic_consultation_record_chief_complaint', {id: consultation.consultationId}) }}">
+                                <div class="input-group">
+                                    <textarea
+                                        name="chiefComplaint"
+                                        class="form-control"
+                                        rows="2"
+                                        placeholder="Ex: Boiterie patte avant gauche depuis 3 jours..."
+                                        required
+                                    ></textarea>
+                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                </div>
+                            </form>
+                        {% endif %}
                     </div>
 
                     {# Constantes vitales #}
                     <div class="mb-4">
                         <h6 class="text-sm font-weight-bold mb-2">Constantes vitales</h6>
-                        <form method="post" action="{{ path('clinic_consultation_record_vitals', {id: consultationId}) }}" class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label text-xs">Poids (kg)</label>
-                                <input type="number" step="0.01" name="weightKg" class="form-control" placeholder="12.5">
+                        {% if consultation.vitals %}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Poids :</strong> {{ consultation.vitals.weightKg ?? 'N/A' }} kg
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Température :</strong> {{ consultation.vitals.temperatureC ?? 'N/A' }} °C
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label text-xs">Température (°C)</label>
-                                <input type="number" step="0.1" name="temperatureC" class="form-control" placeholder="38.5">
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">Enregistrer</button>
-                            </div>
-                        </form>
+                        {% else %}
+                            <form method="post" action="{{ path('clinic_consultation_record_vitals', {id: consultation.consultationId}) }}" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label text-xs">Poids (kg)</label>
+                                    <input type="number" step="0.01" name="weightKg" class="form-control" placeholder="12.5">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-xs">Température (°C)</label>
+                                    <input type="number" step="0.1" name="temperatureC" class="form-control" placeholder="38.5">
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">Enregistrer</button>
+                                </div>
+                            </form>
+                        {% endif %}
                     </div>
 
-                    {# Notes cliniques #}
-                    <div class="mb-4">
-                        <h6 class="text-sm font-weight-bold mb-2">Ajouter une note clinique</h6>
-                        <form method="post" action="{{ path('clinic_consultation_add_note', {id: consultationId}) }}">
-                            <div class="row g-3 mb-2">
+                    {# Notes cliniques existantes #}
+                    {% if consultation.notes|length > 0 %}
+                        <div class="mb-4">
+                            <h6 class="text-sm font-weight-bold mb-2">Notes cliniques</h6>
+                            {% for note in consultation.notes %}
+                                <div class="alert alert-light border mb-2">
+                                    <small class="badge bg-primary me-2">{{ note.noteType }}</small>
+                                    <small class="text-muted">{{ note.createdAt }}</small>
+                                    <p class="mb-0 mt-2">{{ note.content }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {# Ajouter une note #}
+                    {% if consultation.status == 'OPEN' %}
+                        <div class="mb-4">
+                            <h6 class="text-sm font-weight-bold mb-2">Ajouter une note clinique</h6>
+                            <form method="post" action="{{ path('clinic_consultation_add_note', {id: consultation.consultationId}) }}">
+                                <div class="row g-3 mb-2">
+                                    <div class="col-md-3">
+                                        <select name="noteType" class="form-select" required>
+                                            <option value="">Type de note...</option>
+                                            <option value="ANAMNESIS">Anamnèse</option>
+                                            <option value="EXAMINATION">Examen</option>
+                                            <option value="DIAGNOSIS">Diagnostic</option>
+                                            <option value="TREATMENT">Traitement</option>
+                                            <option value="FOLLOW_UP">Suivi</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-9">
+                                        <textarea
+                                            name="content"
+                                            class="form-control"
+                                            rows="2"
+                                            placeholder="Contenu de la note..."
+                                            required
+                                        ></textarea>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-sm btn-primary">Ajouter note</button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+
+                    {# Actes réalisés existants #}
+                    {% if consultation.acts|length > 0 %}
+                        <div class="mb-4">
+                            <h6 class="text-sm font-weight-bold mb-2">Actes réalisés</h6>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Acte</th>
+                                        <th>Quantité</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for act in consultation.acts %}
+                                        <tr>
+                                            <td>{{ act.label }}</td>
+                                            <td>{{ act.quantity }}</td>
+                                            <td>{{ act.performedAt }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+
+                    {# Ajouter un acte #}
+                    {% if consultation.status == 'OPEN' %}
+                        <div class="mb-4">
+                            <h6 class="text-sm font-weight-bold mb-2">Ajouter un acte</h6>
+                            <form method="post" action="{{ path('clinic_consultation_add_act', {id: consultation.consultationId}) }}" class="row g-3">
+                                <div class="col-md-6">
+                                    <input type="text" name="label" class="form-control" placeholder="Ex: Consultation générale" required>
+                                </div>
                                 <div class="col-md-3">
-                                    <select name="noteType" class="form-select" required>
-                                        <option value="">Type de note...</option>
-                                        <option value="ANAMNESIS">Anamnèse</option>
-                                        <option value="EXAMINATION">Examen</option>
-                                        <option value="DIAGNOSIS">Diagnostic</option>
-                                        <option value="TREATMENT">Traitement</option>
-                                        <option value="FOLLOW_UP">Suivi</option>
-                                    </select>
+                                    <input type="number" step="0.01" name="quantity" class="form-control" value="1" required>
                                 </div>
-                                <div class="col-md-9">
-                                    <textarea 
-                                        name="content" 
-                                        class="form-control" 
-                                        rows="2" 
-                                        placeholder="Contenu de la note..."
-                                        required
-                                    ></textarea>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary w-100">Ajouter acte</button>
                                 </div>
-                            </div>
-                            <div class="text-end">
-                                <button type="submit" class="btn btn-sm btn-primary">Ajouter note</button>
-                            </div>
-                        </form>
-                    </div>
+                            </form>
+                        </div>
+                    {% endif %}
 
-                    {# Actes réalisés #}
-                    <div class="mb-4">
-                        <h6 class="text-sm font-weight-bold mb-2">Ajouter un acte</h6>
-                        <form method="post" action="{{ path('clinic_consultation_add_act', {id: consultationId}) }}" class="row g-3">
-                            <div class="col-md-6">
-                                <input type="text" name="label" class="form-control" placeholder="Ex: Consultation générale" required>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="number" step="0.01" name="quantity" class="form-control" value="1" required>
-                            </div>
-                            <div class="col-md-3">
-                                <button type="submit" class="btn btn-primary w-100">Ajouter acte</button>
-                            </div>
-                        </form>
-                    </div>
+                    {# Résumé si clôturé #}
+                    {% if consultation.status == 'CLOSED' and consultation.summary %}
+                        <hr class="my-4">
+                        <div class="mb-4">
+                            <h6 class="text-sm font-weight-bold mb-2">Résumé de consultation</h6>
+                            <div class="alert alert-success">{{ consultation.summary }}</div>
+                            <p class="text-sm text-muted">Clôturée le : {{ consultation.closedAtUtc }}</p>
+                        </div>
+                    {% endif %}
 
                     {# Clôture #}
-                    <hr class="my-4">
-                    <div>
-                        <h6 class="text-sm font-weight-bold mb-2">Clôturer la consultation</h6>
-                        <form method="post" action="{{ path('clinic_consultation_close', {id: consultationId}) }}" onsubmit="return confirm('Confirmer la clôture de cette consultation ?');">
-                            <div class="mb-3">
-                                <label class="form-label text-xs">Résumé de la consultation (optionnel)</label>
-                                <textarea 
-                                    name="summary" 
-                                    class="form-control" 
-                                    rows="3" 
-                                    placeholder="Résumé : diagnostic, traitement prescrit, instructions pour le propriétaire..."
-                                ></textarea>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-check me-1"></i>
-                                    Clôturer la consultation
-                                </button>
-                                <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-arrow-left me-1"></i>
-                                    Retour agenda
-                                </a>
-                            </div>
-                        </form>
-                    </div>
+                    {% if consultation.status == 'OPEN' %}
+                        <hr class="my-4">
+                        <div>
+                            <h6 class="text-sm font-weight-bold mb-2">Clôturer la consultation</h6>
+                            <form method="post" action="{{ path('clinic_consultation_close', {id: consultation.consultationId}) }}" onsubmit="return confirm('Confirmer la clôture de cette consultation ?');">
+                                <div class="mb-3">
+                                    <label class="form-label text-xs">Résumé de la consultation (optionnel)</label>
+                                    <textarea
+                                        name="summary"
+                                        class="form-control"
+                                        rows="3"
+                                        placeholder="Résumé : diagnostic, traitement prescrit, instructions pour le propriétaire..."
+                                    ></textarea>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check me-1"></i>
+                                        Clôturer la consultation
+                                    </button>
+                                    <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-left me-1"></i>
+                                        Retour agenda
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="text-end">
+                            <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>
+                                Retour agenda
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
