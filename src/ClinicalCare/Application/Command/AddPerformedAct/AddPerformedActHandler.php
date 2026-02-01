@@ -22,15 +22,15 @@ final readonly class AddPerformedActHandler
     public function __invoke(AddPerformedAct $command): void
     {
         $consultationId = ConsultationId::fromString($command->consultationId);
-        $consultation = $this->consultations->findById($consultationId);
+        $consultation   = $this->consultations->findById($consultationId);
 
         if (null === $consultation) {
             throw new \DomainException('Consultation not found');
         }
 
-        $performedAt = new \DateTimeImmutable($command->performedAt);
+        $performedAt     = new \DateTimeImmutable($command->performedAt);
         $createdByUserId = UserId::fromString($command->createdByUserId);
-        $now = $this->clock->now();
+        $now             = $this->clock->now();
 
         $consultation->addPerformedAct(
             $command->label,

@@ -50,18 +50,18 @@ final class Appointment extends AggregateRoot
         ?string $notes,
         \DateTimeImmutable $createdAt,
     ): self {
-        $appointment                      = new self();
-        $appointment->id                  = $id;
-        $appointment->clinicId            = $clinicId;
-        $appointment->ownerId             = $ownerId;
-        $appointment->animalId            = $animalId;
+        $appointment                       = new self();
+        $appointment->id                   = $id;
+        $appointment->clinicId             = $clinicId;
+        $appointment->ownerId              = $ownerId;
+        $appointment->animalId             = $animalId;
         $appointment->practitionerAssignee = $practitionerAssignee;
-        $appointment->timeSlot            = $timeSlot;
-        $appointment->status              = AppointmentStatus::PLANNED;
-        $appointment->reason              = $reason;
-        $appointment->notes               = $notes;
-        $appointment->createdAt           = $createdAt;
-        $appointment->serviceStartedAt    = null;
+        $appointment->timeSlot             = $timeSlot;
+        $appointment->status               = AppointmentStatus::PLANNED;
+        $appointment->reason               = $reason;
+        $appointment->notes                = $notes;
+        $appointment->createdAt            = $createdAt;
+        $appointment->serviceStartedAt     = null;
 
         $appointment->recordDomainEvent(new AppointmentScheduled(
             appointmentId: $id->toString(),
@@ -91,18 +91,18 @@ final class Appointment extends AggregateRoot
         \DateTimeImmutable $createdAt,
         ?\DateTimeImmutable $serviceStartedAt,
     ): self {
-        $appointment                      = new self();
-        $appointment->id                  = $id;
-        $appointment->clinicId            = $clinicId;
-        $appointment->ownerId             = $ownerId;
-        $appointment->animalId            = $animalId;
+        $appointment                       = new self();
+        $appointment->id                   = $id;
+        $appointment->clinicId             = $clinicId;
+        $appointment->ownerId              = $ownerId;
+        $appointment->animalId             = $animalId;
         $appointment->practitionerAssignee = $practitionerAssignee;
-        $appointment->timeSlot            = $timeSlot;
-        $appointment->status              = $status;
-        $appointment->reason              = $reason;
-        $appointment->notes               = $notes;
-        $appointment->createdAt           = $createdAt;
-        $appointment->serviceStartedAt    = $serviceStartedAt;
+        $appointment->timeSlot             = $timeSlot;
+        $appointment->status               = $status;
+        $appointment->reason               = $reason;
+        $appointment->notes                = $notes;
+        $appointment->createdAt            = $createdAt;
+        $appointment->serviceStartedAt     = $serviceStartedAt;
 
         return $appointment;
     }
@@ -117,7 +117,7 @@ final class Appointment extends AggregateRoot
             return;
         }
 
-        $oldTimeSlot   = $this->timeSlot;
+        $oldTimeSlot    = $this->timeSlot;
         $this->timeSlot = $newTimeSlot;
 
         $this->recordDomainEvent(new AppointmentRescheduled(
@@ -140,7 +140,7 @@ final class Appointment extends AggregateRoot
             return;
         }
 
-        $oldPractitionerId             = $this->practitionerAssignee?->userId()->toString();
+        $oldPractitionerId          = $this->practitionerAssignee?->userId()->toString();
         $this->practitionerAssignee = $newAssignee;
 
         $this->recordDomainEvent(new AppointmentPractitionerAssigneeChanged(

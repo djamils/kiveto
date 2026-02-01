@@ -32,15 +32,15 @@ readonly class AppointmentScheduled extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'appointmentId'       => $this->appointmentId,
-            'clinicId'            => $this->clinicId,
-            'ownerId'             => $this->ownerId,
-            'animalId'            => $this->animalId,
-            'practitionerUserId'  => $this->practitionerUserId,
-            'startsAtUtc'         => $this->startsAtUtc,
-            'durationMinutes'     => $this->durationMinutes,
-            'reason'              => $this->reason,
-            'notes'               => $this->notes,
+            'appointmentId'      => $this->appointmentId,
+            'clinicId'           => $this->clinicId,
+            'ownerId'            => $this->ownerId,
+            'animalId'           => $this->animalId,
+            'practitionerUserId' => $this->practitionerUserId,
+            'startsAtUtc'        => $this->startsAtUtc,
+            'durationMinutes'    => $this->durationMinutes,
+            'reason'             => $this->reason,
+            'notes'              => $this->notes,
         ];
     }
 }

@@ -32,13 +32,13 @@ final readonly class StartConsultationFromAppointmentHandler
 
     public function __invoke(StartConsultationFromAppointment $command): string
     {
-        $appointmentId = AppointmentId::fromString($command->appointmentId);
+        $appointmentId   = AppointmentId::fromString($command->appointmentId);
         $startedByUserId = UserId::fromString($command->startedByUserId);
-        $now = $this->clock->now();
+        $now             = $this->clock->now();
 
         // 1. Get appointment context
         $appointmentContext = $this->appointmentContextProvider->getAppointmentContext($appointmentId);
-        $clinicId = ClinicId::fromString($appointmentContext->clinicId);
+        $clinicId           = ClinicId::fromString($appointmentContext->clinicId);
 
         // 2. Check eligibility (VETERINARY role required)
         if (!$this->eligibilityChecker->isEligibleForClinicAt(
@@ -51,7 +51,7 @@ final readonly class StartConsultationFromAppointmentHandler
         }
 
         // 3. Check intake requirement (unless EMERGENCY bypass)
-        $isEmergency = $appointmentContext->arrivalMode === 'EMERGENCY';
+        $isEmergency = 'EMERGENCY' === $appointmentContext->arrivalMode;
         if (!$isEmergency && null === $appointmentContext->linkedWaitingRoomEntryId) {
             throw new \DomainException('Appointment must be checked-in before starting consultation (waiting room entry required)');
         }
@@ -61,8 +61,8 @@ final readonly class StartConsultationFromAppointmentHandler
 
         // 5. Create consultation
         $consultationId = ConsultationId::generate();
-        $ownerId = $appointmentContext->ownerId ? OwnerId::fromString($appointmentContext->ownerId) : null;
-        $animalId = $appointmentContext->animalId ? AnimalId::fromString($appointmentContext->animalId) : null;
+        $ownerId        = $appointmentContext->ownerId ? OwnerId::fromString($appointmentContext->ownerId) : null;
+        $animalId       = $appointmentContext->animalId ? AnimalId::fromString($appointmentContext->animalId) : null;
 
         $consultation = Consultation::startFromAppointment(
             $consultationId,

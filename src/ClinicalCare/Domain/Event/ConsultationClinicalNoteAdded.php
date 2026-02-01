@@ -11,7 +11,7 @@ use App\Shared\Domain\Event\AbstractDomainEvent;
 final readonly class ConsultationClinicalNoteAdded extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'clinical-care';
-    protected const int VERSION = 1;
+    protected const int VERSION            = 1;
 
     public function __construct(
         public ConsultationId $consultationId,
@@ -28,12 +28,12 @@ final readonly class ConsultationClinicalNoteAdded extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'consultationId' => $this->consultationId->toString(),
-            'noteType' => $this->note->noteType->value,
-            'content' => $this->note->content,
-            'createdAt' => $this->note->createdAt->format(\DateTimeInterface::ATOM),
+            'consultationId'  => $this->consultationId->toString(),
+            'noteType'        => $this->note->noteType->value,
+            'content'         => $this->note->content,
+            'createdAt'       => $this->note->createdAt->format(\DateTimeInterface::ATOM),
             'createdByUserId' => $this->note->createdByUserId->toString(),
-            'occurredOn' => $this->occurredOn->format(\DateTimeInterface::ATOM),
+            'occurredOn'      => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }
 }

@@ -6,6 +6,6 @@ namespace App\Scheduling\Domain\ValueObject;
 
 enum WaitingRoomArrivalMode: string
 {
-    case STANDARD = 'STANDARD';
+    case STANDARD  = 'STANDARD';
     case EMERGENCY = 'EMERGENCY';
 }

@@ -30,7 +30,7 @@ final readonly class ConsultationMapper
         $entity = new ConsultationEntity();
         $entity->setId(Uuid::fromString($consultation->getId()->toString())->toBinary());
         $entity->setClinicId(Uuid::fromString($consultation->getClinicId()->toString())->toBinary());
-        $entity->setAppointmentId($consultation->getAppointmentId() 
+        $entity->setAppointmentId($consultation->getAppointmentId()
             ? Uuid::fromString($consultation->getAppointmentId()->toString())->toBinary()
             : null
         );
@@ -52,8 +52,8 @@ final readonly class ConsultationMapper
         $entity->setSummary($consultation->getSummary());
 
         $vitals = $consultation->getVitals();
-        $entity->setWeightKg($vitals?->weightKg !== null ? (string) $vitals->weightKg : null);
-        $entity->setTemperatureC($vitals?->temperatureC !== null ? (string) $vitals->temperatureC : null);
+        $entity->setWeightKg(null !== $vitals?->weightKg ? (string) $vitals->weightKg : null);
+        $entity->setTemperatureC(null !== $vitals?->temperatureC ? (string) $vitals->temperatureC : null);
 
         $entity->setStartedAtUtc($consultation->getStartedAtUtc());
         $entity->setClosedAtUtc($consultation->getClosedAtUtc());
@@ -66,10 +66,10 @@ final readonly class ConsultationMapper
     public function toDomain(ConsultationEntity $entity, array $noteEntities, array $actEntities): Consultation
     {
         $notes = array_map($this->noteMapper->toDomain(...), $noteEntities);
-        $acts = array_map($this->actMapper->toDomain(...), $actEntities);
+        $acts  = array_map($this->actMapper->toDomain(...), $actEntities);
 
         $vitals = null;
-        if ($entity->getWeightKg() !== null || $entity->getTemperatureC() !== null) {
+        if (null !== $entity->getWeightKg() || null !== $entity->getTemperatureC()) {
             $vitals = Vitals::create(
                 $entity->getWeightKg() ? (float) $entity->getWeightKg() : null,
                 $entity->getTemperatureC() ? (float) $entity->getTemperatureC() : null,

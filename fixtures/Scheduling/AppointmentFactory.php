@@ -28,7 +28,7 @@ final class AppointmentFactory
         ?string $ownerId = null,
         ?string $animalId = null,
         ?string $practitionerUserId = null,
-        \DateTimeImmutable $startsAtUtc = null,
+        ?\DateTimeImmutable $startsAtUtc = null,
         int $durationMinutes = 30,
         ?string $reason = null,
         ?string $notes = null,

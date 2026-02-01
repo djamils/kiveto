@@ -23,7 +23,7 @@ final readonly class ClinicalNoteRecord
         \DateTimeImmutable $createdAtUtc,
         UserId $createdByUserId,
     ): self {
-        if (trim($content) === '') {
+        if ('' === trim($content)) {
             throw new \InvalidArgumentException('Clinical note content cannot be empty');
         }
 

@@ -10,7 +10,7 @@ use App\ClinicalCare\Domain\ValueObject\UserId;
 interface PractitionerEligibilityCheckerInterface
 {
     /**
-     * Check if user is eligible as practitioner for clinic at given time
+     * Check if user is eligible as practitioner for clinic at given time.
      *
      * @param string[] $allowedRoles Typically ['VETERINARY']
      */

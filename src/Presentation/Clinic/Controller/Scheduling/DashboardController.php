@@ -32,8 +32,8 @@ final class DashboardController extends AbstractController
         \assert(null !== $currentClinicId);
 
         // Get current date or requested date
-        $dateParam = $request->query->get('date');
-        $selectedDate = $dateParam 
+        $dateParam    = $request->query->get('date');
+        $selectedDate = $dateParam
             ? new \DateTimeImmutable($dateParam)
             : $this->clock->now();
 

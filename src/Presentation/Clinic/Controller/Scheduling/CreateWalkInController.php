@@ -30,10 +30,10 @@ final class CreateWalkInController extends AbstractController
 
         try {
             // Convert empty strings to null for optional fields
-            $ownerId = !empty($data['ownerId']) ? $data['ownerId'] : null;
-            $animalId = !empty($data['animalId']) ? $data['animalId'] : null;
+            $ownerId                = !empty($data['ownerId']) ? $data['ownerId'] : null;
+            $animalId               = !empty($data['animalId']) ? $data['animalId'] : null;
             $foundAnimalDescription = !empty($data['foundAnimalDescription']) ? $data['foundAnimalDescription'] : null;
-            $triageNotes = !empty($data['triageNotes']) ? $data['triageNotes'] : null;
+            $triageNotes            = !empty($data['triageNotes']) ? $data['triageNotes'] : null;
 
             $this->commandBus->dispatch(new CreateWaitingRoomWalkInEntry(
                 clinicId: $currentClinicId->toString(),

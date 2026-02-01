@@ -138,9 +138,9 @@ final class WaitingRoomEntryTest extends TestCase
 
     public function testCloseEntry(): void
     {
-        $entry             = $this->createSampleEntry();
-        $serviceStartedAt  = new \DateTimeImmutable('2026-02-01 09:10:00');
-        $startedByUser     = UserId::fromString('55555555-5555-5555-5555-555555555555');
+        $entry            = $this->createSampleEntry();
+        $serviceStartedAt = new \DateTimeImmutable('2026-02-01 09:10:00');
+        $startedByUser    = UserId::fromString('55555555-5555-5555-5555-555555555555');
         $entry->startService($serviceStartedAt, $startedByUser);
         $pulledEvents = $entry->pullDomainEvents();
         unset($pulledEvents);
@@ -190,8 +190,8 @@ final class WaitingRoomEntryTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Cannot update triage for a closed entry.');
 
-        $entry             = $this->createSampleEntry();
-        $serviceStartedAt  = new \DateTimeImmutable('2026-02-01 09:10:00');
+        $entry            = $this->createSampleEntry();
+        $serviceStartedAt = new \DateTimeImmutable('2026-02-01 09:10:00');
         $entry->startService($serviceStartedAt, null);
         $closedAt = new \DateTimeImmutable('2026-02-01 09:30:00');
         $entry->close($closedAt, null);

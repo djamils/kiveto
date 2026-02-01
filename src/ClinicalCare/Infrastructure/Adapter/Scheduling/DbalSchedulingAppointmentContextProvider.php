@@ -44,13 +44,13 @@ final readonly class DbalSchedulingAppointmentContextProvider implements Schedul
 
         return new AppointmentContextDTO(
             clinicId: Uuid::fromBinary($result['clinic_id'])->toRfc4122(),
-            linkedWaitingRoomEntryId: $result['waiting_room_entry_id'] 
+            linkedWaitingRoomEntryId: $result['waiting_room_entry_id']
                 ? Uuid::fromBinary($result['waiting_room_entry_id'])->toRfc4122()
                 : null,
-            ownerId: $result['owner_id'] 
+            ownerId: $result['owner_id']
                 ? Uuid::fromBinary($result['owner_id'])->toRfc4122()
                 : null,
-            animalId: $result['animal_id'] 
+            animalId: $result['animal_id']
                 ? Uuid::fromBinary($result['animal_id'])->toRfc4122()
                 : null,
             arrivalMode: $result['arrival_mode'],

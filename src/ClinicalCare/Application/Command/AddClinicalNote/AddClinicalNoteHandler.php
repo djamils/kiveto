@@ -23,15 +23,15 @@ final readonly class AddClinicalNoteHandler
     public function __invoke(AddClinicalNote $command): void
     {
         $consultationId = ConsultationId::fromString($command->consultationId);
-        $consultation = $this->consultations->findById($consultationId);
+        $consultation   = $this->consultations->findById($consultationId);
 
         if (null === $consultation) {
             throw new \DomainException('Consultation not found');
         }
 
-        $noteType = NoteType::from($command->noteType);
+        $noteType        = NoteType::from($command->noteType);
         $createdByUserId = UserId::fromString($command->createdByUserId);
-        $now = $this->clock->now();
+        $now             = $this->clock->now();
 
         $consultation->addClinicalNote(
             $noteType,

@@ -6,9 +6,9 @@ namespace App\Scheduling\Domain\ValueObject;
 
 enum AppointmentStatus: string
 {
-    case PLANNED = 'PLANNED';
+    case PLANNED   = 'PLANNED';
     case CANCELLED = 'CANCELLED';
-    case NO_SHOW = 'NO_SHOW';
+    case NO_SHOW   = 'NO_SHOW';
     case COMPLETED = 'COMPLETED';
 
     public function isTerminal(): bool

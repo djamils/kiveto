@@ -24,7 +24,7 @@ final readonly class DbalPractitionerEligibilityChecker implements PractitionerE
         \DateTimeImmutable $at,
         array $allowedRoles,
     ): bool {
-        $userBinary = Uuid::fromString($userId->toString())->toBinary();
+        $userBinary   = Uuid::fromString($userId->toString())->toBinary();
         $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
 
         $sql = '
@@ -38,10 +38,10 @@ final readonly class DbalPractitionerEligibilityChecker implements PractitionerE
         ';
 
         $result = $this->connection->fetchAssociative($sql, [
-            'userId' => $userBinary,
+            'userId'   => $userBinary,
             'clinicId' => $clinicBinary,
-            'atDate' => $at->format('Y-m-d'),
-            'roles' => $allowedRoles,
+            'atDate'   => $at->format('Y-m-d'),
+            'roles'    => $allowedRoles,
         ], [
             'roles' => ArrayParameterType::STRING,
         ]);

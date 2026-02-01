@@ -32,15 +32,15 @@ readonly class WaitingRoomWalkInEntryCreated extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'waitingRoomEntryId'      => $this->waitingRoomEntryId,
-            'clinicId'                => $this->clinicId,
-            'ownerId'                 => $this->ownerId,
-            'animalId'                => $this->animalId,
-            'foundAnimalDescription'  => $this->foundAnimalDescription,
-            'arrivalMode'             => $this->arrivalMode,
-            'priority'                => $this->priority,
-            'triageNotes'             => $this->triageNotes,
-            'arrivedAtUtc'            => $this->arrivedAtUtc,
+            'waitingRoomEntryId'     => $this->waitingRoomEntryId,
+            'clinicId'               => $this->clinicId,
+            'ownerId'                => $this->ownerId,
+            'animalId'               => $this->animalId,
+            'foundAnimalDescription' => $this->foundAnimalDescription,
+            'arrivalMode'            => $this->arrivalMode,
+            'priority'               => $this->priority,
+            'triageNotes'            => $this->triageNotes,
+            'arrivedAtUtc'           => $this->arrivedAtUtc,
         ];
     }
 }

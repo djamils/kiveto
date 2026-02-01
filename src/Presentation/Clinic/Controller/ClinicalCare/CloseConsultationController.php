@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\ClinicalCare;
 
 use App\ClinicalCare\Application\Command\CloseConsultation\CloseConsultation;
+use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentUserContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,20 +16,23 @@ final class CloseConsultationController extends AbstractController
 {
     public function __construct(
         private readonly CommandBusInterface $commandBus,
-        private readonly CurrentUserContextInterface $userContext,
     ) {
     }
 
     #[Route('/clinic/consultations/{id}/close', name: 'clinic_consultation_close', methods: ['POST'])]
     public function __invoke(string $id, Request $request): Response
     {
+        /** @var SecurityUser $user */
+        $user = $this->getUser();
+        \assert(null !== $user);
+
         $summary = $request->request->get('summary');
 
         try {
             $this->commandBus->dispatch(
                 new CloseConsultation(
                     consultationId: $id,
-                    closedByUserId: $this->userContext->userId(),
+                    closedByUserId: $user->id(),
                     summary: !empty($summary) ? $summary : null,
                 )
             );

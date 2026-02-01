@@ -27,10 +27,10 @@ readonly class AppointmentPractitionerAssigneeChanged extends AbstractDomainEven
     public function payload(): array
     {
         return [
-            'appointmentId'          => $this->appointmentId,
-            'clinicId'               => $this->clinicId,
-            'oldPractitionerUserId'  => $this->oldPractitionerUserId,
-            'newPractitionerUserId'  => $this->newPractitionerUserId,
+            'appointmentId'         => $this->appointmentId,
+            'clinicId'              => $this->clinicId,
+            'oldPractitionerUserId' => $this->oldPractitionerUserId,
+            'newPractitionerUserId' => $this->newPractitionerUserId,
         ];
     }
 }

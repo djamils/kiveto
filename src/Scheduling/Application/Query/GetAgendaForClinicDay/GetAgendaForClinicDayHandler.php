@@ -56,7 +56,7 @@ final readonly class GetAgendaForClinicDayHandler
 
         $results = $this->connection->fetchAllAssociative($sql, $params);
 
-        return \array_map(
+        return array_map(
             fn (array $row) => new AppointmentItem(
                 id: $row['id'],
                 clinicId: $row['clinic_id'],

@@ -12,7 +12,7 @@ interface SchedulingServiceCoordinatorInterface
 {
     /**
      * Ensure appointment is in service state
-     * (idempotent - no error if already in service)
+     * (idempotent - no error if already in service).
      */
     public function ensureAppointmentInService(
         AppointmentId $appointmentId,
@@ -21,7 +21,7 @@ interface SchedulingServiceCoordinatorInterface
 
     /**
      * Ensure waiting room entry is in service state
-     * (idempotent - no error if already in service)
+     * (idempotent - no error if already in service).
      */
     public function ensureWaitingRoomEntryInService(
         WaitingRoomEntryId $entryId,
@@ -29,7 +29,7 @@ interface SchedulingServiceCoordinatorInterface
     ): void;
 
     /**
-     * Mark appointment as completed
+     * Mark appointment as completed.
      */
     public function completeAppointment(
         AppointmentId $appointmentId,

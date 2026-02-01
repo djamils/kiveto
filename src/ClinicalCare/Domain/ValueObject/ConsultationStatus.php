@@ -6,23 +6,23 @@ namespace App\ClinicalCare\Domain\ValueObject;
 
 enum ConsultationStatus: string
 {
-    case OPEN = 'OPEN';
+    case OPEN   = 'OPEN';
     case CLOSED = 'CLOSED';
 
     public function isOpen(): bool
     {
-        return $this === self::OPEN;
+        return self::OPEN === $this;
     }
 
     public function isClosed(): bool
     {
-        return $this === self::CLOSED;
+        return self::CLOSED === $this;
     }
 
     public function canTransitionTo(self $newStatus): bool
     {
         return match ($this) {
-            self::OPEN => $newStatus === self::CLOSED,
+            self::OPEN   => self::CLOSED === $newStatus,
             self::CLOSED => false, // No transitions from CLOSED
         };
     }

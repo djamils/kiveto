@@ -14,8 +14,8 @@ use App\ClinicalCare\Domain\Event\ConsultationStartedFromWaitingRoomEntry;
 use App\ClinicalCare\Domain\Event\ConsultationVitalsRecorded;
 use App\ClinicalCare\Domain\ValueObject\AnimalId;
 use App\ClinicalCare\Domain\ValueObject\AppointmentId;
-use App\ClinicalCare\Domain\ValueObject\ClinicId;
 use App\ClinicalCare\Domain\ValueObject\ClinicalNoteRecord;
+use App\ClinicalCare\Domain\ValueObject\ClinicId;
 use App\ClinicalCare\Domain\ValueObject\ConsultationId;
 use App\ClinicalCare\Domain\ValueObject\ConsultationStatus;
 use App\ClinicalCare\Domain\ValueObject\NoteType;
@@ -140,8 +140,8 @@ final class Consultation extends AggregateRoot
             throw new \DomainException('At least one of owner or animal must be provided');
         }
 
-        $this->ownerId = $ownerId;
-        $this->animalId = $animalId;
+        $this->ownerId      = $ownerId;
+        $this->animalId     = $animalId;
         $this->updatedAtUtc = $occurredAt;
 
         $this->raise(new ConsultationPatientIdentityAttached(
@@ -158,12 +158,12 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
-        if (trim($chiefComplaint) === '') {
+        if ('' === trim($chiefComplaint)) {
             throw new \InvalidArgumentException('Chief complaint cannot be empty');
         }
 
         $this->chiefComplaint = $chiefComplaint;
-        $this->updatedAtUtc = $occurredAt;
+        $this->updatedAtUtc   = $occurredAt;
 
         $this->raise(new ConsultationChiefComplaintRecorded(
             $this->id,
@@ -178,7 +178,7 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
-        $this->vitals = $vitals;
+        $this->vitals       = $vitals;
         $this->updatedAtUtc = $occurredAt;
 
         $this->raise(new ConsultationVitalsRecorded(
@@ -196,8 +196,8 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
-        $note = ClinicalNoteRecord::create($noteType, $content, $createdAt, $createdByUserId);
-        $this->notes[] = $note;
+        $note               = ClinicalNoteRecord::create($noteType, $content, $createdAt, $createdByUserId);
+        $this->notes[]      = $note;
         $this->updatedAtUtc = $createdAt;
 
         $this->raise(new ConsultationClinicalNoteAdded(
@@ -216,8 +216,8 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
-        $act = PerformedActRecord::create($label, $quantity, $performedAt, $createdAt, $createdByUserId);
-        $this->acts[] = $act;
+        $act                = PerformedActRecord::create($label, $quantity, $performedAt, $createdAt, $createdByUserId);
+        $this->acts[]       = $act;
         $this->updatedAtUtc = $createdAt;
 
         $this->raise(new ConsultationPerformedActAdded(
@@ -234,9 +234,9 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
-        $this->status = ConsultationStatus::CLOSED;
-        $this->summary = $summary;
-        $this->closedAtUtc = $closedAt;
+        $this->status       = ConsultationStatus::CLOSED;
+        $this->summary      = $summary;
+        $this->closedAtUtc  = $closedAt;
         $this->updatedAtUtc = $closedAt;
 
         $this->raise(new ConsultationClosed(
@@ -245,13 +245,6 @@ final class Consultation extends AggregateRoot
             $summary,
             $closedAt,
         ));
-    }
-
-    private function ensureOpen(): void
-    {
-        if (!$this->status->isOpen()) {
-            throw new \DomainException('Cannot modify a closed consultation');
-        }
     }
 
     // Getters for reconstitution & read
@@ -381,8 +374,15 @@ final class Consultation extends AggregateRoot
         );
 
         $consultation->notes = $notes;
-        $consultation->acts = $acts;
+        $consultation->acts  = $acts;
 
         return $consultation;
+    }
+
+    private function ensureOpen(): void
+    {
+        if (!$this->status->isOpen()) {
+            throw new \DomainException('Cannot modify a closed consultation');
+        }
     }
 }

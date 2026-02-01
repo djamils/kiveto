@@ -21,11 +21,11 @@ final class RecordVitalsController extends AbstractController
     #[Route('/clinic/consultations/{id}/vitals', name: 'clinic_consultation_record_vitals', methods: ['POST'])]
     public function __invoke(string $id, Request $request): Response
     {
-        $weightKg = $request->request->get('weightKg');
+        $weightKg     = $request->request->get('weightKg');
         $temperatureC = $request->request->get('temperatureC');
 
         // Convertir empty string en null
-        $weightKg = !empty($weightKg) ? (float) $weightKg : null;
+        $weightKg     = !empty($weightKg) ? (float) $weightKg : null;
         $temperatureC = !empty($temperatureC) ? (float) $temperatureC : null;
 
         try {

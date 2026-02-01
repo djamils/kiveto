@@ -43,7 +43,7 @@ final readonly class TimeSlot
 
     public function equals(self $other): bool
     {
-        return $this->startsAtUtc == $other->startsAtUtc
+        return $this->startsAtUtc === $other->startsAtUtc
             && $this->durationMinutes === $other->durationMinutes;
     }
 }

@@ -27,10 +27,10 @@ readonly class WaitingRoomEntryServiceStarted extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'waitingRoomEntryId'      => $this->waitingRoomEntryId,
-            'clinicId'                => $this->clinicId,
-            'serviceStartedAtUtc'     => $this->serviceStartedAtUtc,
-            'serviceStartedByUserId'  => $this->serviceStartedByUserId,
+            'waitingRoomEntryId'     => $this->waitingRoomEntryId,
+            'clinicId'               => $this->clinicId,
+            'serviceStartedAtUtc'    => $this->serviceStartedAtUtc,
+            'serviceStartedByUserId' => $this->serviceStartedByUserId,
         ];
     }
 }

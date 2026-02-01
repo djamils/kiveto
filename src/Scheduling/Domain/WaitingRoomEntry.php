@@ -196,9 +196,9 @@ final class WaitingRoomEntry extends AggregateRoot
             return;
         }
 
-        $this->priority     = $priority;
-        $this->triageNotes  = $triageNotes;
-        $this->arrivalMode  = $arrivalMode;
+        $this->priority    = $priority;
+        $this->triageNotes = $triageNotes;
+        $this->arrivalMode = $arrivalMode;
 
         $this->recordDomainEvent(new WaitingRoomEntryTriageUpdated(
             waitingRoomEntryId: $this->id->toString(),
@@ -218,9 +218,9 @@ final class WaitingRoomEntry extends AggregateRoot
             ));
         }
 
-        $this->status          = WaitingRoomEntryStatus::CALLED;
-        $this->calledAtUtc     = $calledAt;
-        $this->calledByUserId  = $calledByUserId;
+        $this->status         = WaitingRoomEntryStatus::CALLED;
+        $this->calledAtUtc    = $calledAt;
+        $this->calledByUserId = $calledByUserId;
 
         $this->recordDomainEvent(new WaitingRoomEntryCalled(
             waitingRoomEntryId: $this->id->toString(),
@@ -239,9 +239,9 @@ final class WaitingRoomEntry extends AggregateRoot
             ));
         }
 
-        $this->status                  = WaitingRoomEntryStatus::IN_SERVICE;
-        $this->serviceStartedAtUtc     = $serviceStartedAt;
-        $this->serviceStartedByUserId  = $serviceStartedByUserId;
+        $this->status                 = WaitingRoomEntryStatus::IN_SERVICE;
+        $this->serviceStartedAtUtc    = $serviceStartedAt;
+        $this->serviceStartedByUserId = $serviceStartedByUserId;
 
         $this->recordDomainEvent(new WaitingRoomEntryServiceStarted(
             waitingRoomEntryId: $this->id->toString(),

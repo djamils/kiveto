@@ -32,11 +32,11 @@ final class CreateAppointmentController extends AbstractController
             $startsAt = new \DateTimeImmutable($data['startsAtUtc'] ?? 'now');
 
             // Convert empty strings to null for optional UUID fields
-            $ownerId = !empty($data['ownerId']) ? $data['ownerId'] : null;
-            $animalId = !empty($data['animalId']) ? $data['animalId'] : null;
+            $ownerId            = !empty($data['ownerId']) ? $data['ownerId'] : null;
+            $animalId           = !empty($data['animalId']) ? $data['animalId'] : null;
             $practitionerUserId = !empty($data['practitionerUserId']) ? $data['practitionerUserId'] : null;
-            $reason = !empty($data['reason']) ? $data['reason'] : null;
-            $notes = !empty($data['notes']) ? $data['notes'] : null;
+            $reason             = !empty($data['reason']) ? $data['reason'] : null;
+            $notes              = !empty($data['notes']) ? $data['notes'] : null;
 
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: $currentClinicId->toString(),

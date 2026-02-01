@@ -24,7 +24,7 @@ final readonly class CloseConsultationHandler
     public function __invoke(CloseConsultation $command): void
     {
         $consultationId = ConsultationId::fromString($command->consultationId);
-        $consultation = $this->consultations->findById($consultationId);
+        $consultation   = $this->consultations->findById($consultationId);
 
         if (null === $consultation) {
             throw new \DomainException('Consultation not found');

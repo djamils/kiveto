@@ -29,12 +29,12 @@ readonly class AppointmentRescheduled extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'appointmentId'       => $this->appointmentId,
-            'clinicId'            => $this->clinicId,
-            'oldStartsAtUtc'      => $this->oldStartsAtUtc,
-            'oldDurationMinutes'  => $this->oldDurationMinutes,
-            'newStartsAtUtc'      => $this->newStartsAtUtc,
-            'newDurationMinutes'  => $this->newDurationMinutes,
+            'appointmentId'      => $this->appointmentId,
+            'clinicId'           => $this->clinicId,
+            'oldStartsAtUtc'     => $this->oldStartsAtUtc,
+            'oldDurationMinutes' => $this->oldDurationMinutes,
+            'newStartsAtUtc'     => $this->newStartsAtUtc,
+            'newDurationMinutes' => $this->newDurationMinutes,
         ];
     }
 }

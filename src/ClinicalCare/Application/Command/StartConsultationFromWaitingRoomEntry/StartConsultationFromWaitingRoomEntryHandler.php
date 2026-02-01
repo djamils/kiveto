@@ -33,11 +33,11 @@ final readonly class StartConsultationFromWaitingRoomEntryHandler
     public function __invoke(StartConsultationFromWaitingRoomEntry $command): string
     {
         $waitingRoomEntryId = WaitingRoomEntryId::fromString($command->waitingRoomEntryId);
-        $startedByUserId = UserId::fromString($command->startedByUserId);
-        $now = $this->clock->now();
+        $startedByUserId    = UserId::fromString($command->startedByUserId);
+        $now                = $this->clock->now();
 
         // 1. Get waiting room entry details from Scheduling BC (via query)
-        $entryDetails = $this->queryBus->dispatch(
+        $entryDetails = $this->queryBus->ask(
             new \App\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetails(
                 $command->waitingRoomEntryId,
             )
@@ -60,8 +60,8 @@ final readonly class StartConsultationFromWaitingRoomEntryHandler
 
         // 4. Create consultation
         $consultationId = ConsultationId::generate();
-        $ownerId = $entryDetails->ownerId ? OwnerId::fromString($entryDetails->ownerId) : null;
-        $animalId = $entryDetails->animalId ? AnimalId::fromString($entryDetails->animalId) : null;
+        $ownerId        = $entryDetails->ownerId ? OwnerId::fromString($entryDetails->ownerId) : null;
+        $animalId       = $entryDetails->animalId ? AnimalId::fromString($entryDetails->animalId) : null;
 
         $consultation = Consultation::startFromWaitingRoomEntry(
             $consultationId,

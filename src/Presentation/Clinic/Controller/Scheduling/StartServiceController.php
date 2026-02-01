@@ -8,9 +8,9 @@ use App\Scheduling\Application\Command\StartServiceForWaitingRoomEntry\StartServ
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Bundle\SecurityBundle\Security;
 
 #[Route('/scheduling/waiting-room/{entryId}/start-service', name: 'clinic_scheduling_waitingroom_start', methods: ['POST'])]
 final class StartServiceController extends AbstractController

@@ -31,14 +31,14 @@ readonly class WaitingRoomEntryCreatedFromAppointment extends AbstractDomainEven
     public function payload(): array
     {
         return [
-            'waitingRoomEntryId'   => $this->waitingRoomEntryId,
-            'clinicId'             => $this->clinicId,
-            'linkedAppointmentId'  => $this->linkedAppointmentId,
-            'ownerId'              => $this->ownerId,
-            'animalId'             => $this->animalId,
-            'arrivalMode'          => $this->arrivalMode,
-            'priority'             => $this->priority,
-            'arrivedAtUtc'         => $this->arrivedAtUtc,
+            'waitingRoomEntryId'  => $this->waitingRoomEntryId,
+            'clinicId'            => $this->clinicId,
+            'linkedAppointmentId' => $this->linkedAppointmentId,
+            'ownerId'             => $this->ownerId,
+            'animalId'            => $this->animalId,
+            'arrivalMode'         => $this->arrivalMode,
+            'priority'            => $this->priority,
+            'arrivedAtUtc'        => $this->arrivedAtUtc,
         ];
     }
 }

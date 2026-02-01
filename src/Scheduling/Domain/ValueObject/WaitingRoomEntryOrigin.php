@@ -7,5 +7,5 @@ namespace App\Scheduling\Domain\ValueObject;
 enum WaitingRoomEntryOrigin: string
 {
     case SCHEDULED = 'SCHEDULED';
-    case WALK_IN = 'WALK_IN';
+    case WALK_IN   = 'WALK_IN';
 }

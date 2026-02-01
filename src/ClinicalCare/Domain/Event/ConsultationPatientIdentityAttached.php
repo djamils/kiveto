@@ -12,7 +12,7 @@ use App\Shared\Domain\Event\AbstractDomainEvent;
 final readonly class ConsultationPatientIdentityAttached extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'clinical-care';
-    protected const int VERSION = 1;
+    protected const int VERSION            = 1;
 
     public function __construct(
         public ConsultationId $consultationId,
@@ -31,9 +31,9 @@ final readonly class ConsultationPatientIdentityAttached extends AbstractDomainE
     {
         return [
             'consultationId' => $this->consultationId->toString(),
-            'ownerId' => $this->ownerId?->toString(),
-            'animalId' => $this->animalId?->toString(),
-            'occurredOn' => $this->occurredOn->format(\DateTimeInterface::ATOM),
+            'ownerId'        => $this->ownerId?->toString(),
+            'animalId'       => $this->animalId?->toString(),
+            'occurredOn'     => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }
 }

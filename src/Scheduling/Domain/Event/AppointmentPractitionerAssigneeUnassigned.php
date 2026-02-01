@@ -26,9 +26,9 @@ readonly class AppointmentPractitionerAssigneeUnassigned extends AbstractDomainE
     public function payload(): array
     {
         return [
-            'appointmentId'               => $this->appointmentId,
-            'clinicId'                    => $this->clinicId,
-            'previousPractitionerUserId'  => $this->previousPractitionerUserId,
+            'appointmentId'              => $this->appointmentId,
+            'clinicId'                   => $this->clinicId,
+            'previousPractitionerUserId' => $this->previousPractitionerUserId,
         ];
     }
 }

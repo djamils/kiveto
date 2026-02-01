@@ -10,7 +10,7 @@ use App\Shared\Domain\Event\AbstractDomainEvent;
 final readonly class ConsultationChiefComplaintRecorded extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'clinical-care';
-    protected const int VERSION = 1;
+    protected const int VERSION            = 1;
 
     public function __construct(
         public ConsultationId $consultationId,
@@ -29,7 +29,7 @@ final readonly class ConsultationChiefComplaintRecorded extends AbstractDomainEv
         return [
             'consultationId' => $this->consultationId->toString(),
             'chiefComplaint' => $this->chiefComplaint,
-            'occurredOn' => $this->occurredOn->format(\DateTimeInterface::ATOM),
+            'occurredOn'     => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }
 }

@@ -34,7 +34,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->appointmentRepository         = $this->createMock(AppointmentRepositoryInterface::class);
+        $this->appointmentRepository        = $this->createMock(AppointmentRepositoryInterface::class);
         $this->membershipEligibilityChecker = $this->createMock(MembershipEligibilityCheckerInterface::class);
         $this->conflictChecker              = $this->createMock(AppointmentConflictCheckerInterface::class);
         $this->ownerExistenceChecker        = $this->createMock(OwnerExistenceCheckerInterface::class);
@@ -69,16 +69,19 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         $this->ownerExistenceChecker->expects(self::once())
             ->method('exists')
             ->with(self::callback(fn ($id) => $id instanceof OwnerId))
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->animalExistenceChecker->expects(self::once())
             ->method('exists')
             ->with(self::callback(fn ($id) => $id instanceof AnimalId))
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->clock->expects(self::once())
             ->method('now')
-            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'))
+        ;
 
         $this->membershipEligibilityChecker->expects(self::once())
             ->method('isUserEligibleForClinicAt')
@@ -88,7 +91,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
                 self::anything(),
                 ['VETERINARY', 'ASSISTANT_VETERINARY']
             )
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->conflictChecker->expects(self::once())
             ->method('hasOverlap')
@@ -98,15 +102,18 @@ final class ScheduleAppointmentHandlerTest extends TestCase
                 self::callback(fn ($slot) => $slot instanceof TimeSlot),
                 null
             )
-            ->willReturn(false);
+            ->willReturn(false)
+        ;
 
         $this->uuidGenerator->expects(self::once())
             ->method('generate')
-            ->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+            ->willReturn('01234567-89ab-cdef-0123-456789abcdef')
+        ;
 
         $this->appointmentRepository->expects(self::once())
             ->method('save')
-            ->with(self::callback(fn ($apt) => $apt instanceof Appointment));
+            ->with(self::callback(fn ($apt) => $apt instanceof Appointment))
+        ;
 
         $appointmentId = ($this->handler)($command);
 
@@ -126,28 +133,35 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->ownerExistenceChecker->expects(self::once())
             ->method('exists')
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->animalExistenceChecker->expects(self::once())
             ->method('exists')
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->clock->expects(self::once())
             ->method('now')
-            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'))
+        ;
 
         $this->membershipEligibilityChecker->expects(self::never())
-            ->method('isUserEligibleForClinicAt');
+            ->method('isUserEligibleForClinicAt')
+        ;
 
         $this->conflictChecker->expects(self::never())
-            ->method('hasOverlap');
+            ->method('hasOverlap')
+        ;
 
         $this->uuidGenerator->expects(self::once())
             ->method('generate')
-            ->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+            ->willReturn('01234567-89ab-cdef-0123-456789abcdef')
+        ;
 
         $this->appointmentRepository->expects(self::once())
-            ->method('save');
+            ->method('save')
+        ;
 
         $appointmentId = ($this->handler)($command);
 
@@ -170,7 +184,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->ownerExistenceChecker->expects(self::once())
             ->method('exists')
-            ->willReturn(false);
+            ->willReturn(false)
+        ;
 
         ($this->handler)($command);
     }
@@ -191,7 +206,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->animalExistenceChecker->expects(self::once())
             ->method('exists')
-            ->willReturn(false);
+            ->willReturn(false)
+        ;
 
         ($this->handler)($command);
     }
@@ -212,11 +228,13 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->expects(self::once())
             ->method('now')
-            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'))
+        ;
 
         $this->membershipEligibilityChecker->expects(self::once())
             ->method('isUserEligibleForClinicAt')
-            ->willReturn(false);
+            ->willReturn(false)
+        ;
 
         ($this->handler)($command);
     }
@@ -237,11 +255,13 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->clock->expects(self::once())
             ->method('now')
-            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+            ->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'))
+        ;
 
         $this->membershipEligibilityChecker->expects(self::once())
             ->method('isUserEligibleForClinicAt')
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         $this->conflictChecker->expects(self::once())
             ->method('hasOverlap')

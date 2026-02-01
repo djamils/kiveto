@@ -13,7 +13,7 @@ use App\Shared\Domain\Event\AbstractDomainEvent;
 final readonly class ConsultationStartedFromAppointment extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'clinical-care';
-    protected const int VERSION = 1;
+    protected const int VERSION            = 1;
 
     public function __construct(
         public ConsultationId $consultationId,
@@ -32,11 +32,11 @@ final readonly class ConsultationStartedFromAppointment extends AbstractDomainEv
     public function payload(): array
     {
         return [
-            'consultationId' => $this->consultationId->toString(),
-            'clinicId' => $this->clinicId->toString(),
-            'appointmentId' => $this->appointmentId->toString(),
+            'consultationId'     => $this->consultationId->toString(),
+            'clinicId'           => $this->clinicId->toString(),
+            'appointmentId'      => $this->appointmentId->toString(),
             'practitionerUserId' => $this->practitionerUserId->toString(),
-            'occurredOn' => $this->occurredOn->format(\DateTimeInterface::ATOM),
+            'occurredOn'         => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }
 }

@@ -50,7 +50,7 @@ final readonly class ListWaitingRoomHandler
             'clinicId' => $query->clinicId,
         ]);
 
-        return \array_map(
+        return array_map(
             fn (array $row) => new WaitingRoomEntryItem(
                 id: $row['id'],
                 clinicId: $row['clinic_id'],

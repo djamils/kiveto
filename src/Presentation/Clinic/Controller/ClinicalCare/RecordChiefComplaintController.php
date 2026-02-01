@@ -25,6 +25,7 @@ final class RecordChiefComplaintController extends AbstractController
 
         if (empty($chiefComplaint)) {
             $this->addFlash('error', 'Le motif de consultation est obligatoire.');
+
             return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
         }
 

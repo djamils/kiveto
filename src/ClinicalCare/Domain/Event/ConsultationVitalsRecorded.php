@@ -11,7 +11,7 @@ use App\Shared\Domain\Event\AbstractDomainEvent;
 final readonly class ConsultationVitalsRecorded extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'clinical-care';
-    protected const int VERSION = 1;
+    protected const int VERSION            = 1;
 
     public function __construct(
         public ConsultationId $consultationId,
@@ -29,9 +29,9 @@ final readonly class ConsultationVitalsRecorded extends AbstractDomainEvent
     {
         return [
             'consultationId' => $this->consultationId->toString(),
-            'weightKg' => $this->vitals->weightKg,
-            'temperatureC' => $this->vitals->temperatureC,
-            'occurredOn' => $this->occurredOn->format(\DateTimeInterface::ATOM),
+            'weightKg'       => $this->vitals->weightKg,
+            'temperatureC'   => $this->vitals->temperatureC,
+            'occurredOn'     => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }
 }

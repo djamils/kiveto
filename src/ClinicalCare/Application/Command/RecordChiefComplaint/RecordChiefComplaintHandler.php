@@ -21,7 +21,7 @@ final readonly class RecordChiefComplaintHandler
     public function __invoke(RecordChiefComplaint $command): void
     {
         $consultationId = ConsultationId::fromString($command->consultationId);
-        $consultation = $this->consultations->findById($consultationId);
+        $consultation   = $this->consultations->findById($consultationId);
 
         if (null === $consultation) {
             throw new \DomainException('Consultation not found');

@@ -40,14 +40,16 @@ final readonly class DoctrineConsultationRepository implements ConsultationRepos
             ->where('n.consultationId = :consultationId')
             ->setParameter('consultationId', $consultationIdBinary)
             ->getQuery()
-            ->execute();
+            ->execute()
+        ;
 
         $this->em->createQueryBuilder()
             ->delete(PerformedActEntity::class, 'a')
             ->where('a.consultationId = :consultationId')
             ->setParameter('consultationId', $consultationIdBinary)
             ->getQuery()
-            ->execute();
+            ->execute()
+        ;
 
         // Insert notes
         foreach ($consultation->getNotes() as $note) {
@@ -77,11 +79,13 @@ final readonly class DoctrineConsultationRepository implements ConsultationRepos
 
         // Load notes
         $noteEntities = $this->em->getRepository(ClinicalNoteEntity::class)
-            ->findBy(['consultationId' => $consultationIdBinary], ['createdAtUtc' => 'ASC']);
+            ->findBy(['consultationId' => $consultationIdBinary], ['createdAtUtc' => 'ASC'])
+        ;
 
         // Load acts
         $actEntities = $this->em->getRepository(PerformedActEntity::class)
-            ->findBy(['consultationId' => $consultationIdBinary], ['performedAtUtc' => 'ASC']);
+            ->findBy(['consultationId' => $consultationIdBinary], ['performedAtUtc' => 'ASC'])
+        ;
 
         return $this->mapper->toDomain($entity, $noteEntities, $actEntities);
     }

@@ -25,7 +25,7 @@ final readonly class PerformedActRecord
         \DateTimeImmutable $createdAtUtc,
         UserId $createdByUserId,
     ): self {
-        if (trim($label) === '') {
+        if ('' === trim($label)) {
             throw new \InvalidArgumentException('Act label cannot be empty');
         }
 

@@ -27,13 +27,13 @@ final readonly class AttachPatientIdentityHandler
     public function __invoke(AttachPatientIdentity $command): void
     {
         $consultationId = ConsultationId::fromString($command->consultationId);
-        $consultation = $this->consultations->findById($consultationId);
+        $consultation   = $this->consultations->findById($consultationId);
 
         if (null === $consultation) {
             throw new \DomainException('Consultation not found');
         }
 
-        $ownerId = $command->ownerId ? OwnerId::fromString($command->ownerId) : null;
+        $ownerId  = $command->ownerId ? OwnerId::fromString($command->ownerId) : null;
         $animalId = $command->animalId ? AnimalId::fromString($command->animalId) : null;
 
         // Validate existence
