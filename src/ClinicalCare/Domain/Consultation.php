@@ -80,7 +80,7 @@ final class Consultation extends AggregateRoot
             updatedAtUtc: $startedAtUtc,
         );
 
-        $consultation->raise(new ConsultationStartedFromAppointment(
+        $consultation->recordDomainEvent(new ConsultationStartedFromAppointment(
             $id,
             $clinicId,
             $appointmentId,
@@ -118,7 +118,7 @@ final class Consultation extends AggregateRoot
             updatedAtUtc: $startedAtUtc,
         );
 
-        $consultation->raise(new ConsultationStartedFromWaitingRoomEntry(
+        $consultation->recordDomainEvent(new ConsultationStartedFromWaitingRoomEntry(
             $id,
             $clinicId,
             $waitingRoomEntryId,
@@ -144,7 +144,7 @@ final class Consultation extends AggregateRoot
         $this->animalId     = $animalId;
         $this->updatedAtUtc = $occurredAt;
 
-        $this->raise(new ConsultationPatientIdentityAttached(
+        $this->recordDomainEvent(new ConsultationPatientIdentityAttached(
             $this->id,
             $ownerId,
             $animalId,
@@ -165,7 +165,7 @@ final class Consultation extends AggregateRoot
         $this->chiefComplaint = $chiefComplaint;
         $this->updatedAtUtc   = $occurredAt;
 
-        $this->raise(new ConsultationChiefComplaintRecorded(
+        $this->recordDomainEvent(new ConsultationChiefComplaintRecorded(
             $this->id,
             $chiefComplaint,
             $occurredAt,
@@ -181,7 +181,7 @@ final class Consultation extends AggregateRoot
         $this->vitals       = $vitals;
         $this->updatedAtUtc = $occurredAt;
 
-        $this->raise(new ConsultationVitalsRecorded(
+        $this->recordDomainEvent(new ConsultationVitalsRecorded(
             $this->id,
             $vitals,
             $occurredAt,
@@ -200,7 +200,7 @@ final class Consultation extends AggregateRoot
         $this->notes[]      = $note;
         $this->updatedAtUtc = $createdAt;
 
-        $this->raise(new ConsultationClinicalNoteAdded(
+        $this->recordDomainEvent(new ConsultationClinicalNoteAdded(
             $this->id,
             $note,
             $createdAt,
@@ -220,7 +220,7 @@ final class Consultation extends AggregateRoot
         $this->acts[]       = $act;
         $this->updatedAtUtc = $createdAt;
 
-        $this->raise(new ConsultationPerformedActAdded(
+        $this->recordDomainEvent(new ConsultationPerformedActAdded(
             $this->id,
             $act,
             $createdAt,
@@ -239,7 +239,7 @@ final class Consultation extends AggregateRoot
         $this->closedAtUtc  = $closedAt;
         $this->updatedAtUtc = $closedAt;
 
-        $this->raise(new ConsultationClosed(
+        $this->recordDomainEvent(new ConsultationClosed(
             $this->id,
             $closedByUserId,
             $summary,

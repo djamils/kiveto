@@ -24,6 +24,10 @@ final readonly class DbalPractitionerEligibilityChecker implements PractitionerE
         \DateTimeImmutable $at,
         array $allowedRoles,
     ): bool {
+        // Convert string UUIDs to binary format for comparison
+        $userBinary   = Uuid::fromString($userId->toString())->toBinary();
+        $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
+
         $sql = <<<'SQL'
             SELECT COUNT(*) as cnt
             FROM access_control__clinic_memberships
@@ -36,8 +40,8 @@ final readonly class DbalPractitionerEligibilityChecker implements PractitionerE
         SQL;
 
         $result = $this->connection->fetchAssociative($sql, [
-            'userId'    => $userId->toString(),
-            'clinicId'  => $clinicId->toString(),
+            'userId'    => $userBinary,
+            'clinicId'  => $clinicBinary,
             'checkDate' => $at->format('Y-m-d H:i:s'),
             'roles'     => $allowedRoles,
         ], [
