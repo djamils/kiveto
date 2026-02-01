@@ -8,6 +8,7 @@ doctrine_migrations:
         'DoctrineMigrations\Client': '%kernel.project_dir%/migrations/Client'
         'DoctrineMigrations\Animal': '%kernel.project_dir%/migrations/Animal'
         'DoctrineMigrations\Scheduling': '%kernel.project_dir%/migrations/Scheduling'
+        'DoctrineMigrations\ClinicalCare': '%kernel.project_dir%/migrations/ClinicalCare'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

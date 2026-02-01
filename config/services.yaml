@@ -247,6 +247,32 @@ services:
     App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
     App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: CLINICAL CARE
+    # ============================================================================
+
+    App\ClinicalCare\Domain\Repository\ConsultationRepositoryInterface:
+        class: App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
+
+    App\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
+        class: App\ClinicalCare\Infrastructure\Adapter\AccessControl\DbalPractitionerEligibilityChecker
+
+    App\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface:
+        class: App\ClinicalCare\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider
+
+    App\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterface:
+        class: App\ClinicalCare\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
+
+    App\ClinicalCare\Application\Port\OwnerExistenceCheckerInterface:
+        class: App\ClinicalCare\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+
+    App\ClinicalCare\Application\Port\AnimalExistenceCheckerInterface:
+        class: App\ClinicalCare\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+
+    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
+    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
+    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
