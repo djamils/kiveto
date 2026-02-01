@@ -8,6 +8,7 @@ use App\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface;
 use App\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Scheduling\Domain\ValueObject\ClinicId;
 use App\Scheduling\Domain\ValueObject\WaitingRoomEntryStatus;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomReadRepositoryInterface
@@ -36,7 +37,7 @@ final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomRea
                 WaitingRoomEntryStatus::IN_SERVICE->value,
             ],
         ], [
-            'activeStatuses' => Connection::PARAM_STR_ARRAY,
+            'activeStatuses' => ArrayParameterType::STRING,
         ]);
 
         return ($result['cnt'] ?? 0) > 0;

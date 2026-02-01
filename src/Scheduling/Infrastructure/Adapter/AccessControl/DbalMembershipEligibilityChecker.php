@@ -7,6 +7,7 @@ namespace App\Scheduling\Infrastructure\Adapter\AccessControl;
 use App\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Scheduling\Domain\ValueObject\ClinicId;
 use App\Scheduling\Domain\ValueObject\UserId;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalMembershipEligibilityChecker implements MembershipEligibilityCheckerInterface
@@ -39,7 +40,7 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
             'checkDate'    => $at->format('Y-m-d H:i:s'),
             'allowedRoles' => $allowedRoles,
         ], [
-            'allowedRoles' => Connection::PARAM_STR_ARRAY,
+            'allowedRoles' => ArrayParameterType::STRING,
         ]);
 
         return ($result['cnt'] ?? 0) > 0;
@@ -65,7 +66,7 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
             'checkDate'    => $at->format('Y-m-d H:i:s'),
             'allowedRoles' => $allowedRoles,
         ], [
-            'allowedRoles' => Connection::PARAM_STR_ARRAY,
+            'allowedRoles' => ArrayParameterType::STRING,
         ]);
 
         $practitioners = [];
