@@ -1,0 +1,93 @@
+<div class="modal fade" id="modalWalkIn" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ path('clinic_scheduling_walkin_create') }}">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="ki-filled ki-emergency-call me-2"></i>
+                        Enregistrer une urgence Walk-in
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="ki-filled ki-information-2 me-2"></i>
+                        <strong>Urgence sans rendez-vous</strong><br>
+                        <small>Pour un animal arrivé sans RDV préalable.</small>
+                    </div>
+
+                    {# Arrival Mode #}
+                    <div class="mb-3">
+                        <label class="form-label">Mode d'arrivée <span class="text-danger">*</span></label>
+                        <select name="arrivalMode" class="form-select" required>
+                            <option value="EMERGENCY" selected>🚨 URGENCE</option>
+                            <option value="STANDARD">Standard</option>
+                        </select>
+                    </div>
+
+                    {# Priority #}
+                    <div class="mb-3">
+                        <label class="form-label">Priorité <span class="text-danger">*</span></label>
+                        <select name="priority" class="form-select" required>
+                            <option value="10">10 - Critique (danger de mort)</option>
+                            <option value="8">8 - Très urgent</option>
+                            <option value="5" selected>5 - Urgent</option>
+                            <option value="3">3 - Modéré</option>
+                            <option value="0">0 - Standard</option>
+                        </select>
+                    </div>
+
+                    {# Found Animal Description #}
+                    <div class="mb-3">
+                        <label class="form-label">Description de l'animal</label>
+                        <input type="text" 
+                               name="foundAnimalDescription" 
+                               class="form-control" 
+                               placeholder="Ex: Chat noir, blessure patte avant gauche">
+                        <small class="form-text text-muted">
+                            Pour animaux inconnus ou trouvés
+                        </small>
+                    </div>
+
+                    {# Triage Notes #}
+                    <div class="mb-3">
+                        <label class="form-label">Notes de triage <span class="text-danger">*</span></label>
+                        <textarea name="triageNotes" 
+                                  class="form-control" 
+                                  rows="4" 
+                                  placeholder="Symptômes, observations, état général..."
+                                  required></textarea>
+                    </div>
+
+                    <hr>
+
+                    {# Optional: Owner & Animal if known #}
+                    <div class="mb-3">
+                        <label class="form-label">Propriétaire (si connu)</label>
+                        <input type="text" 
+                               name="ownerId" 
+                               class="form-control" 
+                               placeholder="UUID du propriétaire">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Animal (si connu)</label>
+                        <input type="text" 
+                               name="animalId" 
+                               class="form-control" 
+                               placeholder="UUID de l'animal">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="ki-filled ki-check me-1"></i>
+                        Enregistrer l'urgence
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

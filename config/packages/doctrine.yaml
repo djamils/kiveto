@@ -57,6 +57,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Animal/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Animal\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Animal
+            Scheduling:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Scheduling/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Scheduling\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Scheduling
         controller_resolver:
             auto_mapping: false
 

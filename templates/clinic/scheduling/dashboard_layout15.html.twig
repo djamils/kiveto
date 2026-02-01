@@ -1,0 +1,70 @@
+{% extends 'clinic/base_layout15.html.twig' %}
+
+{% block title %}Agenda & File d'attente - {{ currentClinicName }}{% endblock %}
+
+{% block stylesheets %}
+    <link href="{{ asset('scheduling.css') }}" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-3 px-md-4">
+    {# Header #}
+    <div class="row mb-4">
+        <div class="col-12 col-md-6">
+            <h1 class="h3 mb-2">
+                <i class="ki-filled ki-calendar me-2"></i>
+                Agenda & File d'attente
+            </h1>
+            <p class="text-muted small mb-0">
+                <i class="ki-filled ki-bank me-1"></i>
+                <strong>{{ currentClinicName }}</strong>
+            </p>
+        </div>
+        <div class="col-12 col-md-6 text-md-end mt-3 mt-md-0">
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalNewAppointment">
+                <i class="ki-filled ki-plus me-1"></i>
+                Nouveau RDV
+            </button>
+            <button type="button" class="btn btn-sm btn-warning ms-2" data-bs-toggle="modal" data-bs-target="#modalWalkIn">
+                <i class="ki-filled ki-emergency-call me-1"></i>
+                Urgence Walk-in
+            </button>
+        </div>
+    </div>
+
+    {# Flash Messages #}
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="ki-filled ki-check-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="ki-filled ki-cross-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+
+    <div class="row g-3 g-md-4">
+        {# File d'attente #}
+        <div class="col-12 col-lg-5 col-xl-4">
+            {% include 'clinic/scheduling/_waiting_room.html.twig' %}
+        </div>
+
+        {# Agenda du jour #}
+        <div class="col-12 col-lg-7 col-xl-8">
+            {% include 'clinic/scheduling/_agenda.html.twig' %}
+        </div>
+    </div>
+</div>
+
+{# Modals #}
+{% include 'clinic/scheduling/_modal_new_appointment.html.twig' %}
+{% include 'clinic/scheduling/_modal_walk_in.html.twig' %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('scheduling.js') }}" defer></script>
+{% endblock %}

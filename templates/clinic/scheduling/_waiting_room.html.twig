@@ -1,0 +1,114 @@
+<div class="card h-100">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="ki-filled ki-people me-2 text-warning"></i>
+            File d'attente
+            <span class="badge bg-warning ms-2">{{ waitingRoomEntries|length }}</span>
+        </h5>
+        <button type="button" class="btn btn-sm btn-light" onclick="location.reload()">
+            <i class="ki-filled ki-arrows-circle"></i>
+        </button>
+    </div>
+    <div class="card-body p-0">
+        {% if waitingRoomEntries is empty %}
+            <div class="text-center py-5">
+                <i class="ki-filled ki-check-circle text-success fs-1 mb-3 d-block"></i>
+                <p class="text-muted mb-0">Aucun patient en attente</p>
+            </div>
+        {% else %}
+            <div class="list-group list-group-flush">
+                {% for entry in waitingRoomEntries %}
+                    <div class="list-group-item p-3 {% if entry.arrivalMode == 'EMERGENCY' %}border-start border-danger border-3{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                {# Emergency Badge #}
+                                {% if entry.arrivalMode == 'EMERGENCY' %}
+                                    <span class="badge bg-danger mb-1">
+                                        <i class="ki-filled ki-emergency-call"></i> URGENCE
+                                    </span>
+                                {% endif %}
+
+                                {# Origin Badge #}
+                                {% if entry.origin == 'SCHEDULED' %}
+                                    <span class="badge bg-primary mb-1">RDV</span>
+                                {% else %}
+                                    <span class="badge bg-warning mb-1">Walk-in</span>
+                                {% endif %}
+
+                                {# Patient Info #}
+                                <div class="fw-bold">
+                                    {% if entry.ownerId %}
+                                        <i class="ki-filled ki-profile-circle me-1"></i>
+                                        Propriétaire ID: {{ entry.ownerId|slice(0, 8) }}...
+                                    {% else %}
+                                        <i class="ki-filled ki-question me-1"></i>
+                                        {% if entry.foundAnimalDescription %}
+                                            {{ entry.foundAnimalDescription }}
+                                        {% else %}
+                                            Patient inconnu
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+
+                                {# Time #}
+                                <small class="text-muted">
+                                    <i class="ki-filled ki-time me-1"></i>
+                                    Arrivé {{ entry.arrivedAtUtc|date('H:i') }}
+                                </small>
+
+                                {# Triage Notes #}
+                                {% if entry.triageNotes %}
+                                    <div class="mt-2 small text-muted">
+                                        <i class="ki-filled ki-note me-1"></i>
+                                        {{ entry.triageNotes }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            {# Status Badge #}
+                            <div>
+                                {% if entry.status == 'WAITING' %}
+                                    <span class="badge bg-secondary">En attente</span>
+                                {% elseif entry.status == 'CALLED' %}
+                                    <span class="badge bg-info">Appelé</span>
+                                {% elseif entry.status == 'IN_SERVICE' %}
+                                    <span class="badge bg-success">En cours</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {# Priority Indicator #}
+                        {% if entry.priority > 0 %}
+                            <div class="mb-2">
+                                <small class="badge bg-warning">
+                                    Priorité: {{ entry.priority }}
+                                </small>
+                            </div>
+                        {% endif %}
+
+                        {# Actions #}
+                        <div class="d-flex gap-2">
+                            {% if entry.status == 'WAITING' or entry.status == 'CALLED' %}
+                                <form method="post" action="{{ path('clinic_scheduling_waitingroom_start', {entryId: entry.id}) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="ki-filled ki-rocket me-1"></i>
+                                        Démarrer
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if entry.status == 'IN_SERVICE' %}
+                                <form method="post" action="{{ path('clinic_scheduling_waitingroom_close', {entryId: entry.id}) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="ki-filled ki-check me-1"></i>
+                                        Terminer
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>

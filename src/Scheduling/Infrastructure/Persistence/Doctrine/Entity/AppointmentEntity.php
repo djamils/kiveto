@@ -10,7 +10,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'scheduling__appointments')]
+#[ORM\Table]
 #[ORM\Index(name: 'idx_clinic_starts', columns: ['clinic_id', 'starts_at_utc'])]
 #[ORM\Index(name: 'idx_clinic_practitioner_starts', columns: ['clinic_id', 'practitioner_user_id', 'starts_at_utc'])]
 #[ORM\Index(name: 'idx_status', columns: ['status'])]

@@ -1,0 +1,114 @@
+<div class="card h-100">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="ki-filled ki-calendar me-2 text-primary"></i>
+            Agenda du {{ selectedDate|date('d/m/Y') }}
+        </h5>
+    </div>
+    <div class="card-body">
+        {# Date Navigator #}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <a href="{{ path('clinic_scheduling_dashboard', {date: selectedDate|date_modify('-1 day')|date('Y-m-d')}) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="ki-filled ki-left"></i>
+                Jour précédent
+            </a>
+            <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-sm btn-outline-primary">
+                Aujourd'hui
+            </a>
+            <a href="{{ path('clinic_scheduling_dashboard', {date: selectedDate|date_modify('+1 day')|date('Y-m-d')}) }}" class="btn btn-sm btn-outline-secondary">
+                Jour suivant
+                <i class="ki-filled ki-right"></i>
+            </a>
+        </div>
+
+        <hr>
+
+        {# Appointments Timeline #}
+        {% if appointments is empty %}
+            <div class="text-center py-5">
+                <i class="ki-filled ki-calendar-remove text-muted fs-1 mb-3 d-block"></i>
+                <p class="text-muted mb-0">Aucun rendez-vous prévu ce jour</p>
+                <button type="button" class="btn btn-sm btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#modalNewAppointment">
+                    <i class="ki-filled ki-plus me-1"></i>
+                    Planifier un RDV
+                </button>
+            </div>
+        {% else %}
+            <div class="timeline">
+                {% for appointment in appointments %}
+                    <div class="card mb-3 {% if appointment.status == 'CANCELLED' %}opacity-50{% endif %}">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    {# Time #}
+                                    <div class="fw-bold text-primary mb-2">
+                                        <i class="ki-filled ki-time me-1"></i>
+                                        {{ appointment.startsAtUtc|date('H:i') }}
+                                        <small class="text-muted">({{ appointment.durationMinutes }}min)</small>
+                                    </div>
+
+                                    {# Practitioner #}
+                                    {% if appointment.practitionerUserId %}
+                                        <div class="mb-2">
+                                            <i class="ki-filled ki-user me-1"></i>
+                                            <small>Dr. {{ appointment.practitionerUserId|slice(0, 8) }}...</small>
+                                        </div>
+                                    {% endif %}
+
+                                    {# Patient #}
+                                    {% if appointment.ownerId %}
+                                        <div class="mb-2">
+                                            <i class="ki-filled ki-profile-circle me-1"></i>
+                                            <small>Propriétaire: {{ appointment.ownerId|slice(0, 8) }}...</small>
+                                        </div>
+                                    {% endif %}
+
+                                    {# Reason #}
+                                    {% if appointment.reason %}
+                                        <div class="mt-2">
+                                            <span class="badge bg-light text-dark">
+                                                {{ appointment.reason }}
+                                            </span>
+                                        </div>
+                                    {% endif %}
+
+                                    {# Notes #}
+                                    {% if appointment.notes %}
+                                        <div class="mt-2 small text-muted">
+                                            <i class="ki-filled ki-note me-1"></i>
+                                            {{ appointment.notes }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {# Status & Actions #}
+                                <div class="text-end">
+                                    {# Status Badge #}
+                                    {% if appointment.status == 'PLANNED' %}
+                                        <span class="badge bg-info mb-2">Planifié</span>
+                                    {% elseif appointment.status == 'COMPLETED' %}
+                                        <span class="badge bg-success mb-2">Terminé</span>
+                                    {% elseif appointment.status == 'CANCELLED' %}
+                                        <span class="badge bg-danger mb-2">Annulé</span>
+                                    {% elseif appointment.status == 'NO_SHOW' %}
+                                        <span class="badge bg-warning mb-2">Absent</span>
+                                    {% endif %}
+
+                                    {# Check-in Button #}
+                                    {% if appointment.status == 'PLANNED' %}
+                                        <form method="post" action="{{ path('clinic_scheduling_appointment_checkin', {appointmentId: appointment.id}) }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-success mt-2">
+                                                <i class="ki-filled ki-entrance-right me-1"></i>
+                                                Check-in
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>

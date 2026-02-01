@@ -18,6 +18,10 @@ return [
         'path'       => './assets/app.js',
         'entrypoint' => true,
     ],
+    'scheduling' => [
+        'path'       => './assets/scheduling.js',
+        'entrypoint' => false,
+    ],
     '@hotwired/stimulus' => [
         'version' => '3.2.2',
     ],

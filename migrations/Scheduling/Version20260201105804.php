@@ -7,15 +7,19 @@ namespace DoctrineMigrations\Scheduling;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
-final class Version20260130120000 extends AbstractMigration
+/**
+ * Auto-generated Migration: Please modify to your needs!
+ */
+final class Version20260201105804 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create Scheduling BC tables: appointments and waiting_room_entries';
+        return '';
     }
 
     public function up(Schema $schema): void
     {
+        // this up() migration is auto-generated, please modify it to your needs
         $this->addSql(<<<'SQL'
             CREATE TABLE scheduling__appointments (
               id BINARY(16) NOT NULL,
@@ -32,12 +36,14 @@ final class Version20260130120000 extends AbstractMigration
               created_at_utc DATETIME NOT NULL,
               updated_at_utc DATETIME NOT NULL,
               INDEX idx_clinic_starts (clinic_id, starts_at_utc),
-              INDEX idx_clinic_practitioner_starts (clinic_id, practitioner_user_id, starts_at_utc),
+              INDEX idx_clinic_practitioner_starts (
+                clinic_id, practitioner_user_id,
+                starts_at_utc
+              ),
               INDEX idx_status (status),
               PRIMARY KEY (id)
-            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
         SQL);
-
         $this->addSql(<<<'SQL'
             CREATE TABLE scheduling__waiting_room_entries (
               id BINARY(16) NOT NULL,
@@ -48,7 +54,7 @@ final class Version20260130120000 extends AbstractMigration
               owner_id BINARY(16) DEFAULT NULL,
               animal_id BINARY(16) DEFAULT NULL,
               found_animal_description LONGTEXT DEFAULT NULL,
-              priority INT NOT NULL DEFAULT 0,
+              priority INT DEFAULT 0 NOT NULL,
               triage_notes LONGTEXT DEFAULT NULL,
               status VARCHAR(20) NOT NULL,
               arrived_at_utc DATETIME NOT NULL,
@@ -59,16 +65,16 @@ final class Version20260130120000 extends AbstractMigration
               service_started_by_user_id BINARY(16) DEFAULT NULL,
               closed_by_user_id BINARY(16) DEFAULT NULL,
               INDEX idx_clinic_status (clinic_id, status),
-              INDEX idx_linked_appointment (linked_appointment_id),
               UNIQUE INDEX uniq_linked_appointment (linked_appointment_id),
               PRIMARY KEY (id)
-            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
+            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
         SQL);
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE scheduling__waiting_room_entries');
+        // this down() migration is auto-generated, please modify it to your needs
         $this->addSql('DROP TABLE scheduling__appointments');
+        $this->addSql('DROP TABLE scheduling__waiting_room_entries');
     }
 }

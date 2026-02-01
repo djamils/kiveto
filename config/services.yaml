@@ -219,6 +219,34 @@ services:
 
     App\Animal\Infrastructure\Persistence\Doctrine\AnimalMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: SCHEDULING
+    # ============================================================================
+
+    App\Scheduling\Domain\Repository\AppointmentRepositoryInterface:
+        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineAppointmentRepository
+
+    App\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface:
+        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomEntryRepository
+
+    App\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface:
+        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomReadRepository
+
+    App\Scheduling\Application\Port\MembershipEligibilityCheckerInterface:
+        class: App\Scheduling\Infrastructure\Adapter\AccessControl\DbalMembershipEligibilityChecker
+
+    App\Scheduling\Application\Port\AppointmentConflictCheckerInterface:
+        class: App\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker
+
+    App\Scheduling\Application\Port\OwnerExistenceCheckerInterface:
+        class: App\Scheduling\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+
+    App\Scheduling\Application\Port\AnimalExistenceCheckerInterface:
+        class: App\Scheduling\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+
+    App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
+    App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

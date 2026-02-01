@@ -1,0 +1,100 @@
+<div class="modal fade" id="modalNewAppointment" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ path('clinic_scheduling_appointment_create') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="ki-filled ki-calendar-add me-2"></i>
+                        Nouveau rendez-vous
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {# Date & Time #}
+                    <div class="mb-3">
+                        <label class="form-label">Date et heure <span class="text-danger">*</span></label>
+                        <input type="datetime-local" 
+                               name="startsAtUtc" 
+                               class="form-control" 
+                               value="{{ selectedDate|date('Y-m-d\\TH:i') }}"
+                               required>
+                    </div>
+
+                    {# Duration #}
+                    <div class="mb-3">
+                        <label class="form-label">Durée (minutes) <span class="text-danger">*</span></label>
+                        <select name="durationMinutes" class="form-select" required>
+                            <option value="15">15 min</option>
+                            <option value="30" selected>30 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">1 heure</option>
+                            <option value="90">1h30</option>
+                            <option value="120">2 heures</option>
+                        </select>
+                    </div>
+
+                    {# Practitioner (optional) #}
+                    <div class="mb-3">
+                        <label class="form-label">Praticien (optionnel)</label>
+                        <input type="text" 
+                               name="practitionerUserId" 
+                               class="form-control" 
+                               placeholder="UUID du praticien">
+                        <small class="form-text text-muted">
+                            Laissez vide pour un RDV non assigné
+                        </small>
+                    </div>
+
+                    {# Owner & Animal (optional) #}
+                    <div class="mb-3">
+                        <label class="form-label">Propriétaire (optionnel)</label>
+                        <input type="text" 
+                               name="ownerId" 
+                               class="form-control" 
+                               placeholder="UUID du propriétaire">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Animal (optionnel)</label>
+                        <input type="text" 
+                               name="animalId" 
+                               class="form-control" 
+                               placeholder="UUID de l'animal">
+                    </div>
+
+                    {# Reason #}
+                    <div class="mb-3">
+                        <label class="form-label">Motif</label>
+                        <select name="reason" class="form-select">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="Consultation">Consultation</option>
+                            <option value="Vaccination">Vaccination</option>
+                            <option value="Chirurgie">Chirurgie</option>
+                            <option value="Contrôle">Contrôle</option>
+                            <option value="Urgence">Urgence</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+
+                    {# Notes #}
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" 
+                                  class="form-control" 
+                                  rows="3" 
+                                  placeholder="Notes additionnelles..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ki-filled ki-check me-1"></i>
+                        Créer le RDV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
