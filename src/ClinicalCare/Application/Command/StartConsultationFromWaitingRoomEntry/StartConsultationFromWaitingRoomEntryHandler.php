@@ -14,6 +14,7 @@ use App\ClinicalCare\Domain\ValueObject\ConsultationId;
 use App\ClinicalCare\Domain\ValueObject\OwnerId;
 use App\ClinicalCare\Domain\ValueObject\UserId;
 use App\ClinicalCare\Domain\ValueObject\WaitingRoomEntryId;
+use App\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetails;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -38,7 +39,7 @@ final readonly class StartConsultationFromWaitingRoomEntryHandler
 
         // 1. Get waiting room entry details from Scheduling BC (via query)
         $entryDetails = $this->queryBus->ask(
-            new \App\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetails(
+            new GetWaitingRoomEntryDetails(
                 $command->waitingRoomEntryId,
             )
         );

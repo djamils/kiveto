@@ -24,24 +24,22 @@ final readonly class DbalPractitionerEligibilityChecker implements PractitionerE
         \DateTimeImmutable $at,
         array $allowedRoles,
     ): bool {
-        $userBinary   = Uuid::fromString($userId->toString())->toBinary();
-        $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
-
-        $sql = '
+        $sql = <<<'SQL'
             SELECT COUNT(*) as cnt
             FROM access_control__clinic_memberships
             WHERE user_id = :userId
               AND clinic_id = :clinicId
+              AND status = 'ACTIVE'
               AND role IN (:roles)
-              AND effective_from_date <= :atDate
-              AND (effective_to_date IS NULL OR effective_to_date >= :atDate)
-        ';
+              AND valid_from_utc <= :checkDate
+              AND (valid_until_utc IS NULL OR valid_until_utc >= :checkDate)
+        SQL;
 
         $result = $this->connection->fetchAssociative($sql, [
-            'userId'   => $userBinary,
-            'clinicId' => $clinicBinary,
-            'atDate'   => $at->format('Y-m-d'),
-            'roles'    => $allowedRoles,
+            'userId'    => $userId->toString(),
+            'clinicId'  => $clinicId->toString(),
+            'checkDate' => $at->format('Y-m-d H:i:s'),
+            'roles'     => $allowedRoles,
         ], [
             'roles' => ArrayParameterType::STRING,
         ]);
