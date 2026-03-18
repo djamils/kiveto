@@ -28,11 +28,16 @@ final readonly class DoctrineConsultationRepository implements ConsultationRepos
 
     public function save(Consultation $consultation): void
     {
-        $consultationEntity = $this->mapper->toEntity($consultation);
-        $this->em->persist($consultationEntity);
+        $consultationIdBinary = Uuid::fromString($consultation->getId()->toString())->toBinary();
+
+        $existingEntity = $this->em->find(ConsultationEntity::class, $consultationIdBinary);
+        $consultationEntity = $this->mapper->toEntity($consultation, $existingEntity);
+
+        if (null === $existingEntity) {
+            $this->em->persist($consultationEntity);
+        }
 
         // Persist notes (delete all + re-insert for simplicity)
-        $consultationIdBinary = $consultationEntity->getId();
 
         // Delete existing notes & acts
         $this->em->createQueryBuilder()

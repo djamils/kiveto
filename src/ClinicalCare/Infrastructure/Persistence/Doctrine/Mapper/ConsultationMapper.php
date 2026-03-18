@@ -25,9 +25,9 @@ final readonly class ConsultationMapper
     ) {
     }
 
-    public function toEntity(Consultation $consultation): ConsultationEntity
+    public function toEntity(Consultation $consultation, ?ConsultationEntity $entity = null): ConsultationEntity
     {
-        $entity = new ConsultationEntity();
+        $entity ??= new ConsultationEntity();
         $entity->setId(Uuid::fromString($consultation->getId()->toString())->toBinary());
         $entity->setClinicId(Uuid::fromString($consultation->getClinicId()->toString())->toBinary());
         $entity->setAppointmentId($consultation->getAppointmentId()
