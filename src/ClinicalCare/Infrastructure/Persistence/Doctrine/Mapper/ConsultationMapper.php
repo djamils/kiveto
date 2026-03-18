@@ -52,8 +52,8 @@ final readonly class ConsultationMapper
         $entity->setSummary($consultation->getSummary());
 
         $vitals = $consultation->getVitals();
-        $entity->setWeightKg(null !== $vitals?->weightKg ? (string) $vitals->weightKg : null);
-        $entity->setTemperatureC(null !== $vitals?->temperatureC ? (string) $vitals->temperatureC : null);
+        $entity->setWeightKg($vitals?->getWeightKg() !== null ? (string) $vitals->getWeightKg() : null);
+        $entity->setTemperatureC($vitals?->getTemperatureC() !== null ? (string) $vitals->getTemperatureC() : null);
 
         $entity->setStartedAtUtc($consultation->getStartedAtUtc());
         $entity->setClosedAtUtc($consultation->getClosedAtUtc());

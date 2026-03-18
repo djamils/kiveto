@@ -7,87 +7,87 @@ namespace App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository;
 use App\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface;
 use App\ClinicalCare\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\ClinicalCare\Domain\ValueObject\ConsultationId;
-use App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity;
-use App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ConsultationEntity;
-use App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineConsultationReadRepository implements ConsultationReadRepositoryInterface
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private Connection $connection,
     ) {
     }
 
     public function findById(ConsultationId $consultationId): ConsultationDetailsDTO
     {
-        $repository = $this->entityManager->getRepository(ConsultationEntity::class);
-
-        // Use Doctrine find with binary UUID (entity ID is stored as BINARY(16))
         $uuid = Uuid::fromString($consultationId->toString());
-        $consultation = $repository->find($uuid->toBinary());
+        $consultationIdBinary = $uuid->toBinary();
 
-        if (null === $consultation) {
+        // Fetch consultation
+        $sql = 'SELECT * FROM clinical_care__consultations WHERE id = :id';
+        $consultation = $this->connection->fetchAssociative($sql, [
+            'id' => $consultationIdBinary,
+        ]);
+
+        if (false === $consultation) {
             throw new \DomainException(\sprintf(
                 'Consultation "%s" not found.',
                 $consultationId->toString()
             ));
         }
 
-        // Fetch notes with QueryBuilder
-        $notesRepo = $this->entityManager->getRepository(ClinicalNoteEntity::class);
-        $qbNotes   = $notesRepo->createQueryBuilder('n');
-        $qbNotes->where('n.consultationId = :consultationId')
-            ->orderBy('n.createdAtUtc', 'ASC')
-            ->setParameter('consultationId', Uuid::fromString($consultationId->toString()));
+        // Fetch notes
+        $sqlNotes = 'SELECT note_type, content, created_at_utc 
+                     FROM clinical_care__clinical_notes 
+                     WHERE consultation_id = :consultationId 
+                     ORDER BY created_at_utc ASC';
+        $notesResult = $this->connection->fetchAllAssociative($sqlNotes, [
+            'consultationId' => $consultationIdBinary,
+        ]);
+        $notes = array_map(fn (array $row) => [
+            'noteType'  => $row['note_type'],
+            'content'   => $row['content'],
+            'createdAt' => $row['created_at_utc'],
+        ], $notesResult);
 
-        $notesEntities = $qbNotes->getQuery()->getResult();
-        $notes         = \array_map(fn (ClinicalNoteEntity $note) => [
-            'noteType'  => $note->getNoteType()->value,
-            'content'   => $note->getContent(),
-            'createdAt' => $note->getCreatedAtUtc()->format('Y-m-d H:i:s'),
-        ], $notesEntities);
-
-        // Fetch acts with QueryBuilder
-        $actsRepo = $this->entityManager->getRepository(PerformedActEntity::class);
-        $qbActs   = $actsRepo->createQueryBuilder('a');
-        $qbActs->where('a.consultationId = :consultationId')
-            ->orderBy('a.performedAtUtc', 'ASC')
-            ->setParameter('consultationId', Uuid::fromString($consultationId->toString()));
-
-        $actsEntities = $qbActs->getQuery()->getResult();
-        $acts         = \array_map(fn (PerformedActEntity $act) => [
-            'label'       => $act->getLabel(),
-            'quantity'    => $act->getQuantity(),
-            'performedAt' => $act->getPerformedAtUtc()->format('Y-m-d H:i:s'),
-        ], $actsEntities);
+        // Fetch acts
+        $sqlActs = 'SELECT label, quantity, performed_at_utc 
+                    FROM clinical_care__performed_acts 
+                    WHERE consultation_id = :consultationId 
+                    ORDER BY performed_at_utc ASC';
+        $actsResult = $this->connection->fetchAllAssociative($sqlActs, [
+            'consultationId' => $consultationIdBinary,
+        ]);
+        $acts = array_map(fn (array $row) => [
+            'label'       => $row['label'],
+            'quantity'    => $row['quantity'],
+            'performedAt' => $row['performed_at_utc'],
+        ], $actsResult);
 
         // Build vitals array if present
         $vitals = null;
-        if (null !== $consultation->getWeightKg() || null !== $consultation->getTemperatureC()) {
+        if (null !== $consultation['weight_kg'] || null !== $consultation['temperature_c']) {
             $vitals = [
-                'weightKg'     => $consultation->getWeightKg(),
-                'temperatureC' => $consultation->getTemperatureC(),
+                'weightKg'     => $consultation['weight_kg'],
+                'temperatureC' => $consultation['temperature_c'],
             ];
         }
 
         return new ConsultationDetailsDTO(
-            consultationId: $consultation->getId(),
-            clinicId: $consultation->getClinicId(),
-            practitionerUserId: $consultation->getPractitionerUserId(),
-            status: $consultation->getStatus(),
-            appointmentId: $consultation->getAppointmentId(),
-            waitingRoomEntryId: $consultation->getWaitingRoomEntryId(),
-            ownerId: $consultation->getOwnerId(),
-            animalId: $consultation->getAnimalId(),
-            chiefComplaint: $consultation->getChiefComplaint(),
+            consultationId: Uuid::fromBinary($consultation['id'])->toString(),
+            clinicId: Uuid::fromBinary($consultation['clinic_id'])->toString(),
+            practitionerUserId: Uuid::fromBinary($consultation['practitioner_user_id'])->toString(),
+            status: $consultation['status'],
+            appointmentId: $consultation['appointment_id'] ? Uuid::fromBinary($consultation['appointment_id'])->toString() : null,
+            waitingRoomEntryId: $consultation['waiting_room_entry_id'] ? Uuid::fromBinary($consultation['waiting_room_entry_id'])->toString() : null,
+            ownerId: $consultation['owner_id'] ? Uuid::fromBinary($consultation['owner_id'])->toString() : null,
+            animalId: $consultation['animal_id'] ? Uuid::fromBinary($consultation['animal_id'])->toString() : null,
+            chiefComplaint: $consultation['chief_complaint'],
             vitals: $vitals,
             notes: $notes,
             acts: $acts,
-            summary: $consultation->getSummary(),
-            startedAtUtc: $consultation->getStartedAtUtc()->format('Y-m-d H:i:s'),
-            closedAtUtc: $consultation->getClosedAtUtc()?->format('Y-m-d H:i:s'),
+            summary: $consultation['summary'],
+            startedAtUtc: $consultation['started_at_utc'],
+            closedAtUtc: $consultation['closed_at_utc'],
         );
     }
 }
