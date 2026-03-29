@@ -97,6 +97,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Code Quality & Style Rules
 
+- **All comments and documentation in code must be written in English** — no French comments in source files (CSS, JS, PHP, Twig). User-facing strings (labels, messages) remain in French via translations.
 - **PSR-1/2/12** enforced by phpcs; auto-fixed by php-cs-fixer
 - **Naming conventions**:
   - BC-prefix on all domain class names: `ClinicId`, `ClinicSlug`, `ClinicStatus` (never generic `Id`, `Slug`, `Status`)

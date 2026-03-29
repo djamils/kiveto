@@ -1,0 +1,155 @@
+{#
+ # Kiveto — templates/components/layout/sidebar.html.twig
+ # ──────────────────────────────────────────────────────────
+ # Full navigation sidebar.
+ #
+ # Parameters:
+ #   clinic      object   { name, type }  — active clinic
+ #   user        object   — logged-in user (app.user)
+ #   active_item string   Active Symfony route (e.g. 'clinic_dashboard')
+ #}
+
+{# ── Inline SVG icons (Lucide) ── #}
+{% set icon_calendar %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+  </svg>
+{% endset %}
+{% set icon_users %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+  </svg>
+{% endset %}
+{% set icon_stethoscope %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 6.375a4.125 4.125 0 008.25 0v3.75a4.125 4.125 0 01-8.25 0v-3.75zM14.25 8.625c0 4.14-3.36 7.5-7.5 7.5S-.75 12.765-.75 8.625"/>
+    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3.5 3.5 0 107 0 3.5 3.5 0 00-7 0z"/>
+  </svg>
+{% endset %}
+{% set icon_bed %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V4m0 16v-4m18 4V9M3 9h18M3 20h18M7 9V4m4 5V4m4 5V4"/>
+  </svg>
+{% endset %}
+{% set icon_clock %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/>
+  </svg>
+{% endset %}
+{% set icon_grid %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+{% endset %}
+{% set icon_package %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
+  </svg>
+{% endset %}
+{% set icon_chart %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+  </svg>
+{% endset %}
+{% set icon_settings %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+{% endset %}
+{% set icon_chevrons %}
+  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+  </svg>
+{% endset %}
+
+{# ── Navigation structure (BC-aligned) ── #}
+{% set nav_items = [
+  { section: 'Clinique' },
+  { key: 'clinic_dashboard',              label: 'Tableau de bord',    icon: icon_grid,        route: 'clinic_dashboard' },
+  { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard' },
+  { key: 'clinic_planning',               label: 'Planning',           icon: icon_clock,       route: null },
+  { key: 'clinic_waiting_room',           label: 'Salle d\'attente',   icon: icon_clock,       route: null },
+
+  { section: 'Médical' },
+  { key: 'clinic_clients_list',           label: 'Clients & Patients', icon: icon_users,       route: 'clinic_clients_list' },
+  { key: 'clinic_consultation',           label: 'Consultations',      icon: icon_stethoscope, route: null },
+  { key: 'clinic_hospitalisations',       label: 'Hospitalisations',   icon: icon_bed,         route: null },
+
+  { section: 'Gestion' },
+  { key: 'clinic_catalogue',              label: 'Catalogue',          icon: icon_package,     route: null },
+  { key: 'clinic_reporting',              label: 'Rapports',           icon: icon_chart,       route: null },
+] %}
+
+<aside class="sidebar" id="appSidebar" data-controller="sidebar">
+
+  {# ── Header: clinic switcher ── #}
+  <div class="sb-top">
+    <button
+      class="sb-clinic-btn"
+      type="button"
+      aria-label="Changer de clinique"
+    >
+      <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">
+        {{ clinic.name|default('C')|first|upper }}
+      </span>
+      <span style="flex:1;min-width:0;">
+        <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
+          {{ clinic.name|default('Ma clinique') }}
+        </span>
+        <span style="font-size:var(--text-xs);color:var(--text-subtle);">
+          {{ clinic.type|default('Vétérinaire') }}
+        </span>
+      </span>
+      {{ icon_chevrons|raw }}
+    </button>
+  </div>
+
+  {# ── Main navigation ── #}
+  <nav class="nav" aria-label="Navigation principale">
+    {% for item in nav_items %}
+      {% if item.section is defined %}
+        <p class="nav-section">{{ item.section }}</p>
+      {% else %}
+        {% set _is_active = active_item is defined and (active_item == item.key or active_item starts with item.key) %}
+        <a
+          href="{{ item.route ? path(item.route) : '#' }}"
+          class="nav-item{% if _is_active %} active{% endif %}"
+          {% if _is_active %}aria-current="page"{% endif %}
+        >
+          {{ item.icon|raw }}
+          <span>{{ item.label }}</span>
+          {% if item.badge is defined %}
+            <span class="nav-badge">{{ item.badge }}</span>
+          {% endif %}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+
+  {# ── Footer: settings + user ── #}
+  <div class="sb-foot">
+    <a href="#" class="sb-settings">
+      {{ icon_settings|raw }}
+      <span style="font-size:var(--text-base);">Paramètres</span>
+    </a>
+    <div style="padding:var(--space-1) var(--space-2) var(--space-2);">
+      <div class="sb-user">
+        {{ include('components/ui/avatar.html.twig', {
+            name: user.email|default('Utilisateur'),
+            image: null,
+        }) }}
+        <span style="flex:1;min-width:0;">
+          <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
+            {{ user.email|default('Utilisateur') }}
+          </span>
+          <span style="font-size:var(--text-xs);color:var(--text-subtle);">
+            Vétérinaire
+          </span>
+        </span>
+        {{ icon_chevrons|raw }}
+      </div>
+    </div>
+  </div>
+
+</aside>

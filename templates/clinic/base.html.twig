@@ -1,93 +1,72 @@
-<!doctype html>
-<html  class="h-full" data-kt-theme="true" data-kt-theme-mode="light" dir="ltr" lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+{#
+ # Kiveto — templates/clinic/base.html.twig
+ # ─────────────────────────────────────────
+ # Base template for all authenticated clinic pages.
+ # Inherit: {% extends 'clinic/base.html.twig' %}
+ #
+ # Available blocks:
+ #   title         — Page <title>
+ #   page_title    — Title displayed in the topbar (required)
+ #   page_subtitle — Topbar subtitle (optional)
+ #   topbar_search — bool: show search (default: false)
+ #   topbar_actions — Topbar buttons
+ #   breadcrumb    — Breadcrumb trail
+ #   content       — Main content (required)
+ #   rpanel        — Optional right panel
+ #   modals        — Page modals
+ #   drawers       — Page drawers
+ #   fab           — Optional mobile FAB
+ #   stylesheets   — Additional CSS
+ #   javascripts   — Additional JS
+ #}
+{% extends 'base.html.twig' %}
 
-        <link rel="stylesheet" href="{{ asset('theme/vendors/keenicons/styles.bundle.css') }}">
-        <link rel="stylesheet" href="{{ asset('theme/css/styles.css') }}">
+{% block body %}
+{# ── App Shell ── #}
+<div class="app-shell">
 
-        <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+  {# Sidebar (desktop: fixed / mobile: drawer) #}
+  {{ include('components/layout/sidebar.html.twig', {
+    clinic: activeClinic|default({ name: 'Ma clinique', type: 'Vétérinaire' }),
+    user: app.user,
+    active_item: app.request.attributes.get('_route'),
+  }) }}
 
-        {% block importmap %}{{ importmap('app') }}{% endblock %}
+  {# Mobile sidebar overlay #}
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="click->sidebar#close"></div>
 
-        <title>{% block title %}Tableau de bord{% endblock %}</title>
+  {# Main area #}
+  <div class="app-content">
 
-        {% block stylesheets %}{% endblock %}
-    </head>
+    {# Topbar #}
+    {% set _topbar_actions = block('topbar_actions') is defined ? block('topbar_actions') : [] %}
+    {{ include('components/layout/topbar.html.twig', {
+      title:    block('page_title') is defined ? block('page_title') : 'Page',
+      subtitle: block('page_subtitle') is defined ? block('page_subtitle') : null,
+      search:   block('topbar_search') is defined ? block('topbar_search') : false,
+      breadcrumb: block('breadcrumb') is defined ? block('breadcrumb') : [],
+    }) }}
 
-    <body class="antialiased flex h-full text-base text-foreground bg-background text-foreground bg-background flex h-full text-base antialiased">
-    <script data-turbo-eval="false">
-        const defaultThemeMode = 'light'; // light|dark|system
-        let themeMode;
+    {# Scrollable content #}
+    <div class="app-scroll">
+      <main class="app-body" id="main-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
 
-        if (document.documentElement) {
-            if (localStorage.getItem('kt-theme')) {
-                themeMode = localStorage.getItem('kt-theme');
-            } else if (
-                document.documentElement.hasAttribute('data-kt-theme-mode')
-            ) {
-                themeMode =
-                    document.documentElement.getAttribute('data-kt-theme-mode');
-            } else {
-                themeMode = defaultThemeMode;
-            }
+  </div>{# /app-content #}
 
-            if (themeMode === 'system') {
-                themeMode = window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'dark'
-                    : 'light';
-            }
+  {# Optional right panel #}
+  {% block rpanel %}{% endblock %}
 
-            document.documentElement.classList.add(themeMode);
-        }
-    </script>
-        <!-- Page -->
-        <!-- Main -->
-        <div class="flex grow">
+</div>{# /app-shell #}
 
-            <!-- Wrapper -->
-            <div class="flex grow h-screen flex-col [--header-height:40px] [--content-header-height:54px] [--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:45px] [--sidebar-footer-collapsed-height:90px]">
-                {% include 'clinic/partials/_header.html.twig' %}
+{# FAB mobile #}
+{% block fab %}{% endblock %}
 
-                <!-- Content -->
-                <main class="grow pt-5" id="content" role="content">
-                    {# Flash Messages #}
-                    {% for type, messages in app.flashes %}
-                        {% for message in messages %}
-                            <div class="container-fluid px-3 px-md-4 mb-3">
-                                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert">
-                                    {% if type == 'success' %}
-                                        <i class="ki-filled ki-check-circle me-2"></i>
-                                    {% elseif type == 'error' or type == 'danger' %}
-                                        <i class="ki-filled ki-information-2 me-2"></i>
-                                    {% elseif type == 'warning' %}
-                                        <i class="ki-filled ki-information-3 me-2"></i>
-                                    {% else %}
-                                        <i class="ki-filled ki-information me-2"></i>
-                                    {% endif %}
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
+{# Page drawers #}
+{% block drawers %}{% endblock %}
 
-                    {% block content %}{% endblock %}
-                </main>
-                <!-- End of Content -->
-
-            </div>
-            <!-- End of Wrapper -->
-        </div>
-        <!-- End of Main -->
-        <!-- End of Page -->
-
-        {% block javascripts %}
-            <script src="{{ asset('theme/js/core.bundle.js') }}" defer></script>
-            <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}" defer></script>
-            <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}" defer></script>
-            <script src="{{ asset('theme/js/widgets/general.js') }}" defer></script>
-        {% endblock %}
-    </body>
-</html>
+{# Page modals #}
+{% block modals %}{% endblock %}
+{% endblock %}

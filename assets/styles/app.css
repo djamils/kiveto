@@ -1,0 +1,25 @@
+/*
+ * Kiveto — assets/styles/app.css
+ * ──────────────────────────────
+ * Single CSS entry point.
+ * Imported from app.js via AssetMapper.
+ *
+ * Strict order — do not rearrange.
+ */
+
+/* 1. Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap');
+
+/* 2. Design tokens + reset + typography */
+@import "./vetsaas.css";
+
+/* 3. Keenicons */
+@import "../vendors/keenicons/styles.bundle.css";
+
+/* 4. Components (dependency order) */
+@import "./components/layout.css";
+@import "./components/navigation.css";
+@import "./components/forms.css";
+@import "./components/data.css";
+@import "./components/overlays.css";
+@import "./components/feedback.css";

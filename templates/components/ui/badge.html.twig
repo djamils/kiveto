@@ -1,0 +1,38 @@
+{#
+ # VetSaaS — templates/components/ui/badge.html.twig
+ # ───────────────────────────────────────────────────
+ # Status badge. Covers all veterinary vocabulary.
+ #
+ # Parameters:
+ #   label       string   Displayed text (required)
+ #   variant     string   Color variant (see list below, default: grey)
+ #   size        string   sm | md | lg  (default: md)
+ #   dot         bool     Show a color-dot before the label  (default: false)
+ #   extra_class string   Additional classes
+ #
+ # Available variants:
+ #   Appointment/patient statuses: wait | exam | ok | out | hosp | alert | urgence | warn | cancel | missing
+ #   Species                     : dog | cat | feline | other
+ #   Neutral                     : grey | sched | new | blue | purple | teal | orange
+ #   Special                     : sync | given | libre | deceased
+ #   Rooms                       : occupee | nettoyage
+ #
+ # Examples:
+ #   {{ include('components/ui/badge.html.twig', { label: 'En attente', variant: 'wait' }) }}
+ #   {{ include('components/ui/badge.html.twig', { label: 'Chien', variant: 'dog', dot: true }) }}
+ #   {{ include('components/ui/badge.html.twig', { label: patient.status|trans, variant: patient.statusBadge }) }}
+ #}
+
+{% set _size = size|default('md') %}
+{% set _cls  = 'badge b-' ~ variant|default('grey') %}
+{% if _size == 'sm' %}{% set _cls = _cls ~ ' badge-sm' %}
+{% elseif _size == 'lg' %}{% set _cls = _cls ~ ' badge-lg' %}
+{% endif %}
+{% if extra_class is defined %}{% set _cls = _cls ~ ' ' ~ extra_class %}{% endif %}
+
+<span class="{{ _cls }}">
+  {% if dot is defined and dot %}
+    <span class="color-dot color-dot-sm"></span>
+  {% endif %}
+  {{ label }}
+</span>

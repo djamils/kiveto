@@ -1,0 +1,261 @@
+/*
+ * VetSaaS — components/data.css
+ * ───────────────────────────────
+ * Data tables, status badges, chips, tags.
+ * Veterinary business vocabulary included.
+ */
+
+/* ─────────────────────────────────────────────
+   DATA TABLE
+   ───────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-md);
+}
+
+.data-table thead th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Sortable column */
+.data-table thead th.sortable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.data-table thead th.sortable:hover { color: var(--text-secondary); }
+.data-table thead th.sort-asc  { color: var(--brand-600); }
+.data-table thead th.sort-desc { color: var(--brand-600); }
+
+.data-table tbody tr {
+  border-top: 1px solid #f8fafc;
+  cursor: pointer;
+  transition: background .1s;
+}
+.data-table tbody tr:hover { background: var(--surface-subtle); }
+.data-table tbody tr.is-selected { background: var(--brand-50); }
+
+.data-table tbody td {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.data-table tbody td:first-child {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* Actions column (buttons on the right) */
+.data-table .col-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty row */
+.data-table .empty-row td {
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+/* Table wrapper with horizontal scroll */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  background: var(--surface-card);
+}
+
+.table-wrap .data-table { border-radius: 0; }
+
+/* Responsive: card layout on mobile */
+@media (max-width: 640px) {
+  .data-table thead { display: none; }
+
+  .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-2);
+    padding: var(--space-3);
+    gap: var(--space-1);
+  }
+
+  .data-table tbody td {
+    padding: 0;
+    font-size: var(--text-base);
+  }
+
+  .data-table tbody td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .data-table tbody td:first-child { font-weight: var(--weight-medium); }
+  .data-table .col-actions { text-align: left; }
+}
+
+
+/* ─────────────────────────────────────────────
+   BADGES & CHIPS DE STATUT
+   ─────────────────────────────────────────────
+   Naming convention:
+     .badge              → base
+     + .b-{variant}      → color variant
+
+   Appointment / patient statuses:
+     b-wait   Waiting
+     b-exam   In consultation
+     b-ok     Completed / Confirmed
+     b-out    Discharged
+     b-hosp   Hospitalized
+     b-alert  Alert
+     b-urgence Emergency
+     b-warn   Warning
+     b-cancel Cancelled
+
+   Species:
+     b-dog    Dog
+     b-cat    Cat
+     b-feline Feline (other)
+     b-other  Other animal
+
+   Miscellaneous:
+     b-grey   Neutral
+     b-new    New
+     b-blue   Info
+     b-purple Special
+     b-teal   Exotic
+     b-orange Warning border
+     b-sync   Synchronized
+     b-given  Administered
+     b-libre  Available
+     b-missing Missing
+     b-sched  Scheduled
+     b-deceased Deceased
+     b-occupee Occupied (room)
+     b-nettoyage Cleaning (room)
+*/
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* Appointment statuses */
+.b-wait     { background: var(--color-warning-bg);  color: var(--color-warning-text);  }
+.b-exam     { background: var(--color-info-bg);     color: var(--color-info-text);     }
+.b-ok       { background: var(--color-success-bg);  color: var(--color-success-text);  }
+.b-out      { background: var(--color-success-bg);  color: var(--color-success-text);  }
+.b-hosp     { background: var(--color-danger-bg);   color: var(--color-danger-text);   }
+.b-alert    { background: var(--color-danger-bg);   color: var(--color-danger-text);   }
+.b-urgence  { background: var(--color-danger-bg);   color: var(--color-danger-text);   }
+.b-warn     { background: var(--color-warning-bg);  color: var(--color-warning-text);  }
+.b-cancel   { background: var(--surface-subtle);    color: var(--text-muted); border: 1px solid var(--border-medium); }
+.b-missing  { background: var(--color-warning-bg);  color: var(--color-warning-text);  }
+
+/* Neutrals */
+.b-grey   { background: var(--surface-subtle); color: var(--slate-600); border: 1px solid var(--border-medium); }
+.b-sched  { background: var(--surface-subtle); color: var(--slate-600); border: 1px solid var(--border-medium); }
+
+/* Brand / info */
+.b-new    { background: var(--brand-50);          color: var(--brand-600); }
+.b-blue   { background: var(--color-info-bg);     color: var(--color-info-text); }
+.b-purple { background: var(--color-purple-bg);   color: var(--color-purple-text); }
+.b-teal   { background: #f0fdfa; color: #0f766e; }
+.b-orange { background: var(--color-warning-bg);  color: var(--color-warning-text); border: 1px solid var(--color-warning-border); }
+
+/* Special statuses */
+.b-sync    { background: var(--color-success-bg); color: var(--color-success-600); border: 1px solid var(--color-success-border); }
+.b-given   { background: var(--color-success-bg); color: var(--color-success-text); }
+.b-libre   { background: var(--color-success-bg); color: var(--color-success-text); }
+.b-deceased { background: var(--slate-800); color: var(--slate-50); }
+
+/* Animal species */
+.b-dog    { background: var(--color-info-bg);     color: var(--color-info-text);   }
+.b-cat    { background: var(--color-purple-bg);   color: var(--color-purple-text); }
+.b-feline { background: #fdf4ff; color: #7e22ce; }
+.b-other  { background: var(--color-success-bg);  color: var(--color-success-text); }
+
+/* Rooms */
+.b-occupee    { background: var(--color-info-bg);    color: var(--color-info-text);    }
+.b-nettoyage  { background: var(--color-warning-bg); color: var(--color-warning-text); }
+
+/* Size modifiers */
+.badge-sm {
+  font-size: 10px;
+  padding: 1px var(--space-1);
+}
+
+.badge-lg {
+  font-size: var(--text-md);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Badge with color dot */
+.badge-dot {
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+}
+
+/* Interactive chip (filters, clickable tags) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-full);
+  padding: 3px var(--space-2);
+  cursor: pointer;
+  transition: var(--t-fast);
+  user-select: none;
+  white-space: nowrap;
+}
+.chip:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.chip.active {
+  background: var(--brand-50);
+  border-color: var(--brand-200);
+  color: var(--brand-600);
+}
+.chip-close {
+  display: flex;
+  align-items: center;
+  color: var(--text-subtle);
+  transition: color .12s;
+}
+.chip-close:hover { color: var(--text-secondary); }

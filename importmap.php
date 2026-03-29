@@ -31,4 +31,22 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'vs/ui' => [
+        'path' => './assets/js/ui/index.js',
+    ],
+    'vs/drawer' => [
+        'path' => './assets/js/ui/drawer.js',
+    ],
+    'vs/modal' => [
+        'path' => './assets/js/ui/modal.js',
+    ],
+    'vs/toast' => [
+        'path' => './assets/js/ui/toast.js',
+    ],
+    'vs/popover' => [
+        'path' => './assets/js/ui/popover.js',
+    ],
+    'vs/tabs' => [
+        'path' => './assets/js/ui/tabs.js',
+    ],
 ];
