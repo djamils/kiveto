@@ -33,7 +33,7 @@ final class NewClientController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/clients/form_layout15.html.twig', [
+        return $this->render('clinic/clients/form.html.twig', [
             'client'            => null,
             'csrf_token'        => $this->csrfTokenManager->getToken(self::CSRF_ID)->getValue(),
             'currentClinicId'   => $currentClinicId->toString(),

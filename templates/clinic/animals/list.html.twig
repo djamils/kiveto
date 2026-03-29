@@ -1,26 +1,26 @@
 {#
- # Kiveto — templates/clinic/clients/list.html.twig
+ # Kiveto — templates/clinic/animals/list.html.twig
  # ─────────────────────────────────────────────────
- # Client list page with VetSaaS data table, search, and pagination.
+ # Animal list page with VetSaaS data table, search, and pagination.
  #
  # Variables:
- #   clients          Paginated result { items[], totalItems, currentPage,
+ #   animals          Paginated result { items[], totalItems, currentPage,
  #                    totalPages, limit, hasPreviousPage, hasNextPage,
  #                    previousPage, nextPage }
  #   currentClinicName  string
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}Clients - {{ currentClinicName }}{% endblock %}
+{% block title %}Animaux - {{ currentClinicName }}{% endblock %}
 
-{% block page_title %}Clients{% endblock %}
+{% block page_title %}Animaux{% endblock %}
 
 {% block topbar_actions %}
   {{ include('components/ui/button.html.twig', {
-    label: 'Nouveau client',
+    label: 'Nouvel animal',
     variant: 'primary',
     size: 'sm',
-    href: path('clinic_clients_new'),
+    href: path('clinic_animals_new'),
   }) }}
 {% endblock %}
 
@@ -37,7 +37,7 @@
           <input
             type="search"
             class="form-input form-input-sm"
-            placeholder="Rechercher clients..."
+            placeholder="Rechercher animaux..."
             value="{{ app.request.query.get('search', '') }}"
             data-kt-filter="search"
             autocomplete="off"
@@ -52,48 +52,51 @@
         <thead>
           <tr>
             <th>Nom</th>
-            <th>Email</th>
-            <th>Telephone</th>
+            <th>Espece</th>
+            <th>Race</th>
             <th>Statut</th>
             <th>Date creation</th>
           </tr>
         </thead>
         <tbody>
-          {% for client in clients.items %}
+          {% for animal in animals.items %}
             <tr>
               <td data-label="Nom">
-                <a href="{{ path('clinic_clients_view', {id: client.id}) }}">
-                  {{ client.firstName }} {{ client.lastName }}
+                <a href="{{ path('clinic_animals_view', {id: animal.id}) }}">
+                  {{ animal.name }}
                 </a>
               </td>
-              <td data-label="Email">
-                {% if client.primaryEmail %}
-                  <a href="mailto:{{ client.primaryEmail }}">{{ client.primaryEmail }}</a>
+              <td data-label="Espece">
+                {# Map species enum to French label with color badge #}
+                {% if animal.species == 'DOG' %}
+                  <span class="badge b-dog">Chien</span>
+                {% elseif animal.species == 'CAT' %}
+                  <span class="badge b-cat">Chat</span>
                 {% else %}
-                  &mdash;
+                  <span class="badge b-other">NAC</span>
                 {% endif %}
               </td>
-              <td data-label="Telephone">
-                {% if client.primaryPhone %}
-                  {{ client.primaryPhone }}
+              <td data-label="Race">
+                {% if animal.breedName %}
+                  {{ animal.breedName }}
                 {% else %}
                   &mdash;
                 {% endif %}
               </td>
               <td data-label="Statut">
-                {% if client.status == 'active' %}
+                {% if animal.status == 'active' %}
                   <span class="badge b-ok">Actif</span>
                 {% else %}
                   <span class="badge b-grey">Archive</span>
                 {% endif %}
               </td>
               <td data-label="Date creation">
-                {{ client.createdAt|date('d/m/Y H:i') }}
+                {{ animal.createdAt|date('d/m/Y H:i') }}
               </td>
             </tr>
           {% else %}
             <tr class="empty-row">
-              <td colspan="5">Aucun client trouve.</td>
+              <td colspan="5">Aucun animal trouve.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -101,25 +104,25 @@
     </div>
 
     {# Pagination footer #}
-    {% if clients.totalPages > 1 %}
+    {% if animals.totalPages > 1 %}
       <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);border-top:1px solid var(--border-light);font-size:var(--text-sm);">
         <span style="color:var(--text-muted);">
-          {{ ((clients.currentPage - 1) * clients.limit) + 1 }}
-          &ndash; {{ min(clients.currentPage * clients.limit, clients.totalItems) }}
-          sur {{ clients.totalItems }}
+          {{ ((animals.currentPage - 1) * animals.limit) + 1 }}
+          &ndash; {{ min(animals.currentPage * animals.limit, animals.totalItems) }}
+          sur {{ animals.totalItems }}
         </span>
         <div style="display:flex;align-items:center;gap:var(--space-2);">
-          {% if clients.hasPreviousPage %}
-            <a href="{{ path('clinic_clients_list', {page: clients.previousPage, search: app.request.query.get('search')}) }}"
+          {% if animals.hasPreviousPage %}
+            <a href="{{ path('clinic_animals_list', {page: animals.previousPage, search: app.request.query.get('search')}) }}"
                class="btn btn-ghost btn-sm">&laquo; Precedent</a>
           {% else %}
             <button class="btn btn-ghost btn-sm" disabled>&laquo; Precedent</button>
           {% endif %}
 
-          <span style="color:var(--text-muted);">Page {{ clients.currentPage }} / {{ clients.totalPages }}</span>
+          <span style="color:var(--text-muted);">Page {{ animals.currentPage }} / {{ animals.totalPages }}</span>
 
-          {% if clients.hasNextPage %}
-            <a href="{{ path('clinic_clients_list', {page: clients.nextPage, search: app.request.query.get('search')}) }}"
+          {% if animals.hasNextPage %}
+            <a href="{{ path('clinic_animals_list', {page: animals.nextPage, search: app.request.query.get('search')}) }}"
                class="btn btn-ghost btn-sm">Suivant &raquo;</a>
           {% else %}
             <button class="btn btn-ghost btn-sm" disabled>Suivant &raquo;</button>

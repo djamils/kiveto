@@ -1,144 +1,182 @@
-<!DOCTYPE html>
-<html lang="fr">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{% block title %}Backoffice{% endblock %} - Kiveto</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
-            
-            .layout { display: flex; min-height: 100vh; }
-            
-            /* Sidebar */
-            .sidebar { width: 250px; background: #2c3e50; color: #ecf0f1; padding: 20px 0; }
-            .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid #34495e; }
-            .sidebar-header h1 { font-size: 1.5rem; color: #3498db; }
-            .sidebar-header p { font-size: 0.875rem; color: #95a5a6; margin-top: 5px; }
-            
-            .nav { list-style: none; margin-top: 20px; }
-            .nav-item { margin-bottom: 5px; }
-            .nav-link { display: block; padding: 12px 20px; color: #ecf0f1; text-decoration: none; transition: all 0.2s; }
-            .nav-link:hover { background: #34495e; }
-            .nav-link.active { background: #3498db; font-weight: 500; }
-            .nav-section { padding: 10px 20px; font-size: 0.75rem; color: #95a5a6; text-transform: uppercase; letter-spacing: 1px; margin-top: 15px; }
-            
-            /* Main content */
-            .main-content { flex: 1; background: #ecf0f1; }
-            .topbar { background: white; padding: 15px 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
-            .topbar h2 { font-size: 1.25rem; color: #2c3e50; }
-            .topbar-actions a { margin-left: 15px; color: #3498db; text-decoration: none; font-size: 0.875rem; }
-            .topbar-actions a:hover { text-decoration: underline; }
-            
-            .content { padding: 30px; }
-            
-            /* Flash messages */
-            .flash { padding: 12px 20px; margin-bottom: 20px; border-radius: 4px; }
-            .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-            .flash.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-            .flash.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-            
-            /* Card */
-            .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 20px; }
-            .card h3 { margin-bottom: 15px; color: #2c3e50; }
-            
-            /* Stats */
-            .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
-            .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-            .stat-card .label { font-size: 0.875rem; color: #7f8c8d; margin-bottom: 5px; }
-            .stat-card .value { font-size: 2rem; font-weight: bold; color: #2c3e50; }
-            .stat-card.primary { border-left: 4px solid #3498db; }
-            .stat-card.success { border-left: 4px solid #27ae60; }
-            .stat-card.warning { border-left: 4px solid #f39c12; }
-            .stat-card.danger { border-left: 4px solid #e74c3c; }
-        </style>
-        
-        {% block stylesheets %}{% endblock %}
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-    </head>
-    <body>
-        <div class="layout">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-header">
-                    <h1>🐾 Kiveto</h1>
-                    <p>Backoffice</p>
-                </div>
-                
-                <nav>
-                    <ul class="nav">
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_home') }}" class="nav-link {% if app.request.get('_route') == 'backoffice_home' %}active{% endif %}">
-                                📊 Dashboard
-                            </a>
-                        </li>
-                        
-                        <li class="nav-section">Gestion Cliniques</li>
-                        
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_clinics') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_clinics' %}active{% endif %}">
-                                🏥 Cliniques
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_clinic_groups') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_clinic_groups' %}active{% endif %}">
-                                🏢 Groupes de cliniques
-                            </a>
-                        </li>
-                        
-                        <li class="nav-section">Accès & Membres</li>
-                        
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_users') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_users' %}active{% endif %}">
-                                👤 Utilisateurs
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_clinic_memberships') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_clinic_memberships' or app.request.get('_route') starts with 'backoffice_memberships' %}active{% endif %}">
-                                👥 Membres cliniques
-                            </a>
-                        </li>
-                        
-                        <li class="nav-section">Configuration</li>
-                        
-                        <li class="nav-item">
-                            <a href="{{ path('backoffice_translations') }}" class="nav-link {% if app.request.get('_route') starts with 'backoffice_translations' %}active{% endif %}">
-                                🌐 Traductions
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-            </aside>
-            
-            <!-- Main content -->
-            <main class="main-content">
-                <div class="topbar">
-                    <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-                    <div class="topbar-actions">
-                        <a href="{{ path('portal_home') }}" target="_blank">🚪 Portal</a>
-                        <a href="{{ path('clinic_select_clinic') }}" target="_blank">🏥 Clinic App</a>
-                    </div>
-                </div>
-                
-                <div class="content">
-                    {# Flash messages #}
-                    {% for label, messages in app.flashes %}
-                        {% for message in messages %}
-                            <div class="flash {{ label }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
-                    
-                    {% block body %}{% endblock %}
-                </div>
-            </main>
+{#
+ # Kiveto — templates/backoffice/base.html.twig
+ # ─────────────────────────────────────────────
+ # Base template for all backoffice (super-admin) pages.
+ # Inherit: {% extends 'backoffice/base.html.twig' %}
+ #
+ # Available blocks:
+ #   title         — Page <title>
+ #   page_title    — Title displayed in the topbar (required)
+ #   topbar_actions — Topbar action buttons
+ #   content       — Main content (required)
+ #   modals        — Page modals
+ #   drawers       — Page drawers
+ #   stylesheets   — Additional CSS
+ #   javascripts   — Additional JS
+ #}
+{% extends 'base.html.twig' %}
+
+{% block title %}{% block page_title_raw %}Backoffice{% endblock %} - Kiveto{% endblock %}
+
+{% block body %}
+{# ── Inline SVG icons (Lucide style) ── #}
+{% set icon_grid %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+{% endset %}
+{% set icon_building %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1"/>
+    <path stroke-linecap="round" stroke-linejoin="round" d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/>
+  </svg>
+{% endset %}
+{% set icon_users %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+  </svg>
+{% endset %}
+{% set icon_layers %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+  </svg>
+{% endset %}
+{% set icon_link %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+    <path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+  </svg>
+{% endset %}
+{% set icon_globe %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+    <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+  </svg>
+{% endset %}
+{% set icon_chevrons %}
+  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+  </svg>
+{% endset %}
+{% set icon_external %}
+  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+  </svg>
+{% endset %}
+
+{# ── Navigation items ── #}
+{% set nav_items = [
+  { section: 'Gestion Cliniques' },
+  { key: 'backoffice_home',               label: 'Dashboard',             icon: icon_grid,     route: 'backoffice_home' },
+  { key: 'backoffice_clinics',            label: 'Cliniques',             icon: icon_building, route: 'backoffice_clinics' },
+  { key: 'backoffice_clinic_groups',      label: 'Groupes de cliniques',  icon: icon_layers,   route: 'backoffice_clinic_groups' },
+  { section: 'Acces & Membres' },
+  { key: 'backoffice_users',              label: 'Utilisateurs',          icon: icon_users,    route: 'backoffice_users' },
+  { key: 'backoffice_clinic_memberships', label: 'Membres cliniques',     icon: icon_link,     route: 'backoffice_clinic_memberships' },
+  { section: 'Configuration' },
+  { key: 'backoffice_translations',       label: 'Traductions',           icon: icon_globe,    route: 'backoffice_translations' },
+] %}
+
+{# ── App Shell ── #}
+<div class="app-shell">
+
+  {# Sidebar #}
+  <aside class="sidebar" id="appSidebar" data-controller="sidebar">
+
+    {# Header #}
+    <div class="sb-top">
+      <div class="sb-clinic-btn" style="cursor:default;">
+        <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">
+          K
+        </span>
+        <span style="flex:1;min-width:0;">
+          <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
+            Kiveto
+          </span>
+          <span style="font-size:var(--text-xs);color:var(--text-subtle);">
+            Backoffice
+          </span>
+        </span>
+      </div>
+    </div>
+
+    {# Main navigation #}
+    <nav class="nav" aria-label="Navigation backoffice">
+      {% for item in nav_items %}
+        {% if item.section is defined %}
+          <p class="nav-section">{{ item.section }}</p>
+        {% else %}
+          {% set _is_active = app.request.attributes.get('_route') == item.key
+            or app.request.attributes.get('_route') starts with item.key %}
+          <a
+            href="{{ path(item.route) }}"
+            class="nav-item{% if _is_active %} active{% endif %}"
+            {% if _is_active %}aria-current="page"{% endif %}
+          >
+            {{ item.icon|raw }}
+            <span>{{ item.label }}</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    {# Footer: external links + user #}
+    <div class="sb-foot">
+      <div style="padding:var(--space-1) var(--space-2);display:flex;flex-direction:column;gap:var(--space-1);">
+        <a href="{{ path('portal_home') }}" target="_blank" class="nav-item" style="font-size:var(--text-sm);">
+          {{ icon_external|raw }}
+          <span>Portal</span>
+        </a>
+        <a href="{{ path('clinic_select_clinic') }}" target="_blank" class="nav-item" style="font-size:var(--text-sm);">
+          {{ icon_external|raw }}
+          <span>Clinic App</span>
+        </a>
+      </div>
+      <div style="padding:var(--space-1) var(--space-2) var(--space-2);">
+        <div class="sb-user">
+          {{ include('components/ui/avatar.html.twig', {
+              name: app.user.email|default('Admin'),
+              image: null,
+          }) }}
+          <span style="flex:1;min-width:0;">
+            <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
+              {{ app.user.email|default('Admin') }}
+            </span>
+            <span style="font-size:var(--text-xs);color:var(--text-subtle);">
+              Super Admin
+            </span>
+          </span>
+          {{ icon_chevrons|raw }}
         </div>
-    </body>
-</html>
+      </div>
+    </div>
+
+  </aside>
+
+  {# Mobile sidebar overlay #}
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="click->sidebar#close"></div>
+
+  {# Main area #}
+  <div class="app-content">
+
+    {# Topbar #}
+    {{ include('components/layout/topbar.html.twig', {
+      title: block('page_title') is defined ? block('page_title') : 'Backoffice',
+    }) }}
+
+    {# Scrollable content #}
+    <div class="app-scroll">
+      <main class="app-body" id="main-content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+  </div>{# /app-content #}
+
+</div>{# /app-shell #}
+
+{# Page drawers #}
+{% block drawers %}{% endblock %}
+
+{# Page modals #}
+{% block modals %}{% endblock %}
+{% endblock %}

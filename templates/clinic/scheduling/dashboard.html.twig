@@ -1,0 +1,85 @@
+{#
+ # Kiveto — templates/clinic/scheduling/dashboard.html.twig
+ # ────────────────────────────────────────────────────────
+ # Scheduling dashboard: waiting room + agenda side by side.
+ #
+ # Variables:
+ #   appointments       array               List of appointment DTOs
+ #   waitingRoomEntries  array               List of waiting-room entry DTOs
+ #   selectedDate        DateTimeImmutable   Currently viewed date
+ #   currentClinicId     string              Active clinic UUID
+ #   currentClinicName   string              Active clinic display name
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_title %}Planning & Salle d'attente{% endblock %}
+
+{% block page_subtitle %}{{ currentClinicName }}{% endblock %}
+
+{% block topbar_actions %}
+    <button
+        class="btn btn-primary btn-sm"
+        type="button"
+        data-action="click->modal#open"
+        data-modal-id-param="modalNewAppointment"
+    >
+        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+        Nouveau RDV
+    </button>
+    <button
+        class="btn btn-danger-soft btn-sm"
+        type="button"
+        data-action="click->modal#open"
+        data-modal-id-param="modalWalkIn"
+    >
+        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Urgence Walk-in
+    </button>
+{% endblock %}
+
+{% block stylesheets %}
+    <link href="{{ asset('scheduling.css') }}" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+        <div class="widget" style="border-left: 3px solid var(--color-success-text); margin-bottom: var(--space-3);">
+            <div class="w-body" style="display: flex; align-items: center; gap: var(--space-2); color: var(--color-success-text);">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {{ message }}
+            </div>
+        </div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="widget" style="border-left: 3px solid var(--color-danger-text); margin-bottom: var(--space-3);">
+            <div class="w-body" style="display: flex; align-items: center; gap: var(--space-2); color: var(--color-danger-text);">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                {{ message }}
+            </div>
+        </div>
+    {% endfor %}
+
+    {# Two-panel layout: waiting room (left) + agenda (right) #}
+    <div style="display: grid; grid-template-columns: minmax(320px, 1fr) minmax(400px, 2fr); gap: var(--space-4); align-items: start;">
+        {# Left panel: Waiting room #}
+        <div>
+            {% include 'clinic/scheduling/_waiting_room.html.twig' %}
+        </div>
+
+        {# Right panel: Agenda #}
+        <div>
+            {% include 'clinic/scheduling/_agenda.html.twig' %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block modals %}
+    {% include 'clinic/scheduling/_modal_new_appointment.html.twig' %}
+    {% include 'clinic/scheduling/_modal_walk_in.html.twig' %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('scheduling.js') }}" defer></script>
+{% endblock %}

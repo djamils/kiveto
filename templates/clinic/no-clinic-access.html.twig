@@ -1,32 +1,48 @@
+{#
+ # Kiveto -- templates/clinic/no-clinic-access.html.twig
+ # ─────────────────────────────────────────────────────
+ # Empty state page shown when the user has no clinic access.
+ # Extends base.html.twig (no sidebar).
+ #}
 {% extends 'base.html.twig' %}
 
 {% block title %}Aucune clinique accessible{% endblock %}
 
+{% block stylesheets %}
+<style>
+  /* Center the empty state card on the page */
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--surface-page);
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .no-access-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    padding: var(--space-8);
+    text-align: center;
+  }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h3 class="mb-3">Aucune clinique accessible</h3>
-
-                    {% for label, messages in app.flashes %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
-
-                    <p class="text-muted">
-                        Vous n'avez accès à aucune clinique active pour le moment.
-                    </p>
-                    <p>
-                        Veuillez contacter un administrateur pour obtenir l'accès.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="no-access-card">
+  {{ include('components/ui/empty_state.html.twig', {
+    title: "Vous n'avez acces a aucune clinique",
+    subtitle: "Veuillez contacter un administrateur pour obtenir l'acces a une clinique.",
+    action: {
+      label: 'Se deconnecter',
+      variant: 'secondary',
+      href: path('_logout_clinic'),
+    },
+  }) }}
 </div>
 {% endblock %}

@@ -1,19 +1,29 @@
-{% extends 'clinic/base_layout15.html.twig' %}
+{#
+ # Kiveto — templates/clinic/clinical_care/consultation_details.html.twig
+ # ─────────────────────────────────────────────────────────────────────
+ # Consultation detail page using VetSaaS widget design.
+ #
+ # Variables:
+ #   consultation  ConsultationDto   The consultation data
+ #   pageTitle     string            Page title (e.g. "Consultation")
+ #}
+{% extends 'clinic/base.html.twig' %}
 
-{% block title %}Consultation - {{ parent() }}{% endblock %}
+{% block page_title %}{{ pageTitle }}{% endblock %}
 
-{% block page_icon %}<i class="ki-filled ki-notepad text-base"></i>{% endblock %}
-{% block page_title %}Consultation{% endblock %}
+{% block breadcrumb %}
+    <a href="{{ path('clinic_scheduling_dashboard') }}">Agenda</a>
+    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--border-medium);"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    <span>Consultation</span>
+{% endblock %}
 
-{% block breadcrumbs %}
-    <li class="flex items-center gap-1">
-        <i class="ki-filled ki-right text-xs text-muted-foreground"></i>
-        <a href="{{ path('clinic_scheduling_dashboard') }}" class="hover:text-foreground">Agenda</a>
-    </li>
-    <li class="flex items-center gap-1">
-        <i class="ki-filled ki-right text-xs text-muted-foreground"></i>
-        <span class="text-foreground">Consultation</span>
-    </li>
+{% block topbar_actions %}
+    {% if consultation.status == 'OPEN' %}
+        <div style="display: flex; align-items: center; gap: var(--space-2); background: #fefce8; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 4px var(--space-3);">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; animation: pulse 2s infinite;"></span>
+            <span style="font-size: var(--text-sm); font-weight: var(--weight-medium); color: #92400e;">En cours</span>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block stylesheets %}
@@ -21,266 +31,308 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    {# Header card with status #}
-    <div class="card">
-        <div class="card-header">
-            <div class="flex items-center justify-between">
-                <h3 class="card-title">Détails de la consultation</h3>
-                <span class="badge {{ consultation.status == 'OPEN' ? 'badge-success consultation-status-open' : 'badge-light' }}">
-                    {{ consultation.status == 'OPEN' ? 'EN COURS' : 'CLÔTURÉE' }}
-                </span>
-            </div>
+<div style="display: flex; flex-direction: column; gap: var(--space-4);">
+
+    {# ── Header card with status ── #}
+    <div class="widget">
+        <div class="w-head">
+            <span class="w-title">Détails de la consultation</span>
+            {% if consultation.status == 'OPEN' %}
+                <span class="badge" style="background: var(--color-success-bg); color: var(--color-success-text);">EN COURS</span>
+            {% else %}
+                <span class="badge" style="background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);">CLÔTURÉE</span>
+            {% endif %}
         </div>
-        <div class="card-body">
-            <div class="flex flex-col gap-2 text-sm text-gray-700">
-                <div><strong>ID:</strong> {{ consultation.consultationId }}</div>
-                <div><strong>Démarrée le:</strong> {{ consultation.startedAtUtc }}</div>
+        <div class="w-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3);">
+                <div>
+                    <span style="font-size: var(--text-xs); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .07em;">ID</span>
+                    <div style="font-size: var(--text-md); color: var(--text-primary); font-weight: var(--weight-medium); margin-top: 2px;">{{ consultation.consultationId }}</div>
+                </div>
+                <div>
+                    <span style="font-size: var(--text-xs); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .07em;">Démarrée le</span>
+                    <div style="font-size: var(--text-md); color: var(--text-primary); margin-top: 2px;">{{ consultation.startedAtUtc }}</div>
+                </div>
                 {% if consultation.closedAtUtc %}
-                    <div><strong>Clôturée le:</strong> {{ consultation.closedAtUtc }}</div>
+                    <div>
+                        <span style="font-size: var(--text-xs); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .07em;">Clôturée le</span>
+                        <div style="font-size: var(--text-md); color: var(--text-primary); margin-top: 2px;">{{ consultation.closedAtUtc }}</div>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    {# Chief Complaint #}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Motif de consultation</h3>
-        </div>
-        <div class="card-body">
-            {% if consultation.chiefComplaint %}
-                <div class="alert alert-primary">
-                    <div class="alert-text">{{ consultation.chiefComplaint }}</div>
-                </div>
-            {% else %}
-                <form method="post" action="{{ path('clinic_consultation_record_chief_complaint', {id: consultation.consultationId}) }}">
-                    <div class="flex flex-col gap-3">
-                        <textarea
-                            name="chiefComplaint"
-                            class="input"
-                            rows="3"
-                            placeholder="Ex: Boiterie patte avant gauche depuis 3 jours..."
-                            required
-                        ></textarea>
-                        <div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="ki-filled ki-check me-1"></i>
-                                Enregistrer le motif
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            {% endif %}
-        </div>
-    </div>
+    {# ── Two-column layout ── #}
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: var(--space-4); align-items: start;">
 
-    {# Vitals #}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Constantes vitales</h3>
-        </div>
-        <div class="card-body">
-            {% if consultation.vitals %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="flex flex-col">
-                        <span class="text-sm text-gray-600">Poids</span>
-                        <span class="text-2xl font-semibold">{{ consultation.vitals.weightKg ?? 'N/A' }} <span class="text-base text-gray-500">kg</span></span>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-sm text-gray-600">Température</span>
-                        <span class="text-2xl font-semibold">{{ consultation.vitals.temperatureC ?? 'N/A' }} <span class="text-base text-gray-500">°C</span></span>
-                    </div>
-                </div>
-            {% else %}
-                <form method="post" action="{{ path('clinic_consultation_record_vitals', {id: consultation.consultationId}) }}">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="flex flex-col gap-2">
-                            <label class="form-label">Poids (kg)</label>
-                            <input type="number" step="0.01" name="weightKg" class="input" placeholder="12.5">
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="form-label">Température (°C)</label>
-                            <input type="number" step="0.1" name="temperatureC" class="input" placeholder="38.5">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="submit" class="btn btn-primary w-full">
-                                <i class="ki-filled ki-check me-1"></i>
-                                Enregistrer
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            {% endif %}
-        </div>
-    </div>
+        {# Left column: motif, vitals, acts #}
+        <div style="display: flex; flex-direction: column; gap: var(--space-3);">
 
-    {# Clinical Notes #}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Notes cliniques</h3>
-        </div>
-        <div class="card-body space-y-4">
-            {% if consultation.notes|length > 0 %}
-                <div class="space-y-3">
-                    {% for note in consultation.notes %}
-                        <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="badge note-type-{{ note.noteType|lower }}">{{ note.noteType }}</span>
-                                <span class="text-xs text-gray-500">{{ note.createdAt }}</span>
-                            </div>
-                            <p class="text-sm text-gray-800">{{ note.content }}</p>
-                        </div>
-                    {% endfor %}
+            {# Chief complaint #}
+            <div class="widget">
+                <div class="w-head">
+                    <span class="w-title">Motif de consultation</span>
                 </div>
-            {% else %}
-                <p class="text-sm text-gray-500 italic">Aucune note clinique pour le moment.</p>
-            {% endif %}
-
-            {% if consultation.status == 'OPEN' %}
-                <hr class="my-4">
-                <form method="post" action="{{ path('clinic_consultation_add_note', {id: consultation.consultationId}) }}">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div class="md:col-span-1">
-                            <label class="form-label">Type</label>
-                            <select name="noteType" class="select" required>
-                                <option value="">-- Type --</option>
-                                <option value="ANAMNESIS">Anamnèse</option>
-                                <option value="EXAMINATION">Examen</option>
-                                <option value="DIAGNOSIS">Diagnostic</option>
-                                <option value="TREATMENT">Traitement</option>
-                                <option value="FOLLOW_UP">Suivi</option>
-                            </select>
+                <div class="w-body">
+                    {% if consultation.chiefComplaint %}
+                        <div style="background: var(--brand-50); border: 1px solid var(--brand-200, var(--border-medium)); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-md); color: var(--brand-700, var(--text-primary));">
+                            {{ consultation.chiefComplaint }}
                         </div>
-                        <div class="md:col-span-3">
-                            <label class="form-label">Contenu</label>
-                            <div class="flex gap-2">
+                    {% else %}
+                        <form method="post" action="{{ path('clinic_consultation_record_chief_complaint', {id: consultation.consultationId}) }}">
+                            <div style="display: flex; flex-direction: column; gap: var(--space-2);">
                                 <textarea
-                                    name="content"
-                                    class="input flex-1"
-                                    rows="2"
-                                    placeholder="Contenu de la note..."
+                                    name="chiefComplaint"
+                                    class="form-input"
+                                    rows="3"
+                                    placeholder="Ex: Boiterie patte avant gauche depuis 3 jours..."
                                     required
                                 ></textarea>
-                                <button type="submit" class="btn btn-primary self-end">
-                                    <i class="ki-filled ki-plus"></i>
-                                </button>
+                                <div>
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                        Enregistrer le motif
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Vitals #}
+            <div class="widget">
+                <div class="w-head">
+                    <span class="w-title">Constantes vitales</span>
+                </div>
+                <div class="w-body">
+                    {% if consultation.vitals %}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);">
+                            <div class="vital-pill">
+                                <div class="vital-num">{{ consultation.vitals.weightKg ?? 'N/A' }} <span class="vital-unit">kg</span></div>
+                                <div class="vital-lbl">Poids</div>
+                            </div>
+                            <div class="vital-pill{% if consultation.vitals.temperatureC is defined and consultation.vitals.temperatureC > 39.5 %} alert{% endif %}">
+                                <div class="vital-num">{{ consultation.vitals.temperatureC ?? 'N/A' }} <span class="vital-unit">°C</span></div>
+                                <div class="vital-lbl">Température</div>
                             </div>
                         </div>
-                    </div>
-                </form>
-            {% endif %}
-        </div>
-    </div>
+                    {% else %}
+                        <form method="post" action="{{ path('clinic_consultation_record_vitals', {id: consultation.consultationId}) }}">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-3);">
+                                <div>
+                                    <label class="form-label">Poids (kg)</label>
+                                    <input type="number" step="0.01" name="weightKg" class="form-input" placeholder="12.5">
+                                </div>
+                                <div>
+                                    <label class="form-label">Température (°C)</label>
+                                    <input type="number" step="0.1" name="temperatureC" class="form-input" placeholder="38.5">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">
+                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                Enregistrer
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
 
-    {# Performed Acts #}
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Actes réalisés</h3>
-        </div>
-        <div class="card-body space-y-4">
-            {% if consultation.acts|length > 0 %}
-                <div class="table-responsive">
-                    <table class="table table-rounded table-striped border">
-                        <thead>
-                            <tr>
-                                <th class="min-w-[200px]">Acte</th>
-                                <th class="min-w-[100px]">Quantité</th>
-                                <th class="min-w-[150px]">Date/Heure</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+            {# Performed acts #}
+            <div class="widget">
+                <div class="w-head">
+                    <span class="w-title">Actes réalisés</span>
+                </div>
+                <div class="w-body">
+                    {% if consultation.acts|length > 0 %}
+                        <div style="display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3);">
                             {% for act in consultation.acts %}
-                                <tr>
-                                    <td>{{ act.label }}</td>
-                                    <td>{{ act.quantity }}</td>
-                                    <td class="text-sm text-gray-600">{{ act.performedAt }}</td>
-                                </tr>
+                                <div class="acte-row" style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); background: var(--surface-subtle); border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+                                    <div style="flex: 1;">
+                                        <span style="font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-primary);">{{ act.label }}</span>
+                                    </div>
+                                    <span class="badge" style="background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);">x{{ act.quantity }}</span>
+                                    <span style="font-size: var(--text-xs); color: var(--text-subtle);">{{ act.performedAt }}</span>
+                                </div>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                    {% else %}
+                        <p style="font-size: var(--text-sm); color: var(--text-subtle); font-style: italic;">Aucun acte réalisé pour le moment.</p>
+                    {% endif %}
+
+                    {% if consultation.status == 'OPEN' %}
+                        <div style="border-top: 1px solid var(--border-light); padding-top: var(--space-3); margin-top: var(--space-2);">
+                            <form method="post" action="{{ path('clinic_consultation_add_act', {id: consultation.consultationId}) }}">
+                                <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+                                    <div>
+                                        <label class="form-label">Libellé de l'acte</label>
+                                        <input type="text" name="label" class="form-input" placeholder="Ex: Consultation générale" required>
+                                    </div>
+                                    <div style="display: flex; gap: var(--space-2);">
+                                        <div style="flex: 1;">
+                                            <label class="form-label">Quantité</label>
+                                            <input type="number" step="0.01" name="quantity" class="form-input" value="1" required>
+                                        </div>
+                                        <div style="display: flex; align-items: flex-end;">
+                                            <button type="submit" class="btn btn-primary btn-sm">
+                                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                                                Ajouter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>{# /left column #}
+
+        {# Right column: clinical notes, summary, close #}
+        <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+
+            {# Clinical notes #}
+            <div class="widget">
+                <div class="w-head">
+                    <span class="w-title">Notes cliniques</span>
+                </div>
+                <div class="w-body" style="display: flex; flex-direction: column; gap: var(--space-3);">
+                    {% if consultation.notes|length > 0 %}
+                        <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+                            {% for note in consultation.notes %}
+                                {# Determine note type colour #}
+                                {% set note_color = 'var(--brand-600)' %}
+                                {% set note_bg = 'var(--brand-50)' %}
+                                {% if note.noteType == 'ANAMNESIS' %}
+                                    {% set note_color = '#7e22ce' %}
+                                    {% set note_bg = '#fdf4ff' %}
+                                {% elseif note.noteType == 'EXAMINATION' %}
+                                    {% set note_color = '#1d4ed8' %}
+                                    {% set note_bg = '#eff6ff' %}
+                                {% elseif note.noteType == 'DIAGNOSIS' %}
+                                    {% set note_color = '#b45309' %}
+                                    {% set note_bg = '#fffbeb' %}
+                                {% elseif note.noteType == 'TREATMENT' %}
+                                    {% set note_color = '#15803d' %}
+                                    {% set note_bg = '#f0fdf4' %}
+                                {% elseif note.noteType == 'FOLLOW_UP' %}
+                                    {% set note_color = '#78350f' %}
+                                    {% set note_bg = '#fef3c7' %}
+                                {% endif %}
+
+                                <div style="border-left: 3px solid {{ note_color }}; padding: var(--space-2) var(--space-3); background: {{ note_bg }}; border-radius: 0 var(--radius-md) var(--radius-md) 0;">
+                                    <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1);">
+                                        <span class="badge" style="background: transparent; color: {{ note_color }}; font-weight: var(--weight-medium);">{{ note.noteType }}</span>
+                                        <span style="font-size: var(--text-xs); color: var(--text-subtle);">{{ note.createdAt }}</span>
+                                    </div>
+                                    <p style="font-size: var(--text-md); color: var(--text-primary);">{{ note.content }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p style="font-size: var(--text-sm); color: var(--text-subtle); font-style: italic;">Aucune note clinique pour le moment.</p>
+                    {% endif %}
+
+                    {# Add note form (only when consultation is open) #}
+                    {% if consultation.status == 'OPEN' %}
+                        <div style="border-top: 1px solid var(--border-light); padding-top: var(--space-3);">
+                            <form method="post" action="{{ path('clinic_consultation_add_note', {id: consultation.consultationId}) }}">
+                                <div style="display: grid; grid-template-columns: 1fr 3fr; gap: var(--space-2);">
+                                    <div>
+                                        <label class="form-label">Type</label>
+                                        <select name="noteType" class="form-input" required>
+                                            <option value="">-- Type --</option>
+                                            <option value="ANAMNESIS">Anamnèse</option>
+                                            <option value="EXAMINATION">Examen</option>
+                                            <option value="DIAGNOSIS">Diagnostic</option>
+                                            <option value="TREATMENT">Traitement</option>
+                                            <option value="FOLLOW_UP">Suivi</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Contenu</label>
+                                        <div style="display: flex; gap: var(--space-2);">
+                                            <textarea
+                                                name="content"
+                                                class="form-input"
+                                                rows="2"
+                                                placeholder="Contenu de la note..."
+                                                required
+                                                style="flex: 1;"
+                                            ></textarea>
+                                            <div style="display: flex; align-items: flex-end;">
+                                                <button type="submit" class="btn btn-primary btn-sm">
+                                                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Summary (shown when consultation is closed) #}
+            {% if consultation.status == 'CLOSED' and consultation.summary %}
+                <div class="widget">
+                    <div class="w-head">
+                        <span class="w-title">Résumé de consultation</span>
+                    </div>
+                    <div class="w-body">
+                        <div style="background: var(--color-success-bg); border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: var(--space-3); font-size: var(--text-md); color: var(--color-success-text);">
+                            {{ consultation.summary }}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Close consultation (when open) #}
+            {% if consultation.status == 'OPEN' %}
+                <div class="widget" style="border: 2px solid #fde68a;">
+                    <div class="w-head">
+                        <span class="w-title">Clôturer la consultation</span>
+                    </div>
+                    <div class="w-body">
+                        <form method="post" action="{{ path('clinic_consultation_close', {id: consultation.consultationId}) }}" onsubmit="return confirm('Confirmer la clôture de cette consultation ?');">
+                            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+                                <div>
+                                    <label class="form-label">Résumé de la consultation (optionnel)</label>
+                                    <textarea
+                                        name="summary"
+                                        class="form-input"
+                                        rows="4"
+                                        placeholder="Résumé : diagnostic, traitement prescrit, instructions pour le propriétaire..."
+                                    ></textarea>
+                                </div>
+                                <div style="display: flex; gap: var(--space-2);">
+                                    <button type="submit" class="btn btn-primary btn-sm">
+                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                        Clôturer la consultation
+                                    </button>
+                                    <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-secondary btn-sm">
+                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                        Retour à l'agenda
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             {% else %}
-                <p class="text-sm text-gray-500 italic">Aucun acte réalisé pour le moment.</p>
-            {% endif %}
-
-            {% if consultation.status == 'OPEN' %}
-                <hr class="my-4">
-                <form method="post" action="{{ path('clinic_consultation_add_act', {id: consultation.consultationId}) }}">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div class="md:col-span-2">
-                            <label class="form-label">Libellé de l'acte</label>
-                            <input type="text" name="label" class="input" placeholder="Ex: Consultation générale" required>
-                        </div>
-                        <div class="md:col-span-1">
-                            <label class="form-label">Quantité</label>
-                            <input type="number" step="0.01" name="quantity" class="input" value="1" required>
-                        </div>
-                        <div class="md:col-span-1 flex items-end">
-                            <button type="submit" class="btn btn-primary w-full">
-                                <i class="ki-filled ki-plus me-1"></i>
-                                Ajouter
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            {% endif %}
-        </div>
-    </div>
-
-    {# Summary (if closed) #}
-    {% if consultation.status == 'CLOSED' and consultation.summary %}
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Résumé de consultation</h3>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-success">
-                    <div class="alert-text">{{ consultation.summary }}</div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-secondary btn-sm">
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                        Retour à l'agenda
+                    </a>
                 </div>
-            </div>
-        </div>
-    {% endif %}
+            {% endif %}
 
-    {# Close Consultation #}
-    {% if consultation.status == 'OPEN' %}
-        <div class="card border-2 border-warning">
-            <div class="card-header">
-                <h3 class="card-title">Clôturer la consultation</h3>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{{ path('clinic_consultation_close', {id: consultation.consultationId}) }}" onsubmit="return confirm('Confirmer la clôture de cette consultation ?');">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="form-label">Résumé de la consultation (optionnel)</label>
-                            <textarea
-                                name="summary"
-                                class="input"
-                                rows="4"
-                                placeholder="Résumé : diagnostic, traitement prescrit, instructions pour le propriétaire..."
-                            ></textarea>
-                        </div>
-                        <div class="flex gap-3">
-                            <button type="submit" class="btn btn-success">
-                                <i class="ki-filled ki-check me-2"></i>
-                                Clôturer la consultation
-                            </button>
-                            <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-light">
-                                <i class="ki-filled ki-left me-2"></i>
-                                Retour à l'agenda
-                            </a>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    {% else %}
-        <div class="flex justify-end">
-            <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-light">
-                <i class="ki-filled ki-left me-2"></i>
-                Retour à l'agenda
-            </a>
-        </div>
-    {% endif %}
+        </div>{# /right column #}
+    </div>{# /two-column layout #}
+
 </div>
 {% endblock %}

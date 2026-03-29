@@ -1,100 +1,113 @@
-<div class="modal fade" id="modalNewAppointment" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{{ path('clinic_scheduling_appointment_create') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="ki-filled ki-calendar-add me-2"></i>
-                        Nouveau rendez-vous
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    {# Date & Time #}
-                    <div class="mb-3">
-                        <label class="form-label">Date et heure <span class="text-danger">*</span></label>
-                        <input type="datetime-local" 
-                               name="startsAtUtc" 
-                               class="form-control" 
-                               value="{{ selectedDate|date('Y-m-d\\TH:i') }}"
-                               required>
-                    </div>
+{#
+ # Kiveto — templates/clinic/scheduling/_modal_new_appointment.html.twig
+ # ─────────────────────────────────────────────────────────────────────
+ # Modal for creating a new appointment. Uses the VetSaaS modal component.
+ #
+ # Variables (inherited from dashboard):
+ #   selectedDate  DateTimeImmutable   Pre-filled date for the new appointment
+ #}
 
-                    {# Duration #}
-                    <div class="mb-3">
-                        <label class="form-label">Durée (minutes) <span class="text-danger">*</span></label>
-                        <select name="durationMinutes" class="form-select" required>
-                            <option value="15">15 min</option>
-                            <option value="30" selected>30 min</option>
-                            <option value="45">45 min</option>
-                            <option value="60">1 heure</option>
-                            <option value="90">1h30</option>
-                            <option value="120">2 heures</option>
-                        </select>
-                    </div>
+{% embed 'components/layout/modal.html.twig' with {
+    id: 'modalNewAppointment',
+    title: 'Nouveau rendez-vous',
+    size: 'md',
+    show_footer: true,
+    cancel_label: 'Annuler',
+    submit_label: 'Créer le RDV',
+    submit_variant: 'primary',
+    form_id: 'formNewAppointment',
+} %}
+    {% block modal_body %}
+        <form
+            id="formNewAppointment"
+            method="post"
+            action="{{ path('clinic_scheduling_appointment_create') }}"
+        >
+            {# Date & time #}
+            <div class="form-row">
+                <label class="form-label">Date et heure <span style="color: var(--color-danger-text);">*</span></label>
+                <input
+                    type="datetime-local"
+                    name="startsAtUtc"
+                    class="form-input"
+                    value="{{ selectedDate|date('Y-m-d\\TH:i') }}"
+                    required
+                >
+            </div>
 
-                    {# Practitioner (optional) #}
-                    <div class="mb-3">
-                        <label class="form-label">Praticien (optionnel)</label>
-                        <input type="text" 
-                               name="practitionerUserId" 
-                               class="form-control" 
-                               placeholder="UUID du praticien">
-                        <small class="form-text text-muted">
-                            Laissez vide pour un RDV non assigné
-                        </small>
-                    </div>
+            {# Duration #}
+            <div class="form-row">
+                <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
+                <select name="durationMinutes" class="form-input" required>
+                    <option value="15">15 min</option>
+                    <option value="30" selected>30 min</option>
+                    <option value="45">45 min</option>
+                    <option value="60">1 heure</option>
+                    <option value="90">1h30</option>
+                    <option value="120">2 heures</option>
+                </select>
+            </div>
 
-                    {# Owner & Animal (optional) #}
-                    <div class="mb-3">
-                        <label class="form-label">Propriétaire (optionnel)</label>
-                        <input type="text" 
-                               name="ownerId" 
-                               class="form-control" 
-                               placeholder="UUID du propriétaire">
-                    </div>
+            {# Practitioner #}
+            <div class="form-row">
+                <label class="form-label">Praticien (optionnel)</label>
+                <input
+                    type="text"
+                    name="practitionerUserId"
+                    class="form-input"
+                    placeholder="UUID du praticien"
+                >
+                <span style="font-size: var(--text-xs); color: var(--text-subtle); margin-top: 2px; display: block;">
+                    Laissez vide pour un RDV non assigné
+                </span>
+            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Animal (optionnel)</label>
-                        <input type="text" 
-                               name="animalId" 
-                               class="form-control" 
-                               placeholder="UUID de l'animal">
-                    </div>
+            {# Owner #}
+            <div class="form-row">
+                <label class="form-label">Propriétaire (optionnel)</label>
+                <input
+                    type="text"
+                    name="ownerId"
+                    class="form-input"
+                    placeholder="UUID du propriétaire"
+                >
+            </div>
 
-                    {# Reason #}
-                    <div class="mb-3">
-                        <label class="form-label">Motif</label>
-                        <select name="reason" class="form-select">
-                            <option value="">-- Sélectionner --</option>
-                            <option value="Consultation">Consultation</option>
-                            <option value="Vaccination">Vaccination</option>
-                            <option value="Chirurgie">Chirurgie</option>
-                            <option value="Contrôle">Contrôle</option>
-                            <option value="Urgence">Urgence</option>
-                            <option value="Autre">Autre</option>
-                        </select>
-                    </div>
+            {# Animal #}
+            <div class="form-row">
+                <label class="form-label">Animal (optionnel)</label>
+                <input
+                    type="text"
+                    name="animalId"
+                    class="form-input"
+                    placeholder="UUID de l'animal"
+                >
+            </div>
 
-                    {# Notes #}
-                    <div class="mb-3">
-                        <label class="form-label">Notes</label>
-                        <textarea name="notes" 
-                                  class="form-control" 
-                                  rows="3" 
-                                  placeholder="Notes additionnelles..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        Annuler
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ki-filled ki-check me-1"></i>
-                        Créer le RDV
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+            {# Reason #}
+            <div class="form-row">
+                <label class="form-label">Motif</label>
+                <select name="reason" class="form-input">
+                    <option value="">-- Sélectionner --</option>
+                    <option value="Consultation">Consultation</option>
+                    <option value="Vaccination">Vaccination</option>
+                    <option value="Chirurgie">Chirurgie</option>
+                    <option value="Contrôle">Contrôle</option>
+                    <option value="Urgence">Urgence</option>
+                    <option value="Autre">Autre</option>
+                </select>
+            </div>
+
+            {# Notes #}
+            <div class="form-row">
+                <label class="form-label">Notes</label>
+                <textarea
+                    name="notes"
+                    class="form-input"
+                    rows="3"
+                    placeholder="Notes additionnelles..."
+                ></textarea>
+            </div>
+        </form>
+    {% endblock %}
+{% endembed %}

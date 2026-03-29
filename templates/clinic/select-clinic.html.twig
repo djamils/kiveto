@@ -1,50 +1,395 @@
+{#
+ # Kiveto -- templates/clinic/select-clinic.html.twig
+ # ──────────────────────────────────────────────────
+ # Clinic picker page. User selects which clinic to work in.
+ # Extends base.html.twig (no sidebar).
+ #
+ # Variables from controller:
+ #   clinics    array of AccessibleClinic (clinicId, clinicName, clinicSlug, memberRole.value, engagement.value)
+ #   csrf_token string   CSRF token value
+ #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Sélectionner une clinique{% endblock %}
+{% block title %}Selectionner une clinique{% endblock %}
+
+{% block stylesheets %}
+<style>
+  /* ── Clinic picker page styles ── */
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-page);
+    padding: var(--space-6) var(--space-4);
+  }
+
+  /* ── Picker card ── */
+  .picker-card {
+    --gap: 24px;
+    width: 100%;
+    max-width: 680px;
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: calc(100vh - var(--space-6) * 2);
+  }
+
+  /* ── Header ── */
+  .picker-head {
+    flex-shrink: 0;
+    padding: var(--gap) var(--gap) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .picker-head-top {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .picker-logo {
+    width: 36px;
+    height: 36px;
+    background: var(--brand-900);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .picker-head-text { flex: 1; min-width: 0; }
+
+  .picker-head-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    letter-spacing: -.2px;
+    margin-bottom: var(--space-1);
+  }
+
+  .picker-head-sub {
+    font-size: var(--text-md);
+    color: var(--text-subtle);
+    line-height: var(--lh-normal);
+  }
+
+  .btn-logout {
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-medium);
+    background: transparent;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+  .btn-logout:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
+
+  /* ── Clinic list (scrollable zone) ── */
+  .picker-list-zone {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .picker-list {
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--gap) var(--space-5);
+    scroll-behavior: smooth;
+  }
+
+  .picker-list::-webkit-scrollbar { width: 6px; }
+  .picker-list::-webkit-scrollbar-track { background: transparent; }
+  .picker-list::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: var(--radius-full); }
+
+  /* Gradient fade at bottom */
+  .picker-list-zone::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,.97));
+    pointer-events: none;
+  }
+
+  /* ── Clinic item (radio card) ── */
+  .clinic-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 0 var(--space-3);
+    align-items: center;
+    padding: var(--space-3);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+    background: var(--surface-card);
+    flex-shrink: 0;
+    min-height: 72px;
+  }
+
+  .clinic-item:hover {
+    border-color: var(--brand-200);
+    background: #fafafe;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99,102,241,.07);
+  }
+  .clinic-item:active { transform: translateY(0); }
+
+  /* Selected state via CSS :has() for radio */
+  .clinic-item:has(input:checked) {
+    border-color: var(--brand-600);
+    background: var(--brand-50);
+    box-shadow: 0 0 0 3px rgba(67,56,202,.08);
+  }
+
+  /* Hidden radio input */
+  .clinic-item input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .clinic-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    color: #fff;
+    flex-shrink: 0;
+    background: var(--brand-900);
+  }
+
+  .clinic-info { min-width: 0; }
+
+  .clinic-name {
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .clinic-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .meta-item {
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+  }
+
+  .meta-sep {
+    width: 3px;
+    height: 3px;
+    border-radius: var(--radius-full);
+    background: var(--slate-300);
+    flex-shrink: 0;
+  }
+
+  .clinic-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  .clinic-badge {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--surface-subtle);
+    color: var(--text-subtle);
+    white-space: nowrap;
+  }
+
+  /* Check indicator (visible when selected) */
+  .clinic-check {
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full);
+    background: var(--brand-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .15s, transform .15s;
+    transform: scale(.6);
+  }
+  .clinic-item:has(input:checked) .clinic-check {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* ── Footer ── */
+  .picker-foot {
+    flex-shrink: 0;
+    padding: var(--space-4) var(--gap);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    position: relative;
+  }
+
+  .picker-foot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: var(--gap);
+    right: var(--gap);
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  .btn-enter {
+    height: 36px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--brand-900);
+    color: #fff;
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    transition: var(--transition-normal);
+  }
+  .btn-enter:hover { background: var(--brand-800); box-shadow: 0 4px 12px rgba(30,27,75,.2); }
+  .btn-enter:active { transform: translateY(1px); }
+
+  /* ── Responsive ── */
+  @media (max-width: 720px) {
+    body { padding: var(--space-4) var(--space-3); }
+    .picker-card { --gap: 20px; max-width: 100%; }
+  }
+
+  @media (max-width: 600px) {
+    body { padding: var(--space-3); }
+    .picker-card { --gap: 16px; }
+
+    .picker-head-top { flex-wrap: wrap; }
+    .btn-logout { order: 3; width: 100%; text-align: center; justify-content: center; }
+
+    .clinic-item {
+      grid-template-columns: 40px 1fr auto;
+      gap: 0 var(--space-2);
+      min-height: 64px;
+      padding: var(--space-2);
+    }
+    .clinic-logo { width: 40px; height: 40px; font-size: var(--text-md); }
+  }
+</style>
+{% endblock %}
 
 {% block body %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Sélectionnez votre clinique</h3>
-                </div>
-                <div class="card-body">
-                    {% for label, messages in app.flashes %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ label == 'error' ? 'danger' : label }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
+<form method="post" action="{{ path('clinic_select_clinic_post') }}">
+  <input type="hidden" name="_token" value="{{ csrf_token }}"/>
 
-                    <form method="post" action="{{ path('clinic_select_clinic_post') }}">
-                        <input type="hidden" name="_token" value="{{ csrf_token }}">
+  <div class="picker-card" role="main">
 
-                        <div class="list-group mb-3">
-                            {% for clinic in clinics %}
-                                <label class="list-group-item list-group-item-action d-flex align-items-center">
-                                    <input type="radio" name="clinic_id" value="{{ clinic.clinicId }}" class="form-check-input me-3" required>
-                                    <div class="flex-grow-1">
-                                        <h5 class="mb-1">{{ clinic.clinicName }}</h5>
-                                        <p class="mb-1 text-muted">
-                                            <small>
-                                                <code>{{ clinic.clinicSlug }}</code> · 
-                                                <span class="badge bg-info">{{ clinic.memberRole.value }}</span>
-                                                <span class="badge bg-secondary">{{ clinic.engagement.value }}</span>
-                                            </small>
-                                        </p>
-                                    </div>
-                                </label>
-                            {% endfor %}
-                        </div>
-
-                        <button type="submit" class="btn btn-primary btn-lg w-100">Continuer</button>
-                    </form>
-                </div>
-            </div>
+    {# Header #}
+    <div class="picker-head">
+      <div class="picker-head-top">
+        <div class="picker-logo" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
+            <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
         </div>
+        <div class="picker-head-text">
+          <p class="picker-head-title">Selectionner une clinique</p>
+          <p class="picker-head-sub">Choisissez la clinique sur laquelle vous souhaitez travailler.</p>
+        </div>
+        <a class="btn-logout" href="{{ path('_logout_clinic') }}">Deconnexion</a>
+      </div>
     </div>
-</div>
+
+    {# Scrollable clinic list #}
+    <div class="picker-list-zone">
+      <div class="picker-list" role="listbox" aria-label="Selectionnez une clinique">
+        {% for clinic in clinics %}
+          <label class="clinic-item" role="option">
+            <input type="radio" name="clinic_id" value="{{ clinic.clinicId }}" required/>
+
+            <div class="clinic-logo" aria-hidden="true">
+              {{ clinic.clinicName|first|upper }}
+            </div>
+
+            <div class="clinic-info">
+              <p class="clinic-name">{{ clinic.clinicName }}</p>
+              <div class="clinic-meta">
+                <span class="meta-item">{{ clinic.memberRole.value }}</span>
+                <div class="meta-sep" aria-hidden="true"></div>
+                <span class="meta-item">{{ clinic.engagement.value }}</span>
+              </div>
+            </div>
+
+            <div class="clinic-right">
+              <span class="clinic-badge">{{ clinic.clinicSlug }}</span>
+              <div class="clinic-check" aria-hidden="true">
+                <svg width="11" height="11" fill="none" viewBox="0 0 12 12">
+                  <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </label>
+        {% else %}
+          <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-2);padding:var(--space-8) var(--space-4);text-align:center;">
+            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-muted)">Aucune clinique disponible</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Footer with submit button #}
+    <div class="picker-foot">
+      <button class="btn-enter" type="submit">
+        Continuer
+        <svg width="12" height="12" fill="none" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2 6h8M6 2l4 4-4 4" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+</form>
 {% endblock %}

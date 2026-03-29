@@ -1,131 +1,139 @@
+{# Backoffice — Clinic memberships listing page #}
 {% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Membres cliniques{% endblock %}
-{% block page_title %}👥 Clinic Memberships{% endblock %}
+{% block page_title %}Membres cliniques{% endblock %}
 
-{% block body %}
-<div style="margin-bottom: 20px;">
-    <a href="{{ path('backoffice_clinic_memberships_new') }}" style="display: inline-block; padding: 10px 20px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-weight: 500;">
-        ➕ Créer une membership
+{% block content %}
+  {# Action bar #}
+  <div style="margin-bottom:var(--space-4);">
+    <a href="{{ path('backoffice_clinic_memberships_new') }}" class="btn btn-primary">
+      Creer une membership
     </a>
-</div>
+  </div>
 
-    <div class="card mb-4">
-        <div class="card-header">Filtrer</div>
-        <div class="card-body">
-            <form method="get" action="{{ path('backoffice_clinic_memberships') }}" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Statut</label>
-                    <select name="status" class="form-select">
-                        <option value="">(tous)</option>
-                        <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
-                        <option value="DISABLED" {{ filters.status == 'DISABLED' ? 'selected' : '' }}>Disabled</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Rôle</label>
-                    <select name="role" class="form-select">
-                        <option value="">(tous)</option>
-                        <option value="CLINIC_ADMIN" {{ filters.role == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
-                        <option value="VETERINARY" {{ filters.role == 'VETERINARY' ? 'selected' : '' }}>Veterinary</option>
-                        <option value="ASSISTANT_VETERINARY" {{ filters.role == 'ASSISTANT_VETERINARY' ? 'selected' : '' }}>Assistant Veterinary</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Engagement</label>
-                    <select name="engagement" class="form-select">
-                        <option value="">(tous)</option>
-                        <option value="EMPLOYEE" {{ filters.engagement == 'EMPLOYEE' ? 'selected' : '' }}>Employee</option>
-                        <option value="CONTRACTOR" {{ filters.engagement == 'CONTRACTOR' ? 'selected' : '' }}>Contractor</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Clinic ID</label>
-                    <input name="clinic_id" class="form-control" value="{{ filters.clinic_id }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">User ID</label>
-                    <input name="user_id" class="form-control" value="{{ filters.user_id }}">
-                </div>
-                <div class="col-md-12">
-                    <button class="btn btn-primary" type="submit">Rechercher</button>
-                </div>
-            </form>
-        </div>
+  {# Filters #}
+  <div class="widget widget-pad" style="margin-bottom:var(--space-4);">
+    <h3 style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);">
+      Filtrer
+    </h3>
+    <form method="get" action="{{ path('backoffice_clinic_memberships') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
+      <div class="field">
+        <label class="field-label">Statut</label>
+        <select name="status" class="form-input">
+          <option value="">(tous)</option>
+          <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
+          <option value="DISABLED" {{ filters.status == 'DISABLED' ? 'selected' : '' }}>Disabled</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Role</label>
+        <select name="role" class="form-input">
+          <option value="">(tous)</option>
+          <option value="CLINIC_ADMIN" {{ filters.role == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
+          <option value="VETERINARY" {{ filters.role == 'VETERINARY' ? 'selected' : '' }}>Veterinary</option>
+          <option value="ASSISTANT_VETERINARY" {{ filters.role == 'ASSISTANT_VETERINARY' ? 'selected' : '' }}>Assistant Veterinary</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Engagement</label>
+        <select name="engagement" class="form-input">
+          <option value="">(tous)</option>
+          <option value="EMPLOYEE" {{ filters.engagement == 'EMPLOYEE' ? 'selected' : '' }}>Employee</option>
+          <option value="CONTRACTOR" {{ filters.engagement == 'CONTRACTOR' ? 'selected' : '' }}>Contractor</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Clinic ID</label>
+        <input name="clinic_id" class="form-input" value="{{ filters.clinic_id }}">
+      </div>
+      <div class="field">
+        <label class="field-label">User ID</label>
+        <input name="user_id" class="form-input" value="{{ filters.user_id }}">
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Rechercher</button>
+      </div>
+    </form>
+  </div>
+
+  {# Results table #}
+  <div class="widget">
+    <div class="widget-pad" style="border-bottom:1px solid var(--border-default);">
+      <h3 style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary);">
+        Resultats ({{ collection.total }})
+      </h3>
     </div>
-
-    <div class="card">
-        <div class="card-header">
-            Résultats ({{ collection.total }})
-        </div>
-        <div class="card-body table-responsive">
-            <table class="table table-striped table-sm align-middle">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Clinic</th>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Engagement</th>
-                        <th>Status</th>
-                        <th>Valid From</th>
-                        <th>Valid Until</th>
-                        <th style="width: 200px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for membership in collection.memberships %}
-                    <tr>
-                        <td><small><code>{{ membership.membershipId|slice(0, 8) }}</code></small></td>
-                        <td>
-                            {{ membership.clinicName }}<br>
-                            <small class="text-muted"><code>{{ membership.clinicId|slice(0, 8) }}</code></small>
-                        </td>
-                        <td>
-                            {{ membership.userEmail }}<br>
-                            <small class="text-muted"><code>{{ membership.userId|slice(0, 8) }}</code></small>
-                        </td>
-                        <td>
-                            <span class="badge bg-info">{{ membership.role.value }}</span>
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary">{{ membership.engagement.value }}</span>
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ membership.status.value == 'ACTIVE' ? 'success' : 'danger' }}">
-                                {{ membership.status.value }}
-                            </span>
-                        </td>
-                        <td><small>{{ membership.validFrom|date('Y-m-d H:i') }}</small></td>
-                        <td>
-                            {% if membership.validUntil %}
-                                <small>{{ membership.validUntil|date('Y-m-d H:i') }}</small>
-                            {% else %}
-                                <small class="text-muted">∞</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                {% if membership.status.value == 'ACTIVE' %}
-                                    <form method="post" action="{{ path('backoffice_clinic_memberships_disable', {id: membership.membershipId}) }}" style="display:inline;">
-                                        <input type="hidden" name="_token" value="{{ csrf_token }}">
-                                        <button type="submit" class="btn btn-warning" onclick="return confirm('Désactiver cette membership ?')">Disable</button>
-                                    </form>
-                                {% else %}
-                                    <form method="post" action="{{ path('backoffice_clinic_memberships_enable', {id: membership.membershipId}) }}" style="display:inline;">
-                                        <input type="hidden" name="_token" value="{{ csrf_token }}">
-                                        <button type="submit" class="btn btn-success">Enable</button>
-                                    </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead class="dt-head">
+          <tr>
+            <th>ID</th>
+            <th>Clinic</th>
+            <th>User</th>
+            <th>Role</th>
+            <th>Engagement</th>
+            <th>Status</th>
+            <th>Valid From</th>
+            <th>Valid Until</th>
+            <th style="width:200px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="dt-body">
+          {% for membership in collection.memberships %}
+            <tr class="dt-row">
+              <td><small><code>{{ membership.membershipId|slice(0, 8) }}</code></small></td>
+              <td>
+                {{ membership.clinicName }}<br>
+                <small style="color:var(--text-subtle);"><code>{{ membership.clinicId|slice(0, 8) }}</code></small>
+              </td>
+              <td>
+                {{ membership.userEmail }}<br>
+                <small style="color:var(--text-subtle);"><code>{{ membership.userId|slice(0, 8) }}</code></small>
+              </td>
+              <td>
+                <span class="badge b-info">{{ membership.role.value }}</span>
+              </td>
+              <td>
+                <span class="badge b-muted">{{ membership.engagement.value }}</span>
+              </td>
+              <td>
+                {% if membership.status.value == 'ACTIVE' %}
+                  <span class="badge b-ok">{{ membership.status.value }}</span>
                 {% else %}
-                    <tr><td colspan="9" class="text-center">Aucun résultat</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                  <span class="badge b-fail">{{ membership.status.value }}</span>
+                {% endif %}
+              </td>
+              <td><small>{{ membership.validFrom|date('Y-m-d H:i') }}</small></td>
+              <td>
+                {% if membership.validUntil %}
+                  <small>{{ membership.validUntil|date('Y-m-d H:i') }}</small>
+                {% else %}
+                  <small style="color:var(--text-subtle);">&infin;</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if membership.status.value == 'ACTIVE' %}
+                  <form method="post" action="{{ path('backoffice_clinic_memberships_disable', {id: membership.membershipId}) }}" style="display:inline;">
+                    <input type="hidden" name="_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Desactiver cette membership ?')">Disable</button>
+                  </form>
+                {% else %}
+                  <form method="post" action="{{ path('backoffice_clinic_memberships_enable', {id: membership.membershipId}) }}" style="display:inline;">
+                    <input type="hidden" name="_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-success">Enable</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="9" style="text-align:center;padding:var(--space-4);color:var(--text-subtle);">
+                Aucun resultat
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-</div>
+  </div>
 {% endblock %}

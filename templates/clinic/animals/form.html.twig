@@ -1,0 +1,92 @@
+{#
+ # Kiveto — templates/clinic/animals/form.html.twig
+ # ─────────────────────────────────────────────────
+ # Animal create / edit form using VetSaaS form components.
+ #
+ # Variables:
+ #   animal       AnimalDto or null (null = create mode)
+ #   csrf_token   string  CSRF token value
+ #   currentClinicName  string
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}{{ animal ? 'Modifier ' ~ animal.name : 'Nouvel animal' }} - {{ currentClinicName }}{% endblock %}
+
+{% block page_title %}{{ animal ? 'Modifier ' ~ animal.name : 'Nouvel animal' }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}"
+     class="btn btn-secondary btn-sm">Annuler</a>
+  <button type="submit" form="animalForm" class="btn btn-primary btn-sm">
+    {{ animal ? 'Sauvegarder' : 'Creer' }}
+  </button>
+{% endblock %}
+
+{% block content %}
+  {# Breadcrumb navigation #}
+  <nav style="margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);">
+    <a href="{{ path('clinic_animals_list') }}" style="color:var(--brand-600);">Animaux</a>
+    <span style="margin:0 var(--space-1);">/</span>
+    {% if animal %}
+      <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" style="color:var(--brand-600);">{{ animal.name }}</a>
+      <span style="margin:0 var(--space-1);">/</span>
+      <span style="color:var(--text-primary);">Modifier</span>
+    {% else %}
+      <span style="color:var(--text-primary);">Nouvel animal</span>
+    {% endif %}
+  </nav>
+
+  <form method="post"
+        action="{{ animal ? path('clinic_animals_update', {id: animal.id}) : path('clinic_animals_create') }}"
+        id="animalForm">
+    <input type="hidden" name="_token" value="{{ csrf_token }}">
+
+    {# Identity fields #}
+    <div class="widget" style="margin-bottom:var(--space-4);">
+      <div class="widget-head">
+        <span class="widget-title">Identite</span>
+      </div>
+      <div class="widget-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+          <div class="field">
+            <label class="field-label" for="name">Nom *</label>
+            <input type="text"
+                   class="form-input"
+                   id="name"
+                   name="name"
+                   required
+                   value="{{ animal ? animal.name : '' }}"
+                   placeholder="Ex: Rex, Minou...">
+          </div>
+          <div class="field">
+            <label class="field-label" for="species">Espece *</label>
+            <select class="form-input" id="species" name="species" required>
+              <option value="">-- Choisir --</option>
+              <option value="DOG" {{ animal and animal.species == 'DOG' ? 'selected' : '' }}>Chien</option>
+              <option value="CAT" {{ animal and animal.species == 'CAT' ? 'selected' : '' }}>Chat</option>
+              <option value="NAC" {{ animal and animal.species == 'NAC' ? 'selected' : '' }}>NAC</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="breed_name">Race</label>
+            <input type="text"
+                   class="form-input"
+                   id="breed_name"
+                   name="breed_name"
+                   value="{{ animal ? animal.breedName : '' }}"
+                   placeholder="Ex: Labrador, Persan...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Form actions #}
+    <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-4);">
+      <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}"
+         class="btn btn-secondary">Annuler</a>
+      <button type="submit" class="btn btn-primary">
+        {{ animal ? 'Sauvegarder les modifications' : 'Creer l\'animal' }}
+      </button>
+    </div>
+  </form>
+{% endblock %}

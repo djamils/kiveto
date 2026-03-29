@@ -31,44 +31,12 @@ final class HomeController extends AbstractController
             $clinicName = $clinic->name;
         }
 
-        return $this->render('clinic/index.html.twig', [
-            'clinicName' => $clinicName,
-            'menuItems'  => [
-                [
-                    'label' => 'Tableau de bord',
-                    'route' => 'clinic_dashboard',
-                    'icon'  => 'ki-chart',
-                ],
-                [
-                    'label' => 'Clients',
-                    'route' => 'clinic_clients_list',
-                    'icon'  => 'ki-profile-circle',
-                ],
-                [
-                    'label' => 'Animaux',
-                    'route' => null,
-                    'icon'  => 'ki-security-user',
-                    'badge' => 'Bientôt',
-                ],
-                [
-                    'label' => 'Rendez-vous',
-                    'route' => null,
-                    'icon'  => 'ki-calendar',
-                    'badge' => 'Bientôt',
-                ],
-            ],
-            'translations' => [
-                'hello'                => 'hello', // already defined fr-FR
-                'clinic.home.title'    => 'clinic.home.title',
-                'clinic.home.subtitle' => 'clinic.home.subtitle',
-                'clinic.home.cta'      => 'clinic.home.cta',
-            ],
-        ]);
+        return $this->redirectToRoute('clinic_dashboard');
     }
 
     #[Route('/dashboard-layout14', name: 'clinic_dashboard_layout14')]
     public function dashboardLayout14(): Response
     {
-        return $this->render('clinic/dashboard-layout14.html.twig');
+        return $this->redirectToRoute('clinic_dashboard');
     }
 }

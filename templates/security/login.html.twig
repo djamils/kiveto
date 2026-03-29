@@ -1,76 +1,466 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 40px auto; }
-        form { display: flex; flex-direction: column; gap: 12px; }
-        label { font-weight: bold; }
-        input { padding: 8px; font-size: 14px; }
-        button { padding: 10px; font-size: 15px; cursor: pointer; }
-        .error { color: #c00; }
-        .success { color: #080; }
-    </style>
-</head>
-<body>
-    <h1>Login {{ app | title }}</h1>
-    <form id="login-form">
-        <div>
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required>
+{#
+ # Kiveto -- templates/security/login.html.twig
+ # ─────────────────────────────────────────────
+ # Login page with split layout: branding aside (desktop) + login card.
+ # Extends base.html.twig (no sidebar).
+ #
+ # Variables from controller:
+ #   error          AuthenticationException|null   Authentication error
+ #   last_username  string                         Last entered username/email
+ #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block stylesheets %}
+<style>
+  /* ── Login page overrides ── */
+  html { height: 100%; }
+
+  body {
+    min-height: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--brand-950);
+    background-image:
+      radial-gradient(ellipse 70% 60% at 15% 20%, rgba(67,56,202,.18) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 85% 80%, rgba(99,102,241,.1) 0%, transparent 55%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  /* Decorative grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(255,255,255,.016) 47px, rgba(255,255,255,.016) 48px),
+      repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,.016) 47px, rgba(255,255,255,.016) 48px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Shell: centered main container ── */
+  .login-shell {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 900px;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+  }
+
+  /* ── Aside: left branding panel (desktop only) ── */
+  .login-aside {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .aside-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .logo {
+    width: 40px;
+    height: 40px;
+    background: var(--brand-600);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
+  }
+
+  .brand-name {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-medium);
+    color: #fff;
+    letter-spacing: -.2px;
+  }
+
+  .brand-sub {
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,.35);
+    margin-top: 2px;
+  }
+
+  .tagline-title {
+    font-size: 28px;
+    font-weight: 300;
+    color: #fff;
+    line-height: 1.25;
+    letter-spacing: -.4px;
+  }
+
+  .tagline-title strong {
+    font-weight: var(--weight-medium);
+    color: var(--brand-100);
+  }
+
+  .tagline-sub {
+    font-size: var(--text-md);
+    color: rgba(255,255,255,.4);
+    line-height: var(--lh-loose);
+    margin-top: var(--space-3);
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .feature-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--brand-500);
+    flex-shrink: 0;
+    opacity: .7;
+  }
+
+  .feature-text {
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,.35);
+  }
+
+  .security-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--radius-full);
+    padding: var(--space-1) var(--space-3);
+  }
+
+  .security-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: #4ade80;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(74,222,128,.5);
+  }
+
+  .security-text {
+    font-size: var(--text-xs);
+    color: rgba(255,255,255,.4);
+  }
+
+  /* ── Login card ── */
+  .login-card {
+    width: 400px;
+    flex-shrink: 0;
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+
+  .login-card .card-header {
+    margin-bottom: var(--space-8);
+  }
+
+  .login-card .card-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    letter-spacing: -.3px;
+    margin-bottom: var(--space-1);
+  }
+
+  .login-card .card-sub {
+    font-size: var(--text-md);
+    color: var(--text-subtle);
+  }
+
+  /* Form layout */
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  /* Input with icon */
+  .field-inner {
+    position: relative;
+  }
+
+  .field-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-subtle);
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+  }
+
+  .fi-with-icon {
+    padding-left: 38px;
+  }
+
+  /* Submit button (full width) */
+  .btn-submit {
+    width: 100%;
+    height: 40px;
+    background: var(--brand-900);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    transition: var(--transition-normal);
+    letter-spacing: -.1px;
+  }
+
+  .btn-submit:hover:not(:disabled) {
+    background: var(--brand-800);
+    box-shadow: 0 4px 16px rgba(30,27,75,.2);
+  }
+
+  .btn-submit:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  /* Login error alert */
+  .login-error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--color-danger-bg, #fee2e2);
+    color: var(--color-danger-text, #dc2626);
+    font-size: var(--text-md);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-danger-border, #fecaca);
+  }
+
+  /* Card footer */
+  .login-card .card-footer {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--slate-100);
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    text-align: center;
+  }
+
+  /* ── Responsive ── */
+
+  /* Tablet landscape: hide aside, center card */
+  @media (max-width: 859px) {
+    body { padding: var(--space-6); }
+
+    .login-shell { justify-content: center; }
+    .login-aside { display: none; }
+
+    .login-card {
+      width: 440px;
+      max-width: 100%;
+    }
+  }
+
+  /* Tablet portrait */
+  @media (max-width: 700px) {
+    body {
+      padding: var(--space-6) var(--space-5);
+      align-items: stretch;
+    }
+
+    .login-shell { margin: auto 0; }
+
+    .login-card {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: var(--space-6);
+    }
+
+    .login-card .card-header { margin-bottom: var(--space-6); }
+  }
+
+  /* Mobile */
+  @media (max-width: 480px) {
+    body { padding: var(--space-4); }
+
+    .login-card {
+      padding: var(--space-5) var(--space-4);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-card .card-title { font-size: var(--text-lg); }
+
+    .form-input {
+      height: 44px;
+      font-size: var(--text-base);
+    }
+
+    .btn-submit { height: 44px; }
+  }
+
+  /* Very small mobile */
+  @media (max-width: 360px) {
+    body { padding: var(--space-3); }
+    .login-card { padding: var(--space-4) var(--space-3); }
+  }
+
+  /* Landscape mobile (short viewport) */
+  @media (max-height: 500px) {
+    body {
+      padding: var(--space-3) var(--space-4);
+      justify-content: flex-start;
+    }
+
+    .login-card .card-header { margin-bottom: var(--space-4); }
+    .login-form { gap: var(--space-3); }
+    .login-card .card-footer { margin-top: var(--space-4); }
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-shell">
+
+  {# Branding aside (desktop only) #}
+  <div class="login-aside">
+    <div class="aside-brand">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
+          <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <p class="brand-name">Kiveto</p>
+        <p class="brand-sub">Plateforme veterinaire</p>
+      </div>
+    </div>
+
+    <div>
+      <p class="tagline-title">La clinique<br><strong>sous controle.</strong></p>
+      <p class="tagline-sub">Consultations, planning, hospitalisations<br>et dossiers patients — en un seul endroit.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Agenda intelligent multi-veterinaires</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Dossiers medicaux & ordonnances</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Suivi des hospitalisations en temps reel</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Catalogue & gestion des stocks</span></div>
+    </div>
+
+    <div>
+      <div class="security-pill">
+        <div class="security-dot"></div>
+        <span class="security-text">Connexion securisee &middot; Acces accredite</span>
+      </div>
+    </div>
+  </div>
+
+  {# Login card #}
+  <div class="login-card">
+    <div class="card-header">
+      <p class="card-title">Connexion</p>
+      <p class="card-sub">Entrez vos identifiants pour acceder a l'espace clinique.</p>
+    </div>
+
+    <form class="login-form" action="{{ path('clinic_login') }}" method="post">
+
+      {# Authentication error #}
+      {% if error %}
+        <div class="login-error" role="alert">
+          <svg width="14" height="14" fill="none" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M6 4v3M6 8.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          {{ error.messageKey|trans(error.messageData, 'security') }}
         </div>
-        <div>
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
+      {% endif %}
+
+      {# Email field #}
+      <div class="field">
+        <label class="field-label" for="login-email">Adresse email</label>
+        <div class="field-inner">
+          <span class="field-icon" aria-hidden="true">
+            <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+              <rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M1 6l7 4 7-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input
+            class="form-input fi-with-icon"
+            id="login-email"
+            name="_username"
+            type="email"
+            placeholder="vous@votreclinique.fr"
+            value="{{ last_username }}"
+            autocomplete="email"
+            required
+          />
         </div>
-        <button type="submit">Sign in</button>
+      </div>
+
+      {# Password field #}
+      <div class="field">
+        <label class="field-label" for="login-pwd">Mot de passe</label>
+        <div class="field-inner">
+          <span class="field-icon" aria-hidden="true">
+            <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+              <rect x="2" y="7" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input
+            class="form-input fi-with-icon"
+            id="login-pwd"
+            name="_password"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+      </div>
+
+      {# CSRF token #}
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}"/>
+
+      {# Submit #}
+      <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-2)">
+        <button class="btn-submit" type="submit">
+          Se connecter
+        </button>
+      </div>
+
     </form>
-    <p id="message"></p>
 
-    <script>
-        const form = document.getElementById('login-form');
-        const message = document.getElementById('message');
+    <div class="card-footer">
+      &copy; {{ "now"|date("Y") }} Kiveto &middot; Acces restreint aux membres accredites
+    </div>
+  </div>
 
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            message.textContent = '';
-            message.className = '';
-
-            const payload = {
-                email: form.email.value,
-                password: form.password.value,
-            };
-
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', // important for session cookies
-                    body: JSON.stringify(payload),
-                });
-
-                const data = await response.json().catch(() => ({}));
-
-                if (response.ok) {
-                    message.textContent = data.message ?? 'Logged in successfully.';
-                    message.className = 'success';
-                    window.location.href = '/';
-                    return;
-                }
-
-                message.textContent = data.message ??
-                    data?.error?.code ??
-                    'Login failed.';
-                message.className = 'error';
-            } catch (error) {
-                message.textContent = 'Network error.';
-                message.className = 'error';
-            }
-        });
-
-    </script>
-</body>
-</html>
-
+</div>
+{% endblock %}

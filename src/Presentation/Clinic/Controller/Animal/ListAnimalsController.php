@@ -50,7 +50,7 @@ final class ListAnimalsController extends AbstractController
 
         $totalPages = (int) ceil($result['total'] / $limit);
 
-        return $this->render('clinic/animals/list_layout15.html.twig', [
+        return $this->render('clinic/animals/list.html.twig', [
             'animals' => [
                 'items'           => array_values($result['items']),
                 'totalItems'      => $result['total'],

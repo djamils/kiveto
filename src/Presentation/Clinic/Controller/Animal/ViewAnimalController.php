@@ -39,7 +39,7 @@ final class ViewAnimalController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/animals/view_layout15.html.twig', [
+        return $this->render('clinic/animals/view.html.twig', [
             'animal'            => $animal,
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
