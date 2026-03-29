@@ -1,0 +1,291 @@
+{#
+ # Kiveto — templates/clinic/hospitalisations/index.html.twig
+ # ──────────────────────────────────────────────────────────
+ # Hospitalisation dashboard — list + detail pattern.
+ # Stub page with placeholder data until domain model exists.
+ #
+ # Variables:
+ #   currentClinicId    string   Active clinic UUID
+ #   currentClinicName  string   Active clinic name
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Hospitalisations - {{ currentClinicName }}{% endblock %}
+{% block page_title %}Hospitalisations{% endblock %}
+
+{% block stylesheets %}
+<style>
+  /* Hospitalisation-specific layout */
+  .hosp-layout { display: flex; gap: 0; height: calc(100vh - var(--topbar-height, 52px) - 32px); margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-5)) calc(-1 * var(--space-6)); }
+
+  /* Left panel — patient list */
+  .hosp-panel { width: 340px; flex-shrink: 0; border-right: 1px solid var(--border-light); display: flex; flex-direction: column; background: var(--surface-card); }
+  .hp-head { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+  .hp-count { font-size: var(--text-xs); color: var(--text-subtle); background: var(--surface-hover); padding: 2px var(--space-2); border-radius: var(--radius-full); margin-left: auto; }
+  .hp-list { flex: 1; overflow-y: auto; }
+
+  /* Patient card */
+  .hcard { padding: var(--space-3) var(--space-3); border-bottom: 1px solid var(--surface-hover); cursor: pointer; transition: background .12s; position: relative; }
+  .hcard:hover { background: var(--surface-subtle); }
+  .hcard.active { background: var(--brand-50); }
+  .hcard.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--brand-600); border-radius: 0 2px 2px 0; }
+  .hcard-row { display: flex; align-items: center; gap: var(--space-2); }
+  .hcard-avatar { width: 38px; height: 38px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--text-md); font-weight: var(--weight-medium); flex-shrink: 0; color: #fff; }
+  .hcard-info { flex: 1; min-width: 0; }
+  .hcard-name { font-size: var(--text-base); font-weight: var(--weight-medium); color: var(--text-primary); }
+  .hcard-meta { font-size: var(--text-xs); color: var(--text-subtle); margin-top: 2px; }
+  .severity-bar { height: 3px; border-radius: 2px; margin-top: var(--space-2); }
+
+  /* Right panel — detail */
+  .detail-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-page); }
+  .detail-header { background: var(--surface-card); border-bottom: 1px solid var(--border-light); padding: var(--space-3) var(--space-4); flex-shrink: 0; }
+  .detail-tabs { background: var(--surface-card); border-bottom: 1px solid var(--border-light); display: flex; padding: 0 var(--space-4); flex-shrink: 0; }
+  .dtab { padding: var(--space-2) var(--space-4); font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .13s; white-space: nowrap; text-decoration: none; }
+  .dtab:hover { color: var(--text-secondary); }
+  .dtab.active { color: var(--brand-600); border-bottom-color: var(--brand-600); }
+  .detail-scroll { flex: 1; overflow-y: auto; padding: var(--space-4); }
+
+  /* Empty state for detail panel */
+  .hosp-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-subtle); text-align: center; }
+  .hosp-empty-icon { width: 56px; height: 56px; border-radius: var(--radius-lg); background: var(--surface-hover); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-3); }
+
+  /* Care checklist */
+  .soin-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--surface-hover); transition: background .12s; }
+  .soin-row:last-child { border-bottom: none; }
+  .soin-row:hover { background: var(--brand-50); }
+  .soin-check { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border-medium); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all .15s; }
+  .soin-check.done { background: var(--brand-600); border-color: var(--brand-600); }
+
+  /* Evolution timeline */
+  .evo-entry { display: flex; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--surface-hover); }
+  .evo-entry:last-child { border-bottom: none; }
+  .evo-dot { width: 10px; height: 10px; border-radius: var(--radius-full); flex-shrink: 0; margin-top: 3px; }
+
+  /* Hydration gauge */
+  .hydra-bar { height: 8px; border-radius: var(--radius-full); background: var(--border-medium); overflow: hidden; }
+  .hydra-fill { height: 100%; border-radius: var(--radius-full); transition: width .5s; }
+
+  /* Info rows */
+  .irow { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--surface-hover); }
+  .irow:last-child { border-bottom: none; }
+  .il { font-size: var(--text-xs); color: var(--text-subtle); }
+  .iv { font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-primary); }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .hosp-panel { width: 100%; }
+    .detail-panel { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hosp-layout">
+
+  {# Left panel — hospitalized patients #}
+  <div class="hosp-panel">
+    <div class="hp-head">
+      <span style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">Patients hospitalisés</span>
+      <span class="hp-count">4</span>
+    </div>
+    <div class="hp-list">
+
+      {# Stub patient cards #}
+      <div class="hcard active">
+        <div class="hcard-row">
+          <div class="hcard-avatar" style="background:#dc2626;">M</div>
+          <div class="hcard-info">
+            <div class="hcard-name">Moustache</div>
+            <div class="hcard-meta">Chat européen · Admis le 28/03</div>
+          </div>
+          <span class="badge b-alert">Critique</span>
+        </div>
+        <div class="severity-bar" style="background:#dc2626;"></div>
+      </div>
+
+      <div class="hcard">
+        <div class="hcard-row">
+          <div class="hcard-avatar" style="background:#2563eb;">R</div>
+          <div class="hcard-info">
+            <div class="hcard-name">Rex</div>
+            <div class="hcard-meta">Berger allemand · Admis le 27/03</div>
+          </div>
+          <span class="badge b-warn">Surveillance</span>
+        </div>
+        <div class="severity-bar" style="background:#d97706;"></div>
+      </div>
+
+      <div class="hcard">
+        <div class="hcard-row">
+          <div class="hcard-avatar" style="background:#16a34a;">B</div>
+          <div class="hcard-info">
+            <div class="hcard-name">Bella</div>
+            <div class="hcard-meta">Labrador · Admise le 26/03</div>
+          </div>
+          <span class="badge b-ok">Stable</span>
+        </div>
+        <div class="severity-bar" style="background:#16a34a;"></div>
+      </div>
+
+      <div class="hcard">
+        <div class="hcard-row">
+          <div class="hcard-avatar" style="background:#7c3aed;">N</div>
+          <div class="hcard-info">
+            <div class="hcard-name">Noisette</div>
+            <div class="hcard-meta">Lapin nain · Admis le 29/03</div>
+          </div>
+          <span class="badge b-blue">Post-op</span>
+        </div>
+        <div class="severity-bar" style="background:#3b82f6;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  {# Right panel — patient detail #}
+  <div class="detail-panel" id="detail-panel">
+
+    {# Detail header #}
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:var(--space-3);">
+        <div class="hcard-avatar" style="background:#dc2626;width:42px;height:42px;">M</div>
+        <div>
+          <div style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);">Moustache</div>
+          <div style="font-size:var(--text-sm);color:var(--text-muted);">Chat européen · 3 ans · Propriétaire : Mme Dupont</div>
+        </div>
+        <span class="badge b-alert" style="margin-left:auto;">Critique</span>
+      </div>
+    </div>
+
+    {# Tabs #}
+    <div class="detail-tabs">
+      <span class="dtab active">Vue d'ensemble</span>
+      <span class="dtab">Évolution</span>
+      <span class="dtab">Soins</span>
+      <span class="dtab">Examens</span>
+      <span class="dtab">Notes</span>
+    </div>
+
+    {# Tab content #}
+    <div class="detail-scroll">
+
+      {# Vital signs widget #}
+      <div class="widget">
+        <div class="widget-head">
+          <span class="widget-title">Signes vitaux</span>
+          <span style="font-size:var(--text-xs);color:var(--text-subtle);">Dernière mise à jour : 10:45</span>
+        </div>
+        <div class="widget-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+            <div>
+              <div class="il">Température</div>
+              <div class="iv">39.2°C</div>
+            </div>
+            <div>
+              <div class="il">FC</div>
+              <div class="iv">142 bpm</div>
+            </div>
+            <div>
+              <div class="il">FR</div>
+              <div class="iv">28 /min</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# Hydration widget #}
+      <div class="widget">
+        <div class="widget-head">
+          <span class="widget-title">Hydratation</span>
+        </div>
+        <div class="widget-body">
+          <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-1);">
+            <span style="font-size:var(--text-sm);color:var(--text-muted);">Perfusion NaCl 0.9%</span>
+            <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">320 / 500 ml</span>
+          </div>
+          <div class="hydra-bar">
+            <div class="hydra-fill" style="width:64%;background:var(--brand-600);"></div>
+          </div>
+        </div>
+      </div>
+
+      {# Care checklist widget #}
+      <div class="widget">
+        <div class="widget-head">
+          <span class="widget-title">Soins programmés</span>
+        </div>
+        <div>
+          <div class="soin-row">
+            <div class="soin-check done">
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);color:var(--text-primary);">Prise de sang — Contrôle créatinine</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">08:00 · Dr. Martin</div>
+            </div>
+            <span class="badge b-ok">Fait</span>
+          </div>
+          <div class="soin-row">
+            <div class="soin-check done">
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);color:var(--text-primary);">Injection antibiotique IV</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">09:00 · Dr. Martin</div>
+            </div>
+            <span class="badge b-ok">Fait</span>
+          </div>
+          <div class="soin-row">
+            <div class="soin-check"></div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);color:var(--text-primary);">Changement perfusion</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">14:00 · À planifier</div>
+            </div>
+            <span class="badge b-warn">En attente</span>
+          </div>
+          <div class="soin-row">
+            <div class="soin-check"></div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);color:var(--text-primary);">Contrôle température</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">16:00 · À planifier</div>
+            </div>
+            <span class="badge b-grey">Programmé</span>
+          </div>
+        </div>
+      </div>
+
+      {# Evolution timeline widget #}
+      <div class="widget">
+        <div class="widget-head">
+          <span class="widget-title">Dernières évolutions</span>
+        </div>
+        <div class="widget-body">
+          <div class="evo-entry">
+            <div class="evo-dot" style="background:#dc2626;"></div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">Pic de fièvre à 40.1°C</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">Aujourd'hui 06:30 · Dr. Martin</div>
+            </div>
+          </div>
+          <div class="evo-entry">
+            <div class="evo-dot" style="background:#d97706;"></div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">Vomissements — protocole anti-émétique</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">Hier 22:15 · Dr. Lefèvre</div>
+            </div>
+          </div>
+          <div class="evo-entry">
+            <div class="evo-dot" style="background:#16a34a;"></div>
+            <div style="flex:1;">
+              <div style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">Reprise alimentation liquide — bien toléré</div>
+              <div style="font-size:var(--text-xs);color:var(--text-subtle);">Hier 14:00 · Dr. Martin</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
