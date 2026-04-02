@@ -21,11 +21,14 @@
  #}
 {% extends 'base.html.twig' %}
 
+{% block show_sidebar %}true{% endblock %}
+
 {% block body %}
 {# ── App Shell ── #}
 <div class="app-shell">
 
-  {# Sidebar (desktop: fixed / mobile: drawer) #}
+  {# Sidebar (desktop: fixed / mobile: drawer) — hidden on scheduling pages #}
+  {% if block('show_sidebar')|trim == 'true' %}
   {{ include('components/layout/sidebar.html.twig', {
     clinic: activeClinic|default({ name: 'Ma clinique', type: 'Vétérinaire' }),
     user: app.user,
@@ -34,6 +37,7 @@
 
   {# Mobile sidebar overlay #}
   <div class="sidebar-overlay" id="sidebarOverlay" data-action="click->sidebar#close"></div>
+  {% endif %}
 
   {# Main area #}
   <div class="app-content">
@@ -45,19 +49,20 @@
       subtitle: block('page_subtitle') is defined ? block('page_subtitle') : null,
       search:   block('topbar_search') is defined ? block('topbar_search') : false,
       breadcrumb: block('breadcrumb') is defined ? block('breadcrumb') : [],
+      burger:   block('show_sidebar')|trim == 'true',
     }) }}
 
-    {# Scrollable content #}
-    <div class="app-scroll">
-      <main class="app-body" id="main-content">
-        {% block content %}{% endblock %}
-      </main>
+    {# Flex row: scroll area + optional right panel #}
+    <div class="app-main-wrap">
+      <div class="app-scroll">
+        <main class="app-body" id="main-content">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+      {% block rpanel %}{% endblock %}
     </div>
 
   </div>{# /app-content #}
-
-  {# Optional right panel #}
-  {% block rpanel %}{% endblock %}
 
 </div>{# /app-shell #}
 

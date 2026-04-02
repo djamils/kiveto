@@ -1,0 +1,455 @@
+{#
+ # Kiveto — templates/clinic/scheduling/planning.html.twig
+ # ────────────────────────────────────────────────────────
+ # Planning page — horizontal vet-row grid showing activity blocks.
+ # Source: vetos-planning.html mockup
+ #
+ # Variables:
+ #   currentClinicId     string   Active clinic UUID
+ #   currentClinicName   string   Active clinic display name
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block show_sidebar %}false{% endblock %}
+
+{% block page_title %}Planning{% endblock %}
+
+{% block stylesheets %}
+<style>
+  /* Override base layout for full-height planning grid */
+  .app-scroll { overflow: hidden !important; }
+  .app-body { padding: 0 !important; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+
+  /* ── Mini calendar (reused from agenda) ── */
+  .mini-cal { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+  .mini-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .mini-cal-dow { font-size: 10px; font-weight: 600; color: #94a3b8; text-align: center; padding-bottom: 2px; }
+  .mini-cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; border-radius: 5px; cursor: pointer; transition: all .1s;
+    color: #475569; position: relative;
+  }
+  .mini-cal-day:hover { background: #f1f5f9; }
+  .mini-cal-day.today { background: var(--brand-600, #4338ca); color: #fff; font-weight: 700; }
+  .mini-cal-day.other-month { color: #cbd5e1; }
+
+  /* ── Vet filter ── */
+  .vet-filter { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+  .vet-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 8px; border-radius: 7px; cursor: pointer;
+    transition: background .1s; margin-bottom: 3px;
+  }
+  .vet-chip:hover { background: #f8fafc; }
+  .vet-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Planning layout ── */
+  .planning-shell {
+    display: flex; flex: 1; overflow: hidden; min-height: 0;
+  }
+
+  /* Left panel (mini-cal + vet filters) */
+  .planning-left {
+    width: 232px; flex-shrink: 0; background: #fff;
+    border-right: 1px solid var(--border-light, #e8edf2);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+
+  /* Right area (topbar + grid) */
+  .planning-right {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;
+  }
+
+  /* Planning topbar */
+  .planning-topbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 18px; background: #fff;
+    border-bottom: 1px solid var(--border-light, #e8edf2);
+    flex-shrink: 0;
+  }
+  .planning-topbar .spacer { flex: 1; }
+
+  /* View toggle buttons */
+  .view-toggle { display: flex; background: #f1f5f9; border-radius: 8px; padding: 2px; gap: 1px; }
+  .view-btn {
+    padding: 4px 12px; border-radius: 6px; border: none;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    font-family: inherit; background: transparent; color: #64748b;
+    transition: all .13s;
+  }
+  .view-btn.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  /* Legend bar */
+  .planning-legend {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 18px; background: #fff;
+    border-bottom: 1px solid var(--border-light, #e8edf2);
+    flex-shrink: 0; overflow-x: auto;
+  }
+  .legend-label {
+    font-size: 10.5px; font-weight: 600; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: .07em; flex-shrink: 0;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: #334155; flex-shrink: 0;
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Planning grid */
+  .planning-grid { flex: 1; overflow: auto; position: relative; background: #fff; }
+
+  /* Time header row */
+  .time-header {
+    display: flex; position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid #e8edf2;
+  }
+  .time-header-label {
+    width: 120px; flex-shrink: 0; background: #fff;
+    border-right: 2px solid #e2e8f0;
+  }
+  .time-header-slots { display: flex; flex: 1; }
+  .time-slot-header {
+    flex: 1; min-width: 80px; text-align: center;
+    font-size: 11px; font-weight: 600; color: #64748b;
+    padding: 6px 0; border-left: 1px solid #e8edf2;
+  }
+  .time-slot-header:first-child { border-left: none; }
+
+  /* Vet row */
+  .vet-row {
+    display: flex; position: relative;
+    border-bottom: 1px solid #e8edf2; min-height: 64px;
+  }
+  .vet-label {
+    width: 120px; flex-shrink: 0; background: #fff;
+    border-right: 2px solid #e2e8f0;
+    padding: 0 12px; display: flex; flex-direction: column;
+    justify-content: center; gap: 2px;
+    position: sticky; left: 0; z-index: 5;
+  }
+  .vet-label-name { font-size: 12.5px; font-weight: 600; color: #0f172a; }
+  .vet-label-spec { font-size: 10.5px; color: #94a3b8; }
+  .vet-row-grid {
+    flex: 1; position: relative; display: flex; min-width: 0;
+  }
+
+  /* Hour slot backgrounds */
+  .hour-slot {
+    flex: 1; min-width: 80px; position: relative;
+    border-left: 1px solid #e8edf2;
+  }
+  .hour-slot:first-child { border-left: none; }
+  .hour-slot:hover { background: rgba(99,102,241,.04); }
+
+  /* Activity blocks */
+  .act-block {
+    position: absolute; top: 6px; bottom: 6px;
+    border-radius: 7px; cursor: pointer; overflow: hidden;
+    transition: filter .12s; border-left: 3px solid transparent;
+    z-index: 2;
+  }
+  .act-block:hover { filter: brightness(.95); }
+  .act-block-inner {
+    padding: 5px 8px; height: 100%; display: flex;
+    flex-direction: column; justify-content: center; overflow: hidden;
+  }
+  .act-block-type {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .act-block-time {
+    font-size: 10.5px; font-weight: 500; white-space: nowrap; margin-top: 1px;
+  }
+  .act-block-cap {
+    font-size: 9.5px; margin-top: 2px; opacity: .7; white-space: nowrap;
+  }
+
+  /* Small button styles */
+  .btn-plan {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px; border-radius: 6px; font-size: 11.5px;
+    font-weight: 500; font-family: inherit; cursor: pointer;
+    border: none; transition: all .13s; white-space: nowrap;
+  }
+  .btn-plan-secondary {
+    background: #f8fafc; color: #374151;
+    border: 1px solid #e2e8f0;
+  }
+  .btn-plan-secondary:hover { background: #f1f5f9; border-color: #cbd5e1; }
+  .btn-plan-primary {
+    background: var(--brand-600, #4338ca); color: #fff;
+  }
+  .btn-plan-primary:hover { background: var(--brand-700, #3730a3); }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .planning-left { width: 200px; }
+  }
+  @media (max-width: 640px) {
+    .planning-left { display: none; }
+    .planning-topbar { padding: 8px 10px; gap: 6px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="planning-shell">
+
+  {# ── Left panel: mini calendar + vet filters ── #}
+  <div class="planning-left">
+    {# Mini calendar #}
+    <div class="mini-cal">
+      <div class="mini-cal-head">
+        <span style="font-size:12.5px;font-weight:700;color:#0f172a;">Avril 2026</span>
+        <div style="display:flex;gap:2px;">
+          <button style="width:22px;height:22px;border-radius:5px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button style="width:22px;height:22px;border-radius:5px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="mini-cal-grid">
+        <div class="mini-cal-dow">L</div><div class="mini-cal-dow">M</div><div class="mini-cal-dow">M</div>
+        <div class="mini-cal-dow">J</div><div class="mini-cal-dow">V</div><div class="mini-cal-dow">S</div>
+        <div class="mini-cal-dow">D</div>
+      </div>
+      <div class="mini-cal-grid">
+        {# Stub: April 2026 starts on Wednesday #}
+        <div class="mini-cal-day other-month">30</div>
+        <div class="mini-cal-day other-month">31</div>
+        <div class="mini-cal-day">1</div>
+        <div class="mini-cal-day">2</div>
+        <div class="mini-cal-day today">3</div>
+        <div class="mini-cal-day">4</div>
+        <div class="mini-cal-day">5</div>
+        <div class="mini-cal-day">6</div>
+        <div class="mini-cal-day">7</div>
+        <div class="mini-cal-day">8</div>
+        <div class="mini-cal-day">9</div>
+        <div class="mini-cal-day">10</div>
+        <div class="mini-cal-day">11</div>
+        <div class="mini-cal-day">12</div>
+        <div class="mini-cal-day">13</div>
+        <div class="mini-cal-day">14</div>
+        <div class="mini-cal-day">15</div>
+        <div class="mini-cal-day">16</div>
+        <div class="mini-cal-day">17</div>
+        <div class="mini-cal-day">18</div>
+        <div class="mini-cal-day">19</div>
+        <div class="mini-cal-day">20</div>
+        <div class="mini-cal-day">21</div>
+        <div class="mini-cal-day">22</div>
+        <div class="mini-cal-day">23</div>
+        <div class="mini-cal-day">24</div>
+        <div class="mini-cal-day">25</div>
+        <div class="mini-cal-day">26</div>
+        <div class="mini-cal-day">27</div>
+        <div class="mini-cal-day">28</div>
+        <div class="mini-cal-day">29</div>
+        <div class="mini-cal-day">30</div>
+        <div class="mini-cal-day other-month">1</div>
+        <div class="mini-cal-day other-month">2</div>
+        <div class="mini-cal-day other-month">3</div>
+      </div>
+    </div>
+
+    {# Vet filters #}
+    <div class="vet-filter">
+      <p style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+        V&eacute;t&eacute;rinaires
+      </p>
+      <div class="vet-chip">
+        <div class="vet-dot" style="background:#4338ca;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Rousseau</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#4338ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip">
+        <div class="vet-dot" style="background:#0891b2;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Martin</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#0891b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip">
+        <div class="vet-dot" style="background:#059669;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Dupont</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip">
+        <div class="vet-dot" style="background:#db2777;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Lambert</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#db2777" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  {# ── Right area: planning topbar + grid ── #}
+  <div class="planning-right">
+
+    {# Planning topbar with date nav + view toggle #}
+    <div class="planning-topbar">
+      <button class="btn-plan btn-plan-secondary">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <button class="btn-plan btn-plan-secondary">Aujourd'hui</button>
+      <button class="btn-plan btn-plan-secondary">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <span style="font-size:13.5px;font-weight:600;color:#0f172a;min-width:180px;text-align:center;">
+        Vendredi 3 avril 2026
+      </span>
+      <span class="spacer"></span>
+      <div class="view-toggle">
+        <button class="view-btn active">Jour</button>
+        <button class="view-btn">Semaine</button>
+        <button class="view-btn">Mois</button>
+      </div>
+      <button class="btn-plan btn-plan-primary">
+        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Ajouter un bloc
+      </button>
+    </div>
+
+    {# Legend bar #}
+    <div class="planning-legend">
+      <span class="legend-label">Types :</span>
+      <div class="legend-item"><div class="legend-dot" style="background:#4338ca;"></div>Consultation</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#b45309;"></div>Chirurgie</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7c3aed;"></div>Garde</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#059669;"></div>Bilans / Labo</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0891b2;"></div>Formation</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626;"></div>Cong&eacute;</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#64748b;"></div>Administratif</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ea580c;"></div>Urgences</div>
+    </div>
+
+    {# Planning grid #}
+    <div class="planning-grid">
+      {# Time header #}
+      <div class="time-header">
+        <div class="time-header-label"></div>
+        <div class="time-header-slots">
+          <div class="time-slot-header">8h</div>
+          <div class="time-slot-header">9h</div>
+          <div class="time-slot-header">10h</div>
+          <div class="time-slot-header">11h</div>
+          <div class="time-slot-header">12h</div>
+          <div class="time-slot-header">13h</div>
+          <div class="time-slot-header">14h</div>
+          <div class="time-slot-header">15h</div>
+          <div class="time-slot-header">16h</div>
+          <div class="time-slot-header">17h</div>
+        </div>
+      </div>
+
+      {# ── Dr. Rousseau ── #}
+      <div class="vet-row">
+        <div class="vet-label">
+          <span class="vet-label-name" style="color:#4338ca;">Dr. Rousseau</span>
+          <span class="vet-label-spec">G&eacute;n&eacute;raliste</span>
+        </div>
+        <div class="vet-row-grid">
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div>
+          {# Chirurgie 8h-12h (4 slots out of 10 = 40%) #}
+          <div class="act-block" style="left:0%;width:40%;background:#fef3c7;border-left-color:#b45309;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#b45309;">Chirurgie</span>
+              <span class="act-block-time" style="color:#92400e;">08:00 - 12:00</span>
+              <span class="act-block-cap" style="color:#92400e;">1 RDV/h</span>
+            </div>
+          </div>
+          {# Consultation 13h-18h (5 slots, starting at slot 5 = 50%, width 50%) #}
+          <div class="act-block" style="left:50%;width:50%;background:#eef2ff;border-left-color:#4338ca;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#4338ca;">Consultation</span>
+              <span class="act-block-time" style="color:#3730a3;">13:00 - 18:00</span>
+              <span class="act-block-cap" style="color:#3730a3;">3 RDV/h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Dr. Martin ── #}
+      <div class="vet-row">
+        <div class="vet-label">
+          <span class="vet-label-name" style="color:#0891b2;">Dr. Martin</span>
+          <span class="vet-label-spec">Chirurgien</span>
+        </div>
+        <div class="vet-row-grid">
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div>
+          {# Consultation 8h-18h (full day) #}
+          <div class="act-block" style="left:0%;width:100%;background:#ecfeff;border-left-color:#0891b2;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#0891b2;">Consultation</span>
+              <span class="act-block-time" style="color:#155e75;">08:00 - 18:00</span>
+              <span class="act-block-cap" style="color:#155e75;">3 RDV/h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Dr. Dupont ── #}
+      <div class="vet-row">
+        <div class="vet-label">
+          <span class="vet-label-name" style="color:#059669;">Dr. Dupont</span>
+          <span class="vet-label-spec">G&eacute;n&eacute;raliste</span>
+        </div>
+        <div class="vet-row-grid">
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div>
+          {# Formation 9h-17h (start at slot 1 = 10%, 8 slots = 80%) #}
+          <div class="act-block" style="left:10%;width:80%;background:#ecfeff;border-left-color:#0891b2;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#0891b2;">Formation</span>
+              <span class="act-block-time" style="color:#155e75;">09:00 - 17:00</span>
+              <span class="act-block-cap" style="color:#155e75;">&Eacute;chographie</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Dr. Lambert ── #}
+      <div class="vet-row">
+        <div class="vet-label">
+          <span class="vet-label-name" style="color:#db2777;">Dr. Lambert</span>
+          <span class="vet-label-spec">G&eacute;n&eacute;raliste</span>
+        </div>
+        <div class="vet-row-grid">
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div><div class="hour-slot"></div><div class="hour-slot"></div>
+          <div class="hour-slot"></div>
+          {# Consultation 8h-14h (6 slots = 60%) #}
+          <div class="act-block" style="left:0%;width:60%;background:#fdf2f8;border-left-color:#db2777;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#db2777;">Consultation</span>
+              <span class="act-block-time" style="color:#9d174d;">08:00 - 14:00</span>
+              <span class="act-block-cap" style="color:#9d174d;">3 RDV/h</span>
+            </div>
+          </div>
+          {# Administratif 14h-18h (start 60%, width 40%) #}
+          <div class="act-block" style="left:60%;width:40%;background:#f8fafc;border-left-color:#64748b;">
+            <div class="act-block-inner">
+              <span class="act-block-type" style="color:#64748b;">Administratif</span>
+              <span class="act-block-time" style="color:#475569;">14:00 - 18:00</span>
+              <span class="act-block-cap" style="color:#475569;">R&eacute;union &eacute;quipe</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>{# /planning-grid #}
+  </div>{# /planning-right #}
+</div>{# /planning-shell #}
+{% endblock %}

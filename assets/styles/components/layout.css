@@ -190,6 +190,14 @@
 }
 
 
+/* Main content wrapper: scroll area + optional right panel */
+.app-main-wrap {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
 /* ─────────────────────────────────────────────
    RIGHT PANEL (optional)
    ───────────────────────────────────────────── */
@@ -363,7 +371,25 @@
   }
   .sidebar-overlay.is-open { display: block; }
 
-  .app-rpanel { display: none; }
+  .app-rpanel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    width: 300px;
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: none;
+    border-left: none;
+  }
+  .app-rpanel.open {
+    transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0,0,0,.14);
+  }
+
+  /* Show rpanel toggle button on tablet */
+  .btn-rpanel { display: flex !important; }
 
   .page-grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
