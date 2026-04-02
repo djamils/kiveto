@@ -1,0 +1,14 @@
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Consultations{% endblock %}
+{% block page_title %}Consultations{% endblock %}
+{% block page_subtitle %}Liste des consultations{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:400px;">
+  {{ include('components/ui/empty_state.html.twig', {
+    title: 'Bientôt disponible',
+    subtitle: 'La liste des consultations sera disponible prochainement.',
+  }) }}
+</div>
+{% endblock %}
