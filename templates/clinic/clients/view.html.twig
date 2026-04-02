@@ -1,7 +1,9 @@
 {#
  # Kiveto — templates/clinic/clients/view.html.twig
  # ─────────────────────────────────────────────────
- # Client detail page with contact methods, postal address, and actions.
+ # Client record page — VetSaaS design from vetos-fiche-client.html mockup.
+ # Left column: owner info, contacts, notes.
+ # Right column: animal tabs, animal details, widgets, vital charts, documents.
  #
  # Variables:
  #   client           ClientDto { id, firstName, lastName, status, createdAt,
@@ -10,150 +12,739 @@
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}{{ client.firstName }} {{ client.lastName }} - {{ currentClinicName }}{% endblock %}
+{% block title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName ~ ' - ' ~ currentClinicName : 'Fiche client - ' ~ currentClinicName }}{% endblock %}
 
-{% block page_title %}{{ client.firstName }} {{ client.lastName }}{% endblock %}
+{% block page_title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName : 'Sophie Dubois' }}{% endblock %}
 
-{% block breadcrumb %}
-  [{"label":"Clients","href":"{{ path('clinic_clients_list') }}"},{"label":"{{ client.firstName }} {{ client.lastName }}"}]
-{% endblock %}
+{% block stylesheets %}
+<style>
+    /* ── Page layout ── */
+    .page-body{flex:1;overflow:hidden;display:flex;}
+    .col-left{width:290px;flex-shrink:0;border-right:1px solid #e8edf2;display:flex;flex-direction:column;overflow-y:auto;background:#fff;}
+    .col-right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:#f1f5f9;}
 
-{% block topbar_actions %}
-  {% if client.status == 'active' %}
-    {{ include('components/ui/button.html.twig', {
-      label: 'Modifier',
-      variant: 'primary',
-      size: 'sm',
-      href: path('clinic_clients_edit', {id: client.id}),
-    }) }}
-  {% endif %}
+    /* ── Left col sections ── */
+    .lsec{padding:14px 16px;border-bottom:1px solid #f1f5f9;}
+    .lsec:last-child{border-bottom:none;}
+    .lsec-title{font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+
+    /* ── Info cells ── */
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+    .ic{background:#f8fafc;border-radius:8px;padding:8px 10px;transition:background .12s;}
+    .ic.full{grid-column:1/-1;}
+    .ic-label{font-size:10.5px;color:#94a3b8;margin-bottom:2px;}
+    .ic-value{font-size:12.5px;font-weight:500;color:#0f172a;}
+    .ic.clickable{cursor:pointer;}
+    .ic.clickable:hover{background:#eef2ff;}
+
+    /* ── Animal tabs ── */
+    .animal-tabs{display:flex;gap:4px;padding:10px 14px;background:#fff;border-bottom:1px solid #e8edf2;flex-shrink:0;overflow-x:auto;}
+    .animal-tab{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:500;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;border:1.5px solid transparent;background:#f8fafc;}
+    .animal-tab:hover{background:#f1f5f9;color:#334155;}
+    .animal-tab.active{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
+    .animal-tab .tab-emoji{font-size:16px;line-height:1;}
+    .animal-tab .tab-status{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+    .animal-tab .tab-name{font-weight:600;}
+    .animal-tab .tab-breed{font-size:11px;color:#94a3b8;font-weight:400;}
+    .animal-tab.active .tab-breed{color:#818cf8;}
+    .animal-tab .tab-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;flex-shrink:0;}
+
+    /* ── Animal content ── */
+    .animal-scroll{flex:1;overflow-y:auto;padding:16px 20px;}
+    .animal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+    /* ── Widgets ── */
+    .widget{background:#fff;border:1px solid #e8edf2;border-radius:12px;overflow:hidden;}
+    .wh{padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
+    .wt{font-size:10.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;}
+    .wb{padding:10px 14px;}
+
+    /* ── Table rows ── */
+    .trow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;}
+    .trow:last-child{border-bottom:none;}
+
+    /* ── Vital chart ── */
+    .vital-tabs{display:flex;gap:0;border-bottom:1px solid #f1f5f9;}
+    .vt-tab{padding:6px 12px;font-size:12px;font-weight:500;color:#94a3b8;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .13s;}
+    .vt-tab.active{color:#4338ca;border-bottom-color:#4338ca;}
+    .vt-tab:hover{color:#64748b;}
+    .chart-wrap{height:56px;position:relative;padding:0 4px;}
+    .chart-svg{width:100%;height:100%;}
+
+    /* ── Badges ── */
+    .badge{font-size:10.5px;font-weight:500;padding:2px 8px;border-radius:20px;white-space:nowrap;display:inline-block;}
+    .b-cat{background:#f5f3ff;color:#7c3aed;}
+    .b-dog{background:#eff6ff;color:#1d4ed8;}
+    .b-ok{background:#f0fdf4;color:#15803d;}
+    .b-warn{background:#fff7ed;color:#c2410c;}
+    .b-alert{background:#fef2f2;color:#b91c1c;}
+    .b-grey{background:#f8fafc;color:#475569;border:1px solid #e2e8f0;}
+    .b-blue{background:#eff6ff;color:#1d4ed8;}
+    .b-purple{background:#f5f3ff;color:#7c3aed;}
+    .b-deceased{background:#1e293b;color:#f8fafc;}
+    .b-missing{background:#fef3c7;color:#92400e;}
+    .b-given{background:#ecfdf5;color:#065f46;}
+
+    /* ── Animal status strip ── */
+    .status-strip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:9px;margin-bottom:12px;font-size:12.5px;font-weight:500;}
+    .status-alive{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;}
+    .status-deceased{background:#1e293b;color:#e2e8f0;border:1px solid #334155;}
+    .status-missing{background:#fffbeb;color:#92400e;border:1px solid #fde68a;}
+    .status-given{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;}
+
+    /* ── Photo strip ── */
+    .photo-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+    .photo-strip::-webkit-scrollbar{height:3px;}
+    .pthumb{width:80px;height:80px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;border:1.5px solid #e8edf2;transition:all .13s;flex-shrink:0;}
+    .pthumb:hover{border-color:#c7d2fe;background:#eef2ff;}
+    .pthumb.add{border-style:dashed;font-size:22px;color:#94a3b8;}
+
+    /* ── Doc row ── */
+    .doc-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;cursor:pointer;transition:background .1s;border-radius:6px;}
+    .doc-row:last-child{border-bottom:none;}
+    .doc-row:hover{background:#f8fafc;margin:0 -4px;padding:6px 4px;}
+
+    /* ── Consult ── */
+    .citem{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;}
+    .citem:last-child{border-bottom:none;}
+
+    /* ── Owner animal card ── */
+    .oa-card{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;border:1.5px solid #e8edf2;cursor:pointer;transition:all .15s;background:#f8fafc;}
+    .oa-card:hover{background:#f1f5f9;border-color:#c7d2fe;}
+    .oa-card.active{background:#eef2ff;border-color:#c7d2fe;}
+
+    /* ── Phone chip ── */
+    .phone-chip{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#f8fafc;border:1px solid #e8edf2;}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:500;font-family:inherit;cursor:pointer;border:none;transition:all .13s;white-space:nowrap;text-decoration:none;}
+    .btn-primary{background:#4338ca;color:#fff;}
+    .btn-primary:hover{background:#3730a3;}
+    .btn-secondary{background:#f8fafc;color:#374151;border:1px solid #e2e8f0;}
+    .btn-secondary:hover{background:#f1f5f9;border-color:#cbd5e1;}
+    .btn-xs{padding:4px 9px;font-size:11.5px;}
+    .btn-icon{width:28px;height:28px;padding:0;justify-content:center;border-radius:7px;}
+    .btn-ghost{background:transparent;color:#64748b;border:none;padding:4px 8px;}
+    .btn-ghost:hover{background:#f1f5f9;color:#334155;}
+
+    /* ── Modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);backdrop-filter:blur(3px);z-index:500;display:none;align-items:center;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{background:#fff;border-radius:14px;width:480px;max-width:calc(100vw - 32px);max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);transform:scale(.97);opacity:0;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
+    .modal-overlay.open .modal-box{transform:scale(1);opacity:1;}
+    .modal-head{padding:16px 20px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;}
+    .modal-body{padding:16px 20px;}
+    .modal-foot{padding:12px 20px 16px;border-top:1px solid #f1f5f9;display:flex;gap:8px;justify-content:flex-end;}
+    .form-row{margin-bottom:12px;}
+    .form-label{font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px;}
+    .form-input{width:100%;font-size:13px;font-family:inherit;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;outline:none;color:#0f172a;transition:all .15s;}
+    .form-input:focus{border-color:#818cf8;background:#fff;}
+    select.form-input{cursor:pointer;}
+
+    .media-filter{font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;transition:all .12s;font-family:inherit;}
+    .media-filter:hover{border-color:#c7d2fe;color:#4338ca;}
+    .media-filter.active{background:#eef2ff;border-color:#c7d2fe;color:#4338ca;}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;opacity:0;transition:all .25s;pointer-events:none;z-index:999;}
+
+    /* ── Vital grid ── */
+    .vital-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:0 4px;}
+
+    /* ── Burger ── */
+    .btn-burger{display:none;width:36px;height:36px;border-radius:8px;border:none;background:transparent;cursor:pointer;align-items:center;justify-content:center;color:#64748b;flex-shrink:0;}
+    .btn-owner-drawer{display:none;}
+    @media(max-width:1024px){
+      .btn-owner-drawer{display:flex;}
+    }
+
+    /* ── Drawer overlay (left col on tablet portrait) ── */
+    .drawer-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.25);z-index:85;backdrop-filter:blur(2px);}
+    .drawer-overlay.open{display:block;}
+
+    /* ── Responsive breakpoints ── */
+    /* iPad Pro landscape: reduced left col */
+    @media(max-width:1280px){
+      .col-left{width:240px;}
+    }
+
+    /* iPad portrait: left col as drawer */
+    @media(max-width:1024px){
+      .btn-burger{display:flex;}
+      .col-left{
+        position:fixed;left:0;top:52px;bottom:0;z-index:88;
+        width:280px;
+        transform:translateX(-100%);
+        transition:transform .28s cubic-bezier(.4,0,.2,1);
+        overflow-y:auto;
+      }
+      .col-left.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.12);}
+      .col-right{min-width:0;}
+      .widget-row-2{grid-template-columns:1fr 1fr !important;}
+      .widget-row-3{grid-template-columns:1fr 1fr !important;}
+    }
+
+    /* Mobile */
+    @media(max-width:640px){
+      .topbar{padding:0 12px;gap:8px;}
+      .topbar-title{display:none;}
+      .topbar-actions .btn span{display:none;}
+      .col-right{overflow-x:hidden;}
+      .animal-scroll{padding:10px;}
+      .animal-tabs{gap:3px;padding:8px 10px;}
+      .animal-tab{padding:5px 10px;font-size:12px;}
+      .animal-tab .tab-breed{display:none;}
+      /* All in 1 col on mobile */
+      .widget-row-1{grid-template-columns:1fr !important;}
+      .widget-row-2{grid-template-columns:1fr !important;}
+      .widget-row-3{grid-template-columns:1fr !important;}
+      /* Vitals: 4 compact cols on mobile */
+      .vital-grid{grid-template-columns:1fr 1fr 1fr 1fr !important;}
+      .vital-grid > div{padding:6px 4px !important;}
+      .chart-wrap{height:40px !important;}
+      .vital-grid > div > div:last-child{min-height:40px !important;}
+    }
+
+    /* Responsive widget grid */
+    @media(max-width:1024px){
+      .widget-row-1{grid-template-columns:1fr !important;}
+      .widget-row-2{grid-template-columns:1fr !important;}
+      .widget-row-3{grid-template-columns:1fr !important;}
+    }
+
+    /* Override base template layout for full-height page-body */
+    .app-scroll{overflow:hidden !important;}
+    .app-body{padding:0 !important;height:100%;display:flex;flex-direction:column;}
+</style>
 {% endblock %}
 
 {% block content %}
-  {# Breadcrumb navigation #}
-  <nav style="margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);">
-    <a href="{{ path('clinic_clients_list') }}" style="color:var(--brand-600);">Clients</a>
-    <span style="margin:0 var(--space-1);">/</span>
-    <span style="color:var(--text-primary);">{{ client.firstName }} {{ client.lastName }}</span>
-  </nav>
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeAllDrawers()"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
-    {# Contact methods widget #}
-    <div class="widget">
-      <div class="widget-head">
-        <span class="widget-title">Coordonnees</span>
+<div class="page-body">
+
+  <!-- LEFT COLUMN -->
+  <div class="col-left">
+
+    <!-- Owner identity -->
+    <div class="lsec">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
+        <div style="width:44px;height:44px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;">
+          {% if client is defined %}
+            {{ client.firstName|first|upper }}{{ client.lastName|first|upper }}
+          {% else %}
+            SD
+          {% endif %}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <h1 style="font-size:15px;font-weight:700;color:#0f172a;">
+            {% if client is defined %}{{ client.firstName }} {{ client.lastName }}{% else %}Sophie Dubois{% endif %}
+          </h1>
+          <p style="font-size:11.5px;color:#94a3b8;">Client depuis mars 2021</p>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="openModal('modal-owner')">
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Editer
+        </button>
       </div>
-      <div class="widget-body">
-        {% if client.contactMethods|length > 0 %}
+      <div class="info-grid">
+        <div class="ic full">
+          <p class="ic-label">Adresse</p>
+          <p class="ic-value">
+            {% if client is defined and client.postalAddress %}
+              {{ client.postalAddress.streetLine1 }}, {{ client.postalAddress.postalCode }} {{ client.postalAddress.city }}
+            {% else %}
+              12 rue de la Paix, 75001 Paris
+            {% endif %}
+          </p>
+        </div>
+        <div class="ic"><p class="ic-label">Dernier RDV</p><p class="ic-value">21 mars 2026</p></div>
+        <div class="ic"><p class="ic-label">Prochain RDV</p><p class="ic-value" style="color:#059669;">15 juin 2026</p></div>
+      </div>
+    </div>
+
+    <!-- Phones & contacts -->
+    <div class="lsec">
+      <p class="lsec-title">Contacts & Telephones
+        <button class="btn btn-ghost btn-xs" onclick="openModal('modal-phones')">
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </button>
+      </p>
+      <div style="display:flex;flex-direction:column;gap:6px;" id="phones-list">
+        {% if client is defined and client.contactMethods|length > 0 %}
           {% for contact in client.contactMethods %}
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;{% if not loop.last %}border-bottom:1px solid var(--border-light);{% endif %}">
-              <div>
-                <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);text-transform:capitalize;">
-                  {{ contact.label }}
-                </span>
-                {% if contact.isPrimary %}
-                  <span class="badge b-blue badge-sm" style="margin-left:var(--space-1);">Principal</span>
-                {% endif %}
-                <div style="font-size:var(--text-xs);color:var(--text-muted);text-transform:capitalize;">
-                  {{ contact.type == 'phone' ? 'Telephone' : 'Email' }}
-                </div>
+            <div class="phone-chip">
+              {% if contact.type == 'phone' %}
+                <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+              {% else %}
+                <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#64748b;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              {% endif %}
+              <div style="flex:1;min-width:0;">
+                <p style="font-size:12.5px;font-weight:500;color:#0f172a;">{{ contact.value }}</p>
+                <p style="font-size:10.5px;color:#94a3b8;">{{ contact.label }}</p>
               </div>
-              <div style="font-size:var(--text-sm);">
-                {% if contact.type == 'phone' %}
-                  <a href="tel:{{ contact.value }}" style="color:var(--brand-600);">{{ contact.value }}</a>
-                {% else %}
-                  <a href="mailto:{{ contact.value }}" style="color:var(--brand-600);">{{ contact.value }}</a>
-                {% endif %}
-              </div>
+              <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Action...','#059669')" style="flex-shrink:0;">
+                <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+              </button>
             </div>
           {% endfor %}
         {% else %}
-          <p style="color:var(--text-subtle);font-size:var(--text-sm);">Aucun moyen de contact enregistre.</p>
+          <div class="phone-chip">
+            <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">+33 6 12 34 56 78</p><p style="font-size:10.5px;color:#94a3b8;">Mobile principal</p></div>
+            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel...','#059669')" style="flex-shrink:0;">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="phone-chip">
+            <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#64748b;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">s.dubois@email.fr</p><p style="font-size:10.5px;color:#94a3b8;">Email</p></div>
+            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Email...','#4338ca')" style="flex-shrink:0;">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          </div>
         {% endif %}
+      </div>
+      <!-- Communication preferences -->
+      <div style="margin-top:8px;padding:7px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;gap:7px;">
+        <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#16a34a;flex-shrink:0;"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.3"/><path d="M8 7v4M8 5.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span style="font-size:11.5px;color:#15803d;">Prefere les rappels par <strong>SMS</strong> &middot; Disponible <strong>le matin</strong></span>
+        <button class="btn btn-ghost btn-xs" style="margin-left:auto;padding:2px 6px;" onclick="openModal('modal-prefs')">Editer</button>
       </div>
     </div>
 
-    {# Postal address widget #}
-    <div class="widget">
-      <div class="widget-head">
-        <span class="widget-title">Adresse postale</span>
-      </div>
-      <div class="widget-body">
-        {% if client.postalAddress %}
-          <address style="font-style:normal;font-size:var(--text-sm);color:var(--text-primary);line-height:1.6;">
-            {{ client.postalAddress.streetLine1 }}<br>
-            {% if client.postalAddress.streetLine2 %}
-              {{ client.postalAddress.streetLine2 }}<br>
-            {% endif %}
-            {% if client.postalAddress.postalCode %}
-              {{ client.postalAddress.postalCode }}
-            {% endif %}
-            {{ client.postalAddress.city }}<br>
-            {% if client.postalAddress.region %}
-              {{ client.postalAddress.region }}<br>
-            {% endif %}
-            <strong style="color:var(--brand-600);">{{ client.postalAddress.countryCode }}</strong>
-          </address>
-        {% else %}
-          <p style="color:var(--text-subtle);font-size:var(--text-sm);">Aucune adresse postale enregistree.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  {# Status and info widget #}
-  <div class="widget" style="margin-top:var(--space-4);">
-    <div class="widget-head">
-      <span class="widget-title">Informations</span>
-      <div style="display:flex;gap:var(--space-2);">
-        {% if client.status == 'active' %}
-          <span class="badge b-ok">Actif</span>
-        {% else %}
-          <span class="badge b-grey">Archive</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="widget-body">
-      <div class="info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
-        <div>
-          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Prenom</div>
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">{{ client.firstName }}</div>
-        </div>
-        <div>
-          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Nom</div>
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">{{ client.lastName }}</div>
-        </div>
-        <div>
-          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Cree le</div>
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">{{ client.createdAt|date('d/m/Y H:i') }}</div>
-        </div>
-        <div>
-          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">ID</div>
-          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);font-family:monospace;">{{ client.id|slice(0, 8) }}...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# Action buttons #}
-  <div style="display:flex;gap:var(--space-2);margin-top:var(--space-4);">
-    {% if client.status == 'active' %}
-      <a href="{{ path('clinic_clients_edit', {id: client.id}) }}" class="btn btn-primary">Modifier</a>
-      <form method="post" action="{{ path('clinic_clients_archive', {id: client.id}) }}" style="display:inline;">
-        <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
-        <button type="submit" class="btn btn-secondary"
-                onclick="return confirm('Etes-vous sur de vouloir archiver ce client ?');">
-          Archiver
+    <!-- Auxiliary contact -->
+    <div class="lsec">
+      <p class="lsec-title">Contact auxiliaire
+        <button class="btn btn-ghost btn-xs" onclick="openModal('modal-auxcontact')">
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
         </button>
-      </form>
-    {% else %}
-      <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}" style="display:inline;">
-        <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
-        <button type="submit" class="btn btn-success"
-                onclick="return confirm('Etes-vous sur de vouloir desarchiver ce client ?');">
-          Desarchiver
-        </button>
-      </form>
-    {% endif %}
+      </p>
+      <div id="aux-contact-left"></div>
+    </div>
+
+    <!-- Internal notes -->
+    <div class="lsec">
+      <p class="lsec-title">Notes internes
+        <button class="btn btn-ghost btn-xs" onclick="toast('Ajouter note...','#4338ca')">+ Ajouter</button>
+      </p>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;">
+        <p style="font-size:12.5px;color:#92400e;line-height:1.5;">Proprietaire tres attentive. Prefere les rappels par SMS. Disponible le matin uniquement.</p>
+        <p style="font-size:10.5px;color:#b45309;margin-top:5px;">Dr. Rousseau &middot; 15 jan. 2026</p>
+      </div>
+    </div>
+
   </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="col-right">
+    <div class="animal-tabs" id="animal-tabs"></div>
+    <div class="animal-scroll" id="animal-content"></div>
+  </div>
+</div>
+
+<!-- MODAL: Edit owner -->
+<div class="modal-overlay" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Editer le proprietaire</p><button onclick="closeModal('modal-owner')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-row"><label class="form-label">Prenom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
+        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" value="{{ client is defined ? client.lastName : 'Dubois' }}"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Adresse</label><input class="form-input" value="12 rue de la Paix, 75001 Paris"></div>
+      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Medecin, Retraite..."></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-owner')">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Phones & contacts -->
+<div class="modal-overlay" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contacts & Telephones</p><button onclick="closeModal('modal-phones')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <p style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Vous pouvez ajouter plusieurs numeros et leur donner un nom.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+          <div><label class="form-label">Telephone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
+          <div><label class="form-label">Libelle</label><input class="form-input" value="Mobile principal"></div>
+          <button class="btn btn-secondary btn-xs" style="height:34px;" onclick="toast('Supprime','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+          <div><input class="form-input" placeholder="+33 6 ..." style="margin-top:0;"></div>
+          <div><input class="form-input" placeholder="Ex : Domicile, Travail..."></div>
+          <button class="btn btn-secondary btn-xs" style="height:34px;"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutee','#4338ca')">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numero
+      </button>
+      <div style="border-top:1px solid #f1f5f9;margin-top:14px;padding-top:14px;">
+        <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Email</p>
+        <input class="form-input" value="s.dubois@email.fr">
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-phones')">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Communication preferences -->
+<div class="modal-overlay" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Preferences de communication</p><button onclick="closeModal('modal-prefs')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Canal prefere</label>
+        <select class="form-input"><option selected>SMS</option><option>Email</option><option>Telephone</option><option>Aucune preference</option></select>
+      </div>
+      <div class="form-row"><label class="form-label">Plage horaire de contact</label>
+        <select class="form-input"><option selected>Matin (8h-12h)</option><option>Apres-midi (12h-18h)</option><option>Soiree (18h-20h)</option><option>Toute la journee</option></select>
+      </div>
+      <div class="form-row"><label class="form-label">Rappels automatiques</label>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel RDV 24h avant</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel vaccin a renouveler</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" style="accent-color:#4338ca;">Newsletter clinique</label>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Note libre</label><input class="form-input" value="Disponible le matin uniquement"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Animal identification -->
+<div class="modal-overlay" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-row"><label class="form-label">Transpondeur (puce)</label><input class="form-input" id="fi-chip" placeholder="15 chiffres"></div>
+        <div class="form-row"><label class="form-label">Tatouage</label><input class="form-input" id="fi-tattoo" placeholder="Code tatouage"></div>
+        <div class="form-row"><label class="form-label">N. Passeport</label><input class="form-input" id="fi-passport" placeholder="FR..."></div>
+        <div class="form-row"><label class="form-label">N. LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
+        <div class="form-row"><label class="form-label">N. SIRE (equide)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
+        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador x Border Collie"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-ident')">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Auxiliary contact -->
+<div class="modal-overlay" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:#64748b;margin-bottom:12px;">Personne a contacter en l'absence du proprietaire principal.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-row"><label class="form-label">Prenom</label><input class="form-input" id="ac-first" placeholder="Prenom"></div>
+        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" id="ac-last" placeholder="Nom"></div>
+        <div class="form-row"><label class="form-label">Telephone</label><input class="form-input" id="ac-phone" placeholder="+33 6 ..."></div>
+        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin..."></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistre','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Animal status -->
+<div class="modal-overlay" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
+  <div class="modal-box">
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Statut de l'animal</p><button onclick="closeModal('modal-status')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Statut</label>
+        <select class="form-input" id="animal-status-sel" onchange="updateStatusNote()">
+          <option value="alive">Vivant</option>
+          <option value="deceased">Decede</option>
+          <option value="missing">Disparu</option>
+          <option value="given">Cede (vendu / donne)</option>
+        </select>
+      </div>
+      <div class="form-row" id="status-date-row"><label class="form-label">Date</label><input type="date" class="form-input" id="status-date"></div>
+      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau proprietaire..." style="resize:none;"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis a jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+// ── Drawer (left col on tablet/mobile) ──
+function toggleSidebar(){
+  var overlay = document.getElementById('drawer-overlay');
+  var sidebar = document.querySelector('.sidebar');
+  var isOpen = sidebar && sidebar.classList.contains('open');
+  closeAllDrawers();
+  if(!isOpen && sidebar){ sidebar.classList.add('open'); overlay.classList.add('open'); }
+}
+function toggleOwnerDrawer(){
+  var overlay = document.getElementById('drawer-overlay');
+  var col = document.querySelector('.col-left');
+  var isOpen = col.classList.contains('open');
+  closeAllDrawers();
+  if(!isOpen){ col.classList.add('open'); overlay.classList.add('open'); }
+}
+function closeAllDrawers(){
+  document.getElementById('drawer-overlay').classList.remove('open');
+  var sidebar = document.querySelector('.sidebar');
+  if(sidebar) sidebar.classList.remove('open');
+  document.querySelector('.col-left').classList.remove('open');
+}
+
+// ── DATA ──
+const ANIMALS = [
+  {
+    id:0, name:'Luna', emoji:'\ud83d\udc31', species:'Felin', breed:'Persan',
+    photo:null, dob:'2019-06-10', weight:'4.2', sex:'F', sterilized:true,
+    color:'Blanc', chip:'250268500012345', tattoo:null, passport:'FR-2019-123456',
+    loof:'LOOF-2019-789', sire:null, crossBreed:null,
+    status:'alive', tabColor:'#4338ca',
+    auxContact:{first:'Jean', last:'Dubois', phone:'+33 6 99 88 77 66', rel:'Conjoint'},
+    weights:[{d:'Oct',v:4.0},{d:'Nov',v:4.1},{d:'Dec',v:4.1},{d:'Jan',v:4.2},{d:'Fev',v:4.1},{d:'Mar',v:4.2}],
+    vitals:{
+      temp:[{d:'Oct',v:38.5},{d:'Nov',v:38.6},{d:'Dec',v:38.4},{d:'Jan',v:38.7},{d:'Fev',v:38.5},{d:'Mar',v:38.6}],
+      fc:  [{d:'Oct',v:140}, {d:'Nov',v:145},{d:'Dec',v:138},{d:'Jan',v:142},{d:'Fev',v:144},{d:'Mar',v:140}],
+      fr:  [{d:'Oct',v:22},  {d:'Nov',v:24}, {d:'Dec',v:20}, {d:'Jan',v:22}, {d:'Fev',v:23}, {d:'Mar',v:21}],
+    },
+    allergies:['Penicilline'],
+    antecedents:['Sterilisation (2020)','Detartrage (2023)'],
+    vaccins:[
+      {name:'Typhus-Coryza', date:'2025-12-10', next:'2026-12-10', status:'ok'},
+      {name:'Leucose FeLV',  date:'2025-12-10', next:'2026-12-10', status:'ok'},
+      {name:'Rage',          date:'2024-11-05', next:'2025-11-05', status:'warn'},
+      {name:'Chlamydiose',   date:'2025-06-15', next:'2026-06-15', status:'ok'},
+    ],
+    traitements:[{nom:'Cystaid Plus',dose:'1 gelule/j',debut:'2026-01-10',fin:'2026-04-10',vet:'Dr. Rousseau'}],
+    medias:[
+      {nom:'Ordonnance Cystaid',     date:'2026-01-10', type:'Ordonnance', isImage:false},
+      {nom:'Resultats analyse sang', date:'2025-12-10', type:'Analyse',    isImage:false},
+      {nom:'Certificat vaccination', date:'2025-12-10', type:'Certificat', isImage:false},
+      {nom:'Photo profil',           date:'2026-03-21', type:'Photo',      isImage:true,  thumb:'\ud83d\udc31'},
+      {nom:'Post-vaccination',       date:'2025-12-10', type:'Photo',      isImage:true,  thumb:'\ud83d\ude38'},
+      {nom:'Empreinte patte',        date:'2025-09-03', type:'Photo',      isImage:true,  thumb:'\ud83d\udc3e'},
+      {nom:'Radio thorax',           date:'2025-05-18', type:'Image medicale', isImage:true, thumb:'\ud83e\ude7b'},
+      {nom:'Echo abdominale',        date:'2025-01-10', type:'Image medicale', isImage:true, thumb:'\ud83d\udd2c'},
+    ],
+    facturation:[
+      {libelle:'Consultation + pesee',  date:'2026-03-21', montant:65,  statut:'ok',      ref:'FAC-2026-042', vet:'Dr. Rousseau', actes:['Examen clinique','Pesee']},
+      {libelle:'Vaccin typhus-coryza',  date:'2025-12-10', montant:38,  statut:'ok',      ref:'FAC-2025-198', vet:'Dr. Martin',   actes:['Vaccination']},
+      {libelle:'Suivi urinaire',        date:'2025-09-03', montant:45,  statut:'pending', ref:'FAC-2025-134', vet:'Dr. Rousseau', actes:['Examen clinique','Analyse urine']},
+      {libelle:'Examen ORL',            date:'2025-05-18', montant:50,  statut:'unpaid',  ref:'FAC-2025-071', vet:'Dr. Dupont',   actes:['Examen ORL']},
+    ],
+    factTotal:198,
+    consultations:[
+      {date:'2026-03-21',motif:'Consultation',vet:'Dr. Rousseau',note:'Bilan annuel - etat general excellent. Poids stable. Renouvellement traitement urinaire.',actes:['Examen clinique','Pesee']},
+      {date:'2025-12-10',motif:'Vaccin',vet:'Dr. Martin',note:'Rappel typhus-coryza et leucose. Aucune reaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
+      {date:'2025-09-03',motif:'Suivi',vet:'Dr. Rousseau',note:'Controle poids et urinaire. Legere amelioration.',actes:['Examen clinique']},
+      {date:'2025-05-18',motif:'Consultation',vet:'Dr. Dupont',note:'Epistaxis legere - origine traumatique probable. Surveillance.',actes:['Examen ORL']},
+    ]
+  },
+  {
+    id:1, name:'Mimi', emoji:'\ud83d\udc31', species:'Felin', breed:'Europeen',
+    photo:null, dob:'2022-01-20', weight:'3.8', sex:'F', sterilized:true,
+    color:'Tigre', chip:'250268500012346', tattoo:'GF-7X9', passport:null,
+    loof:null, sire:null, crossBreed:null,
+    status:'alive', tabColor:'#f59e0b',
+    auxContact:null,
+    weights:[{d:'Oct',v:3.5},{d:'Nov',v:3.6},{d:'Dec',v:3.7},{d:'Jan',v:3.9},{d:'Fev',v:3.7},{d:'Mar',v:3.8}],
+    vitals:{
+      temp:[{d:'Oct',v:38.3},{d:'Nov',v:38.5},{d:'Dec',v:38.4},{d:'Jan',v:38.8},{d:'Fev',v:38.6},{d:'Mar',v:38.5}],
+      fc:  [{d:'Oct',v:138},{d:'Nov',v:142},{d:'Dec',v:136},{d:'Jan',v:150},{d:'Fev',v:141},{d:'Mar',v:139}],
+      fr:  [{d:'Oct',v:20}, {d:'Nov',v:22}, {d:'Dec',v:21}, {d:'Jan',v:28}, {d:'Fev',v:22}, {d:'Mar',v:20}],
+    },
+    allergies:[],
+    antecedents:['Sterilisation (2022)','Ingestion corps etranger (jan. 2026) - resolu'],
+    vaccins:[
+      {name:'Typhus-Coryza',date:'2025-08-20',next:'2026-08-20',status:'ok'},
+      {name:'Leucose FeLV', date:'2025-08-20',next:'2026-08-20',status:'ok'},
+      {name:'Rage',         date:'2023-08-20',next:'2024-08-20',status:'alert'},
+    ],
+    traitements:[],
+    medias:[
+      {nom:'CR Urgence corps etranger', date:'2026-01-15', type:'Compte-rendu',    isImage:false},
+      {nom:'Certificat vaccination',    date:'2025-08-20', type:'Certificat',       isImage:false},
+      {nom:'Radio abdominale urgence',  date:'2026-01-15', type:'Image medicale',   isImage:true, thumb:'\ud83e\ude7b'},
+      {nom:'Photo profil',              date:'2025-08-20', type:'Photo',            isImage:true, thumb:'\ud83d\udc31'},
+      {nom:'Empreinte',                 date:'2025-08-20', type:'Photo',            isImage:true, thumb:'\ud83d\udc3e'},
+    ],
+    facturation:[
+      {libelle:'Urgence - endoscopie', date:'2026-01-15', montant:145, statut:'ok',      ref:'FAC-2026-008', vet:'Dr. Dupont',   actes:['Radiographie','Endoscopie','Injection']},
+      {libelle:'Primo-vaccination',    date:'2025-08-20', montant:42,  statut:'ok',      ref:'FAC-2025-112', vet:'Dr. Rousseau', actes:['Vaccination typhus-coryza','Vaccination FeLV']},
+    ],
+    factTotal:187,
+    consultations:[
+      {date:'2026-01-15',motif:'Urgence',vet:'Dr. Dupont',note:'Ingestion corps etranger (fil de laine). Extraction endoscopique reussie. Surveillance 48h.',actes:['Radiographie','Endoscopie','Injection antispasmodique']},
+      {date:'2025-08-20',motif:'Vaccin',vet:'Dr. Rousseau',note:'Primo-vaccination complete. Aucune reaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
+    ]
+  }
+];
+
+// ── STATE ──
+let currentAnimal = 0;
+let currentVital = 'weight';
+
+// ── UTILS ──
+function toast(m,c){c=c||'#16a34a';var t=document.getElementById('toast');t.textContent=m;t.style.background=c;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
+function fmtDate(d){if(!d)return'\u2014';return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function updateStatusNote(){}
+
+// ── CHART RENDERERS ──
+const NORMAL_RANGES = {temp:{min:38.0,max:39.0},fc:{min:120,max:200},fr:{min:15,max:30}};
+
+function getTooltip(){
+  var t=document.getElementById('chart-tooltip');
+  if(!t){t=document.createElement('div');t.id='chart-tooltip';t.style.cssText='position:fixed;pointer-events:none;z-index:900;background:#1e293b;color:#fff;font-size:11px;font-family:DM Sans,sans-serif;font-weight:500;padding:5px 9px;border-radius:7px;white-space:nowrap;opacity:0;transition:opacity .12s;box-shadow:0 4px 12px rgba(0,0,0,.2);';document.body.appendChild(t);}
+  return t;
+}
+function showTooltipAt(e,html){var t=getTooltip();t.innerHTML=html;t.style.opacity='1';positionTooltip(e,t);}
+function positionTooltip(e,t){var margin=10;var x=e.clientX+margin;var y=e.clientY-32;var tw=t.offsetWidth||80;if(x+tw>window.innerWidth-8)x=e.clientX-tw-margin;if(y<8)y=e.clientY+margin;t.style.left=x+'px';t.style.top=y+'px';}
+function hideTooltip(){getTooltip().style.opacity='0';document.querySelectorAll('[id$="-cross"]').forEach(function(l){l.setAttribute('opacity','0');});}
+document.addEventListener('mousemove',function(e){var t=document.getElementById('chart-tooltip');if(t&&t.style.opacity==='1')positionTooltip(e,t);});
+
+function renderVitalChart(data,type,color,fillColor,unit){
+  var W=100,H=44,padX=8,padY=6,labelH=12;
+  var vals=data.map(function(d){return d.v;});
+  var dataMin=Math.min.apply(null,vals);
+  var dataMax=Math.max.apply(null,vals);
+  var id='vc-'+Math.random().toString(36).slice(2,7);
+  if(type==='weight'){
+    var range=dataMax-dataMin||1;
+    var slotW=(W-padX*2)/vals.length;
+    var barW=slotW-3;
+    var bars=vals.map(function(v,i){
+      var x=padX+i*slotW+1.5;var pct=(v-dataMin)/range;var barH=Math.max(4,pct*(H-padY*2)+6);var y=H-padY-barH;var isLast=i===vals.length-1;var cx=x+barW/2;
+      return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+barH+'" rx="2" fill="'+(isLast?color:fillColor)+'" stroke="'+color+'" stroke-width="0.5" opacity="'+(isLast?1:0.65)+'"/><text x="'+cx+'" y="'+(H+labelH-1)+'" text-anchor="middle" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">'+data[i].d+'</text><rect class="chart-hit" x="'+(x-1)+'" y="'+padY+'" width="'+(barW+2)+'" height="'+(H-padY)+'" rx="2" fill="transparent" data-label="'+data[i].d+'" data-val="'+v+'" data-unit="'+unit+'" data-color="'+(isLast?color:'#4338ca')+'" onmouseenter="handleChartHover(event,this)" onmouseleave="hideTooltip()" style="cursor:crosshair;"/>';
+    }).join('');
+    return '<svg id="'+id+'" viewBox="0 0 '+W+' '+(H+labelH)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">'+bars+'</svg>';
+  } else {
+    var nr=NORMAL_RANGES[type];var allVals=nr?vals.concat([nr.min,nr.max]):vals;var vMin=Math.min.apply(null,allVals)*0.993;var vMax=Math.max.apply(null,allVals)*1.007;var range2=vMax-vMin||1;
+    function toY(v){return H-padY-((v-vMin)/range2)*(H-padY*2);}
+    function toX(i){return padX+(i/(vals.length-1))*(W-padX*2);}
+    var normalZone='';
+    if(nr){var ny1=toY(nr.max),ny2=toY(nr.min);normalZone='<rect x="'+padX+'" y="'+ny1+'" width="'+(W-padX*2)+'" height="'+(ny2-ny1)+'" fill="'+fillColor+'" opacity="0.45" rx="1"/><line x1="'+padX+'" y1="'+ny1+'" x2="'+(W-padX)+'" y2="'+ny1+'" stroke="'+color+'" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/><line x1="'+padX+'" y1="'+ny2+'" x2="'+(W-padX)+'" y2="'+ny2+'" stroke="'+color+'" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/>';}
+    var pts=vals.map(function(v,i){return toX(i)+','+toY(v);});var pathD='M '+pts.join(' L ');
+    var dots=vals.map(function(v,i){var out=nr&&(v<nr.min||v>nr.max);var isLast=i===vals.length-1;var r=isLast?1.8:out?2:1.2;var fill=out?'#dc2626':color;var op=isLast||out?1:0.65;return '<circle cx="'+toX(i)+'" cy="'+toY(v)+'" r="'+r+'" fill="'+fill+'" opacity="'+op+'"/>';}).join('');
+    var hitZones=vals.map(function(v,i){var out=nr&&(v<nr.min||v>nr.max);var hintColor=out?'#dc2626':color;var slotW2=(W-padX*2)/(vals.length-1||1);var hx=i===0?padX:toX(i)-slotW2/2;var hw=i===0||i===vals.length-1?slotW2/2:slotW2;return '<rect class="chart-hit" x="'+hx+'" y="'+padY+'" width="'+hw+'" height="'+(H-padY)+'" fill="transparent" data-label="'+data[i].d+'" data-val="'+v+'" data-unit="'+unit+'" data-color="'+hintColor+'" onmouseenter="handleChartHover(event,this,'+toX(i)+','+toY(v)+')" onmouseleave="hideTooltip()" style="cursor:crosshair;"/>';}).join('');
+    var labels2=[0,vals.length-1].map(function(i){return '<text x="'+toX(i)+'" y="'+(H+labelH-1)+'" text-anchor="'+(i===0?'start':'end')+'" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">'+data[i].d+'</text>';}).join('');
+    return '<svg id="'+id+'" viewBox="0 0 '+W+' '+(H+labelH)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">'+normalZone+'<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/><line id="'+id+'-cross" x1="0" y1="'+padY+'" x2="0" y2="'+H+'" stroke="'+color+'" stroke-width="0.5" stroke-dasharray="2,2" opacity="0" pointer-events="none"/>'+dots+labels2+hitZones+'</svg>';
+  }
+}
+
+function handleChartHover(e,el,crossX,crossY){
+  var label=el.dataset.label,val=el.dataset.val,unit=el.dataset.unit,color=el.dataset.color;
+  var svg=el.closest('svg');var cross=svg?svg.querySelector('[id$="-cross"]'):null;
+  if(cross&&crossX!==undefined){cross.setAttribute('x1',crossX);cross.setAttribute('x2',crossX);cross.setAttribute('opacity','0.5');}
+  showTooltipAt(e,'<span style="color:'+color+';margin-right:4px;">\u25cf</span>'+label+' \u00b7 <strong>'+val+'</strong> '+unit);
+}
+
+function sparkline(data,color,fillColor){return renderVitalChart(data,'weight',color||'#4338ca',fillColor||'#eef2ff','kg');}
+
+// ── STATUS CONFIG ──
+var STATUS_CFG={alive:{label:'Vivant',cls:'status-alive',badge:'b-ok',icon:'\ud83d\udc3e'},deceased:{label:'Decede',cls:'status-deceased',badge:'b-deceased',icon:'\ud83d\udd4a\ufe0f'},missing:{label:'Disparu',cls:'status-missing',badge:'b-missing',icon:'\ud83d\udd0d'},given:{label:'Cede',cls:'status-given',badge:'b-given',icon:'\ud83c\udfe0'}};
+
+// ── BUILD TABS ──
+function buildTabs(){
+  var el=document.getElementById('animal-tabs');
+  el.innerHTML=ANIMALS.map(function(a,i){
+    var sc=STATUS_CFG[a.status];var vaccAlert=a.vaccins.some(function(v){return v.status==='alert';});var vaccWarn=a.vaccins.some(function(v){return v.status==='warn';});
+    var statusBadge=a.status!=='alive'?'<span class="tab-badge" style="background:'+(a.status==='deceased'?'#1e293b':'#fef3c7')+';color:'+(a.status==='deceased'?'#e2e8f0':'#92400e')+';">'+sc.icon+'</span>':vaccAlert?'<span class="tab-badge" style="background:#fef2f2;color:#dc2626;">\u26a0</span>':vaccWarn?'<span class="tab-badge" style="background:#fff7ed;color:#d97706;">!</span>':'';
+    return '<div class="animal-tab'+(i===0?' active':'')+'" id="tab-'+i+'" onclick="switchTab('+i+')"><span class="tab-emoji">'+a.emoji+'</span><div style="display:flex;flex-direction:column;min-width:0;"><span class="tab-name">'+a.name+'</span><span class="tab-breed">'+a.breed+'</span></div>'+statusBadge+'</div>';
+  }).join('')+'<button class="btn btn-secondary btn-xs" style="margin-left:4px;align-self:center;flex-shrink:0;" onclick="toast(\'Ajouter un animal...\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>';
+}
+
+function buildAuxContact(a){
+  var el=document.getElementById('aux-contact-left');if(!el)return;
+  if(a.auxContact){
+    el.innerHTML='<div class="phone-chip"><svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><circle cx="8" cy="5" r="2.8" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.auxContact.first+' '+a.auxContact.last+'</p><p style="font-size:10.5px;color:#94a3b8;">'+a.auxContact.phone+' \u00b7 '+a.auxContact.rel+'</p></div><button class="btn btn-ghost btn-icon btn-xs" onclick="toast(\'Appel...\',\'#059669\')" style="flex-shrink:0;"><svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></div><p style="font-size:11px;color:#94a3b8;margin-top:6px;">Contact pour : '+a.name+'</p>';
+  } else {
+    el.innerHTML='<p style="font-size:12.5px;color:#94a3b8;margin-bottom:8px;">Aucun contact pour <strong>'+a.name+'</strong>.</p><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-auxcontact\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter</button>';
+  }
+}
+
+// ── SWITCH TAB ──
+function switchTab(idx){
+  currentAnimal=idx;currentVital='weight';
+  document.querySelectorAll('.animal-tab').forEach(function(t,i){t.classList.toggle('active',i===idx);});
+  buildAuxContact(ANIMALS[idx]);
+  renderAnimal(ANIMALS[idx]);
+  document.getElementById('animal-content').scrollTop=0;
+}
+
+// ── RENDER MEDIA LIST ──
+function renderMediaList(medias,filterType){
+  var filtered=filterType&&filterType!=='Tous'?medias.filter(function(m){return m.type===filterType;}):medias;
+  if(!filtered.length)return '<p style="font-size:12.5px;color:#94a3b8;padding:12px 14px;">Aucun element</p>';
+  var TYPE_CFG={'Ordonnance':{badge:'b-blue',icon:'\ud83d\udccb'},'Analyse':{badge:'b-purple',icon:'\ud83e\uddea'},'Certificat':{badge:'b-ok',icon:'\u2705'},'Compte-rendu':{badge:'b-grey',icon:'\ud83d\udcc4'},'Photo':{badge:'b-cat',icon:'\ud83d\udcf7'},'Image medicale':{badge:'b-warn',icon:'\ud83e\ude7b'}};
+  return filtered.map(function(m,i,arr){
+    var cfg=TYPE_CFG[m.type]||{badge:'b-grey',icon:'\ud83d\udcc4'};var isLast=i===arr.length-1;
+    if(m.isImage){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:pointer;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:36px;height:36px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid #e8edf2;">'+(m.thumb||cfg.icon)+'</div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+m.nom+'</p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(m.date)+'</p></div><span class="badge '+cfg.badge+'" style="font-size:10px;">'+m.type+'</span></div>';
+    } else {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:pointer;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:36px;height:36px;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid #e8edf2;">'+cfg.icon+'</div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+m.nom+'</p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(m.date)+'</p></div><span class="badge '+cfg.badge+'" style="font-size:10px;">'+m.type+'</span></div>';
+    }
+  }).join('');
+}
+
+function setMediaFilter(btn,animalId){
+  var container=btn.closest('[id^="media-filters-"]');container.querySelectorAll('.media-filter').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');
+  var filterType=btn.dataset.mfilter;var a=ANIMALS.find(function(a){return String(a.id)===String(animalId);});if(!a)return;
+  document.getElementById('media-list-'+animalId).innerHTML=renderMediaList(a.medias,filterType);
+}
+
+// ── RENDER ANIMAL ──
+function renderAnimal(a){
+  var sc=STATUS_CFG[a.status];
+  var banner=a.status!=='alive'?'<div class="status-strip '+sc.cls+'" style="margin-bottom:12px;"><span style="font-size:16px;">'+sc.icon+'</span><span>Animal '+sc.label.toLowerCase()+'</span><button class="btn btn-xs" style="margin-left:auto;background:rgba(255,255,255,.2);color:inherit;border:1px solid rgba(255,255,255,.3);" onclick="openModal(\'modal-status\')">Modifier</button></div>':'';
+  var mediaTypes=['Tous'].concat(Array.from(new Set(a.medias.map(function(m){return m.type;}))));
+  var mediaFilterBtns=mediaTypes.map(function(t,i){return '<button class="media-filter'+(i===0?' active':'')+'" data-mfilter="'+t+'" onclick="setMediaFilter(this,\''+a.id+'\')">'+t+' <span style="opacity:.6;">'+(t==='Tous'?a.medias.length:a.medias.filter(function(m){return m.type===t;}).length)+'</span></button>';}).join('');
+
+  document.getElementById('animal-content').innerHTML=banner+
+    '<div class="widget-row-1" style="display:grid;grid-template-columns:4fr 6fr;gap:12px;margin-bottom:12px;align-items:stretch;">'+
+      '<div class="widget"><div class="wh" style="height:48px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:32px;height:32px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;border:1.5px dashed #c7d2fe;" onclick="toast(\'Changer la photo...\',\'#4338ca\')">'+a.emoji+'</div><div><div style="display:flex;align-items:center;gap:6px;"><h2 style="font-size:14px;font-weight:700;color:#0f172a;">'+a.name+'</h2><span class="badge b-cat" style="font-size:10px;">'+(a.species==='Felin'?'Chat':'Chien')+'</span><span class="badge '+STATUS_CFG[a.status].badge+'" style="font-size:10px;">'+STATUS_CFG[a.status].label+'</span></div><p style="font-size:11px;color:#94a3b8;">'+a.breed+' \u00b7 '+(a.sex==='F'?'\u2640':'\u2642')+(a.sterilized?' \u00b7 Sterilisee':'')+'</p></div></div><div style="display:flex;gap:4px;"><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-status\')">Statut</button><button class="btn btn-secondary btn-xs" onclick="toast(\'Edition...\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></div></div>'+
+      '<div class="wb" style="padding:8px 14px;"><div style="display:flex;flex-direction:column;gap:0;"><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Naissance</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;text-align:right;">'+fmtDate(a.dob)+'</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Poids</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.weight+' kg</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Sexe</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+(a.sex==='F'?'Femelle':'Male')+(a.sterilized?' \u00b7 Sterilisee':'')+'</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Robe</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.color+'</span></div>'+(a.chip?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Transpondeur</span><span style="font-size:11px;font-weight:500;color:#0f172a;font-family:monospace;">'+a.chip+'</span></div>':'')+(a.tattoo?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Tatouage</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;font-family:monospace;">'+a.tattoo+'</span></div>':'')+(a.passport?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Passeport</span><span style="font-size:12px;font-weight:500;color:#0f172a;">'+a.passport+'</span></div>':'')+(a.loof?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">LOOF / LOF</span><span style="font-size:12px;font-weight:500;color:#0f172a;">'+a.loof+'</span></div>':'')+'</div></div></div>'+
+      '<div class="widget" style="display:flex;flex-direction:column;"><div class="wh" style="height:48px;"><span class="wt">Suivi de sante</span><span style="font-size:11px;color:#94a3b8;">6 dernieres mesures</span></div><div class="vital-grid" style="flex:1;display:grid;">'+
+        [{key:'weight',label:'Poids',unit:'kg',color:'#4338ca',fill:'#eef2ff',type:'weight',data:a.weights.map(function(w){return{d:w.d,v:parseFloat(w.v)};})},{key:'temp',label:'Temp.',unit:'\u00b0C',color:'#dc2626',fill:'#fef2f2',type:'temp',data:a.vitals.temp},{key:'fc',label:'FC',unit:'bpm',color:'#0891b2',fill:'#ecfeff',type:'fc',data:a.vitals.fc},{key:'fr',label:'FR',unit:'/min',color:'#059669',fill:'#ecfdf5',type:'fr',data:a.vitals.fr}].map(function(v,i){
+          var vals2=v.data.map(function(d){return d.v;});var last=vals2[vals2.length-1];var prev=vals2[vals2.length-2];var trend=last>prev?'\u2191':last<prev?'\u2193':'\u2192';var trendColor=last>prev?'#dc2626':last<prev?'#059669':'#94a3b8';
+          return '<div style="border-left:'+(i>0?'1px solid #f1f5f9':'none')+';padding:10px 12px;display:flex;flex-direction:column;gap:4px;"><div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">'+v.label+'</span><span style="font-size:12px;font-weight:700;color:'+trendColor+';">'+trend+'</span></div><div style="display:flex;align-items:baseline;gap:3px;"><span style="font-size:20px;font-weight:600;color:'+v.color+';line-height:1;letter-spacing:-.5px;">'+last+'</span><span style="font-size:10px;color:#94a3b8;font-weight:400;">'+v.unit+'</span></div><div style="flex:1;min-height:48px;">'+renderVitalChart(v.data,v.type,v.color,v.fill,v.unit)+'</div></div>';
+        }).join('')+
+      '</div></div>'+
+    '</div>'+
+    '<div class="widget-row-2" style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px;">'+
+      '<div class="widget"><div class="wh"><span class="wt">Vaccinations</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Vaccinations...\',\'#0891b2\')">Voir tout</button></div><div style="padding:0 12px;">'+a.vaccins.slice(0,4).map(function(v){var dot=v.status==='alert'?'#dc2626':v.status==='warn'?'#f59e0b':'#16a34a';var badge2=v.status==='alert'?'<span class="badge b-alert" style="font-size:10px;">Expire</span>':v.status==='warn'?'<span class="badge b-warn" style="font-size:10px;">A renouveler</span>':'<span class="badge b-ok" style="font-size:10px;">A jour</span>';return '<div class="trow"><div style="width:7px;height:7px;border-radius:50%;background:'+dot+';flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+v.name+'</p><p style="font-size:10.5px;color:#94a3b8;">Fait '+fmtDate(v.date)+' \u00b7 Prochain '+fmtDate(v.next)+'</p></div>'+badge2+'</div>';}).join('')+'</div></div>'+
+      '<div class="widget"><div class="wh"><span class="wt">Traitements</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Traitements...\',\'#7c3aed\')">Voir tout</button></div><div style="padding:0 12px;">'+(a.traitements.length?a.traitements.slice(0,4).map(function(t){return '<div class="trow"><div style="width:7px;height:7px;border-radius:50%;background:#4338ca;flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+t.nom+' <span class="badge b-blue" style="font-size:10px;">'+t.dose+'</span></p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(t.debut)+' \u2192 '+fmtDate(t.fin)+' \u00b7 '+t.vet+'</p></div><button class="btn btn-xs" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;flex-shrink:0;" onclick="toast(\'Arret traitement...\',\'#dc2626\')">Arreter</button></div>';}).join(''):'<p style="font-size:12.5px;color:#94a3b8;padding:4px 0;">Aucun traitement en cours</p>')+'</div></div>'+
+      '<div class="widget"><div class="wh"><span class="wt">Historique des consultations ('+a.consultations.length+')</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Voir tout...\',\'#4338ca\')">Voir tout</button></div><div id="consult-scroll-'+a.id+'" style="overflow-y:auto;overflow-x:hidden;">'+a.consultations.map(function(c,i,arr){return '<div style="display:flex;gap:10px;padding:10px 14px;'+(i===arr.length-1?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;align-items:center;cursor:default;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:10px;height:10px;border-radius:50%;background:'+(i===0?'#4338ca':'#e2e8f0')+';flex-shrink:0;"></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:13px;font-weight:600;color:#0f172a;">'+c.motif+'</span><span class="badge b-grey" style="font-size:10px;">'+c.vet+'</span><span style="font-size:11px;color:#94a3b8;margin-left:auto;">'+fmtDate(c.date)+'</span></div><p style="font-size:12px;color:#475569;line-height:1.4;margin-bottom:4px;">'+c.note+'</p><div style="display:flex;gap:3px;flex-wrap:wrap;">'+c.actes.map(function(ac){return '<span class="badge b-grey" style="font-size:10px;">'+ac+'</span>';}).join('')+'</div></div><button class="btn btn-secondary" style="font-size:11px;padding:3px 9px;flex-shrink:0;margin-left:8px;" onclick="toast(\'Ouverture consultation...\',\'#4338ca\')">Ouvrir</button></div>';}).join('')+'</div></div>'+
+    '</div>'+
+    '<div class="widget-row-3" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:stretch;">'+
+      '<div class="widget" style="display:flex;flex-direction:column;overflow:hidden;"><div class="wh"><div style="display:flex;align-items:center;gap:7px;"><span class="wt">Medias & Documents</span><span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">'+a.medias.length+'</span></div><button class="btn btn-secondary btn-xs" onclick="toast(\'Voir tout...\',\'#4338ca\')">Voir tout</button></div><div style="display:flex;gap:4px;padding:8px 14px 6px;flex-wrap:wrap;border-bottom:1px solid #f1f5f9;" id="media-filters-'+a.id+'">'+mediaFilterBtns+'</div><div style="flex:1;overflow-y:auto;max-height:156px;" id="media-list-'+a.id+'">'+renderMediaList(a.medias,null)+'</div></div>'+
+      '<div class="widget" style="overflow:hidden;display:flex;flex-direction:column;"><div class="wh" style="flex-shrink:0;"><span class="wt">Facturation - '+a.name+'</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Historique complet...\',\'#4338ca\')">Voir tout</button></div><div id="fact-scroll-'+a.id+'" style="overflow-y:auto;overflow-x:hidden;">'+a.facturation.map(function(f,fi,arr){var isOk=f.statut==='ok',isPending=f.statut==='pending';var isLast=fi===arr.length-1;var badgeCls=isOk?'b-ok':isPending?'b-warn':'b-alert';var badgeLabel=isOk?'Paye':isPending?'En attente':'Impaye';return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:default;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="flex-shrink:0;width:44px;text-align:center;padding-top:1px;"><p style="font-size:13px;font-weight:700;color:#0f172a;line-height:1;">'+new Date(f.date).getDate()+'</p><p style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;">'+new Date(f.date).toLocaleDateString('fr-FR',{month:'short'})+'</p></div><div style="width:1px;background:#f1f5f9;align-self:stretch;flex-shrink:0;"></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+f.libelle+'</p><span class="badge '+badgeCls+'" style="font-size:9.5px;">'+badgeLabel+'</span></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:10.5px;color:#64748b;">'+f.vet+'</span><span style="font-size:10px;color:#94a3b8;font-family:monospace;">'+f.ref+'</span></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;"><p style="font-size:13px;font-weight:500;color:#334155;">'+f.montant+' \u20ac</p></div></div>';}).join('')+'</div></div>'+
+    '</div>';
+
+  // Cap facturation scroll height
+  requestAnimationFrame(function(){
+    var factEl=document.getElementById('fact-scroll-'+a.id);
+    if(factEl){var rows=factEl.children;if(rows.length>3){var h=0;for(var i=0;i<3;i++)h+=rows[i].offsetHeight;factEl.style.maxHeight=h+'px';}}
+    var consultEl=document.getElementById('consult-scroll-'+a.id);
+    if(consultEl){var rows2=consultEl.children;if(rows2.length>2){var h2=0;for(var j=0;j<2;j++)h2+=rows2[j].offsetHeight;consultEl.style.maxHeight=h2+'px';}}
+  });
+}
+
+// ── VITAL CHART SWITCH ──
+function setVital(v){
+  currentVital=v;var a=ANIMALS[currentAnimal];
+  document.querySelectorAll('.vt-tab').forEach(function(t){t.classList.toggle('active',t.dataset.vital===v);});
+  var vitalData2=v==='weight'?a.weights.map(function(w){return{d:w.d,v:parseFloat(w.v)};}):a.vitals[v];
+  var colors={weight:'#4338ca',temp:'#dc2626',fc:'#0891b2',fr:'#059669'};
+  var fills={weight:'#eef2ff',temp:'#fef2f2',fc:'#ecfeff',fr:'#ecfdf5'};
+  var el=document.getElementById('vital-chart-wrap');
+  if(el)el.innerHTML=sparkline(vitalData2,colors[v],fills[v]);
+}
+
+// ── INIT ──
+buildTabs();
+buildAuxContact(ANIMALS[0]);
+renderAnimal(ANIMALS[0]);
+</script>
 {% endblock %}

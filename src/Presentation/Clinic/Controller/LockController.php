@@ -19,6 +19,7 @@ final class LockController extends AbstractController
     #[Route(path: '/lock', name: 'clinic_lock', methods: ['GET'])]
     public function __invoke(): Response
     {
+        $this->denyAccessUnlessGranted();
         return $this->render('security/lock.html.twig', [
             'clinicName' => null,
         ]);

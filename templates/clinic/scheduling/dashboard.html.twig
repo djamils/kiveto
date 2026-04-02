@@ -1,85 +1,1243 @@
 {#
  # Kiveto — templates/clinic/scheduling/dashboard.html.twig
  # ────────────────────────────────────────────────────────
- # Scheduling dashboard: waiting room + agenda side by side.
+ # Agenda view — weekly/daily appointment scheduling grid.
+ # Source: vetos-agenda.html mockup
  #
  # Variables:
- #   appointments       array               List of appointment DTOs
- #   waitingRoomEntries  array               List of waiting-room entry DTOs
- #   selectedDate        DateTimeImmutable   Currently viewed date
- #   currentClinicId     string              Active clinic UUID
- #   currentClinicName   string              Active clinic display name
+ #   currentClinicId     string   Active clinic UUID
+ #   currentClinicName   string   Active clinic display name
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block page_title %}Planning & Salle d'attente{% endblock %}
-
-{% block page_subtitle %}{{ currentClinicName }}{% endblock %}
-
-{% block topbar_actions %}
-    <button
-        class="btn btn-primary btn-sm"
-        type="button"
-        data-action="click->modal#open"
-        data-modal-id-param="modalNewAppointment"
-    >
-        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
-        Nouveau RDV
-    </button>
-    <button
-        class="btn btn-danger-soft btn-sm"
-        type="button"
-        data-action="click->modal#open"
-        data-modal-id-param="modalWalkIn"
-    >
-        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Urgence Walk-in
-    </button>
-{% endblock %}
+{% block page_title %}Agenda{% endblock %}
 
 {% block stylesheets %}
-    <link href="{{ asset('scheduling.css') }}" rel="stylesheet"/>
+<style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;font-size:16px;color:#1e293b;background:#f4f5f7;overflow:hidden;}
+    ::-webkit-scrollbar{width:6px;height:6px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px;}
+    ::-webkit-scrollbar-thumb:hover{background:#94a3b8;}
+
+    /* Override base layout to allow agenda full height */
+    .app-scroll{overflow:hidden !important;}
+    .app-body{padding:0 !important;display:flex;flex-direction:column;overflow:hidden;height:100%;}
+
+    /* Mini calendar */
+    .mini-cal{padding:12px 14px;border-bottom:1px solid #f1f5f9;}
+    .mini-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .mini-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+    .mini-cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;border-radius:5px;cursor:pointer;transition:all .1s;color:#475569;}
+    .mini-cal-day:hover{background:#f1f5f9;}
+    .mini-cal-day.today{background:#4338ca;color:#fff;font-weight:700;}
+    .mini-cal-day.selected{background:#eef2ff;color:#4338ca;font-weight:600;}
+    .mini-cal-day.has-rdv::after{content:'';display:block;width:3px;height:3px;border-radius:50%;background:#4338ca;position:absolute;bottom:2px;left:50%;transform:translateX(-50%);}
+    .mini-cal-day{position:relative;}
+    .mini-cal-dow{font-size:10px;font-weight:600;color:#94a3b8;text-align:center;padding-bottom:2px;}
+
+    /* Vets filter */
+    .vet-filter{padding:10px 14px;}
+    .vet-chip{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background .1s;margin-bottom:3px;}
+    .vet-chip:hover{background:#f8fafc;}
+    .vet-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+    /* Agenda grid */
+    .agenda-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+    .agenda-head{display:grid;background:#fff;border-bottom:1px solid #e8edf2;flex-shrink:0;}
+    .agenda-body{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;}
+    .agenda-inner{display:grid;position:relative;}
+
+    /* Time col */
+    .time-col{width:55px;flex-shrink:0;background:#fff;box-sizing:border-box;}
+    .time-label{height:80px;display:flex;align-items:flex-start;justify-content:flex-end;padding-right:8px;padding-top:3px;font-size:12.5px;color:#334155;font-weight:400;letter-spacing:0;box-sizing:border-box;}
+
+    /* Day col */
+    .day-col{border-left:1px solid #dde3ea;position:relative;}
+
+    /* Free slots */
+    .free-slot{position:absolute;border-radius:5px;cursor:pointer;z-index:8;display:flex;align-items:center;justify-content:center;transition:filter .12s;box-sizing:border-box;}
+    .free-slot:hover{filter:brightness(.9);}
+
+    .rdv-block{position:absolute;left:2px;right:2px;border-radius:5px;padding:0 5px;cursor:pointer;overflow:hidden;transition:all .15s;z-index:10;border-left:3px solid transparent;display:flex;align-items:center;}
+    .rdv-block:hover{filter:brightness(.94);z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.14);}
+
+    /* RDV popup */
+    .rdv-popup{position:fixed;background:#fff;border:1px solid #e8edf2;border-radius:12px;padding:0;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:500;width:300px;overflow:hidden;animation:popIn .15s ease;}
+    @keyframes popIn{from{opacity:0;transform:scale(.95) translateY(-4px);}to{opacity:1;transform:scale(1) translateY(0);}}
+
+    /* New RDV popup */
+    .new-rdv-popup{background:#fff;border-radius:14px;padding:20px;box-shadow:0 24px 64px rgba(0,0,0,.2);z-index:500;width:440px;max-width:calc(100vw - 32px);max-height:calc(100vh - 40px);overflow-y:auto;animation:modalIn .2s cubic-bezier(.34,1.56,.64,1);}
+    @keyframes modalIn{from{opacity:0;transform:translate(-50%,-48%);}to{opacity:1;transform:translate(-50%,-50%);}}
+
+    /* Buttons */
+    .btn-agenda{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:500;font-family:'DM Sans',system-ui,sans-serif;cursor:pointer;border:1px solid transparent;transition:all .13s;}
+    .btn-agenda.btn-primary{background:#4338ca;color:#fff;border-color:#4338ca;}
+    .btn-agenda.btn-primary:hover{background:#3730a3;}
+    .btn-agenda.btn-secondary{background:#f8fafc;color:#374151;border-color:#e2e8f0;}
+    .btn-agenda.btn-secondary:hover{background:#f1f5f9;}
+    .btn-agenda.btn-xs{padding:4px 10px;font-size:12px;border-radius:7px;}
+    .btn-agenda.btn-icon{width:28px;height:28px;padding:0;justify-content:center;border-radius:7px;}
+
+    /* Form inputs */
+    .form-input-agenda{width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'DM Sans',system-ui,sans-serif;color:#0f172a;background:#f8fafc;outline:none;transition:border-color .13s;}
+    .form-input-agenda:focus{border-color:#818cf8;background:#fff;}
+    .agenda-label{font-size:11.5px;font-weight:500;color:#475569;display:block;margin-bottom:4px;}
+
+    /* Badges */
+    .badge-agenda{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+    .badge-online{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
+    .badge-urgent{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+    .badge-new{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+    .badge-followup{background:#fdf4ff;color:#7e22ce;border:1px solid #e9d5ff;}
+
+    /* Overlay */
+    .overlay{position:fixed;inset:0;z-index:400;background:rgba(15,23,42,.35);backdrop-filter:blur(2px);}
+
+    /* Current time line */
+    .now-line{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:15;pointer-events:none;}
+    .now-dot{position:absolute;left:-4px;top:-4px;width:10px;height:10px;border-radius:50%;background:#ef4444;}
+
+    /* Status dot */
+    .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+    .pulse{animation:pulse 2s infinite;}
+
+    /* Tooltip */
+    .tooltip{position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:100;}
+
+    /* FAB new RDV (mobile) */
+    .fab-rdv{display:none;position:fixed;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:#4338ca;color:#fff;border:none;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(67,56,202,.4);z-index:60;transition:transform .15s;}
+    .fab-rdv:hover{transform:scale(1.08);}
+
+    /* Agenda layout with sidebar panel */
+    .agenda-layout{display:flex;flex:1;overflow:hidden;}
+    .agenda-sidebar-panel{width:232px;flex-shrink:0;background:#fff;border-right:1px solid #e8edf2;display:flex;flex-direction:column;overflow-y:auto;}
+    .agenda-main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+
+    /* Agenda topbar */
+    .agenda-topbar{height:48px;flex-shrink:0;background:#fff;border-bottom:1px solid #e8edf2;display:flex;align-items:center;padding:0 18px;gap:10px;}
+
+    /* iPad Pro landscape */
+    @media(max-width:1280px){
+      .topbar-week-label{min-width:120px !important;}
+      .topbar-free-slots{display:none !important;}
+      #sb-free-slots-wrap{display:block !important;}
+    }
+
+    /* iPad portrait */
+    @media(max-width:1024px){
+      .agenda-sidebar-panel{
+        position:fixed;left:0;top:0;bottom:0;z-index:90;
+        transform:translateX(-100%);
+        transition:transform .28s cubic-bezier(.4,0,.2,1);
+        box-shadow:none;
+      }
+      .agenda-sidebar-panel.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.15);}
+      .topbar-free-slots{display:none !important;}
+      .topbar-view-toggle{display:none !important;}
+    }
+
+    /* Mobile */
+    @media(max-width:640px){
+      .agenda-topbar{padding:0 10px;gap:6px;}
+      .topbar-week-nav .btn-agenda.btn-secondary{padding:4px 8px;}
+      .topbar-week-label{font-size:12px !important;min-width:90px !important;}
+      .topbar-new-rdv{display:none !important;}
+      .fab-rdv{display:flex;}
+    }
+
+    /* Toast */
+    #agenda-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap;background:#16a34a;}
+</style>
 {% endblock %}
 
 {% block content %}
-    {# Flash messages #}
-    {% for message in app.flashes('success') %}
-        <div class="widget" style="border-left: 3px solid var(--color-success-text); margin-bottom: var(--space-3);">
-            <div class="w-body" style="display: flex; align-items: center; gap: var(--space-2); color: var(--color-success-text);">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                {{ message }}
-            </div>
-        </div>
-    {% endfor %}
-    {% for message in app.flashes('error') %}
-        <div class="widget" style="border-left: 3px solid var(--color-danger-text); margin-bottom: var(--space-3);">
-            <div class="w-body" style="display: flex; align-items: center; gap: var(--space-2); color: var(--color-danger-text);">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                {{ message }}
-            </div>
-        </div>
-    {% endfor %}
+<!-- Drawer overlay for mobile sidebar panel -->
+<div class="overlay" id="agenda-drawer-overlay" style="display:none;z-index:80;" onclick="closeAgendaSidebar()"></div>
 
-    {# Two-panel layout: waiting room (left) + agenda (right) #}
-    <div style="display: grid; grid-template-columns: minmax(320px, 1fr) minmax(400px, 2fr); gap: var(--space-4); align-items: start;">
-        {# Left panel: Waiting room #}
-        <div>
-            {% include 'clinic/scheduling/_waiting_room.html.twig' %}
-        </div>
+<!-- FAB mobile -->
+<button class="fab-rdv" id="fab-rdv" onclick="openNewRdvGlobal()">
+  <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+</button>
 
-        {# Right panel: Agenda #}
-        <div>
-            {% include 'clinic/scheduling/_agenda.html.twig' %}
+<!-- Two-panel layout: mini-cal sidebar + agenda -->
+<div class="agenda-layout">
+
+  <!-- LEFT SIDEBAR PANEL: Mini calendar + filters -->
+  <div class="agenda-sidebar-panel" id="agenda-sidebar-panel">
+    <!-- Mini calendar -->
+    <div class="mini-cal">
+      <div class="mini-cal-head">
+        <span style="font-size:12.5px;font-weight:700;color:#0f172a;" id="mini-month">Mars 2026</span>
+        <div style="display:flex;gap:2px;">
+          <button class="btn-agenda btn-icon btn-secondary" onclick="miniCalPrev()" style="width:22px;height:22px;border-radius:5px;">
+            <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-agenda btn-icon btn-secondary" onclick="miniCalNext()" style="width:22px;height:22px;border-radius:5px;">
+            <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
+      </div>
+      <div class="mini-cal-grid" id="mini-cal-grid">
+        <!-- Filled by JS -->
+      </div>
     </div>
-{% endblock %}
 
-{% block modals %}
-    {% include 'clinic/scheduling/_modal_new_appointment.html.twig' %}
-    {% include 'clinic/scheduling/_modal_walk_in.html.twig' %}
+    <!-- Vets filter -->
+    <div class="vet-filter">
+      <p style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">V&eacute;t&eacute;rinaires</p>
+      <div class="vet-chip" onclick="toggleVet(this,'rousseau')">
+        <div class="vet-dot" style="background:#4338ca;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Rousseau</span>
+        <svg id="check-rousseau" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#4338ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip" onclick="toggleVet(this,'martin')">
+        <div class="vet-dot" style="background:#0891b2;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Martin</span>
+        <svg id="check-martin" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#0891b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip" onclick="toggleVet(this,'dupont')">
+        <div class="vet-dot" style="background:#059669;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Dupont</span>
+        <svg id="check-dupont" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="vet-chip" onclick="toggleVet(this,'lambert')">
+        <div class="vet-dot" style="background:#db2777;"></div>
+        <span style="font-size:12.5px;color:#334155;flex:1;">Dr. Lambert</span>
+        <svg id="check-lambert" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#db2777" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+
+    <!-- RDV type filters -->
+    <div style="flex:1;overflow-y:auto;padding:10px 12px 6px;">
+      <p style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Types de RDV</p>
+      <div id="motif-filters" style="display:flex;flex-direction:column;gap:2px;">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #e8edf2;padding:8px 6px 10px;">
+      <!-- Free slots toggle (visible on tablet/mobile) -->
+      <div id="sb-free-slots-wrap" style="padding:6px 8px 4px;display:none;">
+        <button onclick="toggleFreeSlots();closeAgendaSidebar();" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-family:inherit;font-size:12.5px;color:#64748b;font-weight:500;transition:all .13s;" id="sb-free-slots-btn">
+          <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Cr&eacute;neaux libres
+        </button>
+        <div id="sb-free-dur" style="display:none;gap:4px;margin-top:6px;justify-content:center;">
+          <button onclick="setFreeDur(15)" class="free-dur-btn" data-dur="15" style="flex:1;padding:4px 0;border-radius:6px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">15</button>
+          <button onclick="setFreeDur(20)" class="free-dur-btn" data-dur="20" style="flex:1;padding:4px 0;border-radius:6px;font-size:11px;font-weight:500;border:1.5px solid #4338ca;background:#eef2ff;color:#4338ca;cursor:pointer;font-family:inherit;">20</button>
+          <button onclick="setFreeDur(30)" class="free-dur-btn" data-dur="30" style="flex:1;padding:4px 0;border-radius:6px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">30</button>
+          <button onclick="setFreeDur(60)" class="free-dur-btn" data-dur="60" style="flex:1;padding:4px 0;border-radius:6px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">60</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN AGENDA AREA -->
+  <div class="agenda-main">
+
+    <!-- TOPBAR -->
+    <div class="agenda-topbar">
+      <div style="flex:1;"></div>
+
+      <!-- Week nav -->
+      <div class="topbar-week-nav" style="display:flex;align-items:center;gap:6px;">
+        <button class="btn-agenda btn-secondary btn-xs" onclick="prevWeek()">
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn-agenda btn-secondary btn-xs" onclick="goToday()" id="today-btn">Aujourd'hui</button>
+        <button class="btn-agenda btn-secondary btn-xs" onclick="nextWeek()">
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="topbar-week-label" style="font-size:13.5px;font-weight:600;color:#0f172a;min-width:160px;text-align:center;" id="week-label"></span>
+      </div>
+
+      <div style="flex:1;"></div>
+
+      <!-- View toggles -->
+      <div class="topbar-view-toggle" style="display:flex;background:#f1f5f9;border-radius:8px;padding:2px;gap:1px;">
+        <button onclick="setView('week')" id="view-week" style="padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);">Semaine</button>
+        <button onclick="setView('day')" id="view-day" style="padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;">Jour</button>
+      </div>
+
+      <!-- Free slots finder -->
+      <div id="free-slots-bar" class="topbar-free-slots" style="display:flex;align-items:center;gap:6px;">
+        <div id="free-dur-picker" style="display:none;align-items:center;gap:4px;">
+          <span style="font-size:11.5px;color:#64748b;">Dur&eacute;e</span>
+          <div style="display:flex;gap:3px;">
+            <button onclick="setFreeDur(15)" class="free-dur-btn" data-dur="15" style="padding:3px 7px;border-radius:5px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">15</button>
+            <button onclick="setFreeDur(20)" class="free-dur-btn" data-dur="20" style="padding:3px 7px;border-radius:5px;font-size:11px;font-weight:500;border:1.5px solid #4338ca;background:#eef2ff;color:#4338ca;cursor:pointer;font-family:inherit;">20</button>
+            <button onclick="setFreeDur(30)" class="free-dur-btn" data-dur="30" style="padding:3px 7px;border-radius:5px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">30</button>
+            <button onclick="setFreeDur(60)" class="free-dur-btn" data-dur="60" style="padding:3px 7px;border-radius:5px;font-size:11px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">60</button>
+          </div>
+        </div>
+        <button id="free-slots-btn" onclick="toggleFreeSlots()" class="btn-agenda btn-secondary btn-xs" style="gap:5px;">
+          <svg width="11" height="11" fill="none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Cr&eacute;neaux libres
+        </button>
+      </div>
+
+      <!-- New RDV -->
+      <button class="btn-agenda btn-primary topbar-new-rdv" onclick="openNewRdvGlobal()">
+        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Nouveau RDV
+      </button>
+    </div>
+
+    <!-- AGENDA -->
+    <div class="agenda-wrap">
+      <!-- Day headers -->
+      <div class="agenda-head" id="agenda-head" style="grid-template-columns:55px repeat(7,1fr) 6px;">
+        <div style="background:#fff;"></div>
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Grid body -->
+      <div class="agenda-body" id="agenda-body">
+        <div class="agenda-inner" id="agenda-inner" style="grid-template-columns:55px repeat(7,1fr);">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY (close popups) -->
+<div class="overlay" id="overlay" style="display:none;" onclick="closeAllPopups()"></div>
+
+<!-- RDV DETAIL POPUP -->
+<div class="rdv-popup" id="rdv-popup" style="display:none;">
+  <div id="rdv-popup-header" style="padding:12px 14px 10px;border-bottom:1px solid #f1f5f9;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span id="pp-animal" style="font-size:14px;font-weight:700;color:#0f172a;"></span>
+          <span id="pp-badge" class="badge-agenda"></span>
+        </div>
+        <div style="font-size:12px;color:#64748b;" id="pp-proprio"></div>
+      </div>
+      <button onclick="closeAllPopups()" style="width:22px;height:22px;border-radius:5px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+  <div style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;">
+    <div style="display:flex;align-items:center;gap:7px;">
+      <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;flex-shrink:0;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span style="font-size:12.5px;color:#334155;" id="pp-time"></span>
+      <span style="font-size:11px;color:#94a3b8;" id="pp-duration"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;">
+      <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;flex-shrink:0;"><path d="M8 2a4 4 0 100 8A4 4 0 008 2z" stroke="currentColor" stroke-width="1.3"/><path d="M8 10v4M5 14h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span style="font-size:12.5px;color:#334155;" id="pp-vet"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;">
+      <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;flex-shrink:0;"><path d="M4 4h8M4 8h8M4 12h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span style="font-size:12.5px;color:#334155;" id="pp-motif"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;" id="pp-note-row">
+      <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;flex-shrink:0;"><path d="M3 3h10a1 1 0 011 1v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3"/></svg>
+      <span style="font-size:12px;color:#64748b;font-style:italic;" id="pp-note"></span>
+    </div>
+  </div>
+  <div style="padding:8px 14px 12px;display:flex;gap:6px;border-top:1px solid #f1f5f9;" class="pp-actions">
+    <button onclick="openConsultation()" class="btn-agenda btn-primary btn-xs" style="flex:1;justify-content:center;">
+      <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Ouvrir consultation
+    </button>
+    <button onclick="editRdv()" class="btn-agenda btn-secondary btn-xs">
+      <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="#64748b" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    </button>
+    <button onclick="cancelRdv()" class="btn-agenda btn-secondary btn-xs" style="color:#dc2626;border-color:#fecaca;">
+      <svg width="10" height="10" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- NEW RDV POPUP -->
+<div class="new-rdv-popup" id="new-rdv-popup" style="display:none;width:640px;">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div>
+      <p style="font-size:15px;font-weight:700;color:#0f172a;">Nouveau rendez-vous</p>
+      <p style="font-size:12px;color:#94a3b8;margin-top:2px;" id="new-rdv-slot"></p>
+    </div>
+    <button onclick="closeAllPopups()" style="width:28px;height:28px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;" onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'">
+      <svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <!-- 2-column grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- Time slot -->
+      <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:10px;padding:12px;">
+        <p style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px;">Horaire</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="time" id="new-rdv-time" class="form-input-agenda" style="flex:1;padding:5px 9px;font-size:12.5px;" value="09:00">
+          <svg width="11" height="11" fill="none" viewBox="0 0 12 12" style="color:#94a3b8;flex-shrink:0;"><path d="M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <span id="new-rdv-end" style="font-size:12.5px;font-weight:600;color:#475569;white-space:nowrap;">09 h 20</span>
+        </div>
+        <div style="display:flex;gap:5px;">
+          <button onclick="setDuration(15)" id="dur-15" style="flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;">15 min</button>
+          <button onclick="setDuration(20)" id="dur-20" style="flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;font-weight:500;border:1.5px solid #4338ca;background:#eef2ff;color:#4338ca;cursor:pointer;font-family:inherit;transition:all .1s;">20 min</button>
+          <button onclick="setDuration(30)" id="dur-30" style="flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;">30 min</button>
+          <button onclick="setDuration(60)" id="dur-60" style="flex:1;padding:5px 0;border-radius:6px;font-size:11.5px;font-weight:500;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;">1 h</button>
+        </div>
+      </div>
+
+      <!-- Patient -->
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">Patient</label>
+        <div style="position:relative;">
+          <input type="text" class="form-input-agenda" id="new-animal-input" placeholder="Rechercher Luna, Max..." oninput="searchAnimals(this.value)" autocomplete="off">
+          <div id="animal-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.1);z-index:100;overflow:hidden;margin-top:3px;max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- Vet + Source -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">V&eacute;t&eacute;rinaire</label>
+          <select class="form-input-agenda" id="new-vet-select" style="appearance:none;">
+            <option value="rousseau">Dr. Rousseau</option>
+            <option value="martin">Dr. Martin</option>
+            <option value="dupont">Dr. Dupont</option>
+            <option value="lambert">Dr. Lambert</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">Source</label>
+          <select class="form-input-agenda" id="new-source-select" style="appearance:none;">
+            <option value="cabinet">Cabinet</option>
+            <option value="online">En ligne</option>
+            <option value="phone">T&eacute;l&eacute;phone</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">Note / contexte</label>
+        <textarea class="form-input-agenda" id="new-note-input" rows="3" placeholder="Pr&eacute;cision, sympt&ocirc;mes, contexte..." style="resize:none;"></textarea>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- Motif -->
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:8px;">Motif</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="motif-chips">
+          <button onclick="selectMotif(this,'Consultation')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#4338ca;flex-shrink:0;display:inline-block;"></span>Consultation
+          </button>
+          <button onclick="selectMotif(this,'Vaccin')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#0891b2;flex-shrink:0;display:inline-block;"></span>Vaccin
+          </button>
+          <button onclick="selectMotif(this,'Suivi')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;flex-shrink:0;display:inline-block;"></span>Suivi
+          </button>
+          <button onclick="selectMotif(this,'Chirurgie')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#b45309;flex-shrink:0;display:inline-block;"></span>Chirurgie
+          </button>
+          <button onclick="selectMotif(this,'Bilan')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0;display:inline-block;"></span>Bilan
+          </button>
+          <button onclick="selectMotif(this,'Urgence')" class="motif-chip" style="padding:8px 10px;border-radius:8px;font-size:12px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-family:inherit;transition:all .1s;text-align:left;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0;display:inline-block;"></span>Urgence
+          </button>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:10px;padding:12px;">
+        <p style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Notifications &amp; Rappels</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#4338ca;"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 6l6 4 6-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span style="font-size:12px;color:#334155;">Email de confirmation</span>
+            </div>
+            <input type="checkbox" id="notif-email" checked style="accent-color:#4338ca;width:14px;height:14px;cursor:pointer;">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#0891b2;"><rect x="2" y="2" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M5 13l3 2 3-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-size:12px;color:#334155;">SMS de rappel</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <select id="sms-delay" style="font-size:11px;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;background:#fff;color:#475569;font-family:inherit;outline:none;">
+                <option value="24">24h avant</option>
+                <option value="48">48h avant</option>
+                <option value="1h">1h avant</option>
+              </select>
+              <input type="checkbox" id="notif-sms" checked style="accent-color:#0891b2;width:14px;height:14px;cursor:pointer;">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#7c3aed;"><path d="M8 2a4 4 0 100 8A4 4 0 008 2z" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span style="font-size:12px;color:#334155;">Notif. &eacute;quipe</span>
+            </div>
+            <input type="checkbox" id="notif-team" style="accent-color:#7c3aed;width:14px;height:14px;cursor:pointer;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Recurrence -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e8edf2;border-radius:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;"><path d="M14 8a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M14 4v4h-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:12px;color:#334155;">R&eacute;currence</span>
+        </div>
+        <select id="recurrence-select" style="font-size:11.5px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;color:#475569;font-family:inherit;outline:none;">
+          <option value="none">Aucune</option>
+          <option value="weekly">Hebdomadaire</option>
+          <option value="biweekly">Bimensuelle</option>
+          <option value="monthly">Mensuelle</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer actions -->
+  <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #f1f5f9;">
+    <button onclick="closeAllPopups()" class="btn-agenda btn-secondary" style="flex:1;justify-content:center;">Annuler</button>
+    <button onclick="confirmNewRdv()" class="btn-agenda btn-primary" style="flex:2;justify-content:center;">
+      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3.5 3.5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Confirmer le rendez-vous
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="agenda-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap;background:#16a34a;"></div>
 {% endblock %}
 
 {% block javascripts %}
-    {{ parent() }}
-    <script src="{{ asset('scheduling.js') }}" defer></script>
+{{ parent() }}
+<script>
+// === DATA ===
+const VETS = {
+  rousseau: { name:'Dr. Rousseau', color:'#4338ca', bg:'#eef2ff', light:'#f5f3ff' },
+  martin:   { name:'Dr. Martin',   color:'#0891b2', bg:'#ecfeff', light:'#f0fdfe' },
+  dupont:   { name:'Dr. Dupont',   color:'#059669', bg:'#ecfdf5', light:'#f0fdf4' },
+  lambert:  { name:'Dr. Lambert',  color:'#db2777', bg:'#fdf2f8', light:'#fce7f3' },
+};
+
+const ANIMALS = [
+  { id:1,  name:'Luna',    species:'Félin', breed:'Persan',           owner:'Mme Dubois',   phone:'+33 6 12 34 56 78', emoji:'🐱' },
+  { id:2,  name:'Max',     species:'Canin', breed:'Labrador',         owner:'M. Bernard',   phone:'+33 6 98 76 54 32', emoji:'🐶' },
+  { id:3,  name:'Milo',    species:'Félin', breed:'Européen',         owner:'Mme Petit',    phone:'+33 6 11 22 33 44', emoji:'🐱' },
+  { id:4,  name:'Rex',     species:'Canin', breed:'Berger Allemand',  owner:'M. Dupuis',    phone:'+33 6 55 66 77 88', emoji:'🐶' },
+  { id:5,  name:'Nala',    species:'Félin', breed:'Maine Coon',       owner:'Mme Leclerc',  phone:'+33 6 44 33 22 11', emoji:'🐱' },
+  { id:6,  name:'Oscar',   species:'Canin', breed:'Golden Retriever', owner:'M. Moreau',    phone:'+33 6 77 88 99 00', emoji:'🐶' },
+  { id:7,  name:'Bella',   species:'Canin', breed:'Beagle',           owner:'Mme Girard',   phone:'+33 6 22 11 44 55', emoji:'🐶' },
+  { id:8,  name:'Simba',   species:'Félin', breed:'Siamois',          owner:'M. Lefebvre',  phone:'+33 6 33 44 55 66', emoji:'🐱' },
+  { id:9,  name:'Rocky',   species:'Canin', breed:'Boxer',            owner:'M. Fontaine',  phone:'+33 6 55 44 33 22', emoji:'🐶' },
+  { id:10, name:'Lily',    species:'Félin', breed:'Ragdoll',          owner:'Mme Chevalier',phone:'+33 6 66 55 44 33', emoji:'🐱' },
+  { id:11, name:'Bruno',   species:'Canin', breed:'Rottweiler',       owner:'M. Garnier',   phone:'+33 6 77 66 55 44', emoji:'🐶' },
+  { id:12, name:'Coco',    species:'Félin', breed:'British Shorthair',owner:'Mme Roux',     phone:'+33 6 88 77 66 55', emoji:'🐱' },
+];
+
+const MOTIF_COLORS = {
+  'Consultation': '#4338ca',
+  'Vaccin':       '#0891b2',
+  'Suivi':        '#7c3aed',
+  'Urgence':      '#dc2626',
+  'Chirurgie':    '#b45309',
+  'Bilan':        '#059669',
+  'RDV en ligne': '#16a34a',
+};
+
+// Appointments data
+let appointments = [
+  // Monday 23
+  { id:100, animalId:1,  date:'2026-03-23', start:'08:30', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Bilan annuel', source:'cabinet' },
+  { id:101, animalId:7,  date:'2026-03-23', start:'09:15', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'Rage rappel', source:'cabinet' },
+  { id:102, animalId:3,  date:'2026-03-23', start:'10:00', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Castration', source:'cabinet' },
+  { id:103, animalId:9,  date:'2026-03-23', start:'11:30', durationMin:30,  vet:'rousseau', motif:'Suivi', note:'Post-op J+7', source:'cabinet' },
+  { id:104, animalId:11, date:'2026-03-23', start:'14:00', durationMin:20,  vet:'rousseau', motif:'Consultation', note:'', source:'online' },
+  { id:105, animalId:5,  date:'2026-03-23', start:'14:30', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Stérilisation', source:'cabinet' },
+  { id:106, animalId:2,  date:'2026-03-23', start:'08:30', durationMin:30,  vet:'martin',   motif:'Bilan', note:'Bilan sanguin', source:'cabinet' },
+  { id:107, animalId:8,  date:'2026-03-23', start:'09:15', durationMin:15,  vet:'martin',   motif:'Vaccin', note:'', source:'cabinet' },
+  { id:108, animalId:10, date:'2026-03-23', start:'09:45', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Dermatologie', source:'online' },
+  { id:109, animalId:4,  date:'2026-03-23', start:'11:00', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Hernie ombilicale', source:'cabinet' },
+  { id:110, animalId:6,  date:'2026-03-23', start:'14:15', durationMin:20,  vet:'martin',   motif:'Suivi', note:'Contrôle poids', source:'cabinet' },
+  { id:111, animalId:12, date:'2026-03-23', start:'08:45', durationMin:20,  vet:'dupont',   motif:'Vaccin', note:'Primo-vaccination', source:'cabinet' },
+  { id:112, animalId:1,  date:'2026-03-23', start:'09:30', durationMin:30,  vet:'dupont',   motif:'Consultation', note:'Boiterie', source:'cabinet' },
+  { id:113, animalId:9,  date:'2026-03-23', start:'10:30', durationMin:20,  vet:'dupont',   motif:'Suivi', note:'', source:'online' },
+  { id:114, animalId:7,  date:'2026-03-23', start:'14:00', durationMin:60,  vet:'dupont',   motif:'Chirurgie', note:'Tumeur cutanée', source:'cabinet' },
+  { id:115, animalId:3,  date:'2026-03-23', start:'08:30', durationMin:15,  vet:'lambert',  motif:'Vaccin', note:'FeLV', source:'cabinet' },
+  { id:116, animalId:11, date:'2026-03-23', start:'09:00', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Vomissements', source:'cabinet' },
+  { id:117, animalId:5,  date:'2026-03-23', start:'10:00', durationMin:20,  vet:'lambert',  motif:'Bilan', note:'Résultats labo', source:'cabinet' },
+  { id:118, animalId:2,  date:'2026-03-23', start:'11:00', durationMin:60,  vet:'lambert',  motif:'Chirurgie', note:'Ablation kyste', source:'cabinet' },
+  { id:119, animalId:8,  date:'2026-03-23', start:'14:30', durationMin:30,  vet:'lambert',  motif:'Suivi', note:'Post-op J+3', source:'online' },
+  // Tuesday 24
+  { id:120, animalId:6,  date:'2026-03-24', start:'08:30', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'Rappel annuel', source:'cabinet' },
+  { id:121, animalId:10, date:'2026-03-24', start:'09:00', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Laparotomie', source:'cabinet' },
+  { id:122, animalId:12, date:'2026-03-24', start:'10:30', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Abattement', source:'online' },
+  { id:123, animalId:4,  date:'2026-03-24', start:'11:15', durationMin:15,  vet:'rousseau', motif:'Suivi', note:'', source:'cabinet' },
+  { id:124, animalId:7,  date:'2026-03-24', start:'14:00', durationMin:30,  vet:'rousseau', motif:'Bilan', note:'Urée créatinine', source:'cabinet' },
+  { id:125, animalId:1,  date:'2026-03-24', start:'15:00', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'', source:'cabinet' },
+  { id:126, animalId:3,  date:'2026-03-24', start:'08:45', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Toux chronique', source:'cabinet' },
+  { id:127, animalId:11, date:'2026-03-24', start:'09:30', durationMin:20,  vet:'martin',   motif:'Suivi', note:'Post-op J+10', source:'cabinet' },
+  { id:128, animalId:5,  date:'2026-03-24', start:'10:00', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Ovariectomie', source:'cabinet' },
+  { id:129, animalId:9,  date:'2026-03-24', start:'14:00', durationMin:20,  vet:'martin',   motif:'Urgence', note:'Corps étranger', source:'online' },
+  { id:130, animalId:2,  date:'2026-03-24', start:'14:30', durationMin:30,  vet:'martin',   motif:'Bilan', note:'Avant chirurgie', source:'cabinet' },
+  { id:131, animalId:8,  date:'2026-03-24', start:'08:30', durationMin:30,  vet:'dupont',   motif:'Consultation', note:'Prurit intense', source:'cabinet' },
+  { id:132, animalId:6,  date:'2026-03-24', start:'09:15', durationMin:20,  vet:'dupont',   motif:'Vaccin', note:'', source:'online' },
+  { id:133, animalId:12, date:'2026-03-24', start:'10:30', durationMin:60,  vet:'dupont',   motif:'Chirurgie', note:'Fracture radius', source:'cabinet' },
+  { id:134, animalId:4,  date:'2026-03-24', start:'14:00', durationMin:30,  vet:'dupont',   motif:'Suivi', note:'Résultats radio', source:'cabinet' },
+  { id:135, animalId:10, date:'2026-03-24', start:'08:30', durationMin:20,  vet:'lambert',  motif:'Vaccin', note:'Typhus-Coryza', source:'cabinet' },
+  { id:136, animalId:7,  date:'2026-03-24', start:'09:00', durationMin:60,  vet:'lambert',  motif:'Chirurgie', note:'Stérilisation', source:'cabinet' },
+  { id:137, animalId:1,  date:'2026-03-24', start:'10:30', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Perte appétit', source:'online' },
+  { id:138, animalId:3,  date:'2026-03-24', start:'14:15', durationMin:20,  vet:'lambert',  motif:'Suivi', note:'', source:'cabinet' },
+  // Wednesday 25
+  { id:139, animalId:5,  date:'2026-03-25', start:'08:30', durationMin:30,  vet:'rousseau', motif:'Bilan', note:'Bilan préopératoire', source:'cabinet' },
+  { id:140, animalId:9,  date:'2026-03-25', start:'09:15', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Résection intestinale', source:'cabinet' },
+  { id:141, animalId:11, date:'2026-03-25', start:'11:00', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'Rappel rage', source:'cabinet' },
+  { id:142, animalId:6,  date:'2026-03-25', start:'14:00', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Boiterie antérieure', source:'online' },
+  { id:143, animalId:2,  date:'2026-03-25', start:'15:00', durationMin:15,  vet:'rousseau', motif:'Suivi', note:'', source:'cabinet' },
+  { id:144, animalId:12, date:'2026-03-25', start:'08:30', durationMin:20,  vet:'martin',   motif:'Vaccin', note:'', source:'cabinet' },
+  { id:145, animalId:8,  date:'2026-03-25', start:'09:00', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Diarrhée chronique', source:'cabinet' },
+  { id:146, animalId:10, date:'2026-03-25', start:'10:00', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Castration', source:'cabinet' },
+  { id:147, animalId:4,  date:'2026-03-25', start:'14:00', durationMin:30,  vet:'martin',   motif:'Bilan', note:'Contrôle annuel', source:'online' },
+  { id:148, animalId:1,  date:'2026-03-25', start:'14:45', durationMin:20,  vet:'martin',   motif:'Suivi', note:'Post-vaccin', source:'cabinet' },
+  { id:149, animalId:7,  date:'2026-03-25', start:'08:45', durationMin:15,  vet:'dupont',   motif:'Vaccin', note:'FeLV rappel', source:'cabinet' },
+  { id:150, animalId:3,  date:'2026-03-25', start:'09:15', durationMin:60,  vet:'dupont',   motif:'Chirurgie', note:'Pyomètre', source:'cabinet' },
+  { id:151, animalId:11, date:'2026-03-25', start:'11:00', durationMin:30,  vet:'dupont',   motif:'Consultation', note:'Masse abdominale', source:'online' },
+  { id:152, animalId:9,  date:'2026-03-25', start:'14:30', durationMin:20,  vet:'dupont',   motif:'Suivi', note:'', source:'cabinet' },
+  { id:153, animalId:2,  date:'2026-03-25', start:'08:30', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Otite bilatérale', source:'cabinet' },
+  { id:154, animalId:6,  date:'2026-03-25', start:'09:15', durationMin:20,  vet:'lambert',  motif:'Vaccin', note:'', source:'online' },
+  { id:155, animalId:12, date:'2026-03-25', start:'10:00', durationMin:60,  vet:'lambert',  motif:'Chirurgie', note:'Torsion gastrique', source:'cabinet' },
+  { id:156, animalId:5,  date:'2026-03-25', start:'14:00', durationMin:30,  vet:'lambert',  motif:'Bilan', note:'Résultats écho', source:'cabinet' },
+  // Thursday 26
+  { id:157, animalId:8,  date:'2026-03-26', start:'08:30', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'Primo J2', source:'cabinet' },
+  { id:158, animalId:4,  date:'2026-03-26', start:'09:00', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Stérilisation', source:'cabinet' },
+  { id:159, animalId:10, date:'2026-03-26', start:'10:30', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Épilepsie suivi', source:'online' },
+  { id:160, animalId:7,  date:'2026-03-26', start:'14:00', durationMin:20,  vet:'rousseau', motif:'Suivi', note:'J+14', source:'cabinet' },
+  { id:161, animalId:3,  date:'2026-03-26', start:'15:00', durationMin:30,  vet:'rousseau', motif:'Bilan', note:'Thyroïde', source:'cabinet' },
+  { id:162, animalId:1,  date:'2026-03-26', start:'08:30', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Polydipsie', source:'cabinet' },
+  { id:163, animalId:9,  date:'2026-03-26', start:'09:15', durationMin:15,  vet:'martin',   motif:'Vaccin', note:'', source:'online' },
+  { id:164, animalId:5,  date:'2026-03-26', start:'09:45', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Ablation lipome', source:'cabinet' },
+  { id:165, animalId:11, date:'2026-03-26', start:'14:00', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Conjonctivite', source:'cabinet' },
+  { id:166, animalId:12, date:'2026-03-26', start:'15:00', durationMin:20,  vet:'martin',   motif:'Urgence', note:'Dyspnée soudaine', source:'online' },
+  { id:167, animalId:2,  date:'2026-03-26', start:'08:45', durationMin:30,  vet:'dupont',   motif:'Bilan', note:'NFS + biochimie', source:'cabinet' },
+  { id:168, animalId:6,  date:'2026-03-26', start:'09:30', durationMin:20,  vet:'dupont',   motif:'Vaccin', note:'', source:'cabinet' },
+  { id:169, animalId:8,  date:'2026-03-26', start:'10:00', durationMin:60,  vet:'dupont',   motif:'Chirurgie', note:'Énucléation', source:'cabinet' },
+  { id:170, animalId:4,  date:'2026-03-26', start:'14:00', durationMin:30,  vet:'dupont',   motif:'Suivi', note:'Post-op J+3', source:'online' },
+  { id:171, animalId:10, date:'2026-03-26', start:'08:30', durationMin:20,  vet:'lambert',  motif:'Vaccin', note:'', source:'cabinet' },
+  { id:172, animalId:7,  date:'2026-03-26', start:'09:00', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Masse mammaire', source:'cabinet' },
+  { id:173, animalId:3,  date:'2026-03-26', start:'10:00', durationMin:60,  vet:'lambert',  motif:'Chirurgie', note:'Mastectomie', source:'cabinet' },
+  { id:174, animalId:1,  date:'2026-03-26', start:'14:00', durationMin:20,  vet:'lambert',  motif:'Suivi', note:'Résultats anapath', source:'online' },
+  { id:175, animalId:9,  date:'2026-03-26', start:'14:30', durationMin:30,  vet:'lambert',  motif:'Bilan', note:'Contrôle rénal', source:'cabinet' },
+  // Friday 27
+  { id:176, animalId:12, date:'2026-03-27', start:'08:30', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Toux kennel', source:'cabinet' },
+  { id:177, animalId:2,  date:'2026-03-27', start:'09:15', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'', source:'online' },
+  { id:178, animalId:6,  date:'2026-03-27', start:'09:45', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'TPLO genou', source:'cabinet' },
+  { id:179, animalId:8,  date:'2026-03-27', start:'11:30', durationMin:15,  vet:'rousseau', motif:'Suivi', note:'', source:'cabinet' },
+  { id:180, animalId:5,  date:'2026-03-27', start:'14:00', durationMin:30,  vet:'rousseau', motif:'Bilan', note:'Fin traitement', source:'cabinet' },
+  { id:181, animalId:11, date:'2026-03-27', start:'08:30', durationMin:20,  vet:'martin',   motif:'Vaccin', note:'Rappel FeLV', source:'cabinet' },
+  { id:182, animalId:4,  date:'2026-03-27', start:'09:00', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Claudication', source:'online' },
+  { id:183, animalId:10, date:'2026-03-27', start:'10:00', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Résection tumorale', source:'cabinet' },
+  { id:184, animalId:1,  date:'2026-03-27', start:'14:00', durationMin:30,  vet:'martin',   motif:'Suivi', note:'J+21', source:'cabinet' },
+  { id:185, animalId:3,  date:'2026-03-27', start:'08:30', durationMin:30,  vet:'dupont',   motif:'Bilan', note:'Pré-anesthésie', source:'cabinet' },
+  { id:186, animalId:7,  date:'2026-03-27', start:'09:15', durationMin:15,  vet:'dupont',   motif:'Vaccin', note:'', source:'cabinet' },
+  { id:187, animalId:9,  date:'2026-03-27', start:'09:45', durationMin:60,  vet:'dupont',   motif:'Chirurgie', note:'Césarienne urgence', source:'cabinet' },
+  { id:188, animalId:12, date:'2026-03-27', start:'11:30', durationMin:20,  vet:'dupont',   motif:'Suivi', note:'', source:'online' },
+  { id:189, animalId:6,  date:'2026-03-27', start:'14:30', durationMin:30,  vet:'dupont',   motif:'Consultation', note:'Dermatite atopique', source:'cabinet' },
+  { id:190, animalId:2,  date:'2026-03-27', start:'08:30', durationMin:20,  vet:'lambert',  motif:'Vaccin', note:'', source:'online' },
+  { id:191, animalId:8,  date:'2026-03-27', start:'09:00', durationMin:60,  vet:'lambert',  motif:'Chirurgie', note:'Prostatectomie', source:'cabinet' },
+  { id:192, animalId:5,  date:'2026-03-27', start:'10:30', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Dystocie', source:'cabinet' },
+  { id:193, animalId:11, date:'2026-03-27', start:'14:00', durationMin:20,  vet:'lambert',  motif:'Suivi', note:'Post-op J+7', source:'cabinet' },
+  { id:194, animalId:4,  date:'2026-03-27', start:'14:30', durationMin:30,  vet:'lambert',  motif:'Bilan', note:'Contrôle mensuel', source:'online' },
+  // Saturday 28
+  { id:195, animalId:1,  date:'2026-03-28', start:'08:30', durationMin:20,  vet:'rousseau', motif:'Vaccin', note:'', source:'cabinet' },
+  { id:196, animalId:7,  date:'2026-03-28', start:'09:00', durationMin:30,  vet:'rousseau', motif:'Consultation', note:'Perte poids', source:'cabinet' },
+  { id:197, animalId:3,  date:'2026-03-28', start:'10:00', durationMin:60,  vet:'rousseau', motif:'Chirurgie', note:'Cystotomie', source:'cabinet' },
+  { id:198, animalId:9,  date:'2026-03-28', start:'14:00', durationMin:30,  vet:'rousseau', motif:'Suivi', note:'Post-op J+5', source:'online' },
+  { id:199, animalId:12, date:'2026-03-28', start:'08:30', durationMin:30,  vet:'martin',   motif:'Consultation', note:'Anorexie', source:'cabinet' },
+  { id:200, animalId:2,  date:'2026-03-28', start:'09:15', durationMin:15,  vet:'martin',   motif:'Vaccin', note:'', source:'cabinet' },
+  { id:201, animalId:10, date:'2026-03-28', start:'10:00', durationMin:60,  vet:'martin',   motif:'Chirurgie', note:'Entropion', source:'cabinet' },
+  { id:202, animalId:4,  date:'2026-03-28', start:'09:00', durationMin:20,  vet:'dupont',   motif:'Urgence', note:'Convulsions', source:'cabinet' },
+  { id:203, animalId:6,  date:'2026-03-28', start:'09:30', durationMin:30,  vet:'dupont',   motif:'Consultation', note:'Masse lymphatique', source:'online' },
+  { id:204, animalId:8,  date:'2026-03-28', start:'11:00', durationMin:20,  vet:'dupont',   motif:'Suivi', note:'', source:'cabinet' },
+  { id:205, animalId:5,  date:'2026-03-28', start:'08:45', durationMin:30,  vet:'lambert',  motif:'Bilan', note:'Contrôle thyroïde', source:'cabinet' },
+  { id:206, animalId:11, date:'2026-03-28', start:'09:30', durationMin:20,  vet:'lambert',  motif:'Vaccin', note:'', source:'online' },
+  { id:207, animalId:1,  date:'2026-03-28', start:'10:30', durationMin:30,  vet:'lambert',  motif:'Consultation', note:'Murmure cardiaque', source:'cabinet' },
+];
+
+// === STATE ===
+let today = new Date(2026, 2, 23, 10, 0, 0);
+let currentWeekStart = new Date(2026, 2, 23);
+let miniCalDate = new Date(2026, 2, 1);
+let selectedDay = fmtDate(new Date(2026, 2, 23));
+let activeVets = new Set(['rousseau','martin','dupont','lambert']);
+let currentView = 'week';
+let selectedDuration = 20;
+let selectedMotif = '';
+let selectedAnimal = null;
+let newRdvSlotDate = null;
+let newRdvSlotHour = null;
+let nextId = appointments.length + 1;
+let activeMotifs = new Set(Object.keys(MOTIF_COLORS));
+let freeSlotsActive = false;
+let freeDuration = 20;
+const FREE_START = 8 * 60;
+const FREE_END   = 19 * 60;
+
+// === UTILS ===
+function getWeekStart(d){
+  const day = d.getDay();
+  const diff = (day === 0) ? -6 : 1 - day;
+  const s = new Date(d);
+  s.setDate(d.getDate() + diff);
+  s.setHours(0,0,0,0);
+  return s;
+}
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function fmtDate(d){ return d.toISOString().split('T')[0]; }
+function fmtTime(hhmm){ const [h,m]=hhmm.split(':'); return h+'h'+(m==='00'?'':m); }
+function timeToMin(hhmm){ const [h,m]=hhmm.split(':'); return +h*60+ +m; }
+function minToTime(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+const DOW_FR = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+// === MINI CALENDAR ===
+function renderMiniCal(){
+  const y = miniCalDate.getFullYear(), m = miniCalDate.getMonth();
+  document.getElementById('mini-month').textContent = MONTHS_FR[m]+' '+y;
+  const grid = document.getElementById('mini-cal-grid');
+  grid.innerHTML = '';
+  ['L','M','M','J','V','S','D'].forEach(function(d){
+    var el = document.createElement('div');
+    el.className = 'mini-cal-dow';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+  const first = new Date(y, m, 1);
+  const startDow = (first.getDay()+6)%7;
+  const days = new Date(y, m+1, 0).getDate();
+  for(var i=0;i<startDow;i++){ grid.appendChild(document.createElement('div')); }
+  const rdvDates = new Set(appointments.map(function(a){return a.date;}));
+  for(var d=1;d<=days;d++){
+    var el = document.createElement('div');
+    el.className = 'mini-cal-day';
+    el.textContent = d;
+    var thisDate = new Date(y,m,d);
+    var dateStr = fmtDate(thisDate);
+    if(fmtDate(thisDate)===fmtDate(today)) el.classList.add('today');
+    var ws = getWeekStart(thisDate);
+    if(fmtDate(ws)===fmtDate(currentWeekStart)) el.classList.add('selected');
+    if(rdvDates.has(dateStr)) el.classList.add('has-rdv');
+    (function(td,ds){
+      el.onclick = function(){ currentWeekStart = getWeekStart(td); selectedDay = ds; renderWeek(); renderMiniCal(); };
+    })(thisDate, dateStr);
+    grid.appendChild(el);
+  }
+}
+function miniCalPrev(){ miniCalDate.setMonth(miniCalDate.getMonth()-1); renderMiniCal(); }
+function miniCalNext(){ miniCalDate.setMonth(miniCalDate.getMonth()+1); renderMiniCal(); }
+
+// === WEEK RENDER ===
+const HOUR_START = 7;
+const HOUR_END = 20;
+const SLOT_H = 80;
+
+function renderWeek(){
+  var head = document.getElementById('agenda-head');
+  var inner = document.getElementById('agenda-inner');
+  var cols = currentView === 'week' ? 7 : 1;
+  var gridCols = '55px repeat('+cols+',1fr)';
+  var headCols = '55px repeat('+cols+',1fr) 6px';
+  head.style.gridTemplateColumns = headCols;
+  inner.style.gridTemplateColumns = gridCols;
+  while(head.children.length > 1) head.removeChild(head.lastChild);
+  inner.innerHTML = '';
+  var days = [];
+  for(var i=0;i<cols;i++) days.push(addDays(currentWeekStart, i));
+  var ws = days[0], we = days[days.length-1];
+  document.getElementById('week-label').textContent =
+    currentView === 'week'
+      ? ws.getDate()+' \u2013 '+we.getDate()+' '+MONTHS_FR[we.getMonth()]+' '+we.getFullYear()
+      : DOW_FR[days[0].getDay()]+' '+days[0].getDate()+' '+MONTHS_FR[days[0].getMonth()];
+  days.forEach(function(d, di){
+    var isToday = fmtDate(d) === fmtDate(today);
+    var isSelected = fmtDate(d) === selectedDay;
+    var el = document.createElement('div');
+    el.style.cssText = 'padding:8px 0;text-align:center;border-left:'+(di===0?'1px solid #dde3ea':'1px solid #f1f5f9')+';cursor:pointer;transition:background .1s;'+(isToday?'background:#f5f3ff;':isSelected?'background:#f8f7ff;':'');
+    el.innerHTML = '<div style="font-size:10.5px;font-weight:600;color:'+(isToday?'#4338ca':isSelected?'#6366f1':'#94a3b8')+';text-transform:uppercase;letter-spacing:.06em;">'+DOW_FR[(d.getDay()+6)%7+1 < 7 ? (d.getDay()+6)%7+1 : 0]+'</div>'
+      +'<div style="font-size:18px;font-weight:'+(isToday||isSelected?'800':'600')+';color:'+(isToday?'#4338ca':isSelected?'#6366f1':'#0f172a')+';line-height:1.1;margin-top:1px;">'+d.getDate()+'</div>'
+      +'<div style="font-size:10px;color:#94a3b8;margin-top:1px;">'+countRdv(fmtDate(d))+' RDV</div>';
+    (function(ds){ el.onclick = function(){ selectedDay = ds; renderWeek(); }; })(fmtDate(d));
+    head.appendChild(el);
+  });
+  head.appendChild(document.createElement('div'));
+  var timeCol = document.createElement('div');
+  timeCol.className = 'time-col';
+  for(var h=HOUR_START;h<=HOUR_END;h++){
+    var lbl = document.createElement('div');
+    lbl.className = 'time-label';
+    lbl.textContent = String(h);
+    timeCol.appendChild(lbl);
+  }
+  inner.appendChild(timeCol);
+  days.forEach(function(d,di){
+    var isToday = fmtDate(d) === fmtDate(today);
+    var col = document.createElement('div');
+    col.className = 'day-col';
+    if(isToday) col.style.background = '#fdfcff';
+    var totalH = (HOUR_END - HOUR_START + 1);
+    col.style.height = (totalH * SLOT_H)+'px';
+    col.style.position = 'relative';
+    for(var h=HOUR_START;h<=HOUR_END;h++){
+      var slotWrap = document.createElement('div');
+      slotWrap.style.cssText = 'position:absolute;top:'+((h-HOUR_START)*SLOT_H)+'px;left:0;right:0;height:'+SLOT_H+'px;border-bottom:1px solid #c9d0d8;';
+      var top2 = document.createElement('div');
+      top2.style.cssText = 'position:absolute;top:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;';
+      top2.dataset.time = String(h).padStart(2,'0')+':00';
+      top2.onmouseenter = function(){ this.style.background='#f5f3ff'; };
+      top2.onmouseleave = function(){ this.style.background=''; };
+      (function(dateStr, timeStr){ top2.onclick = function(e){ e.stopPropagation(); openNewRdv(dateStr, timeStr); }; })(fmtDate(d), top2.dataset.time);
+      var bot = document.createElement('div');
+      bot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;border-top:1px dashed #dde2e7;';
+      bot.dataset.time = String(h).padStart(2,'0')+':30';
+      bot.onmouseenter = function(){ this.style.background='#f5f3ff'; };
+      bot.onmouseleave = function(){ this.style.background=''; };
+      (function(dateStr, timeStr){ bot.onclick = function(e){ e.stopPropagation(); openNewRdv(dateStr, timeStr); }; })(fmtDate(d), bot.dataset.time);
+      slotWrap.appendChild(top2);
+      slotWrap.appendChild(bot);
+      col.appendChild(slotWrap);
+    }
+    var dayAppts = appointments.filter(function(a){
+      return a.date === fmtDate(d) && activeVets.has(a.vet) && activeMotifs.has(a.motif.split(' ')[0]);
+    });
+    var lanes = [];
+    dayAppts.forEach(function(a){
+      var s = timeToMin(a.start);
+      var e = s + a.durationMin;
+      var lane = 0;
+      while(lanes[lane] && lanes[lane] > s) lane++;
+      lanes[lane] = e;
+      a._lane = lane;
+    });
+    var totalLanes = lanes.length || 1;
+    dayAppts.forEach(function(a){ a._totalLanes = totalLanes; });
+    dayAppts.forEach(function(a){
+      var block = createRdvBlock(a);
+      var laneW = 100 / a._totalLanes;
+      var left = a._lane * laneW;
+      block.style.left = 'calc('+left+'% + 3px)';
+      block.style.right = 'calc('+(100 - left - laneW)+'% + 3px)';
+      col.appendChild(block);
+    });
+    if(isToday){
+      var nowMin = today.getHours()*60 + today.getMinutes();
+      var startMin = HOUR_START * 60;
+      if(nowMin >= startMin && nowMin <= HOUR_END*60){
+        var topPx = (nowMin - startMin) / 60 * SLOT_H;
+        var line = document.createElement('div');
+        line.className = 'now-line';
+        line.style.top = topPx+'px';
+        line.innerHTML = '<div class="now-dot"></div>';
+        col.appendChild(line);
+      }
+    }
+    if(freeSlotsActive) renderFreeSlots(col, fmtDate(d));
+    inner.appendChild(col);
+  });
+  var body = document.getElementById('agenda-body');
+  body.scrollTop = (8 - HOUR_START) * SLOT_H;
+}
+
+function countRdv(dateStr){ return appointments.filter(function(a){ return a.date === dateStr && activeVets.has(a.vet); }).length; }
+
+function createRdvBlock(a){
+  var animal = ANIMALS.find(function(x){ return x.id === a.animalId; });
+  var vet = VETS[a.vet];
+  var startMin = timeToMin(a.start);
+  var topPx = (startMin - HOUR_START*60) / 60 * SLOT_H + 1;
+  var heightPx = Math.max(a.durationMin / 60 * SLOT_H - 3, 14);
+  var motifColor = MOTIF_COLORS[a.motif.split(' ')[0]] || vet.color;
+  var apptEnd = new Date(a.date + 'T' + minToTime(timeToMin(a.start) + a.durationMin));
+  var isPast = !a.status && apptEnd < today;
+  var isCancelled = a.status === 'cancelled';
+  var lines = Math.floor((heightPx - 2) / 15);
+  var block = document.createElement('div');
+  block.className = 'rdv-block';
+  block.dataset.id = a.id;
+  var bg, borderColor, opacity = '1';
+  if(isCancelled){ bg='#f1f5f9'; borderColor='#94a3b8'; opacity='0.8'; }
+  else if(isPast){ bg='#e2e8f0'; borderColor=vet.color; opacity='0.8'; }
+  else { bg=vet.bg; borderColor=vet.color; }
+  block.style.cssText = 'top:'+topPx+'px;height:'+heightPx+'px;background:'+bg+';border-left-color:'+borderColor+';opacity:'+opacity+';overflow:hidden;';
+  var nameColor = (isCancelled||isPast) ? '#334155' : '#0f172a';
+  var subColor  = (isCancelled||isPast) ? '#475569' : '#64748b';
+  var timeColor = (isCancelled||isPast) ? '#64748b' : vet.color;
+  var strikethrough = isCancelled ? 'text-decoration:line-through;' : '';
+  var cancelBadge = isCancelled ? '<span style="font-size:9px;background:#fee2e2;color:#dc2626;padding:0 3px;border-radius:2px;flex-shrink:0;margin-left:2px;">\u2715</span>' : '';
+  var dot = '<span style="width:6px;height:6px;border-radius:50%;background:'+motifColor+';flex-shrink:0;display:inline-block;"></span>';
+  var R = 'display:flex;align-items:center;gap:3px;overflow:hidden;white-space:nowrap;height:15px;min-height:15px;max-height:15px;flex-shrink:0;';
+  var html = '<div style="display:flex;flex-direction:column;overflow:hidden;width:100%;height:'+(heightPx - 2)+'px;justify-content:center;">';
+  if(lines <= 0){
+    // Too small
+  } else if(lines === 1){
+    html += '<div style="'+R+'">'+dot+'<span style="font-size:10px;font-weight:700;color:'+timeColor+';flex-shrink:0;">'+fmtTime(a.start)+' \u00B7 '+a.durationMin+'min</span><span style="font-size:10px;color:'+nameColor+';'+strikethrough+'overflow:hidden;text-overflow:ellipsis;">\u00B7 '+(animal?animal.name:'?')+'</span>'+cancelBadge+'</div>';
+  } else {
+    html += '<div style="'+R+'">'+dot+'<span style="font-size:10px;font-weight:700;color:'+timeColor+';flex-shrink:0;">'+fmtTime(a.start)+' \u00B7 '+a.durationMin+'min</span>'+cancelBadge+'</div>';
+    if(lines >= 2) html += '<div style="'+R+'"><span style="font-size:11.5px;font-weight:700;color:'+nameColor+';'+strikethrough+'overflow:hidden;text-overflow:ellipsis;">'+(animal?animal.emoji:'')+' '+(animal?animal.name:'?')+'</span></div>';
+    if(lines >= 3) html += '<div style="'+R+'"><span style="font-size:10.5px;color:'+subColor+';overflow:hidden;text-overflow:ellipsis;">'+(animal?animal.owner:'')+'</span></div>';
+    if(lines >= 4) html += '<div style="'+R+'"><span style="font-size:10.5px;color:'+(isCancelled?subColor:motifColor)+';font-weight:500;overflow:hidden;text-overflow:ellipsis;">'+a.motif+(a.note?' \u00B7 '+a.note:'')+'</span></div>';
+  }
+  html += '</div>';
+  block.innerHTML = html;
+  (function(id){ block.onclick = function(e){ e.stopPropagation(); showRdvPopup(id, e); }; })(a.id);
+  return block;
+}
+
+// === POPUPS ===
+function showRdvPopup(id, e){
+  var a = appointments.find(function(x){ return x.id === id; });
+  if(!a) return;
+  var animal = ANIMALS.find(function(x){ return x.id === a.animalId; });
+  var vet = VETS[a.vet];
+  document.getElementById('pp-animal').textContent = (animal?animal.emoji:'')+' '+(animal?animal.name:'?');
+  document.getElementById('pp-proprio').textContent = (animal?animal.owner:'')+' \u00B7 '+(animal?animal.phone:'');
+  var badge = document.getElementById('pp-badge');
+  badge.textContent = a.source === 'online' ? 'En ligne' : a.motif;
+  badge.className = 'badge-agenda ' + (a.source === 'online' ? 'badge-online' : (a.motif==='Urgence'?'badge-urgent':'badge-followup'));
+  document.getElementById('pp-time').textContent = a.start.replace(':',' h ')+' \u2014 '+minToTime(timeToMin(a.start)+a.durationMin).replace(':',' h ');
+  document.getElementById('pp-duration').textContent = a.durationMin+' min';
+  document.getElementById('pp-vet').textContent = vet.name;
+  document.getElementById('pp-motif').textContent = a.motif;
+  var noteRow = document.getElementById('pp-note-row');
+  if(a.note){ noteRow.style.display='flex'; document.getElementById('pp-note').textContent = a.note; }
+  else noteRow.style.display='none';
+  var popup = document.getElementById('rdv-popup');
+  popup.dataset.rdvId = id;
+  positionPopup(popup, e);
+  showPopup(popup);
+}
+function openNewRdv(date, hour){
+  newRdvSlotDate = date;
+  newRdvSlotHour = hour;
+  var d = new Date(date);
+  var dow = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  document.getElementById('new-rdv-slot').textContent = dow[d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()]+' \u00B7 '+hour.replace(':','\u00a0h\u00a0');
+  document.getElementById('new-rdv-time').value = hour;
+  resetNewRdvForm();
+  showCenteredPopup(document.getElementById('new-rdv-popup'));
+}
+function openNewRdvGlobal(){
+  newRdvSlotDate = fmtDate(today);
+  newRdvSlotHour = '09:00';
+  document.getElementById('new-rdv-slot').textContent = "Aujourd'hui \u00B7 09\u00a0h\u00a000";
+  document.getElementById('new-rdv-time').value = '09:00';
+  resetNewRdvForm();
+  showCenteredPopup(document.getElementById('new-rdv-popup'));
+}
+function showCenteredPopup(popup){
+  closeAllPopups();
+  popup.style.display = 'block';
+  popup.style.position = 'fixed';
+  popup.style.top = '50%';
+  popup.style.left = '50%';
+  popup.style.transform = 'translate(-50%,-50%)';
+  popup.style.right = 'auto';
+  popup.style.zIndex = '500';
+  document.getElementById('overlay').style.display = 'block';
+}
+function positionPopup(popup, e){
+  var x = e.clientX, y = e.clientY;
+  var w = 300, h = 300;
+  var left = x + 12;
+  var top = y - 40;
+  if(left + w > window.innerWidth - 16) left = x - w - 12;
+  if(top + h > window.innerHeight - 16) top = window.innerHeight - h - 16;
+  popup.style.left = left + 'px';
+  popup.style.top = Math.max(8, top) + 'px';
+  popup.style.right = 'auto';
+}
+function showPopup(popup){
+  closeAllPopups();
+  popup.style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+function closeAllPopups(){
+  document.getElementById('rdv-popup').style.display='none';
+  document.getElementById('new-rdv-popup').style.display='none';
+  document.getElementById('overlay').style.display='none';
+  document.getElementById('animal-suggestions').style.display='none';
+}
+
+// === NEW RDV FORM ===
+function resetNewRdvForm(){
+  document.getElementById('new-animal-input').value='';
+  document.getElementById('new-note-input').value='';
+  selectedAnimal = null;
+  selectedMotif = '';
+  selectedDuration = 20;
+  document.querySelectorAll('.motif-chip').forEach(function(c){
+    c.style.borderColor='#e2e8f0';c.style.background='#f8fafc';c.style.color='#64748b';
+  });
+  ['15','20','30','60'].forEach(function(d){
+    var btn = document.getElementById('dur-'+d);
+    if(!btn) return;
+    btn.style.borderColor='#e2e8f0';btn.style.background='#fff';btn.style.color='#64748b';
+  });
+  document.getElementById('dur-20').style.borderColor='#4338ca';
+  document.getElementById('dur-20').style.background='#eef2ff';
+  document.getElementById('dur-20').style.color='#4338ca';
+  updateEndTime();
+}
+function updateEndTime(){
+  var timeInput = document.getElementById('new-rdv-time');
+  if(!timeInput) return;
+  var parts = timeInput.value.split(':').map(Number);
+  var endMin = parts[0]*60+parts[1]+selectedDuration;
+  var eh = String(Math.floor(endMin/60)).padStart(2,'0');
+  var em = String(endMin%60).padStart(2,'0');
+  var el = document.getElementById('new-rdv-end');
+  if(el) el.textContent = eh+' h '+(em==='00'?'00':em);
+}
+function setDuration(d){
+  selectedDuration = d;
+  ['15','20','30','60'].forEach(function(v){
+    var btn = document.getElementById('dur-'+v);
+    if(!btn) return;
+    var active = v==d;
+    btn.style.borderColor = active ? '#4338ca' : '#e2e8f0';
+    btn.style.background = active ? '#eef2ff' : '#fff';
+    btn.style.color = active ? '#4338ca' : '#64748b';
+  });
+  updateEndTime();
+}
+function selectMotif(el, motif){
+  selectedMotif = motif;
+  document.querySelectorAll('.motif-chip').forEach(function(c){
+    c.style.borderColor='#e2e8f0';c.style.background='#f8fafc';c.style.color='#64748b';
+  });
+  var col = MOTIF_COLORS[motif] || '#4338ca';
+  el.style.borderColor=col;el.style.background=col+'18';el.style.color=col;
+}
+function searchAnimals(q){
+  var box = document.getElementById('animal-suggestions');
+  if(!q){ box.style.display='none'; return; }
+  var results = ANIMALS.filter(function(a){
+    return a.name.toLowerCase().indexOf(q.toLowerCase())>=0 || a.owner.toLowerCase().indexOf(q.toLowerCase())>=0;
+  });
+  if(!results.length){ box.style.display='none'; return; }
+  box.innerHTML = results.map(function(a){
+    return '<div onclick="selectAnimal('+a.id+')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .1s;" onmouseenter="this.style.background=\'#f8fafc\'" onmouseleave="this.style.background=\'\'">'
+      +'<span style="font-size:16px;">'+a.emoji+'</span>'
+      +'<div><p style="font-size:12.5px;font-weight:600;color:#0f172a;">'+a.name+'</p><p style="font-size:11px;color:#94a3b8;">'+a.breed+' \u00B7 '+a.owner+'</p></div>'
+    +'</div>';
+  }).join('');
+  box.style.display='block';
+}
+function selectAnimal(id){
+  selectedAnimal = ANIMALS.find(function(a){return a.id===id;});
+  document.getElementById('new-animal-input').value = selectedAnimal.emoji+' '+selectedAnimal.name+' \u00B7 '+selectedAnimal.owner;
+  document.getElementById('animal-suggestions').style.display='none';
+}
+function confirmNewRdv(){
+  if(!selectedAnimal){ showToast('Sélectionner un patient', '#f59e0b'); return; }
+  if(!selectedMotif){ showToast('Sélectionner un motif', '#f59e0b'); return; }
+  var vet = document.getElementById('new-vet-select').value;
+  var note = document.getElementById('new-note-input').value.trim();
+  var source = document.getElementById('new-source-select').value;
+  var timeVal = document.getElementById('new-rdv-time').value || newRdvSlotHour;
+  appointments.push({ id: nextId++, animalId: selectedAnimal.id, date: newRdvSlotDate, start: timeVal, durationMin: selectedDuration, vet:vet, motif: selectedMotif, note:note, source:source });
+  closeAllPopups();
+  renderWeek();
+  renderMiniCal();
+  showToast('RDV confirmé \u00B7 '+selectedAnimal.name+' \u00B7 '+timeVal.replace(':',' h '), '#16a34a');
+}
+
+// === ACTIONS ===
+function placerSalleAttente(){ closeAllPopups(); showToast("Placé en salle d'attente", '#059669'); }
+function openConsultation(){ closeAllPopups(); showToast('Ouverture de la consultation...', '#4338ca'); }
+function editRdv(){ showToast('Modification bientôt disponible', '#64748b'); }
+function cancelRdv(){
+  var id = +document.getElementById('rdv-popup').dataset.rdvId;
+  var a = appointments.find(function(x){ return x.id === id; });
+  if(a) a.status = 'cancelled';
+  closeAllPopups();
+  renderWeek();
+  renderMiniCal();
+  showToast('RDV annulé', '#dc2626');
+}
+
+// === NAV ===
+function prevWeek(){ currentWeekStart = addDays(currentWeekStart, currentView==='week' ? -7 : -1); renderWeek(); renderMiniCal(); }
+function nextWeek(){ currentWeekStart = addDays(currentWeekStart, currentView==='week' ? 7 : 1); renderWeek(); renderMiniCal(); }
+function goToday(){ currentWeekStart = getWeekStart(today); renderWeek(); renderMiniCal(); }
+function setView(v){
+  currentView = v;
+  if(v==='day') currentWeekStart = today;
+  document.getElementById('view-week').style.cssText = v==='week' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
+  document.getElementById('view-day').style.cssText = v==='day' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
+  renderWeek();
+}
+function toggleVet(el, vet){
+  if(activeVets.has(vet)) activeVets.delete(vet);
+  else activeVets.add(vet);
+  var check = document.getElementById('check-'+vet);
+  check.style.opacity = activeVets.has(vet) ? '1' : '0.15';
+  renderWeek();
+}
+
+// === TOAST ===
+function showToast(msg, color){
+  color = color || '#16a34a';
+  var t = document.getElementById('agenda-toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(function(){
+    t.style.opacity='0';
+    t.style.transform='translateX(-50%) translateY(8px)';
+  }, 2500);
+}
+
+// === SIDEBAR DRAWER ===
+function closeAgendaSidebar(){
+  document.getElementById('agenda-sidebar-panel').classList.remove('open');
+  document.getElementById('agenda-drawer-overlay').style.display='none';
+}
+
+// === MOTIF FILTERS ===
+function initMotifFilters(){
+  var container = document.getElementById('motif-filters');
+  if(!container) return;
+  container.innerHTML = '';
+  Object.entries(MOTIF_COLORS).forEach(function(entry){
+    var motif = entry[0], color = entry[1];
+    var active = activeMotifs.has(motif);
+    var chip = document.createElement('div');
+    chip.className = 'vet-chip';
+    chip.innerHTML = '<div style="width:10px;height:10px;border-radius:2px;background:'+color+';flex-shrink:0;"></div>'
+      +'<span style="font-size:12px;color:#334155;flex:1;">'+motif+'</span>'
+      +'<svg style="opacity:'+(active?1:.15)+'" width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="'+color+'" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    (function(m){
+      chip.onclick = function(){
+        if(activeMotifs.has(m)) activeMotifs.delete(m);
+        else activeMotifs.add(m);
+        initMotifFilters();
+        renderWeek();
+      };
+    })(motif);
+    container.appendChild(chip);
+  });
+}
+
+// === FREE SLOTS ===
+function toggleFreeSlots(){
+  freeSlotsActive = !freeSlotsActive;
+  var btn = document.getElementById('free-slots-btn');
+  var picker = document.getElementById('free-dur-picker');
+  var sbBtn = document.getElementById('sb-free-slots-btn');
+  var sbDur = document.getElementById('sb-free-dur');
+  if(freeSlotsActive){
+    if(btn){btn.style.background='#eef2ff';btn.style.borderColor='#4338ca';btn.style.color='#4338ca';}
+    if(picker) picker.style.display='flex';
+    if(sbBtn){sbBtn.style.background='#eef2ff';sbBtn.style.borderColor='#4338ca';sbBtn.style.color='#4338ca';}
+    if(sbDur) sbDur.style.display='flex';
+  } else {
+    if(btn){btn.style.background='';btn.style.borderColor='';btn.style.color='';}
+    if(picker) picker.style.display='none';
+    if(sbBtn){sbBtn.style.background='';sbBtn.style.borderColor='';sbBtn.style.color='';}
+    if(sbDur) sbDur.style.display='none';
+  }
+  renderWeek();
+}
+function setFreeDur(dur){
+  freeDuration = dur;
+  document.querySelectorAll('.free-dur-btn').forEach(function(b){
+    var active = +b.dataset.dur === dur;
+    b.style.borderColor = active ? '#4338ca' : '#e2e8f0';
+    b.style.background  = active ? '#eef2ff' : '#fff';
+    b.style.color       = active ? '#4338ca' : '#64748b';
+  });
+  renderWeek();
+}
+function renderFreeSlots(col, dateStr){
+  Array.from(activeVets).forEach(function(vetKey){
+    var vet = VETS[vetKey];
+    if(!vet) return;
+    var vetAppts = appointments
+      .filter(function(a){ return a.date === dateStr && a.vet === vetKey && a.status !== 'cancelled'; })
+      .map(function(a){ return { s: timeToMin(a.start), e: timeToMin(a.start) + a.durationMin }; })
+      .sort(function(a,b){ return a.s - b.s; });
+    var gaps = [];
+    var cursor = FREE_START;
+    vetAppts.forEach(function(o){
+      if(o.s > cursor) gaps.push({ s: cursor, e: o.s });
+      cursor = Math.max(cursor, o.e);
+    });
+    if(cursor < FREE_END) gaps.push({ s: cursor, e: FREE_END });
+    gaps.forEach(function(gap){
+      if(gap.e - gap.s < freeDuration) return;
+      var t = Math.ceil(gap.s / 15) * 15;
+      while(t + freeDuration <= gap.e){
+        renderFreeSlotBlock(col, vetKey, vet, dateStr, t, t + freeDuration);
+        t += 15;
+      }
+    });
+  });
+}
+function renderFreeSlotBlock(col, vetKey, vet, dateStr, startMin, endMin){
+  var topPx  = (startMin - HOUR_START * 60) / 60 * SLOT_H + 1;
+  var heightPx = (endMin - startMin) / 60 * SLOT_H - 2;
+  if(heightPx < 10) return;
+  var vetList = Array.from(activeVets);
+  var idx = vetList.indexOf(vetKey);
+  var total = vetList.length;
+  var laneW = 100 / total;
+  var leftPct = idx * laneW;
+  var el = document.createElement('div');
+  el.className = 'free-slot';
+  el.style.cssText = 'top:'+topPx+'px;height:'+heightPx+'px;left:calc('+leftPct+'% + 2px);width:calc('+laneW+'% - 4px);background:'+vet.bg+';border:1.5px dashed '+vet.color+';opacity:.85;align-items:flex-start;padding:2px 5px;';
+  el.innerHTML = '<span style="font-size:10px;font-weight:700;color:'+vet.color+';">'+fmtTime(minToTime(startMin))+'</span>';
+  (function(ds,sm,vk){
+    el.onclick = function(e){
+      e.stopPropagation();
+      newRdvSlotDate = ds;
+      newRdvSlotHour = minToTime(sm);
+      var d2 = new Date(ds);
+      var dow = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      document.getElementById('new-rdv-slot').textContent = dow[d2.getDay()]+' '+d2.getDate()+' '+MONTHS_FR[d2.getMonth()]+' \u00B7 '+minToTime(sm).replace(':','\u00a0h\u00a0');
+      document.getElementById('new-rdv-time').value = minToTime(sm);
+      resetNewRdvForm();
+      showCenteredPopup(document.getElementById('new-rdv-popup'));
+    };
+  })(dateStr, startMin, vetKey);
+  col.appendChild(el);
+}
+
+// === INIT ===
+if(window.innerWidth <= 640 && currentView === 'week'){
+  currentView = 'day';
+  currentWeekStart = today;
+}
+renderMiniCal();
+renderWeek();
+initMotifFilters();
+window.addEventListener('resize', function(){
+  if(window.innerWidth <= 640 && currentView === 'week'){
+    currentView = 'day'; currentWeekStart = today; renderWeek();
+  }
+});
+document.addEventListener('input', function(e){
+  if(e.target && e.target.id === 'new-rdv-time') updateEndTime();
+});
+</script>
 {% endblock %}

@@ -1,6 +1,5 @@
 {#
  # Kiveto -- templates/clinic/select-clinic.html.twig
- # ──────────────────────────────────────────────────
  # Clinic picker page. User selects which clinic to work in.
  # Extends base.html.twig (no sidebar).
  #
@@ -10,386 +9,669 @@
  #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Selectionner une clinique{% endblock %}
+{% block title %}Choisissez votre clinique{% endblock %}
 
 {% block stylesheets %}
 <style>
-  /* ── Clinic picker page styles ── */
-  html, body { height: 100%; overflow: hidden; }
 
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-page);
-    padding: var(--space-6) var(--space-4);
-  }
-
-  /* ── Picker card ── */
-  .picker-card {
-    --gap: 24px;
-    width: 100%;
-    max-width: 680px;
-    background: var(--surface-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    max-height: calc(100vh - var(--space-6) * 2);
-  }
-
-  /* ── Header ── */
-  .picker-head {
-    flex-shrink: 0;
-    padding: var(--gap) var(--gap) var(--space-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .picker-head-top {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-  }
-
-  .picker-logo {
-    width: 36px;
-    height: 36px;
-    background: var(--brand-900);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .picker-head-text { flex: 1; min-width: 0; }
-
-  .picker-head-title {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-    color: var(--text-primary);
-    letter-spacing: -.2px;
-    margin-bottom: var(--space-1);
-  }
-
-  .picker-head-sub {
-    font-size: var(--text-md);
-    color: var(--text-subtle);
-    line-height: var(--lh-normal);
-  }
-
-  .btn-logout {
-    flex-shrink: 0;
-    height: 32px;
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-medium);
-    background: transparent;
-    font-size: var(--text-md);
-    font-weight: var(--weight-medium);
-    color: var(--text-muted);
-    cursor: pointer;
-    font-family: inherit;
-    transition: var(--transition-fast);
-    white-space: nowrap;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-  }
-  .btn-logout:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
-
-  /* ── Clinic list (scrollable zone) ── */
-  .picker-list-zone {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .picker-list {
-    height: 100%;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--gap) var(--space-5);
-    scroll-behavior: smooth;
-  }
-
-  .picker-list::-webkit-scrollbar { width: 6px; }
-  .picker-list::-webkit-scrollbar-track { background: transparent; }
-  .picker-list::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: var(--radius-full); }
-
-  /* Gradient fade at bottom */
-  .picker-list-zone::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 48px;
-    background: linear-gradient(to bottom, transparent, rgba(255,255,255,.97));
-    pointer-events: none;
-  }
-
-  /* ── Clinic item (radio card) ── */
-  .clinic-item {
-    display: grid;
-    grid-template-columns: 48px 1fr auto;
-    gap: 0 var(--space-3);
-    align-items: center;
-    padding: var(--space-3);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
-    background: var(--surface-card);
-    flex-shrink: 0;
-    min-height: 72px;
-  }
-
-  .clinic-item:hover {
-    border-color: var(--brand-200);
-    background: #fafafe;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(99,102,241,.07);
-  }
-  .clinic-item:active { transform: translateY(0); }
-
-  /* Selected state via CSS :has() for radio */
-  .clinic-item:has(input:checked) {
-    border-color: var(--brand-600);
-    background: var(--brand-50);
-    box-shadow: 0 0 0 3px rgba(67,56,202,.08);
-  }
-
-  /* Hidden radio input */
-  .clinic-item input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .clinic-logo {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--text-lg);
-    font-weight: var(--weight-medium);
-    color: #fff;
-    flex-shrink: 0;
-    background: var(--brand-900);
-  }
-
-  .clinic-info { min-width: 0; }
-
-  .clinic-name {
-    font-size: var(--text-base);
-    font-weight: var(--weight-medium);
-    color: var(--text-primary);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .clinic-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .meta-item {
-    font-size: var(--text-sm);
-    color: var(--text-subtle);
-  }
-
-  .meta-sep {
-    width: 3px;
-    height: 3px;
-    border-radius: var(--radius-full);
-    background: var(--slate-300);
-    flex-shrink: 0;
-  }
-
-  .clinic-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--space-2);
-    flex-shrink: 0;
-  }
-
-  .clinic-badge {
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
-    background: var(--surface-subtle);
-    color: var(--text-subtle);
-    white-space: nowrap;
-  }
-
-  /* Check indicator (visible when selected) */
-  .clinic-check {
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-full);
-    background: var(--brand-600);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity .15s, transform .15s;
-    transform: scale(.6);
-  }
-  .clinic-item:has(input:checked) .clinic-check {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  /* ── Footer ── */
-  .picker-foot {
-    flex-shrink: 0;
-    padding: var(--space-4) var(--gap);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-3);
-    position: relative;
-  }
-
-  .picker-foot::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: var(--gap);
-    right: var(--gap);
-    height: 1px;
-    background: var(--border-light);
-  }
-
-  .btn-enter {
-    height: 36px;
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-md);
-    border: none;
-    background: var(--brand-900);
-    color: #fff;
-    font-size: var(--text-md);
-    font-weight: var(--weight-medium);
-    font-family: inherit;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    transition: var(--transition-normal);
-  }
-  .btn-enter:hover { background: var(--brand-800); box-shadow: 0 4px 12px rgba(30,27,75,.2); }
-  .btn-enter:active { transform: translateY(1px); }
-
-  /* ── Responsive ── */
-  @media (max-width: 720px) {
-    body { padding: var(--space-4) var(--space-3); }
-    .picker-card { --gap: 20px; max-width: 100%; }
-  }
-
-  @media (max-width: 600px) {
-    body { padding: var(--space-3); }
-    .picker-card { --gap: 16px; }
-
-    .picker-head-top { flex-wrap: wrap; }
-    .btn-logout { order: 3; width: 100%; text-align: center; justify-content: center; }
-
-    .clinic-item {
-      grid-template-columns: 40px 1fr auto;
-      gap: 0 var(--space-2);
-      min-height: 64px;
-      padding: var(--space-2);
+    /* ─────────────────────────────────────────
+       BASE STRUCTURE
+       html + body = 100% fixed, overflow hidden.
+       The page NEVER scrolls.
+       Only the internal .list scrolls.
+       -> prevents any height recalculation on scroll.
+    ───────────────────────────────────────── */
+    html, body {
+      height: 100%;
+      overflow: hidden;
     }
-    .clinic-logo { width: 40px; height: 40px; font-size: var(--text-md); }
-  }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-page);
+      padding: var(--space-6) var(--space-4);
+    }
+
+    /* ─────────────────────────────────────────
+       CARD
+       --gap = single source of truth for
+       horizontal padding. Header, list and footer
+       all use var(--gap) -> guaranteed alignment
+       on all devices.
+    ───────────────────────────────────────── */
+    .card {
+      --gap: 24px;
+
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      /* explicit height needed so flex distributes space to children */
+      height: calc(100vh - var(--space-6) * 2);
+      max-height: 720px; /* ceiling on very large screens */
+    }
+
+    /* ─────────────────────────────────────────
+       HEADER
+    ───────────────────────────────────────── */
+    .card-head {
+      flex-shrink: 0;
+      padding: var(--gap) var(--gap) var(--space-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    .head-top {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: var(--brand-900);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .head-text { flex: 1; min-width: 0; }
+
+    .head-title {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-medium);
+      color: var(--text-primary);
+      letter-spacing: -.2px;
+      margin-bottom: var(--space-1);
+    }
+
+    .head-sub {
+      font-size: var(--text-md);
+      color: var(--text-subtle);
+      line-height: var(--lh-normal);
+    }
+
+    .btn-deconnect {
+      flex-shrink: 0;
+      height: 32px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-medium);
+      background: transparent;
+      font-size: var(--text-md);
+      font-weight: var(--weight-medium);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition-fast);
+      white-space: nowrap;
+    }
+    .btn-deconnect:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
+
+    .search-wrap { position: relative; }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 36px;
+      font-size: var(--text-md);
+      font-family: inherit;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      padding: 0 var(--space-3) 0 36px;
+      outline: none;
+      color: var(--text-primary);
+      transition: var(--transition-normal);
+    }
+    .search-input::placeholder { color: var(--text-subtle); }
+    .search-input:hover { border-color: var(--border-strong); background: var(--surface-card); }
+    .search-input:focus { border-color: var(--brand-400); background: var(--surface-card); box-shadow: var(--shadow-focus); }
+
+    /* ─────────────────────────────────────────
+       LIST ZONE
+       flex:1 + min-height:0 = takes remaining
+       space without overflowing the card.
+       overflow:hidden here, scroll on .list.
+    ───────────────────────────────────────── */
+    .list-zone {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .list {
+      height: 100%;
+      overflow-y: auto;
+      /* overlay: scrollbar floats over content, takes no space
+         -> padding stays symmetric, perfect alignment on all desktop OS */
+      overflow-y: overlay;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--gap) var(--space-5);
+      scroll-behavior: smooth;
+    }
+
+    .list::-webkit-scrollbar { width: 6px; }
+    .list::-webkit-scrollbar-track { background: transparent; }
+    .list::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: var(--radius-full); }
+    .list::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
+
+    /* On touch (mobile/tablet): scrollbar hidden */
+    @media (hover: none) and (pointer: coarse) {
+      .list::-webkit-scrollbar { display: none; }
+    }
+
+    /* Bottom gradient fade */
+    .list-zone::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,.97));
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .list-zone.at-bottom::after { opacity: 0; }
+
+    /* ─────────────────────────────────────────
+       CLINIC ITEMS
+    ───────────────────────────────────────── */
+    .clinic-item {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 0 var(--space-3);
+      align-items: center;
+      padding: var(--space-3);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
+      background: var(--surface-card);
+      flex-shrink: 0;
+      min-height: 72px;
+    }
+
+    .clinic-item:hover {
+      border-color: var(--brand-200);
+      background: #fafafe;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(99,102,241,.07);
+    }
+    .clinic-item:active { transform: translateY(0); }
+    .clinic-item.is-selected {
+      border-color: var(--brand-600);
+      background: var(--brand-50);
+      box-shadow: 0 0 0 3px rgba(67,56,202,.08);
+    }
+
+    .clinic-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-medium);
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .status-dot {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 9px;
+      height: 9px;
+      border-radius: var(--radius-full);
+      border: 1.5px solid #fff;
+    }
+
+    .clinic-info { min-width: 0; }
+
+    .clinic-name {
+      font-size: var(--text-base);
+      font-weight: var(--weight-medium);
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .clinic-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--text-sm);
+      color: var(--text-subtle);
+    }
+
+    .meta-sep {
+      width: 3px;
+      height: 3px;
+      border-radius: var(--radius-full);
+      background: var(--slate-300);
+      flex-shrink: 0;
+    }
+
+    .clinic-address {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--text-sm);
+      color: var(--text-subtle);
+    }
+
+    .clinic-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+
+    .clinic-status {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+    }
+
+    .clinic-check {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-full);
+      background: var(--brand-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .15s, transform .15s;
+      transform: scale(.6);
+    }
+    .clinic-item.is-selected .clinic-check { opacity: 1; transform: scale(1); }
+
+    .list-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-8) var(--space-4);
+      text-align: center;
+    }
+
+    /* ─────────────────────────────────────────
+       SCROLL HINT
+    ───────────────────────────────────────── */
+    .scroll-hint {
+      flex-shrink: 0;
+      text-align: center;
+      font-size: var(--text-xs);
+      color: var(--text-subtle);
+      padding: var(--space-1) 0 var(--space-2);
+      transition: opacity .25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-1);
+    }
+    .scroll-hint.hidden { opacity: 0; pointer-events: none; }
+
+    /* ─────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────── */
+    .card-foot {
+      flex-shrink: 0;
+      padding: var(--space-4) var(--gap);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      position: relative;
+    }
+
+    .card-foot::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: var(--gap);
+      right: var(--gap);
+      height: 1px;
+      background: var(--border-light);
+    }
+
+    .sel-status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-width: 0;
+      flex: 1;
+    }
+
+    .sel-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: var(--radius-full);
+      background: var(--border-strong);
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .sel-dot.active { background: var(--brand-600); }
+
+    .sel-label {
+      font-size: var(--text-md);
+      color: var(--text-subtle);
+      transition: color .2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sel-label.active { color: var(--brand-600); font-weight: var(--weight-medium); }
+
+    .foot-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+
+    .btn-back {
+      height: 36px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-medium);
+      background: transparent;
+      font-size: var(--text-md);
+      font-weight: var(--weight-medium);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition-fast);
+    }
+    .btn-back:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
+
+    .btn-enter {
+      height: 36px;
+      padding: 0 var(--space-4);
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--brand-900);
+      color: #fff;
+      font-size: var(--text-md);
+      font-weight: var(--weight-medium);
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      transition: var(--transition-normal);
+    }
+    .btn-enter:hover:not(:disabled) { background: var(--brand-800); box-shadow: 0 4px 12px rgba(30,27,75,.2); }
+    .btn-enter:active:not(:disabled) { transform: translateY(1px); }
+    .btn-enter:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ─────────────────────────────────────────
+       RESPONSIVE
+       Only --gap and a few sizes change.
+       Everything else aligns automatically.
+    ───────────────────────────────────────── */
+    @media (max-width: 720px) {
+      body { padding: var(--space-4) var(--space-3); }
+      .card {
+        --gap: 20px;
+        max-width: 100%;
+        height: calc(100vh - var(--space-4) * 2);
+        max-height: 720px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body { padding: var(--space-3); }
+      .card {
+        --gap: 16px;
+        height: calc(100vh - var(--space-3) * 2);
+        max-height: none;
+      }
+
+      .head-top { flex-wrap: wrap; }
+      .btn-deconnect { order: 3; width: 100%; text-align: center; justify-content: center; }
+
+      .card-foot { flex-wrap: wrap; gap: var(--space-3); }
+      .sel-status { flex: 1 0 100%; }
+      .foot-actions { width: 100%; }
+      .btn-back, .btn-enter { flex: 1; justify-content: center; height: 40px; }
+
+      .clinic-item {
+        grid-template-columns: 40px 1fr auto;
+        gap: 0 var(--space-2);
+        min-height: 64px;
+        padding: var(--space-2);
+      }
+      .clinic-logo { width: 40px; height: 40px; font-size: var(--text-md); }
+    }
+
+    @media (max-width: 360px) {
+      .meta-sep { display: none; }
+      .clinic-address { display: none; }
+    }
+
+    @media (max-height: 500px) {
+      body { padding: var(--space-2) var(--space-4); }
+      .card {
+        --gap: 16px;
+        height: calc(100vh - var(--space-2) * 2);
+        max-height: none;
+      }
+      .card-head { padding-bottom: var(--space-3); gap: var(--space-3); }
+    }
+
 </style>
 {% endblock %}
 
 {% block body %}
-<form method="post" action="{{ path('clinic_select_clinic_post') }}">
-  <input type="hidden" name="_token" value="{{ csrf_token }}"/>
 
-  <div class="picker-card" role="main">
+<div class="card" role="main">
 
-    {# Header #}
-    <div class="picker-head">
-      <div class="picker-head-top">
-        <div class="picker-logo" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
-            <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <div class="picker-head-text">
-          <p class="picker-head-title">Selectionner une clinique</p>
-          <p class="picker-head-sub">Choisissez la clinique sur laquelle vous souhaitez travailler.</p>
-        </div>
-        <a class="btn-logout" href="{{ path('_logout_clinic') }}">Deconnexion</a>
+  <div class="card-head">
+    <div class="head-top">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
+          <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
       </div>
-    </div>
-
-    {# Scrollable clinic list #}
-    <div class="picker-list-zone">
-      <div class="picker-list" role="listbox" aria-label="Selectionnez une clinique">
-        {% for clinic in clinics %}
-          <label class="clinic-item" role="option">
-            <input type="radio" name="clinic_id" value="{{ clinic.clinicId }}" required/>
-
-            <div class="clinic-logo" aria-hidden="true">
-              {{ clinic.clinicName|first|upper }}
-            </div>
-
-            <div class="clinic-info">
-              <p class="clinic-name">{{ clinic.clinicName }}</p>
-              <div class="clinic-meta">
-                <span class="meta-item">{{ clinic.memberRole.value }}</span>
-                <div class="meta-sep" aria-hidden="true"></div>
-                <span class="meta-item">{{ clinic.engagement.value }}</span>
-              </div>
-            </div>
-
-            <div class="clinic-right">
-              <span class="clinic-badge">{{ clinic.clinicSlug }}</span>
-              <div class="clinic-check" aria-hidden="true">
-                <svg width="11" height="11" fill="none" viewBox="0 0 12 12">
-                  <path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-          </label>
-        {% else %}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:var(--space-2);padding:var(--space-8) var(--space-4);text-align:center;">
-            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-muted)">Aucune clinique disponible</p>
-          </div>
-        {% endfor %}
+      <div class="head-text">
+        <p class="head-title">Bienvenue sur VET-OS</p>
+        <p class="head-sub">Choisissez votre clinique par défaut — elle sera chargée automatiquement à chaque connexion.</p>
       </div>
+      <button class="btn-deconnect" onclick="window.location.href='{{ path('clinic_login') }}'" type="button" aria-label="Se déconnecter">
+        Déconnexion
+      </button>
     </div>
+    <div class="search-wrap">
+      <span class="search-icon" aria-hidden="true">
+        <svg width="13" height="13" fill="none" viewBox="0 0 16 16">
+          <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M10.5 10.5l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <input class="search-input" id="search-input" type="search"
+        placeholder="Rechercher une clinique ou une ville…"
+        oninput="filterList(this.value)" aria-label="Rechercher une clinique" autocomplete="off"/>
+    </div>
+  </div>
 
-    {# Footer with submit button #}
-    <div class="picker-foot">
-      <button class="btn-enter" type="submit">
-        Continuer
+  <div class="list-zone" id="list-zone">
+    <div class="list" id="clinic-list" role="listbox" aria-label="Sélectionnez une clinique"></div>
+  </div>
+
+  <p class="scroll-hint hidden" id="scroll-hint" aria-hidden="true">
+    <svg width="11" height="11" fill="none" viewBox="0 0 12 12">
+      <path d="M6 2v8M3 7l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Faire défiler pour voir plus
+  </p>
+
+  <div class="card-foot">
+    <div class="sel-status">
+      <div class="sel-dot" id="sel-dot"></div>
+      <p class="sel-label" id="sel-label">Sélectionnez votre clinique par défaut</p>
+    </div>
+    <div class="foot-actions">
+      <button class="btn-back" onclick="window.location.href='{{ path('clinic_login') }}'" type="button">Retour</button>
+      <button class="btn-enter" id="enter-btn" onclick="enter()" type="button" disabled
+        aria-label="Définir cette clinique et accéder à l'application">
+        Définir et accéder
         <svg width="12" height="12" fill="none" viewBox="0 0 12 12" aria-hidden="true">
           <path d="M2 6h8M6 2l4 4-4 4" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
-
   </div>
+
+</div>
+
+{# Hidden form for clinic selection POST #}
+<form id="clinic-select-form" method="post" action="{{ path('clinic_select_clinic_post') }}" style="display:none">
+  <input type="hidden" name="_token" value="{{ csrf_token }}"/>
+  <input type="hidden" name="clinic_id" id="clinic-select-input" value=""/>
 </form>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+{% endblock %}
+
+{% block javascripts %}
+<script>
+  const CLINICS = [
+    {% for clinic in clinics %}
+    { id: "{{ clinic.clinicId }}", name: "{{ clinic.clinicName }}", slug: "{{ clinic.clinicSlug }}", role: "{{ clinic.memberRole.value }}", engagement: "{{ clinic.engagement.value }}" },
+    {% endfor %}
+  ];
+
+  let selectedId = null;
+
+  function toast(msg, color='#16a34a', icon='\u2713') {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<span aria-hidden="true">${icon}</span><span>${msg}</span>`;
+    t.style.cssText = `background:${color};opacity:1;transform:translateX(-50%) translateY(0)`;
+    clearTimeout(t._t);
+    t._t = setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(8px)'; }, 2500);
+  }
+
+  function renderList(list) {
+    const el = document.getElementById('clinic-list');
+    if (!list.length) {
+      el.innerHTML = `<div class="list-empty">
+        <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-muted)">Aucune clinique trouvée</p>
+        <p style="font-size:var(--text-md);color:var(--text-subtle)">Essayez un autre terme.</p>
+      </div>`;
+      updateHint(); return;
+    }
+    el.innerHTML = list.map(c => {
+      const sel = c.id === selectedId;
+      const letter = c.name.charAt(0).toUpperCase();
+      return `<div class="clinic-item${sel?' is-selected':''}" id="ci-${c.id}"
+        onclick="pick('${c.id}')" role="option" aria-selected="${sel}" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' '){pick('${c.id}');event.preventDefault()}">
+        <div class="clinic-logo" style="background:var(--brand-900)" aria-hidden="true">
+          ${letter}
+        </div>
+        <div class="clinic-info">
+          <p class="clinic-name">${c.name}</p>
+          <div class="clinic-meta">
+            <span class="meta-item">${c.role}</span>
+            <div class="meta-sep" aria-hidden="true"></div>
+            <span class="meta-item">${c.engagement}</span>
+          </div>
+          <div class="clinic-address">
+            <svg width="9" height="9" fill="none" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1a4 4 0 014 4c0 3-4 7-4 7S2 8 2 5a4 4 0 014-4z" stroke="currentColor" stroke-width="1.2"/></svg>
+            ${c.slug}
+          </div>
+        </div>
+        <div class="clinic-right">
+          <div class="clinic-check" aria-hidden="true">
+            <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    updateHint();
+  }
+
+  function filterList(val) {
+    const q = val.toLowerCase().trim();
+    renderList(CLINICS.filter(c => !q||c.name.toLowerCase().includes(q)||c.slug.toLowerCase().includes(q)));
+  }
+
+  function pick(id) {
+    selectedId = id;
+    document.querySelectorAll('.clinic-item').forEach(el => {
+      const mine = el.id===`ci-${id}`;
+      el.classList.toggle('is-selected', mine);
+      el.setAttribute('aria-selected', mine);
+    });
+    const c = CLINICS.find(x=>x.id===id);
+    document.getElementById('sel-dot').classList.add('active');
+    const lbl = document.getElementById('sel-label');
+    lbl.textContent = c.name; lbl.classList.add('active');
+    document.getElementById('enter-btn').disabled = false;
+  }
+
+  function enter() {
+    if (!selectedId) return;
+    /* Submit the hidden form to POST the clinic selection */
+    document.getElementById('clinic-select-input').value = selectedId;
+    document.getElementById('clinic-select-form').submit();
+  }
+
+  function updateHint() {
+    const list = document.getElementById('clinic-list');
+    const hint = document.getElementById('scroll-hint');
+    const zone = document.getElementById('list-zone');
+    const more = list.scrollHeight > list.clientHeight + 8;
+    hint.classList.toggle('hidden', !more);
+    zone.classList.toggle('at-bottom', !more);
+  }
+
+  document.getElementById('clinic-list').addEventListener('scroll', function() {
+    const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 20;
+    document.getElementById('list-zone').classList.toggle('at-bottom', atBottom);
+    document.getElementById('scroll-hint').classList.toggle('hidden', atBottom);
+  });
+
+  renderList(CLINICS);
+</script>
 {% endblock %}
