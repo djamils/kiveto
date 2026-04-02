@@ -15,6 +15,12 @@
 {% block page_title %}Vue d'ensemble{% endblock %}
 {% block page_subtitle %}14 patients hospitalisés · 3 analyses en attente{% endblock %}
 
+{% block topbar_actions %}
+  <button class="btn-rpanel" onclick="document.getElementById('rpanel').classList.add('open');document.getElementById('rpanelOverlay').classList.add('is-open');" aria-label="Ouvrir le panneau latéral">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M9 3h12v18H9M3 9h6M3 15h6"/></svg>
+  </button>
+{% endblock %}
+
 {% block stylesheets %}
 <style>
   /* ────────────────────────────────────
@@ -891,7 +897,12 @@
         <span class="rp-head-title">Stock &amp; Alertes</span>
         <span class="badge b-alert" style="font-size:10px;padding:1px 6px;">9</span>
       </div>
-      <button style="font-size:var(--text-sm);color:var(--brand-500);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:var(--weight-medium);">Voir tout →</button>
+      <div style="display:flex;align-items:center;gap:var(--space-2);">
+        <button style="font-size:var(--text-sm);color:var(--brand-500);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:var(--weight-medium);">Voir tout →</button>
+        <button class="rpanel-close" onclick="document.getElementById('rpanel').classList.remove('open');document.getElementById('rpanelOverlay').classList.remove('is-open');" aria-label="Fermer">
+          <svg width="10" height="10" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
     <div class="rp-scroll">
       <table class="rp-table">

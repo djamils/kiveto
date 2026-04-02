@@ -65,6 +65,9 @@
       {% block rpanel %}{% endblock %}
     </div>
 
+    {# Overlay behind rpanel drawer on tablet #}
+    <div class="rpanel-overlay" id="rpanelOverlay" onclick="document.getElementById('rpanel')?.classList.remove('open');this.classList.remove('is-open');"></div>
+
   </div>{# /app-content #}
 
 </div>{# /app-shell #}

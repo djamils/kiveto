@@ -211,6 +211,50 @@
   overflow: hidden;
 }
 
+/* rpanel toggle button — hidden on desktop, shown on tablet */
+.btn-rpanel {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--surface-subtle);
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background var(--t-fast);
+}
+.btn-rpanel:hover { background: var(--surface-hover); }
+
+/* rpanel close button inside drawer header */
+.rpanel-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--surface-subtle);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background var(--t-fast);
+}
+.rpanel-close:hover { background: var(--surface-hover); }
+
+/* rpanel overlay — tablet only */
+.rpanel-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.35);
+  z-index: 49;
+  animation: fade-in .15s ease;
+}
+.rpanel-overlay.is-open { display: block; }
+
 .rpanel-head {
   height: var(--topbar-height);
   display: flex;
@@ -388,8 +432,9 @@
     box-shadow: -4px 0 24px rgba(0,0,0,.14);
   }
 
-  /* Show rpanel toggle button on tablet */
+  /* Show rpanel toggle + close buttons on tablet */
   .btn-rpanel { display: flex !important; }
+  .rpanel-close { display: flex !important; }
 
   .page-grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
