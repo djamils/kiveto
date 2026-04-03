@@ -45,13 +45,14 @@
 
     {# Topbar — hidden on pages with their own specialized topbar #}
     {% if block('show_topbar')|trim == 'true' %}
-    {% set _topbar_actions = block('topbar_actions') is defined ? block('topbar_actions') : [] %}
+    {% set _raw_actions = block('topbar_actions') is defined ? block('topbar_actions')|trim : '' %}
     {{ include('components/layout/topbar.html.twig', {
       title:    block('page_title') is defined ? block('page_title') : 'Page',
       subtitle: block('page_subtitle') is defined ? block('page_subtitle') : null,
       search:   block('topbar_search') is defined ? block('topbar_search') : false,
       breadcrumb: block('breadcrumb') is defined ? block('breadcrumb') : [],
       burger:   block('show_sidebar')|trim == 'true',
+      raw_actions: _raw_actions,
     }) }}
     {% endif %}
 

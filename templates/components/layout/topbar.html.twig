@@ -111,5 +111,10 @@
       {% endfor %}
     {% endif %}
 
+    {# Raw HTML actions from page blocks (badges, custom buttons) #}
+    {% if raw_actions is defined and raw_actions %}
+      {{ raw_actions|raw }}
+    {% endif %}
+
   </div>
 </header>
