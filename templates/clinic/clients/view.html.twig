@@ -8,13 +8,36 @@
  # Variables:
  #   client           ClientDto { id, firstName, lastName, status, createdAt,
  #                    updatedAt, contactMethods[], postalAddress }
+ #   currentClinicId    string
  #   currentClinicName  string
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName ~ ' - ' ~ currentClinicName : 'Fiche client - ' ~ currentClinicName }}{% endblock %}
+{% block title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName ~ ' — ' ~ currentClinicName : 'Fiche client — ' ~ currentClinicName }}{% endblock %}
 
 {% block page_title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName : 'Sophie Dubois' }}{% endblock %}
+
+{% block breadcrumb %}
+  <a href="{{ path('clinic_clients_list') }}" style="display:flex;align-items:center;gap:5px;font-size:13px;color:#94a3b8;text-decoration:none;transition:color .13s;" onmouseenter="this.style.color='#64748b'" onmouseleave="this.style.color='#94a3b8'">
+    <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Clients & Animaux
+  </a>
+  <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 3l3 3-3 3" stroke="#cbd5e1" stroke-width="1.3" stroke-linecap="round"/></svg>
+  <span class="topbar-title" style="font-size:13px;font-weight:500;color:#0f172a;">
+    {% if client is defined %}{{ client.firstName }} {{ client.lastName }}{% else %}Sophie Dubois{% endif %}
+  </span>
+{% endblock %}
+
+{% block topbar_actions %}
+  <div style="margin-left:auto;display:flex;gap:8px;" class="topbar-actions">
+    <button class="btn btn-secondary" onclick="toast('Nouveau RDV…','#4338ca')">
+      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Nouveau RDV</span>
+    </button>
+    <button class="btn btn-primary" onclick="toast('Nouvelle consultation…','#4338ca')">
+      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span>Nouvelle consultation</span>
+    </button>
+  </div>
+{% endblock %}
 
 {% block stylesheets %}
 <style>
@@ -221,10 +244,10 @@
 
 <div class="page-body">
 
-  <!-- LEFT COLUMN -->
+  {# ── LEFT COLUMN: Owner info ── #}
   <div class="col-left">
 
-    <!-- Owner identity -->
+    {# Owner identity #}
     <div class="lsec">
       <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
         <div style="width:44px;height:44px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;">
@@ -241,7 +264,7 @@
           <p style="font-size:11.5px;color:#94a3b8;">Client depuis mars 2021</p>
         </div>
         <button class="btn btn-secondary btn-xs" onclick="openModal('modal-owner')">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Editer
+          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Éditer
         </button>
       </div>
       <div class="info-grid">
@@ -260,9 +283,9 @@
       </div>
     </div>
 
-    <!-- Phones & contacts -->
+    {# Phones & contacts #}
     <div class="lsec">
-      <p class="lsec-title">Contacts & Telephones
+      <p class="lsec-title">Contacts & Téléphones
         <button class="btn btn-ghost btn-xs" onclick="openModal('modal-phones')">
           <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         </button>
@@ -280,7 +303,7 @@
                 <p style="font-size:12.5px;font-weight:500;color:#0f172a;">{{ contact.value }}</p>
                 <p style="font-size:10.5px;color:#94a3b8;">{{ contact.label }}</p>
               </div>
-              <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Action...','#059669')" style="flex-shrink:0;">
+              <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Action…','#059669')" style="flex-shrink:0;">
                 <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
               </button>
             </div>
@@ -289,28 +312,28 @@
           <div class="phone-chip">
             <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
             <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">+33 6 12 34 56 78</p><p style="font-size:10.5px;color:#94a3b8;">Mobile principal</p></div>
-            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel...','#059669')" style="flex-shrink:0;">
+            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel…','#059669')" style="flex-shrink:0;">
               <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
             </button>
           </div>
           <div class="phone-chip">
             <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#64748b;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">s.dubois@email.fr</p><p style="font-size:10.5px;color:#94a3b8;">Email</p></div>
-            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Email...','#4338ca')" style="flex-shrink:0;">
+            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Email…','#4338ca')" style="flex-shrink:0;">
               <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
             </button>
           </div>
         {% endif %}
       </div>
-      <!-- Communication preferences -->
+      {# Communication preferences #}
       <div style="margin-top:8px;padding:7px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;gap:7px;">
         <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#16a34a;flex-shrink:0;"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.3"/><path d="M8 7v4M8 5.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <span style="font-size:11.5px;color:#15803d;">Prefere les rappels par <strong>SMS</strong> &middot; Disponible <strong>le matin</strong></span>
-        <button class="btn btn-ghost btn-xs" style="margin-left:auto;padding:2px 6px;" onclick="openModal('modal-prefs')">Editer</button>
+        <span style="font-size:11.5px;color:#15803d;">Préfère les rappels par <strong>SMS</strong> · Disponible <strong>le matin</strong></span>
+        <button class="btn btn-ghost btn-xs" style="margin-left:auto;padding:2px 6px;" onclick="openModal('modal-prefs')">Éditer</button>
       </div>
     </div>
 
-    <!-- Auxiliary contact -->
+    {# Auxiliary contact #}
     <div class="lsec">
       <p class="lsec-title">Contact auxiliaire
         <button class="btn btn-ghost btn-xs" onclick="openModal('modal-auxcontact')">
@@ -320,97 +343,99 @@
       <div id="aux-contact-left"></div>
     </div>
 
-    <!-- Internal notes -->
+    {# Internal notes #}
     <div class="lsec">
       <p class="lsec-title">Notes internes
-        <button class="btn btn-ghost btn-xs" onclick="toast('Ajouter note...','#4338ca')">+ Ajouter</button>
+        <button class="btn btn-ghost btn-xs" onclick="toast('Ajouter note…','#4338ca')">+ Ajouter</button>
       </p>
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;">
-        <p style="font-size:12.5px;color:#92400e;line-height:1.5;">Proprietaire tres attentive. Prefere les rappels par SMS. Disponible le matin uniquement.</p>
-        <p style="font-size:10.5px;color:#b45309;margin-top:5px;">Dr. Rousseau &middot; 15 jan. 2026</p>
+        <p style="font-size:12.5px;color:#92400e;line-height:1.5;">Propriétaire très attentive. Préfère les rappels par SMS. Disponible le matin uniquement.</p>
+        <p style="font-size:10.5px;color:#b45309;margin-top:5px;">Dr. Rousseau · 15 jan. 2026</p>
       </div>
     </div>
 
   </div>
 
-  <!-- RIGHT COLUMN -->
+  {# ── RIGHT COLUMN: Animal tabs + content ── #}
   <div class="col-right">
     <div class="animal-tabs" id="animal-tabs"></div>
     <div class="animal-scroll" id="animal-content"></div>
   </div>
 </div>
+{% endblock %}
 
-<!-- MODAL: Edit owner -->
+{% block modals %}
+{# ── MODAL: Edit owner ── #}
 <div class="modal-overlay" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
   <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Editer le proprietaire</p><button onclick="closeModal('modal-owner')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Éditer le propriétaire</p><button onclick="closeModal('modal-owner')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-row"><label class="form-label">Prenom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
+        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
         <div class="form-row"><label class="form-label">Nom</label><input class="form-input" value="{{ client is defined ? client.lastName : 'Dubois' }}"></div>
       </div>
       <div class="form-row"><label class="form-label">Adresse</label><input class="form-input" value="12 rue de la Paix, 75001 Paris"></div>
-      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Medecin, Retraite..."></div>
+      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Médecin, Retraité…"></div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-owner')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-owner')">Enregistrer</button></div>
   </div>
 </div>
 
-<!-- MODAL: Phones & contacts -->
+{# ── MODAL: Phones & contacts ── #}
 <div class="modal-overlay" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
   <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contacts & Telephones</p><button onclick="closeModal('modal-phones')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contacts & Téléphones</p><button onclick="closeModal('modal-phones')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
-      <p style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Vous pouvez ajouter plusieurs numeros et leur donner un nom.</p>
+      <p style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Vous pouvez ajouter plusieurs numéros et leur donner un nom.</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
         <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
-          <div><label class="form-label">Telephone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
-          <div><label class="form-label">Libelle</label><input class="form-input" value="Mobile principal"></div>
-          <button class="btn btn-secondary btn-xs" style="height:34px;" onclick="toast('Supprime','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+          <div><label class="form-label">Téléphone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
+          <div><label class="form-label">Libellé</label><input class="form-input" value="Mobile principal"></div>
+          <button class="btn btn-secondary btn-xs" style="height:34px;" onclick="toast('Supprimé','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
-          <div><input class="form-input" placeholder="+33 6 ..." style="margin-top:0;"></div>
-          <div><input class="form-input" placeholder="Ex : Domicile, Travail..."></div>
+          <div><input class="form-input" placeholder="+33 6 …" style="margin-top:0;"></div>
+          <div><input class="form-input" placeholder="Ex : Domicile, Travail…"></div>
           <button class="btn btn-secondary btn-xs" style="height:34px;"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
         </div>
       </div>
-      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutee','#4338ca')">
-        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numero
+      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutée','#4338ca')">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numéro
       </button>
       <div style="border-top:1px solid #f1f5f9;margin-top:14px;padding-top:14px;">
         <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Email</p>
         <input class="form-input" value="s.dubois@email.fr">
       </div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-phones')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-phones')">Enregistrer</button></div>
   </div>
 </div>
 
-<!-- MODAL: Communication preferences -->
+{# ── MODAL: Communication preferences ── #}
 <div class="modal-overlay" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
   <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Preferences de communication</p><button onclick="closeModal('modal-prefs')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Préférences de communication</p><button onclick="closeModal('modal-prefs')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
-      <div class="form-row"><label class="form-label">Canal prefere</label>
-        <select class="form-input"><option selected>SMS</option><option>Email</option><option>Telephone</option><option>Aucune preference</option></select>
+      <div class="form-row"><label class="form-label">Canal préféré</label>
+        <select class="form-input"><option selected>SMS</option><option>Email</option><option>Téléphone</option><option>Aucune préférence</option></select>
       </div>
       <div class="form-row"><label class="form-label">Plage horaire de contact</label>
-        <select class="form-input"><option selected>Matin (8h-12h)</option><option>Apres-midi (12h-18h)</option><option>Soiree (18h-20h)</option><option>Toute la journee</option></select>
+        <select class="form-input"><option selected>Matin (8h–12h)</option><option>Après-midi (12h–18h)</option><option>Soirée (18h–20h)</option><option>Toute la journée</option></select>
       </div>
       <div class="form-row"><label class="form-label">Rappels automatiques</label>
         <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel RDV 24h avant</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel vaccin a renouveler</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel vaccin à renouveler</label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" style="accent-color:#4338ca;">Newsletter clinique</label>
         </div>
       </div>
       <div class="form-row"><label class="form-label">Note libre</label><input class="form-input" value="Disponible le matin uniquement"></div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
   </div>
 </div>
 
-<!-- MODAL: Animal identification -->
+{# ── MODAL: Animal identification ── #}
 <div class="modal-overlay" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
   <div class="modal-box">
     <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
@@ -418,34 +443,34 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-row"><label class="form-label">Transpondeur (puce)</label><input class="form-input" id="fi-chip" placeholder="15 chiffres"></div>
         <div class="form-row"><label class="form-label">Tatouage</label><input class="form-input" id="fi-tattoo" placeholder="Code tatouage"></div>
-        <div class="form-row"><label class="form-label">N. Passeport</label><input class="form-input" id="fi-passport" placeholder="FR..."></div>
-        <div class="form-row"><label class="form-label">N. LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
-        <div class="form-row"><label class="form-label">N. SIRE (equide)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
-        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador x Border Collie"></div>
+        <div class="form-row"><label class="form-label">N° Passeport</label><input class="form-input" id="fi-passport" placeholder="FR…"></div>
+        <div class="form-row"><label class="form-label">N° LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
+        <div class="form-row"><label class="form-label">N° SIRE (équidé)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
+        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador × Border Collie"></div>
       </div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistre','#059669');closeModal('modal-ident')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-ident')">Enregistrer</button></div>
   </div>
 </div>
 
-<!-- MODAL: Auxiliary contact -->
+{# ── MODAL: Auxiliary contact ── #}
 <div class="modal-overlay" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
   <div class="modal-box">
     <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
-      <p style="font-size:12.5px;color:#64748b;margin-bottom:12px;">Personne a contacter en l'absence du proprietaire principal.</p>
+      <p style="font-size:12.5px;color:#64748b;margin-bottom:12px;">Personne à contacter en l'absence du propriétaire principal.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-row"><label class="form-label">Prenom</label><input class="form-input" id="ac-first" placeholder="Prenom"></div>
+        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" id="ac-first" placeholder="Prénom"></div>
         <div class="form-row"><label class="form-label">Nom</label><input class="form-input" id="ac-last" placeholder="Nom"></div>
-        <div class="form-row"><label class="form-label">Telephone</label><input class="form-input" id="ac-phone" placeholder="+33 6 ..."></div>
-        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin..."></div>
+        <div class="form-row"><label class="form-label">Téléphone</label><input class="form-input" id="ac-phone" placeholder="+33 6 …"></div>
+        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin…"></div>
       </div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistre','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistré','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
   </div>
 </div>
 
-<!-- MODAL: Animal status -->
+{# ── MODAL: Animal status ── #}
 <div class="modal-overlay" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
   <div class="modal-box">
     <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Statut de l'animal</p><button onclick="closeModal('modal-status')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
@@ -453,15 +478,15 @@
       <div class="form-row"><label class="form-label">Statut</label>
         <select class="form-input" id="animal-status-sel" onchange="updateStatusNote()">
           <option value="alive">Vivant</option>
-          <option value="deceased">Decede</option>
+          <option value="deceased">Décédé</option>
           <option value="missing">Disparu</option>
-          <option value="given">Cede (vendu / donne)</option>
+          <option value="given">Cédé (vendu / donné)</option>
         </select>
       </div>
       <div class="form-row" id="status-date-row"><label class="form-label">Date</label><input type="date" class="form-input" id="status-date"></div>
-      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau proprietaire..." style="resize:none;"></textarea></div>
+      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau propriétaire…" style="resize:none;"></textarea></div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis a jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis à jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
   </div>
 </div>
 
@@ -492,69 +517,71 @@ function closeAllDrawers(){
   document.querySelector('.col-left').classList.remove('open');
 }
 
-// ── DATA ──
+// ══════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════
 const ANIMALS = [
   {
-    id:0, name:'Luna', emoji:'\ud83d\udc31', species:'Felin', breed:'Persan',
+    id:0, name:'Luna', emoji:'🐱', species:'Félin', breed:'Persan',
     photo:null, dob:'2019-06-10', weight:'4.2', sex:'F', sterilized:true,
     color:'Blanc', chip:'250268500012345', tattoo:null, passport:'FR-2019-123456',
     loof:'LOOF-2019-789', sire:null, crossBreed:null,
     status:'alive', tabColor:'#4338ca',
     auxContact:{first:'Jean', last:'Dubois', phone:'+33 6 99 88 77 66', rel:'Conjoint'},
-    weights:[{d:'Oct',v:4.0},{d:'Nov',v:4.1},{d:'Dec',v:4.1},{d:'Jan',v:4.2},{d:'Fev',v:4.1},{d:'Mar',v:4.2}],
+    weights:[{d:'Oct',v:4.0},{d:'Nov',v:4.1},{d:'Déc',v:4.1},{d:'Jan',v:4.2},{d:'Fév',v:4.1},{d:'Mar',v:4.2}],
     vitals:{
-      temp:[{d:'Oct',v:38.5},{d:'Nov',v:38.6},{d:'Dec',v:38.4},{d:'Jan',v:38.7},{d:'Fev',v:38.5},{d:'Mar',v:38.6}],
-      fc:  [{d:'Oct',v:140}, {d:'Nov',v:145},{d:'Dec',v:138},{d:'Jan',v:142},{d:'Fev',v:144},{d:'Mar',v:140}],
-      fr:  [{d:'Oct',v:22},  {d:'Nov',v:24}, {d:'Dec',v:20}, {d:'Jan',v:22}, {d:'Fev',v:23}, {d:'Mar',v:21}],
+      temp:[{d:'Oct',v:38.5},{d:'Nov',v:38.6},{d:'Déc',v:38.4},{d:'Jan',v:38.7},{d:'Fév',v:38.5},{d:'Mar',v:38.6}],
+      fc:  [{d:'Oct',v:140}, {d:'Nov',v:145},{d:'Déc',v:138},{d:'Jan',v:142},{d:'Fév',v:144},{d:'Mar',v:140}],
+      fr:  [{d:'Oct',v:22},  {d:'Nov',v:24}, {d:'Déc',v:20}, {d:'Jan',v:22}, {d:'Fév',v:23}, {d:'Mar',v:21}],
     },
-    allergies:['Penicilline'],
-    antecedents:['Sterilisation (2020)','Detartrage (2023)'],
+    allergies:['Pénicilline'],
+    antecedents:['Stérilisation (2020)','Détartrage (2023)'],
     vaccins:[
       {name:'Typhus-Coryza', date:'2025-12-10', next:'2026-12-10', status:'ok'},
       {name:'Leucose FeLV',  date:'2025-12-10', next:'2026-12-10', status:'ok'},
       {name:'Rage',          date:'2024-11-05', next:'2025-11-05', status:'warn'},
       {name:'Chlamydiose',   date:'2025-06-15', next:'2026-06-15', status:'ok'},
     ],
-    traitements:[{nom:'Cystaid Plus',dose:'1 gelule/j',debut:'2026-01-10',fin:'2026-04-10',vet:'Dr. Rousseau'}],
+    traitements:[{nom:'Cystaid Plus',dose:'1 gélule/j',debut:'2026-01-10',fin:'2026-04-10',vet:'Dr. Rousseau'}],
     medias:[
       {nom:'Ordonnance Cystaid',     date:'2026-01-10', type:'Ordonnance', isImage:false},
-      {nom:'Resultats analyse sang', date:'2025-12-10', type:'Analyse',    isImage:false},
+      {nom:'Résultats analyse sang', date:'2025-12-10', type:'Analyse',    isImage:false},
       {nom:'Certificat vaccination', date:'2025-12-10', type:'Certificat', isImage:false},
-      {nom:'Photo profil',           date:'2026-03-21', type:'Photo',      isImage:true,  thumb:'\ud83d\udc31'},
-      {nom:'Post-vaccination',       date:'2025-12-10', type:'Photo',      isImage:true,  thumb:'\ud83d\ude38'},
-      {nom:'Empreinte patte',        date:'2025-09-03', type:'Photo',      isImage:true,  thumb:'\ud83d\udc3e'},
-      {nom:'Radio thorax',           date:'2025-05-18', type:'Image medicale', isImage:true, thumb:'\ud83e\ude7b'},
-      {nom:'Echo abdominale',        date:'2025-01-10', type:'Image medicale', isImage:true, thumb:'\ud83d\udd2c'},
+      {nom:'Photo profil',           date:'2026-03-21', type:'Photo',      isImage:true,  thumb:'🐱'},
+      {nom:'Post-vaccination',       date:'2025-12-10', type:'Photo',      isImage:true,  thumb:'😸'},
+      {nom:'Empreinte patte',        date:'2025-09-03', type:'Photo',      isImage:true,  thumb:'🐾'},
+      {nom:'Radio thorax',           date:'2025-05-18', type:'Image médicale', isImage:true, thumb:'🩻'},
+      {nom:'Echo abdominale',        date:'2025-01-10', type:'Image médicale', isImage:true, thumb:'🔬'},
     ],
     facturation:[
-      {libelle:'Consultation + pesee',  date:'2026-03-21', montant:65,  statut:'ok',      ref:'FAC-2026-042', vet:'Dr. Rousseau', actes:['Examen clinique','Pesee']},
+      {libelle:'Consultation + pesée',  date:'2026-03-21', montant:65,  statut:'ok',      ref:'FAC-2026-042', vet:'Dr. Rousseau', actes:['Examen clinique','Pesée']},
       {libelle:'Vaccin typhus-coryza',  date:'2025-12-10', montant:38,  statut:'ok',      ref:'FAC-2025-198', vet:'Dr. Martin',   actes:['Vaccination']},
       {libelle:'Suivi urinaire',        date:'2025-09-03', montant:45,  statut:'pending', ref:'FAC-2025-134', vet:'Dr. Rousseau', actes:['Examen clinique','Analyse urine']},
       {libelle:'Examen ORL',            date:'2025-05-18', montant:50,  statut:'unpaid',  ref:'FAC-2025-071', vet:'Dr. Dupont',   actes:['Examen ORL']},
     ],
     factTotal:198,
     consultations:[
-      {date:'2026-03-21',motif:'Consultation',vet:'Dr. Rousseau',note:'Bilan annuel - etat general excellent. Poids stable. Renouvellement traitement urinaire.',actes:['Examen clinique','Pesee']},
-      {date:'2025-12-10',motif:'Vaccin',vet:'Dr. Martin',note:'Rappel typhus-coryza et leucose. Aucune reaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
-      {date:'2025-09-03',motif:'Suivi',vet:'Dr. Rousseau',note:'Controle poids et urinaire. Legere amelioration.',actes:['Examen clinique']},
-      {date:'2025-05-18',motif:'Consultation',vet:'Dr. Dupont',note:'Epistaxis legere - origine traumatique probable. Surveillance.',actes:['Examen ORL']},
+      {date:'2026-03-21',motif:'Consultation',vet:'Dr. Rousseau',note:'Bilan annuel — état général excellent. Poids stable. Renouvellement traitement urinaire.',actes:['Examen clinique','Pesée']},
+      {date:'2025-12-10',motif:'Vaccin',vet:'Dr. Martin',note:'Rappel typhus-coryza et leucose. Aucune réaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
+      {date:'2025-09-03',motif:'Suivi',vet:'Dr. Rousseau',note:'Contrôle poids et urinaire. Légère amélioration.',actes:['Examen clinique']},
+      {date:'2025-05-18',motif:'Consultation',vet:'Dr. Dupont',note:'Épistaxis légère — origine traumatique probable. Surveillance.',actes:['Examen ORL']},
     ]
   },
   {
-    id:1, name:'Mimi', emoji:'\ud83d\udc31', species:'Felin', breed:'Europeen',
+    id:1, name:'Mimi', emoji:'🐱', species:'Félin', breed:'Européen',
     photo:null, dob:'2022-01-20', weight:'3.8', sex:'F', sterilized:true,
-    color:'Tigre', chip:'250268500012346', tattoo:'GF-7X9', passport:null,
+    color:'Tigré', chip:'250268500012346', tattoo:'GF-7X9', passport:null,
     loof:null, sire:null, crossBreed:null,
     status:'alive', tabColor:'#f59e0b',
     auxContact:null,
-    weights:[{d:'Oct',v:3.5},{d:'Nov',v:3.6},{d:'Dec',v:3.7},{d:'Jan',v:3.9},{d:'Fev',v:3.7},{d:'Mar',v:3.8}],
+    weights:[{d:'Oct',v:3.5},{d:'Nov',v:3.6},{d:'Déc',v:3.7},{d:'Jan',v:3.9},{d:'Fév',v:3.7},{d:'Mar',v:3.8}],
     vitals:{
-      temp:[{d:'Oct',v:38.3},{d:'Nov',v:38.5},{d:'Dec',v:38.4},{d:'Jan',v:38.8},{d:'Fev',v:38.6},{d:'Mar',v:38.5}],
-      fc:  [{d:'Oct',v:138},{d:'Nov',v:142},{d:'Dec',v:136},{d:'Jan',v:150},{d:'Fev',v:141},{d:'Mar',v:139}],
-      fr:  [{d:'Oct',v:20}, {d:'Nov',v:22}, {d:'Dec',v:21}, {d:'Jan',v:28}, {d:'Fev',v:22}, {d:'Mar',v:20}],
+      temp:[{d:'Oct',v:38.3},{d:'Nov',v:38.5},{d:'Déc',v:38.4},{d:'Jan',v:38.8},{d:'Fév',v:38.6},{d:'Mar',v:38.5}],
+      fc:  [{d:'Oct',v:138},{d:'Nov',v:142},{d:'Déc',v:136},{d:'Jan',v:150},{d:'Fév',v:141},{d:'Mar',v:139}],
+      fr:  [{d:'Oct',v:20}, {d:'Nov',v:22}, {d:'Déc',v:21}, {d:'Jan',v:28}, {d:'Fév',v:22}, {d:'Mar',v:20}],
     },
     allergies:[],
-    antecedents:['Sterilisation (2022)','Ingestion corps etranger (jan. 2026) - resolu'],
+    antecedents:['Stérilisation (2022)','Ingestion corps étranger (jan. 2026) — résolu'],
     vaccins:[
       {name:'Typhus-Coryza',date:'2025-08-20',next:'2026-08-20',status:'ok'},
       {name:'Leucose FeLV', date:'2025-08-20',next:'2026-08-20',status:'ok'},
@@ -562,187 +589,584 @@ const ANIMALS = [
     ],
     traitements:[],
     medias:[
-      {nom:'CR Urgence corps etranger', date:'2026-01-15', type:'Compte-rendu',    isImage:false},
+      {nom:'CR Urgence corps étranger', date:'2026-01-15', type:'Compte-rendu',    isImage:false},
       {nom:'Certificat vaccination',    date:'2025-08-20', type:'Certificat',       isImage:false},
-      {nom:'Radio abdominale urgence',  date:'2026-01-15', type:'Image medicale',   isImage:true, thumb:'\ud83e\ude7b'},
-      {nom:'Photo profil',              date:'2025-08-20', type:'Photo',            isImage:true, thumb:'\ud83d\udc31'},
-      {nom:'Empreinte',                 date:'2025-08-20', type:'Photo',            isImage:true, thumb:'\ud83d\udc3e'},
+      {nom:'Radio abdominale urgence',  date:'2026-01-15', type:'Image médicale',   isImage:true, thumb:'🩻'},
+      {nom:'Photo profil',              date:'2025-08-20', type:'Photo',            isImage:true, thumb:'🐱'},
+      {nom:'Empreinte',                 date:'2025-08-20', type:'Photo',            isImage:true, thumb:'🐾'},
     ],
     facturation:[
-      {libelle:'Urgence - endoscopie', date:'2026-01-15', montant:145, statut:'ok',      ref:'FAC-2026-008', vet:'Dr. Dupont',   actes:['Radiographie','Endoscopie','Injection']},
+      {libelle:'Urgence — endoscopie', date:'2026-01-15', montant:145, statut:'ok',      ref:'FAC-2026-008', vet:'Dr. Dupont',   actes:['Radiographie','Endoscopie','Injection']},
       {libelle:'Primo-vaccination',    date:'2025-08-20', montant:42,  statut:'ok',      ref:'FAC-2025-112', vet:'Dr. Rousseau', actes:['Vaccination typhus-coryza','Vaccination FeLV']},
     ],
     factTotal:187,
     consultations:[
-      {date:'2026-01-15',motif:'Urgence',vet:'Dr. Dupont',note:'Ingestion corps etranger (fil de laine). Extraction endoscopique reussie. Surveillance 48h.',actes:['Radiographie','Endoscopie','Injection antispasmodique']},
-      {date:'2025-08-20',motif:'Vaccin',vet:'Dr. Rousseau',note:'Primo-vaccination complete. Aucune reaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
+      {date:'2026-01-15',motif:'Urgence',vet:'Dr. Dupont',note:'Ingestion corps étranger (fil de laine). Extraction endoscopique réussie. Surveillance 48h.',actes:['Radiographie','Endoscopie','Injection antispasmodique']},
+      {date:'2025-08-20',motif:'Vaccin',vet:'Dr. Rousseau',note:'Primo-vaccination complète. Aucune réaction adverse.',actes:['Vaccination typhus-coryza','Vaccination FeLV']},
     ]
   }
 ];
 
-// ── STATE ──
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
 let currentAnimal = 0;
 let currentVital = 'weight';
 
-// ── UTILS ──
-function toast(m,c){c=c||'#16a34a';var t=document.getElementById('toast');t.textContent=m;t.style.background=c;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
-function fmtDate(d){if(!d)return'\u2014';return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function toast(m,c='#16a34a'){const t=document.getElementById('toast');t.textContent=m;t.style.background=c;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
+function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function updateStatusNote(){}
 
-// ── CHART RENDERERS ──
-const NORMAL_RANGES = {temp:{min:38.0,max:39.0},fc:{min:120,max:200},fr:{min:15,max:30}};
+// ══════════════════════════════════════════
+// CHART RENDERERS (type-aware, interactive)
+// ══════════════════════════════════════════
 
+const NORMAL_RANGES = {
+  temp: {min:38.0, max:39.0},
+  fc:   {min:120,  max:200},
+  fr:   {min:15,   max:30},
+};
+
+// Global tooltip element — created once
 function getTooltip(){
-  var t=document.getElementById('chart-tooltip');
-  if(!t){t=document.createElement('div');t.id='chart-tooltip';t.style.cssText='position:fixed;pointer-events:none;z-index:900;background:#1e293b;color:#fff;font-size:11px;font-family:DM Sans,sans-serif;font-weight:500;padding:5px 9px;border-radius:7px;white-space:nowrap;opacity:0;transition:opacity .12s;box-shadow:0 4px 12px rgba(0,0,0,.2);';document.body.appendChild(t);}
+  let t = document.getElementById('chart-tooltip');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'chart-tooltip';
+    t.style.cssText = 'position:fixed;pointer-events:none;z-index:900;background:#1e293b;color:#fff;font-size:11px;font-family:DM Sans,sans-serif;font-weight:500;padding:5px 9px;border-radius:7px;white-space:nowrap;opacity:0;transition:opacity .12s;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+    document.body.appendChild(t);
+  }
   return t;
 }
-function showTooltipAt(e,html){var t=getTooltip();t.innerHTML=html;t.style.opacity='1';positionTooltip(e,t);}
-function positionTooltip(e,t){var margin=10;var x=e.clientX+margin;var y=e.clientY-32;var tw=t.offsetWidth||80;if(x+tw>window.innerWidth-8)x=e.clientX-tw-margin;if(y<8)y=e.clientY+margin;t.style.left=x+'px';t.style.top=y+'px';}
-function hideTooltip(){getTooltip().style.opacity='0';document.querySelectorAll('[id$="-cross"]').forEach(function(l){l.setAttribute('opacity','0');});}
-document.addEventListener('mousemove',function(e){var t=document.getElementById('chart-tooltip');if(t&&t.style.opacity==='1')positionTooltip(e,t);});
+function showTooltipAt(e, html){
+  const t = getTooltip();
+  t.innerHTML = html;
+  t.style.opacity = '1';
+  positionTooltip(e, t);
+}
+function positionTooltip(e, t){
+  const margin = 10;
+  let x = e.clientX + margin;
+  let y = e.clientY - 32;
+  const tw = t.offsetWidth || 80;
+  if(x + tw > window.innerWidth - 8) x = e.clientX - tw - margin;
+  if(y < 8) y = e.clientY + margin;
+  t.style.left = x + 'px';
+  t.style.top  = y + 'px';
+}
+function hideTooltip(){ getTooltip().style.opacity='0';
+  // Hide all crosshairs
+  document.querySelectorAll('[id$="-cross"]').forEach(l=>l.setAttribute('opacity','0'));
+}
+document.addEventListener('mousemove', e=>{
+  const t = document.getElementById('chart-tooltip');
+  if(t && t.style.opacity==='1') positionTooltip(e, t);
+});
 
-function renderVitalChart(data,type,color,fillColor,unit){
-  var W=100,H=44,padX=8,padY=6,labelH=12;
-  var vals=data.map(function(d){return d.v;});
-  var dataMin=Math.min.apply(null,vals);
-  var dataMax=Math.max.apply(null,vals);
-  var id='vc-'+Math.random().toString(36).slice(2,7);
+function renderVitalChart(data, type, color, fillColor, unit){
+  const W=100, H=44, padX=8, padY=6, labelH=12;
+  const vals = data.map(d=>d.v);
+  const dataMin = Math.min(...vals);
+  const dataMax = Math.max(...vals);
+  const id = 'vc-'+Math.random().toString(36).slice(2,7);
+
   if(type==='weight'){
-    var range=dataMax-dataMin||1;
-    var slotW=(W-padX*2)/vals.length;
-    var barW=slotW-3;
-    var bars=vals.map(function(v,i){
-      var x=padX+i*slotW+1.5;var pct=(v-dataMin)/range;var barH=Math.max(4,pct*(H-padY*2)+6);var y=H-padY-barH;var isLast=i===vals.length-1;var cx=x+barW/2;
-      return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+barH+'" rx="2" fill="'+(isLast?color:fillColor)+'" stroke="'+color+'" stroke-width="0.5" opacity="'+(isLast?1:0.65)+'"/><text x="'+cx+'" y="'+(H+labelH-1)+'" text-anchor="middle" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">'+data[i].d+'</text><rect class="chart-hit" x="'+(x-1)+'" y="'+padY+'" width="'+(barW+2)+'" height="'+(H-padY)+'" rx="2" fill="transparent" data-label="'+data[i].d+'" data-val="'+v+'" data-unit="'+unit+'" data-color="'+(isLast?color:'#4338ca')+'" onmouseenter="handleChartHover(event,this)" onmouseleave="hideTooltip()" style="cursor:crosshair;"/>';
+    const range = dataMax - dataMin || 1;
+    const slotW = (W - padX*2) / vals.length;
+    const barW = slotW - 3;
+    const bars = vals.map((v,i)=>{
+      const x = padX + i*slotW + 1.5;
+      const pct = (v-dataMin)/range;
+      const barH = Math.max(4, pct*(H-padY*2)+6);
+      const y = H - padY - barH;
+      const isLast = i===vals.length-1;
+      const cx = x + barW/2;
+      return `
+        <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="2"
+          fill="${isLast?color:fillColor}" stroke="${color}" stroke-width="0.5" opacity="${isLast?1:0.65}"/>
+        <text x="${cx}" y="${H+labelH-1}" text-anchor="middle" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">${data[i].d}</text>
+        <rect class="chart-hit" x="${x-1}" y="${padY}" width="${barW+2}" height="${H-padY}" rx="2" fill="transparent"
+          data-label="${data[i].d}" data-val="${v}" data-unit="${unit}" data-color="${isLast?color:'#4338ca'}"
+          onmouseenter="handleChartHover(event,this)" onmouseleave="hideTooltip()"
+          style="cursor:crosshair;"/>`;
     }).join('');
-    return '<svg id="'+id+'" viewBox="0 0 '+W+' '+(H+labelH)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">'+bars+'</svg>';
+    return `<svg id="${id}" viewBox="0 0 ${W} ${H+labelH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">${bars}</svg>`;
   } else {
-    var nr=NORMAL_RANGES[type];var allVals=nr?vals.concat([nr.min,nr.max]):vals;var vMin=Math.min.apply(null,allVals)*0.993;var vMax=Math.max.apply(null,allVals)*1.007;var range2=vMax-vMin||1;
-    function toY(v){return H-padY-((v-vMin)/range2)*(H-padY*2);}
-    function toX(i){return padX+(i/(vals.length-1))*(W-padX*2);}
-    var normalZone='';
-    if(nr){var ny1=toY(nr.max),ny2=toY(nr.min);normalZone='<rect x="'+padX+'" y="'+ny1+'" width="'+(W-padX*2)+'" height="'+(ny2-ny1)+'" fill="'+fillColor+'" opacity="0.45" rx="1"/><line x1="'+padX+'" y1="'+ny1+'" x2="'+(W-padX)+'" y2="'+ny1+'" stroke="'+color+'" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/><line x1="'+padX+'" y1="'+ny2+'" x2="'+(W-padX)+'" y2="'+ny2+'" stroke="'+color+'" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/>';}
-    var pts=vals.map(function(v,i){return toX(i)+','+toY(v);});var pathD='M '+pts.join(' L ');
-    var dots=vals.map(function(v,i){var out=nr&&(v<nr.min||v>nr.max);var isLast=i===vals.length-1;var r=isLast?1.8:out?2:1.2;var fill=out?'#dc2626':color;var op=isLast||out?1:0.65;return '<circle cx="'+toX(i)+'" cy="'+toY(v)+'" r="'+r+'" fill="'+fill+'" opacity="'+op+'"/>';}).join('');
-    var hitZones=vals.map(function(v,i){var out=nr&&(v<nr.min||v>nr.max);var hintColor=out?'#dc2626':color;var slotW2=(W-padX*2)/(vals.length-1||1);var hx=i===0?padX:toX(i)-slotW2/2;var hw=i===0||i===vals.length-1?slotW2/2:slotW2;return '<rect class="chart-hit" x="'+hx+'" y="'+padY+'" width="'+hw+'" height="'+(H-padY)+'" fill="transparent" data-label="'+data[i].d+'" data-val="'+v+'" data-unit="'+unit+'" data-color="'+hintColor+'" onmouseenter="handleChartHover(event,this,'+toX(i)+','+toY(v)+')" onmouseleave="hideTooltip()" style="cursor:crosshair;"/>';}).join('');
-    var labels2=[0,vals.length-1].map(function(i){return '<text x="'+toX(i)+'" y="'+(H+labelH-1)+'" text-anchor="'+(i===0?'start':'end')+'" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">'+data[i].d+'</text>';}).join('');
-    return '<svg id="'+id+'" viewBox="0 0 '+W+' '+(H+labelH)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">'+normalZone+'<path d="'+pathD+'" fill="none" stroke="'+color+'" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/><line id="'+id+'-cross" x1="0" y1="'+padY+'" x2="0" y2="'+H+'" stroke="'+color+'" stroke-width="0.5" stroke-dasharray="2,2" opacity="0" pointer-events="none"/>'+dots+labels2+hitZones+'</svg>';
+    const nr = NORMAL_RANGES[type];
+    const allVals = nr ? [...vals, nr.min, nr.max] : vals;
+    const vMin = Math.min(...allVals)*0.993;
+    const vMax = Math.max(...allVals)*1.007;
+    const range = vMax - vMin || 1;
+    const toY = v => H - padY - ((v-vMin)/range)*(H-padY*2);
+    const toX = i => padX + (i/(vals.length-1))*(W-padX*2);
+
+    let normalZone = '';
+    if(nr){
+      const ny1=toY(nr.max), ny2=toY(nr.min);
+      normalZone = `<rect x="${padX}" y="${ny1}" width="${W-padX*2}" height="${ny2-ny1}" fill="${fillColor}" opacity="0.45" rx="1"/>
+        <line x1="${padX}" y1="${ny1}" x2="${W-padX}" y2="${ny1}" stroke="${color}" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/>
+        <line x1="${padX}" y1="${ny2}" x2="${W-padX}" y2="${ny2}" stroke="${color}" stroke-width="0.35" stroke-dasharray="2,2" opacity="0.4"/>`;
+    }
+
+    const pts = vals.map((v,i)=>`${toX(i)},${toY(v)}`);
+    const pathD = `M ${pts.join(' L ')}`;
+
+    const dots = vals.map((v,i)=>{
+      const out = nr && (v < nr.min || v > nr.max);
+      const isLast = i===vals.length-1;
+      const r = isLast ? 1.8 : out ? 2 : 1.2;
+      const fill = out ? '#dc2626' : color;
+      const op = isLast||out ? 1 : 0.65;
+      return `<circle cx="${toX(i)}" cy="${toY(v)}" r="${r}" fill="${fill}" opacity="${op}"/>`;
+    }).join('');
+
+    // Invisible wide hit zones per point
+    const hitZones = vals.map((v,i)=>{
+      const out = nr && (v<nr.min||v>nr.max);
+      const hintColor = out?'#dc2626':color;
+      const slotW = (W-padX*2)/(vals.length-1||1);
+      const hx = i===0 ? padX : toX(i)-slotW/2;
+      const hw = i===0||i===vals.length-1 ? slotW/2 : slotW;
+      return `<rect class="chart-hit" x="${hx}" y="${padY}" width="${hw}" height="${H-padY}"
+        fill="transparent" data-label="${data[i].d}" data-val="${v}" data-unit="${unit}" data-color="${hintColor}"
+        onmouseenter="handleChartHover(event,this,${toX(i)},${toY(v)})" onmouseleave="hideTooltip()"
+        style="cursor:crosshair;"/>`;
+    }).join('');
+
+    const labels = [0, vals.length-1].map(i=>
+      `<text x="${toX(i)}" y="${H+labelH-1}" text-anchor="${i===0?'start':'end'}" font-size="5.5" fill="#94a3b8" font-family="DM Sans,sans-serif">${data[i].d}</text>`
+    ).join('');
+
+    return `<svg id="${id}" viewBox="0 0 ${W} ${H+labelH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;overflow:visible;">
+      ${normalZone}
+      <path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+      <line id="${id}-cross" x1="0" y1="${padY}" x2="0" y2="${H}" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,2" opacity="0" pointer-events="none"/>
+      ${dots}
+      ${labels}
+      ${hitZones}
+    </svg>`;
   }
 }
 
-function handleChartHover(e,el,crossX,crossY){
-  var label=el.dataset.label,val=el.dataset.val,unit=el.dataset.unit,color=el.dataset.color;
-  var svg=el.closest('svg');var cross=svg?svg.querySelector('[id$="-cross"]'):null;
-  if(cross&&crossX!==undefined){cross.setAttribute('x1',crossX);cross.setAttribute('x2',crossX);cross.setAttribute('opacity','0.5');}
-  showTooltipAt(e,'<span style="color:'+color+';margin-right:4px;">\u25cf</span>'+label+' \u00b7 <strong>'+val+'</strong> '+unit);
+function handleChartHover(e, el, crossX, crossY){
+  const label = el.dataset.label;
+  const val   = el.dataset.val;
+  const unit  = el.dataset.unit;
+  const color = el.dataset.color;
+  const svg = el.closest('svg');
+  const cross = svg ? svg.querySelector('[id$="-cross"]') : null;
+  if(cross && crossX!==undefined){
+    cross.setAttribute('x1', crossX);
+    cross.setAttribute('x2', crossX);
+    cross.setAttribute('opacity', '0.5');
+  }
+  showTooltipAt(e, `<span style="color:${color};margin-right:4px;">●</span>${label} · <strong>${val}</strong> ${unit}`);
 }
 
-function sparkline(data,color,fillColor){return renderVitalChart(data,'weight',color||'#4338ca',fillColor||'#eef2ff','kg');}
+// Legacy sparkline
+function sparkline(data, color='#4338ca', fillColor='#eef2ff'){
+  return renderVitalChart(data, 'weight', color, fillColor, 'kg');
+}
 
-// ── STATUS CONFIG ──
-var STATUS_CFG={alive:{label:'Vivant',cls:'status-alive',badge:'b-ok',icon:'\ud83d\udc3e'},deceased:{label:'Decede',cls:'status-deceased',badge:'b-deceased',icon:'\ud83d\udd4a\ufe0f'},missing:{label:'Disparu',cls:'status-missing',badge:'b-missing',icon:'\ud83d\udd0d'},given:{label:'Cede',cls:'status-given',badge:'b-given',icon:'\ud83c\udfe0'}};
+// ══════════════════════════════════════════
+// STATUS CONFIG
+// ══════════════════════════════════════════
+const STATUS_CFG = {
+  alive:    {label:'Vivant',   cls:'status-alive',    badge:'b-ok',       icon:'🐾'},
+  deceased: {label:'Décédé',   cls:'status-deceased', badge:'b-deceased', icon:'🕊️'},
+  missing:  {label:'Disparu',  cls:'status-missing',  badge:'b-missing',  icon:'🔍'},
+  given:    {label:'Cédé',     cls:'status-given',    badge:'b-given',    icon:'🏠'},
+};
 
-// ── BUILD TABS ──
+// ══════════════════════════════════════════
+// BUILD TABS + OWNER LIST
+// ══════════════════════════════════════════
 function buildTabs(){
-  var el=document.getElementById('animal-tabs');
-  el.innerHTML=ANIMALS.map(function(a,i){
-    var sc=STATUS_CFG[a.status];var vaccAlert=a.vaccins.some(function(v){return v.status==='alert';});var vaccWarn=a.vaccins.some(function(v){return v.status==='warn';});
-    var statusBadge=a.status!=='alive'?'<span class="tab-badge" style="background:'+(a.status==='deceased'?'#1e293b':'#fef3c7')+';color:'+(a.status==='deceased'?'#e2e8f0':'#92400e')+';">'+sc.icon+'</span>':vaccAlert?'<span class="tab-badge" style="background:#fef2f2;color:#dc2626;">\u26a0</span>':vaccWarn?'<span class="tab-badge" style="background:#fff7ed;color:#d97706;">!</span>':'';
-    return '<div class="animal-tab'+(i===0?' active':'')+'" id="tab-'+i+'" onclick="switchTab('+i+')"><span class="tab-emoji">'+a.emoji+'</span><div style="display:flex;flex-direction:column;min-width:0;"><span class="tab-name">'+a.name+'</span><span class="tab-breed">'+a.breed+'</span></div>'+statusBadge+'</div>';
-  }).join('')+'<button class="btn btn-secondary btn-xs" style="margin-left:4px;align-self:center;flex-shrink:0;" onclick="toast(\'Ajouter un animal...\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>';
+  const el = document.getElementById('animal-tabs');
+  el.innerHTML = ANIMALS.map((a,i)=>{
+    const sc = STATUS_CFG[a.status];
+    const vaccAlert = a.vaccins.some(v=>v.status==='alert');
+    const vaccWarn  = a.vaccins.some(v=>v.status==='warn');
+    const statusBadge = a.status!=='alive'
+      ? `<span class="tab-badge" style="background:${a.status==='deceased'?'#1e293b':'#fef3c7'};color:${a.status==='deceased'?'#e2e8f0':'#92400e'};">${sc.icon}</span>`
+      : vaccAlert ? `<span class="tab-badge" style="background:#fef2f2;color:#dc2626;">⚠</span>`
+      : vaccWarn  ? `<span class="tab-badge" style="background:#fff7ed;color:#d97706;">!</span>` : '';
+    return `<div class="animal-tab${i===0?' active':''}" id="tab-${i}" onclick="switchTab(${i})">
+      <span class="tab-emoji">${a.emoji}</span>
+      <div style="display:flex;flex-direction:column;min-width:0;">
+        <span class="tab-name">${a.name}</span>
+        <span class="tab-breed">${a.breed}</span>
+      </div>
+      ${statusBadge}
+    </div>`;
+  }).join('') + `<button class="btn btn-secondary btn-xs" style="margin-left:4px;align-self:center;flex-shrink:0;" onclick="toast('Ajouter un animal…','#4338ca')">
+    <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+  </button>`;
 }
 
 function buildAuxContact(a){
-  var el=document.getElementById('aux-contact-left');if(!el)return;
+  const el = document.getElementById('aux-contact-left');
+  if(!el) return;
   if(a.auxContact){
-    el.innerHTML='<div class="phone-chip"><svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><circle cx="8" cy="5" r="2.8" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.auxContact.first+' '+a.auxContact.last+'</p><p style="font-size:10.5px;color:#94a3b8;">'+a.auxContact.phone+' \u00b7 '+a.auxContact.rel+'</p></div><button class="btn btn-ghost btn-icon btn-xs" onclick="toast(\'Appel...\',\'#059669\')" style="flex-shrink:0;"><svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></div><p style="font-size:11px;color:#94a3b8;margin-top:6px;">Contact pour : '+a.name+'</p>';
+    el.innerHTML = `<div class="phone-chip">
+      <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><circle cx="8" cy="5" r="2.8" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <div style="flex:1;min-width:0;">
+        <p style="font-size:12.5px;font-weight:500;color:#0f172a;">${a.auxContact.first} ${a.auxContact.last}</p>
+        <p style="font-size:10.5px;color:#94a3b8;">${a.auxContact.phone} · ${a.auxContact.rel}</p>
+      </div>
+      <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel…','#059669')" style="flex-shrink:0;">
+        <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;margin-top:6px;">Contact pour : ${a.name}</p>`;
   } else {
-    el.innerHTML='<p style="font-size:12.5px;color:#94a3b8;margin-bottom:8px;">Aucun contact pour <strong>'+a.name+'</strong>.</p><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-auxcontact\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter</button>';
+    el.innerHTML = `<p style="font-size:12.5px;color:#94a3b8;margin-bottom:8px;">Aucun contact pour <strong>${a.name}</strong>.</p>
+      <button class="btn btn-secondary btn-xs" onclick="openModal('modal-auxcontact')">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter
+      </button>`;
   }
 }
 
-// ── SWITCH TAB ──
+// ══════════════════════════════════════════
+// SWITCH TAB
+// ══════════════════════════════════════════
 function switchTab(idx){
-  currentAnimal=idx;currentVital='weight';
-  document.querySelectorAll('.animal-tab').forEach(function(t,i){t.classList.toggle('active',i===idx);});
+  currentAnimal = idx;
+  currentVital = 'weight';
+  document.querySelectorAll('.animal-tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
   buildAuxContact(ANIMALS[idx]);
   renderAnimal(ANIMALS[idx]);
   document.getElementById('animal-content').scrollTop=0;
 }
 
-// ── RENDER MEDIA LIST ──
-function renderMediaList(medias,filterType){
-  var filtered=filterType&&filterType!=='Tous'?medias.filter(function(m){return m.type===filterType;}):medias;
-  if(!filtered.length)return '<p style="font-size:12.5px;color:#94a3b8;padding:12px 14px;">Aucun element</p>';
-  var TYPE_CFG={'Ordonnance':{badge:'b-blue',icon:'\ud83d\udccb'},'Analyse':{badge:'b-purple',icon:'\ud83e\uddea'},'Certificat':{badge:'b-ok',icon:'\u2705'},'Compte-rendu':{badge:'b-grey',icon:'\ud83d\udcc4'},'Photo':{badge:'b-cat',icon:'\ud83d\udcf7'},'Image medicale':{badge:'b-warn',icon:'\ud83e\ude7b'}};
-  return filtered.map(function(m,i,arr){
-    var cfg=TYPE_CFG[m.type]||{badge:'b-grey',icon:'\ud83d\udcc4'};var isLast=i===arr.length-1;
+// ══════════════════════════════════════════
+// RENDER ANIMAL
+// ══════════════════════════════════════════
+function renderMediaList(medias, filterType){
+  const filtered = filterType && filterType!=='Tous' ? medias.filter(m=>m.type===filterType) : medias;
+  if(!filtered.length) return `<p style="font-size:12.5px;color:#94a3b8;padding:12px 14px;">Aucun élément</p>`;
+  const TYPE_CFG = {
+    'Ordonnance':     {badge:'b-blue',   icon:'📋'},
+    'Analyse':        {badge:'b-purple', icon:'🧪'},
+    'Certificat':     {badge:'b-ok',     icon:'✅'},
+    'Compte-rendu':   {badge:'b-grey',   icon:'📄'},
+    'Photo':          {badge:'b-cat',    icon:'📷'},
+    'Image médicale': {badge:'b-warn',   icon:'🩻'},
+  };
+  return filtered.map((m,i,arr)=>{
+    const cfg = TYPE_CFG[m.type]||{badge:'b-grey',icon:'📄'};
+    const isLast = i===arr.length-1;
     if(m.isImage){
-      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:pointer;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:36px;height:36px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid #e8edf2;">'+(m.thumb||cfg.icon)+'</div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+m.nom+'</p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(m.date)+'</p></div><span class="badge '+cfg.badge+'" style="font-size:10px;">'+m.type+'</span></div>';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;${isLast?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;cursor:pointer;"
+        onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+        <div style="width:36px;height:36px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid #e8edf2;">${m.thumb||cfg.icon}</div>
+        <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${m.nom}</p><p style="font-size:10.5px;color:#94a3b8;">${fmtDate(m.date)}</p></div>
+        <span class="badge ${cfg.badge}" style="font-size:10px;">${m.type}</span>
+        <button class="btn btn-ghost btn-icon btn-xs" onclick="event.stopPropagation();toast('Ouverture image…','#4338ca')" title="Voir">
+          <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 7.5l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
     } else {
-      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:pointer;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:36px;height:36px;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid #e8edf2;">'+cfg.icon+'</div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+m.nom+'</p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(m.date)+'</p></div><span class="badge '+cfg.badge+'" style="font-size:10px;">'+m.type+'</span></div>';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;${isLast?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;cursor:pointer;"
+        onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+        <div style="width:36px;height:36px;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid #e8edf2;">${cfg.icon}</div>
+        <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${m.nom}</p><p style="font-size:10.5px;color:#94a3b8;">${fmtDate(m.date)}</p></div>
+        <span class="badge ${cfg.badge}" style="font-size:10px;">${m.type}</span>
+        <button class="btn btn-ghost btn-icon btn-xs" onclick="event.stopPropagation();toast('Téléchargement…','#4338ca')" title="Télécharger">
+          <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 2v7M3 7l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M1 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
     }
   }).join('');
 }
 
-function setMediaFilter(btn,animalId){
-  var container=btn.closest('[id^="media-filters-"]');container.querySelectorAll('.media-filter').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');
-  var filterType=btn.dataset.mfilter;var a=ANIMALS.find(function(a){return String(a.id)===String(animalId);});if(!a)return;
-  document.getElementById('media-list-'+animalId).innerHTML=renderMediaList(a.medias,filterType);
+function setMediaFilter(btn, animalId){
+  const container = btn.closest('[id^="media-filters-"]');
+  container.querySelectorAll('.media-filter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const filterType = btn.dataset.mfilter;
+  const a = ANIMALS.find(a=>String(a.id)===String(animalId));
+  if(!a) return;
+  document.getElementById('media-list-'+animalId).innerHTML = renderMediaList(a.medias, filterType);
 }
 
-// ── RENDER ANIMAL ──
 function renderAnimal(a){
-  var sc=STATUS_CFG[a.status];
-  var banner=a.status!=='alive'?'<div class="status-strip '+sc.cls+'" style="margin-bottom:12px;"><span style="font-size:16px;">'+sc.icon+'</span><span>Animal '+sc.label.toLowerCase()+'</span><button class="btn btn-xs" style="margin-left:auto;background:rgba(255,255,255,.2);color:inherit;border:1px solid rgba(255,255,255,.3);" onclick="openModal(\'modal-status\')">Modifier</button></div>':'';
-  var mediaTypes=['Tous'].concat(Array.from(new Set(a.medias.map(function(m){return m.type;}))));
-  var mediaFilterBtns=mediaTypes.map(function(t,i){return '<button class="media-filter'+(i===0?' active':'')+'" data-mfilter="'+t+'" onclick="setMediaFilter(this,\''+a.id+'\')">'+t+' <span style="opacity:.6;">'+(t==='Tous'?a.medias.length:a.medias.filter(function(m){return m.type===t;}).length)+'</span></button>';}).join('');
+  const sc = STATUS_CFG[a.status];
 
-  document.getElementById('animal-content').innerHTML=banner+
-    '<div class="widget-row-1" style="display:grid;grid-template-columns:4fr 6fr;gap:12px;margin-bottom:12px;align-items:stretch;">'+
-      '<div class="widget"><div class="wh" style="height:48px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:32px;height:32px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;border:1.5px dashed #c7d2fe;" onclick="toast(\'Changer la photo...\',\'#4338ca\')">'+a.emoji+'</div><div><div style="display:flex;align-items:center;gap:6px;"><h2 style="font-size:14px;font-weight:700;color:#0f172a;">'+a.name+'</h2><span class="badge b-cat" style="font-size:10px;">'+(a.species==='Felin'?'Chat':'Chien')+'</span><span class="badge '+STATUS_CFG[a.status].badge+'" style="font-size:10px;">'+STATUS_CFG[a.status].label+'</span></div><p style="font-size:11px;color:#94a3b8;">'+a.breed+' \u00b7 '+(a.sex==='F'?'\u2640':'\u2642')+(a.sterilized?' \u00b7 Sterilisee':'')+'</p></div></div><div style="display:flex;gap:4px;"><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-status\')">Statut</button><button class="btn btn-secondary btn-xs" onclick="toast(\'Edition...\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></div></div>'+
-      '<div class="wb" style="padding:8px 14px;"><div style="display:flex;flex-direction:column;gap:0;"><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Naissance</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;text-align:right;">'+fmtDate(a.dob)+'</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Poids</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.weight+' kg</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Sexe</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+(a.sex==='F'?'Femelle':'Male')+(a.sterilized?' \u00b7 Sterilisee':'')+'</span></div><div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Robe</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">'+a.color+'</span></div>'+(a.chip?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Transpondeur</span><span style="font-size:11px;font-weight:500;color:#0f172a;font-family:monospace;">'+a.chip+'</span></div>':'')+(a.tattoo?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Tatouage</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;font-family:monospace;">'+a.tattoo+'</span></div>':'')+(a.passport?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Passeport</span><span style="font-size:12px;font-weight:500;color:#0f172a;">'+a.passport+'</span></div>':'')+(a.loof?'<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">LOOF / LOF</span><span style="font-size:12px;font-weight:500;color:#0f172a;">'+a.loof+'</span></div>':'')+'</div></div></div>'+
-      '<div class="widget" style="display:flex;flex-direction:column;"><div class="wh" style="height:48px;"><span class="wt">Suivi de sante</span><span style="font-size:11px;color:#94a3b8;">6 dernieres mesures</span></div><div class="vital-grid" style="flex:1;display:grid;">'+
-        [{key:'weight',label:'Poids',unit:'kg',color:'#4338ca',fill:'#eef2ff',type:'weight',data:a.weights.map(function(w){return{d:w.d,v:parseFloat(w.v)};})},{key:'temp',label:'Temp.',unit:'\u00b0C',color:'#dc2626',fill:'#fef2f2',type:'temp',data:a.vitals.temp},{key:'fc',label:'FC',unit:'bpm',color:'#0891b2',fill:'#ecfeff',type:'fc',data:a.vitals.fc},{key:'fr',label:'FR',unit:'/min',color:'#059669',fill:'#ecfdf5',type:'fr',data:a.vitals.fr}].map(function(v,i){
-          var vals2=v.data.map(function(d){return d.v;});var last=vals2[vals2.length-1];var prev=vals2[vals2.length-2];var trend=last>prev?'\u2191':last<prev?'\u2193':'\u2192';var trendColor=last>prev?'#dc2626':last<prev?'#059669':'#94a3b8';
-          return '<div style="border-left:'+(i>0?'1px solid #f1f5f9':'none')+';padding:10px 12px;display:flex;flex-direction:column;gap:4px;"><div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">'+v.label+'</span><span style="font-size:12px;font-weight:700;color:'+trendColor+';">'+trend+'</span></div><div style="display:flex;align-items:baseline;gap:3px;"><span style="font-size:20px;font-weight:600;color:'+v.color+';line-height:1;letter-spacing:-.5px;">'+last+'</span><span style="font-size:10px;color:#94a3b8;font-weight:400;">'+v.unit+'</span></div><div style="flex:1;min-height:48px;">'+renderVitalChart(v.data,v.type,v.color,v.fill,v.unit)+'</div></div>';
-        }).join('')+
-      '</div></div>'+
-    '</div>'+
-    '<div class="widget-row-2" style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px;">'+
-      '<div class="widget"><div class="wh"><span class="wt">Vaccinations</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Vaccinations...\',\'#0891b2\')">Voir tout</button></div><div style="padding:0 12px;">'+a.vaccins.slice(0,4).map(function(v){var dot=v.status==='alert'?'#dc2626':v.status==='warn'?'#f59e0b':'#16a34a';var badge2=v.status==='alert'?'<span class="badge b-alert" style="font-size:10px;">Expire</span>':v.status==='warn'?'<span class="badge b-warn" style="font-size:10px;">A renouveler</span>':'<span class="badge b-ok" style="font-size:10px;">A jour</span>';return '<div class="trow"><div style="width:7px;height:7px;border-radius:50%;background:'+dot+';flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+v.name+'</p><p style="font-size:10.5px;color:#94a3b8;">Fait '+fmtDate(v.date)+' \u00b7 Prochain '+fmtDate(v.next)+'</p></div>'+badge2+'</div>';}).join('')+'</div></div>'+
-      '<div class="widget"><div class="wh"><span class="wt">Traitements</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Traitements...\',\'#7c3aed\')">Voir tout</button></div><div style="padding:0 12px;">'+(a.traitements.length?a.traitements.slice(0,4).map(function(t){return '<div class="trow"><div style="width:7px;height:7px;border-radius:50%;background:#4338ca;flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+t.nom+' <span class="badge b-blue" style="font-size:10px;">'+t.dose+'</span></p><p style="font-size:10.5px;color:#94a3b8;">'+fmtDate(t.debut)+' \u2192 '+fmtDate(t.fin)+' \u00b7 '+t.vet+'</p></div><button class="btn btn-xs" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;flex-shrink:0;" onclick="toast(\'Arret traitement...\',\'#dc2626\')">Arreter</button></div>';}).join(''):'<p style="font-size:12.5px;color:#94a3b8;padding:4px 0;">Aucun traitement en cours</p>')+'</div></div>'+
-      '<div class="widget"><div class="wh"><span class="wt">Historique des consultations ('+a.consultations.length+')</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Voir tout...\',\'#4338ca\')">Voir tout</button></div><div id="consult-scroll-'+a.id+'" style="overflow-y:auto;overflow-x:hidden;">'+a.consultations.map(function(c,i,arr){return '<div style="display:flex;gap:10px;padding:10px 14px;'+(i===arr.length-1?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;align-items:center;cursor:default;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="width:10px;height:10px;border-radius:50%;background:'+(i===0?'#4338ca':'#e2e8f0')+';flex-shrink:0;"></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;"><span style="font-size:13px;font-weight:600;color:#0f172a;">'+c.motif+'</span><span class="badge b-grey" style="font-size:10px;">'+c.vet+'</span><span style="font-size:11px;color:#94a3b8;margin-left:auto;">'+fmtDate(c.date)+'</span></div><p style="font-size:12px;color:#475569;line-height:1.4;margin-bottom:4px;">'+c.note+'</p><div style="display:flex;gap:3px;flex-wrap:wrap;">'+c.actes.map(function(ac){return '<span class="badge b-grey" style="font-size:10px;">'+ac+'</span>';}).join('')+'</div></div><button class="btn btn-secondary" style="font-size:11px;padding:3px 9px;flex-shrink:0;margin-left:8px;" onclick="toast(\'Ouverture consultation...\',\'#4338ca\')">Ouvrir</button></div>';}).join('')+'</div></div>'+
-    '</div>'+
-    '<div class="widget-row-3" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:stretch;">'+
-      '<div class="widget" style="display:flex;flex-direction:column;overflow:hidden;"><div class="wh"><div style="display:flex;align-items:center;gap:7px;"><span class="wt">Medias & Documents</span><span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">'+a.medias.length+'</span></div><button class="btn btn-secondary btn-xs" onclick="toast(\'Voir tout...\',\'#4338ca\')">Voir tout</button></div><div style="display:flex;gap:4px;padding:8px 14px 6px;flex-wrap:wrap;border-bottom:1px solid #f1f5f9;" id="media-filters-'+a.id+'">'+mediaFilterBtns+'</div><div style="flex:1;overflow-y:auto;max-height:156px;" id="media-list-'+a.id+'">'+renderMediaList(a.medias,null)+'</div></div>'+
-      '<div class="widget" style="overflow:hidden;display:flex;flex-direction:column;"><div class="wh" style="flex-shrink:0;"><span class="wt">Facturation - '+a.name+'</span><button class="btn btn-secondary btn-xs" onclick="toast(\'Historique complet...\',\'#4338ca\')">Voir tout</button></div><div id="fact-scroll-'+a.id+'" style="overflow-y:auto;overflow-x:hidden;">'+a.facturation.map(function(f,fi,arr){var isOk=f.statut==='ok',isPending=f.statut==='pending';var isLast=fi===arr.length-1;var badgeCls=isOk?'b-ok':isPending?'b-warn':'b-alert';var badgeLabel=isOk?'Paye':isPending?'En attente':'Impaye';return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;'+(isLast?'':'border-bottom:1px solid #f1f5f9;')+'transition:background .12s;cursor:default;" onmouseenter="this.style.background=\'#f5f3ff\'" onmouseleave="this.style.background=\'transparent\'"><div style="flex-shrink:0;width:44px;text-align:center;padding-top:1px;"><p style="font-size:13px;font-weight:700;color:#0f172a;line-height:1;">'+new Date(f.date).getDate()+'</p><p style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;">'+new Date(f.date).toLocaleDateString('fr-FR',{month:'short'})+'</p></div><div style="width:1px;background:#f1f5f9;align-self:stretch;flex-shrink:0;"></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">'+f.libelle+'</p><span class="badge '+badgeCls+'" style="font-size:9.5px;">'+badgeLabel+'</span></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:10.5px;color:#64748b;">'+f.vet+'</span><span style="font-size:10px;color:#94a3b8;font-family:monospace;">'+f.ref+'</span></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;"><p style="font-size:13px;font-weight:500;color:#334155;">'+f.montant+' \u20ac</p></div></div>';}).join('')+'</div></div>'+
-    '</div>';
+  // Status banner
+  const banner = a.status!=='alive'
+    ? `<div class="status-strip ${sc.cls}" style="margin-bottom:12px;">
+        <span style="font-size:16px;">${sc.icon}</span>
+        <span>Animal ${sc.label.toLowerCase()}</span>
+        <button class="btn btn-xs" style="margin-left:auto;background:rgba(255,255,255,.2);color:inherit;border:1px solid rgba(255,255,255,.3);" onclick="openModal('modal-status')">Modifier</button>
+       </div>` : '';
 
-  // Cap facturation scroll height
-  requestAnimationFrame(function(){
-    var factEl=document.getElementById('fact-scroll-'+a.id);
-    if(factEl){var rows=factEl.children;if(rows.length>3){var h=0;for(var i=0;i<3;i++)h+=rows[i].offsetHeight;factEl.style.maxHeight=h+'px';}}
-    var consultEl=document.getElementById('consult-scroll-'+a.id);
-    if(consultEl){var rows2=consultEl.children;if(rows2.length>2){var h2=0;for(var j=0;j<2;j++)h2+=rows2[j].offsetHeight;consultEl.style.maxHeight=h2+'px';}}
+  // Media filter buttons
+  const mediaTypes = ['Tous',...new Set(a.medias.map(m=>m.type))];
+  const mediaFilterBtns = mediaTypes.map((t,i)=>
+    `<button class="media-filter${i===0?' active':''}" data-mfilter="${t}" onclick="setMediaFilter(this,'${a.id}')">${t} <span style="opacity:.6;">${t==='Tous'?a.medias.length:a.medias.filter(m=>m.type===t).length}</span></button>`
+  ).join('');
+
+  document.getElementById('animal-content').innerHTML = `
+    ${banner}
+
+    <div class="widget-row-1" style="display:grid;grid-template-columns:4fr 6fr;gap:12px;margin-bottom:12px;align-items:stretch;">
+
+      <!-- Animal identity — 40% -->
+      <div class="widget">
+        <div class="wh" style="height:48px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;border:1.5px dashed #c7d2fe;" onclick="toast('Changer la photo…','#4338ca')">${a.emoji}</div>
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <h2 style="font-size:14px;font-weight:700;color:#0f172a;">${a.name}</h2>
+                <span class="badge b-cat" style="font-size:10px;">${a.species==='Félin'?'Chat':'Chien'}</span>
+                <span class="badge ${STATUS_CFG[a.status].badge}" style="font-size:10px;">${STATUS_CFG[a.status].label}</span>
+              </div>
+              <p style="font-size:11px;color:#94a3b8;">${a.breed} · ${a.sex==='F'?'♀':'♂'}${a.sterilized?' · Stérilisée':''}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-secondary btn-xs" onclick="openModal('modal-status')">Statut</button>
+            <button class="btn btn-secondary btn-xs" onclick="toast('Édition…','#4338ca')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div class="wb" style="padding:8px 14px;">
+          <div style="display:flex;flex-direction:column;gap:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
+              <span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Naissance</span>
+              <span style="font-size:12.5px;font-weight:500;color:#0f172a;text-align:right;">${fmtDate(a.dob)}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
+              <span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Poids</span>
+              <span style="font-size:12.5px;font-weight:500;color:#0f172a;">${a.weight} kg</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
+              <span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Sexe</span>
+              <span style="font-size:12.5px;font-weight:500;color:#0f172a;">${a.sex==='F'?'Femelle':'Mâle'}${a.sterilized?' · Stérilisée':''}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
+              <span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Robe</span>
+              <span style="font-size:12.5px;font-weight:500;color:#0f172a;">${a.color}</span>
+            </div>
+            ${a.chip?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Transpondeur</span><span style="font-size:11px;font-weight:500;color:#0f172a;font-family:monospace;">${a.chip}</span></div>`:''}
+            ${a.tattoo?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Tatouage</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;font-family:monospace;">${a.tattoo}</span></div>`:''}
+            ${a.passport?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Passeport</span><span style="font-size:12px;font-weight:500;color:#0f172a;">${a.passport}</span></div>`:''}
+            ${a.loof?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">LOOF / LOF</span><span style="font-size:12px;font-weight:500;color:#0f172a;">${a.loof}</span></div>`:''}
+            ${a.sire?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">SIRE</span><span style="font-size:12px;font-weight:500;color:#0f172a;">${a.sire}</span></div>`:''}
+            ${a.crossBreed?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;"><span style="font-size:11px;color:#94a3b8;flex-shrink:0;min-width:90px;">Croisement</span><span style="font-size:12.5px;font-weight:500;color:#0f172a;">${a.crossBreed}</span></div>`:''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Vital signs — 60%: 4 mini charts side by side -->
+      <div class="widget" style="display:flex;flex-direction:column;">
+        <div class="wh" style="height:48px;">
+          <span class="wt">Suivi de santé</span>
+          <span style="font-size:11px;color:#94a3b8;">6 dernières mesures</span>
+        </div>
+        <div class="vital-grid" style="flex:1;display:grid;">
+          ${[
+            {key:'weight', label:'Poids',  unit:'kg',   color:'#4338ca', fill:'#eef2ff', type:'weight', data:a.weights.map(w=>({d:w.d,v:parseFloat(w.v)}))},
+            {key:'temp',   label:'Temp.',  unit:'°C',   color:'#dc2626', fill:'#fef2f2', type:'temp',   data:a.vitals.temp},
+            {key:'fc',     label:'FC',     unit:'bpm',  color:'#0891b2', fill:'#ecfeff', type:'fc',     data:a.vitals.fc},
+            {key:'fr',     label:'FR',     unit:'/min', color:'#059669', fill:'#ecfdf5', type:'fr',     data:a.vitals.fr},
+          ].map((v,i)=>{
+            const vals=v.data.map(d=>d.v);
+            const last=vals[vals.length-1];
+            const prev=vals[vals.length-2];
+            const trend=last>prev?'↑':last<prev?'↓':'→';
+            const trendColor=last>prev?'#dc2626':last<prev?'#059669':'#94a3b8';
+            return `<div style="border-left:${i>0?'1px solid #f1f5f9':'none'};padding:10px 12px;display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">${v.label}</span>
+                <span style="font-size:12px;font-weight:700;color:${trendColor};">${trend}</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:3px;">
+                <span style="font-size:20px;font-weight:600;color:${v.color};line-height:1;letter-spacing:-.5px;">${last}</span>
+                <span style="font-size:10px;color:#94a3b8;font-weight:400;">${v.unit}</span>
+              </div>
+              <div style="flex:1;min-height:48px;">${renderVitalChart(v.data, v.type, v.color, v.fill, v.unit)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 1: vaccinations, treatments, consultations -->
+    <div class="widget-row-2" style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px;">
+
+      <div class="widget">
+        <div class="wh"><span class="wt">Vaccinations</span><button class="btn btn-secondary btn-xs" onclick="toast('Vaccinations…','#0891b2')">Voir tout</button></div>
+        <div style="max-height:${Math.min(a.vaccins.length,4)*44}px;overflow-y:auto;overflow-x:hidden;padding:0 12px;">
+          ${a.vaccins.slice(0,4).map(v=>{
+            const dot=v.status==='alert'?'#dc2626':v.status==='warn'?'#f59e0b':'#16a34a';
+            const badge=v.status==='alert'?'<span class="badge b-alert" style="font-size:10px;">Expiré</span>':v.status==='warn'?'<span class="badge b-warn" style="font-size:10px;">À renouveler</span>':'<span class="badge b-ok" style="font-size:10px;">À jour</span>';
+            return `<div class="trow" style="transition:background .12s;padding:6px 0;margin:0 -12px;padding-left:12px;padding-right:12px;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'"><div style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${v.name}</p><p style="font-size:10.5px;color:#94a3b8;">Fait ${fmtDate(v.date)} · Prochain ${fmtDate(v.next)}</p></div>${badge}</div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="wh"><span class="wt">Traitements</span><button class="btn btn-secondary btn-xs" onclick="toast('Traitements…','#7c3aed')">Voir tout</button></div>
+        <div style="padding:0 12px;">
+          ${a.traitements.length ? a.traitements.slice(0,4).map(t=>`<div class="trow" style="transition:background .12s;margin:0 -12px;padding:6px 12px;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+            <div style="width:7px;height:7px;border-radius:50%;background:#4338ca;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${t.nom} <span class="badge b-blue" style="font-size:10px;">${t.dose}</span></p><p style="font-size:10.5px;color:#94a3b8;">${fmtDate(t.debut)} → ${fmtDate(t.fin)} · ${t.vet}</p></div>
+            <button class="btn btn-xs" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;flex-shrink:0;" onclick="toast('Arrêt traitement…','#dc2626')">Arrêter</button>
+          </div>`).join('') : `<p style="font-size:12.5px;color:#94a3b8;padding:4px 0;">Aucun traitement en cours</p>`}
+        </div>
+      </div>
+
+      <!-- Consultation history — 2 columns wide -->
+      <div class="widget">
+        <div class="wh">
+          <span class="wt">Historique des consultations (${a.consultations.length})</span>
+          <button class="btn btn-secondary btn-xs" onclick="toast('Voir tout…','#4338ca')">Voir tout</button>
+        </div>
+        <div id="consult-scroll-${a.id}" style="overflow-y:auto;overflow-x:hidden;">
+          ${a.consultations.map((c,i,arr)=>`
+            <div style="display:flex;gap:10px;padding:10px 14px;${i===arr.length-1?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;align-items:center;cursor:default;"
+              onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+              <div style="width:10px;height:10px;border-radius:50%;background:${i===0?'#4338ca':'#e2e8f0'};flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
+                  <span style="font-size:13px;font-weight:600;color:#0f172a;">${c.motif}</span>
+                  <span class="badge b-grey" style="font-size:10px;">${c.vet}</span>
+                  <span style="font-size:11px;color:#94a3b8;margin-left:auto;">${fmtDate(c.date)}</span>
+                </div>
+                <p style="font-size:12px;color:#475569;line-height:1.4;margin-bottom:4px;">${c.note}</p>
+                <div style="display:flex;gap:3px;flex-wrap:wrap;">${c.actes.map(ac=>`<span class="badge b-grey" style="font-size:10px;">${ac}</span>`).join('')}</div>
+              </div>
+              <button class="btn btn-secondary" style="font-size:11px;padding:3px 9px;flex-shrink:0;margin-left:8px;" onclick="toast('Ouverture consultation…','#4338ca')">Ouvrir</button>
+            </div>`).join('')}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Media & Documents — Billing -->
+    <div class="widget-row-3" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;align-items:stretch;">
+
+      <!-- Media & Documents merged -->
+      <div class="widget" style="display:flex;flex-direction:column;overflow:hidden;">
+        <div class="wh">
+          <div style="display:flex;align-items:center;gap:7px;">
+            <span class="wt">Médias & Documents</span>
+            <span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">${a.medias.length}</span>
+          </div>
+          <button class="btn btn-secondary btn-xs" onclick="toast('Voir tout…','#4338ca')">Voir tout</button>
+        </div>
+        <!-- Type filters -->
+        <div style="display:flex;gap:4px;padding:8px 14px 6px;flex-wrap:wrap;border-bottom:1px solid #f1f5f9;" id="media-filters-${a.id}">
+          ${mediaFilterBtns}
+        </div>
+        <!-- Item list -->
+        <div style="flex:1;overflow-y:auto;max-height:156px;" id="media-list-${a.id}">
+          ${renderMediaList(a.medias, null)}
+        </div>
+      </div>
+
+      <!-- Billing -->
+      <div class="widget" style="overflow:hidden;display:flex;flex-direction:column;">
+        <div class="wh" style="flex-shrink:0;">
+          <span class="wt">Facturation — ${a.name}</span>
+          <button class="btn btn-secondary btn-xs" onclick="toast('Historique complet…','#4338ca')">Voir tout</button>
+        </div>
+        <div id="fact-scroll-${a.id}" style="overflow-y:auto;overflow-x:hidden;">
+          ${a.facturation.map((f,fi,arr)=>{
+            const isOk=f.statut==='ok', isPending=f.statut==='pending';
+            const isLast=fi===arr.length-1;
+            const badgeCls=isOk?'b-ok':isPending?'b-warn':'b-alert';
+            const badgeLabel=isOk?'Payé':isPending?'En attente':'Impayé';
+            const action=isOk
+              ? `<button class="btn btn-ghost btn-xs" style="flex-shrink:0;" onclick="toast('Voir la facture…','#4338ca')" title="Voir la facture"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M4 2H3a1 1 0 00-1 1v7a1 1 0 001 1h6a1 1 0 001-1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M7 1h4v4M11 1L6 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+              : isPending
+              ? `<button class="btn btn-ghost btn-xs" style="flex-shrink:0;color:#d97706;" onclick="toast('Envoi relance…','#f59e0b')" title="Envoyer une relance"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 2l8 4-8 4V7.5l6-1.5-6-1.5V2z" fill="currentColor" opacity=".8"/></svg></button>`
+              : `<button class="btn btn-ghost btn-xs" style="flex-shrink:0;color:#dc2626;" onclick="toast('Marquer payé…','#059669')" title="Marquer comme payé"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+            return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;${isLast?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;cursor:default;"
+              onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+              <!-- Date column -->
+              <div style="flex-shrink:0;width:44px;text-align:center;padding-top:1px;">
+                <p style="font-size:13px;font-weight:700;color:#0f172a;line-height:1;">${new Date(f.date).getDate()}</p>
+                <p style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;">${new Date(f.date).toLocaleDateString('fr-FR',{month:'short'})}</p>
+                <p style="font-size:9px;color:#cbd5e1;">${new Date(f.date).getFullYear()}</p>
+              </div>
+              <!-- Separator -->
+              <div style="width:1px;background:#f1f5f9;align-self:stretch;flex-shrink:0;"></div>
+              <!-- Content -->
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+                  <p style="font-size:12.5px;font-weight:500;color:#0f172a;">${f.libelle}</p>
+                  <span class="badge ${badgeCls}" style="font-size:9.5px;">${badgeLabel}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span style="font-size:10.5px;color:#64748b;">${f.vet}</span>
+                  <span style="color:#e2e8f0;font-size:10px;">·</span>
+                  <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${f.ref}</span>
+                </div>
+                <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
+                  ${f.actes.map(ac=>`<span style="font-size:9.5px;padding:1px 6px;border-radius:10px;background:#f1f5f9;color:#64748b;">${ac}</span>`).join('')}
+                </div>
+              </div>
+              <!-- Amount + action -->
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+                <p style="font-size:13px;font-weight:500;color:#334155;">${f.montant} €</p>
+                ${action}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+    </div>
+
+  `;
+  // Cap facturation to 3 visible rows
+  requestAnimationFrame(()=>{
+    const factEl = document.getElementById('fact-scroll-'+a.id);
+    if(factEl){
+      const rows = factEl.children;
+      if(rows.length > 3){
+        let h=0; for(let i=0;i<3;i++) h+=rows[i].offsetHeight;
+        factEl.style.maxHeight = h+'px';
+      }
+    }
+    const consultEl = document.getElementById('consult-scroll-'+a.id);
+    if(consultEl){
+      const rows = consultEl.children;
+      if(rows.length > 2){
+        let h=0; for(let i=0;i<2;i++) h+=rows[i].offsetHeight;
+        consultEl.style.maxHeight = h+'px';
+      }
+    }
   });
 }
 
-// ── VITAL CHART SWITCH ──
+// ══════════════════════════════════════════
+// VITAL CHART SWITCH
+// ══════════════════════════════════════════
 function setVital(v){
-  currentVital=v;var a=ANIMALS[currentAnimal];
-  document.querySelectorAll('.vt-tab').forEach(function(t){t.classList.toggle('active',t.dataset.vital===v);});
-  var vitalData2=v==='weight'?a.weights.map(function(w){return{d:w.d,v:parseFloat(w.v)};}):a.vitals[v];
-  var colors={weight:'#4338ca',temp:'#dc2626',fc:'#0891b2',fr:'#059669'};
-  var fills={weight:'#eef2ff',temp:'#fef2f2',fc:'#ecfeff',fr:'#ecfdf5'};
-  var el=document.getElementById('vital-chart-wrap');
-  if(el)el.innerHTML=sparkline(vitalData2,colors[v],fills[v]);
+  currentVital = v;
+  const a = ANIMALS[currentAnimal];
+  document.querySelectorAll('.vt-tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.vital===v);
+  });
+  const vitalData = v==='weight' ? a.weights.map(w=>({d:w.d,v:parseFloat(w.v)})) : a.vitals[v];
+  const colors = {weight:'#4338ca',temp:'#dc2626',fc:'#0891b2',fr:'#059669'};
+  const fills  = {weight:'#eef2ff',temp:'#fef2f2',fc:'#ecfeff',fr:'#ecfdf5'};
+  document.getElementById('vital-chart-wrap').innerHTML = sparkline(vitalData, colors[v], fills[v]);
 }
 
-// ── INIT ──
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
 buildTabs();
 buildAuxContact(ANIMALS[0]);
 renderAnimal(ANIMALS[0]);
