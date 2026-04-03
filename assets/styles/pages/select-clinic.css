@@ -5,20 +5,12 @@
  * Full-viewport card with scrollable list, search, and footer.
  */
 
-/* ── Base structure ──
-   html + body = 100% fixed, overflow hidden.
-   The page NEVER scrolls.
-   Only the internal .list scrolls. */
-html, body {
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
+/* ── Scoped to select-clinic page via data-page attribute ── */
+[data-page="clinic_select_clinic"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-page);
+  min-height: 100%;
   padding: var(--space-6) var(--space-4);
 }
 

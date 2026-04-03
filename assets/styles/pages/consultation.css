@@ -2,9 +2,7 @@
    Page: Consultation Details
    ───────────────────────────────────────────── */
 
-/* Override base to allow full-height consultation layout */
-html, body { height: 100%; overflow: hidden; }
-body { background: var(--surface-page); }
+/* Full-height handled by base layout — no global html/body overrides */
 
 /* Patient banner */
 .patient-banner { flex-shrink: 0; background: #fefcff; border-bottom: 1px solid #ede9fe; border-left: 3px solid #a855f7; }

@@ -2,8 +2,7 @@
    Page: Waiting Room (Salle d'attente)
    ───────────────────────────────────────────── */
 
-/* Override base to allow full-height waiting room */
-html, body { height: 100%; overflow: hidden; }
+/* Full-height handled by base layout — no global html/body overrides */
 
 /* Topbar clock */
 .wr-topbar { height: 52px; flex-shrink: 0; background: var(--surface-card,#fff); border-bottom: 1px solid var(--border-light,#e8edf2); display: flex; align-items: center; padding: 0 var(--space-4,16px); gap: var(--space-3,12px); position: relative; }
