@@ -532,7 +532,7 @@ function renderList(){
         <div class="hcard-avatar" style="background:${p.bg};color:${p.color};">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-            <p style="font-size:13.5px;font-weight:500;color:#0f172a;">${p.animal}</p>
+            <p style="font-size:13.5px;font-weight:600;color:#0f172a;">${p.animal}</p>
             <span style="font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
           </div>
           <p style="font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
@@ -602,7 +602,7 @@ function renderDetail(p){
         <div style="width:48px;height:48px;border-radius:50%;background:${p.bg};color:${p.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-            <h2 style="font-size:16px;font-weight:500;color:#0f172a;">${p.animal}</h2>
+            <h2 style="font-size:16px;font-weight:600;color:#0f172a;">${p.animal}</h2>
             <span style="font-size:12px;color:#64748b;">${p.race} · ${p.age} · ${p.poids}</span>
             <span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
             ${lastEvo?`<span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>`:''}
@@ -810,7 +810,7 @@ function soinRow(s, p){
     </div>
     <div style="flex:1;min-width:0;">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
-        <span style="font-size:12.5px;font-weight:${s.done?'400':'500'};color:${s.done?'#94a3b8':'#0f172a'};${s.done?'text-decoration:line-through;':''}">${s.produit}</span>
+        <span style="font-size:12.5px;font-weight:${s.done?'400':'600'};color:${s.done?'#94a3b8':'#0f172a'};${s.done?'text-decoration:line-through;':''}">${s.produit}</span>
         <span class="badge ${isHaute?'b-alert':'b-grey'}" style="font-size:10px;">${s.type}</span>
         ${isHaute&&!s.done?`<span style="font-size:10px;font-weight:500;color:#dc2626;">● Priorité haute</span>`:''}
       </div>
