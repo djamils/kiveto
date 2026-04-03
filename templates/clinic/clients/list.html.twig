@@ -13,10 +13,10 @@
 {% block stylesheets %}
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
-  /* Full-height overrides for the app shell */
-  .app-scroll{overflow:hidden !important;}
-  .app-body{padding:0 !important;display:flex;flex-direction:column;flex:1;overflow:hidden;}
-  .app-main-wrap{overflow:hidden !important;}
+  /* Full-height overrides — unbroken flex chain from shell to table body */
+  .app-main-wrap{flex:1;overflow:hidden !important;min-height:0;}
+  .app-scroll{flex:1;overflow:hidden !important;min-height:0;}
+  .app-body{padding:0 !important;display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;height:100%;}
 
   *{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent;}
   ::-webkit-scrollbar{width:2px;height:2px;}
@@ -45,7 +45,7 @@
   .fp.active .cnt{background:#c7d2fe;color:var(--brand-600);}
 
   /* Main area */
-  .main-area{flex:1;display:flex;overflow:hidden;position:relative;}
+  .main-area{flex:1;display:flex;overflow:hidden;position:relative;min-height:0;}
   .table-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;background:var(--surface-card);border:none;border-radius:0;}
 
   /* Table header */
