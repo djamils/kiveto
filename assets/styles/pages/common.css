@@ -2,11 +2,40 @@
    Page Common — shared patterns across pages
    ───────────────────────────────────────────── */
 
-/* Full-height page layout override */
-.page-full-height .app-scroll { overflow: hidden !important; }
-.page-full-height .app-body,
-.page-full-height.app-body { padding: 0 !important; display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
-.page-full-height .app-main-wrap { flex: 1; overflow: hidden !important; min-height: 0; }
+/* Full-height pages — remove body padding, enable flex fill.
+   Targets main[data-page] directly for padding,
+   and uses :has() to propagate overflow/flex to parent containers. */
+main.app-body[data-page="clinic_scheduling_dashboard"],
+main.app-body[data-page="clinic_scheduling_planning"],
+main.app-body[data-page="clinic_scheduling_waiting_room"],
+main.app-body[data-page="clinic_hospitalisations"],
+main.app-body[data-page="clinic_clients_list"],
+main.app-body[data-page="clinic_clients_view"],
+main.app-body[data-page="clinic_consultation_details"],
+main.app-body[data-page="clinic_select_clinic"] {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Propagate full-height to scroll and main-wrap containers */
+.app-scroll:has(> main[data-page="clinic_scheduling_dashboard"]),
+.app-scroll:has(> main[data-page="clinic_scheduling_planning"]),
+.app-scroll:has(> main[data-page="clinic_scheduling_waiting_room"]),
+.app-scroll:has(> main[data-page="clinic_hospitalisations"]),
+.app-scroll:has(> main[data-page="clinic_clients_list"]),
+.app-scroll:has(> main[data-page="clinic_clients_view"]),
+.app-scroll:has(> main[data-page="clinic_consultation_details"]),
+.app-scroll:has(> main[data-page="clinic_select_clinic"]) {
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 /* Thin scrollbar */
 * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
