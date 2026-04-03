@@ -48,7 +48,7 @@
     /* widgets */
     .widget{background:#fff;border:1px solid #e8edf2;border-radius:12px;overflow:hidden;margin-bottom:12px;}
     .wh{padding:11px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;}
-    .wt{font-size:10.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;}
+    .wt{font-size:10.5px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.07em;}
     .wb{padding:12px 14px;}
     .w2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .w3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
@@ -170,17 +170,17 @@
     <div class="topbar-stats" style="display:flex;gap:6px;">
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#eff6ff;border:1px solid #bfdbfe;">
         <div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;"></div>
-        <span style="font-size:12px;font-weight:600;color:#2563eb;" id="stat-hosp">4</span>
+        <span style="font-size:12px;font-weight:500;color:#2563eb;" id="stat-hosp">4</span>
         <span style="font-size:11.5px;color:#64748b;">hospitalisés</span>
       </div>
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;">
         <div style="width:6px;height:6px;border-radius:50%;background:#dc2626;"></div>
-        <span style="font-size:12px;font-weight:600;color:#dc2626;" id="stat-critique">1</span>
+        <span style="font-size:12px;font-weight:500;color:#dc2626;" id="stat-critique">1</span>
         <span style="font-size:11.5px;color:#64748b;">critique</span>
       </div>
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#f0fdf4;border:1px solid #bbf7d0;">
         <div style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></div>
-        <span style="font-size:12px;font-weight:600;color:#059669;" id="stat-sortie-prev">2</span>
+        <span style="font-size:12px;font-weight:500;color:#059669;" id="stat-sortie-prev">2</span>
         <span style="font-size:11.5px;color:#64748b;">sorties prévues aujourd'hui</span>
       </div>
     </div>
@@ -205,7 +205,7 @@
   {# ══ LEFT PANEL ══ #}
   <div class="hosp-panel">
     <div class="hp-head">
-      <span style="font-size:13px;font-weight:600;color:#0f172a;">Patients hospitalisés</span>
+      <span style="font-size:13px;font-weight:500;color:#0f172a;">Patients hospitalisés</span>
       <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:20px;margin-left:auto;" id="list-count"></span>
     </div>
     <div class="hp-list" id="hosp-list"></div>
@@ -222,7 +222,7 @@
       <div style="width:56px;height:56px;border-radius:14px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
         <svg width="26" height="26" fill="none" viewBox="0 0 32 32" style="color:#cbd5e1;"><rect x="2" y="8" width="28" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 14v6M13 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 8V6a8 8 0 0116 0v2" stroke="currentColor" stroke-width="1.6"/></svg>
       </div>
-      <p style="font-size:14px;font-weight:600;color:#334155;margin-bottom:6px;">Sélectionnez un patient</p>
+      <p style="font-size:14px;font-weight:500;color:#334155;margin-bottom:6px;">Sélectionnez un patient</p>
       <p style="font-size:13px;max-width:200px;text-align:center;line-height:1.5;">Cliquez sur un patient pour ouvrir sa fiche d'hospitalisation</p>
     </div>
   </div>
@@ -533,7 +533,7 @@ function renderList(){
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
             <p style="font-size:13.5px;font-weight:700;color:#0f172a;">${p.animal}</p>
-            <span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+            <span style="font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
           </div>
           <p style="font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
           <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
@@ -542,7 +542,7 @@ function renderList(){
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <p style="font-size:12px;font-weight:600;color:${done===total?'#059669':'#0f172a'};">${done}/${total}</p>
+          <p style="font-size:12px;font-weight:500;color:${done===total?'#059669':'#0f172a'};">${done}/${total}</p>
           <p style="font-size:10px;color:#94a3b8;">soins</p>
         </div>
       </div>
@@ -604,7 +604,7 @@ function renderDetail(p){
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
             <h2 style="font-size:16px;font-weight:700;color:#0f172a;">${p.animal}</h2>
             <span style="font-size:12px;color:#64748b;">${p.race} · ${p.age} · ${p.poids}</span>
-            <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+            <span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
             ${lastEvo?`<span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -701,7 +701,7 @@ function renderTabContent(p){
             <div style="margin-top:10px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
                 <span style="font-size:11.5px;color:#64748b;font-weight:500;">Hydratation estimée</span>
-                <span style="font-size:12px;font-weight:600;color:${a.eau_ml+a.eau_perf_ml>300?'#059669':'#d97706'};">${a.eau_ml+a.eau_perf_ml} ml</span>
+                <span style="font-size:12px;font-weight:500;color:${a.eau_ml+a.eau_perf_ml>300?'#059669':'#d97706'};">${a.eau_ml+a.eau_perf_ml} ml</span>
               </div>
               <div class="hydra-bar">
                 <div class="hydra-fill" style="width:${Math.min(100,Math.round((a.eau_ml+a.eau_perf_ml)/800*100))}%;background:${a.eau_ml+a.eau_perf_ml>300?'#3b82f6':'#f59e0b'};"></div>
@@ -728,7 +728,7 @@ function renderTabContent(p){
               </div>
               <div style="flex:1;min-width:0;padding-bottom:${i<arr.length-1?'10px':'0'};">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
-                  <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:${etatColor(e.etat)}18;color:${etatColor(e.etat)};">${etatIcon(e.etat)} ${etatLabel(e.etat)}</span>
+                  <span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:20px;background:${etatColor(e.etat)}18;color:${etatColor(e.etat)};">${etatIcon(e.etat)} ${etatLabel(e.etat)}</span>
                   <span style="font-size:12px;font-weight:500;color:#334155;">${e.date} à ${e.heure}</span>
                   <span style="font-size:11.5px;color:#94a3b8;">${e.vet}</span>
                 </div>
@@ -765,7 +765,7 @@ function renderTabContent(p){
           <div class="wb">
             ${p.evolution[0]?`
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-                <span style="font-size:13px;font-weight:600;padding:3px 10px;border-radius:20px;background:${etatColor(p.evolution[0].etat)}18;color:${etatColor(p.evolution[0].etat)};">${etatIcon(p.evolution[0].etat)} ${etatLabel(p.evolution[0].etat)}</span>
+                <span style="font-size:13px;font-weight:500;padding:3px 10px;border-radius:20px;background:${etatColor(p.evolution[0].etat)}18;color:${etatColor(p.evolution[0].etat)};">${etatIcon(p.evolution[0].etat)} ${etatLabel(p.evolution[0].etat)}</span>
                 <span style="font-size:12px;color:#94a3b8;">${p.evolution[0].date} ${p.evolution[0].heure}</span>
               </div>
               <p style="font-size:13px;color:#334155;line-height:1.5;">${p.evolution[0].note}</p>
@@ -812,7 +812,7 @@ function soinRow(s, p){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
         <span style="font-size:12.5px;font-weight:${s.done?'400':'600'};color:${s.done?'#94a3b8':'#0f172a'};${s.done?'text-decoration:line-through;':''}">${s.produit}</span>
         <span class="badge ${isHaute?'b-alert':'b-grey'}" style="font-size:10px;">${s.type}</span>
-        ${isHaute&&!s.done?`<span style="font-size:10px;font-weight:600;color:#dc2626;">● Priorité haute</span>`:''}
+        ${isHaute&&!s.done?`<span style="font-size:10px;font-weight:500;color:#dc2626;">● Priorité haute</span>`:''}
       </div>
       <p style="font-size:11.5px;color:#94a3b8;">${s.dose} · ${s.freq}</p>
     </div>
