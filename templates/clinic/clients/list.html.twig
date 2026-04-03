@@ -297,6 +297,7 @@
 
 {% block javascripts %}
 <script>
+var CLIENT_VIEW_URL = '{{ path('clinic_clients_view', {id: '__ID__'}) }}';
 lucide.createIcons();
 
 // -- Column management --
@@ -643,7 +644,7 @@ function buildDetailHTML(clientId, focusAnimalId){
       +'<button class="btn btn-primary btn-xs" style="flex:1;justify-content:center;" onclick="showToast(\'Nouveau RDV…\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Prendre RDV</button>'
       +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Appel…\',\'#059669\')"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>'
       +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Email…\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>'
-      +'<a href="vetos-fiche-client.html" class="btn btn-secondary btn-xs" style="text-decoration:none;">Fiche complète</a>'
+      +'<a href="'+CLIENT_VIEW_URL.replace('__ID__',client.id)+'" class="btn btn-secondary btn-xs" style="text-decoration:none;">Fiche complète</a>'
     +'</div>'
   +'</div>';
 
