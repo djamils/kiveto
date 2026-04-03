@@ -106,7 +106,7 @@
   </div>
 
   {# ── Main navigation ── #}
-  <nav class="nav" aria-label="Navigation principale" data-turbo="false">
+  <nav class="nav" aria-label="Navigation principale">
     {% for item in nav_items %}
       {% if item.section is defined %}
         <p class="nav-section">{{ item.section }}</p>
