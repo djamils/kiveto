@@ -414,7 +414,7 @@
    Only --gap and a few sizes change.
    Everything else aligns automatically. */
 @media (max-width: 720px) {
-  body { padding: var(--space-4) var(--space-3); }
+  [data-page="clinic_select_clinic"] { padding: var(--space-4) var(--space-3); }
   .card {
     --gap: 20px;
     max-width: 100%;
@@ -424,7 +424,7 @@
 }
 
 @media (max-width: 600px) {
-  body { padding: var(--space-3); }
+  [data-page="clinic_select_clinic"] { padding: var(--space-3); }
   .card {
     --gap: 16px;
     height: calc(100vh - var(--space-3) * 2);
@@ -454,7 +454,7 @@
 }
 
 @media (max-height: 500px) {
-  body { padding: var(--space-2) var(--space-4); }
+  [data-page="clinic_select_clinic"] { padding: var(--space-2) var(--space-4); }
   .card {
     --gap: 16px;
     height: calc(100vh - var(--space-2) * 2);
