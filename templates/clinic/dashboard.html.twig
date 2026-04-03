@@ -23,7 +23,7 @@
 
 {% block stylesheets %}
 <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-<style data-turbo-track="reload">
+<style>
   /* ────────────────────────────────────
      DASHBOARD PAGE STYLES
   ──────────────────────────────────── */
@@ -1009,24 +1009,4 @@
 </div>
 {% endblock %}
 
-{% block javascripts %}
-<script>
-  // Dashboard clock
-  function tickClock() {
-    var now = new Date();
-    var hh = String(now.getHours()).padStart(2,'0');
-    var mm = String(now.getMinutes()).padStart(2,'0');
-    var el = document.getElementById('dash-clock');
-    var de = document.getElementById('dash-date');
-    if (el) el.textContent = hh + ':' + mm;
-    if (de) de.textContent = now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-  }
-  tickClock();
-  setInterval(tickClock, 10000);
-
-  // Initialize Lucide icons for dashboard content
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-</script>
-{% endblock %}
+{% block javascripts %}{% endblock %}

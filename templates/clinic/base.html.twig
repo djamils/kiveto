@@ -59,7 +59,7 @@
     {# Flex row: scroll area + optional right panel #}
     <div class="app-main-wrap">
       <div class="app-scroll">
-        <main class="app-body" id="main-content">
+        <main class="app-body" id="main-content" data-page="{{ app.request.attributes.get('_route') }}">
           {% block content %}{% endblock %}
         </main>
       </div>

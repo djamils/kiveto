@@ -1,0 +1,541 @@
+/**
+ * Page module — Clients List
+ * Loaded by app.js dispatcher on turbo:load.
+ */
+
+// -- Column management --
+let COLS = {phone:true, email:true, lastrdv:true, nextrdv:true};
+const COL_WIDTHS = {phone:'130px', email:'160px', lastrdv:'100px', nextrdv:'100px'};
+
+function getGrid(){
+  var parts = ['28px','1fr'];
+  if(COLS.phone) parts.push(COL_WIDTHS.phone);
+  if(COLS.email) parts.push(COL_WIDTHS.email);
+  if(COLS.lastrdv) parts.push(COL_WIDTHS.lastrdv);
+  if(COLS.nextrdv) parts.push(COL_WIDTHS.nextrdv);
+  parts.push('60px'); // status
+  parts.push('52px'); // actions
+  return parts.join(' ');
+}
+
+function applyGridToHeader(){
+  var grid = getGrid();
+  var head = document.getElementById('tbl-col-head');
+  if(head) head.style.setProperty('--grid', grid);
+  // Show/hide header columns
+  var map = {phone:'col-phone', email:'col-email', lastrdv:'col-lastrdv', nextrdv:'col-nextrdv', animals:'col-animals'};
+  Object.keys(map).forEach(function(k){
+    document.querySelectorAll('.'+map[k]).forEach(function(el){
+      el.style.display = COLS[k] ? '' : 'none';
+    });
+  });
+}
+
+function toggleCol(col, visible){
+  COLS[col] = visible;
+  applyGridToHeader();
+  renderTable();
+  // Update button state
+  var hasCustom = Object.keys(COLS).some(function(k){return !COLS[k];});
+  document.getElementById('col-picker-btn').classList.toggle('active', hasCustom);
+}
+
+function resetCols(){
+  COLS={phone:true,email:true,lastrdv:true,nextrdv:true};
+  document.querySelectorAll('.col-picker-popover input[type=checkbox]').forEach(function(cb){cb.checked=true;});
+  document.getElementById('col-picker-btn').classList.remove('active');
+  applyGridToHeader();
+  renderTable();
+}
+
+function toggleColPicker(){
+  var pop = document.getElementById('col-picker-popover');
+  var btn = document.getElementById('col-picker-btn');
+  var isOpen = pop.classList.contains('open');
+  if(!isOpen){
+    var rect = btn.getBoundingClientRect();
+    pop.style.top = (rect.bottom + 4) + 'px';
+    pop.style.right = (window.innerWidth - rect.right) + 'px';
+  }
+  pop.classList.toggle('open');
+  btn.classList.toggle('active', pop.classList.contains('open') || Object.keys(COLS).some(function(k){return !COLS[k];}));
+}
+
+const SPECIES_EMOJI={Félin:'🐱',Canin:'🐶',Lapin:'🐰',NAC:'🦎',Oiseau:'🦜'};
+const SPECIES_BADGE={Félin:'b-cat',Canin:'b-dog',Lapin:'b-other',NAC:'b-other',Oiseau:'b-other'};
+const SPECIES_LABEL={Félin:'Chat',Canin:'Chien',Lapin:'Lapin',NAC:'NAC',Oiseau:'Oiseau'};
+
+const CLIENTS=[
+  {id:1,first:'Sophie',last:'Dubois',phone:'+33 6 12 34 56 78',email:'s.dubois@email.fr',address:'12 rue de la Paix, 75001 Paris',since:'2021-03-15',lastVisit:'2026-03-21',initials:'SD',color:'#4338ca',bg:'#eef2ff',
+   animals:[
+    {id:101,name:'Luna',species:'Félin',breed:'Persan',dob:'2019-06-10',weight:'4.2 kg',sex:'F',sterilized:true,color:'Blanc',lastVisit:'2026-03-21',nextVisit:'2026-06-15',status:'ok',chip:'250268500012345',
+     consults:[{date:'2026-03-21',vet:'Dr. Rousseau',motif:'Consultation',note:'Bilan annuel — tout va bien'},{date:'2025-12-10',vet:'Dr. Martin',motif:'Vaccin',note:'Rappel typhus-coryza'},{date:'2025-09-03',vet:'Dr. Rousseau',motif:'Suivi',note:'Contrôle poids'}]},
+    {id:102,name:'Mimi',species:'Félin',breed:'Européen',dob:'2022-01-20',weight:'3.8 kg',sex:'F',sterilized:true,color:'Tigré',lastVisit:'2026-01-15',nextVisit:null,status:'warn',chip:'250268500012346',
+     consults:[{date:'2026-01-15',vet:'Dr. Dupont',motif:'Urgence',note:'Ingestion corps étranger — résolu'},{date:'2025-08-20',vet:'Dr. Rousseau',motif:'Vaccin',note:'Primo-vaccination complète'}]}
+   ]},
+  {id:2,first:'Marc',last:'Bernard',phone:'+33 6 98 76 54 32',email:'m.bernard@gmail.com',address:'5 avenue Victor Hugo, 75016 Paris',since:'2020-07-08',lastVisit:'2026-03-19',initials:'MB',color:'#0891b2',bg:'#ecfeff',
+   animals:[
+    {id:201,name:'Max',species:'Canin',breed:'Labrador',dob:'2018-04-15',weight:'32 kg',sex:'M',sterilized:false,color:'Fauve',lastVisit:'2026-03-19',nextVisit:'2026-09-19',status:'ok',chip:'250268500023456',
+     consults:[{date:'2026-03-19',vet:'Dr. Martin',motif:'Bilan',note:'Bilan sanguin — valeurs normales'},{date:'2025-10-05',vet:'Dr. Rousseau',motif:'Consultation',note:'Boiterie antérieure gauche'}]}
+   ]},
+  {id:3,first:'Claire',last:'Petit',phone:'+33 6 11 22 33 44',email:'claire.petit@outlook.fr',address:'8 rue du Faubourg, 75010 Paris',since:'2022-11-02',lastVisit:'2026-03-15',initials:'CP',color:'#059669',bg:'#ecfdf5',
+   animals:[
+    {id:301,name:'Milo',species:'Félin',breed:'Européen',dob:'2021-08-30',weight:'4.5 kg',sex:'M',sterilized:true,color:'Roux',lastVisit:'2026-03-15',nextVisit:null,status:'ok',chip:'250268500034567',
+     consults:[{date:'2026-03-15',vet:'Dr. Rousseau',motif:'Consultation',note:'Dermite — traitement prescrit'}]},
+    {id:302,name:'Félix',species:'Félin',breed:'Maine Coon',dob:'2023-02-14',weight:'5.1 kg',sex:'M',sterilized:false,color:'Gris',lastVisit:'2025-12-20',nextVisit:'2026-06-20',status:'ok',chip:'250268500034568',
+     consults:[{date:'2025-12-20',vet:'Dr. Lambert',motif:'Vaccin',note:'Primo-vaccination J1'}]}
+   ]},
+  {id:4,first:'Antoine',last:'Dupuis',phone:'+33 6 55 66 77 88',email:'a.dupuis@free.fr',address:'23 bd Haussmann, 75009 Paris',since:'2019-05-20',lastVisit:'2026-02-28',initials:'AD',color:'#7c3aed',bg:'#f5f3ff',
+   animals:[
+    {id:401,name:'Rex',species:'Canin',breed:'Berger Allemand',dob:'2017-11-01',weight:'38 kg',sex:'M',sterilized:false,color:'Noir et feu',lastVisit:'2026-02-28',nextVisit:'2026-08-28',status:'warn',chip:'250268500045678',
+     consults:[{date:'2026-02-28',vet:'Dr. Dupont',motif:'Suivi',note:'Dysplasie hanche — contrôle radio'},{date:'2025-11-10',vet:'Dr. Rousseau',motif:'Consultation',note:'Arthrose débutante'}]}
+   ]},
+  {id:5,first:'Julie',last:'Leclerc',phone:'+33 6 44 33 22 11',email:'j.leclerc@sfr.fr',address:'17 impasse des Lilas, 92100 Boulogne',since:'2023-02-14',lastVisit:'2026-03-20',initials:'JL',color:'#db2777',bg:'#fdf2f8',
+   animals:[
+    {id:501,name:'Nala',species:'Félin',breed:'Maine Coon',dob:'2022-05-18',weight:'5.8 kg',sex:'F',sterilized:true,color:'Tabby',lastVisit:'2026-03-20',nextVisit:'2026-09-20',status:'ok',chip:'250268500056789',
+     consults:[{date:'2026-03-20',vet:'Dr. Lambert',motif:'Bilan',note:'Bilan thyroïdien normal'},{date:'2025-09-15',vet:'Dr. Rousseau',motif:'Vaccin',note:'Rappel annuel'}]}
+   ]},
+  {id:6,first:'Pierre',last:'Moreau',phone:'+33 6 77 88 99 00',email:'p.moreau@yahoo.fr',address:'3 rue de Rivoli, 75001 Paris',since:'2020-01-10',lastVisit:'2026-03-18',initials:'PM',color:'#0891b2',bg:'#ecfeff',
+   animals:[
+    {id:601,name:'Oscar',species:'Canin',breed:'Golden Retriever',dob:'2019-09-12',weight:'30 kg',sex:'M',sterilized:false,color:'Doré',lastVisit:'2026-03-18',nextVisit:'2026-09-18',status:'ok',chip:'250268500067890',
+     consults:[{date:'2026-03-18',vet:'Dr. Martin',motif:'Consultation',note:'Routine — santé parfaite'},{date:'2025-12-05',vet:'Dr. Dupont',motif:'Chirurgie',note:'Ablation lipome épaule droite'}]}
+   ]},
+  {id:7,first:'Isabelle',last:'Girard',phone:'+33 6 22 11 44 55',email:'i.girard@laposte.net',address:'45 rue République, 69001 Lyon',since:'2021-09-03',lastVisit:'2026-03-10',initials:'IG',color:'#b45309',bg:'#fef3c7',
+   animals:[
+    {id:701,name:'Bella',species:'Canin',breed:'Beagle',dob:'2020-03-22',weight:'13 kg',sex:'F',sterilized:true,color:'Tricolore',lastVisit:'2026-03-10',nextVisit:'2026-09-10',status:'ok',chip:'250268500078901',
+     consults:[{date:'2026-03-10',vet:'Dr. Rousseau',motif:'Vaccin',note:'Rappel annuel'}]},
+    {id:702,name:'Caramel',species:'Lapin',breed:'Bélier nain',dob:'2023-07-01',weight:'1.8 kg',sex:'M',sterilized:true,color:'Caramel',lastVisit:'2025-11-20',nextVisit:null,status:'ok',chip:null,
+     consults:[{date:'2025-11-20',vet:'Dr. Lambert',motif:'Consultation',note:'Contrôle annuel NAC'}]}
+   ]},
+  {id:8,first:'Thomas',last:'Lefebvre',phone:'+33 6 33 44 55 66',email:'t.lefebvre@orange.fr',address:'9 cours Mirabeau, 13100 Aix',since:'2024-01-15',lastVisit:'2026-01-20',initials:'TL',color:'#4338ca',bg:'#eef2ff',
+   animals:[
+    {id:801,name:'Simba',species:'Félin',breed:'Siamois',dob:'2023-11-05',weight:'3.2 kg',sex:'M',sterilized:false,color:'Seal point',lastVisit:'2026-01-20',nextVisit:'2026-07-20',status:'ok',chip:'250268500089012',
+     consults:[{date:'2026-01-20',vet:'Dr. Dupont',motif:'Vaccin',note:'Primo-vaccination J2'},{date:'2025-12-05',vet:'Dr. Dupont',motif:'Vaccin',note:'Primo-vaccination J1'}]}
+   ]},
+  {id:9,first:'Nathalie',last:'Fontaine',phone:'+33 6 55 44 33 22',email:'n.fontaine@bouygues.fr',address:'22 rue Cherche-Midi, 75006 Paris',since:'2018-06-30',lastVisit:'2026-03-22',initials:'NF',color:'#059669',bg:'#ecfdf5',
+   animals:[
+    {id:901,name:'Rocky',species:'Canin',breed:'Boxer',dob:'2016-08-14',weight:'28 kg',sex:'M',sterilized:false,color:'Fauve',lastVisit:'2026-03-22',nextVisit:null,status:'alert',chip:'250268500090123',
+     consults:[{date:'2026-03-22',vet:'Dr. Martin',motif:'Urgence',note:'Douleur abdominale aiguë — dilatation gastrique'},{date:'2026-01-08',vet:'Dr. Rousseau',motif:'Consultation',note:'Masse cardiaque — surveillance'},{date:'2025-10-20',vet:'Dr. Dupont',motif:'Chirurgie',note:'Ablation tumeur cutanée'}]}
+   ]},
+  {id:10,first:'Camille',last:'Chevalier',phone:'+33 6 66 55 44 33',email:'camille.c@gmail.com',address:'6 rue des Martyrs, 75009 Paris',since:'2022-04-11',lastVisit:'2026-02-14',initials:'CC',color:'#7c3aed',bg:'#f5f3ff',
+   animals:[
+    {id:1001,name:'Lily',species:'Félin',breed:'Ragdoll',dob:'2021-12-01',weight:'5.3 kg',sex:'F',sterilized:true,color:'Bicolore',lastVisit:'2026-02-14',nextVisit:'2026-08-14',status:'ok',chip:'250268500101234',
+     consults:[{date:'2026-02-14',vet:'Dr. Lambert',motif:'Bilan',note:'Contrôle semestriel — RAS'}]}
+   ]},
+  {id:11,first:'François',last:'Garnier',phone:'+33 6 77 66 55 44',email:'f.garnier@wanadoo.fr',address:'14 av de Breteuil, 75007 Paris',since:'2019-11-25',lastVisit:'2026-03-12',initials:'FG',color:'#0891b2',bg:'#ecfeff',
+   animals:[
+    {id:1101,name:'Bruno',species:'Canin',breed:'Rottweiler',dob:'2018-07-22',weight:'46 kg',sex:'M',sterilized:false,color:'Noir et feu',lastVisit:'2026-03-12',nextVisit:'2026-09-12',status:'warn',chip:'250268500112345',
+     consults:[{date:'2026-03-12',vet:'Dr. Rousseau',motif:'Suivi',note:'Dermatite chronique — traitement en cours'},{date:'2025-08-30',vet:'Dr. Martin',motif:'Vaccin',note:'Rappel annuel'}]}
+   ]},
+  {id:12,first:'Amélie',last:'Roux',phone:'+33 6 88 77 66 55',email:'amelie.roux@sfr.fr',address:'33 rue Saint-Denis, 75001 Paris',since:'2023-08-07',lastVisit:'2026-03-05',initials:'AR',color:'#db2777',bg:'#fdf2f8',
+   animals:[
+    {id:1201,name:'Coco',species:'Félin',breed:'British Shorthair',dob:'2022-10-15',weight:'4.7 kg',sex:'F',sterilized:true,color:'Bleu',lastVisit:'2026-03-05',nextVisit:'2026-09-05',status:'ok',chip:'250268500123456',
+     consults:[{date:'2026-03-05',vet:'Dr. Dupont',motif:'Consultation',note:'Tartre — détartrage recommandé'}]},
+    {id:1202,name:'Kiwi',species:'Oiseau',breed:'Perroquet',dob:'2020-03-01',weight:'350 g',sex:'M',sterilized:false,color:'Vert',lastVisit:'2025-06-10',nextVisit:null,status:'ok',chip:null,
+     consults:[{date:'2025-06-10',vet:'Dr. Lambert',motif:'Consultation',note:'Plumage — stress environnemental'}]}
+   ]},
+];
+
+// State
+let currentFilter='all',searchQuery='',sortBy='name';
+let expandedIds=new Set();
+let selectedClientId=null,dpAnimalTab=null;
+let currentPage=1,PAGE_SIZE=10;
+
+// Utilities
+function showToast(m,c){var t=document.getElementById('toast');t.textContent=m;t.style.background=c||'#16a34a';t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
+function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
+function timeSince(d){if(!d)return'—';var days=Math.floor((new Date()-new Date(d))/86400000);if(days===0)return"aujourd'hui";if(days===1)return'hier';if(days<7)return days+'j';if(days<30)return Math.floor(days/7)+' sem.';if(days<365)return Math.floor(days/30)+' mois';return Math.floor(days/365)+' an';}
+function worstStatus(c){if(c.animals.some(function(a){return a.status==='alert';}))return'alert';if(c.animals.some(function(a){return a.status==='warn';}))return'warn';return'ok';}
+
+// Filters
+function setFilter(f){currentFilter=f;currentPage=1;document.querySelectorAll('.fp').forEach(function(p){p.classList.remove('active');});document.getElementById('filter-'+f).classList.add('active');renderTable();}
+function setSort(s){sortBy=s;document.getElementById('sort-select').value=s;renderTable();}
+function onSearch(q){searchQuery=q.trim().toLowerCase();currentPage=1;var c=document.getElementById('search-clear'),k=document.getElementById('search-kbd');c.style.display=q?'flex':'none';k.style.opacity=q?'0':'1';renderTable();}
+function clearSearch(){document.getElementById('search-input').value='';onSearch('');}
+
+function getFiltered(){
+  var list=CLIENTS.slice();
+  if(currentFilter==='cat') list=list.filter(function(c){return c.animals.some(function(a){return a.species==='Félin';});});
+  else if(currentFilter==='dog') list=list.filter(function(c){return c.animals.some(function(a){return a.species==='Canin';});});
+  else if(currentFilter==='other') list=list.filter(function(c){return c.animals.some(function(a){return a.species!=='Félin'&&a.species!=='Canin';});});
+  else if(currentFilter==='alert') list=list.filter(function(c){return c.animals.some(function(a){return a.status==='alert'||a.status==='warn';});});
+  else if(currentFilter==='recent'){var cut=new Date();cut.setDate(cut.getDate()-30);list=list.filter(function(c){return new Date(c.lastVisit)>=cut;});}
+  if(searchQuery){
+    list=list.filter(function(c){
+      var hay=[c.first,c.last,c.email,c.phone.replace(/\s/g,'')].concat(c.animals.map(function(a){return a.name;})).concat(c.animals.map(function(a){return a.breed;})).join(' ').toLowerCase();
+      return hay.includes(searchQuery);
+    });
+  }
+  var s=document.getElementById('sort-select').value||sortBy;
+  if(s==='name') list.sort(function(a,b){return a.last.localeCompare(b.last);});
+  else if(s==='recent') list.sort(function(a,b){return new Date(b.lastVisit)-new Date(a.lastVisit);});
+  else if(s==='animals') list.sort(function(a,b){return b.animals.length-a.animals.length;});
+  return list;
+}
+
+function buildCardRow(client, animalPills, statusHtml){
+  var exp = expandedIds.has(client.id);
+  var h = '<div class="card-row" onclick="toggleRow('+client.id+');openClientPanel('+client.id+',null)">';
+  h += '<div onclick="event.stopPropagation();toggleRow('+client.id+')" style="flex-shrink:0;padding:4px;">';
+  h += '<svg width="12" height="12" fill="none" viewBox="0 0 12 12" style="color:var(--text-subtle);transition:transform .2s;transform:rotate('+(exp?90:0)+'deg);display:block;"><path d="M4.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  h += '</div>';
+  h += '<div style="width:32px;height:32px;border-radius:var(--radius-full);background:'+client.bg+';color:'+client.color+';display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:var(--weight-medium);flex-shrink:0;">'+client.initials+'</div>';
+  h += '<div class="card-row-info">';
+  h += '<div style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);">'+client.first+' '+client.last+'</div>';
+  h += '<div style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px;">'+timeSince(client.lastVisit)+' · '+client.phone+'</div>';
+  h += '<div style="display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;">'+animalPills+'</div>';
+  h += '</div>';
+  h += '<div class="card-row-right">'+statusHtml;
+  h += '<button class="btn btn-secondary" onclick="event.stopPropagation();openClientPanel('+client.id+',null)" style="width:28px;height:28px;padding:0;justify-content:center;"><svg width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M6 1a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM2 11c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>';
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+
+// Render table
+function renderTable(){
+  document.getElementById('cnt-all').textContent=CLIENTS.length;
+  document.getElementById('cnt-cat').textContent=CLIENTS.filter(function(c){return c.animals.some(function(a){return a.species==='Félin';});}).length;
+  document.getElementById('cnt-dog').textContent=CLIENTS.filter(function(c){return c.animals.some(function(a){return a.species==='Canin';});}).length;
+  document.getElementById('cnt-other').textContent=CLIENTS.filter(function(c){return c.animals.some(function(a){return a.species!=='Félin'&&a.species!=='Canin';});}).length;
+  document.getElementById('cnt-alert').textContent=CLIENTS.filter(function(c){return c.animals.some(function(a){return a.status==='alert'||a.status==='warn';});}).length;
+
+  var list=getFiltered();
+  var totalPages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));
+  if(currentPage>totalPages)currentPage=totalPages;
+  var paginated=list.slice((currentPage-1)*PAGE_SIZE,currentPage*PAGE_SIZE);
+  var totalA=list.reduce(function(n,c){return n+c.animals.length;},0);
+  document.getElementById('subtitle').textContent=list.length+' client'+(list.length>1?'s':'')+' · '+totalA+' animal'+(totalA>1?'x':'');
+
+  var body=document.getElementById('tbl-body');
+  var GRID=getGrid();
+  applyGridToHeader();
+
+  if(list.length===0){
+    body.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-subtle);text-align:center;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-muted);">Aucun résultat</p><p style="font-size:var(--text-md);margin-top:4px;">Essayez un autre terme ou filtre</p></div>';
+    return;
+  }
+
+  body.innerHTML=paginated.map(function(client){
+    var exp=expandedIds.has(client.id);
+    var ws=worstStatus(client);
+    var statusHtml=ws==='alert'?'<span class="badge b-alert">⚠ Alerte</span>':ws==='warn'?'<span class="badge b-warn">Suivi</span>':'<span class="badge b-ok">Actif</span>';
+    var nextV=null;client.animals.forEach(function(a){if(a.nextVisit&&!nextV)nextV=a.nextVisit;});
+
+    var animalPills=client.animals.map(function(a){
+      var bg=a.status==='alert'?'#fef2f2':a.status==='warn'?'#fff7ed':'var(--surface-subtle)';
+      var border=a.status==='alert'?'#fecaca':a.status==='warn'?'#fed7aa':'var(--border-medium)';
+      var color=a.status==='alert'?'#dc2626':a.status==='warn'?'#d97706':'var(--text-muted)';
+      return '<span style="display:inline-flex;align-items:center;gap:3px;background:'+bg+';border:1px solid '+border+';border-radius:var(--radius-sm);padding:1px var(--space-1);font-size:10px;color:'+color+';">'+SPECIES_EMOJI[a.species]+' '+a.name+'</span>';
+    }).join('');
+
+    var animalSection='';
+    if(exp){
+      var rows=client.animals.map(function(a){
+        var isSelected=dpAnimalTab===a.id&&selectedClientId===client.id;
+        return '<div class="animal-row'+(isSelected?' sel':'')+'" style="--grid:'+GRID+';" onclick="selectAnimal('+client.id+','+a.id+')">'
+          +'<div></div>'
+          +'<div class="cell-name" style="display:flex;align-items:center;gap:var(--space-2);min-width:0;">'
+            +'<div style="width:26px;height:26px;border-radius:var(--radius-md);background:'+client.bg+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">'+SPECIES_EMOJI[a.species]+'</div>'
+            +'<div style="min-width:0;"><div style="display:flex;align-items:center;gap:var(--space-1);"><span style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">'+a.name+'</span><span class="badge '+(SPECIES_BADGE[a.species]||'b-other')+'">'+( SPECIES_LABEL[a.species]||a.species)+'</span></div><span style="font-size:var(--text-sm);color:var(--text-subtle);">'+a.breed+' · '+a.weight+'</span></div>'
+          +'</div>'
+          +'<div></div><div></div>'
+          +'<div class="col-lastrdv" style="font-size:var(--text-md);color:var(--text-muted);">'+timeSince(a.lastVisit)+'</div>'
+          +'<div style="font-size:var(--text-md);color:'+(a.nextVisit?'#059669':'var(--text-subtle)')+';">'+(a.nextVisit?fmtDate(a.nextVisit):'—')+'</div>'
+          +'<div>'+(a.status==='alert'?'<span class="badge b-alert">⚠</span>':a.status==='warn'?'<span class="badge b-warn">!</span>':'')+'</div>'
+          +'<div><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();selectAnimal('+client.id+','+a.id+')" style="padding:3px 8px;font-size:10px;">→</button></div>'
+        +'</div>';
+      }).join('');
+      animalSection='<div class="animal-section" style="--grid:'+GRID+';">'+rows+'</div>';
+    }
+
+    return '<div class="client-row-wrap'+(selectedClientId===client.id?' active':'')+'" id="crow-'+client.id+'">'
+      +'<div class="client-row" style="--grid:'+GRID+';" onclick="toggleRow('+client.id+');openClientPanel('+client.id+',null)">'
+        +'<div onclick="event.stopPropagation();toggleRow('+client.id+')">'
+          +'<svg width="12" height="12" fill="none" viewBox="0 0 12 12" style="color:var(--text-subtle);transition:transform .2s;transform:rotate('+(exp?90:0)+'deg);display:block;" id="chev-'+client.id+'"><path d="M4.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:var(--space-2);min-width:0;">'
+          +'<div style="width:32px;height:32px;border-radius:var(--radius-full);background:'+client.bg+';color:'+client.color+';display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:var(--weight-medium);flex-shrink:0;">'+client.initials+'</div>'
+          +'<div style="min-width:0;">'
+            +'<div style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);">'+client.first+' '+client.last+'</div>'
+            +'<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap;">'+animalPills+'</div>'
+          +'</div>'
+        +'</div>'
+        +'<div class="col-phone" style="font-size:var(--text-md);color:var(--text-muted);">'+client.phone+'</div>'
+        +'<div class="col-email" style="font-size:var(--text-sm);color:var(--text-subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+client.email+'">'+client.email+'</div>'
+        +'<div class="col-lastrdv" style="font-size:var(--text-md);color:var(--text-muted);">'+timeSince(client.lastVisit)+'</div>'
+        +'<div class="col-nextrdv" style="font-size:var(--text-md);color:'+(nextV?'#059669':'var(--text-subtle)')+';">'+(nextV?fmtDate(nextV):'—')+'</div>'
+        +'<div class="cell-status">'+statusHtml+'</div>'
+        +'<div class="cell-actions row-actions">'
+          +'<button class="btn btn-secondary" onclick="event.stopPropagation();openClientPanel('+client.id+',null)" title="Aperçu" style="width:28px;height:28px;padding:0;justify-content:center;"><svg width="12" height="12" fill="none" viewBox="0 0 12 12"><path d="M6 1a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM2 11c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>'
+        +'</div>'
+      +'</div>'
+      +buildCardRow(client, animalPills, statusHtml)
+      +animalSection
+    +'</div>';
+  }).join('');
+  applyGridToHeader();
+  lucide.createIcons();
+  renderPagination(list.length, totalPages);
+}
+
+function renderPagination(total,totalPages){
+  var pg=document.getElementById('pagination');
+  var start=(currentPage-1)*PAGE_SIZE+1;
+  var end=Math.min(currentPage*PAGE_SIZE,total);
+  var pages=[];
+  if(totalPages<=7){for(var i=1;i<=totalPages;i++)pages.push(i);}
+  else{pages=[1];if(currentPage>3)pages.push('…');for(var i=Math.max(2,currentPage-1);i<=Math.min(totalPages-1,currentPage+1);i++)pages.push(i);if(currentPage<totalPages-2)pages.push('…');pages.push(totalPages);}
+  var btns=pages.map(function(p){return p==='…'?'<span style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-subtle);font-size:var(--text-sm);">…</span>':'<button class="pg-btn'+(p===currentPage?' active':'')+'" onclick="goPage('+p+')">'+p+'</button>';}).join('');
+  pg.innerHTML='<span style="font-size:var(--text-sm);color:var(--text-subtle);">'+start+'–'+end+' / '+total+'</span>'
+    +'<div style="display:flex;align-items:center;gap:3px;">'
+      +'<button class="pg-btn" onclick="goPage('+(currentPage-1)+')" '+(currentPage===1?'disabled':'')+'><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
+      +btns
+      +'<button class="pg-btn" onclick="goPage('+(currentPage+1)+')" '+(currentPage===totalPages?'disabled':'')+'><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:var(--space-2);"><span style="font-size:var(--text-sm);color:var(--text-subtle);">Lignes</span><select onchange="changePageSize(+this.value)" style="font-size:var(--text-sm);border:1px solid var(--border-medium);border-radius:var(--radius-md);padding:3px var(--space-2);background:var(--surface-card);font-family:inherit;outline:none;cursor:pointer;"><option value="8" '+(PAGE_SIZE==8?'selected':'')+'>8</option><option value="15" '+(PAGE_SIZE==15?'selected':'')+'>15</option><option value="25" '+(PAGE_SIZE==25?'selected':'')+'>25</option></select></div>';
+}
+function goPage(p){var list=getFiltered();var tp=Math.max(1,Math.ceil(list.length/PAGE_SIZE));currentPage=Math.max(1,Math.min(p,tp));renderTable();}
+function changePageSize(s){PAGE_SIZE=s;currentPage=1;renderTable();}
+
+function toggleRow(id){
+  if(expandedIds.has(id)){expandedIds.delete(id);}else{expandedIds.clear();expandedIds.add(id);}
+  var chev=document.getElementById('chev-'+id);if(chev)chev.style.transform='rotate('+(expandedIds.has(id)?90:0)+'deg)';
+  renderTable();
+}
+
+function selectAnimal(clientId,animalId){
+  selectedClientId=clientId;dpAnimalTab=animalId;
+  openClientPanel(clientId,animalId);
+}
+
+// Build detail HTML
+function buildDetailHTML(clientId, focusAnimalId){
+  var client=CLIENTS.find(function(c){return c.id===clientId;});
+  if(!client)return'';
+  var animal=client.animals.find(function(a){return a.id===focusAnimalId;})||client.animals[0];
+  var ws=worstStatus(client);
+
+  // Use route from global variable set in template
+  var clientsListUrl = (window.ROUTES && window.ROUTES.clientsList) || '';
+
+  var headerHTML='<div style="padding:var(--space-4) var(--space-5) var(--space-3);border-bottom:1px solid var(--border-light);position:sticky;top:0;background:var(--surface-card);z-index:10;">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);">'
+      +'<div style="display:flex;align-items:center;gap:var(--space-3);">'
+        +'<div style="width:40px;height:40px;border-radius:var(--radius-full);background:'+client.bg+';color:'+client.color+';display:flex;align-items:center;justify-content:center;font-size:var(--text-base);font-weight:var(--weight-medium);flex-shrink:0;">'+client.initials+'</div>'
+        +'<div>'
+          +'<h2 style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);">'+client.first+' '+client.last+'</h2>'
+          +'<p style="font-size:var(--text-sm);color:var(--text-subtle);">Client depuis '+new Date(client.since).getFullYear()+' · '+client.animals.length+' animal'+(client.animals.length>1?'x':'')+'</p>'
+        +'</div>'
+      +'</div>'
+      +'<button class="btn-close" onclick="closeDetail()"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>'
+    +'</div>'
+    +'<div style="display:flex;gap:var(--space-2);">'
+      +'<button class="btn btn-primary btn-xs" style="flex:1;justify-content:center;" onclick="showToast(\'Nouveau RDV…\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Prendre RDV</button>'
+      +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Appel…\',\'#059669\')"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>'
+      +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Email…\',\'#4338ca\')"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>'
+      +'<a href="'+clientsListUrl+'/'+client.id+'" class="btn btn-secondary btn-xs" style="text-decoration:none;" onclick="event.preventDefault();showToast(\'Ouverture fiche '+client.first+' '+client.last+'…\',\'#4338ca\')">Fiche complète</a>'
+    +'</div>'
+  +'</div>';
+
+  // Animal tabs
+  var tabs=client.animals.map(function(a){
+    var isActive=a.id===(focusAnimalId||client.animals[0].id);
+    return '<button class="dp-animal-tab'+(isActive?' active':'')+'" onclick="switchAnimalTab('+client.id+','+a.id+')">'+(SPECIES_EMOJI[a.species]||'🐾')+' '+a.name+(a.status==='alert'?'<span style="color:#dc2626;"> ⚠</span>':a.status==='warn'?'<span style="color:#f59e0b;"> ·</span>':'')+'</button>';
+  }).join('');
+
+  var banner='';
+  if(animal){
+    if(animal.status==='alert')banner='<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);"><svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#dc2626;flex-shrink:0;"><path d="M8 2l6 12H2L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v3M8 12h.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#dc2626;">Patient en alerte — surveillance requise</span></div>';
+    else if(animal.status==='warn')banner='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);"><svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#f59e0b;flex-shrink:0;"><path d="M8 2l6 12H2L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v3M8 12h.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#d97706;">En suivi actif</span></div>';
+    if(animal.nextVisit)banner+='<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);"><svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#16a34a;flex-shrink:0;"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#15803d;">Prochain RDV · '+fmtDate(animal.nextVisit)+'</span></div>';
+  }
+
+  var animalSection='';
+  if(animal){
+    animalSection='<div class="dp-section">'
+      +'<p class="dp-section-title">Animal</p>'
+      +'<div class="info-grid">'
+        +'<div class="info-cell"><p class="info-label">Naissance</p><p class="info-value">'+fmtDate(animal.dob)+'</p></div>'
+        +'<div class="info-cell"><p class="info-label">Poids</p><p class="info-value">'+animal.weight+'</p></div>'
+        +'<div class="info-cell"><p class="info-label">Sexe</p><p class="info-value">'+(animal.sex==='M'?'♂ Mâle':'♀ Femelle')+(animal.sterilized?' · stérilisé·e':'')+'</p></div>'
+        +'<div class="info-cell"><p class="info-label">Robe</p><p class="info-value">'+animal.color+'</p></div>'
+        +'<div class="info-cell" style="grid-column:1/-1;"><p class="info-label">Puce électronique</p><p class="info-value" style="font-size:var(--text-sm);font-family:monospace;">'+(animal.chip||'Non identifié')+'</p></div>'
+      +'</div>'
+    +'</div>';
+
+    var consults=animal.consults.map(function(c,i){
+      return '<div class="consult-row" style="'+(i===0?'padding-top:0;':'')+'">'
+        +'<div style="width:8px;height:8px;border-radius:50%;background:'+(i===0?'var(--brand-500)':'var(--border-medium)')+';flex-shrink:0;margin-top:4px;"></div>'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:2px;">'
+            +'<span style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">'+c.motif+'</span>'
+            +'<span class="badge b-grey">'+c.vet.replace('Dr. ','')+'</span>'
+          +'</div>'
+          +'<p style="font-size:var(--text-md);color:var(--text-muted);">'+c.note+'</p>'
+          +'<p style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px;">'+fmtDate(c.date)+'</p>'
+        +'</div>'
+        +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Ouverture dossier…\',\'#4338ca\')" style="flex-shrink:0;">Voir</button>'
+      +'</div>';
+    }).join('');
+
+    animalSection+='<div class="dp-section">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2);">'
+        +'<p class="dp-section-title" style="margin-bottom:0;">Historique ('+animal.consults.length+')</p>'
+        +'<button class="btn btn-secondary btn-xs" onclick="showToast(\'Dossier…\',\'#4338ca\')">Dossier complet</button>'
+      +'</div>'
+      +consults
+    +'</div>';
+  }
+
+  var clientSection='<div class="dp-section">'
+    +'<p class="dp-section-title">Propriétaire</p>'
+    +'<div class="info-grid">'
+      +'<div class="info-cell" style="grid-column:1/-1;"><p class="info-label">Adresse</p><p class="info-value" style="font-size:var(--text-md);">'+client.address+'</p></div>'
+      +'<div class="info-cell"><p class="info-label">Téléphone</p><p class="info-value">'+client.phone+'</p></div>'
+      +'<div class="info-cell"><p class="info-label">Email</p><p class="info-value" style="font-size:var(--text-sm);word-break:break-all;">'+client.email+'</p></div>'
+    +'</div>'
+  +'</div>';
+
+  var bodyHTML=
+    '<div style="position:sticky;top:0;background:var(--surface-card);z-index:9;padding:var(--space-2) var(--space-5);border-bottom:1px solid var(--border-light);">'+'<div class="dp-animal-tabs" style="margin-bottom:0;">'+tabs+'</div>'+'</div>'
+    +'<div style="padding:var(--space-3) var(--space-5) var(--space-6);">'
+    +banner
+    +animalSection
+    +clientSection
+    +'</div>';
+
+  return {header: headerHTML, body: bodyHTML};
+}
+
+function openClientPanel(clientId, focusAnimalId){
+  var client=CLIENTS.find(function(c){return c.id===clientId;});
+  if(!client)return;
+  selectedClientId=clientId;
+  if(focusAnimalId!==null&&focusAnimalId!==undefined)dpAnimalTab=focusAnimalId;
+  else if(!dpAnimalTab||!client.animals.find(function(a){return a.id===dpAnimalTab;}))dpAnimalTab=client.animals[0]&&client.animals[0].id;
+
+  document.querySelectorAll('.client-row-wrap').forEach(function(r){r.classList.remove('active');});
+  var activeRow=document.getElementById('crow-'+clientId);
+  if(activeRow)activeRow.classList.add('active');
+
+  var html=buildDetailHTML(clientId, dpAnimalTab);
+
+  var w=window.innerWidth;
+  if(w>1280){
+    // Desktop panel
+    var empty=document.getElementById('dp-empty');if(empty)empty.style.display='none';
+    var content=document.getElementById('dp-content');
+    content.style.transition='none';content.style.transform='translateX(20px)';content.style.opacity='0';
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      content.style.transition='transform .2s ease,opacity .18s ease';
+      content.style.transform='translateX(0)';content.style.opacity='1';
+    });});
+    document.getElementById('dp-header').innerHTML=html.header;
+    document.getElementById('dp-scroll').innerHTML=html.body;
+  } else if(w>1024){
+    // Tablet — slide panel
+    document.getElementById('slide-header').innerHTML=html.header;
+    document.getElementById('slide-scroll').innerHTML=html.body;
+    document.getElementById('detail-slide').classList.add('open');
+    document.getElementById('slide-backdrop').classList.add('open');
+  } else {
+    // Portrait — bottom sheet
+    var bs=document.getElementById('bs');
+    document.getElementById('bs-scroll').innerHTML=html.header+html.body;
+    document.getElementById('bso').style.display='block';
+    bs.style.display='flex';
+    requestAnimationFrame(function(){bs.style.transform='translateY(0)';});
+  }
+  lucide.createIcons();
+  renderTable();
+}
+
+function switchAnimalTab(clientId, animalId){
+  dpAnimalTab=animalId;selectedClientId=clientId;
+  var html=buildDetailHTML(clientId,animalId);
+  var w=window.innerWidth;
+  if(w>1280){
+    document.getElementById('dp-header').innerHTML=html.header;
+    document.getElementById('dp-scroll').innerHTML=html.body;
+  } else if(w>1024){
+    document.getElementById('slide-header').innerHTML=html.header;
+    document.getElementById('slide-scroll').innerHTML=html.body;
+  } else {
+    document.getElementById('bs-scroll').innerHTML=html.header+html.body;
+  }
+  lucide.createIcons();
+  renderTable();
+}
+
+function closeDetail(){
+  // Close based on context
+  if(document.getElementById('bs').style.display==='flex'){closeBottomSheet();return;}
+  if(document.getElementById('detail-slide').classList.contains('open')){closeSlide();return;}
+  // Desktop
+  var empty=document.getElementById('dp-empty');if(empty)empty.style.display='';
+  document.getElementById('dp-header').innerHTML='';
+  document.getElementById('dp-scroll').innerHTML='<div id="dp-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 24px;text-align:center;"><div style="width:56px;height:56px;border-radius:var(--radius-lg);background:var(--surface-subtle);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-4);"><i data-lucide=\'users\' style=\'width:24px;height:24px;color:var(--border-medium);\'></i></div><p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-secondary);margin-bottom:var(--space-1);">Sélectionnez un client</p><p style="font-size:var(--text-md);color:var(--text-subtle);max-width:200px;">Cliquez sur une ligne pour voir la fiche</p></div>';
+  document.querySelectorAll('.client-row-wrap').forEach(function(r){r.classList.remove('active');});
+  selectedClientId=null;dpAnimalTab=null;
+  renderTable();lucide.createIcons();
+}
+function closeSlide(){document.getElementById('detail-slide').classList.remove('open');document.getElementById('slide-backdrop').classList.remove('open');}
+function closeBottomSheet(){var bs=document.getElementById('bs');bs.style.transform='translateY(100%)';setTimeout(function(){bs.style.display='none';document.getElementById('bso').style.display='none';},300);}
+
+// Event listeners stored for cleanup
+let _keydownHandler = null;
+let _clickHandler = null;
+
+export function init() {
+  lucide.createIcons();
+
+  // Close column picker popover on outside click
+  _clickHandler = function(e){
+    var wrap = document.getElementById('col-picker-wrap');
+    if(wrap && !wrap.contains(e.target)){
+      document.getElementById('col-picker-popover').classList.remove('open');
+    }
+  };
+  document.addEventListener('click', _clickHandler);
+
+  // Keyboard shortcuts
+  _keydownHandler = function(e){
+    if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('search-input').focus();}
+    if(e.key==='Escape'){var inp=document.getElementById('search-input');if(document.activeElement===inp&&inp.value)clearSearch();else{closeDetail();closeSlide();closeBottomSheet();}}
+  };
+  document.addEventListener('keydown', _keydownHandler);
+
+  // Expose functions used by onclick attributes in HTML
+  window.toggleCol = toggleCol;
+  window.resetCols = resetCols;
+  window.toggleColPicker = toggleColPicker;
+  window.setFilter = setFilter;
+  window.setSort = setSort;
+  window.onSearch = onSearch;
+  window.clearSearch = clearSearch;
+  window.toggleRow = toggleRow;
+  window.selectAnimal = selectAnimal;
+  window.openClientPanel = openClientPanel;
+  window.switchAnimalTab = switchAnimalTab;
+  window.closeDetail = closeDetail;
+  window.closeSlide = closeSlide;
+  window.closeBottomSheet = closeBottomSheet;
+  window.showToast = showToast;
+  window.goPage = goPage;
+  window.changePageSize = changePageSize;
+
+  renderTable();
+}
+
+export function cleanup() {
+  if (_keydownHandler) {
+    document.removeEventListener('keydown', _keydownHandler);
+    _keydownHandler = null;
+  }
+  if (_clickHandler) {
+    document.removeEventListener('click', _clickHandler);
+    _clickHandler = null;
+  }
+}
