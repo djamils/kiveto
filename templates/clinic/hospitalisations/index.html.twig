@@ -13,7 +13,7 @@
 
 {% block title %}Hospitalisation - {{ currentClinicName }}{% endblock %}
 {% block page_title %}Hospitalisation{% endblock %}
-{% block page_subtitle %}Centre de contrôle · <span id="topbar-date"></span>{% endblock %}
+{% block page_subtitle %}Centre de contrôle{% endblock %}
 
 {% block stylesheets %}
 <style>
@@ -860,7 +860,7 @@ function closeSlide(){
   document.getElementById('drawer-overlay').classList.remove('open');
 }
 
-document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+// Date displayed in topbar subtitle is static from Twig
 renderList();
 selectPatient(1);
 
