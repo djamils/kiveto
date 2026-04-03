@@ -13,12 +13,14 @@
 
 {% block title %}Hospitalisation - {{ currentClinicName }}{% endblock %}
 {% block page_title %}Hospitalisation{% endblock %}
+{% block page_subtitle %}Centre de contrôle · <span id="topbar-date"></span>{% endblock %}
 
 {% block stylesheets %}
 <style>
-    /* Override base template layout for full-height panel layout */
-    .app-scroll{overflow:hidden !important;display:flex;flex-direction:column;flex:1;}
-    .app-body{padding:0 !important;flex:1;display:flex;flex-direction:column;overflow:hidden;}
+    /* Full-height layout overrides for panel-based page */
+    .app-scroll{overflow:hidden !important;}
+    .app-body{padding:0 !important;display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+    .app-main-wrap{flex:1;overflow:hidden !important;min-height:0;}
 
     .page-body{flex:1;display:flex;overflow:hidden;}
 
@@ -164,12 +166,12 @@
 {% endblock %}
 
 {% block topbar_actions %}
-    <!-- Stats pills -->
+    {# Stats pills #}
     <div class="topbar-stats" style="display:flex;gap:6px;">
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#eff6ff;border:1px solid #bfdbfe;">
         <div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;"></div>
         <span style="font-size:12px;font-weight:600;color:#2563eb;" id="stat-hosp">4</span>
-        <span style="font-size:11.5px;color:#64748b;">hospitalises</span>
+        <span style="font-size:11.5px;color:#64748b;">hospitalisés</span>
       </div>
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;">
         <div style="width:6px;height:6px;border-radius:50%;background:#dc2626;"></div>
@@ -179,7 +181,7 @@
       <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#f0fdf4;border:1px solid #bbf7d0;">
         <div style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></div>
         <span style="font-size:12px;font-weight:600;color:#059669;" id="stat-sortie-prev">2</span>
-        <span style="font-size:11.5px;color:#64748b;">sorties prevues aujourd'hui</span>
+        <span style="font-size:11.5px;color:#64748b;">sorties prévues aujourd'hui</span>
       </div>
     </div>
     <button class="btn btn-primary btn-xs topbar-new-btn" onclick="openModal('modal-admission')">
@@ -200,34 +202,34 @@
 
 <div class="page-body">
 
-  <!-- LEFT PANEL -->
+  {# ══ LEFT PANEL ══ #}
   <div class="hosp-panel">
     <div class="hp-head">
-      <span style="font-size:13px;font-weight:600;color:#0f172a;">Patients hospitalises</span>
+      <span style="font-size:13px;font-weight:600;color:#0f172a;">Patients hospitalisés</span>
       <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:20px;margin-left:auto;" id="list-count"></span>
     </div>
     <div class="hp-list" id="hosp-list"></div>
   </div>
 
-  <!-- SLIDE (tablet) -->
+  {# ══ SLIDE (tablet) ══ #}
   <div class="detail-slide" id="detail-slide">
     <div id="slide-inner" style="display:flex;flex-direction:column;flex:1;overflow:hidden;"></div>
   </div>
 
-  <!-- RIGHT PANEL -->
+  {# ══ RIGHT PANEL ══ #}
   <div class="detail-panel" id="detail-panel">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;">
       <div style="width:56px;height:56px;border-radius:14px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
         <svg width="26" height="26" fill="none" viewBox="0 0 32 32" style="color:#cbd5e1;"><rect x="2" y="8" width="28" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 14v6M13 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 8V6a8 8 0 0116 0v2" stroke="currentColor" stroke-width="1.6"/></svg>
       </div>
-      <p style="font-size:14px;font-weight:600;color:#334155;margin-bottom:6px;">Selectionnez un patient</p>
+      <p style="font-size:14px;font-weight:600;color:#334155;margin-bottom:6px;">Sélectionnez un patient</p>
       <p style="font-size:13px;max-width:200px;text-align:center;line-height:1.5;">Cliquez sur un patient pour ouvrir sa fiche d'hospitalisation</p>
     </div>
   </div>
 
 </div>
 
-<!-- MODAL: Admission -->
+{# ══ MODAL : Admission ══ #}
 <div class="modal-overlay" id="modal-admission" onclick="if(event.target===this)closeModal('modal-admission')">
   <div class="modal-box">
     <div class="modal-head">
@@ -236,29 +238,39 @@
     </div>
     <div class="modal-body">
       <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Animal *</label><input class="form-input" placeholder="Rechercher un patient..."></div>
-        <div class="form-row"><label class="form-label">Proprietaire</label><input class="form-input" placeholder="Nom du proprietaire"></div>
+        <div class="form-row"><label class="form-label">Animal *</label><input class="form-input" placeholder="Rechercher un patient…"></div>
+        <div class="form-row"><label class="form-label">Propriétaire</label><input class="form-input" placeholder="Nom du propriétaire"></div>
       </div>
-      <div class="form-row"><label class="form-label">Motif d'hospitalisation *</label><input class="form-input" placeholder="Ex : Post-operatoire sterilisation, Insuffisance renale aigue..."></div>
+      <div class="form-row"><label class="form-label">Motif d'hospitalisation *</label><input class="form-input" placeholder="Ex : Post-opératoire stérilisation, Insuffisance rénale aiguë…"></div>
       <div class="form-grid-3">
-        <div class="form-row"><label class="form-label">Veterinaire referent</label><select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select></div>
-        <div class="form-row"><label class="form-label">Severite</label><select class="form-input"><option>Stable</option><option>Surveille</option><option>Critique</option></select></div>
-        <div class="form-row"><label class="form-label">Duree estimee</label><select class="form-input"><option>24h</option><option>48h</option><option>72h</option><option>4-5 jours</option><option>1 semaine+</option></select></div>
+        <div class="form-row"><label class="form-label">Vétérinaire référent</label>
+          <select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Sévérité</label>
+          <select class="form-input"><option>Stable</option><option>Surveillé</option><option>Critique</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Durée estimée</label>
+          <select class="form-input"><option>24h</option><option>48h</option><option>72h</option><option>4–5 jours</option><option>1 semaine+</option></select>
+        </div>
       </div>
-      <div class="form-row"><label class="form-label">Protocole de soins initial</label><textarea class="form-input" placeholder="Medicaments, frequence de surveillance, restrictions alimentaires..."></textarea></div>
+      <div class="form-row"><label class="form-label">Protocole de soins initial</label><textarea class="form-input" placeholder="Médicaments, fréquence de surveillance, restrictions alimentaires…"></textarea></div>
       <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Alimentation</label><select class="form-input"><option>Ration normale</option><option>Ration reduite (50%)</option><option>Diete stricte</option><option>Gavage / sonde</option><option>Perfusion IV uniquement</option></select></div>
-        <div class="form-row"><label class="form-label">Acces eau</label><select class="form-input"><option>Libre acces</option><option>Quantite limitee</option><option>Aucun acces (perfusion)</option></select></div>
+        <div class="form-row"><label class="form-label">Alimentation</label>
+          <select class="form-input"><option>Ration normale</option><option>Ration réduite (50%)</option><option>Diète stricte</option><option>Gavage / sonde</option><option>Perfusion IV uniquement</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Accès eau</label>
+          <select class="form-input"><option>Libre accès</option><option>Quantité limitée</option><option>Aucun accès (perfusion)</option></select>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('modal-admission')">Annuler</button>
-      <button class="btn btn-primary" onclick="toast('Admission enregistree','#059669');closeModal('modal-admission')">Admettre le patient</button>
+      <button class="btn btn-primary" onclick="toast('Admission enregistrée','#059669');closeModal('modal-admission')">Admettre le patient</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL: Add care -->
+{# ══ MODAL : Ajouter soin ══ #}
 <div class="modal-overlay" id="modal-soin" onclick="if(event.target===this)closeModal('modal-soin')">
   <div class="modal-box" style="width:480px;">
     <div class="modal-head">
@@ -266,48 +278,70 @@
       <button onclick="closeModal('modal-soin')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="form-row"><label class="form-label">Type de soin</label><select class="form-input"><option>Medicament oral</option><option>Injection SC</option><option>Injection IM</option><option>Injection IV</option><option>Perfusion</option><option>Pansement</option><option>Nettoyage plaie</option><option>Autre</option></select></div>
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Produit / Medicament</label><input class="form-input" placeholder="Ex : Amoxicilline 250mg"></div>
-        <div class="form-row"><label class="form-label">Dose</label><input class="form-input" placeholder="Ex : 1 comprime, 5ml..."></div>
-        <div class="form-row"><label class="form-label">Frequence</label><select class="form-input"><option>1x/jour</option><option>2x/jour</option><option>3x/jour</option><option>Toutes les 8h</option><option>Toutes les 6h</option><option>Au besoin</option><option>Unique</option></select></div>
-        <div class="form-row"><label class="form-label">Duree</label><select class="form-input"><option>Jusqu'a la sortie</option><option>24h</option><option>48h</option><option>72h</option><option>5 jours</option><option>7 jours</option></select></div>
+      <div class="form-row"><label class="form-label">Type de soin</label>
+        <select class="form-input">
+          <option>Médicament oral</option><option>Injection SC</option><option>Injection IM</option><option>Injection IV</option>
+          <option>Perfusion</option><option>Pansement</option><option>Nettoyage plaie</option><option>Autre</option>
+        </select>
       </div>
-      <div class="form-row"><label class="form-label">Note / Instructions</label><input class="form-input" placeholder="Optionnel - observations particulieres..."></div>
+      <div class="form-grid-2">
+        <div class="form-row"><label class="form-label">Produit / Médicament</label><input class="form-input" placeholder="Ex : Amoxicilline 250mg"></div>
+        <div class="form-row"><label class="form-label">Dose</label><input class="form-input" placeholder="Ex : 1 comprimé, 5ml…"></div>
+        <div class="form-row"><label class="form-label">Fréquence</label>
+          <select class="form-input"><option>1×/jour</option><option>2×/jour</option><option>3×/jour</option><option>Toutes les 8h</option><option>Toutes les 6h</option><option>Au besoin</option><option>Unique</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Durée</label>
+          <select class="form-input"><option>Jusqu'à la sortie</option><option>24h</option><option>48h</option><option>72h</option><option>5 jours</option><option>7 jours</option></select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Note / Instructions</label><input class="form-input" placeholder="Optionnel — observations particulières…"></div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-soin')">Annuler</button><button class="btn btn-primary" onclick="toast('Soin ajoute au protocole','#059669');closeModal('modal-soin')">Ajouter</button></div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-soin')">Annuler</button>
+      <button class="btn btn-primary" onclick="toast('Soin ajouté au protocole','#059669');closeModal('modal-soin')">Ajouter</button>
+    </div>
   </div>
 </div>
 
-<!-- MODAL: Enter evolution -->
+{# ══ MODAL : Saisir évolution ══ #}
 <div class="modal-overlay" id="modal-evo" onclick="if(event.target===this)closeModal('modal-evo')">
   <div class="modal-box" style="width:500px;">
     <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;">Saisir une evolution</p>
+      <p style="font-size:14px;font-weight:700;color:#0f172a;">Saisir une évolution</p>
       <button onclick="closeModal('modal-evo')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Etat general</label><select class="form-input" id="evo-etat"><option value="ameliore">Ameliore</option><option value="stable" selected>Stable</option><option value="surveille">A surveiller</option><option value="degrade">Degrade</option></select></div>
+        <div class="form-row"><label class="form-label">État général</label>
+          <select class="form-input" id="evo-etat">
+            <option value="ameliore">✅ Amélioré</option><option value="stable" selected>➡ Stable</option>
+            <option value="surveille">⚠ À surveiller</option><option value="degrade">🔴 Dégradé</option>
+          </select>
+        </div>
         <div class="form-row"><label class="form-label">Heure</label><input class="form-input" type="time" id="evo-heure" value="10:30"></div>
       </div>
-      <div class="form-row"><label class="form-label">Observation clinique *</label><textarea class="form-input" id="evo-note" placeholder="Decrivez l'etat du patient, comportement, appetit, reaction aux traitements..." style="min-height:100px;"></textarea></div>
+      <div class="form-row"><label class="form-label">Observation clinique *</label><textarea class="form-input" id="evo-note" placeholder="Décrivez l'état du patient, comportement, appétit, réaction aux traitements…" style="min-height:100px;"></textarea></div>
       <div class="form-grid-3">
-        <div class="form-row"><label class="form-label">Temperature (C)</label><input class="form-input" type="number" step="0.1" placeholder="38.5"></div>
+        <div class="form-row"><label class="form-label">Température (°C)</label><input class="form-input" type="number" step="0.1" placeholder="38.5"></div>
         <div class="form-row"><label class="form-label">FC (bpm)</label><input class="form-input" type="number" placeholder="120"></div>
         <div class="form-row"><label class="form-label">FR (/min)</label><input class="form-input" type="number" placeholder="22"></div>
       </div>
-      <div class="form-row"><label class="form-label">Veterinaire</label><select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select></div>
+      <div class="form-row"><label class="form-label">Vétérinaire</label>
+        <select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select>
+      </div>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-evo')">Annuler</button><button class="btn btn-primary" onclick="toast('Evolution enregistree','#059669');closeModal('modal-evo')">Enregistrer</button></div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-evo')">Annuler</button>
+      <button class="btn btn-primary" onclick="toast('Évolution enregistrée','#059669');closeModal('modal-evo')">Enregistrer</button>
+    </div>
   </div>
 </div>
 
-<!-- MODAL: Discharge -->
+{# ══ MODAL : Sortie ══ #}
 <div class="modal-overlay" id="modal-sortie" onclick="if(event.target===this)closeModal('modal-sortie')">
   <div class="modal-box">
     <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;">Preparer la sortie</p>
+      <p style="font-size:14px;font-weight:700;color:#0f172a;">Préparer la sortie</p>
       <button onclick="closeModal('modal-sortie')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body">
@@ -315,15 +349,21 @@
         <div class="form-row"><label class="form-label">Date de sortie</label><input class="form-input" type="date" value="2026-03-23"></div>
         <div class="form-row"><label class="form-label">Heure de sortie</label><input class="form-input" type="time" value="11:00"></div>
       </div>
-      <div class="form-row"><label class="form-label">Conclusion medicale *</label><textarea class="form-input" placeholder="Resume de l'hospitalisation, evolution, etat a la sortie..." style="min-height:90px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Traitement de sortie</label><textarea class="form-input" placeholder="Medicaments a domicile, dosage, duree..." style="min-height:70px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Instructions pour le proprietaire</label><textarea class="form-input" placeholder="Repos, alimentation, signes a surveiller, RDV de controle..." style="min-height:70px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Prochain RDV de controle</label><input class="form-input" type="date"></div>
+      <div class="form-row"><label class="form-label">Conclusion médicale *</label><textarea class="form-input" placeholder="Résumé de l'hospitalisation, évolution, état à la sortie…" style="min-height:90px;"></textarea></div>
+      <div class="form-row"><label class="form-label">Traitement de sortie</label><textarea class="form-input" placeholder="Médicaments à domicile, dosage, durée…" style="min-height:70px;"></textarea></div>
+      <div class="form-row"><label class="form-label">Instructions pour le propriétaire</label><textarea class="form-input" placeholder="Repos, alimentation, signes à surveiller, RDV de contrôle…" style="min-height:70px;"></textarea></div>
+      <div class="form-row"><label class="form-label">Prochain RDV de contrôle</label><input class="form-input" type="date"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('modal-sortie')">Annuler</button>
-      <button class="btn btn-secondary" onclick="window.print();closeModal('modal-sortie')"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M3 1h6v3H3V1zM1 4h10v5H9v2H3V9H1V4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Imprimer CR</button>
-      <button class="btn btn-green" onclick="toast('Sortie validee - CR genere','#059669');closeModal('modal-sortie')"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Valider la sortie</button>
+      <button class="btn btn-secondary" onclick="window.print();closeModal('modal-sortie')">
+        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M3 1h6v3H3V1zM1 4h10v5H9v2H3V9H1V4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        Imprimer CR
+      </button>
+      <button class="btn btn-green" onclick="toast('Sortie validée — CR généré','#059669');closeModal('modal-sortie')">
+        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Valider la sortie
+      </button>
     </div>
   </div>
 </div>
@@ -333,111 +373,499 @@
 
 {% block javascripts %}
 <script>
-// ── DATA ──
-var PATIENTS = [
-  {id:1,animal:'Rex',espece:'\ud83d\udc36',race:'Berger Allemand',age:'7 ans',poids:'36 kg',proprio:'Francois Garnier',tel:'+33 6 77 66 55 44',avatar:'RX',color:'#dc2626',bg:'#fef2f2',motif:'Insuffisance renale aigue',severity:'critique',vet:'Dr. Rousseau',admission:'2026-03-21 09:00',sortie_prev:'2026-03-25',notes:'Patient sous perfusion continue. Surveiller diurese toutes les 4h. Suivi BU quotidien.',
-    soins:[{id:101,type:'Perfusion IV',produit:'NaCl 0.9%',dose:'30ml/h',freq:'Continue',done:true,heure:'En cours',priorite:'haute'},{id:102,type:'Medicament IV',produit:'Furosemide',dose:'2mg/kg',freq:'2x/jour',done:true,heure:'8h00',priorite:'haute'},{id:103,type:'Medicament IV',produit:'Furosemide',dose:'2mg/kg',freq:'2x/jour',done:false,heure:'20h00',priorite:'haute'},{id:104,type:'Prise de sang',produit:'Bilan renal',dose:'\u2014',freq:'1x/jour',done:true,heure:'7h30',priorite:'normale'},{id:105,type:'Prise de sang',produit:'Bilan renal',dose:'\u2014',freq:'1x/jour',done:false,heure:'7h30 demain',priorite:'normale'}],
-    alimentation:{type:'Ration reduite (50%)',eau:'Aucun acces (perfusion)',croquettes_g:0,eau_ml:0,eau_perf_ml:720,repas:[{heure:'7h30',type:'Alimentation humide',quantite:'100g',administre:true},{heure:'18h00',type:'Alimentation humide',quantite:'100g',administre:false}]},
-    evolution:[{heure:'10h00',date:'22/03',etat:'surveille',note:'Legere amelioration de la diurese. Reste abattu. Appetit nul. Muqueuses pales.',vet:'Dr. Rousseau',temp:38.9,fc:110,fr:24},{heure:'7h00',date:'22/03',etat:'surveille',note:'Nuit difficile. Vomissements x 2. Perfusion maintenue. Uremie elevee au bilan.',vet:'Dr. Martin',temp:39.1,fc:118,fr:26},{heure:'18h00',date:'21/03',etat:'degrade',note:'Admission en urgence. Deshydrate, abattu. Debut protocole perfusion.',vet:'Dr. Rousseau',temp:39.4,fc:125,fr:28}]
+// ════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════
+const PATIENTS = [
+  {
+    id:1, animal:'Rex', espece:'🐶', race:'Berger Allemand', age:'7 ans', poids:'36 kg',
+    proprio:'François Garnier', tel:'+33 6 77 66 55 44',
+    avatar:'RX', color:'#dc2626', bg:'#fef2f2',
+    motif:'Insuffisance rénale aiguë',
+    severity:'critique', vet:'Dr. Rousseau',
+    admission:'2026-03-21 09:00', sortie_prev:'2026-03-25',
+    notes:'Patient sous perfusion continue. Surveiller diurèse toutes les 4h. Suivi BU quotidien.',
+    soins:[
+      {id:101, type:'Perfusion IV', produit:'NaCl 0.9%', dose:'30ml/h', freq:'Continue', done:true,  heure:'En cours', priorite:'haute'},
+      {id:102, type:'Médicament IV', produit:'Furosémide', dose:'2mg/kg', freq:'2×/jour', done:true,  heure:'8h00', priorite:'haute'},
+      {id:103, type:'Médicament IV', produit:'Furosémide', dose:'2mg/kg', freq:'2×/jour', done:false, heure:'20h00', priorite:'haute'},
+      {id:104, type:'Prise de sang', produit:'Bilan rénal', dose:'—', freq:'1×/jour', done:true,  heure:'7h30', priorite:'normale'},
+      {id:105, type:'Prise de sang', produit:'Bilan rénal', dose:'—', freq:'1×/jour', done:false, heure:'7h30 demain', priorite:'normale'},
+    ],
+    alimentation:{
+      type:'Ration réduite (50%)', eau:'Aucun accès (perfusion)',
+      croquettes_g:0, eau_ml:0, eau_perf_ml:720,
+      repas:[
+        {heure:'7h30', type:'Alimentation humide', quantite:'100g', administre:true},
+        {heure:'18h00', type:'Alimentation humide', quantite:'100g', administre:false},
+      ]
+    },
+    evolution:[
+      {heure:'10h00', date:'22/03', etat:'surveille', note:'Légère amélioration de la diurèse. Reste abattu. Appétit nul. Muqueuses pâles.', vet:'Dr. Rousseau', temp:38.9, fc:110, fr:24},
+      {heure:'7h00',  date:'22/03', etat:'surveille', note:'Nuit difficile. Vomissements × 2. Perfusion maintenue. Urémie élevée au bilan.', vet:'Dr. Martin',   temp:39.1, fc:118, fr:26},
+      {heure:'18h00', date:'21/03', etat:'degrade',   note:'Admission en urgence. Déshydraté, abattu. Début protocole perfusion.', vet:'Dr. Rousseau', temp:39.4, fc:125, fr:28},
+    ]
   },
-  {id:2,animal:'Luna',espece:'\ud83d\udc36',race:'Golden Retriever',age:'5 ans',poids:'28.5 kg',proprio:'Sarah Jenkins',tel:'+33 6 33 44 55 66',avatar:'LU',color:'#0891b2',bg:'#ecfeff',motif:'Post-operatoire sterilisation',severity:'stable',vet:'Dr. Dupont',admission:'2026-03-22 08:30',sortie_prev:'2026-03-23',notes:'Suite operatoire simple. Surveillance cicatrice et reprise alimentation progressive.',
-    soins:[{id:201,type:'Medicament oral',produit:'Meloxicam',dose:'1.5mg/kg',freq:'1x/jour',done:true,heure:'9h00',priorite:'normale'},{id:202,type:'Medicament oral',produit:'Meloxicam',dose:'1.5mg/kg',freq:'1x/jour',done:false,heure:'9h00 demain',priorite:'normale'},{id:203,type:'Pansement',produit:'Cicatrice abdominale',dose:'\u2014',freq:'1x/jour',done:true,heure:'8h30',priorite:'normale'},{id:204,type:'Pansement',produit:'Cicatrice abdominale',dose:'\u2014',freq:'1x/jour',done:false,heure:'8h30 demain',priorite:'normale'}],
-    alimentation:{type:'Ration reduite (50%)',eau:'Libre acces',croquettes_g:150,eau_ml:400,eau_perf_ml:0,repas:[{heure:'8h00',type:'Patee post-op',quantite:'75g',administre:true},{heure:'13h00',type:'Patee post-op',quantite:'75g',administre:true},{heure:'18h00',type:'Patee post-op',quantite:'75g',administre:false}]},
-    evolution:[{heure:'9h30',date:'22/03',etat:'ameliore',note:'Reveil post-op sans complication. Mange un peu. Cicatrice propre. Douleur bien controlee.',vet:'Dr. Dupont',temp:38.5,fc:92,fr:20}]
+  {
+    id:2, animal:'Luna', espece:'🐶', race:'Golden Retriever', age:'5 ans', poids:'28.5 kg',
+    proprio:'Sarah Jenkins', tel:'+33 6 33 44 55 66',
+    avatar:'LU', color:'#0891b2', bg:'#ecfeff',
+    motif:'Post-opératoire stérilisation',
+    severity:'stable', vet:'Dr. Dupont',
+    admission:'2026-03-22 08:30', sortie_prev:'2026-03-23',
+    notes:'Suite opératoire simple. Surveillance cicatrice et reprise alimentation progressive.',
+    soins:[
+      {id:201, type:'Médicament oral', produit:'Méloxicam', dose:'1.5mg/kg', freq:'1×/jour', done:true,  heure:'9h00', priorite:'normale'},
+      {id:202, type:'Médicament oral', produit:'Méloxicam', dose:'1.5mg/kg', freq:'1×/jour', done:false, heure:'9h00 demain', priorite:'normale'},
+      {id:203, type:'Pansement',       produit:'Cicatrice abdominale', dose:'—', freq:'1×/jour', done:true, heure:'8h30', priorite:'normale'},
+      {id:204, type:'Pansement',       produit:'Cicatrice abdominale', dose:'—', freq:'1×/jour', done:false, heure:'8h30 demain', priorite:'normale'},
+    ],
+    alimentation:{
+      type:'Ration réduite (50%)', eau:'Libre accès',
+      croquettes_g:150, eau_ml:400, eau_perf_ml:0,
+      repas:[
+        {heure:'8h00',  type:'Pâtée post-op', quantite:'75g', administre:true},
+        {heure:'13h00', type:'Pâtée post-op', quantite:'75g', administre:true},
+        {heure:'18h00', type:'Pâtée post-op', quantite:'75g', administre:false},
+      ]
+    },
+    evolution:[
+      {heure:'9h30', date:'22/03', etat:'ameliore', note:'Réveil post-op sans complication. Mange un peu. Cicatrice propre. Douleur bien contrôlée.', vet:'Dr. Dupont', temp:38.5, fc:92, fr:20},
+    ]
   },
-  {id:3,animal:'Mimi',espece:'\ud83d\udc31',race:'Europeen',age:'2 ans',poids:'3.8 kg',proprio:'Sophie Dubois',tel:'+33 6 12 34 56 78',avatar:'MI',color:'#7c3aed',bg:'#f5f3ff',motif:'Ingestion corps etranger - suivi post-endoscopie',severity:'surveille',vet:'Dr. Dupont',admission:'2026-03-22 10:15',sortie_prev:'2026-03-23',notes:'Extraction endoscopique reussie (fil de laine). Surveillance 48h. Alimentation progressive.',
-    soins:[{id:301,type:'Medicament oral',produit:'Cerenia 4mg',dose:'1mg/kg',freq:'1x/jour',done:true,heure:'10h30',priorite:'normale'},{id:302,type:'Medicament oral',produit:'Cerenia 4mg',dose:'1mg/kg',freq:'1x/jour',done:false,heure:'10h30 demain',priorite:'normale'},{id:303,type:'Injection SC',produit:'Metronidazole',dose:'15mg/kg',freq:'2x/jour',done:true,heure:'11h00',priorite:'normale'},{id:304,type:'Injection SC',produit:'Metronidazole',dose:'15mg/kg',freq:'2x/jour',done:false,heure:'23h00',priorite:'normale'}],
-    alimentation:{type:'Ration reduite (50%)',eau:'Libre acces',croquettes_g:25,eau_ml:60,eau_perf_ml:0,repas:[{heure:'12h00',type:'Alimentation humide',quantite:'30g',administre:true},{heure:'18h00',type:'Alimentation humide',quantite:'30g',administre:false}]},
-    evolution:[{heure:'11h30',date:'22/03',etat:'stable',note:'Etat satisfaisant. A bu un peu. Aucun vomissement depuis l\'extraction. Legerement apathique.',vet:'Dr. Dupont',temp:38.6,fc:140,fr:22}]
+  {
+    id:3, animal:'Mimi', espece:'🐱', race:'Européen', age:'2 ans', poids:'3.8 kg',
+    proprio:'Sophie Dubois', tel:'+33 6 12 34 56 78',
+    avatar:'MI', color:'#7c3aed', bg:'#f5f3ff',
+    motif:'Ingestion corps étranger — suivi post-endoscopie',
+    severity:'surveille', vet:'Dr. Dupont',
+    admission:'2026-03-22 10:15', sortie_prev:'2026-03-23',
+    notes:'Extraction endoscopique réussie (fil de laine). Surveillance 48h. Alimentation progressive.',
+    soins:[
+      {id:301, type:'Médicament oral', produit:'Cerenia 4mg', dose:'1mg/kg', freq:'1×/jour', done:true, heure:'10h30', priorite:'normale'},
+      {id:302, type:'Médicament oral', produit:'Cerenia 4mg', dose:'1mg/kg', freq:'1×/jour', done:false, heure:'10h30 demain', priorite:'normale'},
+      {id:303, type:'Injection SC',    produit:'Métronidazole', dose:'15mg/kg', freq:'2×/jour', done:true, heure:'11h00', priorite:'normale'},
+      {id:304, type:'Injection SC',    produit:'Métronidazole', dose:'15mg/kg', freq:'2×/jour', done:false, heure:'23h00', priorite:'normale'},
+    ],
+    alimentation:{
+      type:'Ration réduite (50%)', eau:'Libre accès',
+      croquettes_g:25, eau_ml:60, eau_perf_ml:0,
+      repas:[
+        {heure:'12h00', type:'Alimentation humide', quantite:'30g', administre:true},
+        {heure:'18h00', type:'Alimentation humide', quantite:'30g', administre:false},
+      ]
+    },
+    evolution:[
+      {heure:'11h30', date:'22/03', etat:'stable', note:'État satisfaisant. A bu un peu. Aucun vomissement depuis l\'extraction. Légèrement apathique.', vet:'Dr. Dupont', temp:38.6, fc:140, fr:22},
+    ]
   },
-  {id:4,animal:'Bijou',espece:'\ud83d\udc31',race:'Persan',age:'1 an',poids:'3.1 kg',proprio:'Claire Moreau',tel:'+33 6 66 77 88 99',avatar:'BJ',color:'#f59e0b',bg:'#fffbeb',motif:'Gastro-enterite aigue avec deshydratation',severity:'surveille',vet:'Dr. Martin',admission:'2026-03-22 07:45',sortie_prev:'2026-03-24',notes:'Deshydratation moderee. Perfusion de reequilibration. Reevaluation a 24h.',
-    soins:[{id:401,type:'Perfusion IV',produit:'Ringer Lactate',dose:'20ml/h',freq:'Continue',done:true,heure:'En cours',priorite:'haute'},{id:402,type:'Injection IV',produit:'Metoclopramide',dose:'0.5mg/kg',freq:'3x/jour',done:true,heure:'8h00',priorite:'normale'},{id:403,type:'Injection IV',produit:'Metoclopramide',dose:'0.5mg/kg',freq:'3x/jour',done:false,heure:'16h00',priorite:'normale'},{id:404,type:'Injection IV',produit:'Metoclopramide',dose:'0.5mg/kg',freq:'3x/jour',done:false,heure:'24h00',priorite:'normale'}],
-    alimentation:{type:'Diete stricte',eau:'Aucun acces (perfusion)',croquettes_g:0,eau_ml:0,eau_perf_ml:480,repas:[]},
-    evolution:[{heure:'9h00',date:'22/03',etat:'stable',note:'Perfusion en cours. Aucun vomissement depuis 4h. Toujours abattu mais reactif.',vet:'Dr. Martin',temp:38.8,fc:148,fr:24},{heure:'7h45',date:'22/03',etat:'surveille',note:'Admission. Vomissements repetes (x6 en 12h). Deshydratation estimee a 8%. Debut perfusion.',vet:'Dr. Martin',temp:39.2,fc:162,fr:28}]
+  {
+    id:4, animal:'Bijou', espece:'🐱', race:'Persan', age:'1 an', poids:'3.1 kg',
+    proprio:'Claire Moreau', tel:'+33 6 66 77 88 99',
+    avatar:'BJ', color:'#f59e0b', bg:'#fffbeb',
+    motif:'Gastro-entérite aiguë avec déshydratation',
+    severity:'surveille', vet:'Dr. Martin',
+    admission:'2026-03-22 07:45', sortie_prev:'2026-03-24',
+    notes:'Déshydratation modérée. Perfusion de rééquilibration. Réévaluation à 24h.',
+    soins:[
+      {id:401, type:'Perfusion IV', produit:'Ringer Lactate', dose:'20ml/h', freq:'Continue', done:true, heure:'En cours', priorite:'haute'},
+      {id:402, type:'Injection IV', produit:'Métoclopramide', dose:'0.5mg/kg', freq:'3×/jour', done:true, heure:'8h00', priorite:'normale'},
+      {id:403, type:'Injection IV', produit:'Métoclopramide', dose:'0.5mg/kg', freq:'3×/jour', done:false, heure:'16h00', priorite:'normale'},
+      {id:404, type:'Injection IV', produit:'Métoclopramide', dose:'0.5mg/kg', freq:'3×/jour', done:false, heure:'24h00', priorite:'normale'},
+    ],
+    alimentation:{
+      type:'Diète stricte', eau:'Aucun accès (perfusion)',
+      croquettes_g:0, eau_ml:0, eau_perf_ml:480,
+      repas:[]
+    },
+    evolution:[
+      {heure:'9h00',  date:'22/03', etat:'stable',    note:'Perfusion en cours. Aucun vomissement depuis 4h. Toujours abattu mais réactif.', vet:'Dr. Martin', temp:38.8, fc:148, fr:24},
+      {heure:'7h45',  date:'22/03', etat:'surveille', note:'Admission. Vomissements répétés (×6 en 12h). Déshydratation estimée à 8%. Début perfusion.', vet:'Dr. Martin', temp:39.2, fc:162, fr:28},
+    ]
   }
 ];
 
-// ── STATE ──
-var selectedId=null;var currentTab='soins';
+// ════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════
+let selectedId = null;
+let currentTab = 'soins';
 
-// ── UTILS ──
-function toast(m,c){c=c||'#16a34a';var t=document.getElementById('toast');t.textContent=m;t.style.background=c;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
+// ════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════
+function toast(m,c='#16a34a'){const t=document.getElementById('toast');t.textContent=m;t.style.background=c;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(8px)';},2500);}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-function fmtDays(dateStr){var d=Math.floor((new Date()-new Date(dateStr))/86400000);if(d===0)return"Admis aujourd'hui";if(d===1)return'1 jour';return d+' jours';}
+function fmtDays(dateStr){
+  const d = Math.floor((new Date()-new Date(dateStr))/86400000);
+  if(d===0) return "Admis aujourd'hui";
+  if(d===1) return '1 jour';
+  return `${d} jours`;
+}
 function severityColor(s){return{critique:'#dc2626',surveille:'#d97706',stable:'#059669'}[s]||'#64748b';}
 function severityBg(s){return{critique:'#fef2f2',surveille:'#fff7ed',stable:'#f0fdf4'}[s]||'#f8fafc';}
-function severityLabel(s){return{critique:'Critique',surveille:'Surveille',stable:'Stable'}[s]||s;}
+function severityLabel(s){return{critique:'Critique',surveille:'Surveillé',stable:'Stable'}[s]||s;}
 function etatColor(e){return{ameliore:'#059669',stable:'#0891b2',surveille:'#d97706',degrade:'#dc2626'}[e]||'#64748b';}
-function etatLabel(e){return{ameliore:'Ameliore',stable:'Stable',surveille:'A surveiller',degrade:'Degrade'}[e]||e;}
-function etatIcon(e){return{ameliore:'\u2705',stable:'\u27a1',surveille:'\u26a0\ufe0f',degrade:'\ud83d\udd34'}[e]||'\u2022';}
+function etatLabel(e){return{ameliore:'Amélioré',stable:'Stable',surveille:'À surveiller',degrade:'Dégradé'}[e]||e;}
+function etatIcon(e){return{ameliore:'✅',stable:'➡',surveille:'⚠️',degrade:'🔴'}[e]||'•';}
 
-// ── LIST ──
+// ════════════════════════════════════════════════════
+// LIST
+// ════════════════════════════════════════════════════
 function renderList(){
-  document.getElementById('list-count').textContent=PATIENTS.length+' patients';
-  var sorted=PATIENTS.slice().sort(function(a,b){var order={critique:0,surveille:1,stable:2};return(order[a.severity]||3)-(order[b.severity]||3);});
-  document.getElementById('hosp-list').innerHTML=sorted.map(function(p){
-    var active=p.id===selectedId;var sc=severityColor(p.severity);var sb=severityBg(p.severity);var done=p.soins.filter(function(s){return s.done;}).length;var total=p.soins.length;var pct=Math.round(done/total*100);
-    return '<div class="hcard'+(active?' active':'')+'" onclick="selectPatient('+p.id+')" id="hc-'+p.id+'"><div class="hcard-row"><div class="hcard-avatar" style="background:'+p.bg+';color:'+p.color+';">'+p.espece+'</div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><p style="font-size:13.5px;font-weight:700;color:#0f172a;">'+p.animal+'</p><span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:'+sb+';color:'+sc+';">'+severityLabel(p.severity)+'</span></div><p style="font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+p.motif+'</p><div style="display:flex;align-items:center;gap:8px;margin-top:3px;"><span style="font-size:11px;color:#94a3b8;">'+fmtDays(p.admission)+'</span><span style="font-size:11px;color:#94a3b8;">\u00b7 '+p.vet+'</span></div></div><div style="text-align:right;flex-shrink:0;"><p style="font-size:12px;font-weight:600;color:'+(done===total?'#059669':'#0f172a')+';">'+done+'/'+total+'</p><p style="font-size:10px;color:#94a3b8;">soins</p></div></div><div style="margin-top:8px;"><div style="height:3px;border-radius:2px;background:#e2e8f0;overflow:hidden;"><div style="height:100%;border-radius:2px;background:'+(done===total?'#16a34a':'#4338ca')+';width:'+pct+'%;transition:width .4s;"></div></div></div></div>';
+  document.getElementById('list-count').textContent = `${PATIENTS.length} patients`;
+  const sorted = [...PATIENTS].sort((a,b)=>{
+    const order={critique:0,surveille:1,stable:2};
+    return (order[a.severity]||3)-(order[b.severity]||3);
+  });
+  document.getElementById('hosp-list').innerHTML = sorted.map(p=>{
+    const active = p.id===selectedId;
+    const sc = severityColor(p.severity);
+    const sb = severityBg(p.severity);
+    const done = p.soins.filter(s=>s.done).length;
+    const total = p.soins.length;
+    const pct = Math.round(done/total*100);
+    const lastEvo = p.evolution[0];
+    return `<div class="hcard${active?' active':''}" onclick="selectPatient(${p.id})" id="hc-${p.id}">
+      <div class="hcard-row">
+        <div class="hcard-avatar" style="background:${p.bg};color:${p.color};">${p.espece}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+            <p style="font-size:13.5px;font-weight:700;color:#0f172a;">${p.animal}</p>
+            <span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+          </div>
+          <p style="font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+            <span style="font-size:11px;color:#94a3b8;">${fmtDays(p.admission)}</span>
+            <span style="font-size:11px;color:#94a3b8;">· ${p.vet}</span>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <p style="font-size:12px;font-weight:600;color:${done===total?'#059669':'#0f172a'};">${done}/${total}</p>
+          <p style="font-size:10px;color:#94a3b8;">soins</p>
+        </div>
+      </div>
+      <!-- Progress bar soins -->
+      <div style="margin-top:8px;">
+        <div style="height:3px;border-radius:2px;background:#e2e8f0;overflow:hidden;">
+          <div style="height:100%;border-radius:2px;background:${done===total?'#16a34a':'#4338ca'};width:${pct}%;transition:width .4s;"></div>
+        </div>
+      </div>
+    </div>`;
   }).join('');
 }
 
-// ── SELECT + DETAIL ──
+// ════════════════════════════════════════════════════
+// SELECT + DETAIL
+// ════════════════════════════════════════════════════
 function selectPatient(id){
-  selectedId=id;currentTab='soins';
-  document.querySelectorAll('.hcard').forEach(function(el){el.classList.toggle('active',el.id==='hc-'+id);});
-  var p=PATIENTS.find(function(x){return x.id===id;});
-  if(window.innerWidth>1024){renderDetail(p);}
-  else{
-    renderDetail(p);var w=window.innerWidth;var html=document.getElementById('detail-panel').innerHTML;
-    if(w<=1024&&w>640){document.getElementById('slide-inner').innerHTML=html;document.getElementById('detail-slide').classList.add('open');document.getElementById('drawer-overlay').classList.add('open');}
-    else if(w<=640){document.getElementById('bs-inner').innerHTML=html;var bs=document.getElementById('bs');document.getElementById('bs-overlay').style.display='block';bs.style.display='flex';requestAnimationFrame(function(){bs.style.transform='translateY(0)';});}
+  selectedId = id;
+  currentTab = 'soins';
+  document.querySelectorAll('.hcard').forEach(el=>el.classList.toggle('active',el.id===`hc-${id}`));
+  var p = PATIENTS.find(x=>x.id===id);
+  if(window.innerWidth > 1024){
+    renderDetail(p);
+  } else {
+    renderDetail(p);
+    var w = window.innerWidth;
+    var html = document.getElementById('detail-panel').innerHTML;
+    if(w <= 1024 && w > 640){
+      document.getElementById('slide-inner').innerHTML = html;
+      document.getElementById('detail-slide').classList.add('open');
+      document.getElementById('drawer-overlay').classList.add('open');
+    } else if(w <= 640){
+      document.getElementById('bs-inner').innerHTML = html;
+      var bs = document.getElementById('bs');
+      document.getElementById('bs-overlay').style.display = 'block';
+      bs.style.display = 'flex';
+      requestAnimationFrame(function(){ bs.style.transform = 'translateY(0)'; });
+    }
   }
 }
-function setTab(tab){currentTab=tab;document.querySelectorAll('.dtab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab);});renderTabContent(PATIENTS.find(function(p){return p.id===selectedId;}));}
+
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.dtab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  renderTabContent(PATIENTS.find(p=>p.id===selectedId));
+}
 
 function renderDetail(p){
-  var sc=severityColor(p.severity),sb=severityBg(p.severity);var done=p.soins.filter(function(s){return s.done;}).length,total=p.soins.length;var lastEvo=p.evolution[0];
-  document.getElementById('detail-panel').innerHTML='<div class="detail-header"><div style="display:flex;align-items:center;gap:14px;"><div style="width:48px;height:48px;border-radius:50%;background:'+p.bg+';color:'+p.color+';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;">'+p.espece+'</div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;"><h2 style="font-size:16px;font-weight:700;color:#0f172a;">'+p.animal+'</h2><span style="font-size:12px;color:#64748b;">'+p.race+' \u00b7 '+p.age+' \u00b7 '+p.poids+'</span><span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:'+sb+';color:'+sc+';">'+severityLabel(p.severity)+'</span>'+(lastEvo?'<span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:'+etatColor(lastEvo.etat)+'22;color:'+etatColor(lastEvo.etat)+';">'+etatIcon(lastEvo.etat)+' '+etatLabel(lastEvo.etat)+'</span>':'')+'</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:12px;color:#94a3b8;">'+p.proprio+' \u00b7 '+p.tel+'</span><span style="font-size:12px;color:#94a3b8;">\u00b7 '+p.vet+'</span><span style="font-size:12px;color:#94a3b8;">\u00b7 Admis '+fmtDays(p.admission)+'</span></div></div><div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-evo\')">+ Evolution</button><button class="btn btn-secondary btn-xs" onclick="openModal(\'modal-soin\')">+ Soin</button><button class="btn btn-green btn-xs" onclick="openModal(\'modal-sortie\')"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Preparer la sortie</button></div></div>'+(p.notes?'<div style="margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#475569;border-left:3px solid #4338ca;">'+p.notes+'</div>':'')+'</div><div class="detail-tabs"><div class="dtab active" data-tab="soins" onclick="setTab(\'soins\')">Protocole de soins <span style="font-size:10px;background:'+(done===total?'#f0fdf4':'#eef2ff')+';color:'+(done===total?'#16a34a':'#4338ca')+';padding:0 6px;border-radius:10px;margin-left:5px;">'+done+'/'+total+'</span></div><div class="dtab" data-tab="alim" onclick="setTab(\'alim\')">Alimentation & Hydratation</div><div class="dtab" data-tab="evo" onclick="setTab(\'evo\')">Evolution <span style="font-size:10px;background:#f8fafc;color:#64748b;padding:0 6px;border-radius:10px;margin-left:5px;border:1px solid #e2e8f0;">'+p.evolution.length+'</span></div><div class="dtab" data-tab="sortie" onclick="setTab(\'sortie\')">Sortie & Compte-rendu</div></div><div class="detail-scroll" id="tab-content"></div>';
+  const sc=severityColor(p.severity), sb=severityBg(p.severity);
+  const done=p.soins.filter(s=>s.done).length, total=p.soins.length;
+  const lastEvo=p.evolution[0];
+
+  document.getElementById('detail-panel').innerHTML=`
+    <!-- Header -->
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:${p.bg};color:${p.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;">${p.espece}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+            <h2 style="font-size:16px;font-weight:700;color:#0f172a;">${p.animal}</h2>
+            <span style="font-size:12px;color:#64748b;">${p.race} · ${p.age} · ${p.poids}</span>
+            <span style="font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+            ${lastEvo?`<span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#94a3b8;">${p.proprio} · ${p.tel}</span>
+            <span style="font-size:12px;color:#94a3b8;">· ${p.vet}</span>
+            <span style="font-size:12px;color:#94a3b8;">· Admis ${fmtDays(p.admission)}</span>
+            <span style="font-size:12px;color:${p.sortie_prev===new Date().toISOString().slice(0,10)?'#d97706':'#94a3b8'};">· Sortie prévue ${new Date(p.sortie_prev).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn btn-secondary btn-xs" onclick="openModal('modal-evo')">+ Évolution</button>
+          <button class="btn btn-secondary btn-xs" onclick="openModal('modal-soin')">+ Soin</button>
+          <button class="btn btn-green btn-xs" onclick="openModal('modal-sortie')">
+            <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Préparer la sortie
+          </button>
+        </div>
+      </div>
+      ${p.notes?`<div style="margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#475569;border-left:3px solid #4338ca;">${p.notes}</div>`:''}
+    </div>
+
+    <!-- Tabs -->
+    <div class="detail-tabs">
+      <div class="dtab active" data-tab="soins" onclick="setTab('soins')">
+        Protocole de soins
+        <span style="font-size:10px;background:${done===total?'#f0fdf4':'#eef2ff'};color:${done===total?'#16a34a':'#4338ca'};padding:0 6px;border-radius:10px;margin-left:5px;">${done}/${total}</span>
+      </div>
+      <div class="dtab" data-tab="alim" onclick="setTab('alim')">Alimentation & Hydratation</div>
+      <div class="dtab" data-tab="evo" onclick="setTab('evo')">
+        Évolution
+        <span style="font-size:10px;background:#f8fafc;color:#64748b;padding:0 6px;border-radius:10px;margin-left:5px;border:1px solid #e2e8f0;">${p.evolution.length}</span>
+      </div>
+      <div class="dtab" data-tab="sortie" onclick="setTab('sortie')">Sortie & Compte-rendu</div>
+    </div>
+
+    <!-- Tab content -->
+    <div class="detail-scroll" id="tab-content"></div>`;
+
   renderTabContent(p);
 }
 
 function renderTabContent(p){
-  var el=document.getElementById('tab-content');if(!el||!p)return;
+  const el = document.getElementById('tab-content');
+  if(!el||!p) return;
+
   if(currentTab==='soins'){
-    var pending=p.soins.filter(function(s){return!s.done;});var done2=p.soins.filter(function(s){return s.done;});
-    el.innerHTML='<div class="widget"><div class="wh"><span class="wt">A faire - '+pending.length+' soins en attente</span><button class="btn btn-primary btn-xs" onclick="openModal(\'modal-soin\')">+ Ajouter un soin</button></div>'+(pending.length?'<div>'+pending.map(function(s){return soinRow(s,p);}).join('')+'</div>':'<div class="wb"><p style="font-size:13px;color:#94a3b8;text-align:center;padding:8px 0;">\u2705 Tous les soins du jour ont ete administres</p></div>')+'</div>'+(done2.length?'<div class="widget"><div class="wh"><span class="wt">Administres - '+done2.length+' soins</span></div><div>'+done2.map(function(s){return soinRow(s,p);}).join('')+'</div></div>':'');
+    const pending = p.soins.filter(s=>!s.done);
+    const done    = p.soins.filter(s=>s.done);
+    el.innerHTML=`
+      <div class="widget">
+        <div class="wh">
+          <span class="wt">À faire — ${pending.length} soins en attente</span>
+          <button class="btn btn-primary btn-xs" onclick="openModal('modal-soin')">+ Ajouter un soin</button>
+        </div>
+        ${pending.length?`<div>${pending.map(s=>soinRow(s,p)).join('')}</div>`:'<div class="wb"><p style="font-size:13px;color:#94a3b8;text-align:center;padding:8px 0;">✅ Tous les soins du jour ont été administrés</p></div>'}
+      </div>
+      ${done.length?`
+      <div class="widget">
+        <div class="wh"><span class="wt">Administrés — ${done.length} soins</span></div>
+        <div>${done.map(s=>soinRow(s,p)).join('')}</div>
+      </div>`:''}`;
+
   } else if(currentTab==='alim'){
-    var a=p.alimentation;var totalRepas=a.repas.length;var prisRepas=a.repas.filter(function(r){return r.administre;}).length;
-    el.innerHTML='<div class="w2" style="margin-bottom:12px;"><div class="widget"><div class="wh"><span class="wt">Alimentation</span></div><div class="wb"><div class="irow"><span class="il">Regime</span><span class="iv">'+a.type+'</span></div><div class="irow"><span class="il">Repas aujourd\'hui</span><span class="iv" style="color:'+(prisRepas===totalRepas?'#059669':'#d97706')+'">'+prisRepas+'/'+totalRepas+' donnes</span></div></div></div><div class="widget"><div class="wh"><span class="wt">Hydratation</span></div><div class="wb"><div class="irow"><span class="il">Acces eau</span><span class="iv">'+a.eau+'</span></div>'+(a.eau_perf_ml?'<div class="irow"><span class="il">Apport perfusion</span><span class="iv" style="color:#2563eb;">'+a.eau_perf_ml+' ml/jour</span></div>':'')+'<div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;"><span style="font-size:11.5px;color:#64748b;font-weight:500;">Hydratation estimee</span><span style="font-size:12px;font-weight:600;color:'+(a.eau_ml+a.eau_perf_ml>300?'#059669':'#d97706')+';">'+(a.eau_ml+a.eau_perf_ml)+' ml</span></div><div class="hydra-bar"><div class="hydra-fill" style="width:'+Math.min(100,Math.round((a.eau_ml+a.eau_perf_ml)/800*100))+'%;background:'+(a.eau_ml+a.eau_perf_ml>300?'#3b82f6':'#f59e0b')+';"></div></div><p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">Objectif indicatif : 50ml/kg/j ('+Math.round(parseFloat(p.poids)*50)+' ml)</p></div></div></div></div>';
+    const a = p.alimentation;
+    const totalRepas = a.repas.length;
+    const prisRepas = a.repas.filter(r=>r.administre).length;
+    el.innerHTML=`
+      <div class="w2" style="margin-bottom:12px;">
+        <div class="widget">
+          <div class="wh"><span class="wt">Alimentation</span><button class="btn btn-secondary btn-xs" onclick="toast('Modifier…','#4338ca')">Modifier</button></div>
+          <div class="wb">
+            <div class="irow"><span class="il">Régime</span><span class="iv">${a.type}</span></div>
+            <div class="irow"><span class="il">Repas aujourd'hui</span><span class="iv" style="color:${prisRepas===totalRepas?'#059669':'#d97706'}">${prisRepas}/${totalRepas} donnés</span></div>
+            ${a.croquettes_g?`<div class="irow"><span class="il">Quantité totale</span><span class="iv">${a.croquettes_g} g</span></div>`:''}
+            ${totalRepas===0?`<div style="margin-top:8px;text-align:center;padding:8px;background:#f8fafc;border-radius:8px;font-size:12.5px;color:#94a3b8;">Aucune alimentation prévue</div>`:''}
+          </div>
+          ${a.repas.length?`<div>${a.repas.map((r,i,arr)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;${i<arr.length-1?'border-bottom:1px solid #f1f5f9;':''}transition:background .12s;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
+              <div style="width:20px;height:20px;border-radius:6px;background:${r.administre?'#4338ca':'#e2e8f0'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="toast('${r.administre?'Repas annulé':'Repas marqué administré'}','#4338ca')">
+                ${r.administre?`<svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+              </div>
+              <div style="flex:1;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${r.type} · ${r.quantite}</p></div>
+              <span style="font-size:12px;color:#94a3b8;">${r.heure}</span>
+              <span class="badge ${r.administre?'b-ok':'b-grey'}" style="font-size:10px;">${r.administre?'Donné':'En attente'}</span>
+            </div>`).join('')}</div>`:''
+          }
+        </div>
+        <div class="widget">
+          <div class="wh"><span class="wt">Hydratation</span></div>
+          <div class="wb">
+            <div class="irow"><span class="il">Accès eau</span><span class="iv">${a.eau}</span></div>
+            ${a.eau_ml?`<div class="irow"><span class="il">Eau bue (estimée)</span><span class="iv">${a.eau_ml} ml</span></div>`:''}
+            ${a.eau_perf_ml?`<div class="irow"><span class="il">Apport perfusion</span><span class="iv" style="color:#2563eb;">${a.eau_perf_ml} ml/jour</span></div>`:''}
+            <div style="margin-top:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                <span style="font-size:11.5px;color:#64748b;font-weight:500;">Hydratation estimée</span>
+                <span style="font-size:12px;font-weight:600;color:${a.eau_ml+a.eau_perf_ml>300?'#059669':'#d97706'};">${a.eau_ml+a.eau_perf_ml} ml</span>
+              </div>
+              <div class="hydra-bar">
+                <div class="hydra-fill" style="width:${Math.min(100,Math.round((a.eau_ml+a.eau_perf_ml)/800*100))}%;background:${a.eau_ml+a.eau_perf_ml>300?'#3b82f6':'#f59e0b'};"></div>
+              </div>
+              <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">Objectif indicatif : 50ml/kg/j (${Math.round(parseFloat(p.poids)*50)} ml)</p>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
   } else if(currentTab==='evo'){
-    el.innerHTML='<div class="widget"><div class="wh"><span class="wt">Journal d\'evolution</span><button class="btn btn-primary btn-xs" onclick="openModal(\'modal-evo\')">+ Saisir une evolution</button></div><div class="wb">'+p.evolution.map(function(e,i,arr){return '<div class="evo-entry"><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;"><div class="evo-dot" style="background:'+etatColor(e.etat)+';"></div>'+(i<arr.length-1?'<div style="flex:1;width:1px;background:#e2e8f0;min-height:20px;margin-top:4px;"></div>':'')+'</div><div style="flex:1;min-width:0;padding-bottom:'+(i<arr.length-1?'10px':'0')+';"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;"><span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:'+etatColor(e.etat)+'18;color:'+etatColor(e.etat)+';">'+etatIcon(e.etat)+' '+etatLabel(e.etat)+'</span><span style="font-size:12px;font-weight:500;color:#334155;">'+e.date+' a '+e.heure+'</span><span style="font-size:11.5px;color:#94a3b8;">'+e.vet+'</span></div><p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:6px;">'+e.note+'</p>'+(e.temp||e.fc||e.fr?'<div style="display:inline-flex;gap:10px;background:#f8fafc;border:1px solid #e8edf2;border-radius:8px;padding:5px 10px;">'+(e.temp?'<span style="font-size:11.5px;color:#64748b;">\ud83c\udf21 <strong>'+e.temp+'\u00b0C</strong></span>':'')+(e.fc?'<span style="font-size:11.5px;color:#64748b;">\u2764\ufe0f <strong>'+e.fc+' bpm</strong></span>':'')+(e.fr?'<span style="font-size:11.5px;color:#64748b;">\ud83e\udec1 <strong>'+e.fr+'/min</strong></span>':'')+'</div>':'')+'</div></div>';}).join('')+'</div></div>';
+    el.innerHTML=`
+      <div class="widget">
+        <div class="wh">
+          <span class="wt">Journal d'évolution</span>
+          <button class="btn btn-primary btn-xs" onclick="openModal('modal-evo')">+ Saisir une évolution</button>
+        </div>
+        <div class="wb">
+          ${p.evolution.map((e,i,arr)=>`
+            <div class="evo-entry">
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+                <div class="evo-dot" style="background:${etatColor(e.etat)};"></div>
+                ${i<arr.length-1?`<div style="flex:1;width:1px;background:#e2e8f0;min-height:20px;margin-top:4px;"></div>`:''}
+              </div>
+              <div style="flex:1;min-width:0;padding-bottom:${i<arr.length-1?'10px':'0'};">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+                  <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:${etatColor(e.etat)}18;color:${etatColor(e.etat)};">${etatIcon(e.etat)} ${etatLabel(e.etat)}</span>
+                  <span style="font-size:12px;font-weight:500;color:#334155;">${e.date} à ${e.heure}</span>
+                  <span style="font-size:11.5px;color:#94a3b8;">${e.vet}</span>
+                </div>
+                <p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:6px;">${e.note}</p>
+                ${e.temp||e.fc||e.fr?`
+                <div style="display:inline-flex;gap:10px;background:#f8fafc;border:1px solid #e8edf2;border-radius:8px;padding:5px 10px;">
+                  ${e.temp?`<span style="font-size:11.5px;color:#64748b;">🌡 <strong>${e.temp}°C</strong></span>`:''}
+                  ${e.fc?`<span style="font-size:11.5px;color:#64748b;">❤️ <strong>${e.fc} bpm</strong></span>`:''}
+                  ${e.fr?`<span style="font-size:11.5px;color:#64748b;">🫁 <strong>${e.fr}/min</strong></span>`:''}
+                </div>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+
   } else if(currentTab==='sortie'){
-    var jours=Math.floor((new Date()-new Date(p.admission))/86400000)+1;var soinsRealis=p.soins.filter(function(s){return s.done;}).length;
-    el.innerHTML='<div class="w2" style="margin-bottom:12px;"><div class="widget"><div class="wh"><span class="wt">Resume du sejour</span></div><div class="wb"><div class="irow"><span class="il">Duree d\'hospitalisation</span><span class="iv">'+jours+' jour'+(jours>1?'s':'')+'</span></div><div class="irow"><span class="il">Soins realises</span><span class="iv">'+soinsRealis+' / '+p.soins.length+'</span></div><div class="irow"><span class="il">Observations</span><span class="iv">'+p.evolution.length+'</span></div><div class="irow"><span class="il">Veterinaire referent</span><span class="iv">'+p.vet+'</span></div></div></div><div class="widget"><div class="wh"><span class="wt">Derniere evolution</span></div><div class="wb">'+(p.evolution[0]?'<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span style="font-size:13px;font-weight:600;padding:3px 10px;border-radius:20px;background:'+etatColor(p.evolution[0].etat)+'18;color:'+etatColor(p.evolution[0].etat)+';">'+etatIcon(p.evolution[0].etat)+' '+etatLabel(p.evolution[0].etat)+'</span><span style="font-size:12px;color:#94a3b8;">'+p.evolution[0].date+' '+p.evolution[0].heure+'</span></div><p style="font-size:13px;color:#334155;line-height:1.5;">'+p.evolution[0].note+'</p>':'<p style="font-size:12.5px;color:#94a3b8;">Aucune evolution saisie</p>')+'</div></div></div><div class="widget"><div class="wh"><span class="wt">Compte-rendu de sortie</span><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-xs" onclick="openModal(\'modal-sortie\')">Preparer la sortie</button></div></div><div class="wb"><div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:14px;display:flex;align-items:center;gap:10px;"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" style="color:#d97706;flex-shrink:0;"><path d="M8 2l6 12H2L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><p style="font-size:12.5px;color:#92400e;">Le compte-rendu de sortie complet sera genere apres validation. Cliquez sur <strong>Preparer la sortie</strong> pour completer et imprimer.</p></div></div></div>';
+    const jours = Math.floor((new Date()-new Date(p.admission))/86400000)+1;
+    const soinsRealis = p.soins.filter(s=>s.done).length;
+    el.innerHTML=`
+      <div class="w2" style="margin-bottom:12px;">
+        <div class="widget">
+          <div class="wh"><span class="wt">Résumé du séjour</span></div>
+          <div class="wb">
+            <div class="irow"><span class="il">Durée d'hospitalisation</span><span class="iv">${jours} jour${jours>1?'s':''}</span></div>
+            <div class="irow"><span class="il">Admission</span><span class="iv">${new Date(p.admission).toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</span></div>
+            <div class="irow"><span class="il">Sortie prévue</span><span class="iv" style="color:#d97706;">${new Date(p.sortie_prev).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</span></div>
+            <div class="irow"><span class="il">Soins réalisés</span><span class="iv">${soinsRealis} / ${p.soins.length}</span></div>
+            <div class="irow"><span class="il">Observations</span><span class="iv">${p.evolution.length}</span></div>
+            <div class="irow"><span class="il">Vétérinaire référent</span><span class="iv">${p.vet}</span></div>
+          </div>
+        </div>
+        <div class="widget">
+          <div class="wh"><span class="wt">Dernière évolution</span></div>
+          <div class="wb">
+            ${p.evolution[0]?`
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-size:13px;font-weight:600;padding:3px 10px;border-radius:20px;background:${etatColor(p.evolution[0].etat)}18;color:${etatColor(p.evolution[0].etat)};">${etatIcon(p.evolution[0].etat)} ${etatLabel(p.evolution[0].etat)}</span>
+                <span style="font-size:12px;color:#94a3b8;">${p.evolution[0].date} ${p.evolution[0].heure}</span>
+              </div>
+              <p style="font-size:13px;color:#334155;line-height:1.5;">${p.evolution[0].note}</p>
+            `:'<p style="font-size:12.5px;color:#94a3b8;">Aucune évolution saisie</p>'}
+          </div>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="wh">
+          <span class="wt">Compte-rendu de sortie</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-xs" onclick="window.print()">
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M3 1h6v3H3V1zM1 4h10v5H9v2H3V9H1V4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Imprimer
+            </button>
+            <button class="btn btn-primary btn-xs" onclick="openModal('modal-sortie')">Préparer la sortie</button>
+          </div>
+        </div>
+        <div class="wb">
+          <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
+            <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Motif d'hospitalisation</p>
+            <p style="font-size:13px;color:#0f172a;font-weight:500;">${p.motif}</p>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
+            <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Soins réalisés</p>
+            ${p.soins.filter(s=>s.done).map(s=>`<p style="font-size:12.5px;color:#334155;margin-bottom:3px;">• ${s.type} — ${s.produit} ${s.dose} (${s.freq})</p>`).join('')||'<p style="font-size:12.5px;color:#94a3b8;">Aucun soin validé</p>'}
+          </div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:14px;display:flex;align-items:center;gap:10px;">
+            <svg width="16" height="16" fill="none" viewBox="0 0 16 16" style="color:#d97706;flex-shrink:0;"><path d="M8 2l6 12H2L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <p style="font-size:12.5px;color:#92400e;">Le compte-rendu de sortie complet sera généré après validation. Cliquez sur <strong>Préparer la sortie</strong> pour compléter et imprimer.</p>
+          </div>
+        </div>
+      </div>`;
   }
 }
 
-function soinRow(s,p){
-  var isHaute=s.priorite==='haute';
-  return '<div class="soin-row"><div class="soin-check'+(s.done?' done':'')+'" onclick="toggleSoin('+p.id+','+s.id+')"><svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 2.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;"><span style="font-size:12.5px;font-weight:'+(s.done?'400':'600')+';color:'+(s.done?'#94a3b8':'#0f172a')+';'+(s.done?'text-decoration:line-through;':'')+'">'+s.produit+'</span><span class="badge '+(isHaute?'b-alert':'b-grey')+'" style="font-size:10px;">'+s.type+'</span>'+(isHaute&&!s.done?'<span style="font-size:10px;font-weight:600;color:#dc2626;">\u25cf Priorite haute</span>':'')+'</div><p style="font-size:11.5px;color:#94a3b8;">'+s.dose+' \u00b7 '+s.freq+'</p></div><div style="text-align:right;flex-shrink:0;"><p style="font-size:12px;font-weight:500;color:'+(s.done?'#94a3b8':'#334155')+';">'+s.heure+'</p>'+(s.done?'<span class="badge b-ok" style="font-size:10px;">Fait</span>':'')+'</div></div>';
+function soinRow(s, p){
+  const isHaute = s.priorite==='haute';
+  return `<div class="soin-row">
+    <div class="soin-check${s.done?' done':''}" onclick="toggleSoin(${p.id},${s.id})">
+      <svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 2.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
+        <span style="font-size:12.5px;font-weight:${s.done?'400':'600'};color:${s.done?'#94a3b8':'#0f172a'};${s.done?'text-decoration:line-through;':''}">${s.produit}</span>
+        <span class="badge ${isHaute?'b-alert':'b-grey'}" style="font-size:10px;">${s.type}</span>
+        ${isHaute&&!s.done?`<span style="font-size:10px;font-weight:600;color:#dc2626;">● Priorité haute</span>`:''}
+      </div>
+      <p style="font-size:11.5px;color:#94a3b8;">${s.dose} · ${s.freq}</p>
+    </div>
+    <div style="text-align:right;flex-shrink:0;">
+      <p style="font-size:12px;font-weight:500;color:${s.done?'#94a3b8':'#334155'};">${s.heure}</p>
+      ${s.done?`<span class="badge b-ok" style="font-size:10px;">Fait</span>`:``}
+    </div>
+  </div>`;
 }
 
-function toggleSoin(patientId,soinId){
-  var p=PATIENTS.find(function(x){return x.id===patientId;});var s=p.soins.find(function(x){return x.id===soinId;});s.done=!s.done;
-  toast(s.done?s.produit+' - administre \u2713':s.produit+' - annule','#4338ca');renderList();renderTabContent(p);
+function toggleSoin(patientId, soinId){
+  const p = PATIENTS.find(x=>x.id===patientId);
+  const s = p.soins.find(x=>x.id===soinId);
+  s.done = !s.done;
+  toast(s.done?`${s.produit} — administré ✓`:`${s.produit} — annulé`,'#4338ca');
+  renderList();
+  renderTabContent(p);
 }
 
-// ── INIT ──
-function toggleSidebar(){var sb=document.querySelector('.sidebar');var ov=document.getElementById('drawer-overlay');if(!sb)return;var isOpen=sb.classList.contains('open');if(isOpen){sb.classList.remove('open');ov.classList.remove('open');}else{sb.classList.add('open');ov.classList.add('open');}}
-function closeSidebar(){var sb=document.querySelector('.sidebar');if(sb)sb.classList.remove('open');document.getElementById('drawer-overlay').classList.remove('open');}
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+// Sidebar drawer toggle
+function toggleSidebar(){
+  var sb = document.querySelector('.sidebar');
+  var ov = document.getElementById('drawer-overlay');
+  var isOpen = sb.classList.contains('open');
+  if(isOpen){ sb.classList.remove('open'); ov.classList.remove('open'); }
+  else { sb.classList.add('open'); ov.classList.add('open'); }
+}
+function closeSidebar(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
 
-function closeBs(){var bs=document.getElementById('bs');bs.style.transform='translateY(100%)';setTimeout(function(){bs.style.display='none';document.getElementById('bs-overlay').style.display='none';},300);}
-function closeSlide(){document.getElementById('detail-slide').classList.remove('open');document.getElementById('drawer-overlay').classList.remove('open');}
+// Slide / Bottom sheet detail
+function closeBs(){
+  var bs = document.getElementById('bs');
+  bs.style.transform = 'translateY(100%)';
+  setTimeout(function(){ bs.style.display='none'; document.getElementById('bs-overlay').style.display='none'; }, 300);
+}
 
+function closeSlide(){
+  document.getElementById('detail-slide').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 renderList();
 selectPatient(1);
 
-document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(function(m){m.classList.remove('open');});});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+});
 </script>
 {% endblock %}
