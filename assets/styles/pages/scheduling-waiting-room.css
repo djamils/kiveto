@@ -7,12 +7,12 @@ html, body { height: 100%; overflow: hidden; }
 
 /* Topbar clock */
 .wr-topbar { height: 52px; flex-shrink: 0; background: var(--surface-card,#fff); border-bottom: 1px solid var(--border-light,#e8edf2); display: flex; align-items: center; padding: 0 var(--space-4,16px); gap: var(--space-3,12px); position: relative; }
-.topbar-clock { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; background: var(--surface-subtle,#f8fafc); border: 1px solid var(--border-medium,#e2e8f0); border-radius: var(--radius-md,8px); padding: 4px var(--space-3,12px); }
+.wr-topbar-clock { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; background: var(--surface-subtle,#f8fafc); border: 1px solid var(--border-medium,#e2e8f0); border-radius: var(--radius-md,8px); padding: 4px var(--space-3,12px); }
 .clock-num { font-size: 18px; font-weight: var(--weight-medium,500); color: var(--text-primary,#0f172a); font-variant-numeric: tabular-nums; letter-spacing: -.5px; line-height: 1; }
 .clock-sep { font-size: 18px; font-weight: var(--weight-medium,500); color: var(--brand-500,#6366f1); animation: blink 1s infinite; }
 .clock-sec { font-size: var(--text-sm,13px); color: var(--text-subtle,#94a3b8); font-variant-numeric: tabular-nums; min-width: 18px; }
 @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
-.topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2,8px); }
+.wr-topbar-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2,8px); }
 
 /* Status bar */
 .status-bar { height: 52px; flex-shrink: 0; background: var(--surface-card,#fff); border-bottom: 1px solid var(--border-light,#e8edf2); display: flex; align-items: stretch; padding: 0 var(--space-4,16px); overflow-x: auto; }
@@ -163,11 +163,11 @@ select.form-input-wr { cursor: pointer; }
     .bottom-tabs { display: flex; }
     .queue-panel { display: none; }
     .control-panel { display: none; }
-    .topbar-clock { left: auto; transform: none; right: var(--space-4,16px); position: static; margin-left: auto; }
-    .topbar-right { display: none; }
+    .wr-topbar-clock { left: auto; transform: none; right: var(--space-4,16px); position: static; margin-left: auto; }
+    .wr-topbar-right { display: none; }
 }
 @media (max-width: 640px) {
-    .topbar-clock { display: none; }
+    .wr-topbar-clock { display: none; }
     .stat-label { display: none; }
     .stat-block { padding: 0 var(--space-2,8px); gap: var(--space-1,4px); }
     .stat-icon { width: 24px; height: 24px; }

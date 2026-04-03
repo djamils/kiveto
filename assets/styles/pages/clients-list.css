@@ -2,8 +2,8 @@
    Clients List — page-specific styles
    ───────────────────────────────────────────── */
 
-/* Topbar (page-specific override) */
-.topbar { height: 52px; flex-shrink: 0; background: var(--surface-card); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 var(--space-4); gap: var(--space-3); }
+/* Topbar (page-specific, prefixed to avoid conflict with base layout) */
+.clients-topbar { height: 52px; flex-shrink: 0; background: var(--surface-card); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 var(--space-4); gap: var(--space-3); }
 
 /* Search */
 .search-wrap { flex: 1; max-width: 480px; position: relative; }
@@ -108,7 +108,7 @@
   .sidebar { display: none; }
   .btn-burger { display: flex; }
   .search-wrap { max-width: none; }
-  .topbar-actions .btn span { display: none; }
+  .clients-topbar-actions .btn span { display: none; }
 }
 
 @media(max-width: 768px) {

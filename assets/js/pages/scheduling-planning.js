@@ -629,14 +629,14 @@ function deleteBlock(){
 
 // ---- Sidebar drawer ----
 function toggleSidebar(){
-  var sb = document.querySelector('.sidebar');
+  var sb = document.querySelector('.planning-sidebar');
   var ov = document.getElementById('drawer-overlay');
   var isOpen = sb.classList.contains('open');
   if(isOpen){ sb.classList.remove('open'); ov.classList.remove('open'); }
   else { sb.classList.add('open'); ov.classList.add('open'); }
 }
 function closeSidebar(){
-  document.querySelector('.sidebar').classList.remove('open');
+  document.querySelector('.planning-sidebar').classList.remove('open');
   document.getElementById('drawer-overlay').classList.remove('open');
 }
 
