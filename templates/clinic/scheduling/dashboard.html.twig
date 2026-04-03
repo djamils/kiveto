@@ -27,8 +27,8 @@
   {# ── AGENDA SIDEBAR ── #}
   <div class="agenda-sidebar" id="agenda-sidebar">
     {# Clinic selector #}
-    <div class="sb-top">
-      <button class="sb-clinic-btn">
+    <div class="agenda-sb-top">
+      <button class="agenda-sb-clinic-btn">
         <div style="width:28px;height:28px;background:#1e1b4b;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;flex-shrink:0;">V</div>
         <div style="flex:1;min-width:0;">
           <p style="font-size:12.5px;font-weight:600;color:#0f172a;line-height:1.2;">VET-OS</p>
@@ -89,7 +89,7 @@
       </div>
     </div>
 
-    <div class="sb-foot">
+    <div class="agenda-sb-foot">
       {# Free slots toggle — visible on tablet/mobile #}
       <div id="sb-free-slots-wrap" style="padding:6px 8px 4px;display:none;">
         <button onclick="toggleFreeSlots();closeAgendaSidebar();" style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-family:inherit;font-size:12.5px;color:#64748b;font-weight:500;transition:all .13s;" id="sb-free-slots-btn">
@@ -112,7 +112,7 @@
       </div>
       {# User profile #}
       <div style="border-top:1px solid #e8edf2;">
-        <div class="sb-user" style="display:flex;align-items:center;gap:8px;padding:8px 12px 10px;cursor:pointer;">
+        <div class="agenda-sb-user" style="display:flex;align-items:center;gap:8px;padding:8px 12px 10px;cursor:pointer;">
           <div style="width:27px;height:27px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1d4ed8;flex-shrink:0;">DR</div>
           <div style="flex:1;min-width:0;">
             <p style="font-size:13px;font-weight:500;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ app.user.email|default('Utilisateur') }}</p>
