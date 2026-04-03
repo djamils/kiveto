@@ -23,3 +23,10 @@
 @import "./components/data.css";
 @import "./components/overlays.css";
 @import "./components/feedback.css";
+
+/* 5. Page styles — shared patterns + page-specific */
+@import "./pages/common.css";
+@import "./pages/clients-list.css";
+@import "./pages/hospitalisations.css";
+@import "./pages/scheduling-agenda.css";
+@import "./pages/scheduling-planning.css";
