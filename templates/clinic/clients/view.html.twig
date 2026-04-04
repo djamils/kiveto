@@ -18,18 +18,18 @@
 {% block page_title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName : 'Sophie Dubois' }}{% endblock %}
 
 {% block breadcrumb %}
-  <a href="{{ path('clinic_clients_list') }}" style="display:flex;align-items:center;gap:5px;font-size:13px;color:#94a3b8;text-decoration:none;transition:color .13s;" onmouseenter="this.style.color='#64748b'" onmouseleave="this.style.color='#94a3b8'">
+  <a href="{{ path('clinic_clients_list') }}" class="cv-breadcrumb-link">
     <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Clients & Animaux
   </a>
   <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 3l3 3-3 3" stroke="#cbd5e1" stroke-width="1.3" stroke-linecap="round"/></svg>
-  <span class="topbar-title" style="font-size:13px;font-weight:500;color:#0f172a;">
+  <span class="topbar-title cv-breadcrumb-current">
     {% if client is defined %}{{ client.firstName }} {{ client.lastName }}{% else %}Sophie Dubois{% endif %}
   </span>
 {% endblock %}
 
 {% block topbar_actions %}
-  <div style="margin-left:auto;display:flex;gap:8px;" class="topbar-actions">
+  <div class="topbar-actions cv-topbar-actions">
     <button class="btn btn-secondary" onclick="toast('Nouveau RDV…','#4338ca')">
       <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Nouveau RDV</span>
     </button>
@@ -48,251 +48,18 @@
 
 <div class="page-body">
 
-  {# ── LEFT COLUMN: Owner info ── #}
-  <div class="col-left">
+  {# Left column: owner identity, contacts, notes #}
+  {% include 'clinic/clients/view/_client_info.html.twig' %}
 
-    {# Owner identity #}
-    <div class="lsec">
-      <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
-        <div style="width:44px;height:44px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;">
-          {% if client is defined %}
-            {{ client.firstName|first|upper }}{{ client.lastName|first|upper }}
-          {% else %}
-            SD
-          {% endif %}
-        </div>
-        <div style="flex:1;min-width:0;">
-          <h1 style="font-size:15px;font-weight:700;color:#0f172a;">
-            {% if client is defined %}{{ client.firstName }} {{ client.lastName }}{% else %}Sophie Dubois{% endif %}
-          </h1>
-          <p style="font-size:11.5px;color:#94a3b8;">Client depuis mars 2021</p>
-        </div>
-        <button class="btn btn-secondary btn-xs" onclick="openModal('modal-owner')">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Éditer
-        </button>
-      </div>
-      <div class="info-grid">
-        <div class="ic full">
-          <p class="ic-label">Adresse</p>
-          <p class="ic-value">
-            {% if client is defined and client.postalAddress %}
-              {{ client.postalAddress.streetLine1 }}, {{ client.postalAddress.postalCode }} {{ client.postalAddress.city }}
-            {% else %}
-              12 rue de la Paix, 75001 Paris
-            {% endif %}
-          </p>
-        </div>
-        <div class="ic"><p class="ic-label">Dernier RDV</p><p class="ic-value">21 mars 2026</p></div>
-        <div class="ic"><p class="ic-label">Prochain RDV</p><p class="ic-value" style="color:#059669;">15 juin 2026</p></div>
-      </div>
-    </div>
+  {# Right column: animal tabs and content area #}
+  {% include 'clinic/clients/view/_animal_tabs.html.twig' %}
 
-    {# Phones & contacts #}
-    <div class="lsec">
-      <p class="lsec-title">Contacts & Téléphones
-        <button class="btn btn-ghost btn-xs" onclick="openModal('modal-phones')">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-        </button>
-      </p>
-      <div style="display:flex;flex-direction:column;gap:6px;" id="phones-list">
-        {% if client is defined and client.contactMethods|length > 0 %}
-          {% for contact in client.contactMethods %}
-            <div class="phone-chip">
-              {% if contact.type == 'phone' %}
-                <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-              {% else %}
-                <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#64748b;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              {% endif %}
-              <div style="flex:1;min-width:0;">
-                <p style="font-size:12.5px;font-weight:500;color:#0f172a;">{{ contact.value }}</p>
-                <p style="font-size:10.5px;color:#94a3b8;">{{ contact.label }}</p>
-              </div>
-              <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Action…','#059669')" style="flex-shrink:0;">
-                <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-              </button>
-            </div>
-          {% endfor %}
-        {% else %}
-          <div class="phone-chip">
-            <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-            <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">+33 6 12 34 56 78</p><p style="font-size:10.5px;color:#94a3b8;">Mobile principal</p></div>
-            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel…','#059669')" style="flex-shrink:0;">
-              <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-            </button>
-          </div>
-          <div class="phone-chip">
-            <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#64748b;flex-shrink:0;"><rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            <div style="flex:1;min-width:0;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">s.dubois@email.fr</p><p style="font-size:10.5px;color:#94a3b8;">Email</p></div>
-            <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Email…','#4338ca')" style="flex-shrink:0;">
-              <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            </button>
-          </div>
-        {% endif %}
-      </div>
-      {# Communication preferences #}
-      <div style="margin-top:8px;padding:7px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;display:flex;align-items:center;gap:7px;">
-        <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#16a34a;flex-shrink:0;"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z" stroke="currentColor" stroke-width="1.3"/><path d="M8 7v4M8 5.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <span style="font-size:11.5px;color:#15803d;">Préfère les rappels par <strong>SMS</strong> · Disponible <strong>le matin</strong></span>
-        <button class="btn btn-ghost btn-xs" style="margin-left:auto;padding:2px 6px;" onclick="openModal('modal-prefs')">Éditer</button>
-      </div>
-    </div>
-
-    {# Auxiliary contact #}
-    <div class="lsec">
-      <p class="lsec-title">Contact auxiliaire
-        <button class="btn btn-ghost btn-xs" onclick="openModal('modal-auxcontact')">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-        </button>
-      </p>
-      <div id="aux-contact-left"></div>
-    </div>
-
-    {# Internal notes #}
-    <div class="lsec">
-      <p class="lsec-title">Notes internes
-        <button class="btn btn-ghost btn-xs" onclick="toast('Ajouter note…','#4338ca')">+ Ajouter</button>
-      </p>
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 11px;">
-        <p style="font-size:12.5px;color:#92400e;line-height:1.5;">Propriétaire très attentive. Préfère les rappels par SMS. Disponible le matin uniquement.</p>
-        <p style="font-size:10.5px;color:#b45309;margin-top:5px;">Dr. Rousseau · 15 jan. 2026</p>
-      </div>
-    </div>
-
-  </div>
-
-  {# ── RIGHT COLUMN: Animal tabs + content ── #}
-  <div class="col-right">
-    <div class="animal-tabs" id="animal-tabs"></div>
-    <div class="animal-scroll" id="animal-content"></div>
-  </div>
 </div>
 {% endblock %}
 
 {% block modals %}
-{# ── MODAL: Edit owner ── #}
-<div class="modal-overlay" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Éditer le propriétaire</p><button onclick="closeModal('modal-owner')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
-        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" value="{{ client is defined ? client.lastName : 'Dubois' }}"></div>
-      </div>
-      <div class="form-row"><label class="form-label">Adresse</label><input class="form-input" value="12 rue de la Paix, 75001 Paris"></div>
-      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Médecin, Retraité…"></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-owner')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Phones & contacts ── #}
-<div class="modal-overlay" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contacts & Téléphones</p><button onclick="closeModal('modal-phones')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <p style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Vous pouvez ajouter plusieurs numéros et leur donner un nom.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
-          <div><label class="form-label">Téléphone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
-          <div><label class="form-label">Libellé</label><input class="form-input" value="Mobile principal"></div>
-          <button class="btn btn-secondary btn-xs" style="height:34px;" onclick="toast('Supprimé','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
-          <div><input class="form-input" placeholder="+33 6 …" style="margin-top:0;"></div>
-          <div><input class="form-input" placeholder="Ex : Domicile, Travail…"></div>
-          <button class="btn btn-secondary btn-xs" style="height:34px;"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-        </div>
-      </div>
-      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutée','#4338ca')">
-        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numéro
-      </button>
-      <div style="border-top:1px solid #f1f5f9;margin-top:14px;padding-top:14px;">
-        <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">Email</p>
-        <input class="form-input" value="s.dubois@email.fr">
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-phones')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Communication preferences ── #}
-<div class="modal-overlay" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Préférences de communication</p><button onclick="closeModal('modal-prefs')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="form-row"><label class="form-label">Canal préféré</label>
-        <select class="form-input"><option selected>SMS</option><option>Email</option><option>Téléphone</option><option>Aucune préférence</option></select>
-      </div>
-      <div class="form-row"><label class="form-label">Plage horaire de contact</label>
-        <select class="form-input"><option selected>Matin (8h–12h)</option><option>Après-midi (12h–18h)</option><option>Soirée (18h–20h)</option><option>Toute la journée</option></select>
-      </div>
-      <div class="form-row"><label class="form-label">Rappels automatiques</label>
-        <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel RDV 24h avant</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" checked style="accent-color:#4338ca;">Rappel vaccin à renouveler</label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#334155;"><input type="checkbox" style="accent-color:#4338ca;">Newsletter clinique</label>
-        </div>
-      </div>
-      <div class="form-row"><label class="form-label">Note libre</label><input class="form-input" value="Disponible le matin uniquement"></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Animal identification ── #}
-<div class="modal-overlay" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-row"><label class="form-label">Transpondeur (puce)</label><input class="form-input" id="fi-chip" placeholder="15 chiffres"></div>
-        <div class="form-row"><label class="form-label">Tatouage</label><input class="form-input" id="fi-tattoo" placeholder="Code tatouage"></div>
-        <div class="form-row"><label class="form-label">N° Passeport</label><input class="form-input" id="fi-passport" placeholder="FR…"></div>
-        <div class="form-row"><label class="form-label">N° LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
-        <div class="form-row"><label class="form-label">N° SIRE (équidé)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
-        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador × Border Collie"></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-ident')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Auxiliary contact ── #}
-<div class="modal-overlay" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <p style="font-size:12.5px;color:#64748b;margin-bottom:12px;">Personne à contacter en l'absence du propriétaire principal.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" id="ac-first" placeholder="Prénom"></div>
-        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" id="ac-last" placeholder="Nom"></div>
-        <div class="form-row"><label class="form-label">Téléphone</label><input class="form-input" id="ac-phone" placeholder="+33 6 …"></div>
-        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin…"></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistré','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Animal status ── #}
-<div class="modal-overlay" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
-  <div class="modal-box">
-    <div class="modal-head"><p style="font-size:14px;font-weight:700;color:#0f172a;">Statut de l'animal</p><button onclick="closeModal('modal-status')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="form-row"><label class="form-label">Statut</label>
-        <select class="form-input" id="animal-status-sel" onchange="updateStatusNote()">
-          <option value="alive">Vivant</option>
-          <option value="deceased">Décédé</option>
-          <option value="missing">Disparu</option>
-          <option value="given">Cédé (vendu / donné)</option>
-        </select>
-      </div>
-      <div class="form-row" id="status-date-row"><label class="form-label">Date</label><input type="date" class="form-input" id="status-date"></div>
-      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau propriétaire…" style="resize:none;"></textarea></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis à jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
-  </div>
-</div>
+{# All modals: owner edit, phones, prefs, identification, aux contact, status #}
+{% include 'clinic/clients/view/_modals.html.twig' %}
 
 <div id="toast"></div>
 {% endblock %}

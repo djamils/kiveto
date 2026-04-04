@@ -15,43 +15,21 @@
 {% endblock %}
 
 {% block content %}
-  <div class="clients-topbar">
-    <button class="btn-burger" onclick="showToast('Menu','#4338ca')"><i data-lucide="menu" style="width:18px;height:18px;"></i></button>
-    <div>
-      <p style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);line-height:1.2;">Clients &amp; Animaux</p>
-      <p style="font-size:var(--text-sm);color:var(--text-subtle);" id="subtitle">24 clients · 38 animaux</p>
-    </div>
-    <div class="search-wrap">
-      <i data-lucide="search" class="search-icon" style="width:14px;height:14px;"></i>
-      <input class="search-input" id="search-input" type="text" placeholder="Nom, animal, téléphone, race…" oninput="onSearch(this.value)" autocomplete="off"/>
-      <span class="search-kbd" id="search-kbd">⌘K</span>
-      <button class="search-clear" id="search-clear" onclick="clearSearch()">
-        <svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <div style="margin-left:auto;display:flex;gap:var(--space-2);" class="clients-topbar-actions">
-      <button class="btn btn-secondary btn-xs" onclick="showToast('Export CSV…','#4338ca')">
-        <i data-lucide="download" style="width:11px;height:11px;"></i><span>Exporter</span>
-      </button>
-      <a href="{{ path('clinic_clients_new') }}" class="btn btn-primary btn-xs">
-        <i data-lucide="plus" style="width:11px;height:11px;"></i><span>Nouveau client</span>
-      </a>
-    </div>
-  </div>
+  {% include 'clinic/clients/list/_topbar.html.twig' %}
 
   <div class="main-area">
     <div class="table-wrap">
       <div class="tbl-header">
         <div class="tbl-filter-bar">
           <button class="fp active" id="filter-all" onclick="setFilter('all')">Tous <span class="cnt" id="cnt-all">0</span></button>
-          <button class="fp" id="filter-recent" onclick="setFilter('recent')"><i data-lucide="clock" style="width:11px;height:11px;"></i><span class="fp-label">Récents</span></button>
+          <button class="fp" id="filter-recent" onclick="setFilter('recent')"><i data-lucide="clock" class="cl-icon-xs"></i><span class="fp-label">Récents</span></button>
           <button class="fp" id="filter-cat" onclick="setFilter('cat')">🐱 <span class="fp-label">Chats</span> <span class="cnt" id="cnt-cat">0</span></button>
           <button class="fp" id="filter-dog" onclick="setFilter('dog')">🐶 <span class="fp-label">Chiens</span> <span class="cnt" id="cnt-dog">0</span></button>
           <button class="fp" id="filter-other" onclick="setFilter('other')">🐾 <span class="fp-label">Autres</span> <span class="cnt" id="cnt-other">0</span></button>
-          <button class="fp" id="filter-alert" onclick="setFilter('alert')" style="color:var(--color-danger-600);"><i data-lucide="alert-triangle" style="width:11px;height:11px;"></i><span class="fp-label">Alertes</span> <span class="cnt" id="cnt-alert">0</span></button>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-2);">
-            <span style="font-size:var(--text-sm);color:var(--text-subtle);">Trier</span>
-            <select id="sort-select" onchange="renderTable()" style="font-size:var(--text-sm);border:1px solid var(--border-medium);border-radius:var(--radius-md);padding:4px var(--space-2);background:var(--surface-card);color:var(--text-secondary);font-family:inherit;outline:none;cursor:pointer;">
+          <button class="fp cl-filter--alert" id="filter-alert" onclick="setFilter('alert')"><i data-lucide="alert-triangle" class="cl-icon-xs"></i><span class="fp-label">Alertes</span> <span class="cnt" id="cnt-alert">0</span></button>
+          <div class="cl-sort-group">
+            <span class="cl-sort-label">Trier</span>
+            <select id="sort-select" onchange="renderTable()" class="cl-sort-select">
               <option value="name">Nom</option>
               <option value="recent">Dernier RDV</option>
               <option value="animals">Nb animaux</option>
@@ -60,22 +38,22 @@
           <!-- Column picker -->
           <div class="col-picker-wrap" id="col-picker-wrap">
             <button class="col-picker-btn" id="col-picker-btn" onclick="toggleColPicker()">
-              <i data-lucide="columns" style="width:12px;height:12px;"></i>Colonnes
+              <i data-lucide="columns" class="cl-icon-xxs"></i>Colonnes
             </button>
             <div class="col-picker-popover" id="col-picker-popover">
-              <p style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;padding:var(--space-1) var(--space-2) var(--space-1);">Afficher</p>
+              <p class="cl-picker-heading">Afficher</p>
               <label class="col-picker-item"><input type="checkbox" id="col-cb-phone" checked onchange="toggleCol('phone',this.checked)"> Téléphone</label>
               <label class="col-picker-item"><input type="checkbox" id="col-cb-email" checked onchange="toggleCol('email',this.checked)"> Email</label>
               <label class="col-picker-item"><input type="checkbox" id="col-cb-lastrdv" checked onchange="toggleCol('lastrdv',this.checked)"> Dernier RDV</label>
               <label class="col-picker-item"><input type="checkbox" id="col-cb-nextrdv" checked onchange="toggleCol('nextrdv',this.checked)"> Prochain RDV</label>
               <div class="col-picker-divider"></div>
-              <button onclick="resetCols()" style="width:100%;padding:var(--space-1) var(--space-2);text-align:left;font-size:var(--text-sm);color:var(--text-muted);background:none;border:none;cursor:pointer;font-family:inherit;border-radius:var(--radius-md);" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background='none'">Réinitialiser</button>
+              <button class="cl-picker-reset" onclick="resetCols()">Réinitialiser</button>
             </div>
           </div>
         </div>
         <div class="tbl-col-head" id="tbl-col-head" style="--grid:28px 1fr 130px 160px 100px 100px 60px 52px;">
           <div></div>
-          <div class="col-th">Client / Animaux <i data-lucide="chevrons-up-down" style="width:10px;height:10px;opacity:.5;"></i></div>
+          <div class="col-th">Client / Animaux <i data-lucide="chevrons-up-down" class="cl-icon-xxs cl-icon--faded"></i></div>
           <div class="col-th col-phone">Téléphone</div>
           <div class="col-th col-email">Email</div>
           <div class="col-th col-lastrdv" onclick="setSort('recent')">Dernier RDV</div>
@@ -90,15 +68,15 @@
 
     <!-- Desktop detail panel -->
     <div class="detail-panel" id="detail-panel">
-      <div id="dp-content" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="cl-dp-content" id="dp-content">
         <div id="dp-header"></div>
         <div class="dp-scroll" id="dp-scroll">
-          <div id="dp-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 24px;text-align:center;">
-            <div style="width:56px;height:56px;border-radius:var(--radius-lg);background:var(--surface-subtle);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-4);">
-              <i data-lucide="users" style="width:24px;height:24px;color:var(--border-medium);"></i>
+          <div class="cl-dp-empty" id="dp-empty">
+            <div class="cl-dp-empty-icon">
+              <i data-lucide="users" class="cl-icon-lg cl-icon--border"></i>
             </div>
-            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-secondary);margin-bottom:var(--space-1);">Sélectionnez un client</p>
-            <p style="font-size:var(--text-md);color:var(--text-subtle);line-height:1.5;max-width:200px;">Cliquez sur une ligne pour voir la fiche et les animaux</p>
+            <p class="cl-dp-empty-title">Sélectionnez un client</p>
+            <p class="cl-dp-empty-desc">Cliquez sur une ligne pour voir la fiche et les animaux</p>
           </div>
         </div>
       </div>
@@ -116,10 +94,10 @@
   <!-- Bottom sheet -- portrait -->
   <div id="bso" onclick="closeBottomSheet()"></div>
   <div id="bs">
-    <div style="padding:var(--space-2);display:flex;justify-content:center;flex-shrink:0;">
-      <div style="width:40px;height:4px;border-radius:2px;background:var(--border-medium);"></div>
+    <div class="cl-bs-handle">
+      <div class="cl-bs-grip"></div>
     </div>
-    <div id="bs-scroll" style="flex:1;overflow-y:auto;"></div>
+    <div class="cl-bs-scroll" id="bs-scroll"></div>
   </div>
 
   <div id="toast"></div>

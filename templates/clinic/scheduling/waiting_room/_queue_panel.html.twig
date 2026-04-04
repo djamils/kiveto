@@ -1,0 +1,17 @@
+{# Left queue panel: filter tabs + patient list #}
+
+<!-- Desktop queue panel -->
+<div class="queue-panel" id="queue-panel">
+  <div class="queue-head">
+    <span class="wr-queue-title">File d'attente</span>
+    <span class="wr-queue-count" id="queue-count">7 patients</span>
+    <button class="btn-wr btn-secondary btn-xs wr-queue-checkin-btn" onclick="openModal('modal-checkin')"><i data-lucide="plus" class="wr-icon-xxs"></i> Check-in</button>
+  </div>
+  <div class="queue-filter">
+    <button class="qf-tab active" data-f="all" onclick="setQFilter(this)">Tous</button>
+    <button class="qf-tab urg" data-f="urgence" onclick="setQFilter(this)">Urgences</button>
+    <button class="qf-tab" data-f="attente" onclick="setQFilter(this)">En attente</button>
+    <button class="qf-tab" data-f="consultation" onclick="setQFilter(this)">Consultation</button>
+  </div>
+  <div class="queue-list" id="queue-list"></div>
+</div>

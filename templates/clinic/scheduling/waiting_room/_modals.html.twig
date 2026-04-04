@@ -1,0 +1,67 @@
+{# All modals: check-in, urgence, appel #}
+
+<!-- Modal Check-in -->
+<div class="modal-overlay" id="modal-checkin" onclick="if(event.target===this)closeModal('modal-checkin')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="modal-title">Check-in patient</p><button class="btn-modal-close" onclick="closeModal('modal-checkin')"><i data-lucide="x" class="wr-icon-xs"></i></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label-wr">Rechercher un RDV ou propri&eacute;taire</label><div class="wr-search-field"><i data-lucide="search" class="wr-search-icon"></i><input class="form-input-wr wr-search-input" placeholder="Nom, propri&eacute;taire ou t&eacute;l&eacute;phone..."></div></div>
+      <div class="wr-checkin-results">
+        <div class="wr-checkin-row" onclick="selectCheckinRdv(this)" onmouseenter="this.style.background='var(--brand-50,#eef2ff)'" onmouseleave="this.style.background=''">
+          <div class="wr-checkin-avatar wr-checkin-avatar--brand">ML</div>
+          <div class="wr-checkin-info"><p class="wr-checkin-name">Milo &mdash; British Shorthair</p><p class="wr-checkin-meta">James Park &middot; 10h15 &middot; Dr. Rousseau</p></div>
+          <span class="badge-wr b-wait">RDV 10h15</span>
+        </div>
+        <div class="wr-checkin-row wr-checkin-row--last" onclick="selectCheckinRdv(this)" onmouseenter="this.style.background='var(--brand-50,#eef2ff)'" onmouseleave="this.style.background=''">
+          <div class="wr-checkin-avatar wr-checkin-avatar--pink">NL</div>
+          <div class="wr-checkin-info"><p class="wr-checkin-name">Nala &mdash; Berger Malinois</p><p class="wr-checkin-meta">Claire Moreau &middot; 10h30 &middot; Dr. Martin</p></div>
+          <span class="badge-wr b-wait">RDV 10h30</span>
+        </div>
+      </div>
+      <div class="wr-form-grid-2">
+        <div class="form-row"><label class="form-label-wr">Motif de visite</label><input class="form-input-wr" placeholder="D&eacute;crivez bri&egrave;vement..."></div>
+        <div class="form-row"><label class="form-label-wr">Priorit&eacute;</label><select class="form-input-wr"><option>Normal</option><option>Prioritaire</option><option>Urgence</option></select></div>
+        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label><select class="form-input-wr"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option><option>&mdash; Non assign&eacute; &mdash;</option></select></div>
+        <div class="form-row"><label class="form-label-wr">Note d'accueil</label><input class="form-input-wr" placeholder="Optionnel..."></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-checkin')">Annuler</button><button class="btn-wr btn-primary" onclick="doCheckin()"><i data-lucide="check" class="wr-icon-xs"></i> Valider l'arriv&eacute;e</button></div>
+  </div>
+</div>
+
+<!-- Modal Urgence -->
+<div class="modal-overlay" id="modal-urgence" onclick="if(event.target===this)closeModal('modal-urgence')">
+  <div class="modal-box">
+    <div class="modal-head wr-modal-head--urgence">
+      <div class="wr-modal-urgence-title"><div class="wr-modal-urgence-icon"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i></div><p class="wr-modal-urgence-text">Enregistrement urgence</p></div>
+      <button class="btn-modal-close wr-modal-close--urgence" onclick="closeModal('modal-urgence')"><i data-lucide="x" class="wr-icon-xs wr-icon--red"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="wr-urgence-alert"><i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera plac&eacute; imm&eacute;diatement en t&ecirc;te de file.</div>
+      <div class="wr-form-grid-2">
+        <div class="form-row"><label class="form-label-wr">Animal *</label><input class="form-input-wr" placeholder="Nom de l'animal"></div>
+        <div class="form-row"><label class="form-label-wr">Esp&egrave;ce</label><select class="form-input-wr"><option>Canin</option><option>F&eacute;lin</option><option>Lapin</option><option>NAC</option><option>Oiseau</option></select></div>
+        <div class="form-row"><label class="form-label-wr">Propri&eacute;taire *</label><input class="form-input-wr" placeholder="Nom du propri&eacute;taire"></div>
+        <div class="form-row"><label class="form-label-wr">T&eacute;l&eacute;phone</label><input class="form-input-wr" placeholder="+33 6 ..."></div>
+      </div>
+      <div class="form-row"><label class="form-label-wr">Motif d'urgence *</label><input class="form-input-wr" placeholder="D&eacute;crivez les sympt&ocirc;mes..."></div>
+      <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire &agrave; alerter</label><select class="form-input-wr"><option>Dr. Rousseau (disponible)</option><option>Dr. Martin (en consultation)</option><option>Dr. Dupont (disponible)</option><option>Dr. Lambert (en consultation)</option></select></div>
+    </div>
+    <div class="modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-urgence')">Annuler</button><button class="btn-wr btn-danger" onclick="doUrgence()"><i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence</button></div>
+  </div>
+</div>
+
+<!-- Modal Appel -->
+<div class="modal-overlay" id="modal-appel" onclick="if(event.target===this)closeModal('modal-appel')">
+  <div class="modal-box wr-modal-box--sm">
+    <div class="modal-head"><p class="modal-title" id="modal-appel-title">Appeler le patient</p><button class="btn-modal-close" onclick="closeModal('modal-appel')"><i data-lucide="x" class="wr-icon-xs"></i></button></div>
+    <div class="modal-body">
+      <div class="wr-form-grid-2 wr-mb-3">
+        <div class="form-row"><label class="form-label-wr">Salle</label><select class="form-input-wr" id="appel-salle"><option>Salle 1 &mdash; Dr. Rousseau</option><option>Salle 2 &mdash; Dr. Martin</option><option>Salle 3 &mdash; Dr. Dupont</option><option>Chirurgie &mdash; Dr. Lambert</option></select></div>
+        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label><select class="form-input-wr"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select></div>
+      </div>
+      <div class="wr-appel-notice"><i data-lucide="megaphone" class="wr-appel-notice-icon"></i>Un affichage appara&icirc;tra sur l'&eacute;cran de la salle d'attente.</div>
+    </div>
+    <div class="modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-appel')">Annuler</button><button class="btn-wr btn-green" onclick="doAppel()"><i data-lucide="send" class="wr-icon-xs"></i> Appeler</button></div>
+  </div>
+</div>

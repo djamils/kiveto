@@ -1,0 +1,56 @@
+{# Patient banner — desktop 2-line and compact portrait variants #}
+
+{# -- Desktop banner -- #}
+<div class="patient-banner">
+  <div class="banner-line1">
+    <div class="consult-avatar">🐱</div>
+    <div>
+      <div class="consult-name-row">
+        <span class="consult-patient-name">Luna</span>
+        <span class="badge b-feline">Félin</span>
+        <span class="consult-patient-meta">Persan · 4 ans · Femelle stérilisée</span>
+      </div>
+      <div class="consult-patient-sub">
+        <span>#PAT-00412</span>
+        <span class="consult-dot-separator">·</span>
+        <span class="consult-visit-badge">Visite #3</span>
+        <span class="consult-dot-separator">·</span>
+        <span>Dernière visite 12 jan. 2026</span>
+      </div>
+    </div>
+    <button class="vax-btn consult-vax-btn" onclick="openVaxModal()">
+      <div class="pulse-dot consult-pulse-amber"></div>
+      <span class="consult-vax-label">Rappel FeLV à faire</span>
+      <i data-lucide="chevron-right" class="consult-icon-xs consult-icon-amber"></i>
+    </button>
+    <div class="consult-banner-actions">
+      <button class="btn btn-secondary btn-xs"><i data-lucide="folder" class="consult-icon-xs"></i>Dossier</button>
+      <button class="btn btn-secondary btn-xs" onclick="openDrawer()"><i data-lucide="clock" class="consult-icon-xs"></i>Historique</button>
+    </div>
+  </div>
+  <div class="banner-line2">
+    <i data-lucide="user" class="consult-icon-sm consult-icon-purple"></i>
+    <span class="consult-owner-name">Mme Dubois</span>
+    <div class="consult-vdivider"></div>
+    <span class="consult-owner-phone">+33 6 12 34 56 78</span>
+    <div class="consult-vdivider"></div>
+    <span class="consult-allergy-label">Allergie connue :</span>
+    <span class="consult-allergy-badge">⚠ Pénicilline</span>
+  </div>
+</div>
+
+{# -- Compact banner (tablet portrait) -- #}
+<div class="banner-compact">
+  <div class="consult-avatar-compact">🐱</div>
+  <div class="consult-compact-info">
+    <div class="consult-compact-row">
+      <span class="consult-compact-name">Luna</span>
+      <span class="badge b-feline consult-badge-sm">Félin</span>
+      <span class="consult-compact-meta">Persan · 4 ans</span>
+      <span class="consult-allergy-badge consult-allergy-badge--right">⚠ Pénicilline</span>
+    </div>
+    <div class="consult-compact-sub">Mme Dubois · Visite #3 · 19 mars 2026</div>
+  </div>
+  <button class="btn btn-secondary btn-xs" onclick="openDrawer()"><i data-lucide="clock" class="consult-icon-xs"></i></button>
+  <button class="btn btn-primary btn-xs" onclick="closeConsult()"><i data-lucide="check" class="consult-icon-xs"></i>Clôturer</button>
+</div>

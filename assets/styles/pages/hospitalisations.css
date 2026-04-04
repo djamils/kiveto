@@ -13,10 +13,36 @@
   .page-body { flex: 1; display: flex; overflow: hidden; }
 
   /* ─────────────────────────────────────────────
+     STATS PILLS (topbar)
+     ───────────────────────────────────────────── */
+  .hosp-stats { display: flex; gap: 6px; }
+  .hosp-pill { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; }
+  .hosp-pill--blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .hosp-pill--red   { background: #fef2f2; border: 1px solid #fecaca; }
+  .hosp-pill--green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .hosp-pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .hosp-pill-dot--blue  { background: #3b82f6; }
+  .hosp-pill-dot--red   { background: #dc2626; }
+  .hosp-pill-dot--green { background: #16a34a; }
+  .hosp-pill-count { font-size: 12px; font-weight: 500; }
+  .hosp-pill-count--blue  { color: #2563eb; }
+  .hosp-pill-count--red   { color: #dc2626; }
+  .hosp-pill-count--green { color: #059669; }
+  .hosp-pill-label { font-size: 11.5px; color: #64748b; }
+
+  /* ─────────────────────────────────────────────
+     BOTTOM SHEET HANDLE
+     ───────────────────────────────────────────── */
+  .hosp-bs-handle { padding: 8px; display: flex; justify-content: center; flex-shrink: 0; }
+  .hosp-bs-handle-bar { width: 40px; height: 4px; border-radius: 2px; background: #e2e8f0; }
+
+  /* ─────────────────────────────────────────────
      LEFT PANEL -- Patient list
      ───────────────────────────────────────────── */
   .hosp-panel { width: 340px; flex-shrink: 0; border-right: 1px solid #e8edf2; display: flex; flex-direction: column; background: #fff; }
   .hp-head { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .hosp-head-label { font-size: 13px; font-weight: 500; color: #0f172a; }
+  .hosp-head-count { font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 2px 8px; border-radius: 20px; margin-left: auto; }
   .hp-list { flex: 1; overflow-y: auto; }
 
   /* Patient card */
@@ -32,6 +58,28 @@
      RIGHT PANEL -- Detail
      ───────────────────────────────────────────── */
   .detail-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f1f5f9; }
+
+  /* Empty state */
+  .hosp-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #94a3b8; }
+  .hosp-empty-icon { width: 56px; height: 56px; border-radius: 14px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+  .hosp-empty-title { font-size: 14px; font-weight: 500; color: #334155; margin-bottom: 6px; }
+  .hosp-empty-text { font-size: 13px; max-width: 200px; text-align: center; line-height: 1.5; }
+
+  /* Slide inner container */
+  .hosp-slide-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+  /* Modal titles and close buttons */
+  .hosp-modal-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+  .hosp-modal-close { width: 26px; height: 26px; border-radius: 7px; border: none; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  /* Modal size variants */
+  .hosp-modal-sm { width: 480px; }
+  .hosp-modal-md { width: 500px; }
+
+  /* Textarea size variants */
+  .hosp-textarea-md { min-height: 100px; }
+  .hosp-textarea-conclusion { min-height: 90px; }
+  .hosp-textarea-sm { min-height: 70px; }
   .detail-header { background: #fff; border-bottom: 1px solid #e8edf2; padding: 14px 18px; flex-shrink: 0; }
   .detail-tabs { background: #fff; border-bottom: 1px solid #e8edf2; display: flex; padding: 0 18px; flex-shrink: 0; }
   .dtab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .13s; white-space: nowrap; }

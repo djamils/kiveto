@@ -86,6 +86,71 @@
   /* Phone chip */
   .phone-chip { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e8edf2; }
 
+  /* ─────────────────────────────────────────────
+     CV- PREFIXED CLASSES (extracted from inline styles)
+     ───────────────────────────────────────────── */
+
+  /* Breadcrumb */
+  .cv-breadcrumb-link { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #94a3b8; text-decoration: none; transition: color .13s; }
+  .cv-breadcrumb-link:hover { color: #64748b; }
+  .cv-breadcrumb-current { font-size: 13px; font-weight: 500; color: #0f172a; }
+
+  /* Topbar actions wrapper */
+  .cv-topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Owner header row */
+  .cv-owner-header { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+  .cv-avatar { width: 44px; height: 44px; border-radius: 50%; background: #eef2ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .cv-owner-name-wrap { flex: 1; min-width: 0; }
+  .cv-owner-name { font-size: 15px; font-weight: 700; color: #0f172a; }
+  .cv-owner-since { font-size: 11.5px; color: #94a3b8; }
+  .cv-next-rdv { color: #059669; }
+
+  /* Contact info inside phone-chip */
+  .cv-phones-list { display: flex; flex-direction: column; gap: 6px; }
+  .cv-contact-info { flex: 1; min-width: 0; }
+  .cv-contact-value { font-size: 12.5px; font-weight: 500; color: #0f172a; }
+  .cv-contact-label { font-size: 10.5px; color: #94a3b8; }
+  .cv-contact-action { flex-shrink: 0; }
+  .cv-icon-phone { color: #4338ca; flex-shrink: 0; }
+  .cv-icon-email { color: #64748b; flex-shrink: 0; }
+
+  /* Communication preferences bar */
+  .cv-comm-prefs { margin-top: 8px; padding: 7px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; display: flex; align-items: center; gap: 7px; }
+  .cv-icon-info { color: #16a34a; flex-shrink: 0; }
+  .cv-comm-prefs-text { font-size: 11.5px; color: #15803d; }
+  .cv-comm-prefs-edit { margin-left: auto; padding: 2px 6px; }
+
+  /* Internal notes */
+  .cv-note-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 9px 11px; }
+  .cv-note-text { font-size: 12.5px; color: #92400e; line-height: 1.5; }
+  .cv-note-meta { font-size: 10.5px; color: #b45309; margin-top: 5px; }
+
+  /* Modal shared classes */
+  .cv-modal-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+  .cv-modal-close { width: 26px; height: 26px; border-radius: 7px; border: none; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .cv-modal-hint { font-size: 11.5px; color: #94a3b8; margin-bottom: 10px; }
+  .cv-modal-description { font-size: 12.5px; color: #64748b; margin-bottom: 12px; }
+  .cv-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Phone modal rows */
+  .cv-phone-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .cv-phone-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; }
+  .cv-phone-delete { height: 34px; }
+  .cv-phone-input-no-margin { margin-top: 0; }
+
+  /* Email section in phone modal */
+  .cv-email-section { border-top: 1px solid #f1f5f9; margin-top: 14px; padding-top: 14px; }
+  .cv-email-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+
+  /* Checkbox group in preferences modal */
+  .cv-checkbox-group { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+  .cv-checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #334155; }
+  .cv-checkbox { accent-color: #4338ca; }
+
+  /* Status modal textarea */
+  .cv-textarea-no-resize { resize: none; }
+
   /* Media filter */
   .media-filter { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; cursor: pointer; transition: all .12s; font-family: inherit; }
   .media-filter:hover { border-color: #c7d2fe; color: #4338ca; }

@@ -21,21 +21,21 @@
 
 {% block topbar_actions %}
     {# Stats pills #}
-    <div class="topbar-stats" style="display:flex;gap:6px;">
-      <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#eff6ff;border:1px solid #bfdbfe;">
-        <div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;"></div>
-        <span style="font-size:12px;font-weight:500;color:#2563eb;" id="stat-hosp">4</span>
-        <span style="font-size:11.5px;color:#64748b;">hospitalisés</span>
+    <div class="topbar-stats hosp-stats">
+      <div class="hosp-pill hosp-pill--blue">
+        <div class="hosp-pill-dot hosp-pill-dot--blue"></div>
+        <span class="hosp-pill-count hosp-pill-count--blue" id="stat-hosp">4</span>
+        <span class="hosp-pill-label">hospitalisés</span>
       </div>
-      <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#fef2f2;border:1px solid #fecaca;">
-        <div style="width:6px;height:6px;border-radius:50%;background:#dc2626;"></div>
-        <span style="font-size:12px;font-weight:500;color:#dc2626;" id="stat-critique">1</span>
-        <span style="font-size:11.5px;color:#64748b;">critique</span>
+      <div class="hosp-pill hosp-pill--red">
+        <div class="hosp-pill-dot hosp-pill-dot--red"></div>
+        <span class="hosp-pill-count hosp-pill-count--red" id="stat-critique">1</span>
+        <span class="hosp-pill-label">critique</span>
       </div>
-      <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:#f0fdf4;border:1px solid #bbf7d0;">
-        <div style="width:6px;height:6px;border-radius:50%;background:#16a34a;"></div>
-        <span style="font-size:12px;font-weight:500;color:#059669;" id="stat-sortie-prev">2</span>
-        <span style="font-size:11.5px;color:#64748b;">sorties prévues aujourd'hui</span>
+      <div class="hosp-pill hosp-pill--green">
+        <div class="hosp-pill-dot hosp-pill-dot--green"></div>
+        <span class="hosp-pill-count hosp-pill-count--green" id="stat-sortie-prev">2</span>
+        <span class="hosp-pill-label">sorties prévues aujourd'hui</span>
       </div>
     </div>
     <button class="btn btn-primary btn-xs topbar-new-btn" onclick="openModal('modal-admission')">
@@ -48,179 +48,24 @@
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeSidebar()"></div>
 <div id="bs-overlay" onclick="closeBs()"></div>
 <div id="bs">
-  <div style="padding:8px;display:flex;justify-content:center;flex-shrink:0;">
-    <div style="width:40px;height:4px;border-radius:2px;background:#e2e8f0;"></div>
+  <div class="hosp-bs-handle">
+    <div class="hosp-bs-handle-bar"></div>
   </div>
   <div id="bs-inner"></div>
 </div>
 
 <div class="page-body">
 
-  {# ══ LEFT PANEL ══ #}
-  <div class="hosp-panel">
-    <div class="hp-head">
-      <span style="font-size:13px;font-weight:500;color:#0f172a;">Patients hospitalisés</span>
-      <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:20px;margin-left:auto;" id="list-count"></span>
-    </div>
-    <div class="hp-list" id="hosp-list"></div>
-  </div>
+  {# Left panel: patient cards #}
+  {% include 'clinic/hospitalisations/_patient_list.html.twig' %}
 
-  {# ══ SLIDE (tablet) ══ #}
-  <div class="detail-slide" id="detail-slide">
-    <div id="slide-inner" style="display:flex;flex-direction:column;flex:1;overflow:hidden;"></div>
-  </div>
-
-  {# ══ RIGHT PANEL ══ #}
-  <div class="detail-panel" id="detail-panel">
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;">
-      <div style="width:56px;height:56px;border-radius:14px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">
-        <svg width="26" height="26" fill="none" viewBox="0 0 32 32" style="color:#cbd5e1;"><rect x="2" y="8" width="28" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 14v6M13 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 8V6a8 8 0 0116 0v2" stroke="currentColor" stroke-width="1.6"/></svg>
-      </div>
-      <p style="font-size:14px;font-weight:500;color:#334155;margin-bottom:6px;">Sélectionnez un patient</p>
-      <p style="font-size:13px;max-width:200px;text-align:center;line-height:1.5;">Cliquez sur un patient pour ouvrir sa fiche d'hospitalisation</p>
-    </div>
-  </div>
+  {# Right panel: detail view with empty state #}
+  {% include 'clinic/hospitalisations/_detail_panel.html.twig' %}
 
 </div>
 
-{# ══ MODAL : Admission ══ #}
-<div class="modal-overlay" id="modal-admission" onclick="if(event.target===this)closeModal('modal-admission')">
-  <div class="modal-box">
-    <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;">Nouvelle admission</p>
-      <button onclick="closeModal('modal-admission')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Animal *</label><input class="form-input" placeholder="Rechercher un patient…"></div>
-        <div class="form-row"><label class="form-label">Propriétaire</label><input class="form-input" placeholder="Nom du propriétaire"></div>
-      </div>
-      <div class="form-row"><label class="form-label">Motif d'hospitalisation *</label><input class="form-input" placeholder="Ex : Post-opératoire stérilisation, Insuffisance rénale aiguë…"></div>
-      <div class="form-grid-3">
-        <div class="form-row"><label class="form-label">Vétérinaire référent</label>
-          <select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select>
-        </div>
-        <div class="form-row"><label class="form-label">Sévérité</label>
-          <select class="form-input"><option>Stable</option><option>Surveillé</option><option>Critique</option></select>
-        </div>
-        <div class="form-row"><label class="form-label">Durée estimée</label>
-          <select class="form-input"><option>24h</option><option>48h</option><option>72h</option><option>4–5 jours</option><option>1 semaine+</option></select>
-        </div>
-      </div>
-      <div class="form-row"><label class="form-label">Protocole de soins initial</label><textarea class="form-input" placeholder="Médicaments, fréquence de surveillance, restrictions alimentaires…"></textarea></div>
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Alimentation</label>
-          <select class="form-input"><option>Ration normale</option><option>Ration réduite (50%)</option><option>Diète stricte</option><option>Gavage / sonde</option><option>Perfusion IV uniquement</option></select>
-        </div>
-        <div class="form-row"><label class="form-label">Accès eau</label>
-          <select class="form-input"><option>Libre accès</option><option>Quantité limitée</option><option>Aucun accès (perfusion)</option></select>
-        </div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('modal-admission')">Annuler</button>
-      <button class="btn btn-primary" onclick="toast('Admission enregistrée','#059669');closeModal('modal-admission')">Admettre le patient</button>
-    </div>
-  </div>
-</div>
-
-{# ══ MODAL : Ajouter soin ══ #}
-<div class="modal-overlay" id="modal-soin" onclick="if(event.target===this)closeModal('modal-soin')">
-  <div class="modal-box" style="width:480px;">
-    <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;" id="modal-soin-title">Ajouter un soin</p>
-      <button onclick="closeModal('modal-soin')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-row"><label class="form-label">Type de soin</label>
-        <select class="form-input">
-          <option>Médicament oral</option><option>Injection SC</option><option>Injection IM</option><option>Injection IV</option>
-          <option>Perfusion</option><option>Pansement</option><option>Nettoyage plaie</option><option>Autre</option>
-        </select>
-      </div>
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Produit / Médicament</label><input class="form-input" placeholder="Ex : Amoxicilline 250mg"></div>
-        <div class="form-row"><label class="form-label">Dose</label><input class="form-input" placeholder="Ex : 1 comprimé, 5ml…"></div>
-        <div class="form-row"><label class="form-label">Fréquence</label>
-          <select class="form-input"><option>1×/jour</option><option>2×/jour</option><option>3×/jour</option><option>Toutes les 8h</option><option>Toutes les 6h</option><option>Au besoin</option><option>Unique</option></select>
-        </div>
-        <div class="form-row"><label class="form-label">Durée</label>
-          <select class="form-input"><option>Jusqu'à la sortie</option><option>24h</option><option>48h</option><option>72h</option><option>5 jours</option><option>7 jours</option></select>
-        </div>
-      </div>
-      <div class="form-row"><label class="form-label">Note / Instructions</label><input class="form-input" placeholder="Optionnel — observations particulières…"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('modal-soin')">Annuler</button>
-      <button class="btn btn-primary" onclick="toast('Soin ajouté au protocole','#059669');closeModal('modal-soin')">Ajouter</button>
-    </div>
-  </div>
-</div>
-
-{# ══ MODAL : Saisir évolution ══ #}
-<div class="modal-overlay" id="modal-evo" onclick="if(event.target===this)closeModal('modal-evo')">
-  <div class="modal-box" style="width:500px;">
-    <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;">Saisir une évolution</p>
-      <button onclick="closeModal('modal-evo')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">État général</label>
-          <select class="form-input" id="evo-etat">
-            <option value="ameliore">✅ Amélioré</option><option value="stable" selected>➡ Stable</option>
-            <option value="surveille">⚠ À surveiller</option><option value="degrade">🔴 Dégradé</option>
-          </select>
-        </div>
-        <div class="form-row"><label class="form-label">Heure</label><input class="form-input" type="time" id="evo-heure" value="10:30"></div>
-      </div>
-      <div class="form-row"><label class="form-label">Observation clinique *</label><textarea class="form-input" id="evo-note" placeholder="Décrivez l'état du patient, comportement, appétit, réaction aux traitements…" style="min-height:100px;"></textarea></div>
-      <div class="form-grid-3">
-        <div class="form-row"><label class="form-label">Température (°C)</label><input class="form-input" type="number" step="0.1" placeholder="38.5"></div>
-        <div class="form-row"><label class="form-label">FC (bpm)</label><input class="form-input" type="number" placeholder="120"></div>
-        <div class="form-row"><label class="form-label">FR (/min)</label><input class="form-input" type="number" placeholder="22"></div>
-      </div>
-      <div class="form-row"><label class="form-label">Vétérinaire</label>
-        <select class="form-input"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('modal-evo')">Annuler</button>
-      <button class="btn btn-primary" onclick="toast('Évolution enregistrée','#059669');closeModal('modal-evo')">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-{# ══ MODAL : Sortie ══ #}
-<div class="modal-overlay" id="modal-sortie" onclick="if(event.target===this)closeModal('modal-sortie')">
-  <div class="modal-box">
-    <div class="modal-head">
-      <p style="font-size:14px;font-weight:700;color:#0f172a;">Préparer la sortie</p>
-      <button onclick="closeModal('modal-sortie')" style="width:26px;height:26px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid-2">
-        <div class="form-row"><label class="form-label">Date de sortie</label><input class="form-input" type="date" value="2026-03-23"></div>
-        <div class="form-row"><label class="form-label">Heure de sortie</label><input class="form-input" type="time" value="11:00"></div>
-      </div>
-      <div class="form-row"><label class="form-label">Conclusion médicale *</label><textarea class="form-input" placeholder="Résumé de l'hospitalisation, évolution, état à la sortie…" style="min-height:90px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Traitement de sortie</label><textarea class="form-input" placeholder="Médicaments à domicile, dosage, durée…" style="min-height:70px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Instructions pour le propriétaire</label><textarea class="form-input" placeholder="Repos, alimentation, signes à surveiller, RDV de contrôle…" style="min-height:70px;"></textarea></div>
-      <div class="form-row"><label class="form-label">Prochain RDV de contrôle</label><input class="form-input" type="date"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('modal-sortie')">Annuler</button>
-      <button class="btn btn-secondary" onclick="window.print();closeModal('modal-sortie')">
-        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M3 1h6v3H3V1zM1 4h10v5H9v2H3V9H1V4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        Imprimer CR
-      </button>
-      <button class="btn btn-success" onclick="toast('Sortie validée — CR généré','#059669');closeModal('modal-sortie')">
-        <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Valider la sortie
-      </button>
-    </div>
-  </div>
-</div>
+{# All modals: admission, soin, evolution, sortie #}
+{% include 'clinic/hospitalisations/_modals.html.twig' %}
 
 <div id="toast"></div>
 {% endblock %}
