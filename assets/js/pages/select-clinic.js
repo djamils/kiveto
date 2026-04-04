@@ -60,8 +60,8 @@ function getOpenStatus(hours) {
 /**
  * Role/engagement display labels.
  */
-const ROLE_LABELS = { veterinarian: 'Vétérinaire', asv: 'ASV', admin: 'Administrateur', manager: 'Gérant' };
-const ENGAGEMENT_LABELS = { full_time: 'Temps plein', part_time: 'Temps partiel', freelance: 'Libéral', intern: 'Stagiaire' };
+const ROLE_LABELS = { veterinary: 'Vétérinaire', veterinarian: 'Vétérinaire', asv: 'ASV', admin: 'Administrateur', manager: 'Gérant', owner: 'Propriétaire' };
+const ENGAGEMENT_LABELS = { employee: 'Salarié', full_time: 'Temps plein', part_time: 'Temps partiel', freelance: 'Libéral', intern: 'Stagiaire', contractor: 'Prestataire' };
 
 /**
  * Normalize server-side clinic data to the enriched format used for rendering.
@@ -78,8 +78,8 @@ function normalizeServerClinics(raw) {
     letter: c.name.charAt(0).toUpperCase(),
     address: '',
     hours: null,
-    role: ROLE_LABELS[c.role] || c.role || '',
-    engagement: ENGAGEMENT_LABELS[c.engagement] || c.engagement || '',
+    role: ROLE_LABELS[(c.role || '').toLowerCase()] || c.role || '',
+    engagement: ENGAGEMENT_LABELS[(c.engagement || '').toLowerCase()] || c.engagement || '',
   }));
 }
 
