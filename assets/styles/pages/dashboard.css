@@ -543,11 +543,11 @@
 .rp-table tbody td:nth-child(2) { text-align: center; }
 .rp-table tbody td:last-child { text-align: right; padding-right: var(--space-4); }
 
-/* Stock quantity severity classes */
-.rp-qty--danger  { color: var(--color-danger-600); font-weight: var(--weight-medium); }
-.rp-qty--warning { color: var(--color-warning-600); font-weight: var(--weight-medium); }
-.rp-qty--muted   { color: var(--text-subtle); }
-.rp-qty--subtle  { color: var(--text-muted); }
+/* Stock quantity severity classes — higher specificity to override .rp-table tbody td */
+.rp-table td.rp-qty--danger  { color: var(--color-danger-600); font-weight: var(--weight-medium); }
+.rp-table td.rp-qty--warning { color: var(--color-warning-600); font-weight: var(--weight-medium); }
+.rp-table td.rp-qty--muted   { color: var(--text-subtle); }
+.rp-table td.rp-qty--subtle  { color: var(--text-muted); }
 
 /* Hosp cards in rpanel */
 .hosp-card {
