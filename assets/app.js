@@ -44,5 +44,6 @@ function onBeforeCache() {
   }
 }
 
+// Turbo fires turbo:load on every navigation including initial page load
 document.addEventListener('turbo:load', onLoad);
 document.addEventListener('turbo:before-cache', onBeforeCache);
