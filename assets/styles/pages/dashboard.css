@@ -18,10 +18,51 @@
   .page-head-sub { font-size: var(--text-md); color: var(--text-subtle); margin-top: 2px; }
 
   /* ────────────────────────────────────
+     HEADER GRID -- Clock + KPI row
+  ──────────────────────────────────── */
+  .dash-header-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    align-items: stretch;
+  }
+
+  /* Clock widget -- vet glances at this constantly */
+  .dash-clock-widget {
+    padding: var(--space-4) var(--space-5);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-width: 140px;
+  }
+
+  .dash-clock {
+    font-size: 36px;
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    letter-spacing: -2px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dash-date {
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  /* ────────────────────────────────────
      KPI STRIP -- 4 metrics at top
      The zone the vet looks at first
      every morning.
   ──────────────────────────────────── */
+  .dash-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+  }
+
   .kpi-strip {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -51,10 +92,31 @@
   .kpi-card.k-red::after    { background: var(--color-danger-600); }
   .kpi-card.k-green::after  { background: var(--color-success-600); }
 
+  /* KPI card header row (icon + badge) */
+  .kpi-head-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+  }
+
   .kpi-icon {
     width: 28px; height: 28px; border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
     margin-bottom: 2px;
+  }
+  .kpi-icon--blue   { background: #dbeafe; }
+  .kpi-icon--amber  { background: #fef9c3; }
+  .kpi-icon--red    { background: #fee2e2; }
+  .kpi-icon--green  { background: #dcfce7; }
+
+  /* KPI contextual badge (top-right of card) */
+  .kpi-badge {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+  }
+  .kpi-badge--danger {
+    color: var(--color-danger-600);
+    font-weight: var(--weight-medium);
   }
 
   .kpi-num {
@@ -71,6 +133,9 @@
     font-size: var(--text-xs); font-weight: var(--weight-normal);
     display: flex; align-items: center; gap: 3px; margin-top: 1px;
   }
+  .kpi-delta--success { color: #16a34a; }
+  .kpi-delta--warning { color: #d97706; }
+  .kpi-delta--danger  { color: var(--color-danger-600); }
 
   /* ────────────────────────────────────
      ROW 1 -- Planning / Actions / Tasks
@@ -92,7 +157,64 @@
   .stat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .stat-val { font-size: var(--text-md); font-weight: var(--weight-medium); }
 
-  /* ── Quick Actions ── */
+  /* ── Shared section patterns ── */
+  .dash-section-title {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: var(--space-2);
+  }
+
+  .dash-section-header {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+  }
+
+  .dash-section-header-left {
+    display: flex; align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Removes bottom margin when title is inside a header row */
+  .dash-section-header .dash-section-title { margin-bottom: 0; }
+
+  .dash-section-note {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+  }
+
+  .dash-count-badge {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    background: var(--color-danger-bg);
+    color: var(--color-danger-text);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+  }
+
+  .dash-link-btn {
+    font-size: var(--text-sm);
+    color: var(--brand-500);
+    background: none; border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: var(--weight-medium);
+  }
+
+  /* ── Quick Actions -- wrapper spacing ── */
+  .dash-quick-actions {
+    margin-bottom: var(--space-4);
+  }
+
+  .qa-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--space-2);
+  }
+
   .qa-list { display: flex; flex-direction: column; gap: 2px; }
 
   .qa-btn {
@@ -156,7 +278,21 @@
   }
 
 
+  /* ── Hospitalizations section wrapper ── */
+  .dash-hospi-section {
+    margin-bottom: var(--space-4);
+  }
+
   /* ── Hospitalizations inline -- horizontal scroll ── */
+  .hosp-scroll {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+  }
+
   .hosp-inline {
     min-width: 220px; max-width: 220px; flex-shrink: 0;
     background: var(--surface-card);
@@ -175,6 +311,56 @@
   .hosp-inline.stable { border-top-color: #4ade80; }
   .hosp-inline.obs    { border-top-color: #a78bfa; }
 
+  /* Hospitalisation card sub-elements */
+  .hosp-head-row {
+    display: flex; align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  .hosp-pet-name {
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  .hosp-pet-breed {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    margin-top: 1px;
+  }
+
+  .hosp-treatment {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-1);
+  }
+
+  .hosp-footer {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-1);
+  }
+
+  .hosp-doctor {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    display: flex; align-items: center;
+    gap: 3px;
+  }
+
+  .hosp-day-count {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    color: var(--text-muted);
+    background: var(--surface-hover);
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+  }
+
   /* Next care / monitoring */
   .hosp-next-soin {
     display: flex; align-items: center; gap: var(--space-1);
@@ -186,6 +372,20 @@
   .hosp-next-soin.urgent { background: #fff7ed; color: #c2410c; }
   .hosp-next-soin.soon   { background: #fffbeb; color: #b45309; }
   .hosp-next-soin.normal { background: var(--surface-subtle); color: var(--text-muted); }
+
+  .hosp-next-text {
+    min-width: 0;
+  }
+  .hosp-next-text p {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Small badge variant (10px) used across dashboard */
+  .badge-sm { font-size: 10px; flex-shrink: 0; }
 
   /* ────────────────────────────────────
      KANBAN -- columns with colored headers
@@ -248,6 +448,7 @@
   .kcard-meta { font-size: var(--text-sm); color: var(--text-subtle); margin-bottom: var(--space-1); }
   .kcard-reason { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-2); }
   .kcard-time { display: flex; align-items: center; gap: 3px; font-size: var(--text-sm); color: var(--text-subtle); }
+  .kcard-time--spaced { margin-bottom: var(--space-2); }
 
   .kcard-vitals {
     display: grid; grid-template-columns: repeat(3,1fr);
@@ -263,6 +464,19 @@
     padding-top: var(--space-2); margin-top: var(--space-2);
   }
 
+  .kcard-invoice-label {
+    font-size: var(--text-sm);
+    color: var(--text-subtle);
+    display: flex; align-items: center;
+    gap: 4px;
+  }
+
+  .kcard-invoice-amount {
+    font-size: var(--text-base);
+    font-weight: var(--weight-medium);
+    color: var(--color-success-600);
+  }
+
   /* ── Pulse ── */
   .pulse { animation: pls 2.2s ease-in-out infinite; }
 
@@ -276,6 +490,7 @@
 ──────────────────────────────────── */
 
 .rp-section { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.rp-section--bordered { border-bottom: 1px solid var(--border-light); }
 
 .rp-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -284,6 +499,29 @@
 }
 .rp-head-left { display: flex; align-items: center; gap: var(--space-2); }
 .rp-head-title { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .08em; }
+
+.rp-actions {
+  display: flex; align-items: center;
+  gap: var(--space-2);
+}
+
+.rp-link-btn {
+  font-size: var(--text-sm);
+  color: var(--brand-500);
+  background: none; border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: var(--weight-medium);
+}
+
+.rp-count-pill {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
 
 .rp-scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 0; }
 
@@ -304,6 +542,12 @@
 .rp-table tbody td:first-child { color: var(--text-primary); font-weight: var(--weight-medium); max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rp-table tbody td:nth-child(2) { text-align: center; }
 .rp-table tbody td:last-child { text-align: right; padding-right: var(--space-4); }
+
+/* Stock quantity severity classes */
+.rp-qty--danger  { color: var(--color-danger-600); font-weight: var(--weight-medium); }
+.rp-qty--warning { color: var(--color-warning-600); font-weight: var(--weight-medium); }
+.rp-qty--muted   { color: var(--text-subtle); }
+.rp-qty--subtle  { color: var(--text-muted); }
 
 /* Hosp cards in rpanel */
 .hosp-card {
@@ -339,6 +583,7 @@
 .task-item:hover { background: var(--surface-subtle); }
 .task-item.urgent { background: #fffbfb; }
 .task-item.urgent:hover { background: var(--color-danger-bg); }
+.task-item--done { opacity: .55; }
 
 .task-check {
   width: 14px; height: 14px;
@@ -351,8 +596,18 @@
 .task-check.urgent { border-color: #fca5a5; background: #fff; }
 .task-check.done { border-color: #4ade80; background: #f0fdf4; }
 
+/* Task content area */
+.task-body { flex: 1; min-width: 0; }
+
+.task-row {
+  display: flex; align-items: center;
+  gap: var(--space-1);
+  margin-bottom: 1px;
+}
+
 .task-name { font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-primary); line-height: var(--lh-normal); flex: 1; min-width: 0; }
 .task-name.done { color: var(--text-subtle); text-decoration: line-through; }
+.task-name--spaced { margin-bottom: 1px; }
 .task-meta { font-size: var(--text-sm); color: var(--text-subtle); margin-top: 1px; }
 
 .task-tag {
@@ -360,6 +615,8 @@
   padding: 1px var(--space-1); border-radius: var(--radius-sm);
   white-space: nowrap; flex-shrink: 0;
 }
+.task-tag--urgent { background: var(--color-danger-bg); color: var(--color-danger-text); }
+.task-tag--muted  { background: var(--surface-hover); color: var(--text-muted); }
 
 @keyframes pls { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.8)} }
 
@@ -377,9 +634,9 @@
     .row1 { grid-template-columns: 1fr; }
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
     .kanban { grid-template-columns: 1fr 1fr; }
-    .dash-header-grid { grid-template-columns: 1fr !important; }
-    .dash-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    .qa-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    .dash-header-grid { grid-template-columns: 1fr; }
+    .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }
 @media (max-width: 768px) {
@@ -387,7 +644,7 @@
     .row1 { grid-template-columns: 1fr; }
     .kanban { grid-template-columns: 1fr 1fr; }
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
-    .qa-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }
 @media (max-width: 480px) {
@@ -396,7 +653,7 @@
     .row1 > :last-child { grid-column: auto; }
     .kanban { grid-template-columns: 1fr; }
     .kpi-strip { grid-template-columns: 1fr 1fr; }
-    .dash-kpi-grid { grid-template-columns: 1fr 1fr !important; }
-    .qa-grid { grid-template-columns: repeat(3, 1fr) !important; }
+    .dash-kpi-grid { grid-template-columns: 1fr 1fr; }
+    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }

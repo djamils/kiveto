@@ -1,0 +1,206 @@
+{# Dashboard hospitalisations -- horizontal scroll cards, sorted critical -> stable #}
+<div class="dash-hospi-section">
+  <div class="dash-section-header">
+    <div class="dash-section-header-left">
+      <p class="dash-section-title">Hospitalisations</p>
+      <span class="dash-count-badge">8</span>
+      <span class="dash-section-note">&middot; 2 critiques</span>
+    </div>
+    <button class="dash-link-btn">Voir tout &rarr;</button>
+  </div>
+  <div class="hosp-scroll">
+
+    {# Bruno -- Critical #}
+    <div class="hosp-inline crit">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Bruno</p>
+          <p class="hosp-pet-breed">Canin &middot; Boxer</p>
+        </div>
+        <span class="badge b-alert badge-sm">Critique</span>
+      </div>
+      <p class="hosp-treatment">Perfusion + Antibiotiques</p>
+      <div class="hosp-next-soin urgent">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Constantes — dans 28 min</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Rousseau
+        </span>
+        <span class="hosp-day-count">J+2</span>
+      </div>
+    </div>
+
+    {# Titan -- Critical #}
+    <div class="hosp-inline crit">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Titan</p>
+          <p class="hosp-pet-breed">Canin &middot; Rottweiler</p>
+        </div>
+        <span class="badge b-alert badge-sm">Critique</span>
+      </div>
+      <p class="hosp-treatment">Convalescence post-chirurgie</p>
+      <div class="hosp-next-soin urgent">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Morphine IV — 13h45</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Rousseau
+        </span>
+        <span class="hosp-day-count">J+1</span>
+      </div>
+    </div>
+
+    {# Mochi -- Surveillance #}
+    <div class="hosp-inline surv">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Mochi</p>
+          <p class="hosp-pet-breed">F&eacute;lin &middot; Ragdoll</p>
+        </div>
+        <span class="badge b-warn badge-sm">Surveillance</span>
+      </div>
+      <p class="hosp-treatment">Insuffisance r&eacute;nale — dialyse</p>
+      <div class="hosp-next-soin soon">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Analyses sang — 17h00</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Patel
+        </span>
+        <span class="hosp-day-count">J+5</span>
+      </div>
+    </div>
+
+    {# Rex -- Surveillance #}
+    <div class="hosp-inline surv">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Rex</p>
+          <p class="hosp-pet-breed">Canin &middot; Labrador</p>
+        </div>
+        <span class="badge b-warn badge-sm">Surveillance</span>
+      </div>
+      <p class="hosp-treatment">Soins de plaie</p>
+      <div class="hosp-next-soin soon">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Pansement — 16h00</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Rousseau
+        </span>
+        <span class="hosp-day-count">J+3</span>
+      </div>
+    </div>
+
+    {# Nala -- Stable #}
+    <div class="hosp-inline stable">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Nala</p>
+          <p class="hosp-pet-breed">F&eacute;lin &middot; Persan</p>
+        </div>
+        <span class="badge b-ok badge-sm">Stable</span>
+      </div>
+      <p class="hosp-treatment">Surveillance post-op</p>
+      <div class="hosp-next-soin normal">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>M&eacute;dicaments — 14h00</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Patel
+        </span>
+        <span class="hosp-day-count">J+4</span>
+      </div>
+    </div>
+
+    {# Luna -- Stable #}
+    <div class="hosp-inline stable">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Luna</p>
+          <p class="hosp-pet-breed">F&eacute;lin &middot; Siamois</p>
+        </div>
+        <span class="badge b-ok badge-sm">Stable</span>
+      </div>
+      <p class="hosp-treatment">Pancr&eacute;atite — perfusion IV</p>
+      <div class="hosp-next-soin normal">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Contr&ocirc;le perf. — 15h30</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Patel
+        </span>
+        <span class="hosp-day-count">J+2</span>
+      </div>
+    </div>
+
+    {# Pepper -- Stable #}
+    <div class="hosp-inline stable">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Pepper</p>
+          <p class="hosp-pet-breed">Canin &middot; Beagle</p>
+        </div>
+        <span class="badge b-ok badge-sm">Stable</span>
+      </div>
+      <p class="hosp-treatment">Fracture — pl&acirc;tre et repos</p>
+      <div class="hosp-next-soin normal">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Surveillance &middot; Radio demain</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Rousseau
+        </span>
+        <span class="hosp-day-count">J+7</span>
+      </div>
+    </div>
+
+    {# Simba -- Observation #}
+    <div class="hosp-inline obs">
+      <div class="hosp-head-row">
+        <div>
+          <p class="hosp-pet-name">Simba</p>
+          <p class="hosp-pet-breed">F&eacute;lin &middot; Maine Coon</p>
+        </div>
+        <span class="badge b-purple badge-sm">Obs.</span>
+      </div>
+      <p class="hosp-treatment">Bilan neurologique</p>
+      <div class="hosp-next-soin normal">
+        <i data-lucide="clock" style="width:11px;height:11px;flex-shrink:0;"></i>
+        <div class="hosp-next-text">
+          <p>Bilan neuro — 18h00</p>
+        </div>
+      </div>
+      <div class="hosp-footer">
+        <span class="hosp-doctor">
+          <i data-lucide="user" style="width:9px;height:9px;"></i> Dr. Patel
+        </span>
+        <span class="hosp-day-count">J+1</span>
+      </div>
+    </div>
+
+  </div>
+</div>
