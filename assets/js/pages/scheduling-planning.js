@@ -195,7 +195,7 @@ function renderDayView(){
   for(let h=DAY_START;h<DAY_END;h++){
     const isOpen = h>=CLINIC_OPEN && h<CLINIC_CLOSE;
     html+=`<div style="width:${HOUR_W}px;flex-shrink:0;padding:7px 6px 5px;border-left:1px solid ${h===DAY_START?'transparent':'#e8edf2'};${isOpen?'':'background:#fafafa;'}">
-      <span style="font-size:var(--text-xs);font-weight:${isOpen?'var(--weight-semibold)':'var(--weight-normal)'};color:${isOpen?'#334155':'#cbd5e1'};">${String(h).padStart(2,'0')}h</span>
+      <span style="font-size:var(--text-xs);font-weight:${isOpen?'var(--weight-medium)':'var(--weight-normal)'};color:${isOpen?'#334155':'#cbd5e1'};">${String(h).padStart(2,'0')}h</span>
     </div>`;
   }
   html+=`</div></div>
@@ -242,8 +242,8 @@ function renderWeekView(){
   days.forEach(d=>{
     const isToday=fmtDate(d)===fmtDate(today);
     html+=`<div style="flex:1;padding:8px 0;text-align:center;border-left:1px solid #dde3ea;${isToday?'background:#f5f3ff;':''}">
-      <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${isToday?'#4338ca':'#94a3b8'};text-transform:uppercase;letter-spacing:.05em;border-left:1px solid #dde3ea;">${DOW_FR[(d.getDay()+6)%7]}</div>
-      <div style="font-size:17px;font-weight:${isToday?'800':'var(--weight-semibold)'};color:${isToday?'#4338ca':'#0f172a'};margin-top:1px;">${d.getDate()}</div>
+      <div style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${isToday?'#4338ca':'#94a3b8'};text-transform:uppercase;letter-spacing:.05em;border-left:1px solid #dde3ea;">${DOW_FR[(d.getDay()+6)%7]}</div>
+      <div style="font-size:17px;font-weight:${isToday?'800':'var(--weight-medium)'};color:${isToday?'#4338ca':'#0f172a'};margin-top:1px;">${d.getDate()}</div>
     </div>`;
   });
   html+=`<div style="width:6px;"></div></div>`;
@@ -266,7 +266,7 @@ function renderWeekView(){
       dayBlocks.forEach(b=>{
         const at=getActivityType(b.type);
         html+=`<div class="act-block-pill" onclick="event.stopPropagation();openBlockPopup('${b.vet}','${b.date}',${b.id})" style="padding:3px 8px;border-radius:5px;background:${at.bg};border-left:2px solid ${at.color};cursor:pointer;transition:filter .1s;" onmouseenter="this.style.filter='brightness(.95)'" onmouseleave="this.style.filter=''">
-          <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${at.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${at.icon} ${b.start.replace(':','h')}–${b.end.replace(':','h')}</div>
+          <div style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${at.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${at.icon} ${b.start.replace(':','h')}–${b.end.replace(':','h')}</div>
           <div style="font-size:var(--text-xs);color:${at.color};opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${at.label}</div>
         </div>`;
       });
@@ -297,7 +297,7 @@ function renderMonthView(){
   // Weekday header
   html+=`<div style="display:flex;background:#fff;border-bottom:1px solid #e8edf2;position:sticky;top:0;z-index:20;flex-shrink:0;">
     <div style="width:120px;flex-shrink:0;border-right:1px solid #e8edf2;"></div>`;
-  DOW_FR.forEach(dw=>html+=`<div style="flex:1;padding:8px 0;text-align:center;border-left:1px solid #f1f5f9;font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;border-left:1px solid #dde3ea;">${dw}</div>`);
+  DOW_FR.forEach(dw=>html+=`<div style="flex:1;padding:8px 0;text-align:center;border-left:1px solid #f1f5f9;font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;border-left:1px solid #dde3ea;">${dw}</div>`);
   html+=`<div style="width:6px;"></div></div>`;
 
   // Rows per vet
@@ -325,7 +325,7 @@ function renderMonthView(){
       dayBlocks.forEach(b=>{
         const at=getActivityType(b.type);
         html+=`<div onclick="event.stopPropagation();openBlockPopup('${b.vet}','${b.date}',${b.id})" style="padding:1px 4px;border-radius:3px;background:${at.bg};border-left:2px solid ${at.color};margin-bottom:1px;cursor:pointer;transition:filter .1s;" onmouseenter="this.style.filter='brightness(.93)'" onmouseleave="this.style.filter=''">
-          <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${at.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${at.icon} ${at.label}</span>
+          <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${at.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${at.icon} ${at.label}</span>
         </div>`;
       });
 
@@ -375,7 +375,7 @@ function renderVetRow(vetKey, vet, dateStr, dayBlocks, totalW){
 
   // Preview block (hidden by default)
   row+=`<div id="drag-preview-${vetKey}-${dateStr}" style="display:none;position:absolute;top:6px;bottom:6px;border-radius:5px;background:rgba(99,102,241,.08);border:1.5px dashed #818cf8;pointer-events:none;z-index:5;">
-    <div id="drag-label-${vetKey}-${dateStr}" style="padding:2px 6px;font-size:var(--text-xs);font-weight:var(--weight-semibold);color:#6366f1;white-space:nowrap;"></div>
+    <div id="drag-label-${vetKey}-${dateStr}" style="padding:2px 6px;font-size:var(--text-xs);font-weight:var(--weight-medium);color:#6366f1;white-space:nowrap;"></div>
   </div>`;
 
   // Activity blocks
@@ -497,7 +497,7 @@ function renderActivityTypeGrid(selected){
   grid.innerHTML = ACTIVITY_TYPES.map(at=>`
     <button onclick="selectActivityType('${at.id}')" id="at-${at.id}" style="padding:8px 6px;border-radius:8px;border:1.5px solid ${at.id===selected?at.color:'#e2e8f0'};background:${at.id===selected?at.bg:'#f8fafc'};cursor:pointer;font-family:inherit;transition:all .1s;text-align:center;">
       <div style="font-size:var(--text-lg);margin-bottom:2px;">${at.icon}</div>
-      <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${at.id===selected?at.color:'#64748b'};">${at.label}</div>
+      <div style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${at.id===selected?at.color:'#64748b'};">${at.label}</div>
     </button>`).join('');
 }
 

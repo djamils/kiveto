@@ -488,11 +488,11 @@ function renderAnimal(a){
             const trendColor=last>prev?'#dc2626':last<prev?'#059669':'#94a3b8';
             return `<div style="border-left:${i>0?'1px solid #f1f5f9':'none'};padding:10px 12px;display:flex;flex-direction:column;gap:4px;">
               <div style="display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;">${v.label}</span>
+                <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;">${v.label}</span>
                 <span style="font-size:var(--text-sm);font-weight:var(--weight-bold);color:${trendColor};">${trend}</span>
               </div>
               <div style="display:flex;align-items:baseline;gap:3px;">
-                <span style="font-size:20px;font-weight:var(--weight-semibold);color:${v.color};line-height:1;letter-spacing:-.5px;">${last}</span>
+                <span style="font-size:20px;font-weight:var(--weight-medium);color:${v.color};line-height:1;letter-spacing:-.5px;">${last}</span>
                 <span style="font-size:var(--text-xs);color:var(--text-subtle);font-weight:var(--weight-normal);">${v.unit}</span>
               </div>
               <div style="flex:1;min-height:48px;">${renderVitalChart(v.data, v.type, v.color, v.fill, v.unit)}</div>
@@ -541,7 +541,7 @@ function renderAnimal(a){
               <div style="width:10px;height:10px;border-radius:50%;background:${i===0?'#4338ca':'#e2e8f0'};flex-shrink:0;"></div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
-                  <span style="font-size:var(--text-md);font-weight:var(--weight-semibold);color:var(--text-primary);">${c.motif}</span>
+                  <span style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">${c.motif}</span>
                   <span class="badge b-grey" style="font-size:var(--text-xs);">${c.vet}</span>
                   <span style="font-size:var(--text-xs);color:var(--text-subtle);margin-left:auto;">${fmtDate(c.date)}</span>
                 </div>
@@ -563,7 +563,7 @@ function renderAnimal(a){
         <div class="wh">
           <div style="display:flex;align-items:center;gap:7px;">
             <span class="wt">Médias & Documents</span>
-            <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">${a.medias.length}</span>
+            <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">${a.medias.length}</span>
           </div>
           <button class="btn btn-secondary btn-xs" onclick="toast('Voir tout…','#4338ca')">Voir tout</button>
         </div>

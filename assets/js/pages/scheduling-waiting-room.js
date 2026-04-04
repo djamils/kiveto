@@ -126,8 +126,8 @@ function qcardHTML(p, fn) {
   var sBg = p.statut === 'consultation' ? '#eff6ff' : p.statut === 'sortie' ? '#f0fdf4' : p.priority === 'urgence' ? '#fef2f2' : p.priority === 'prioritaire' ? '#fffbeb' : '#f8fafc';
   var icon = p.priority === 'urgence'
     ? '<div style="width:40px;height:40px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" fill="none" viewBox="0 0 14 14"><path d="M7 2l5 9H2l5-9z" stroke="#dc2626" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 5.5v2M7 9h.01" stroke="#dc2626" stroke-width="1.4" stroke-linecap="round"/></svg></div>'
-    : '<div style="width:40px;height:40px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:var(--text-md);font-weight:var(--weight-semibold);flex-shrink:0;">' + p.avatar + '</div>';
-  var rdvBadge = !p.rdv ? '<span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:#d97706;background:#fff7ed;border:1px solid #fde68a;border-radius:20px;padding:0 4px;">Sans RDV</span>' : '';
+    : '<div style="width:40px;height:40px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:var(--text-md);font-weight:var(--weight-medium);flex-shrink:0;">' + p.avatar + '</div>';
+  var rdvBadge = !p.rdv ? '<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:#d97706;background:#fff7ed;border:1px solid #fde68a;border-radius:20px;padding:0 4px;">Sans RDV</span>' : '';
   var vetLine = p.vet ? '<span style="font-weight:var(--weight-medium);">' + p.vet + '</span>' : '<span>Non assign\u00e9</span>';
   var salleLine = p.salle ? '<span>\u00B7</span><span style="color:#1d4ed8;">' + p.salle + '</span>' : '';
   return '<div class="qcard' + (p.priority === 'urgence' ? ' urgence' : '') + '" onclick="' + fn + '(' + p.id + ')" id="qcard-' + p.id + '">'

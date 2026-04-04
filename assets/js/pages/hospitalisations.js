@@ -175,7 +175,7 @@ function renderList() {
         <div class="hcard-avatar" style="background:${p.bg};color:${p.color};">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-            <p style="font-size:var(--text-md);font-weight:var(--weight-semibold);color:var(--text-primary);">${p.animal}</p>
+            <p style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">${p.animal}</p>
             <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
           </div>
           <p style="font-size:var(--text-xs);color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
@@ -245,7 +245,7 @@ function renderDetail(p) {
         <div style="width:48px;height:48px;border-radius:50%;background:${p.bg};color:${p.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:var(--weight-bold);flex-shrink:0;">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-            <h2 style="font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--text-primary);">${p.animal}</h2>
+            <h2 style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);">${p.animal}</h2>
             <span style="font-size:var(--text-sm);color:var(--text-muted);">${p.race} · ${p.age} · ${p.poids}</span>
             <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
             ${lastEvo ? `<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>` : ''}
@@ -429,11 +429,11 @@ function renderTabContent(p) {
         </div>
         <div class="wb">
           <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
-            <p style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Motif d'hospitalisation</p>
+            <p style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Motif d'hospitalisation</p>
             <p style="font-size:var(--text-md);color:var(--text-primary);font-weight:var(--weight-medium);">${p.motif}</p>
           </div>
           <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
-            <p style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Soins réalisés</p>
+            <p style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Soins réalisés</p>
             ${p.soins.filter(s => s.done).map(s => `<p style="font-size:var(--text-sm);color:var(--text-secondary);margin-bottom:3px;">• ${s.type} — ${s.produit} ${s.dose} (${s.freq})</p>`).join('') || '<p style="font-size:var(--text-sm);color:var(--text-subtle);">Aucun soin validé</p>'}
           </div>
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:14px;display:flex;align-items:center;gap:10px;">

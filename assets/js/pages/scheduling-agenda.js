@@ -322,8 +322,8 @@ function renderWeek(){
     const isSelected = fmtDate(d) === selectedDay;
     el.style.cssText = `padding:8px 0;text-align:center;border-left:${di===0?'1px solid #dde3ea':'1px solid #f1f5f9'};cursor:pointer;transition:background .1s;${isToday?'background:#f5f3ff;':isSelected?'background:#f8f7ff;':''}`;
     el.innerHTML = `
-      <div style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${isToday?'#4338ca':isSelected?'#6366f1':'#94a3b8'};text-transform:uppercase;letter-spacing:.06em;">${DOW_FR[(d.getDay()+6)%7+1]||DOW_FR[0]}</div>
-      <div style="font-size:18px;font-weight:${isToday||isSelected?'800':'var(--weight-semibold)'};color:${isToday?'#4338ca':isSelected?'#6366f1':'#0f172a'};line-height:1.1;margin-top:1px;">${d.getDate()}</div>
+      <div style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${isToday?'#4338ca':isSelected?'#6366f1':'#94a3b8'};text-transform:uppercase;letter-spacing:.06em;">${DOW_FR[(d.getDay()+6)%7+1]||DOW_FR[0]}</div>
+      <div style="font-size:18px;font-weight:${isToday||isSelected?'800':'var(--weight-medium)'};color:${isToday?'#4338ca':isSelected?'#6366f1':'#0f172a'};line-height:1.1;margin-top:1px;">${d.getDate()}</div>
       <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-top:1px;">${countRdv(fmtDate(d))} RDV</div>`;
     el.onclick = () => { selectedDay = fmtDate(d); renderWeek(); renderDayPlanning(); };
     head.appendChild(el);
@@ -695,7 +695,7 @@ function searchAnimals(q){
   box.innerHTML = results.map(a => `
     <div onclick="selectAnimal(${a.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .1s;" onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
       <span style="font-size:var(--text-lg);">${a.emoji}</span>
-      <div><p style="font-size:var(--text-sm);font-weight:var(--weight-semibold);color:var(--text-primary);">${a.name}</p><p style="font-size:var(--text-xs);color:var(--text-subtle);">${a.breed} · ${a.owner}</p></div>
+      <div><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.name}</p><p style="font-size:var(--text-xs);color:var(--text-subtle);">${a.breed} · ${a.owner}</p></div>
     </div>`).join('');
   box.style.display='block';
 }
@@ -854,7 +854,7 @@ function renderDayPlanning(){
         <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
           <span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${vet.color};">${a.start.replace(':','h')}</span>
           <span style="font-size:var(--text-xs);color:var(--text-subtle);">·</span>
-          <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:${motifColor};">${a.motif}</span>
+          <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${motifColor};">${a.motif}</span>
           <span style="font-size:var(--text-xs);color:var(--text-subtle);margin-left:auto;white-space:nowrap;">${a.durationMin}min</span>
         </div>
         <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${animal?.emoji||''} ${animal?.name||'?'}</div>
