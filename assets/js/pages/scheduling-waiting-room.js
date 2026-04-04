@@ -111,7 +111,7 @@ function stripeClass(p) {
 function timerHTML(p, wt, wc) {
   if (p.statut !== 'attente') return '';
   if (wt === "A l'instant") {
-    return '<span style="font-size:11px;font-weight:500;color:#16a34a;background:#f0fdf4;padding:2px 8px;border-radius:20px;">Vient d\'arriver</span>';
+    return '<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:#16a34a;background:#f0fdf4;padding:2px 8px;border-radius:20px;">Vient d\'arriver</span>';
   }
   var parts = wt.split(' ');
   var num = parts[0];
@@ -126,9 +126,9 @@ function qcardHTML(p, fn) {
   var sBg = p.statut === 'consultation' ? '#eff6ff' : p.statut === 'sortie' ? '#f0fdf4' : p.priority === 'urgence' ? '#fef2f2' : p.priority === 'prioritaire' ? '#fffbeb' : '#f8fafc';
   var icon = p.priority === 'urgence'
     ? '<div style="width:40px;height:40px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" fill="none" viewBox="0 0 14 14"><path d="M7 2l5 9H2l5-9z" stroke="#dc2626" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 5.5v2M7 9h.01" stroke="#dc2626" stroke-width="1.4" stroke-linecap="round"/></svg></div>'
-    : '<div style="width:40px;height:40px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;">' + p.avatar + '</div>';
-  var rdvBadge = !p.rdv ? '<span style="font-size:10px;font-weight:600;color:#d97706;background:#fff7ed;border:1px solid #fde68a;border-radius:20px;padding:0 4px;">Sans RDV</span>' : '';
-  var vetLine = p.vet ? '<span style="font-weight:500;">' + p.vet + '</span>' : '<span>Non assign\u00e9</span>';
+    : '<div style="width:40px;height:40px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:var(--text-md);font-weight:600;flex-shrink:0;">' + p.avatar + '</div>';
+  var rdvBadge = !p.rdv ? '<span style="font-size:var(--text-xs);font-weight:600;color:#d97706;background:#fff7ed;border:1px solid #fde68a;border-radius:20px;padding:0 4px;">Sans RDV</span>' : '';
+  var vetLine = p.vet ? '<span style="font-weight:var(--weight-medium);">' + p.vet + '</span>' : '<span>Non assign\u00e9</span>';
   var salleLine = p.salle ? '<span>\u00B7</span><span style="color:#1d4ed8;">' + p.salle + '</span>' : '';
   return '<div class="qcard' + (p.priority === 'urgence' ? ' urgence' : '') + '" onclick="' + fn + '(' + p.id + ')" id="qcard-' + p.id + '">'
     + '<div class="qcard-stripe ' + stripeClass(p) + '"></div>'
@@ -138,7 +138,7 @@ function qcardHTML(p, fn) {
     + '<p class="qcard-motif">' + p.motif + '</p>'
     + '<div class="qcard-meta" style="display:flex;align-items:center;gap:4px;">' + vetLine + salleLine + '</div>'
     + '</div><div class="qcard-right">'
-    + '<span style="font-size:11px;font-weight:500;color:' + sColor + ';background:' + sBg + ';padding:2px 8px;border-radius:20px;">' + sLabel + '</span>'
+    + '<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:' + sColor + ';background:' + sBg + ';padding:2px 8px;border-radius:20px;">' + sLabel + '</span>'
     + timerHTML(p, wt, wc)
     + '</div></div></div>';
 }
@@ -226,14 +226,14 @@ function detailHTML(p) {
       ? '<button class="btn-wr btn-secondary btn-xs" onclick="toast(\'Consultation termin\u00e9e\',\'#059669\')">Terminer</button><button class="btn-wr btn-secondary btn-xs">Ordonnance</button>'
       : '<button class="btn-wr btn-primary btn-xs" onclick="toast(\'Facture g\u00e9n\u00e9r\u00e9e\',\'#059669\')">G\u00e9n\u00e9rer la facture</button>';
   return '<div style="padding:16px;border-bottom:1px solid #e8edf2;display:flex;align-items:flex-start;gap:12px;">'
-    + '<div style="width:44px;height:44px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;flex-shrink:0;">' + p.avatar + '</div>'
+    + '<div style="width:44px;height:44px;border-radius:50%;background:' + p.bg + ';color:' + p.color + ';display:flex;align-items:center;justify-content:center;font-size:var(--text-base);font-weight:var(--weight-medium);flex-shrink:0;">' + p.avatar + '</div>'
     + '<div style="flex:1;min-width:0;">'
     + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">'
-    + '<h2 style="font-size:16px;font-weight:500;color:#0f172a;">' + p.animal + '</h2>'
-    + '<span style="font-size:14px;color:#64748b;">' + p.espece + ' ' + p.race + ' \u00B7 ' + p.age + '</span>'
+    + '<h2 style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:#0f172a;">' + p.animal + '</h2>'
+    + '<span style="font-size:var(--text-base);color:#64748b;">' + p.espece + ' ' + p.race + ' \u00B7 ' + p.age + '</span>'
     + (p.priority === 'urgence' ? '<span class="badge-wr b-urgence">URGENCE</span>' : p.priority === 'prioritaire' ? '<span class="badge-wr b-wait">Prioritaire</span>' : '')
     + '</div>'
-    + '<p style="font-size:13px;color:#94a3b8;">' + p.proprio + ' \u00B7 ' + p.tel + '</p>'
+    + '<p style="font-size:var(--text-md);color:#94a3b8;">' + p.proprio + ' \u00B7 ' + p.tel + '</p>'
     + '</div>'
     + '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">' + actions + '</div>'
     + '</div>'
@@ -241,13 +241,13 @@ function detailHTML(p) {
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">'
     + '<div class="pd-kpi"><p class="pd-kpi-label">Attente</p><p class="pd-kpi-val" style="color:' + wc + ';">' + wt + '</p></div>'
     + '<div class="pd-kpi"><p class="pd-kpi-label">Poids</p><p class="pd-kpi-val">' + p.poids + '</p></div>'
-    + '<div class="pd-kpi"><p class="pd-kpi-label">RDV</p><p class="pd-kpi-val" style="font-size:14px;color:' + (p.rdv ? '#059669' : '#d97706') + ';">' + (p.rdv ? 'Oui' : 'Non') + '</p></div>'
+    + '<div class="pd-kpi"><p class="pd-kpi-label">RDV</p><p class="pd-kpi-val" style="font-size:var(--text-base);color:' + (p.rdv ? '#059669' : '#d97706') + ';">' + (p.rdv ? 'Oui' : 'Non') + '</p></div>'
     + '</div>'
-    + '<div class="pd-row"><span class="pd-label">Motif</span><span style="font-size:14px;font-weight:500;color:#0f172a;text-align:right;max-width:220px;">' + p.motif + '</span></div>'
-    + '<div class="pd-row"><span class="pd-label">V\u00e9t\u00e9rinaire</span><span style="font-size:14px;font-weight:500;color:#0f172a;">' + (p.vet || '\u2014 Non assign\u00e9') + '</span></div>'
-    + (p.salle ? '<div class="pd-row"><span class="pd-label">Salle</span><span style="font-size:14px;font-weight:500;color:#1d4ed8;">' + p.salle + '</span></div>' : '')
+    + '<div class="pd-row"><span class="pd-label">Motif</span><span style="font-size:var(--text-base);font-weight:var(--weight-medium);color:#0f172a;text-align:right;max-width:220px;">' + p.motif + '</span></div>'
+    + '<div class="pd-row"><span class="pd-label">V\u00e9t\u00e9rinaire</span><span style="font-size:var(--text-base);font-weight:var(--weight-medium);color:#0f172a;">' + (p.vet || '\u2014 Non assign\u00e9') + '</span></div>'
+    + (p.salle ? '<div class="pd-row"><span class="pd-label">Salle</span><span style="font-size:var(--text-base);font-weight:var(--weight-medium);color:#1d4ed8;">' + p.salle + '</span></div>' : '')
     + '<div class="pd-row"><span class="pd-label">Statut</span>'
-    + '<select style="font-size:13px;border:1px solid #e2e8f0;border-radius:8px;padding:3px 8px;background:#fff;font-family:inherit;outline:none;cursor:pointer;" onchange="toast(\'Statut mis \u00e0 jour\',\'#059669\')">'
+    + '<select style="font-size:var(--text-md);border:1px solid #e2e8f0;border-radius:8px;padding:3px 8px;background:#fff;font-family:inherit;outline:none;cursor:pointer;" onchange="toast(\'Statut mis \u00e0 jour\',\'#059669\')">'
     + '<option ' + (p.statut === 'attente' ? 'selected' : '') + '>En attente</option>'
     + '<option ' + (p.statut === 'consultation' ? 'selected' : '') + '>En consultation</option>'
     + '<option ' + (p.statut === 'sortie' ? 'selected' : '') + '>Sortie</option>'
@@ -268,8 +268,8 @@ function vetsHTML() {
     var sub = isBusy ? v.patient + ' \u00B7 ' + v.salle : 'Disponible';
     return '<div class="vet-cell" style="' + br + bb + '">'
       + '<div class="vet-avatar" style="background:' + v.bg + ';color:' + v.color + ';">' + v.initiales + '</div>'
-      + '<div style="flex:1;min-width:0;"><p style="font-size:14px;font-weight:500;color:#0f172a;">' + v.nom + '</p><p style="font-size:13px;color:#94a3b8;">' + sub + '</p></div>'
-      + '<div style="display:flex;align-items:center;gap:4px;"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;' + dotStyle + '"></div><span style="font-size:11px;font-weight:500;color:' + statusColor + ';">' + statusLabel + '</span></div>'
+      + '<div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:#0f172a;">' + v.nom + '</p><p style="font-size:var(--text-md);color:#94a3b8;">' + sub + '</p></div>'
+      + '<div style="display:flex;align-items:center;gap:4px;"><div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;' + dotStyle + '"></div><span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:' + statusColor + ';">' + statusLabel + '</span></div>'
       + '</div>';
   }).join('');
 }
@@ -282,11 +282,11 @@ function timelineHTML() {
   return sorted.map(function (t, i, a) {
     var border = i < a.length - 1 ? 'border-bottom:1px solid #f8fafc;' : '';
     return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;' + border + '">'
-      + '<span style="font-size:13px;color:#94a3b8;min-width:44px;flex-shrink:0;">' + t.heure + '</span>'
+      + '<span style="font-size:var(--text-md);color:#94a3b8;min-width:44px;flex-shrink:0;">' + t.heure + '</span>'
       + '<div style="width:7px;height:7px;border-radius:50%;background:' + colors[t.statut] + ';flex-shrink:0;"></div>'
-      + '<div style="flex:1;min-width:0;"><span style="font-size:14px;font-weight:500;color:#0f172a;">' + t.animal + '</span><span style="font-size:13px;color:#64748b;margin-left:8px;">' + t.motif + '</span></div>'
-      + '<span style="font-size:13px;color:#94a3b8;flex-shrink:0;white-space:nowrap;">' + t.vet + '</span>'
-      + '<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:' + bgs[t.statut] + ';color:' + colors[t.statut] + ';flex-shrink:0;">' + labels[t.statut] + '</span>'
+      + '<div style="flex:1;min-width:0;"><span style="font-size:var(--text-base);font-weight:var(--weight-medium);color:#0f172a;">' + t.animal + '</span><span style="font-size:var(--text-md);color:#64748b;margin-left:8px;">' + t.motif + '</span></div>'
+      + '<span style="font-size:var(--text-md);color:#94a3b8;flex-shrink:0;white-space:nowrap;">' + t.vet + '</span>'
+      + '<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:2px 8px;border-radius:20px;background:' + bgs[t.statut] + ';color:' + colors[t.statut] + ';flex-shrink:0;">' + labels[t.statut] + '</span>'
       + '</div>';
   }).join('');
 }

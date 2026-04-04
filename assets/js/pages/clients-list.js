@@ -227,7 +227,7 @@ function renderTable(){
       var bg=a.status==='alert'?'#fef2f2':a.status==='warn'?'#fff7ed':'var(--surface-subtle)';
       var border=a.status==='alert'?'#fecaca':a.status==='warn'?'#fed7aa':'var(--border-medium)';
       var color=a.status==='alert'?'#dc2626':a.status==='warn'?'#d97706':'var(--text-muted)';
-      return '<span style="display:inline-flex;align-items:center;gap:3px;background:'+bg+';border:1px solid '+border+';border-radius:var(--radius-sm);padding:1px var(--space-1);font-size:10px;color:'+color+';">'+SPECIES_EMOJI[a.species]+' '+a.name+'</span>';
+      return '<span style="display:inline-flex;align-items:center;gap:3px;background:'+bg+';border:1px solid '+border+';border-radius:var(--radius-sm);padding:1px var(--space-1);font-size:var(--text-xs);color:'+color+';">'+SPECIES_EMOJI[a.species]+' '+a.name+'</span>';
     }).join('');
 
     var animalSection='';
@@ -237,14 +237,14 @@ function renderTable(){
         return '<div class="animal-row'+(isSelected?' sel':'')+'" style="--grid:'+GRID+';" onclick="selectAnimal('+client.id+','+a.id+')">'
           +'<div></div>'
           +'<div class="cell-name" style="display:flex;align-items:center;gap:var(--space-2);min-width:0;">'
-            +'<div style="width:26px;height:26px;border-radius:var(--radius-md);background:'+client.bg+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">'+SPECIES_EMOJI[a.species]+'</div>'
+            +'<div style="width:26px;height:26px;border-radius:var(--radius-md);background:'+client.bg+';display:flex;align-items:center;justify-content:center;font-size:var(--text-base);flex-shrink:0;">'+SPECIES_EMOJI[a.species]+'</div>'
             +'<div style="min-width:0;"><div style="display:flex;align-items:center;gap:var(--space-1);"><span style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">'+a.name+'</span><span class="badge '+(SPECIES_BADGE[a.species]||'b-other')+'">'+( SPECIES_LABEL[a.species]||a.species)+'</span></div><span style="font-size:var(--text-sm);color:var(--text-subtle);">'+a.breed+' · '+a.weight+'</span></div>'
           +'</div>'
           +'<div></div><div></div>'
           +'<div class="col-lastrdv" style="font-size:var(--text-md);color:var(--text-muted);">'+timeSince(a.lastVisit)+'</div>'
           +'<div style="font-size:var(--text-md);color:'+(a.nextVisit?'#059669':'var(--text-subtle)')+';">'+(a.nextVisit?fmtDate(a.nextVisit):'—')+'</div>'
           +'<div>'+(a.status==='alert'?'<span class="badge b-alert">⚠</span>':a.status==='warn'?'<span class="badge b-warn">!</span>':'')+'</div>'
-          +'<div><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();selectAnimal('+client.id+','+a.id+')" style="padding:3px 8px;font-size:10px;">→</button></div>'
+          +'<div><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();selectAnimal('+client.id+','+a.id+')" style="padding:3px 8px;font-size:var(--text-xs);">→</button></div>'
         +'</div>';
       }).join('');
       animalSection='<div class="animal-section" style="--grid:'+GRID+';">'+rows+'</div>';

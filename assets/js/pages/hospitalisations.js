@@ -175,18 +175,18 @@ function renderList() {
         <div class="hcard-avatar" style="background:${p.bg};color:${p.color};">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-            <p style="font-size:13.5px;font-weight:600;color:#0f172a;">${p.animal}</p>
-            <span style="font-size:10px;font-weight:500;padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+            <p style="font-size:var(--text-md);font-weight:600;color:#0f172a;">${p.animal}</p>
+            <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:1px 7px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
           </div>
-          <p style="font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
+          <p style="font-size:var(--text-xs);color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.motif}</p>
           <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
-            <span style="font-size:11px;color:#94a3b8;">${fmtDays(p.admission)}</span>
-            <span style="font-size:11px;color:#94a3b8;">· ${p.vet}</span>
+            <span style="font-size:var(--text-xs);color:#94a3b8;">${fmtDays(p.admission)}</span>
+            <span style="font-size:var(--text-xs);color:#94a3b8;">· ${p.vet}</span>
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <p style="font-size:12px;font-weight:500;color:${done === total ? '#059669' : '#0f172a'};">${done}/${total}</p>
-          <p style="font-size:10px;color:#94a3b8;">soins</p>
+          <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:${done === total ? '#059669' : '#0f172a'};">${done}/${total}</p>
+          <p style="font-size:var(--text-xs);color:#94a3b8;">soins</p>
         </div>
       </div>
       <!-- Progress bar -->
@@ -245,16 +245,16 @@ function renderDetail(p) {
         <div style="width:48px;height:48px;border-radius:50%;background:${p.bg};color:${p.color};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0;">${p.espece}</div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
-            <h2 style="font-size:16px;font-weight:600;color:#0f172a;">${p.animal}</h2>
-            <span style="font-size:12px;color:#64748b;">${p.race} · ${p.age} · ${p.poids}</span>
-            <span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
-            ${lastEvo ? `<span style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>` : ''}
+            <h2 style="font-size:var(--text-lg);font-weight:600;color:#0f172a;">${p.animal}</h2>
+            <span style="font-size:var(--text-sm);color:#64748b;">${p.race} · ${p.age} · ${p.poids}</span>
+            <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:2px 9px;border-radius:20px;background:${sb};color:${sc};">${severityLabel(p.severity)}</span>
+            ${lastEvo ? `<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);padding:2px 9px;border-radius:20px;background:${etatColor(lastEvo.etat)}22;color:${etatColor(lastEvo.etat)};">${etatIcon(lastEvo.etat)} ${etatLabel(lastEvo.etat)}</span>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:12px;color:#94a3b8;">${p.proprio} · ${p.tel}</span>
-            <span style="font-size:12px;color:#94a3b8;">· ${p.vet}</span>
-            <span style="font-size:12px;color:#94a3b8;">· Admis ${fmtDays(p.admission)}</span>
-            <span style="font-size:12px;color:${p.sortie_prev === new Date().toISOString().slice(0, 10) ? '#d97706' : '#94a3b8'};">· Sortie prévue ${new Date(p.sortie_prev).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+            <span style="font-size:var(--text-sm);color:#94a3b8;">${p.proprio} · ${p.tel}</span>
+            <span style="font-size:var(--text-sm);color:#94a3b8;">· ${p.vet}</span>
+            <span style="font-size:var(--text-sm);color:#94a3b8;">· Admis ${fmtDays(p.admission)}</span>
+            <span style="font-size:var(--text-sm);color:${p.sortie_prev === new Date().toISOString().slice(0, 10) ? '#d97706' : '#94a3b8'};">· Sortie prévue ${new Date(p.sortie_prev).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
@@ -266,19 +266,19 @@ function renderDetail(p) {
           </button>
         </div>
       </div>
-      ${p.notes ? `<div style="margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#475569;border-left:3px solid #4338ca;">${p.notes}</div>` : ''}
+      ${p.notes ? `<div style="margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px 12px;font-size:var(--text-sm);color:#475569;border-left:3px solid #4338ca;">${p.notes}</div>` : ''}
     </div>
 
     <!-- Tabs -->
     <div class="detail-tabs">
       <div class="dtab active" data-tab="soins" onclick="setTab('soins')">
         Protocole de soins
-        <span style="font-size:10px;background:${done === total ? '#f0fdf4' : '#eef2ff'};color:${done === total ? '#16a34a' : '#4338ca'};padding:0 6px;border-radius:10px;margin-left:5px;">${done}/${total}</span>
+        <span style="font-size:var(--text-xs);background:${done === total ? '#f0fdf4' : '#eef2ff'};color:${done === total ? '#16a34a' : '#4338ca'};padding:0 6px;border-radius:10px;margin-left:5px;">${done}/${total}</span>
       </div>
       <div class="dtab" data-tab="alim" onclick="setTab('alim')">Alimentation & Hydratation</div>
       <div class="dtab" data-tab="evo" onclick="setTab('evo')">
         Évolution
-        <span style="font-size:10px;background:#f8fafc;color:#64748b;padding:0 6px;border-radius:10px;margin-left:5px;border:1px solid #e2e8f0;">${p.evolution.length}</span>
+        <span style="font-size:var(--text-xs);background:#f8fafc;color:#64748b;padding:0 6px;border-radius:10px;margin-left:5px;border:1px solid #e2e8f0;">${p.evolution.length}</span>
       </div>
       <div class="dtab" data-tab="sortie" onclick="setTab('sortie')">Sortie & Compte-rendu</div>
     </div>
@@ -302,7 +302,7 @@ function renderTabContent(p) {
           <span class="wt">À faire — ${pending.length} soins en attente</span>
           <button class="btn btn-primary btn-xs" onclick="openModal('modal-soin')">+ Ajouter un soin</button>
         </div>
-        ${pending.length ? `<div>${pending.map(s => soinRow(s, p)).join('')}</div>` : '<div class="wb"><p style="font-size:13px;color:#94a3b8;text-align:center;padding:8px 0;">✅ Tous les soins du jour ont été administrés</p></div>'}
+        ${pending.length ? `<div>${pending.map(s => soinRow(s, p)).join('')}</div>` : '<div class="wb"><p style="font-size:var(--text-md);color:#94a3b8;text-align:center;padding:8px 0;">✅ Tous les soins du jour ont été administrés</p></div>'}
       </div>
       ${done.length ? `
       <div class="widget">
@@ -322,16 +322,16 @@ function renderTabContent(p) {
             <div class="irow"><span class="il">Régime</span><span class="iv">${a.type}</span></div>
             <div class="irow"><span class="il">Repas aujourd'hui</span><span class="iv" style="color:${prisRepas === totalRepas ? '#059669' : '#d97706'}">${prisRepas}/${totalRepas} donnés</span></div>
             ${a.croquettes_g ? `<div class="irow"><span class="il">Quantité totale</span><span class="iv">${a.croquettes_g} g</span></div>` : ''}
-            ${totalRepas === 0 ? `<div style="margin-top:8px;text-align:center;padding:8px;background:#f8fafc;border-radius:8px;font-size:12.5px;color:#94a3b8;">Aucune alimentation prévue</div>` : ''}
+            ${totalRepas === 0 ? `<div style="margin-top:8px;text-align:center;padding:8px;background:#f8fafc;border-radius:8px;font-size:var(--text-sm);color:#94a3b8;">Aucune alimentation prévue</div>` : ''}
           </div>
           ${a.repas.length ? `<div>${a.repas.map((r, i, arr) => `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;${i < arr.length - 1 ? 'border-bottom:1px solid #f1f5f9;' : ''}transition:background .12s;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
               <div style="width:20px;height:20px;border-radius:6px;background:${r.administre ? '#4338ca' : '#e2e8f0'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" onclick="toast('${r.administre ? 'Repas annulé' : 'Repas marqué administré'}','#4338ca')">
                 ${r.administre ? `<svg width="10" height="10" fill="none" viewBox="0 0 10 10"><path d="M2 5l2 2 4-4" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
               </div>
-              <div style="flex:1;"><p style="font-size:12.5px;font-weight:500;color:#0f172a;">${r.type} · ${r.quantite}</p></div>
-              <span style="font-size:12px;color:#94a3b8;">${r.heure}</span>
-              <span class="badge ${r.administre ? 'b-ok' : 'b-grey'}" style="font-size:10px;">${r.administre ? 'Donné' : 'En attente'}</span>
+              <div style="flex:1;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${r.type} · ${r.quantite}</p></div>
+              <span style="font-size:var(--text-sm);color:#94a3b8;">${r.heure}</span>
+              <span class="badge ${r.administre ? 'b-ok' : 'b-grey'}" style="font-size:var(--text-xs);">${r.administre ? 'Donné' : 'En attente'}</span>
             </div>`).join('')}</div>` : ''
           }
         </div>
@@ -343,13 +343,13 @@ function renderTabContent(p) {
             ${a.eau_perf_ml ? `<div class="irow"><span class="il">Apport perfusion</span><span class="iv" style="color:#2563eb;">${a.eau_perf_ml} ml/jour</span></div>` : ''}
             <div style="margin-top:10px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-                <span style="font-size:11.5px;color:#64748b;font-weight:500;">Hydratation estimée</span>
-                <span style="font-size:12px;font-weight:500;color:${a.eau_ml + a.eau_perf_ml > 300 ? '#059669' : '#d97706'};">${a.eau_ml + a.eau_perf_ml} ml</span>
+                <span style="font-size:var(--text-xs);color:#64748b;font-weight:var(--weight-medium);">Hydratation estimée</span>
+                <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:${a.eau_ml + a.eau_perf_ml > 300 ? '#059669' : '#d97706'};">${a.eau_ml + a.eau_perf_ml} ml</span>
               </div>
               <div class="hydra-bar">
                 <div class="hydra-fill" style="width:${Math.min(100, Math.round((a.eau_ml + a.eau_perf_ml) / 800 * 100))}%;background:${a.eau_ml + a.eau_perf_ml > 300 ? '#3b82f6' : '#f59e0b'};"></div>
               </div>
-              <p style="font-size:10.5px;color:#94a3b8;margin-top:3px;">Objectif indicatif : 50ml/kg/j (${Math.round(parseFloat(p.poids) * 50)} ml)</p>
+              <p style="font-size:var(--text-xs);color:#94a3b8;margin-top:3px;">Objectif indicatif : 50ml/kg/j (${Math.round(parseFloat(p.poids) * 50)} ml)</p>
             </div>
           </div>
         </div>
@@ -371,16 +371,16 @@ function renderTabContent(p) {
               </div>
               <div style="flex:1;min-width:0;padding-bottom:${i < arr.length - 1 ? '10px' : '0'};">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
-                  <span style="font-size:12px;font-weight:500;padding:2px 8px;border-radius:20px;background:${etatColor(e.etat)}18;color:${etatColor(e.etat)};">${etatIcon(e.etat)} ${etatLabel(e.etat)}</span>
-                  <span style="font-size:12px;font-weight:500;color:#334155;">${e.date} à ${e.heure}</span>
-                  <span style="font-size:11.5px;color:#94a3b8;">${e.vet}</span>
+                  <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);padding:2px 8px;border-radius:20px;background:${etatColor(e.etat)}18;color:${etatColor(e.etat)};">${etatIcon(e.etat)} ${etatLabel(e.etat)}</span>
+                  <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#334155;">${e.date} à ${e.heure}</span>
+                  <span style="font-size:var(--text-xs);color:#94a3b8;">${e.vet}</span>
                 </div>
-                <p style="font-size:13px;color:#334155;line-height:1.5;margin-bottom:6px;">${e.note}</p>
+                <p style="font-size:var(--text-md);color:#334155;line-height:1.5;margin-bottom:6px;">${e.note}</p>
                 ${e.temp || e.fc || e.fr ? `
                 <div style="display:inline-flex;gap:10px;background:#f8fafc;border:1px solid #e8edf2;border-radius:8px;padding:5px 10px;">
-                  ${e.temp ? `<span style="font-size:11.5px;color:#64748b;">🌡 <strong>${e.temp}°C</strong></span>` : ''}
-                  ${e.fc ? `<span style="font-size:11.5px;color:#64748b;">❤️ <strong>${e.fc} bpm</strong></span>` : ''}
-                  ${e.fr ? `<span style="font-size:11.5px;color:#64748b;">🫁 <strong>${e.fr}/min</strong></span>` : ''}
+                  ${e.temp ? `<span style="font-size:var(--text-xs);color:#64748b;">🌡 <strong>${e.temp}°C</strong></span>` : ''}
+                  ${e.fc ? `<span style="font-size:var(--text-xs);color:#64748b;">❤️ <strong>${e.fc} bpm</strong></span>` : ''}
+                  ${e.fr ? `<span style="font-size:var(--text-xs);color:#64748b;">🫁 <strong>${e.fr}/min</strong></span>` : ''}
                 </div>` : ''}
               </div>
             </div>`).join('')}
@@ -408,11 +408,11 @@ function renderTabContent(p) {
           <div class="wb">
             ${p.evolution[0] ? `
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-                <span style="font-size:13px;font-weight:500;padding:3px 10px;border-radius:20px;background:${etatColor(p.evolution[0].etat)}18;color:${etatColor(p.evolution[0].etat)};">${etatIcon(p.evolution[0].etat)} ${etatLabel(p.evolution[0].etat)}</span>
-                <span style="font-size:12px;color:#94a3b8;">${p.evolution[0].date} ${p.evolution[0].heure}</span>
+                <span style="font-size:var(--text-md);font-weight:var(--weight-medium);padding:3px 10px;border-radius:20px;background:${etatColor(p.evolution[0].etat)}18;color:${etatColor(p.evolution[0].etat)};">${etatIcon(p.evolution[0].etat)} ${etatLabel(p.evolution[0].etat)}</span>
+                <span style="font-size:var(--text-sm);color:#94a3b8;">${p.evolution[0].date} ${p.evolution[0].heure}</span>
               </div>
-              <p style="font-size:13px;color:#334155;line-height:1.5;">${p.evolution[0].note}</p>
-            ` : '<p style="font-size:12.5px;color:#94a3b8;">Aucune évolution saisie</p>'}
+              <p style="font-size:var(--text-md);color:#334155;line-height:1.5;">${p.evolution[0].note}</p>
+            ` : '<p style="font-size:var(--text-sm);color:#94a3b8;">Aucune évolution saisie</p>'}
           </div>
         </div>
       </div>
@@ -429,16 +429,16 @@ function renderTabContent(p) {
         </div>
         <div class="wb">
           <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
-            <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Motif d'hospitalisation</p>
-            <p style="font-size:13px;color:#0f172a;font-weight:500;">${p.motif}</p>
+            <p style="font-size:var(--text-xs);font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Motif d'hospitalisation</p>
+            <p style="font-size:var(--text-md);color:#0f172a;font-weight:var(--weight-medium);">${p.motif}</p>
           </div>
           <div style="background:#f8fafc;border:1px solid #e8edf2;border-radius:9px;padding:14px;margin-bottom:10px;">
-            <p style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Soins réalisés</p>
-            ${p.soins.filter(s => s.done).map(s => `<p style="font-size:12.5px;color:#334155;margin-bottom:3px;">• ${s.type} — ${s.produit} ${s.dose} (${s.freq})</p>`).join('') || '<p style="font-size:12.5px;color:#94a3b8;">Aucun soin validé</p>'}
+            <p style="font-size:var(--text-xs);font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Soins réalisés</p>
+            ${p.soins.filter(s => s.done).map(s => `<p style="font-size:var(--text-sm);color:#334155;margin-bottom:3px;">• ${s.type} — ${s.produit} ${s.dose} (${s.freq})</p>`).join('') || '<p style="font-size:var(--text-sm);color:#94a3b8;">Aucun soin validé</p>'}
           </div>
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:14px;display:flex;align-items:center;gap:10px;">
             <svg width="16" height="16" fill="none" viewBox="0 0 16 16" style="color:#d97706;flex-shrink:0;"><path d="M8 2l6 12H2L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-            <p style="font-size:12.5px;color:#92400e;">Le compte-rendu de sortie complet sera généré après validation. Cliquez sur <strong>Préparer la sortie</strong> pour compléter et imprimer.</p>
+            <p style="font-size:var(--text-sm);color:#92400e;">Le compte-rendu de sortie complet sera généré après validation. Cliquez sur <strong>Préparer la sortie</strong> pour compléter et imprimer.</p>
           </div>
         </div>
       </div>`;
@@ -453,15 +453,15 @@ function soinRow(s, p) {
     </div>
     <div style="flex:1;min-width:0;">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;">
-        <span style="font-size:12.5px;font-weight:${s.done ? '400' : '600'};color:${s.done ? '#94a3b8' : '#0f172a'};${s.done ? 'text-decoration:line-through;' : ''}">${s.produit}</span>
-        <span class="badge ${isHaute ? 'b-alert' : 'b-grey'}" style="font-size:10px;">${s.type}</span>
-        ${isHaute && !s.done ? `<span style="font-size:10px;font-weight:500;color:#dc2626;">● Priorité haute</span>` : ''}
+        <span style="font-size:var(--text-sm);font-weight:${s.done ? '400' : '600'};color:${s.done ? '#94a3b8' : '#0f172a'};${s.done ? 'text-decoration:line-through;' : ''}">${s.produit}</span>
+        <span class="badge ${isHaute ? 'b-alert' : 'b-grey'}" style="font-size:var(--text-xs);">${s.type}</span>
+        ${isHaute && !s.done ? `<span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:#dc2626;">● Priorité haute</span>` : ''}
       </div>
-      <p style="font-size:11.5px;color:#94a3b8;">${s.dose} · ${s.freq}</p>
+      <p style="font-size:var(--text-xs);color:#94a3b8;">${s.dose} · ${s.freq}</p>
     </div>
     <div style="text-align:right;flex-shrink:0;">
-      <p style="font-size:12px;font-weight:500;color:${s.done ? '#94a3b8' : '#334155'};">${s.heure}</p>
-      ${s.done ? `<span class="badge b-ok" style="font-size:10px;">Fait</span>` : ``}
+      <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:${s.done ? '#94a3b8' : '#334155'};">${s.heure}</p>
+      ${s.done ? `<span class="badge b-ok" style="font-size:var(--text-xs);">Fait</span>` : ``}
     </div>
   </div>`;
 }

@@ -322,9 +322,9 @@ function renderWeek(){
     const isSelected = fmtDate(d) === selectedDay;
     el.style.cssText = `padding:8px 0;text-align:center;border-left:${di===0?'1px solid #dde3ea':'1px solid #f1f5f9'};cursor:pointer;transition:background .1s;${isToday?'background:#f5f3ff;':isSelected?'background:#f8f7ff;':''}`;
     el.innerHTML = `
-      <div style="font-size:10.5px;font-weight:600;color:${isToday?'#4338ca':isSelected?'#6366f1':'#94a3b8'};text-transform:uppercase;letter-spacing:.06em;">${DOW_FR[(d.getDay()+6)%7+1]||DOW_FR[0]}</div>
+      <div style="font-size:var(--text-xs);font-weight:600;color:${isToday?'#4338ca':isSelected?'#6366f1':'#94a3b8'};text-transform:uppercase;letter-spacing:.06em;">${DOW_FR[(d.getDay()+6)%7+1]||DOW_FR[0]}</div>
       <div style="font-size:18px;font-weight:${isToday||isSelected?'800':'600'};color:${isToday?'#4338ca':isSelected?'#6366f1':'#0f172a'};line-height:1.1;margin-top:1px;">${d.getDate()}</div>
-      <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${countRdv(fmtDate(d))} RDV</div>`;
+      <div style="font-size:var(--text-xs);color:#94a3b8;margin-top:1px;">${countRdv(fmtDate(d))} RDV</div>`;
     el.onclick = () => { selectedDay = fmtDate(d); renderWeek(); renderDayPlanning(); };
     head.appendChild(el);
   });
@@ -484,28 +484,28 @@ function createRdvBlock(a){
     // Time + duration + name on one line
     html += `<div style="${R}">
       ${dot}
-      <span style="font-size:10px;font-weight:700;color:${timeColor};flex-shrink:0;">${fmtTime(a.start)} · ${a.durationMin}min</span>
-      <span style="font-size:10px;color:${nameColor};${strikethrough}overflow:hidden;text-overflow:ellipsis;">· ${animal?.name||'?'}</span>
+      <span style="font-size:var(--text-xs);font-weight:700;color:${timeColor};flex-shrink:0;">${fmtTime(a.start)} · ${a.durationMin}min</span>
+      <span style="font-size:var(--text-xs);color:${nameColor};${strikethrough}overflow:hidden;text-overflow:ellipsis;">· ${animal?.name||'?'}</span>
       ${cancelBadge}
     </div>`;
   } else {
     // L1: time + duration + badges
     html += `<div style="${R}">
       ${dot}
-      <span style="font-size:10px;font-weight:700;color:${timeColor};flex-shrink:0;">${fmtTime(a.start)} · ${a.durationMin}min</span>
+      <span style="font-size:var(--text-xs);font-weight:700;color:${timeColor};flex-shrink:0;">${fmtTime(a.start)} · ${a.durationMin}min</span>
       ${cancelBadge}
     </div>`;
     // L2: name
     if(lines >= 2) html += `<div style="${R}">
-      <span style="font-size:11.5px;font-weight:700;color:${nameColor};${strikethrough}overflow:hidden;text-overflow:ellipsis;">${animal?.emoji||''} ${animal?.name||'?'}</span>
+      <span style="font-size:var(--text-xs);font-weight:700;color:${nameColor};${strikethrough}overflow:hidden;text-overflow:ellipsis;">${animal?.emoji||''} ${animal?.name||'?'}</span>
     </div>`;
     // L3: owner
     if(lines >= 3) html += `<div style="${R}">
-      <span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${animal?.owner||''}</span>
+      <span style="font-size:var(--text-xs);color:${subColor};overflow:hidden;text-overflow:ellipsis;">${animal?.owner||''}</span>
     </div>`;
     // L4: motif
     if(lines >= 4) html += `<div style="${R}">
-      <span style="font-size:10.5px;color:${isCancelled?subColor:motifColor};font-weight:500;overflow:hidden;text-overflow:ellipsis;">${a.motif}${a.note ? ` · ${a.note}` : ''}</span>
+      <span style="font-size:var(--text-xs);color:${isCancelled?subColor:motifColor};font-weight:var(--weight-medium);overflow:hidden;text-overflow:ellipsis;">${a.motif}${a.note ? ` · ${a.note}` : ''}</span>
     </div>`;
   }
 
@@ -694,8 +694,8 @@ function searchAnimals(q){
   if(!results.length){ box.style.display='none'; return; }
   box.innerHTML = results.map(a => `
     <div onclick="selectAnimal(${a.id})" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .1s;" onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
-      <span style="font-size:16px;">${a.emoji}</span>
-      <div><p style="font-size:12.5px;font-weight:600;color:#0f172a;">${a.name}</p><p style="font-size:11px;color:#94a3b8;">${a.breed} · ${a.owner}</p></div>
+      <span style="font-size:var(--text-lg);">${a.emoji}</span>
+      <div><p style="font-size:var(--text-sm);font-weight:600;color:#0f172a;">${a.name}</p><p style="font-size:var(--text-xs);color:#94a3b8;">${a.breed} · ${a.owner}</p></div>
     </div>`).join('');
   box.style.display='block';
 }
@@ -756,8 +756,8 @@ function goToday(){ currentWeekStart = getWeekStart(today); renderWeek(); render
 function setView(v){
   currentView = v;
   if(v==='day') currentWeekStart = today;
-  document.getElementById('view-week').style.cssText = v==='week' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
-  document.getElementById('view-day').style.cssText = v==='day' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
+  document.getElementById('view-week').style.cssText = v==='week' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
+  document.getElementById('view-day').style.cssText = v==='day' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:transparent;color:#64748b;';
   renderWeek();
 }
 
@@ -805,7 +805,7 @@ function initMotifFilters(){
     chip.className = 'vet-chip';
     chip.innerHTML = `
       <div style="width:10px;height:10px;border-radius:2px;background:${color};flex-shrink:0;"></div>
-      <span style="font-size:12px;color:#334155;flex:1;">${motif}</span>
+      <span style="font-size:var(--text-sm);color:#334155;flex:1;">${motif}</span>
       <svg style="opacity:${active?1:.15}" width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     chip.onclick = () => {
       if(activeMotifs.has(motif)) activeMotifs.delete(motif);
@@ -836,7 +836,7 @@ function renderDayPlanning(){
   countEl.style.display = dayAppts.length ? '' : 'none';
 
   if(dayAppts.length === 0){
-    list.innerHTML = `<p style="font-size:11.5px;color:#94a3b8;text-align:center;padding:12px 0;">Aucun RDV ce jour</p>`;
+    list.innerHTML = `<p style="font-size:var(--text-xs);color:#94a3b8;text-align:center;padding:12px 0;">Aucun RDV ce jour</p>`;
     return;
   }
 
@@ -852,13 +852,13 @@ function renderDayPlanning(){
       <div style="width:3px;align-self:stretch;border-radius:2px;background:${vet.color};flex-shrink:0;margin-top:1px;"></div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
-          <span style="font-size:11px;font-weight:700;color:${vet.color};">${a.start.replace(':','h')}</span>
-          <span style="font-size:9.5px;color:#94a3b8;">·</span>
-          <span style="font-size:10px;font-weight:600;color:${motifColor};">${a.motif}</span>
-          <span style="font-size:9.5px;color:#94a3b8;margin-left:auto;white-space:nowrap;">${a.durationMin}min</span>
+          <span style="font-size:var(--text-xs);font-weight:700;color:${vet.color};">${a.start.replace(':','h')}</span>
+          <span style="font-size:var(--text-xs);color:#94a3b8;">·</span>
+          <span style="font-size:var(--text-xs);font-weight:600;color:${motifColor};">${a.motif}</span>
+          <span style="font-size:var(--text-xs);color:#94a3b8;margin-left:auto;white-space:nowrap;">${a.durationMin}min</span>
         </div>
-        <div style="font-size:12px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${animal?.emoji||''} ${animal?.name||'?'}</div>
-        <div style="font-size:10.5px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${animal?.owner||''}</div>
+        <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${animal?.emoji||''} ${animal?.name||'?'}</div>
+        <div style="font-size:var(--text-xs);color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${animal?.owner||''}</div>
       </div>
     </div>`;
   }).join('');
@@ -954,7 +954,7 @@ function renderFreeSlotBlock(col, vetKey, vet, dateStr, startMin, endMin){
   el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.bg};border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
 
   const timeLabel = `${fmtTime(minToTime(startMin))}`;
-  el.innerHTML = `<span style="font-size:10px;font-weight:700;color:${vet.color};">${timeLabel}</span>`;
+  el.innerHTML = `<span style="font-size:var(--text-xs);font-weight:700;color:${vet.color};">${timeLabel}</span>`;
 
   el.onclick = (e) => {
     e.stopPropagation();
