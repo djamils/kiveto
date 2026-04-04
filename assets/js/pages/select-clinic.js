@@ -58,9 +58,15 @@ function getOpenStatus(hours) {
 }
 
 /**
+ * Role/engagement display labels.
+ */
+const ROLE_LABELS = { veterinarian: 'Vétérinaire', asv: 'ASV', admin: 'Administrateur', manager: 'Gérant' };
+const ENGAGEMENT_LABELS = { full_time: 'Temps plein', part_time: 'Temps partiel', freelance: 'Libéral', intern: 'Stagiaire' };
+
+/**
  * Normalize server-side clinic data to the enriched format used for rendering.
  * Server clinics only have id/name/slug/role/engagement, so we generate
- * visual properties (letter, color) and use generic meta info.
+ * visual properties and use role/engagement as meta info with proper labels.
  */
 function normalizeServerClinics(raw) {
   return raw.map((c, i) => ({
@@ -72,8 +78,8 @@ function normalizeServerClinics(raw) {
     letter: c.name.charAt(0).toUpperCase(),
     address: '',
     hours: null,
-    role: c.role,
-    engagement: c.engagement,
+    role: ROLE_LABELS[c.role] || c.role || '',
+    engagement: ENGAGEMENT_LABELS[c.engagement] || c.engagement || '',
   }));
 }
 
@@ -99,9 +105,15 @@ function renderItem(c) {
       </span>`;
   } else {
     metaHtml = `
-      <span class="meta-item">${c.role || ''}</span>
+      <span class="meta-item">
+        <svg width="9" height="9" fill="none" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1a4 4 0 014 4c0 3-4 7-4 7S2 8 2 5a4 4 0 014-4z" stroke="currentColor" stroke-width="1.2"/></svg>
+        ${c.role || 'Membre'}
+      </span>
       <div class="meta-sep" aria-hidden="true"></div>
-      <span class="meta-item">${c.engagement || ''}</span>`;
+      <span class="meta-item">
+        <svg width="9" height="9" fill="none" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v2l1.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        ${c.engagement || ''}
+      </span>`;
   }
 
   // Status badge: only show when hours data is available
