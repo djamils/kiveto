@@ -1,6 +1,5 @@
 /*
  * VetSaaS -- pages/select-clinic.css
- * ────────────────────────────────────
  * Clinic picker page. User selects which clinic to work in.
  * Full-viewport card with scrollable list, search, and footer.
  */
@@ -16,7 +15,7 @@
 }
 
 [data-page="clinic_select_clinic"] {
-  /* Card IS the data-page element — styles apply directly */
+  /* Card IS the data-page element -- styles apply directly */
   --gap: 24px;
 
   width: 100%;
@@ -30,9 +29,8 @@
   overflow: hidden;
   height: calc(100vh - var(--space-6) * 2);
   max-height: 720px;
-  /* Centering handled by body wrapper */
 
-  /* ── Header ── */
+  /* -- Header -- */
   .card-head {
     flex-shrink: 0;
     padding: var(--gap) var(--gap) var(--space-5);
@@ -121,7 +119,7 @@
   .search-input:hover { border-color: var(--border-strong); background: var(--surface-card); }
   .search-input:focus { border-color: var(--brand-400); background: var(--surface-card); box-shadow: var(--shadow-focus); }
 
-  /* ── List zone ──
+  /* -- List zone --
      flex:1 + min-height:0 = takes remaining
      space without overflowing the card.
      overflow:hidden here, scroll on .list. */
@@ -164,7 +162,7 @@
   }
   .list-zone.at-bottom::after { opacity: 0; }
 
-  /* ── Clinic items ── */
+  /* -- Clinic items -- */
   .clinic-item {
     display: grid;
     grid-template-columns: 48px 1fr auto;
@@ -300,7 +298,7 @@
     text-align: center;
   }
 
-  /* ── Scroll hint ── */
+  /* -- Scroll hint -- */
   .scroll-hint {
     flex-shrink: 0;
     text-align: center;
@@ -315,7 +313,7 @@
   }
   .scroll-hint.hidden { opacity: 0; pointer-events: none; }
 
-  /* ── Footer ── */
+  /* -- Footer -- */
   .card-foot {
     flex-shrink: 0;
     padding: var(--space-4) var(--gap);
@@ -409,7 +407,7 @@
   }
 }
 
-/* ── Responsive ──
+/* -- Responsive --
    Only --gap and a few sizes change.
    Everything else aligns automatically. */
 @media (max-width: 720px) {
