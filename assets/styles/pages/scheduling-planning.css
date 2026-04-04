@@ -2,90 +2,98 @@
    Scheduling Planning — page-specific styles
    ========================================================================== */
 
-/* Page layout shell */
-.planning-shell{display:flex;height:100%;overflow:hidden;}
+[data-page="clinic_scheduling_planning"] {
+  /* Page layout shell */
+  .planning-shell{display:flex;height:100%;overflow:hidden;}
 
-/* Sidebar */
-.planning-sidebar{width:232px;flex-shrink:0;background:#fff;border-right:1px solid #e8edf2;display:flex;flex-direction:column;}
-.planning-sb-top{height:48px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid #e8edf2;flex-shrink:0;}
-.planning-sb-clinic-btn{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;border:none;background:transparent;cursor:pointer;text-align:left;transition:background .13s;font-family:'DM Sans',system-ui,sans-serif;}
-.planning-sb-clinic-btn:hover{background:#f1f5f9;}
-.planning-sb-foot{border-top:1px solid #e8edf2;padding:8px 6px 10px;flex-shrink:0;}
-.planning-sb-user{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;}
-.planning-sb-settings{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:2px 6px;border-radius:8px;font-size:14.5px;color:#64748b;cursor:pointer;transition:background .12s;}
-.planning-sb-settings:hover{background:#f8fafc;}
+  /* Sidebar */
+  .planning-sidebar{width:232px;flex-shrink:0;background:#fff;border-right:1px solid #e8edf2;display:flex;flex-direction:column;}
+  .planning-sb-top{height:48px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid #e8edf2;flex-shrink:0;}
+  .planning-sb-clinic-btn{width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;border:none;background:transparent;cursor:pointer;text-align:left;transition:background .13s;font-family:'DM Sans',system-ui,sans-serif;}
+  .planning-sb-clinic-btn:hover{background:#f1f5f9;}
+  .planning-sb-foot{border-top:1px solid #e8edf2;padding:8px 6px 10px;flex-shrink:0;}
+  .planning-sb-user{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;}
+  .planning-sb-settings{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:2px 6px;border-radius:8px;font-size:14.5px;color:#64748b;cursor:pointer;transition:background .12s;}
+  .planning-sb-settings:hover{background:#f8fafc;}
 
-/* Main content area */
-.planning-content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;}
-.planning-topbar{height:48px;flex-shrink:0;background:#fff;border-bottom:1px solid #e8edf2;display:flex;align-items:center;padding:0 18px;gap:10px;}
+  /* Main content area */
+  .planning-content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;min-height:0;}
+  .planning-topbar{height:48px;flex-shrink:0;background:#fff;border-bottom:1px solid #e8edf2;display:flex;align-items:center;padding:0 18px;gap:10px;}
 
-/* Topbar elements */
-.topbar-label{}
-.topbar-breadcrumb{}
-.topbar-view-toggle{}
-.topbar-add-btn{}
+  /* Topbar elements */
+  .topbar-label{}
+  .topbar-breadcrumb{}
+  .topbar-view-toggle{}
+  .topbar-add-btn{}
 
-/* View toggle buttons */
-.view-btn{padding:4px 12px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;transition:all .13s;}
-.view-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  /* View toggle buttons */
+  .view-btn{padding:4px 12px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;transition:all .13s;}
+  .view-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 
-/* ── Planning grid ── */
-.planning-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
-.planning-head{background:#fff;border-bottom:1px solid #e8edf2;flex-shrink:0;display:flex;}
-.planning-body{flex:1;overflow-y:auto;overflow-x:auto;position:relative;}
-.planning-inner{position:relative;}
+  /* Planning grid */
+  .planning-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
+  .planning-head{background:#fff;border-bottom:1px solid #e8edf2;flex-shrink:0;display:flex;}
+  .planning-body{flex:1;overflow-y:auto;overflow-x:auto;position:relative;}
+  .planning-inner{position:relative;}
 
-/* Vet row */
-.vet-row{display:flex;position:relative;border-bottom:1px solid #e8edf2;}
-.vet-label{width:120px;flex-shrink:0;background:#fff;border-right:2px solid #e2e8f0;padding:0 12px;display:flex;flex-direction:column;justify-content:center;gap:2px;position:sticky;left:0;z-index:20;}
-.vet-row-grid{flex:1;position:relative;}
+  /* Vet row */
+  .vet-row{display:flex;position:relative;border-bottom:1px solid #e8edf2;}
+  .vet-label{width:120px;flex-shrink:0;background:#fff;border-right:2px solid #e2e8f0;padding:0 12px;display:flex;flex-direction:column;justify-content:center;gap:2px;position:sticky;left:0;z-index:20;}
+  .vet-row-grid{flex:1;position:relative;}
 
-/* Hour columns */
-.hour-slot{position:absolute;top:0;bottom:0;border-left:1px solid #c9d0d8;cursor:pointer;transition:background .1s;}
-.hour-slot:hover{background:rgba(99,102,241,.04);}
-.hour-slot:first-child{border-left:none;}
-.hour-slot-half{position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed #dde2e7;pointer-events:none;}
+  /* Hour columns */
+  .hour-slot{position:absolute;top:0;bottom:0;border-left:1px solid #c9d0d8;cursor:pointer;transition:background .1s;}
+  .hour-slot:hover{background:rgba(99,102,241,.04);}
+  .hour-slot:first-child{border-left:none;}
+  .hour-slot-half{position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed #dde2e7;pointer-events:none;}
 
-/* Activity blocks */
-.act-block{position:absolute;top:6px;bottom:6px;border-radius:7px;cursor:pointer;overflow:hidden;transition:filter .12s;border-left:3px solid transparent;}
-.act-block:hover{filter:brightness(.95);}
-.act-block-inner{padding:5px 8px;height:100%;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
-.act-block-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.act-block-time{font-size:10.5px;font-weight:500;white-space:nowrap;margin-top:1px;}
-.act-block-cap{font-size:9.5px;margin-top:2px;opacity:.7;white-space:nowrap;}
+  /* Activity blocks */
+  .act-block{position:absolute;top:6px;bottom:6px;border-radius:7px;cursor:pointer;overflow:hidden;transition:filter .12s;border-left:3px solid transparent;}
+  .act-block:hover{filter:brightness(.95);}
+  .act-block-inner{padding:5px 8px;height:100%;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
+  .act-block-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .act-block-time{font-size:10.5px;font-weight:500;white-space:nowrap;margin-top:1px;}
+  .act-block-cap{font-size:9.5px;margin-top:2px;opacity:.7;white-space:nowrap;}
 
-/* Popup overlay and box */
+  /* Month view */
+  .month-grid{display:grid;grid-template-columns:120px repeat(7,1fr);}
+  .month-cell{border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;min-height:80px;padding:4px 6px;position:relative;cursor:pointer;transition:background .1s;}
+  .month-cell:hover{background:#f8fafc;}
+  .month-cell.other-month{background:#fafafa;}
+}
+
+/* Popup overlay and box (fixed positioned, outside main) */
 .popup-overlay{position:fixed;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(2px);z-index:400;display:none;align-items:center;justify-content:center;}
 .popup-overlay.open{display:flex;}
 .popup-box{background:#fff;border-radius:14px;width:460px;max-width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden;transform:scale(.97);opacity:0;transition:all .2s cubic-bezier(.34,1.56,.64,1);}
 .popup-overlay.open .popup-box{transform:scale(1);opacity:1;}
 
-/* Month view */
-.month-grid{display:grid;grid-template-columns:120px repeat(7,1fr);}
-.month-cell{border-right:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;min-height:80px;padding:4px 6px;position:relative;cursor:pointer;transition:background .1s;}
-.month-cell:hover{background:#f8fafc;}
-.month-cell.other-month{background:#fafafa;}
-
 /* ── iPad Pro landscape ── */
 @media(max-width:1280px){
-  .topbar-label{min-width:120px !important;}
+  [data-page="clinic_scheduling_planning"] {
+    .topbar-label{min-width:120px !important;}
+  }
 }
 
 /* ── iPad portrait ── */
 @media(max-width:1024px){
-  .planning-sidebar{
-    position:fixed;left:0;top:0;bottom:0;z-index:90;
-    transform:translateX(-100%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1);
+  [data-page="clinic_scheduling_planning"] {
+    .planning-sidebar{
+      position:fixed;left:0;top:0;bottom:0;z-index:90;
+      transform:translateX(-100%);
+      transition:transform .28s cubic-bezier(.4,0,.2,1);
+    }
+    .planning-sidebar.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.15);}
+    .topbar-breadcrumb{display:none;}
   }
-  .planning-sidebar.open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.15);}
-  .topbar-breadcrumb{display:none;}
 }
 
 /* ── Mobile ── */
 @media(max-width:640px){
-  .planning-topbar{padding:0 10px;gap:6px;}
-  .topbar-label{font-size:12px !important;min-width:90px !important;}
-  .topbar-add-btn{display:none !important;}
-  .topbar-view-toggle{display:none !important;}
+  [data-page="clinic_scheduling_planning"] {
+    .planning-topbar{padding:0 10px;gap:6px;}
+    .topbar-label{font-size:12px !important;min-width:90px !important;}
+    .topbar-add-btn{display:none !important;}
+    .topbar-view-toggle{display:none !important;}
+  }
 }
