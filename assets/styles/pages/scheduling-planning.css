@@ -13,7 +13,7 @@
   .planning-sb-clinic-btn:hover{background:#f1f5f9;}
   .planning-sb-foot{border-top:1px solid #e8edf2;padding:8px 6px 10px;flex-shrink:0;}
   .planning-sb-user{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;}
-  .planning-sb-settings{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:2px 6px;border-radius:8px;font-size:14.5px;color:#64748b;cursor:pointer;transition:background .12s;}
+  .planning-sb-settings{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:2px 6px;border-radius:8px;font-size:var(--text-base);color:#64748b;cursor:pointer;transition:background .12s;}
   .planning-sb-settings:hover{background:#f8fafc;}
 
   /* Main content area */
@@ -27,7 +27,7 @@
   .topbar-add-btn{}
 
   /* View toggle buttons */
-  .view-btn{padding:4px 12px;border-radius:6px;border:none;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;background:transparent;color:#64748b;transition:all .13s;}
+  .view-btn{padding:4px 12px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:transparent;color:#64748b;transition:all .13s;}
   .view-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 
   /* Planning grid */
@@ -51,9 +51,9 @@
   .act-block{position:absolute;top:6px;bottom:6px;border-radius:7px;cursor:pointer;overflow:hidden;transition:filter .12s;border-left:3px solid transparent;}
   .act-block:hover{filter:brightness(.95);}
   .act-block-inner{padding:5px 8px;height:100%;display:flex;flex-direction:column;justify-content:center;overflow:hidden;}
-  .act-block-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .act-block-time{font-size:10.5px;font-weight:500;white-space:nowrap;margin-top:1px;}
-  .act-block-cap{font-size:9.5px;margin-top:2px;opacity:.7;white-space:nowrap;}
+  .act-block-type{font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .act-block-time{font-size:var(--text-xs);font-weight:var(--weight-medium);white-space:nowrap;margin-top:1px;}
+  .act-block-cap{font-size:var(--text-xs);margin-top:2px;opacity:.7;white-space:nowrap;}
 
   /* Month view */
   .month-grid{display:grid;grid-template-columns:120px repeat(7,1fr);}
@@ -92,7 +92,7 @@
 @media(max-width:640px){
   [data-page="clinic_scheduling_planning"] {
     .planning-topbar{padding:0 10px;gap:6px;}
-    .topbar-label{font-size:12px !important;min-width:90px !important;}
+    .topbar-label{font-size:var(--text-sm) !important;min-width:90px !important;}
     .topbar-add-btn{display:none !important;}
     .topbar-view-toggle{display:none !important;}
   }

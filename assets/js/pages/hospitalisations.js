@@ -260,7 +260,7 @@ function renderDetail(p) {
         <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
           <button class="btn btn-secondary btn-xs" onclick="openModal('modal-evo')">+ Évolution</button>
           <button class="btn btn-secondary btn-xs" onclick="openModal('modal-soin')">+ Soin</button>
-          <button class="btn btn-green btn-xs" onclick="openModal('modal-sortie')">
+          <button class="btn btn-success btn-xs" onclick="openModal('modal-sortie')">
             <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Préparer la sortie
           </button>
