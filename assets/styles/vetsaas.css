@@ -111,9 +111,11 @@
   --text-lg:   16px;
   --text-xl:   20px;
 
-  /* ── Font weights — 2 STRICT values ── */
-  --weight-normal: 400;
-  --weight-medium: 500;
+  /* ── Font weights ── */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
 
   /* ── Line heights ── */
   --lh-tight:  1.2;

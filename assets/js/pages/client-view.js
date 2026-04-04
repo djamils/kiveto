@@ -320,16 +320,16 @@ function buildAuxContact(a){
     el.innerHTML = `<div class="phone-chip">
       <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:#4338ca;flex-shrink:0;"><circle cx="8" cy="5" r="2.8" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       <div style="flex:1;min-width:0;">
-        <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.auxContact.first} ${a.auxContact.last}</p>
-        <p style="font-size:var(--text-xs);color:#94a3b8;">${a.auxContact.phone} · ${a.auxContact.rel}</p>
+        <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.auxContact.first} ${a.auxContact.last}</p>
+        <p style="font-size:var(--text-xs);color:var(--text-subtle);">${a.auxContact.phone} · ${a.auxContact.rel}</p>
       </div>
       <button class="btn btn-ghost btn-icon btn-xs" onclick="toast('Appel…','#059669')" style="flex-shrink:0;">
         <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M3 2h3l1.5 4-2 1.2a10 10 0 004.3 4.3L11 9.5l4 1.5v3a1 1 0 01-1 1C6.2 15 1 9.8 1 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
       </button>
     </div>
-    <p style="font-size:var(--text-xs);color:#94a3b8;margin-top:6px;">Contact pour : ${a.name}</p>`;
+    <p style="font-size:var(--text-xs);color:var(--text-subtle);margin-top:6px;">Contact pour : ${a.name}</p>`;
   } else {
-    el.innerHTML = `<p style="font-size:var(--text-sm);color:#94a3b8;margin-bottom:8px;">Aucun contact pour <strong>${a.name}</strong>.</p>
+    el.innerHTML = `<p style="font-size:var(--text-sm);color:var(--text-subtle);margin-bottom:8px;">Aucun contact pour <strong>${a.name}</strong>.</p>
       <button class="btn btn-secondary btn-xs" onclick="openModal('modal-auxcontact')">
         <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter
       </button>`;
@@ -353,7 +353,7 @@ function switchTab(idx){
 // ==============================
 function renderMediaList(medias, filterType){
   const filtered = filterType && filterType!=='Tous' ? medias.filter(m=>m.type===filterType) : medias;
-  if(!filtered.length) return `<p style="font-size:var(--text-sm);color:#94a3b8;padding:12px 14px;">Aucun élément</p>`;
+  if(!filtered.length) return `<p style="font-size:var(--text-sm);color:var(--text-subtle);padding:12px 14px;">Aucun élément</p>`;
   const TYPE_CFG = {
     'Ordonnance':     {badge:'b-blue',   icon:'📋'},
     'Analyse':        {badge:'b-purple', icon:'🧪'},
@@ -369,7 +369,7 @@ function renderMediaList(medias, filterType){
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;${isLast?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;cursor:pointer;"
         onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
         <div style="width:36px;height:36px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid #e8edf2;">${m.thumb||cfg.icon}</div>
-        <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${m.nom}</p><p style="font-size:var(--text-xs);color:#94a3b8;">${fmtDate(m.date)}</p></div>
+        <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${m.nom}</p><p style="font-size:var(--text-xs);color:var(--text-subtle);">${fmtDate(m.date)}</p></div>
         <span class="badge ${cfg.badge}" style="font-size:var(--text-xs);">${m.type}</span>
         <button class="btn btn-ghost btn-icon btn-xs" onclick="event.stopPropagation();toast('Ouverture image…','#4338ca')" title="Voir">
           <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 7.5l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -379,7 +379,7 @@ function renderMediaList(medias, filterType){
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;${isLast?'':'border-bottom:1px solid #f1f5f9;'}transition:background .12s;cursor:pointer;"
         onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
         <div style="width:36px;height:36px;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:var(--text-lg);flex-shrink:0;border:1px solid #e8edf2;">${cfg.icon}</div>
-        <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${m.nom}</p><p style="font-size:var(--text-xs);color:#94a3b8;">${fmtDate(m.date)}</p></div>
+        <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${m.nom}</p><p style="font-size:var(--text-xs);color:var(--text-subtle);">${fmtDate(m.date)}</p></div>
         <span class="badge ${cfg.badge}" style="font-size:var(--text-xs);">${m.type}</span>
         <button class="btn btn-ghost btn-icon btn-xs" onclick="event.stopPropagation();toast('Téléchargement…','#4338ca')" title="Télécharger">
           <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 2v7M3 7l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M1 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -428,11 +428,11 @@ function renderAnimal(a){
             <div style="width:32px;height:32px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;border:1.5px dashed #c7d2fe;" onclick="toast('Changer la photo…','#4338ca')">${a.emoji}</div>
             <div>
               <div style="display:flex;align-items:center;gap:6px;">
-                <h2 style="font-size:var(--text-base);font-weight:700;color:#0f172a;">${a.name}</h2>
+                <h2 style="font-size:var(--text-base);font-weight:var(--weight-bold);color:var(--text-primary);">${a.name}</h2>
                 <span class="badge b-cat" style="font-size:var(--text-xs);">${a.species==='Félin'?'Chat':'Chien'}</span>
                 <span class="badge ${STATUS_CFG[a.status].badge}" style="font-size:var(--text-xs);">${STATUS_CFG[a.status].label}</span>
               </div>
-              <p style="font-size:var(--text-xs);color:#94a3b8;">${a.breed} · ${a.sex==='F'?'♀':'♂'}${a.sterilized?' · Stérilisée':''}</p>
+              <p style="font-size:var(--text-xs);color:var(--text-subtle);">${a.breed} · ${a.sex==='F'?'♀':'♂'}${a.sterilized?' · Stérilisée':''}</p>
             </div>
           </div>
           <div style="display:flex;gap:4px;">
@@ -443,27 +443,27 @@ function renderAnimal(a){
         <div class="wb" style="padding:8px 14px;">
           <div style="display:flex;flex-direction:column;gap:0;">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
-              <span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Naissance</span>
-              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;text-align:right;">${fmtDate(a.dob)}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Naissance</span>
+              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);text-align:right;">${fmtDate(a.dob)}</span>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
-              <span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Poids</span>
-              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.weight} kg</span>
+              <span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Poids</span>
+              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.weight} kg</span>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
-              <span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Sexe</span>
-              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.sex==='F'?'Femelle':'Mâle'}${a.sterilized?' · Stérilisée':''}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Sexe</span>
+              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.sex==='F'?'Femelle':'Mâle'}${a.sterilized?' · Stérilisée':''}</span>
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;">
-              <span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Robe</span>
-              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.color}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Robe</span>
+              <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.color}</span>
             </div>
-            ${a.chip?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Transpondeur</span><span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:#0f172a;font-family:monospace;">${a.chip}</span></div>`:''}
-            ${a.tattoo?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Tatouage</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;font-family:monospace;">${a.tattoo}</span></div>`:''}
-            ${a.passport?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Passeport</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.passport}</span></div>`:''}
-            ${a.loof?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">LOOF / LOF</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.loof}</span></div>`:''}
-            ${a.sire?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">SIRE</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.sire}</span></div>`:''}
-            ${a.crossBreed?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;"><span style="font-size:var(--text-xs);color:#94a3b8;flex-shrink:0;min-width:90px;">Croisement</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${a.crossBreed}</span></div>`:''}
+            ${a.chip?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Transpondeur</span><span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-primary);font-family:monospace;">${a.chip}</span></div>`:''}
+            ${a.tattoo?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Tatouage</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);font-family:monospace;">${a.tattoo}</span></div>`:''}
+            ${a.passport?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Passeport</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.passport}</span></div>`:''}
+            ${a.loof?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">LOOF / LOF</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.loof}</span></div>`:''}
+            ${a.sire?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">SIRE</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.sire}</span></div>`:''}
+            ${a.crossBreed?`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;"><span style="font-size:var(--text-xs);color:var(--text-subtle);flex-shrink:0;min-width:90px;">Croisement</span><span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${a.crossBreed}</span></div>`:''}
           </div>
         </div>
       </div>
@@ -472,7 +472,7 @@ function renderAnimal(a){
       <div class="widget" style="display:flex;flex-direction:column;">
         <div class="wh" style="height:48px;">
           <span class="wt">Suivi de santé</span>
-          <span style="font-size:var(--text-xs);color:#94a3b8;">6 dernières mesures</span>
+          <span style="font-size:var(--text-xs);color:var(--text-subtle);">6 dernières mesures</span>
         </div>
         <div class="vital-grid" style="flex:1;display:grid;">
           ${[
@@ -488,12 +488,12 @@ function renderAnimal(a){
             const trendColor=last>prev?'#dc2626':last<prev?'#059669':'#94a3b8';
             return `<div style="border-left:${i>0?'1px solid #f1f5f9':'none'};padding:10px 12px;display:flex;flex-direction:column;gap:4px;">
               <div style="display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:var(--text-xs);font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">${v.label}</span>
-                <span style="font-size:var(--text-sm);font-weight:700;color:${trendColor};">${trend}</span>
+                <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.06em;">${v.label}</span>
+                <span style="font-size:var(--text-sm);font-weight:var(--weight-bold);color:${trendColor};">${trend}</span>
               </div>
               <div style="display:flex;align-items:baseline;gap:3px;">
-                <span style="font-size:20px;font-weight:600;color:${v.color};line-height:1;letter-spacing:-.5px;">${last}</span>
-                <span style="font-size:var(--text-xs);color:#94a3b8;font-weight:var(--weight-normal);">${v.unit}</span>
+                <span style="font-size:20px;font-weight:var(--weight-semibold);color:${v.color};line-height:1;letter-spacing:-.5px;">${last}</span>
+                <span style="font-size:var(--text-xs);color:var(--text-subtle);font-weight:var(--weight-normal);">${v.unit}</span>
               </div>
               <div style="flex:1;min-height:48px;">${renderVitalChart(v.data, v.type, v.color, v.fill, v.unit)}</div>
             </div>`;
@@ -512,7 +512,7 @@ function renderAnimal(a){
           ${a.vaccins.slice(0,4).map(v=>{
             const dot=v.status==='alert'?'#dc2626':v.status==='warn'?'#f59e0b':'#16a34a';
             const badge=v.status==='alert'?'<span class="badge b-alert" style="font-size:var(--text-xs);">Expiré</span>':v.status==='warn'?'<span class="badge b-warn" style="font-size:var(--text-xs);">À renouveler</span>':'<span class="badge b-ok" style="font-size:var(--text-xs);">À jour</span>';
-            return `<div class="trow" style="transition:background .12s;padding:6px 0;margin:0 -12px;padding-left:12px;padding-right:12px;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'"><div style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${v.name}</p><p style="font-size:var(--text-xs);color:#94a3b8;">Fait ${fmtDate(v.date)} · Prochain ${fmtDate(v.next)}</p></div>${badge}</div>`;
+            return `<div class="trow" style="transition:background .12s;padding:6px 0;margin:0 -12px;padding-left:12px;padding-right:12px;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'"><div style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;"></div><div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${v.name}</p><p style="font-size:var(--text-xs);color:var(--text-subtle);">Fait ${fmtDate(v.date)} · Prochain ${fmtDate(v.next)}</p></div>${badge}</div>`;
           }).join('')}
         </div>
       </div>
@@ -522,9 +522,9 @@ function renderAnimal(a){
         <div style="padding:0 12px;">
           ${a.traitements.length ? a.traitements.slice(0,4).map(t=>`<div class="trow" style="transition:background .12s;margin:0 -12px;padding:6px 12px;" onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
             <div style="width:7px;height:7px;border-radius:50%;background:#4338ca;flex-shrink:0;"></div>
-            <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${t.nom} <span class="badge b-blue" style="font-size:var(--text-xs);">${t.dose}</span></p><p style="font-size:var(--text-xs);color:#94a3b8;">${fmtDate(t.debut)} → ${fmtDate(t.fin)} · ${t.vet}</p></div>
+            <div style="flex:1;min-width:0;"><p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${t.nom} <span class="badge b-blue" style="font-size:var(--text-xs);">${t.dose}</span></p><p style="font-size:var(--text-xs);color:var(--text-subtle);">${fmtDate(t.debut)} → ${fmtDate(t.fin)} · ${t.vet}</p></div>
             <button class="btn btn-xs" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;flex-shrink:0;" onclick="toast('Arrêt traitement…','#dc2626')">Arrêter</button>
-          </div>`).join('') : `<p style="font-size:var(--text-sm);color:#94a3b8;padding:4px 0;">Aucun traitement en cours</p>`}
+          </div>`).join('') : `<p style="font-size:var(--text-sm);color:var(--text-subtle);padding:4px 0;">Aucun traitement en cours</p>`}
         </div>
       </div>
 
@@ -541,11 +541,11 @@ function renderAnimal(a){
               <div style="width:10px;height:10px;border-radius:50%;background:${i===0?'#4338ca':'#e2e8f0'};flex-shrink:0;"></div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
-                  <span style="font-size:var(--text-md);font-weight:600;color:#0f172a;">${c.motif}</span>
+                  <span style="font-size:var(--text-md);font-weight:var(--weight-semibold);color:var(--text-primary);">${c.motif}</span>
                   <span class="badge b-grey" style="font-size:var(--text-xs);">${c.vet}</span>
-                  <span style="font-size:var(--text-xs);color:#94a3b8;margin-left:auto;">${fmtDate(c.date)}</span>
+                  <span style="font-size:var(--text-xs);color:var(--text-subtle);margin-left:auto;">${fmtDate(c.date)}</span>
                 </div>
-                <p style="font-size:var(--text-sm);color:#475569;line-height:1.4;margin-bottom:4px;">${c.note}</p>
+                <p style="font-size:var(--text-sm);color:var(--text-muted);line-height:1.4;margin-bottom:4px;">${c.note}</p>
                 <div style="display:flex;gap:3px;flex-wrap:wrap;">${c.actes.map(ac=>`<span class="badge b-grey" style="font-size:var(--text-xs);">${ac}</span>`).join('')}</div>
               </div>
               <button class="btn btn-secondary" style="font-size:var(--text-xs);padding:3px 9px;flex-shrink:0;margin-left:8px;" onclick="toast('Ouverture consultation…','#4338ca')">Ouvrir</button>
@@ -563,7 +563,7 @@ function renderAnimal(a){
         <div class="wh">
           <div style="display:flex;align-items:center;gap:7px;">
             <span class="wt">Médias & Documents</span>
-            <span style="font-size:var(--text-xs);font-weight:600;padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">${a.medias.length}</span>
+            <span style="font-size:var(--text-xs);font-weight:var(--weight-semibold);padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4338ca;">${a.medias.length}</span>
           </div>
           <button class="btn btn-secondary btn-xs" onclick="toast('Voir tout…','#4338ca')">Voir tout</button>
         </div>
@@ -598,8 +598,8 @@ function renderAnimal(a){
               onmouseenter="this.style.background='#f5f3ff'" onmouseleave="this.style.background='transparent'">
               <!-- Date column -->
               <div style="flex-shrink:0;width:44px;text-align:center;padding-top:1px;">
-                <p style="font-size:var(--text-md);font-weight:700;color:#0f172a;line-height:1;">${new Date(f.date).getDate()}</p>
-                <p style="font-size:var(--text-xs);color:#94a3b8;text-transform:uppercase;">${new Date(f.date).toLocaleDateString('fr-FR',{month:'short'})}</p>
+                <p style="font-size:var(--text-md);font-weight:var(--weight-bold);color:var(--text-primary);line-height:1;">${new Date(f.date).getDate()}</p>
+                <p style="font-size:var(--text-xs);color:var(--text-subtle);text-transform:uppercase;">${new Date(f.date).toLocaleDateString('fr-FR',{month:'short'})}</p>
                 <p style="font-size:9px;color:#cbd5e1;">${new Date(f.date).getFullYear()}</p>
               </div>
               <!-- Separator -->
@@ -607,21 +607,21 @@ function renderAnimal(a){
               <!-- Content -->
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
-                  <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#0f172a;">${f.libelle}</p>
+                  <p style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${f.libelle}</p>
                   <span class="badge ${badgeCls}" style="font-size:var(--text-xs);">${badgeLabel}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                  <span style="font-size:var(--text-xs);color:#64748b;">${f.vet}</span>
+                  <span style="font-size:var(--text-xs);color:var(--text-muted);">${f.vet}</span>
                   <span style="color:#e2e8f0;font-size:var(--text-xs);">·</span>
-                  <span style="font-size:var(--text-xs);color:#94a3b8;font-family:monospace;">${f.ref}</span>
+                  <span style="font-size:var(--text-xs);color:var(--text-subtle);font-family:monospace;">${f.ref}</span>
                 </div>
                 <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
-                  ${f.actes.map(ac=>`<span style="font-size:var(--text-xs);padding:1px 6px;border-radius:10px;background:#f1f5f9;color:#64748b;">${ac}</span>`).join('')}
+                  ${f.actes.map(ac=>`<span style="font-size:var(--text-xs);padding:1px 6px;border-radius:10px;background:#f1f5f9;color:var(--text-muted);">${ac}</span>`).join('')}
                 </div>
               </div>
               <!-- Amount + action -->
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
-                <p style="font-size:var(--text-md);font-weight:var(--weight-medium);color:#334155;">${f.montant} €</p>
+                <p style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-secondary);">${f.montant} €</p>
                 ${action}
               </div>
             </div>`;
