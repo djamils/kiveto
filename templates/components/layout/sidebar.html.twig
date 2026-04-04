@@ -67,8 +67,8 @@
 {% set nav_items = [
   { section: 'Clinique' },
   { key: 'clinic_dashboard',              label: 'Tableau de bord',    icon: icon_grid,        route: 'clinic_dashboard' },
-  { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard' },
-  { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning' },
+  { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard', new_tab: true },
+  { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning', new_tab: true },
   { key: 'clinic_scheduling_waiting_room', label: 'Salle d\'attente',  icon: icon_clock,       route: 'clinic_scheduling_waiting_room' },
 
   { section: 'Médical' },
@@ -116,6 +116,7 @@
           href="{{ item.route ? path(item.route) : '#' }}"
           class="nav-item{% if _is_active %} active{% endif %}"
           {% if _is_active %}aria-current="page"{% endif %}
+          {% if item.new_tab is defined and item.new_tab %}target="_blank" rel="noopener"{% endif %}
         >
           {{ item.icon|raw }}
           <span>{{ item.label }}</span>
