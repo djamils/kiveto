@@ -89,7 +89,7 @@
   }
   .btn-deconnect:hover { background: var(--surface-subtle); border-color: var(--border-strong); }
 
-  .search-wrap { position: relative; }
+  .search-wrap { position: relative; display: block; }
 
   .search-icon {
     position: absolute;
