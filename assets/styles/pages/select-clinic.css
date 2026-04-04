@@ -5,35 +5,32 @@
  * Full-viewport card with scrollable list, search, and footer.
  */
 
-[data-page="clinic_select_clinic"] {
-  /* Page root layout */
+/* Wrapper centers the card on the page */
+.select-clinic-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100%;
+  min-height: 100vh;
   padding: var(--space-6) var(--space-4);
+  background: var(--surface-page);
+}
 
-  /* ── Card ──
-     --gap = single source of truth for
-     horizontal padding. Header, list and footer
-     all use var(--gap) -> guaranteed alignment
-     on all devices. */
-  .card {
-    --gap: 24px;
+[data-page="clinic_select_clinic"] {
+  /* Card IS the data-page element — styles apply directly */
+  --gap: 24px;
 
-    width: 100%;
-    max-width: 680px;
-    background: var(--surface-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    /* explicit height needed so flex distributes space to children */
-    height: calc(100vh - var(--space-6) * 2);
-    max-height: 720px; /* ceiling on very large screens */
-  }
+  width: 100%;
+  max-width: 680px;
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(100vh - var(--space-6) * 2);
+  max-height: 720px;
+  /* Centering handled by body wrapper */
 
   /* ── Header ── */
   .card-head {
@@ -416,25 +413,21 @@
    Only --gap and a few sizes change.
    Everything else aligns automatically. */
 @media (max-width: 720px) {
+  .select-clinic-wrapper { padding: var(--space-4) var(--space-3); }
   [data-page="clinic_select_clinic"] {
-    padding: var(--space-4) var(--space-3);
-    .card {
-      --gap: 20px;
-      max-width: 100%;
-      height: calc(100vh - var(--space-4) * 2);
-      max-height: 720px;
-    }
+    --gap: 20px;
+    max-width: 100%;
+    height: calc(100vh - var(--space-4) * 2);
+    max-height: 720px;
   }
 }
 
 @media (max-width: 600px) {
+  .select-clinic-wrapper { padding: var(--space-3); }
   [data-page="clinic_select_clinic"] {
-    padding: var(--space-3);
-    .card {
-      --gap: 16px;
-      height: calc(100vh - var(--space-3) * 2);
-      max-height: none;
-    }
+    --gap: 16px;
+    height: calc(100vh - var(--space-3) * 2);
+    max-height: none;
 
     .head-top { flex-wrap: wrap; }
     .btn-deconnect { order: 3; width: 100%; text-align: center; justify-content: center; }
@@ -462,13 +455,12 @@
 }
 
 @media (max-height: 500px) {
+  .select-clinic-wrapper { padding: var(--space-2) var(--space-4); }
   [data-page="clinic_select_clinic"] {
-    padding: var(--space-2) var(--space-4);
-    .card {
-      --gap: 16px;
-      height: calc(100vh - var(--space-2) * 2);
-      max-height: none;
-    }
+    --gap: 16px;
+    height: calc(100vh - var(--space-2) * 2);
+    max-height: none;
+
     .card-head { padding-bottom: var(--space-3); gap: var(--space-3); }
   }
 }
