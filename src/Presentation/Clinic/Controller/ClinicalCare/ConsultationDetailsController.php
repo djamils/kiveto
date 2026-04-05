@@ -22,7 +22,7 @@ final class ConsultationDetailsController extends AbstractController
     {
         $consultation = $this->queryBus->ask(new GetConsultationDetails($id));
 
-        return $this->render('clinic/clinical_care/consultation_details.html.twig', [
+        return $this->render('clinic/consultation/detail/index.html.twig', [
             'consultation' => $consultation,
             'pageTitle'    => 'Consultation',
         ]);

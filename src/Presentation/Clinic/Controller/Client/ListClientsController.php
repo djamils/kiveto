@@ -50,7 +50,7 @@ final class ListClientsController extends AbstractController
 
         $totalPages = (int) ceil($result['total'] / $limit);
 
-        return $this->render('clinic/clients/list.html.twig', [
+        return $this->render('clinic/clients/list/index.html.twig', [
             'clients' => [
                 'items'           => array_values($result['items']),
                 'totalItems'      => $result['total'],

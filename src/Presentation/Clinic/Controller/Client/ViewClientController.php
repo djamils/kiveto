@@ -39,7 +39,7 @@ final class ViewClientController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/clients/view.html.twig', [
+        return $this->render('clinic/clients/view/index.html.twig', [
             'client'            => $client,
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,

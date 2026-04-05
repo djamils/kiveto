@@ -1,7 +1,7 @@
 {#
- # Kiveto -- templates/clinic/dashboard.html.twig
- # ───────────────────────────────────────────────
- # Dashboard page for the active clinic.
+ # Kiveto -- templates/clinic/home/index.html.twig
+ # ──────────────────────────────────────────────
+ # Dashboard (home) page for the active clinic.
  # Extends clinic/base.html.twig (with sidebar + topbar).
  #
  # Variables from controller:
@@ -26,17 +26,17 @@
 {% endblock %}
 
 {% block content %}
-  {{ include('clinic/dashboard/_header.html.twig') }}
-  {{ include('clinic/dashboard/_quick_actions.html.twig') }}
-  {{ include('clinic/dashboard/_hospitalisations.html.twig') }}
-  {{ include('clinic/dashboard/_kanban.html.twig') }}
+  {{ include('clinic/home/_header.html.twig') }}
+  {{ include('clinic/home/_quick_actions.html.twig') }}
+  {{ include('clinic/home/_hospitalisations.html.twig') }}
+  {{ include('clinic/home/_kanban.html.twig') }}
 {% endblock %}
 
 {% block rpanel %}
 {# Right Panel -- Stock & Tasks #}
 <div class="app-rpanel" id="rpanel">
-  {{ include('clinic/dashboard/_rpanel_stock.html.twig') }}
-  {{ include('clinic/dashboard/_rpanel_tasks.html.twig') }}
+  {{ include('clinic/home/_rpanel_stock.html.twig') }}
+  {{ include('clinic/home/_rpanel_tasks.html.twig') }}
 </div>
 {% endblock %}
 

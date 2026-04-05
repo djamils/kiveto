@@ -13,6 +13,6 @@ final class ListConsultationsController extends AbstractController
     #[Route(path: '/consultations', name: 'clinic_consultations', methods: ['GET'])]
     public function __invoke(): Response
     {
-        return $this->render('clinic/clinical_care/index.html.twig');
+        return $this->render('clinic/consultation/index.html.twig');
     }
 }

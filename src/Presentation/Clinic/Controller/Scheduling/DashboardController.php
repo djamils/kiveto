@@ -53,7 +53,7 @@ final class DashboardController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/scheduling/dashboard.html.twig', [
+        return $this->render('clinic/scheduling/agenda/index.html.twig', [
             'appointments'       => $appointments,
             'waitingRoomEntries' => $waitingRoomEntries,
             'selectedDate'       => $selectedDate,

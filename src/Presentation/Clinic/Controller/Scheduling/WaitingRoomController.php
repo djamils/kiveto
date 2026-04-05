@@ -33,7 +33,7 @@ final class WaitingRoomController extends AbstractController
         $waitingRoomEntries = $this->queryBus->ask(new ListWaitingRoom($currentClinicId->toString()));
         \assert(\is_array($waitingRoomEntries));
 
-        return $this->render('clinic/scheduling/waiting_room.html.twig', [
+        return $this->render('clinic/scheduling/waiting-room/index.html.twig', [
             'waitingRoomEntries' => $waitingRoomEntries,
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,

@@ -1,6 +1,6 @@
 {#
- # Kiveto — templates/clinic/clinical_care/consultation_details.html.twig
- # ─────────────────────────────────────────────────────────────────────
+ # Kiveto — templates/clinic/consultation/detail/index.html.twig
+ # ─────────────────────────────────────────────────────────────
  # Consultation detail page — VetSaaS design from vetos-consultation.html mockup.
  # Patient banner, 2-column layout with vitals/diagnosis left, SOAP notes right,
  # acts, prescriptions, plan, history drawer, modals.
@@ -41,17 +41,17 @@
 
 {% block content %}
   {# Patient banner (desktop + compact) #}
-  {% include 'clinic/clinical_care/consultation/_patient_banner.html.twig' %}
+  {% include 'clinic/consultation/detail/_patient_banner.html.twig' %}
 
   {# Desktop scroll body with 2-column grid #}
   <div class="scroll" id="desktop-scroll">
   <div class="body">
   <div class="consult-grid">
     {# Left column: vitals, motif, acts #}
-    {% include 'clinic/clinical_care/consultation/_sidebar_vitals.html.twig' %}
+    {% include 'clinic/consultation/detail/_sidebar_vitals.html.twig' %}
 
     {# Right column: SOAP notes, plan, tablet tabs #}
-    {% include 'clinic/clinical_care/consultation/_soap_notes.html.twig' %}
+    {% include 'clinic/consultation/detail/_soap_notes.html.twig' %}
   </div>
   </div>
   </div>
@@ -60,11 +60,11 @@
 {% endblock %}
 
 {% block drawers %}
-  {% include 'clinic/clinical_care/consultation/_drawer_history.html.twig' %}
+  {% include 'clinic/consultation/detail/_drawer_history.html.twig' %}
 {% endblock %}
 
 {% block modals %}
-  {% include 'clinic/clinical_care/consultation/_modals.html.twig' %}
+  {% include 'clinic/consultation/detail/_modals.html.twig' %}
 {% endblock %}
 
 {% block javascripts %}

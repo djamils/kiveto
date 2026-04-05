@@ -29,7 +29,7 @@ final class PlanningController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        return $this->render('clinic/scheduling/planning.html.twig', [
+        return $this->render('clinic/scheduling/planning/index.html.twig', [
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);

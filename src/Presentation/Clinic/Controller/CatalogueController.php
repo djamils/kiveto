@@ -13,6 +13,6 @@ final class CatalogueController extends AbstractController
     #[Route(path: '/catalogue', name: 'clinic_catalogue', methods: ['GET'])]
     public function __invoke(): Response
     {
-        return $this->render('clinic/catalogue/index.html.twig');
+        return $this->render('clinic/catalog/index.html.twig');
     }
 }
