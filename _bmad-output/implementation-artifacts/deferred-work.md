@@ -37,12 +37,6 @@
 - Replace all native `<select>` elements with the custom animated Select component
 - Remove legacy VetSaaS component CSS files once fully migrated
 
-## Turbo cache flash on navigation (2026-04-05)
+## ~~Turbo cache flash on navigation (2026-04-05)~~ — DONE
 
-**Context:** Surfaced during POC Tailwind enhanced-UI. Pre-existing issue made more visible by Stimulus select controllers reconnecting on swap.
-
-**Goals:**
-- Make page module `init()` functions idempotent — skip DOM rebuild if content is already present from cache
-- Handle `turbo:before-cache` properly — clean up JS-only state without destroying rendered DOM
-- Investigate Stimulus controller reconnection flicker and mitigate (e.g. CSS `[data-turbo-preview] .ki-select { visibility: visible }`)
-- Goal: seamless instant navigation via Turbo cache with zero flash
+Fixed in commit 9600920: all page module `init()` functions are now idempotent.
