@@ -1,18 +1,16 @@
 /*
  * ═══════════════════════════════════════════════════════════
- *  Kiveto Design System — kiveto.css  (v2.0)
- *  Main entry point — import first
+ *  Kiveto Design System — kiveto.css  (v2.1)
+ *  Tokens, reset & global animations
  * ═══════════════════════════════════════════════════════════
  *
  *  This file contains ONLY:
  *    1. CSS Tokens (root variables)
  *    2. Reset & base
- *    3. Utility typography
- *    4. Global animations
+ *    3. Global animations (@keyframes)
  *
- *  Components are in assets/styles/components/
- *  Recommended import order in app.css:
- *    kiveto.css → components/layout → navigation → forms → data → overlays → feedback
+ *  Utility typography, flexbox helpers, and component classes
+ *  have been migrated to tailwind.css (@layer components).
  *
  *  ─── STRICT RULES ──────────────────────────────────────────
  *  ✗ Never write a px value outside of --space-N
@@ -211,186 +209,7 @@ ul, ol { list-style: none; }
 
 
 /* ─────────────────────────────────────────────
-   3. UTILITY TYPOGRAPHY
-   ───────────────────────────────────────────── */
-
-/* Main page title */
-.page-title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-medium);
-  color: var(--text-primary);
-  letter-spacing: -.3px;
-  line-height: var(--lh-tight);
-}
-
-/* Section / widget title */
-.section-title {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
-  color: var(--text-primary);
-  letter-spacing: -.2px;
-}
-
-/* Uppercase label (nav sections, fields) */
-.label-caps {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  color: var(--text-subtle);
-  text-transform: uppercase;
-  letter-spacing: .07em;
-}
-
-/* Legacy text utilities — coexist with Tailwind's text-text-{name} classes.
-   Kept for backward compatibility with existing templates. */
-.text-muted { color: var(--text-muted); }
-.text-subtle { color: var(--text-subtle); }
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-
-/* Monospace (IDs, codes, references) */
-.mono {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-/* Truncate */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-
-/* ─────────────────────────────────────────────
-   4. LIGHTWEIGHT FLEXBOX UTILITIES
-   ───────────────────────────────────────────── */
-.flex         { display: flex; }
-.flex-col     { display: flex; flex-direction: column; }
-.items-center { align-items: center; }
-.items-start  { align-items: flex-start; }
-.justify-between { justify-content: space-between; }
-.justify-end  { justify-content: flex-end; }
-.gap-1 { gap: var(--space-1); }
-.gap-2 { gap: var(--space-2); }
-.gap-3 { gap: var(--space-3); }
-.gap-4 { gap: var(--space-4); }
-.flex-1 { flex: 1; }
-.flex-shrink-0 { flex-shrink: 0; }
-.min-w-0 { min-width: 0; }
-
-/* Visibility */
-.hidden  { display: none !important; }
-.invisible { visibility: hidden; }
-.sr-only {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-}
-
-/* Divider */
-.divider {
-  height: 1px;
-  background: var(--border-light);
-  margin: var(--space-4) 0;
-}
-
-.divider-v {
-  width: 1px;
-  height: 16px;
-  background: var(--border-light);
-  flex-shrink: 0;
-}
-
-/* Initials avatar */
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  flex-shrink: 0;
-  background: var(--brand-100);
-  color: var(--brand-700);
-  line-height: 1;
-}
-.avatar-sm { width: 24px; height: 24px; font-size: var(--text-xs); }
-.avatar-md { width: 36px; height: 36px; font-size: var(--text-base); }
-.avatar-lg { width: 44px; height: 44px; font-size: var(--text-lg); }
-
-/* Color dot / indicator */
-.color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
-}
-.color-dot-sm { width: 6px; height: 6px; }
-.color-dot-lg { width: 10px; height: 10px; }
-
-/* Skeleton loader */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--slate-100) 25%,
-    var(--slate-50)  50%,
-    var(--slate-100) 75%
-  );
-  background-size: 200% 100%;
-  border-radius: var(--radius-sm);
-  animation: skeleton-shimmer 1.4s infinite linear;
-}
-
-/* Empty state */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-10) var(--space-4);
-  text-align: center;
-  color: var(--text-subtle);
-}
-.empty-state-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-hover);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: var(--space-1);
-}
-.empty-state-title {
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  color: var(--text-muted);
-}
-.empty-state-sub {
-  font-size: var(--text-md);
-  color: var(--text-subtle);
-  max-width: 280px;
-}
-
-/* Spinner */
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: var(--radius-full);
-  animation: spin .7s linear infinite;
-}
-.spinner-sm { width: 12px; height: 12px; }
-.spinner-lg { width: 24px; height: 24px; border-width: 3px; }
-
-
-/* ─────────────────────────────────────────────
-   5. GLOBAL ANIMATIONS
+   3. GLOBAL ANIMATIONS
    ───────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; }
@@ -465,13 +284,4 @@ ul, ol { list-style: none; }
 @keyframes popover-out {
   from { opacity: 1; transform: scale(1); }
   to   { opacity: 0; transform: scale(.95); }
-}
-
-/* Animation utility classes (for Stimulus controllers) */
-.animate-popover-in {
-  animation: popover-in-down .15s var(--ease-overlay);
-}
-
-.animate-popover-out {
-  animation: popover-out .1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
