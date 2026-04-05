@@ -174,38 +174,41 @@
 
 
 /* ─────────────────────────────────────────────
-   2. RESET & BASE
+   2. RESET & BASE — wrapped in @layer base so
+   Tailwind @layer components/utilities can override
    ───────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-html, body {
-  height: 100%;
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-  font-size: var(--text-base);
-  color: var(--text-primary);
-  background: var(--surface-page);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    background: var(--surface-page);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-a { color: inherit; text-decoration: none; }
-button { font-family: inherit; cursor: pointer; }
-input, select, textarea { font-family: inherit; }
-img, svg { display: block; max-width: 100%; }
-ul, ol { list-style: none; }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; }
+  img, svg { display: block; max-width: 100%; }
+  ul, ol { list-style: none; }
 
-/* Custom scrollbars */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--slate-300);
-  border-radius: var(--radius-full);
+  /* Custom scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--slate-300);
+    border-radius: var(--radius-full);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
 }
-::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
 
 
 /* ─────────────────────────────────────────────
