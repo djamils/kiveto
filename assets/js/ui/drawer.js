@@ -1,5 +1,5 @@
 /**
- * VetSaaS — assets/js/ui/drawer.js
+ * Kiveto — assets/js/ui/drawer.js
  * ──────────────────────────────────
  * Drawer (slide panels) and bottom sheet management.
  *
@@ -65,7 +65,7 @@ function open(id, options = {}) {
 
   // Store the onClose callback if provided
   if (options.onClose) {
-    overlay._vsOnClose = options.onClose;
+    overlay._kivetoOnClose = options.onClose;
   }
 
   options.onOpen?.();
@@ -87,8 +87,8 @@ function close(id) {
     document.body.style.overflow = '';
   }
 
-  overlay._vsOnClose?.();
-  delete overlay._vsOnClose;
+  overlay._kivetoOnClose?.();
+  delete overlay._kivetoOnClose;
 }
 
 /**

@@ -1,6 +1,6 @@
 import './stimulus_bootstrap.js';
 import './styles/app.css';
-import { initUI } from 'vs/ui';
+import { initUI } from 'kiveto/ui';
 
 /**
  * Page-module dispatcher.

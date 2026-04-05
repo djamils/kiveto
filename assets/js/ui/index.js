@@ -4,22 +4,22 @@
  * Single entry point for the JS kit.
  *
  * Bundled usage:
- *   import { drawer, modal, toast, popover, tabs } from 'vs/ui';
+ *   import { drawer, modal, toast, popover, tabs } from 'kiveto/ui';
  *
  * Individual usage (optimal tree-shaking):
- *   import { drawer } from 'vs/drawer';
- *   import { toast }  from 'vs/toast';
+ *   import { drawer } from 'kiveto/drawer';
+ *   import { toast }  from 'kiveto/toast';
  *
  * Global initialization (in app.js):
- *   import { initUI } from 'vs/ui';
+ *   import { initUI } from 'kiveto/ui';
  *   initUI();
  */
 
-export { drawer }  from 'vs/drawer';
-export { modal }   from 'vs/modal';
-export { toast }   from 'vs/toast';
-export { popover } from 'vs/popover';
-export { tabs }    from 'vs/tabs';
+export { drawer }  from 'kiveto/drawer';
+export { modal }   from 'kiveto/modal';
+export { toast }   from 'kiveto/toast';
+export { popover } from 'kiveto/popover';
+export { tabs }    from 'kiveto/tabs';
 
 /**
  * Global initialization of the kit.
@@ -30,6 +30,6 @@ export { tabs }    from 'vs/tabs';
  * - Adds global Escape shortcut to close overlays
  */
 export function initUI() {
-  import('vs/tabs').then(({ tabs }) => tabs.init());
-  import('vs/popover').then(({ popover }) => popover.init());
+  import('kiveto/tabs').then(({ tabs }) => tabs.init());
+  import('kiveto/popover').then(({ popover }) => popover.init());
 }

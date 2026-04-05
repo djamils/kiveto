@@ -1,5 +1,5 @@
 /**
- * VetSaaS — assets/js/ui/modal.js
+ * Kiveto — assets/js/ui/modal.js
  * ─────────────────────────────────
  * Modal and confirmation dialog management.
  *
@@ -60,7 +60,7 @@ function open(id, options = {}) {
   };
   overlay.addEventListener('click', handleClick);
 
-  if (options.onClose) overlay._vsOnClose = options.onClose;
+  if (options.onClose) overlay._kivetoOnClose = options.onClose;
 }
 
 /**
@@ -69,17 +69,33 @@ function open(id, options = {}) {
  */
 function close(id) {
   const overlay = document.getElementById(id);
-  if (!overlay) return;
+  if (!overlay || overlay.classList.contains('is-closing')) return;
 
-  overlay.classList.add('hidden');
-  _openModals.delete(id);
+  // Trigger exit animation
+  overlay.classList.add('is-closing');
 
-  if (_openModals.size === 0) {
-    document.body.style.overflow = '';
-  }
+  const onEnd = () => {
+    overlay.classList.remove('is-closing');
+    overlay.classList.add('hidden');
+    _openModals.delete(id);
 
-  overlay._vsOnClose?.();
-  delete overlay._vsOnClose;
+    if (_openModals.size === 0) {
+      document.body.style.overflow = '';
+    }
+
+    overlay._kivetoOnClose?.();
+    delete overlay._kivetoOnClose;
+    overlay.removeEventListener('animationend', onEnd);
+  };
+
+  overlay.addEventListener('animationend', onEnd, { once: true });
+
+  // Safety fallback in case animationend doesn't fire
+  setTimeout(() => {
+    if (overlay.classList.contains('is-closing')) {
+      onEnd();
+    }
+  }, 200);
 }
 
 /**
@@ -103,7 +119,7 @@ function confirm({
 } = {}) {
   return new Promise((resolve) => {
     // Clean up any previous dialog
-    document.getElementById('vs-confirm-dialog')?.remove();
+    document.getElementById('kiveto-confirm-dialog')?.remove();
 
     const iconMap = {
       danger:  { color: 'confirm-icon-danger',  icon: _iconAlert() },
@@ -121,23 +137,23 @@ function confirm({
 
     const el = document.createElement('div');
     el.className = 'modal-overlay';
-    el.id = 'vs-confirm-dialog';
+    el.id = 'kiveto-confirm-dialog';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-labelledby', 'vs-confirm-title');
+    el.setAttribute('aria-labelledby', 'kiveto-confirm-title');
 
     el.innerHTML = `
-      <div class="modal modal-narrow confirm-dialog" style="animation: slide-up .18s ease;">
+      <div class="modal modal-narrow confirm-dialog">
         <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
           ${icon ? `<div class="confirm-icon ${color}">${icon}</div>` : ''}
           <div>
-            <p id="vs-confirm-title" style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);margin-bottom:6px;">${_escapeHtml(title)}</p>
+            <p id="kiveto-confirm-title" style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);margin-bottom:6px;">${_escapeHtml(title)}</p>
             ${message ? `<p style="font-size:var(--text-base);color:var(--text-secondary);line-height:var(--lh-normal);">${_escapeHtml(message)}</p>` : ''}
           </div>
         </div>
         <div class="modal-foot">
-          <button class="btn btn-secondary btn-sm" id="vs-confirm-cancel">${_escapeHtml(cancelLabel)}</button>
-          <button class="${confirmBtnClass}" id="vs-confirm-ok">${_escapeHtml(confirmLabel)}</button>
+          <button class="btn btn-secondary btn-sm" id="kiveto-confirm-cancel">${_escapeHtml(cancelLabel)}</button>
+          <button class="${confirmBtnClass}" id="kiveto-confirm-ok">${_escapeHtml(confirmLabel)}</button>
         </div>
       </div>
     `;
@@ -145,25 +161,35 @@ function confirm({
     document.body.appendChild(el);
     document.body.style.overflow = 'hidden';
 
+    let resolved = false;
+    let onKey;
     const cleanup = (result) => {
-      el.remove();
-      document.body.style.overflow = '';
-      resolve(result);
+      if (resolved) return;
+      resolved = true;
+      if (onKey) document.removeEventListener('keydown', onKey);
+      el.classList.add('is-closing');
+      const onEnd = () => {
+        el.remove();
+        document.body.style.overflow = '';
+        resolve(result);
+      };
+      el.addEventListener('animationend', onEnd, { once: true });
+      setTimeout(() => { if (document.body.contains(el)) onEnd(); }, 200);
     };
 
-    el.querySelector('#vs-confirm-ok').addEventListener('click', () => cleanup(true));
-    el.querySelector('#vs-confirm-cancel').addEventListener('click', () => cleanup(false));
+    el.querySelector('#kiveto-confirm-ok').addEventListener('click', () => cleanup(true));
+    el.querySelector('#kiveto-confirm-cancel').addEventListener('click', () => cleanup(false));
 
     // Click overlay → cancel
     el.addEventListener('click', (e) => { if (e.target === el) cleanup(false); });
 
     // Focus on the confirm button
-    requestAnimationFrame(() => el.querySelector('#vs-confirm-ok')?.focus());
+    requestAnimationFrame(() => el.querySelector('#kiveto-confirm-ok')?.focus());
 
-    // Escape → cancel
-    const onKey = (e) => {
-      if (e.key === 'Escape') { cleanup(false); document.removeEventListener('keydown', onKey); }
-      if (e.key === 'Enter')  { cleanup(true);  document.removeEventListener('keydown', onKey); }
+    // Escape → cancel, Enter → confirm
+    onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter') cleanup(true);
     };
     document.addEventListener('keydown', onKey);
   });

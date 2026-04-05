@@ -13,13 +13,13 @@
   {% block body %}{% endblock %}
 
   {# Toast container #}
-  <div class="toast-container" id="vs-toast-container" aria-live="polite"></div>
+  <div class="toast-container" id="kiveto-toast-container" aria-live="polite"></div>
 
   {# Flash messages → auto toasts #}
   {% for type, messages in app.flashes %}
     {% for message in messages %}
       <script type="module">
-        import('vs/toast').then(({ toast }) => {
+        import('kiveto/toast').then(({ toast }) => {
           toast.{{ type == 'error' ? 'danger' : type }}({{ message|json_encode|raw }});
         });
       </script>

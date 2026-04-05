@@ -26,3 +26,13 @@
 - Add rpanel overlay (similar to sidebar-overlay) for tablet breakpoint
 - Add a close button inside the rpanel header on tablet
 - Wire JS toggle for the rpanel drawer
+
+## Full migration des composants UI vers Tailwind + micro-animations (2026-04-05)
+
+**Context:** Deferred from POC Tailwind enhanced-UI. The POC validates the approach on 2-3 components (Modal, Popover, Select). This item covers the full rollout.
+
+**Goals:**
+- Migrate all VetSaaS CSS components to Tailwind utility classes (buttons, forms, data tables, navigation, layout, feedback)
+- Add reui.io-inspired micro-animations to all overlay/interactive components (Drawer, Toast, Tabs, Accordion/Collapsible)
+- Replace all native `<select>` elements with the custom animated Select component
+- Remove legacy VetSaaS component CSS files once fully migrated

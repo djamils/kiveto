@@ -1,6 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /*
  * ═══════════════════════════════════════════════════════════
- *  VetSaaS Design System — vetsaas.css  (v2.0)
+ *  Kiveto Design System — kiveto.css  (v2.0)
  *  Main entry point — import first
  * ═══════════════════════════════════════════════════════════
  *
@@ -12,7 +16,7 @@
  *
  *  Components are in assets/styles/components/
  *  Recommended import order in app.css:
- *    vetsaas.css → components/layout → navigation → forms → data → overlays → feedback
+ *    kiveto.css → components/layout → navigation → forms → data → overlays → feedback
  *
  *  ─── STRICT RULES ──────────────────────────────────────────
  *  ✗ Never write a px value outside of --space-N
@@ -156,9 +160,12 @@
   --rpanel-width:  310px;
 
   /* ── Transitions ── */
-  --t-fast:   all .12s ease;
-  --t-normal: all .16s ease;
-  --t-slow:   all .24s ease;
+  --t-fast:   all .12s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-normal: all .16s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-slow:   all .24s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Overlay easing (snappy decelerate curve) ── */
+  --ease-overlay: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* ── Z-index semantic scale ── */
   --z-dropdown: 100;
@@ -237,7 +244,8 @@ ul, ol { list-style: none; }
   letter-spacing: .07em;
 }
 
-/* Common muted text */
+/* Legacy text utilities — coexist with Tailwind's text-text-{name} classes.
+   Kept for backward compatibility with existing templates. */
 .text-muted { color: var(--text-muted); }
 .text-subtle { color: var(--text-subtle); }
 .text-primary { color: var(--text-primary); }
@@ -430,4 +438,44 @@ ul, ol { list-style: none; }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: .5; }
+}
+
+/* Enhanced overlay animations (reui.io-inspired) */
+@keyframes overlay-in {
+  from { opacity: 0; transform: scale(.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes overlay-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.95); }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes popover-in-down {
+  from { opacity: 0; transform: scale(.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes popover-in-up {
+  from { opacity: 0; transform: scale(.95) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes popover-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.95); }
+}
+
+/* Animation utility classes (for Stimulus controllers) */
+.animate-popover-in {
+  animation: popover-in-down .15s var(--ease-overlay);
+}
+
+.animate-popover-out {
+  animation: popover-out .1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }

@@ -1,5 +1,5 @@
 /**
- * VetSaaS — assets/js/ui/tabs.js
+ * Kiveto — assets/js/ui/tabs.js
  * ────────────────────────────────
  * Tab bar management.
  *

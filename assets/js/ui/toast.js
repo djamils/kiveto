@@ -1,5 +1,5 @@
 /**
- * VetSaaS — assets/js/ui/toast.js
+ * Kiveto — assets/js/ui/toast.js
  * ─────────────────────────────────
  * Lightweight toast notifications.
  *
@@ -20,7 +20,7 @@
  *   });
  *
  * Required HTML in the layout:
- *   <div class="toast-container" id="vs-toast-container"></div>
+ *   <div class="toast-container" id="kiveto-toast-container"></div>
  *
  *   → Automatically injected if absent.
  */
@@ -36,11 +36,11 @@ let _container = null;
 function _getContainer() {
   if (_container) return _container;
 
-  _container = document.getElementById('vs-toast-container');
+  _container = document.getElementById('kiveto-toast-container');
   if (!_container) {
     _container = document.createElement('div');
     _container.className = 'toast-container';
-    _container.id = 'vs-toast-container';
+    _container.id = 'kiveto-toast-container';
     document.body.appendChild(_container);
   }
   return _container;

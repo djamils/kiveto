@@ -1,5 +1,5 @@
 /*
- * VetSaaS — components/feedback.css
+ * Kiveto — components/feedback.css
  * ────────────────────────────────────
  * Toasts, inline alerts, banners, empty states, loaders.
  */
@@ -191,7 +191,7 @@
 
 
 /* ─────────────────────────────────────────────
-   EMPTY STATES (already in vetsaas.css, extended here)
+   EMPTY STATES (already in kiveto.css, extended here)
    ───────────────────────────────────────────── */
 .empty-state-action {
   margin-top: var(--space-2);

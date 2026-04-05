@@ -1,5 +1,5 @@
 /**
- * VetSaaS — assets/js/ui/popover.js
+ * Kiveto — assets/js/ui/popover.js
  * ────────────────────────────────────
  * Position:fixed popovers that escape overflow:hidden containers.
  * Automatic positioning (below/above based on available space).
@@ -88,7 +88,7 @@ function open({ anchor, items = [], align = 'right', width = 180, onClose } = {}
 
   _position(el, anchor, align);
 
-  if (onClose) el._vsOnClose = onClose;
+  if (onClose) el._kivetoOnClose = onClose;
   _registerGlobal(anchor);
 
   return el;
@@ -117,7 +117,7 @@ function openHtml({ anchor, html, align = 'right', width = 240, onClose } = {}) 
   _active = el;
 
   _position(el, anchor, align);
-  if (onClose) el._vsOnClose = onClose;
+  if (onClose) el._kivetoOnClose = onClose;
   _registerGlobal(anchor);
 
   return el;
@@ -128,14 +128,25 @@ function openHtml({ anchor, html, align = 'right', width = 240, onClose } = {}) 
  */
 function close() {
   if (!_active) return;
-  _active._vsOnClose?.();
-  _active.remove();
-  _active = null;
+
+  const el = _active;
+  _active = null; // Null immediately to prevent re-entry
+
   if (_globalHandler) {
     document.removeEventListener('click', _globalHandler);
     document.removeEventListener('keydown', _globalHandler);
     _globalHandler = null;
   }
+
+  el.classList.add('is-closing');
+
+  const onEnd = () => {
+    el._kivetoOnClose?.();
+    el.remove();
+  };
+
+  el.addEventListener('animationend', onEnd, { once: true });
+  setTimeout(() => { if (document.body.contains(el)) onEnd(); }, 150);
 }
 
 /**
@@ -166,7 +177,8 @@ function _position(el, anchor, align) {
   if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
     top = rect.bottom + GAP;
   } else {
-    // Position above (height not yet known, estimate it)
+    // Position above anchor — add directional animation class
+    el.classList.add('from-below');
     top = rect.top - GAP - 200; // conservative estimate
     el.style.top = `${top}px`;
     // Recalculate after render

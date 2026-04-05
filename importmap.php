@@ -27,22 +27,22 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
-    'vs/ui' => [
+    'kiveto/ui' => [
         'path' => './assets/js/ui/index.js',
     ],
-    'vs/drawer' => [
+    'kiveto/drawer' => [
         'path' => './assets/js/ui/drawer.js',
     ],
-    'vs/modal' => [
+    'kiveto/modal' => [
         'path' => './assets/js/ui/modal.js',
     ],
-    'vs/toast' => [
+    'kiveto/toast' => [
         'path' => './assets/js/ui/toast.js',
     ],
-    'vs/popover' => [
+    'kiveto/popover' => [
         'path' => './assets/js/ui/popover.js',
     ],
-    'vs/tabs' => [
+    'kiveto/tabs' => [
         'path' => './assets/js/ui/tabs.js',
     ],
     'pages/home' => [
