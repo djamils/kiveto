@@ -390,7 +390,26 @@ ul, ol { list-style: none; }
 
 
 /* ─────────────────────────────────────────────
-   5. GLOBAL ANIMATIONS
+   5. VIEW TRANSITIONS (Turbo navigation)
+   ───────────────────────────────────────────── */
+
+/* Fast cross-fade on page swap — eliminates the flash */
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  animation: vt-fade-in .15s ease;
+}
+
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
+
+/* ─────────────────────────────────────────────
+   6. GLOBAL ANIMATIONS
    ───────────────────────────────────────────── */
 @keyframes fade-in {
   from { opacity: 0; }
