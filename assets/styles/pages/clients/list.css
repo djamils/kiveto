@@ -4,6 +4,10 @@
 
 [data-page="clinic_clients_list"] {
 
+  /* ── Close button ── */
+  .btn-close { width: 28px; height: 28px; border-radius: var(--radius-md); border: none; background: var(--surface-hover); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: var(--transition-fast); }
+  .btn-close:hover { background: var(--surface-subtle); }
+
   /* ── Icon size utilities ── */
   .cl-icon-xxs { width: 10px; height: 10px; }
   .cl-icon-xs { width: 11px; height: 11px; }
