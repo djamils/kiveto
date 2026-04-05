@@ -1,4 +1,4 @@
 symfonycasts_tailwind:
-    binary_version: 'v4.1.8'
+    binary_version: 'v4.2.0'
     input_css:
         - '%kernel.project_dir%/assets/styles/tailwind.css'
