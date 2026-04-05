@@ -19,16 +19,4 @@
 /* 3. Keenicons */
 @import "../vendors/keenicons/styles.bundle.css";
 
-/* 4. Components — now in tailwind.css via @layer components */
-
-/* 5. Page styles — shared patterns + page-specific */
-@import "./pages/common.css";
-@import "./pages/home.css";
-@import "./pages/clients/list.css";
-@import "./pages/clients/view.css";
-@import "./pages/consultation.css";
-@import "./pages/hospitalisations.css";
-@import "./pages/scheduling/agenda.css";
-@import "./pages/scheduling/planning.css";
-@import "./pages/scheduling/waiting-room.css";
-@import "./pages/select-clinic.css";
+/* 4. Components + page styles — now in tailwind.css via @layer components */
