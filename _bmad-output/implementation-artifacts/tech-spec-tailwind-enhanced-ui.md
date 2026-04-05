@@ -3,6 +3,7 @@ title: 'POC Tailwind + enhanced micro-animations on Modal, Popover, Select'
 type: 'feature'
 created: '2026-04-05'
 status: 'done'
+commits: '3f5bf15, f3e4180, 16c61c4, 808ac10, d0ad5f4, 27a22b5'
 baseline_commit: 'f595611'
 context:
   - '_bmad-output/project-context.md'
