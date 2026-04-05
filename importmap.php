@@ -18,10 +18,6 @@ return [
         'path'       => './assets/app.js',
         'entrypoint' => true,
     ],
-    'scheduling' => [
-        'path'       => './assets/scheduling.js',
-        'entrypoint' => false,
-    ],
     '@hotwired/stimulus' => [
         'version' => '3.2.2',
     ],
@@ -49,8 +45,8 @@ return [
     'vs/tabs' => [
         'path' => './assets/js/ui/tabs.js',
     ],
-    'pages/dashboard' => [
-        'path' => './assets/js/pages/dashboard.js',
+    'pages/home' => [
+        'path' => './assets/js/pages/home.js',
     ],
     'pages/scheduling-agenda' => [
         'path' => './assets/js/pages/scheduling-agenda.js',

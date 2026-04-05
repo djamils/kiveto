@@ -8,7 +8,7 @@ import { initUI } from 'vs/ui';
  * Each module exports init() and optionally cleanup().
  */
 const PAGE_MODULES = {
-  clinic_dashboard:              'pages/dashboard',
+  clinic_dashboard:              'pages/home',
   clinic_scheduling_dashboard:   'pages/scheduling-agenda',
   clinic_scheduling_planning:    'pages/scheduling-planning',
   clinic_scheduling_waiting_room:'pages/scheduling-waiting-room',
