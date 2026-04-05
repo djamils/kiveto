@@ -19,13 +19,7 @@
 /* 3. Keenicons */
 @import "../vendors/keenicons/styles.bundle.css";
 
-/* 4. Components (dependency order) */
-@import "./components/layout.css";
-@import "./components/navigation.css";
-@import "./components/forms.css";
-@import "./components/data.css";
-@import "./components/overlays.css";
-@import "./components/feedback.css";
+/* 4. Components — now in tailwind.css via @layer components */
 
 /* 5. Page styles — shared patterns + page-specific */
 @import "./pages/common.css";

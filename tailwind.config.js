@@ -3,6 +3,7 @@ module.exports = {
   content: [
     './templates/**/*.html.twig',
     './assets/**/*.js',
+    './assets/styles/tailwind.css',
   ],
 
   /* Disable Preflight — Kiveto has its own CSS reset in kiveto.css */
@@ -162,8 +163,22 @@ module.exports = {
         sidebar: '232px',
         rpanel:  '310px',
       },
+      minWidth: {
+        0: '0px',
+      },
+      maxWidth: {
+        'modal':    '480px',
+        'modal-sm': '360px',
+        'modal-lg': '680px',
+        'modal-xl': '90vw',
+      },
+      maxHeight: {
+        'modal': '90vh',
+        60: '240px',
+      },
       height: {
         topbar: '52px',
+        screen: '100vh',
       },
 
       /* ── Transition timing function ── */
