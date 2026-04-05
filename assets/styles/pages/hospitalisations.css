@@ -1,0 +1,214 @@
+/* assets/styles/pages/hospitalisations.css
+   Hospitalisations page — patient list, detail panel, care widgets */
+
+@layer components {
+
+  [data-page="clinic_hospitalisations"] {
+
+    /* Page body */
+    .page-body { @apply flex-1 flex overflow-hidden; }
+
+    /* Bottom sheet handle */
+    .hosp-bs-handle { @apply flex justify-center shrink-0; padding: 8px; }
+    .hosp-bs-handle-bar { width: 40px; height: 4px; border-radius: 2px; background: #e2e8f0; }
+
+    /* Left panel — patient list */
+    .hosp-panel {
+      @apply flex flex-col shrink-0;
+      width: 340px; border-right: 1px solid #e8edf2; background: #fff;
+    }
+    .hp-head {
+      @apply flex items-center shrink-0;
+      padding: 10px 14px; border-bottom: 1px solid #f1f5f9; gap: 8px;
+    }
+    .hosp-head-label { font-size: 13px; font-weight: 500; color: #0f172a; }
+    .hosp-head-count {
+      font-size: 11px; color: #94a3b8; background: #f1f5f9;
+      padding: 2px 8px; border-radius: 20px; margin-left: auto;
+    }
+    .hp-list { @apply flex-1 overflow-y-auto; }
+
+    /* Patient card */
+    .hcard {
+      @apply relative cursor-pointer;
+      padding: 12px 14px; border-bottom: 1px solid #f1f5f9; transition: background .12s;
+    }
+    .hcard:hover { background: #f8fafc; }
+    .hcard.active { background: #eef2ff; }
+    .hcard.active::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 3px; background: #4338ca; border-radius: 0 2px 2px 0;
+    }
+    .hcard-row { @apply flex items-center; gap: 9px; }
+    .hcard-avatar {
+      @apply flex items-center justify-center rounded-full shrink-0;
+      width: 38px; height: 38px; font-size: 13px; font-weight: 700;
+    }
+    .severity-bar { height: 3px; border-radius: 2px; margin-top: 8px; }
+
+    /* Right panel — detail */
+    .detail-panel { @apply flex-1 flex flex-col overflow-hidden; background: #f1f5f9; }
+
+    /* Empty state */
+    .hosp-empty-state { @apply flex flex-col items-center justify-center h-full; color: #94a3b8; }
+    .hosp-empty-icon {
+      @apply flex items-center justify-center;
+      width: 56px; height: 56px; border-radius: 14px; background: #f1f5f9; margin-bottom: 14px;
+    }
+    .hosp-empty-title { font-size: 14px; font-weight: 500; color: #334155; margin-bottom: 6px; }
+    .hosp-empty-text { font-size: 13px; max-width: 200px; text-align: center; line-height: 1.5; }
+
+    /* Slide inner container */
+    .hosp-slide-inner { @apply flex flex-col flex-1 overflow-hidden; }
+
+    /* Modal titles and close buttons */
+    .hosp-modal-title { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .hosp-modal-close {
+      @apply flex items-center justify-center cursor-pointer;
+      width: 26px; height: 26px; border-radius: 7px; border: none; background: #f1f5f9;
+    }
+
+    /* Modal size variants */
+    .hosp-modal-sm { width: 480px; }
+    .hosp-modal-md { width: 500px; }
+
+    /* Textarea size variants */
+    .hosp-textarea-md { min-height: 100px; }
+    .hosp-textarea-conclusion { min-height: 90px; }
+    .hosp-textarea-sm { min-height: 70px; }
+
+    .detail-header { @apply shrink-0; background: #fff; border-bottom: 1px solid #e8edf2; padding: 14px 18px; }
+    .detail-tabs { @apply flex shrink-0; background: #fff; border-bottom: 1px solid #e8edf2; padding: 0 18px; }
+    .dtab {
+      @apply whitespace-nowrap cursor-pointer;
+      padding: 10px 16px; font-size: 13px; font-weight: 500; color: #64748b;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .13s;
+    }
+    .dtab:hover { color: #334155; }
+    .dtab.active { color: #4338ca; border-bottom-color: #4338ca; }
+    .detail-scroll { @apply flex-1 overflow-y-auto; padding: 16px 18px; }
+
+    /* Widgets */
+    .widget {
+      @apply overflow-hidden;
+      background: #fff; border: 1px solid #e8edf2; border-radius: 12px; margin-bottom: 12px;
+    }
+    .wh {
+      @apply flex items-center justify-between;
+      padding: 11px 14px; border-bottom: 1px solid #f1f5f9;
+    }
+    .wt { font-size: 10.5px; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: .07em; }
+    .wb { padding: 12px 14px; }
+    .w2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .w3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* Care checklist (soin rows) */
+    .soin-row {
+      @apply flex items-center;
+      gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f1f5f9; transition: background .12s;
+    }
+    .soin-row:last-child { border-bottom: none; }
+    .soin-row:hover { background: #f5f3ff; }
+    .soin-check {
+      @apply flex items-center justify-center shrink-0 cursor-pointer;
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid #e2e8f0; transition: all .15s;
+    }
+    .soin-check.done { background: #4338ca; border-color: #4338ca; }
+    .soin-check.done svg { opacity: 1; }
+    .soin-check svg { opacity: 0; transition: opacity .1s; }
+
+    /* Evolution timeline */
+    .evo-entry { @apply flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .evo-entry:last-child { border-bottom: none; }
+    .evo-dot { @apply rounded-full shrink-0; width: 10px; height: 10px; margin-top: 3px; }
+    .evo-line::after {
+      content: ''; display: block; width: 1px; background: #e2e8f0;
+      height: calc(100% + 10px); margin-left: 4.5px; margin-top: 6px;
+    }
+
+    /* Hydration gauge */
+    .hydra-bar { height: 8px; border-radius: 10px; background: #e2e8f0; @apply overflow-hidden; }
+    .hydra-fill { height: 100%; border-radius: 10px; transition: width .5s; }
+
+    /* Info rows */
+    .irow { @apply flex justify-between items-center; padding: 5px 0; border-bottom: 1px solid #f8fafc; }
+    .irow:last-child { border-bottom: none; }
+    .il { font-size: 11.5px; color: #94a3b8; }
+    .iv { font-size: 13px; font-weight: 500; color: #0f172a; }
+
+    /* Slide detail (tablet) */
+    .detail-slide {
+      @apply fixed flex flex-col overflow-hidden;
+      right: 0; top: 0; bottom: 0; width: min(520px, 100vw);
+      background: #f1f5f9; z-index: 90;
+      transform: translateX(100%); transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+    .detail-slide.open { transform: translateX(0); box-shadow: -4px 0 24px rgba(0, 0, 0, .12); }
+  }
+
+  /* Bottom sheet (mobile) — fixed positioned, outside data-page scope */
+  #bs-overlay { @apply hidden fixed inset-0; background: rgba(15, 23, 42, .3); z-index: 100; }
+  #bs {
+    @apply hidden fixed flex-col;
+    left: 0; right: 0; bottom: 0; background: #fff;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, .15);
+    z-index: 101; max-height: 90vh;
+    transform: translateY(100%); transition: transform .3s ease;
+  }
+  #bs-inner { @apply flex-1 overflow-y-auto; }
+
+  /* Hospitalisation stats pills — in topbar, outside data-page scope */
+  .hosp-stats { @apply flex; gap: 6px; }
+  .hosp-pill { @apply flex items-center; gap: 5px; padding: 4px 10px; border-radius: 20px; }
+  .hosp-pill--blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .hosp-pill--red   { background: #fef2f2; border: 1px solid #fecaca; }
+  .hosp-pill--green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .hosp-pill-dot { @apply rounded-full; width: 6px; height: 6px; }
+  .hosp-pill-dot--blue  { background: #3b82f6; }
+  .hosp-pill-dot--red   { background: #dc2626; }
+  .hosp-pill-dot--green { background: #16a34a; }
+  .hosp-pill-count { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .hosp-pill-count--blue  { color: #2563eb; }
+  .hosp-pill-count--red   { color: #dc2626; }
+  .hosp-pill-count--green { color: #059669; }
+  .hosp-pill-label { font-size: var(--text-xs); color: var(--text-muted); }
+}
+
+/* ── Hospitalisations — Responsive overrides ── */
+
+/* iPad portrait */
+@media (max-width: 1024px) {
+  [data-page="clinic_hospitalisations"] {
+    .hosp-panel { width: 100%; }
+    .detail-panel { display: none; }
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  [data-page="clinic_hospitalisations"] {
+    .topbar { padding: 0 10px; gap: 8px; flex-wrap: nowrap; }
+    .topbar-title p:last-child { display: none; }
+    .topbar-new-btn span { display: none; }
+    .hosp-panel { width: 100%; }
+  }
+}
+
+/* Print */
+@media print {
+  [data-page="clinic_hospitalisations"] {
+    .sidebar, .topbar, .hp-head, .btn, .modal-overlay { display: none !important; }
+    .page-body { display: block; }
+    .hosp-panel { display: none !important; }
+    .detail-panel { width: 100%; }
+    .detail-tabs { display: none !important; }
+    .detail-scroll { overflow: visible; padding: 0; }
+    .widget { break-inside: avoid; margin-bottom: 16px; }
+  }
+}
+
+/* Hide stats pills on smaller screens */
+@media (max-width: 1024px) {
+  .topbar-stats { display: none; }
+}
