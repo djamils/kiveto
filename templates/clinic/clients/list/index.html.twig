@@ -29,25 +29,33 @@
           <button class="fp cl-filter--alert" id="filter-alert" onclick="setFilter('alert')"><i data-lucide="alert-triangle" class="cl-icon-xs"></i><span class="fp-label">Alertes</span> <span class="cnt" id="cnt-alert">0</span></button>
           <div class="cl-sort-group">
             <span class="cl-sort-label">Trier</span>
-            <select id="sort-select" onchange="renderTable()" class="cl-sort-select">
-              <option value="name">Nom</option>
-              <option value="recent">Dernier RDV</option>
-              <option value="animals">Nb animaux</option>
-            </select>
+            {{ include('components/ui/select.html.twig', {
+              name: 'sort',
+              id: 'sort-select',
+              value: 'name',
+              extra_class: 'cl-sort-select-wrap',
+              options: [
+                { value: 'name', label: 'Nom' },
+                { value: 'recent', label: 'Dernier RDV' },
+                { value: 'animals', label: 'Nb animaux' },
+              ]
+            }) }}
           </div>
           <!-- Column picker -->
           <div class="col-picker-wrap" id="col-picker-wrap">
-            <button class="col-picker-btn" id="col-picker-btn" onclick="toggleColPicker()">
+            <button class="col-picker-btn" id="col-picker-btn" data-popover-anchor="col-picker-popover">
               <i data-lucide="columns" class="cl-icon-xxs"></i>Colonnes
             </button>
-            <div class="col-picker-popover" id="col-picker-popover">
-              <p class="cl-picker-heading">Afficher</p>
-              <label class="col-picker-item"><input type="checkbox" id="col-cb-phone" checked onchange="toggleCol('phone',this.checked)"> Téléphone</label>
-              <label class="col-picker-item"><input type="checkbox" id="col-cb-email" checked onchange="toggleCol('email',this.checked)"> Email</label>
-              <label class="col-picker-item"><input type="checkbox" id="col-cb-lastrdv" checked onchange="toggleCol('lastrdv',this.checked)"> Dernier RDV</label>
-              <label class="col-picker-item"><input type="checkbox" id="col-cb-nextrdv" checked onchange="toggleCol('nextrdv',this.checked)"> Prochain RDV</label>
-              <div class="col-picker-divider"></div>
-              <button class="cl-picker-reset" onclick="resetCols()">Réinitialiser</button>
+            <div class="popover hidden" id="col-picker-popover" style="min-width: 180px;">
+              <div class="col-picker-content">
+                <p class="cl-picker-heading">Afficher</p>
+                <label class="col-picker-item"><input type="checkbox" id="col-cb-phone" checked onchange="toggleCol('phone',this.checked)"> Téléphone</label>
+                <label class="col-picker-item"><input type="checkbox" id="col-cb-email" checked onchange="toggleCol('email',this.checked)"> Email</label>
+                <label class="col-picker-item"><input type="checkbox" id="col-cb-lastrdv" checked onchange="toggleCol('lastrdv',this.checked)"> Dernier RDV</label>
+                <label class="col-picker-item"><input type="checkbox" id="col-cb-nextrdv" checked onchange="toggleCol('nextrdv',this.checked)"> Prochain RDV</label>
+                <div class="col-picker-divider"></div>
+                <button class="cl-picker-reset" onclick="resetCols()">Réinitialiser</button>
+              </div>
             </div>
           </div>
         </div>

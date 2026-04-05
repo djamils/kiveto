@@ -142,7 +142,14 @@ function close() {
 
   const onEnd = () => {
     el._kivetoOnClose?.();
-    el.remove();
+    if (el._kivetoDeclarative) {
+      // Declarative popovers: hide and return to original parent
+      el.classList.remove('is-closing');
+      el.classList.add('hidden');
+      el._kivetoOriginalParent?.appendChild(el);
+    } else {
+      el.remove();
+    }
   };
 
   el.addEventListener('animationend', onEnd, { once: true });
@@ -237,7 +244,9 @@ function init() {
 
     close();
     menu.classList.remove('hidden');
-    document.body.appendChild(menu); // Move up in the DOM for position:fixed
+    menu._kivetoDeclarative = true; // Mark as declarative — don't destroy on close
+    menu._kivetoOriginalParent = menu.parentElement; // Remember original parent
+    document.body.appendChild(menu); // Move to body for position:fixed
     _active = menu;
     _position(menu, trigger, trigger.dataset.popoverAlign || 'right');
     _registerGlobal(trigger);

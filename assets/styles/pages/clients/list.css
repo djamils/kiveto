@@ -43,15 +43,23 @@
   /* ── Sort group ── */
   .cl-sort-group { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
   .cl-sort-label { font-size: var(--text-sm); color: var(--text-subtle); }
-  .cl-sort-select { font-size: var(--text-sm); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 4px var(--space-2); background: var(--surface-card); color: var(--text-secondary); font-family: inherit; outline: none; cursor: pointer; }
+  /* Sort select — compact variant for the custom select component */
+  .cl-sort-select-wrap { width: 140px; }
+  .cl-sort-select-wrap button[data-select-target="trigger"] {
+    padding: 4px var(--space-2);
+    font-size: var(--text-sm);
+    background: var(--surface-card);
+    min-height: auto;
+  }
 
   /* ── Column picker ── */
   .col-picker-wrap { position: relative; }
   .col-picker-btn { display: inline-flex; align-items: center; gap: var(--space-1); padding: 4px var(--space-2); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium); border: 1px solid var(--border-medium); background: var(--surface-card); color: var(--text-muted); cursor: pointer; font-family: inherit; transition: var(--transition-fast); }
   .col-picker-btn:hover { background: var(--surface-subtle); }
   .col-picker-btn.active { border-color: var(--brand-500); color: var(--brand-600); background: var(--brand-50); }
-  .col-picker-popover { position: fixed; background: var(--surface-card); border: 1px solid var(--border-medium); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: var(--space-2); min-width: 180px; z-index: 200; display: none; }
-  .col-picker-popover.open { display: block; }
+  /* Col-picker popover — now uses Kiveto .popover class for animation.
+     Custom styles below override only the inner content layout. */
+  .col-picker-content { padding: var(--space-2); }
   .col-picker-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-md); color: var(--text-secondary); transition: var(--transition-fast); }
   .col-picker-item:hover { background: var(--surface-subtle); }
   .col-picker-item input[type=checkbox] { cursor: pointer; accent-color: var(--brand-600); }

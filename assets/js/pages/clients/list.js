@@ -49,16 +49,7 @@ function resetCols(){
 }
 
 function toggleColPicker(){
-  var pop = document.getElementById('col-picker-popover');
-  var btn = document.getElementById('col-picker-btn');
-  var isOpen = pop.classList.contains('open');
-  if(!isOpen){
-    var rect = btn.getBoundingClientRect();
-    pop.style.top = (rect.bottom + 4) + 'px';
-    pop.style.right = (window.innerWidth - rect.right) + 'px';
-  }
-  pop.classList.toggle('open');
-  btn.classList.toggle('active', pop.classList.contains('open') || Object.keys(COLS).some(function(k){return !COLS[k];}));
+  // Now handled by Kiveto popover system via data-popover-anchor
 }
 
 const SPECIES_EMOJI={Félin:'🐱',Canin:'🐶',Lapin:'🐰',NAC:'🦎',Oiseau:'🦜'};
@@ -486,19 +477,15 @@ function closeBottomSheet(){var bs=document.getElementById('bs');bs.style.transf
 
 // Event listeners stored for cleanup
 let _keydownHandler = null;
-let _clickHandler = null;
 
 export function init() {
   lucide.createIcons();
 
-  // Close column picker popover on outside click
-  _clickHandler = function(e){
-    var wrap = document.getElementById('col-picker-wrap');
-    if(wrap && !wrap.contains(e.target)){
-      document.getElementById('col-picker-popover').classList.remove('open');
-    }
-  };
-  document.addEventListener('click', _clickHandler);
+  // Sort select — listen for change events from the custom select Stimulus controller
+  var sortInput = document.getElementById('sort-select');
+  if (sortInput) {
+    sortInput.addEventListener('change', function() { renderTable(); });
+  }
 
   // Keyboard shortcuts
   _keydownHandler = function(e){
@@ -533,9 +520,5 @@ export function cleanup() {
   if (_keydownHandler) {
     document.removeEventListener('keydown', _keydownHandler);
     _keydownHandler = null;
-  }
-  if (_clickHandler) {
-    document.removeEventListener('click', _clickHandler);
-    _clickHandler = null;
   }
 }
