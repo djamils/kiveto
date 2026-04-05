@@ -5,6 +5,11 @@ module.exports = {
     './assets/**/*.js',
   ],
 
+  /* Disable Preflight — Kiveto has its own CSS reset in kiveto.css */
+  corePlugins: {
+    preflight: false,
+  },
+
   theme: {
     /* ── Font family ── */
     fontFamily: {
