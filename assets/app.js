@@ -45,17 +45,6 @@ function onBeforeCache() {
   }
 }
 
-// Smooth page transitions via View Transitions API (Chrome 111+, Edge 111+)
-// Wraps Turbo's body swap in a cross-fade to eliminate the visible flash
-document.addEventListener('turbo:before-render', (event) => {
-  if (document.startViewTransition) {
-    const originalRender = event.detail.render;
-    event.detail.render = (currentElement, newElement) => {
-      document.startViewTransition(() => originalRender(currentElement, newElement));
-    };
-  }
-});
-
 // Turbo fires turbo:load on every navigation including initial page load
 document.addEventListener('turbo:load', onLoad);
 document.addEventListener('turbo:before-cache', onBeforeCache);
