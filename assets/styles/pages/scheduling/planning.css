@@ -1,0 +1,257 @@
+/* assets/styles/pages/scheduling/planning.css
+   Scheduling Planning page — planning grid, vet rows, month view, popups */
+
+@layer components {
+
+  [data-page="clinic_scheduling_planning"] {
+    /* Page layout shell */
+    .planning-shell { @apply flex h-full overflow-hidden; }
+
+    /* Sidebar */
+    .planning-sidebar {
+      @apply flex-shrink-0 flex flex-col;
+      width: 232px;
+      background: #fff;
+      border-right: 1px solid #e8edf2;
+    }
+    .planning-sb-top {
+      @apply flex items-center flex-shrink-0;
+      height: 48px;
+      padding: 0 10px;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .planning-sb-clinic-btn {
+      @apply w-full flex items-center border-none bg-transparent cursor-pointer text-left;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 9px;
+      transition: background .13s;
+      font-family: 'DM Sans', system-ui, sans-serif;
+    }
+    .planning-sb-clinic-btn:hover { background: #f1f5f9; }
+    .planning-sb-foot {
+      @apply flex-shrink-0;
+      border-top: 1px solid #e8edf2;
+      padding: 8px 6px 10px;
+    }
+    .planning-sb-user {
+      @apply flex items-center cursor-pointer;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+    }
+    .planning-sb-settings {
+      @apply flex items-center cursor-pointer;
+      gap: 8px;
+      padding: 7px 10px;
+      margin: 2px 6px;
+      border-radius: 8px;
+      font-size: var(--text-base);
+      color: #64748b;
+      transition: background .12s;
+    }
+    .planning-sb-settings:hover { background: #f8fafc; }
+
+    /* Main content area */
+    .planning-content {
+      @apply flex-1 flex flex-col overflow-hidden;
+      min-width: 0;
+      min-height: 0;
+    }
+    .planning-topbar {
+      @apply flex-shrink-0 flex items-center;
+      height: 48px;
+      background: #fff;
+      border-bottom: 1px solid #e8edf2;
+      padding: 0 18px;
+      gap: 10px;
+    }
+
+    /* Topbar elements */
+    .topbar-label {}
+    .topbar-breadcrumb {}
+    .topbar-view-toggle {}
+    .topbar-add-btn {}
+
+    /* View toggle buttons */
+    .view-btn {
+      @apply border-none cursor-pointer;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      font-family: inherit;
+      background: transparent;
+      color: #64748b;
+      transition: all .13s;
+    }
+    .view-btn.active {
+      background: #fff;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+
+    /* Planning grid */
+    .planning-wrap {
+      @apply flex-1 relative overflow-hidden;
+      min-height: 0;
+    }
+    .planning-head {
+      @apply flex flex-shrink-0;
+      background: #fff;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .planning-body {
+      @apply flex-1 relative;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+    .planning-inner { @apply relative; }
+
+    /* Vet row */
+    .vet-row {
+      @apply flex relative;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .vet-label {
+      @apply flex-shrink-0 flex flex-col justify-center sticky left-0;
+      width: 120px;
+      background: #fff;
+      border-right: 2px solid #e2e8f0;
+      padding: 0 12px;
+      gap: 2px;
+      z-index: 20;
+    }
+    .vet-row-grid { @apply flex-1 relative; }
+
+    /* Hour columns */
+    .hour-slot {
+      @apply absolute cursor-pointer;
+      top: 0;
+      bottom: 0;
+      border-left: 1px solid #c9d0d8;
+      transition: background .1s;
+    }
+    .hour-slot:hover { background: rgba(99,102,241,.04); }
+    .hour-slot:first-child { border-left: none; }
+    .hour-slot-half {
+      @apply absolute pointer-events-none;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      border-left: 1px dashed #dde2e7;
+    }
+
+    /* Activity blocks */
+    .act-block {
+      @apply absolute cursor-pointer overflow-hidden;
+      top: 6px;
+      bottom: 6px;
+      border-radius: 7px;
+      transition: filter .12s;
+      border-left: 3px solid transparent;
+    }
+    .act-block:hover { filter: brightness(.95); }
+    .act-block-inner {
+      @apply flex flex-col justify-center h-full overflow-hidden;
+      padding: 5px 8px;
+    }
+    .act-block-type {
+      @apply uppercase whitespace-nowrap overflow-hidden;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      letter-spacing: .06em;
+      text-overflow: ellipsis;
+    }
+    .act-block-time {
+      @apply whitespace-nowrap;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+      margin-top: 1px;
+    }
+    .act-block-cap {
+      @apply whitespace-nowrap;
+      font-size: var(--text-xs);
+      margin-top: 2px;
+      opacity: .7;
+    }
+
+    /* Month view */
+    .month-grid {
+      display: grid;
+      grid-template-columns: 120px repeat(7, 1fr);
+    }
+    .month-cell {
+      @apply relative cursor-pointer;
+      border-right: 1px solid #f1f5f9;
+      border-bottom: 1px solid #f1f5f9;
+      min-height: 80px;
+      padding: 4px 6px;
+      transition: background .1s;
+    }
+    .month-cell:hover { background: #f8fafc; }
+    .month-cell.other-month { background: #fafafa; }
+  }
+
+  /* Popup overlay and box (fixed positioned, outside data-page scope) */
+  .popup-overlay {
+    @apply fixed items-center justify-center;
+    inset: 0;
+    background: rgba(15,23,42,.35);
+    backdrop-filter: blur(2px);
+    z-index: 400;
+    display: none;
+  }
+  .popup-overlay.open { @apply flex; }
+  .popup-box {
+    @apply overflow-hidden;
+    background: #fff;
+    border-radius: 14px;
+    width: 460px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    transform: scale(.97);
+    opacity: 0;
+    transition: all .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .popup-overlay.open .popup-box { transform: scale(1); opacity: 1; }
+}
+
+/* ── Scheduling Planning — Responsive overrides ── */
+
+/* iPad Pro landscape */
+@media (max-width: 1280px) {
+  [data-page="clinic_scheduling_planning"] {
+    .topbar-label { min-width: 120px !important; }
+  }
+}
+
+/* iPad portrait */
+@media (max-width: 1024px) {
+  [data-page="clinic_scheduling_planning"] {
+    .planning-sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 90;
+      transform: translateX(-100%);
+      transition: transform .28s cubic-bezier(.4,0,.2,1);
+    }
+    .planning-sidebar.open {
+      transform: translateX(0);
+      box-shadow: 4px 0 24px rgba(0,0,0,.15);
+    }
+    .topbar-breadcrumb { display: none; }
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  [data-page="clinic_scheduling_planning"] {
+    .planning-topbar { padding: 0 10px; gap: 6px; }
+    .topbar-label { font-size: var(--text-sm) !important; min-width: 90px !important; }
+    .topbar-add-btn { display: none !important; }
+    .topbar-view-toggle { display: none !important; }
+  }
+}

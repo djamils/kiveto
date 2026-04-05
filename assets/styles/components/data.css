@@ -1,0 +1,191 @@
+/* assets/styles/components/data.css
+   Data components — tables, badges, chips */
+
+@layer components {
+
+  /* ── DATA TABLE ── */
+
+  .data-table {
+    @apply w-full;
+    border-collapse: collapse;
+    font-size: var(--text-md);
+  }
+
+  .data-table thead th {
+    @apply text-left font-medium whitespace-nowrap select-none;
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-muted);
+    font-weight: var(--weight-medium);
+    background: var(--surface-subtle);
+    border-bottom: 1px solid var(--border-light);
+    font-size: var(--text-sm);
+  }
+
+  /* Sortable column */
+  .data-table thead th.sortable {
+    @apply flex items-center cursor-pointer;
+    gap: var(--space-1);
+  }
+  .data-table thead th.sortable:hover {
+    color: var(--text-secondary);
+  }
+  .data-table thead th.sort-asc {
+    color: var(--brand-600);
+  }
+  .data-table thead th.sort-desc {
+    color: var(--brand-600);
+  }
+
+  .data-table tbody tr {
+    @apply cursor-pointer;
+    border-top: 1px solid #f8fafc;
+    transition: background .1s;
+  }
+  .data-table tbody tr:hover {
+    background: var(--surface-subtle);
+  }
+  .data-table tbody tr.is-selected {
+    background: var(--brand-50);
+  }
+
+  .data-table tbody td {
+    @apply align-middle;
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-muted);
+  }
+
+  .data-table tbody td:first-child {
+    color: var(--text-primary);
+    font-weight: var(--weight-medium);
+  }
+
+  /* Actions column (buttons on the right) */
+  .data-table .col-actions {
+    @apply text-right whitespace-nowrap;
+  }
+
+  .data-table .col-num {
+    @apply text-right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Empty row */
+  .data-table .empty-row td {
+    @apply text-center cursor-default;
+    padding: var(--space-10) var(--space-4);
+    color: var(--text-subtle);
+  }
+
+  /* Table wrapper with horizontal scroll */
+  .table-wrap {
+    @apply overflow-x-auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    background: var(--surface-card);
+  }
+
+  .table-wrap .data-table {
+    border-radius: 0;
+  }
+
+  /* ── BADGES & STATUS CHIPS ── */
+
+  .badge {
+    @apply inline-flex items-center whitespace-nowrap shrink-0;
+    gap: 4px;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    line-height: 1.4;
+  }
+
+  /* Appointment statuses */
+  .b-wait     { background: var(--color-warning-bg);  color: var(--color-warning-text); }
+  .b-exam     { background: var(--color-info-bg);     color: var(--color-info-text); }
+  .b-ok       { background: var(--color-success-bg);  color: var(--color-success-text); }
+  .b-out      { background: var(--color-success-bg);  color: var(--color-success-text); }
+  .b-hosp     { background: var(--color-danger-bg);   color: var(--color-danger-text); }
+  .b-alert    { background: var(--color-danger-bg);   color: var(--color-danger-text); }
+  .b-urgence  { background: var(--color-danger-bg);   color: var(--color-danger-text); }
+  .b-warn     { background: var(--color-warning-bg);  color: var(--color-warning-text); }
+  .b-cancel   { background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium); }
+  .b-missing  { background: var(--color-warning-bg);  color: var(--color-warning-text); }
+
+  /* Neutrals */
+  .b-grey   { background: var(--surface-subtle); color: var(--slate-600); border: 1px solid var(--border-medium); }
+  .b-sched  { background: var(--surface-subtle); color: var(--slate-600); border: 1px solid var(--border-medium); }
+
+  /* Brand / info */
+  .b-new    { background: var(--brand-50);          color: var(--brand-600); }
+  .b-blue   { background: var(--color-info-bg);     color: var(--color-info-text); }
+  .b-purple { background: var(--color-purple-bg);   color: var(--color-purple-text); }
+  .b-teal   { background: #f0fdfa; color: #0f766e; }
+  .b-orange { background: var(--color-warning-bg);  color: var(--color-warning-text); border: 1px solid var(--color-warning-border); }
+
+  /* Special statuses */
+  .b-sync    { background: var(--color-success-bg); color: var(--color-success-600); border: 1px solid var(--color-success-border); }
+  .b-given   { background: var(--color-success-bg); color: var(--color-success-text); }
+  .b-libre   { background: var(--color-success-bg); color: var(--color-success-text); }
+  .b-deceased { background: var(--slate-800); color: var(--slate-50); }
+
+  /* Animal species */
+  .b-dog    { background: var(--color-info-bg);     color: var(--color-info-text); }
+  .b-cat    { background: var(--color-purple-bg);   color: var(--color-purple-text); }
+  .b-feline { background: #fdf4ff; color: #7e22ce; }
+  .b-other  { background: var(--color-success-bg);  color: var(--color-success-text); }
+
+  /* Rooms */
+  .b-occupee    { background: var(--color-info-bg);    color: var(--color-info-text); }
+  .b-nettoyage  { background: var(--color-warning-bg); color: var(--color-warning-text); }
+
+  /* Size modifiers */
+  .badge-sm {
+    font-size: 10px;
+    padding: 1px var(--space-1);
+  }
+
+  .badge-lg {
+    font-size: var(--text-md);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* Badge with color dot */
+  .badge-dot {
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2);
+  }
+
+  /* ── INTERACTIVE CHIP (filters, clickable tags) ── */
+
+  .chip {
+    @apply inline-flex items-center whitespace-nowrap cursor-pointer select-none;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-full);
+    padding: 3px var(--space-2);
+    transition: var(--t-fast);
+  }
+  .chip:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+  .chip.active {
+    background: var(--brand-50);
+    border-color: var(--brand-200);
+    color: var(--brand-600);
+  }
+
+  .chip-close {
+    @apply flex items-center;
+    color: var(--text-subtle);
+    transition: color .12s;
+  }
+  .chip-close:hover {
+    color: var(--text-secondary);
+  }
+}

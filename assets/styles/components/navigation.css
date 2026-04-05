@@ -1,0 +1,161 @@
+/* assets/styles/components/navigation.css
+   Navigation components — sidebar nav, tabs, breadcrumbs */
+
+@layer components {
+
+  /* ── NAV SIDEBAR ── */
+
+  .nav {
+    @apply flex-1 py-2 overflow-y-auto;
+  }
+
+  /* Group title */
+  .nav-section {
+    @apply text-xs font-medium text-text-subtle uppercase mt-2;
+    letter-spacing: .08em;
+    padding: var(--space-2) var(--space-4) var(--space-1);
+  }
+
+  /* Navigation item */
+  .nav-item {
+    @apply flex items-center gap-2 p-1 px-2 rounded-md text-base font-normal
+           text-text-muted cursor-pointer no-underline border-none
+           bg-transparent font-sans;
+    margin: 1px var(--space-1);
+    transition: var(--t-fast);
+    line-height: var(--lh-normal);
+    width: calc(100% - var(--space-2));
+  }
+
+  .nav-item svg {
+    @apply shrink-0;
+    opacity: .7;
+    transition: opacity .12s;
+  }
+
+  .nav-item:hover {
+    @apply bg-surface-subtle text-text-secondary;
+  }
+  .nav-item:hover svg {
+    opacity: 1;
+  }
+
+  .nav-item.active {
+    @apply bg-brand-50 text-brand-600 font-medium;
+  }
+  .nav-item.active svg {
+    @apply text-brand-600;
+    opacity: 1;
+  }
+
+  /* Counter badge in nav */
+  .nav-badge {
+    @apply ml-auto text-xs font-medium bg-brand-100 text-brand-600 rounded-full text-center;
+    padding: 2px var(--space-1);
+    min-width: 18px;
+    line-height: 1.4;
+  }
+
+  /* Nav item with sub-items */
+  .nav-group-toggle {
+    @apply flex items-center justify-between;
+  }
+
+  .nav-group-toggle svg.chevron {
+    @apply ml-auto;
+    transition: transform .15s ease;
+  }
+
+  .nav-group-toggle.is-open svg.chevron {
+    @apply rotate-180;
+  }
+
+  .nav-sub {
+    @apply overflow-hidden;
+    padding-left: calc(var(--space-4) + 16px); /* align below the icon */
+    max-height: 0;
+    transition: max-height .2s ease;
+  }
+
+  .nav-sub.is-open {
+    max-height: 300px;
+  }
+
+  .nav-sub-item {
+    @apply flex items-center gap-2 p-1 px-2 rounded-md text-md text-text-muted
+           cursor-pointer no-underline;
+    margin: 1px var(--space-1);
+    transition: var(--t-fast);
+  }
+  .nav-sub-item:hover {
+    @apply bg-surface-subtle text-text-secondary;
+  }
+  .nav-sub-item.active {
+    @apply text-brand-600 font-medium;
+  }
+
+  /* ── TAB BAR ── */
+
+  .tab-bar {
+    @apply flex items-center bg-surface-subtle rounded-md shrink-0;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .tab {
+    @apply p-1 px-3 rounded-sm text-sm font-medium text-text-muted
+           cursor-pointer border-none bg-transparent font-sans whitespace-nowrap;
+    transition: var(--t-fast);
+    line-height: 1.4;
+  }
+  .tab:hover {
+    @apply text-text-secondary;
+    background: rgba(0,0,0,.03);
+  }
+  .tab.active {
+    @apply bg-surface-card text-text-primary shadow-xs;
+  }
+
+  /* Tab bar underline (secondary variant) */
+  .tab-bar-line {
+    @apply flex items-end;
+    gap: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .tab-line {
+    @apply p-2 px-4 text-md font-medium text-text-muted cursor-pointer
+           border-none bg-transparent font-sans whitespace-nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: var(--t-fast);
+  }
+  .tab-line:hover {
+    @apply text-text-secondary;
+  }
+  .tab-line.active {
+    @apply text-brand-600;
+    border-bottom-color: var(--brand-600);
+  }
+
+  /* ── BREADCRUMBS ── */
+
+  .breadcrumb {
+    @apply flex items-center gap-1 text-sm text-text-subtle;
+  }
+
+  .breadcrumb-item {
+    @apply flex items-center gap-1 cursor-pointer;
+    transition: color .12s;
+  }
+  .breadcrumb-item:hover {
+    @apply text-text-secondary;
+  }
+  .breadcrumb-item.active {
+    @apply text-text-primary font-medium cursor-default;
+  }
+
+  .breadcrumb-sep {
+    @apply text-text-disabled shrink-0;
+  }
+}

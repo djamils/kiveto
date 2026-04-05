@@ -1,0 +1,458 @@
+/* assets/styles/components/forms.css
+   Form components — buttons, inputs, selects, checkboxes, toggles, form grids */
+
+@layer components {
+
+  /* ── BUTTONS ── */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 px-3 rounded-md
+           text-md font-medium font-sans cursor-pointer border border-transparent
+           whitespace-nowrap leading-none shrink-0 select-none no-underline;
+    height: 32px;
+    transition: var(--t-fast);
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid theme('colors.brand.400');
+    outline-offset: 2px;
+  }
+
+  .btn:disabled,
+  .btn.is-disabled {
+    @apply cursor-not-allowed pointer-events-none;
+    opacity: .45;
+  }
+
+  .btn:active:not(:disabled):not(.is-disabled) {
+    transform: translateY(1px);
+  }
+
+  /* Variants */
+  .btn-primary {
+    @apply bg-brand-600 text-white border-brand-600;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-brand-700 border-brand-700;
+    box-shadow: 0 2px 8px rgba(67,56,202,.25);
+  }
+
+  .btn-secondary {
+    @apply bg-surface-subtle text-text-secondary border-border-medium;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-surface-hover border-border-strong;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-text-muted border-transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    @apply bg-surface-subtle text-text-secondary;
+  }
+
+  .btn-danger {
+    @apply bg-danger-bg text-danger-text border-danger-border;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+
+  .btn-danger-solid {
+    @apply bg-danger-600 text-white border-danger-600;
+  }
+  .btn-danger-solid:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+  }
+
+  .btn-success {
+    @apply bg-success-bg text-success-text border-success-border;
+  }
+  .btn-success:hover:not(:disabled) {
+    background: #dcfce7;
+  }
+
+  /* Sizes */
+  .btn-lg {
+    @apply px-4 text-base;
+    height: 40px;
+  }
+  .btn-sm {
+    @apply px-2 text-sm;
+    height: 28px;
+  }
+  .btn-xs {
+    @apply px-2 text-sm rounded-sm;
+    height: 24px;
+  }
+
+  /* Icon-only (square) */
+  .btn-icon {
+    @apply p-0;
+    width: 32px;
+    height: 32px;
+  }
+  .btn-icon.btn-sm {
+    width: 28px;
+    height: 28px;
+  }
+  .btn-icon.btn-lg {
+    width: 40px;
+    height: 40px;
+  }
+  .btn-icon.btn-xs {
+    @apply rounded-sm;
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Loading state */
+  .btn.is-loading {
+    @apply pointer-events-none relative;
+    opacity: .75;
+  }
+  .btn.is-loading .btn-label {
+    @apply opacity-0;
+  }
+  .btn.is-loading::after {
+    content: '';
+    @apply absolute rounded-full;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    animation: spin .7s linear infinite;
+  }
+
+  /* ── FIELDS ── */
+
+  .field {
+    @apply flex flex-col gap-1;
+  }
+
+  .field-label {
+    @apply text-xs font-medium text-text-muted uppercase;
+    letter-spacing: .07em;
+  }
+
+  .field-hint {
+    @apply text-sm text-text-subtle;
+  }
+
+  .field-error {
+    @apply text-sm text-danger-600 hidden items-center gap-1;
+  }
+  .field-error.show {
+    @apply flex;
+  }
+
+  /* ── INPUTS / SELECTS / TEXTAREAS ── */
+
+  .form-input {
+    @apply w-full text-base font-sans bg-surface-subtle border border-border-medium
+           rounded-md px-3 outline-none text-text-primary;
+    height: 36px;
+    transition: var(--t-normal);
+  }
+
+  .form-input::placeholder {
+    @apply text-text-subtle;
+  }
+  .form-input:hover {
+    @apply border-border-strong bg-surface-card;
+  }
+  .form-input:focus {
+    @apply border-brand-400 bg-surface-card shadow-focus;
+  }
+
+  /* Small size */
+  .form-input-sm {
+    @apply text-md px-2;
+    height: 32px;
+  }
+
+  /* Input with icon wrapper */
+  .input-wrap {
+    @apply relative flex items-center;
+  }
+  .input-wrap svg {
+    @apply absolute text-text-subtle pointer-events-none shrink-0;
+    left: var(--space-2);
+  }
+  .input-wrap .form-input {
+    padding-left: 30px;
+  }
+  .input-wrap .input-icon-right {
+    left: auto;
+    right: var(--space-2);
+  }
+  .input-wrap .form-input.has-icon-right {
+    padding-right: 30px;
+  }
+
+  /* Textarea */
+  textarea.form-input {
+    @apply p-2 px-3;
+    height: auto;
+    min-height: 80px;
+    resize: vertical;
+    line-height: var(--lh-normal);
+  }
+
+  /* Native select */
+  select.form-input {
+    @apply cursor-pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' fill='none' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+
+  /* Error state */
+  .form-input.is-error {
+    @apply border-danger-600 bg-danger-bg;
+  }
+  .form-input.is-error:focus {
+    box-shadow: theme('boxShadow.focus-danger');
+  }
+
+  /* Success state */
+  .form-input.is-success {
+    @apply border-success-600;
+  }
+
+  /* Disabled state */
+  .form-input:disabled {
+    @apply cursor-not-allowed bg-surface-hover;
+    opacity: .55;
+  }
+
+  /* ── CHECKBOX & RADIO ── */
+
+  .check-wrap {
+    @apply flex items-center gap-2 cursor-pointer select-none;
+  }
+
+  .check-wrap input[type="checkbox"],
+  .check-wrap input[type="radio"] {
+    @apply rounded-sm border border-border-strong bg-surface-card shrink-0
+           cursor-pointer relative;
+    width: 16px;
+    height: 16px;
+    appearance: none;
+    transition: var(--t-fast);
+  }
+
+  .check-wrap input[type="radio"] {
+    @apply rounded-full;
+  }
+
+  .check-wrap input[type="checkbox"]:checked,
+  .check-wrap input[type="radio"]:checked {
+    @apply bg-brand-600 border-brand-600;
+  }
+
+  /* Checkbox checkmark */
+  .check-wrap input[type="checkbox"]:checked::after {
+    content: '';
+    @apply absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+
+  /* Radio dot */
+  .check-wrap input[type="radio"]:checked::after {
+    content: '';
+    @apply absolute rounded-full;
+    inset: 3px;
+    background: #fff;
+  }
+
+  .check-wrap input:focus-visible {
+    outline: 2px solid theme('colors.brand.400');
+    outline-offset: 2px;
+  }
+
+  .check-label {
+    @apply text-base text-text-secondary;
+    line-height: var(--lh-normal);
+  }
+
+  /* ── TOGGLE (switch on/off) ── */
+
+  .toggle-wrap {
+    @apply flex items-center gap-2 cursor-pointer;
+  }
+
+  .toggle {
+    @apply relative shrink-0;
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle input {
+    @apply absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-track {
+    @apply absolute inset-0 rounded-full;
+    background: var(--slate-300);
+    transition: background .16s ease;
+  }
+
+  .toggle-thumb {
+    @apply absolute rounded-full shadow-xs;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    transition: transform .16s ease;
+  }
+
+  .toggle input:checked ~ .toggle-track {
+    @apply bg-brand-600;
+  }
+  .toggle input:checked ~ .toggle-thumb {
+    transform: translateX(16px);
+  }
+  .toggle input:focus-visible ~ .toggle-track {
+    outline: 2px solid theme('colors.brand.400');
+    outline-offset: 2px;
+  }
+
+  /* ── FORM GRID (form layout) ── */
+
+  .form-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .form-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .form-col-2 {
+    grid-column: span 2;
+  }
+  .form-col-3 {
+    grid-column: span 3;
+  }
+
+  /* Section header in a form */
+  .form-section {
+    @apply flex flex-col gap-3;
+  }
+
+  .form-section-title {
+    @apply text-xs font-medium uppercase text-text-subtle pb-2
+           border-b border-border-light;
+    letter-spacing: .08em;
+  }
+
+  /* ── CUSTOM SELECT (ki-select Stimulus controller) ── */
+
+  .ki-select {
+    @apply relative;
+  }
+
+  .ki-select-trigger {
+    @apply flex items-center justify-between w-full text-base font-sans
+           bg-surface-subtle border border-border-medium rounded-md
+           outline-none text-text-primary cursor-pointer;
+    height: 36px;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    transition: var(--t-normal);
+  }
+
+  .ki-select-trigger:hover {
+    @apply border-border-strong bg-surface-card;
+  }
+  .ki-select-trigger:focus {
+    @apply border-brand-400 bg-surface-card shadow-focus;
+  }
+
+  .ki-select-trigger.is-disabled {
+    @apply cursor-not-allowed bg-surface-hover;
+    opacity: .55;
+  }
+
+  /* Small trigger — matches .form-input-sm (32px) */
+  .ki-select-trigger--sm {
+    @apply text-md px-2;
+    height: 32px;
+  }
+
+  .ki-select-label {
+    @apply overflow-hidden whitespace-nowrap flex-1 text-left;
+    text-overflow: ellipsis;
+  }
+
+  .ki-select-label.is-placeholder {
+    @apply text-text-subtle;
+  }
+
+  .ki-select-icons {
+    @apply flex items-center gap-1 shrink-0 ml-1;
+  }
+
+  .ki-select-chevron {
+    @apply text-text-subtle shrink-0;
+  }
+
+  .ki-select-clear {
+    @apply flex items-center justify-center rounded-full border-none
+           bg-transparent text-text-subtle cursor-pointer p-0;
+    width: 16px;
+    height: 16px;
+    transition: var(--t-fast);
+  }
+  .ki-select-clear:hover {
+    @apply bg-surface-hover text-text-muted;
+  }
+
+  /* Dropdown panel */
+  .ki-select-dropdown {
+    @apply absolute left-0 right-0 z-popover mt-1 bg-surface-card
+           border border-border-light rounded-lg shadow-lg overflow-hidden;
+  }
+
+  .ki-select-search {
+    @apply p-2 border-b border-border-light;
+  }
+
+  .ki-select-options {
+    @apply overflow-y-auto;
+    max-height: 240px;
+    padding: var(--space-1) 0;
+  }
+
+  .ki-select-option {
+    @apply flex items-center gap-2 text-md text-text-secondary cursor-pointer
+           rounded-sm border-none bg-transparent font-sans text-left;
+    padding: var(--space-2) var(--space-3);
+    margin: 1px var(--space-1);
+    width: calc(100% - var(--space-2));
+    transition: background .1s;
+  }
+
+  .ki-select-option:hover,
+  .ki-select-option.is-focused {
+    @apply bg-surface-subtle text-text-primary;
+  }
+
+  .ki-select-check {
+    @apply shrink-0 text-brand-600;
+  }
+}
