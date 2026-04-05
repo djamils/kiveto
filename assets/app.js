@@ -24,6 +24,9 @@ let currentCleanup = null;
 function onLoad() {
   initUI();
 
+  // Skip page module init on Turbo cache previews to avoid double-render flash
+  if (document.documentElement.hasAttribute('data-turbo-preview')) return;
+
   const pageEl = document.querySelector('[data-page]');
   const page = pageEl?.dataset.page;
 
