@@ -1,13 +1,122 @@
 /*
  * Kiveto — assets/styles/tailwind.css
- * Dedicated Tailwind entry point compiled by symfonycasts/tailwind-bundle.
- * Kept separate from app.css so Tailwind CLI does not inline @imports
- * and break relative font/asset paths in vendor CSS.
+ * Tailwind CSS v4 entry point compiled by symfonycasts/tailwind-bundle.
+ * Uses @import for domain-based file splitting (natively supported in v4).
  */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" layer(utilities);
+
+@source "../../templates/**/*.html.twig";
+@source "../../assets/**/*.js";
+
+/* ── Kiveto design tokens ── */
+@theme {
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+
+  --text-xs: 11px;
+  --text-xs--line-height: 1.2;
+  --text-sm: 12px;
+  --text-sm--line-height: 1.5;
+  --text-md: 13px;
+  --text-md--line-height: 1.5;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.5;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.2;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4338ca;
+  --color-brand-700: #3730a3;
+  --color-brand-800: #2d2a6e;
+  --color-brand-900: #1e1b4b;
+  --color-brand-950: #0d0b2e;
+
+  --color-success-bg: #f0fdf4;
+  --color-success-text: #15803d;
+  --color-success-border: #bbf7d0;
+  --color-success-600: #16a34a;
+  --color-warning-bg: #fff7ed;
+  --color-warning-text: #c2410c;
+  --color-warning-border: #fed7aa;
+  --color-warning-600: #d97706;
+  --color-danger-bg: #fef2f2;
+  --color-danger-text: #b91c1c;
+  --color-danger-border: #fecaca;
+  --color-danger-600: #dc2626;
+  --color-info-bg: #eff6ff;
+  --color-info-text: #1d4ed8;
+  --color-info-border: #bfdbfe;
+  --color-purple-bg: #f5f3ff;
+  --color-purple-text: #7c3aed;
+  --color-purple-border: #ddd6fe;
+
+  --color-surface-page: #f1f5f9;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-surface-hover: #f1f5f9;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+  --color-text-disabled: #cbd5e1;
+
+  --color-border-light: #e8edf2;
+  --color-border-medium: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --spacing-0: 0px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
+  --shadow-xl: 0 20px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
+  --shadow-focus: 0 0 0 3px rgba(99,102,241,.18);
+  --shadow-focus-danger: 0 0 0 3px rgba(220,38,38,.14);
+
+  --z-index-dropdown: 100;
+  --z-index-sticky: 200;
+  --z-index-drawer: 300;
+  --z-index-overlay: 400;
+  --z-index-modal: 500;
+  --z-index-popover: 600;
+  --z-index-toast: 9000;
+  --z-index-tooltip: 9999;
+
+  --width-sidebar: 232px;
+  --width-rpanel: 310px;
+  --height-topbar: 52px;
+
+  --ease-DEFAULT: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-overlay: cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 /* Components */
 @import "./components/layout.css";
