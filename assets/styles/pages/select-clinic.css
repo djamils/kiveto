@@ -100,6 +100,13 @@
     pointer-events: none;
     display: flex;
     align-items: center;
+    width: 13px;
+    height: 13px;
+    z-index: 1;
+  }
+  .search-icon svg {
+    position: static;
+    display: block;
   }
 
   .search-input {
