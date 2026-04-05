@@ -14,17 +14,11 @@
   --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
 
   --text-xs: 11px;
-  --text-xs--line-height: 1.2;
   --text-sm: 12px;
-  --text-sm--line-height: 1.5;
   --text-md: 13px;
-  --text-md--line-height: 1.5;
   --text-base: 14px;
-  --text-base--line-height: 1.5;
   --text-lg: 16px;
-  --text-lg--line-height: 1.5;
   --text-xl: 20px;
-  --text-xl--line-height: 1.2;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
