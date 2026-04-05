@@ -1,0 +1,11 @@
+/*
+ * Kiveto — assets/styles/tailwind.css
+ * ─────────────────────────────────────
+ * Dedicated Tailwind entry point compiled by symfonycasts/tailwind-bundle.
+ * Kept separate from app.css so Tailwind CLI does not inline @imports
+ * and break relative font/asset paths in vendor CSS.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
