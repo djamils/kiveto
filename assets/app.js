@@ -21,9 +21,10 @@ const PAGE_MODULES = {
 
 let currentCleanup = null;
 
-function onLoad() {
-  initUI();
+// Initialize UI kit once — document-level listeners survive Turbo navigations
+initUI();
 
+function onLoad() {
   const pageEl = document.querySelector('[data-page]');
   const page = pageEl?.dataset.page;
 

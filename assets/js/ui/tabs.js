@@ -63,12 +63,7 @@ function _activateTab(tabEl, container) {
  * Initializes all [data-tabs] groups in the document.
  * Call once after the DOM has loaded.
  */
-let _initDone = false;
-
 function init() {
-  if (_initDone) return;
-  _initDone = true;
-
   document.addEventListener('click', (e) => {
     const tab = e.target.closest('[data-tab-target]');
     if (!tab) return;

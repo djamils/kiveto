@@ -230,12 +230,7 @@ function _registerGlobal(anchor) {
 //   <button data-popover-anchor="myMenu">...</button>
 //   <div class="popover hidden" id="myMenu">...</div>
 
-let _initDone = false;
-
 function init() {
-  if (_initDone) return;
-  _initDone = true;
-
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-popover-anchor]');
     if (!trigger) return;
