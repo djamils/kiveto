@@ -109,6 +109,9 @@
   --ease-overlay: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Base reset (same layer system as Tailwind: base < components < utilities) */
+@import "./base.css";
+
 /* Components */
 @import "./components/layout.css";
 @import "./components/navigation.css";
