@@ -29,11 +29,18 @@
     <form method="get" action="{{ path('backoffice_clinic_groups') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
       <div class="field">
         <label class="field-label">Statut</label>
-        <select name="status" class="form-input">
-          <option value="">(tous)</option>
-          <option value="active" {{ filters.status == 'active' ? 'selected' : '' }}>Active</option>
-          <option value="suspended" {{ filters.status == 'suspended' ? 'selected' : '' }}>Suspended</option>
-        </select>
+        {# Custom select component for status filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          placeholder: '(tous)',
+          value: filters.status,
+          options: [
+            { value: 'active', label: 'Active' },
+            { value: 'suspended', label: 'Suspended' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div>
         <button type="submit" class="btn btn-primary">Rechercher</button>

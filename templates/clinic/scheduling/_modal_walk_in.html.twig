@@ -33,22 +33,32 @@
             {# Arrival mode #}
             <div class="form-row">
                 <label class="form-label">Mode d'arrivée <span style="color: var(--color-danger-text);">*</span></label>
-                <select name="arrivalMode" class="form-input" required>
-                    <option value="EMERGENCY" selected>URGENCE</option>
-                    <option value="STANDARD">Standard</option>
-                </select>
+                {# Arrival mode selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'arrivalMode',
+                  value: 'EMERGENCY',
+                  options: [
+                    { value: 'EMERGENCY', label: 'URGENCE' },
+                    { value: 'STANDARD', label: 'Standard' },
+                  ]
+                }) }}
             </div>
 
             {# Priority #}
             <div class="form-row">
                 <label class="form-label">Priorité <span style="color: var(--color-danger-text);">*</span></label>
-                <select name="priority" class="form-input" required>
-                    <option value="10">10 - Critique (danger de mort)</option>
-                    <option value="8">8 - Très urgent</option>
-                    <option value="5" selected>5 - Urgent</option>
-                    <option value="3">3 - Modéré</option>
-                    <option value="0">0 - Standard</option>
-                </select>
+                {# Priority level selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'priority',
+                  value: '5',
+                  options: [
+                    { value: '10', label: '10 - Critique (danger de mort)' },
+                    { value: '8', label: '8 - Très urgent' },
+                    { value: '5', label: '5 - Urgent' },
+                    { value: '3', label: '3 - Modéré' },
+                    { value: '0', label: '0 - Standard' },
+                  ]
+                }) }}
             </div>
 
             {# Found animal description #}

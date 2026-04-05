@@ -38,14 +38,19 @@
             {# Duration #}
             <div class="form-row">
                 <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
-                <select name="durationMinutes" class="form-input" required>
-                    <option value="15">15 min</option>
-                    <option value="30" selected>30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">1 heure</option>
-                    <option value="90">1h30</option>
-                    <option value="120">2 heures</option>
-                </select>
+                {# Duration selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'durationMinutes',
+                  value: '30',
+                  options: [
+                    { value: '15', label: '15 min' },
+                    { value: '30', label: '30 min' },
+                    { value: '45', label: '45 min' },
+                    { value: '60', label: '1 heure' },
+                    { value: '90', label: '1h30' },
+                    { value: '120', label: '2 heures' },
+                  ]
+                }) }}
             </div>
 
             {# Practitioner #}
@@ -87,15 +92,20 @@
             {# Reason #}
             <div class="form-row">
                 <label class="form-label">Motif</label>
-                <select name="reason" class="form-input">
-                    <option value="">-- Sélectionner --</option>
-                    <option value="Consultation">Consultation</option>
-                    <option value="Vaccination">Vaccination</option>
-                    <option value="Chirurgie">Chirurgie</option>
-                    <option value="Contrôle">Contrôle</option>
-                    <option value="Urgence">Urgence</option>
-                    <option value="Autre">Autre</option>
-                </select>
+                {# Reason selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'reason',
+                  placeholder: '-- Sélectionner --',
+                  clearable: true,
+                  options: [
+                    { value: 'Consultation', label: 'Consultation' },
+                    { value: 'Vaccination', label: 'Vaccination' },
+                    { value: 'Chirurgie', label: 'Chirurgie' },
+                    { value: 'Contrôle', label: 'Contrôle' },
+                    { value: 'Urgence', label: 'Urgence' },
+                    { value: 'Autre', label: 'Autre' },
+                  ]
+                }) }}
             </div>
 
             {# Notes #}

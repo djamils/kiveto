@@ -31,14 +31,21 @@
 
       <div class="field" style="margin-bottom:var(--space-4);">
         <label class="field-label">Groupe (optionnel)</label>
-        <select name="clinic_group_id" class="form-input">
-          <option value="">(aucun)</option>
-          {% for group in groups.clinicGroups %}
-            {% if group.status.value == 'active' %}
-              <option value="{{ group.id }}">{{ group.name }}</option>
-            {% endif %}
-          {% endfor %}
-        </select>
+        {# Custom select component for clinic group — only active groups shown #}
+        {% set group_options = [] %}
+        {% for group in groups.clinicGroups %}
+          {% if group.status.value == 'active' %}
+            {% set group_options = group_options|merge([{ value: group.id, label: group.name }]) %}
+          {% endif %}
+        {% endfor %}
+        {{ include('components/ui/select.html.twig', {
+          name: 'clinic_group_id',
+          id: 'clinic_group_id',
+          placeholder: '(aucun)',
+          value: '',
+          options: group_options,
+          clearable: true,
+        }) }}
       </div>
 
       <div style="display:flex;gap:var(--space-2);">

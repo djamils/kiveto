@@ -21,7 +21,19 @@
             <div class="consult-rx-form-full"><label class="form-label">Nom / DCI</label><input type="text" class="form-input" placeholder="ex: Smecta, Amoxicilline..."></div>
             <div><label class="form-label">Posologie</label><input type="text" class="form-input" placeholder="ex: 1 cp matin"></div>
             <div><label class="form-label">Durée</label><input type="text" class="form-input" placeholder="ex: 7 jours"></div>
-            <div><label class="form-label">Voie</label><select class="form-input"><option>Orale</option><option>SC</option><option>IV</option><option>IM</option><option>Topique</option></select></div>
+            <div><label class="form-label">Voie</label>
+              {{ include('components/ui/select.html.twig', {
+                name: 'voie',
+                value: 'orale',
+                options: [
+                  { value: 'orale', label: 'Orale' },
+                  { value: 'sc', label: 'SC' },
+                  { value: 'iv', label: 'IV' },
+                  { value: 'im', label: 'IM' },
+                  { value: 'topique', label: 'Topique' },
+                ]
+              }) }}
+            </div>
             <div><label class="form-label">Quantité</label><input type="text" class="form-input" placeholder="ex: 1 boîte"></div>
           </div>
           <button class="btn btn-primary consult-rx-add-btn"><i data-lucide="plus" class="consult-icon-xs"></i>Ajouter à l'ordonnance</button>
@@ -80,12 +92,18 @@
               <p class="consult-examen-modal-detail">CBC + Biochimie complète</p>
             </div>
             <div class="consult-flex-center">
-              <select class="consult-examen-status-select" onchange="showToast('Statut mis à jour','#059669')">
-                <option>Demandé</option>
-                <option>En cours</option>
-                <option>Résultats reçus</option>
-                <option>Annulé</option>
-              </select>
+              {# TODO: wire onchange handler #}
+              {{ include('components/ui/select.html.twig', {
+                name: 'examen_status_bilan',
+                value: 'demande',
+                extra_class: 'consult-examen-status-select',
+                options: [
+                  { value: 'demande', label: 'Demandé' },
+                  { value: 'en_cours', label: 'En cours' },
+                  { value: 'resultats_recus', label: 'Résultats reçus' },
+                  { value: 'annule', label: 'Annulé' },
+                ]
+              }) }}
               <button class="consult-plan-delete-btn" onclick="this.closest('div[class*=consult-examen-modal-row]').remove()"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button>
             </div>
           </div>
@@ -96,12 +114,18 @@
               <p class="consult-examen-modal-detail">Exploration digestive complète</p>
             </div>
             <div class="consult-flex-center">
-              <select class="consult-examen-status-select" onchange="showToast('Statut mis à jour','#059669')">
-                <option>À planifier</option>
-                <option>Demandé</option>
-                <option>En cours</option>
-                <option>Résultats reçus</option>
-              </select>
+              {# TODO: wire onchange handler #}
+              {{ include('components/ui/select.html.twig', {
+                name: 'examen_status_echo',
+                value: 'a_planifier',
+                extra_class: 'consult-examen-status-select',
+                options: [
+                  { value: 'a_planifier', label: 'À planifier' },
+                  { value: 'demande', label: 'Demandé' },
+                  { value: 'en_cours', label: 'En cours' },
+                  { value: 'resultats_recus', label: 'Résultats reçus' },
+                ]
+              }) }}
               <button class="consult-plan-delete-btn" onclick="this.closest('div[class*=consult-examen-modal-row]').remove()"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button>
             </div>
           </div>
@@ -112,26 +136,36 @@
         <p class="w-title consult-mb-xs">Ajouter un examen</p>
         <div class="consult-examen-form-grid">
           <div class="consult-rx-form-full"><label class="form-label">Type d'examen</label>
-            <select class="form-input" id="new-examen-type">
-              <option value="">— Choisir —</option>
-              <option>Bilan sanguin (CBC)</option>
-              <option>Biochimie</option>
-              <option>Analyse d'urine</option>
-              <option>Radiographie</option>
-              <option>Échographie</option>
-              <option>Cytologie</option>
-              <option>Coproparasitologie</option>
-              <option>Test FIV/FeLV</option>
-              <option>Autre</option>
-            </select>
+            {{ include('components/ui/select.html.twig', {
+              name: 'examen_type',
+              id: 'new-examen-type',
+              placeholder: '— Choisir —',
+              value: '',
+              options: [
+                { value: 'bilan_sanguin', label: 'Bilan sanguin (CBC)' },
+                { value: 'biochimie', label: 'Biochimie' },
+                { value: 'analyse_urine', label: "Analyse d'urine" },
+                { value: 'radiographie', label: 'Radiographie' },
+                { value: 'echographie', label: 'Échographie' },
+                { value: 'cytologie', label: 'Cytologie' },
+                { value: 'coproparasitologie', label: 'Coproparasitologie' },
+                { value: 'test_fiv_felv', label: 'Test FIV/FeLV' },
+                { value: 'autre', label: 'Autre' },
+              ]
+            }) }}
           </div>
           <div><label class="form-label">Précisions</label><input type="text" class="form-input" id="new-examen-detail" placeholder="ex: Abdominale, thoracique..."></div>
           <div><label class="form-label">Urgence</label>
-            <select class="form-input" id="new-examen-urgence">
-              <option>Normal</option>
-              <option>Prioritaire</option>
-              <option>Urgent</option>
-            </select>
+            {{ include('components/ui/select.html.twig', {
+              name: 'examen_urgence',
+              id: 'new-examen-urgence',
+              value: 'normal',
+              options: [
+                { value: 'normal', label: 'Normal' },
+                { value: 'prioritaire', label: 'Prioritaire' },
+                { value: 'urgent', label: 'Urgent' },
+              ]
+            }) }}
           </div>
         </div>
         <button class="btn btn-primary consult-examen-add-btn" onclick="addExamen()"><i data-lucide="plus" class="consult-icon-sm"></i>Ajouter l'examen</button>
@@ -163,7 +197,17 @@
           <div class="consult-close-rdv-grid">
             <div><label class="form-label">Date</label><input type="date" class="form-input" value="2026-03-24"></div>
             <div><label class="form-label">Heure</label><input type="time" class="form-input" value="10:30"></div>
-            <div><label class="form-label">Motif</label><select class="form-input"><option>Contrôle J+5</option><option>Suivi vaccinal</option><option>Bilan général</option></select></div>
+            <div><label class="form-label">Motif</label>
+              {{ include('components/ui/select.html.twig', {
+                name: 'rdv_motif',
+                value: 'controle_j5',
+                options: [
+                  { value: 'controle_j5', label: 'Contrôle J+5' },
+                  { value: 'suivi_vaccinal', label: 'Suivi vaccinal' },
+                  { value: 'bilan_general', label: 'Bilan général' },
+                ]
+              }) }}
+            </div>
           </div>
         </div>
         <div>

@@ -19,28 +19,49 @@
     <form method="get" action="{{ path('backoffice_clinic_memberships') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
       <div class="field">
         <label class="field-label">Statut</label>
-        <select name="status" class="form-input">
-          <option value="">(tous)</option>
-          <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
-          <option value="DISABLED" {{ filters.status == 'DISABLED' ? 'selected' : '' }}>Disabled</option>
-        </select>
+        {# Custom select component for status filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          placeholder: '(tous)',
+          value: filters.status,
+          options: [
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'DISABLED', label: 'Disabled' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Role</label>
-        <select name="role" class="form-input">
-          <option value="">(tous)</option>
-          <option value="CLINIC_ADMIN" {{ filters.role == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
-          <option value="VETERINARY" {{ filters.role == 'VETERINARY' ? 'selected' : '' }}>Veterinary</option>
-          <option value="ASSISTANT_VETERINARY" {{ filters.role == 'ASSISTANT_VETERINARY' ? 'selected' : '' }}>Assistant Veterinary</option>
-        </select>
+        {# Custom select component for role filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'role',
+          id: 'role',
+          placeholder: '(tous)',
+          value: filters.role,
+          options: [
+            { value: 'CLINIC_ADMIN', label: 'Clinic Admin' },
+            { value: 'VETERINARY', label: 'Veterinary' },
+            { value: 'ASSISTANT_VETERINARY', label: 'Assistant Veterinary' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Engagement</label>
-        <select name="engagement" class="form-input">
-          <option value="">(tous)</option>
-          <option value="EMPLOYEE" {{ filters.engagement == 'EMPLOYEE' ? 'selected' : '' }}>Employee</option>
-          <option value="CONTRACTOR" {{ filters.engagement == 'CONTRACTOR' ? 'selected' : '' }}>Contractor</option>
-        </select>
+        {# Custom select component for engagement filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'engagement',
+          id: 'engagement',
+          placeholder: '(tous)',
+          value: filters.engagement,
+          options: [
+            { value: 'EMPLOYEE', label: 'Employee' },
+            { value: 'CONTRACTOR', label: 'Contractor' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Clinic ID</label>

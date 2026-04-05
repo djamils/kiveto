@@ -20,8 +20,30 @@
       </div>
       <div class="wr-form-grid-2">
         <div class="form-row"><label class="form-label-wr">Motif de visite</label><input class="form-input-wr" placeholder="D&eacute;crivez bri&egrave;vement..."></div>
-        <div class="form-row"><label class="form-label-wr">Priorit&eacute;</label><select class="form-input-wr"><option>Normal</option><option>Prioritaire</option><option>Urgence</option></select></div>
-        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label><select class="form-input-wr"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option><option>&mdash; Non assign&eacute; &mdash;</option></select></div>
+        {# Priority selector (custom select component) #}
+        <div class="form-row"><label class="form-label-wr">Priorit&eacute;</label>{{ include('components/ui/select.html.twig', {
+          name: 'checkinPriority',
+          extra_class: 'form-input-wr',
+          value: 'Normal',
+          options: [
+            { value: 'Normal', label: 'Normal' },
+            { value: 'Prioritaire', label: 'Prioritaire' },
+            { value: 'Urgence', label: 'Urgence' },
+          ]
+        }) }}</div>
+        {# Veterinarian selector (custom select component) #}
+        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label>{{ include('components/ui/select.html.twig', {
+          name: 'checkinVet',
+          extra_class: 'form-input-wr',
+          value: 'Dr. Rousseau',
+          options: [
+            { value: 'Dr. Rousseau', label: 'Dr. Rousseau' },
+            { value: 'Dr. Martin', label: 'Dr. Martin' },
+            { value: 'Dr. Dupont', label: 'Dr. Dupont' },
+            { value: 'Dr. Lambert', label: 'Dr. Lambert' },
+            { value: 'none', label: '— Non assigné —' },
+          ]
+        }) }}</div>
         <div class="form-row"><label class="form-label-wr">Note d'accueil</label><input class="form-input-wr" placeholder="Optionnel..."></div>
       </div>
     </div>
@@ -40,12 +62,35 @@
       <div class="wr-urgence-alert"><i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera plac&eacute; imm&eacute;diatement en t&ecirc;te de file.</div>
       <div class="wr-form-grid-2">
         <div class="form-row"><label class="form-label-wr">Animal *</label><input class="form-input-wr" placeholder="Nom de l'animal"></div>
-        <div class="form-row"><label class="form-label-wr">Esp&egrave;ce</label><select class="form-input-wr"><option>Canin</option><option>F&eacute;lin</option><option>Lapin</option><option>NAC</option><option>Oiseau</option></select></div>
+        {# Species selector (custom select component) #}
+        <div class="form-row"><label class="form-label-wr">Esp&egrave;ce</label>{{ include('components/ui/select.html.twig', {
+          name: 'urgenceEspece',
+          extra_class: 'form-input-wr',
+          value: 'Canin',
+          options: [
+            { value: 'Canin', label: 'Canin' },
+            { value: 'Félin', label: 'Félin' },
+            { value: 'Lapin', label: 'Lapin' },
+            { value: 'NAC', label: 'NAC' },
+            { value: 'Oiseau', label: 'Oiseau' },
+          ]
+        }) }}</div>
         <div class="form-row"><label class="form-label-wr">Propri&eacute;taire *</label><input class="form-input-wr" placeholder="Nom du propri&eacute;taire"></div>
         <div class="form-row"><label class="form-label-wr">T&eacute;l&eacute;phone</label><input class="form-input-wr" placeholder="+33 6 ..."></div>
       </div>
       <div class="form-row"><label class="form-label-wr">Motif d'urgence *</label><input class="form-input-wr" placeholder="D&eacute;crivez les sympt&ocirc;mes..."></div>
-      <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire &agrave; alerter</label><select class="form-input-wr"><option>Dr. Rousseau (disponible)</option><option>Dr. Martin (en consultation)</option><option>Dr. Dupont (disponible)</option><option>Dr. Lambert (en consultation)</option></select></div>
+      {# Veterinarian to alert selector (custom select component) #}
+      <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire &agrave; alerter</label>{{ include('components/ui/select.html.twig', {
+        name: 'urgenceVet',
+        extra_class: 'form-input-wr',
+        value: 'Dr. Rousseau (disponible)',
+        options: [
+          { value: 'Dr. Rousseau (disponible)', label: 'Dr. Rousseau (disponible)' },
+          { value: 'Dr. Martin (en consultation)', label: 'Dr. Martin (en consultation)' },
+          { value: 'Dr. Dupont (disponible)', label: 'Dr. Dupont (disponible)' },
+          { value: 'Dr. Lambert (en consultation)', label: 'Dr. Lambert (en consultation)' },
+        ]
+      }) }}</div>
     </div>
     <div class="modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-urgence')">Annuler</button><button class="btn-wr btn-danger" onclick="doUrgence()"><i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence</button></div>
   </div>
@@ -57,8 +102,31 @@
     <div class="modal-head"><p class="modal-title" id="modal-appel-title">Appeler le patient</p><button class="btn-modal-close" onclick="closeModal('modal-appel')"><i data-lucide="x" class="wr-icon-xs"></i></button></div>
     <div class="modal-body">
       <div class="wr-form-grid-2 wr-mb-3">
-        <div class="form-row"><label class="form-label-wr">Salle</label><select class="form-input-wr" id="appel-salle"><option>Salle 1 &mdash; Dr. Rousseau</option><option>Salle 2 &mdash; Dr. Martin</option><option>Salle 3 &mdash; Dr. Dupont</option><option>Chirurgie &mdash; Dr. Lambert</option></select></div>
-        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label><select class="form-input-wr"><option>Dr. Rousseau</option><option>Dr. Martin</option><option>Dr. Dupont</option><option>Dr. Lambert</option></select></div>
+        {# Room selector (custom select component) #}
+        <div class="form-row"><label class="form-label-wr">Salle</label>{{ include('components/ui/select.html.twig', {
+          name: 'appelSalle',
+          id: 'appel-salle',
+          extra_class: 'form-input-wr',
+          value: 'Salle 1 — Dr. Rousseau',
+          options: [
+            { value: 'Salle 1 — Dr. Rousseau', label: 'Salle 1 — Dr. Rousseau' },
+            { value: 'Salle 2 — Dr. Martin', label: 'Salle 2 — Dr. Martin' },
+            { value: 'Salle 3 — Dr. Dupont', label: 'Salle 3 — Dr. Dupont' },
+            { value: 'Chirurgie — Dr. Lambert', label: 'Chirurgie — Dr. Lambert' },
+          ]
+        }) }}</div>
+        {# Veterinarian selector (custom select component) #}
+        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label>{{ include('components/ui/select.html.twig', {
+          name: 'appelVet',
+          extra_class: 'form-input-wr',
+          value: 'Dr. Rousseau',
+          options: [
+            { value: 'Dr. Rousseau', label: 'Dr. Rousseau' },
+            { value: 'Dr. Martin', label: 'Dr. Martin' },
+            { value: 'Dr. Dupont', label: 'Dr. Dupont' },
+            { value: 'Dr. Lambert', label: 'Dr. Lambert' },
+          ]
+        }) }}</div>
       </div>
       <div class="wr-appel-notice"><i data-lucide="megaphone" class="wr-appel-notice-icon"></i>Un affichage appara&icirc;tra sur l'&eacute;cran de la salle d'attente.</div>
     </div>

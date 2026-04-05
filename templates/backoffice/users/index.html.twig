@@ -16,21 +16,35 @@
       </div>
       <div class="field">
         <label class="field-label">Type</label>
-        <select name="type" class="form-input">
-          <option value="">(tous)</option>
-          <option value="CLINIC_MEMBER" {{ filters.type == 'CLINIC_MEMBER' ? 'selected' : '' }}>Clinic Member</option>
-          <option value="CLINIC_ADMIN" {{ filters.type == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
-          <option value="PLATFORM_ADMIN" {{ filters.type == 'PLATFORM_ADMIN' ? 'selected' : '' }}>Platform Admin</option>
-        </select>
+        {# Custom select component for type filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'type',
+          id: 'type',
+          placeholder: '(tous)',
+          value: filters.type,
+          options: [
+            { value: 'CLINIC_MEMBER', label: 'Clinic Member' },
+            { value: 'CLINIC_ADMIN', label: 'Clinic Admin' },
+            { value: 'PLATFORM_ADMIN', label: 'Platform Admin' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Statut</label>
-        <select name="status" class="form-input">
-          <option value="">(tous)</option>
-          <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
-          <option value="SUSPENDED" {{ filters.status == 'SUSPENDED' ? 'selected' : '' }}>Suspended</option>
-          <option value="PENDING" {{ filters.status == 'PENDING' ? 'selected' : '' }}>Pending</option>
-        </select>
+        {# Custom select component for status filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          placeholder: '(tous)',
+          value: filters.status,
+          options: [
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'SUSPENDED', label: 'Suspended' },
+            { value: 'PENDING', label: 'Pending' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div>
         <button type="submit" class="btn btn-primary">Rechercher</button>

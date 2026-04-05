@@ -35,21 +35,35 @@
 
       <div class="field" style="margin-bottom:var(--space-3);">
         <label class="field-label">Statut *</label>
-        <select name="status" class="form-input" required>
-          <option value="active" {{ clinic.status.value == 'active' ? 'selected' : '' }}>Active</option>
-          <option value="suspended" {{ clinic.status.value == 'suspended' ? 'selected' : '' }}>Suspended</option>
-          <option value="closed" {{ clinic.status.value == 'closed' ? 'selected' : '' }}>Closed</option>
-        </select>
+        {# Custom select component for clinic status #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          value: clinic.status.value,
+          options: [
+            { value: 'active', label: 'Active' },
+            { value: 'suspended', label: 'Suspended' },
+            { value: 'closed', label: 'Closed' },
+          ],
+          required: true,
+        }) }}
       </div>
 
       <div class="field" style="margin-bottom:var(--space-3);">
         <label class="field-label">Groupe</label>
-        <select name="clinic_group_id" class="form-input" disabled>
-          <option value="">(aucun)</option>
-          {% for group in groups.clinicGroups %}
-            <option value="{{ group.id }}" {{ clinic.clinicGroupId == group.id ? 'selected' : '' }}>{{ group.name }}</option>
-          {% endfor %}
-        </select>
+        {# Custom select component for clinic group — disabled after creation #}
+        {% set group_options = [] %}
+        {% for group in groups.clinicGroups %}
+          {% set group_options = group_options|merge([{ value: group.id, label: group.name }]) %}
+        {% endfor %}
+        {{ include('components/ui/select.html.twig', {
+          name: 'clinic_group_id',
+          id: 'clinic_group_id',
+          placeholder: '(aucun)',
+          value: clinic.clinicGroupId,
+          options: group_options,
+          disabled: true,
+        }) }}
         <small style="color:var(--text-subtle);">Note: Le groupe ne peut etre modifie apres creation</small>
       </div>
 

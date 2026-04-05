@@ -22,21 +22,36 @@
     <form method="get" action="{{ path('backoffice_clinics') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
       <div class="field">
         <label class="field-label">Statut</label>
-        <select name="status" class="form-input">
-          <option value="">(tous)</option>
-          <option value="active" {{ filters.status == 'active' ? 'selected' : '' }}>Active</option>
-          <option value="suspended" {{ filters.status == 'suspended' ? 'selected' : '' }}>Suspended</option>
-          <option value="closed" {{ filters.status == 'closed' ? 'selected' : '' }}>Closed</option>
-        </select>
+        {# Custom select component for status filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          placeholder: '(tous)',
+          value: filters.status,
+          options: [
+            { value: 'active', label: 'Active' },
+            { value: 'suspended', label: 'Suspended' },
+            { value: 'closed', label: 'Closed' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Groupe</label>
-        <select name="group_id" class="form-input">
-          <option value="">(tous)</option>
-          {% for group in groups.clinicGroups %}
-            <option value="{{ group.id }}" {{ filters.group_id == group.id ? 'selected' : '' }}>{{ group.name }}</option>
-          {% endfor %}
-        </select>
+        {# Custom select component for group filter — options built from dynamic list #}
+        {% set group_options = [] %}
+        {% for group in groups.clinicGroups %}
+          {% set group_options = group_options|merge([{ value: group.id, label: group.name }]) %}
+        {% endfor %}
+        {{ include('components/ui/select.html.twig', {
+          name: 'group_id',
+          id: 'group_id',
+          placeholder: '(tous)',
+          value: filters.group_id,
+          options: group_options,
+          clearable: true,
+          searchable: true,
+        }) }}
       </div>
       <div class="field" style="grid-column:span 2;">
         <label class="field-label">Recherche (nom ou slug)</label>

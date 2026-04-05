@@ -301,22 +301,36 @@
 
       {# Vet and source selectors #}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        {# Veterinarian selector (custom select component) #}
         <div>
           <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">Vétérinaire</label>
-          <select class="form-input" id="new-vet-select" style="appearance:none;">
-            <option value="rousseau">Dr. Rousseau</option>
-            <option value="martin">Dr. Martin</option>
-            <option value="dupont">Dr. Dupont</option>
-            <option value="lambert">Dr. Lambert</option>
-          </select>
+          {{ include('components/ui/select.html.twig', {
+            name: 'vet',
+            id: 'new-vet-select',
+            placeholder: 'Sélectionner...',
+            value: 'rousseau',
+            options: [
+              { value: 'rousseau', label: 'Dr. Rousseau' },
+              { value: 'martin', label: 'Dr. Martin' },
+              { value: 'dupont', label: 'Dr. Dupont' },
+              { value: 'lambert', label: 'Dr. Lambert' },
+            ]
+          }) }}
         </div>
+        {# Appointment source selector (custom select component) #}
         <div>
           <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px;">Source</label>
-          <select class="form-input" id="new-source-select" style="appearance:none;">
-            <option value="cabinet">Cabinet</option>
-            <option value="online">En ligne</option>
-            <option value="phone">Téléphone</option>
-          </select>
+          {{ include('components/ui/select.html.twig', {
+            name: 'source',
+            id: 'new-source-select',
+            placeholder: 'Sélectionner...',
+            value: 'cabinet',
+            options: [
+              { value: 'cabinet', label: 'Cabinet' },
+              { value: 'online', label: 'En ligne' },
+              { value: 'phone', label: 'Téléphone' },
+            ]
+          }) }}
         </div>
       </div>
 
@@ -373,11 +387,20 @@
               <span style="font-size:12px;color:#334155;">SMS de rappel</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-              <select id="sms-delay" style="font-size:11px;border:1px solid #e2e8f0;border-radius:5px;padding:2px 6px;background:#fff;color:#475569;font-family:inherit;outline:none;">
-                <option value="24">24h avant</option>
-                <option value="48">48h avant</option>
-                <option value="1h">1h avant</option>
-              </select>
+              {# SMS reminder delay selector (custom select component) #}
+              <div style="font-size:11px;">
+                {{ include('components/ui/select.html.twig', {
+                  name: 'smsDelay',
+                  id: 'sms-delay',
+                  value: '24',
+                  size: 'sm',
+                  options: [
+                    { value: '24', label: '24h avant' },
+                    { value: '48', label: '48h avant' },
+                    { value: '1h', label: '1h avant' },
+                  ]
+                }) }}
+              </div>
               <input type="checkbox" id="notif-sms" checked style="accent-color:#0891b2;width:14px;height:14px;cursor:pointer;">
             </div>
           </div>
@@ -397,12 +420,21 @@
           <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;"><path d="M14 8a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M14 4v4h-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span style="font-size:12px;color:#334155;">Récurrence</span>
         </div>
-        <select id="recurrence-select" style="font-size:11.5px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;color:#475569;font-family:inherit;outline:none;">
-          <option value="none">Aucune</option>
-          <option value="weekly">Hebdomadaire</option>
-          <option value="biweekly">Bimensuelle</option>
-          <option value="monthly">Mensuelle</option>
-        </select>
+        {# Recurrence selector (custom select component) #}
+        <div style="font-size:11.5px;">
+          {{ include('components/ui/select.html.twig', {
+            name: 'recurrence',
+            id: 'recurrence-select',
+            value: 'none',
+            size: 'sm',
+            options: [
+              { value: 'none', label: 'Aucune' },
+              { value: 'weekly', label: 'Hebdomadaire' },
+              { value: 'biweekly', label: 'Bimensuelle' },
+              { value: 'monthly', label: 'Mensuelle' },
+            ]
+          }) }}
+        </div>
       </div>
 
     </div>

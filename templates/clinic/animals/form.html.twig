@@ -60,12 +60,19 @@
           </div>
           <div class="field">
             <label class="field-label" for="species">Espece *</label>
-            <select class="form-input" id="species" name="species" required>
-              <option value="">-- Choisir --</option>
-              <option value="DOG" {{ animal and animal.species == 'DOG' ? 'selected' : '' }}>Chien</option>
-              <option value="CAT" {{ animal and animal.species == 'CAT' ? 'selected' : '' }}>Chat</option>
-              <option value="NAC" {{ animal and animal.species == 'NAC' ? 'selected' : '' }}>NAC</option>
-            </select>
+            {# Species select — required field #}
+            {{ include('components/ui/select.html.twig', {
+              name: 'species',
+              id: 'species',
+              required: true,
+              placeholder: '-- Choisir --',
+              value: animal ? animal.species : '',
+              options: [
+                { value: 'DOG', label: 'Chien' },
+                { value: 'CAT', label: 'Chat' },
+                { value: 'NAC', label: 'NAC' },
+              ]
+            }) }}
           </div>
           <div class="field">
             <label class="field-label" for="breed_name">Race</label>

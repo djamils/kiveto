@@ -12,12 +12,20 @@
     <form method="get" action="{{ path('backoffice_translations') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
       <div class="field">
         <label class="field-label">Scope</label>
-        <select name="scope" class="form-input">
-          <option value="">(tous)</option>
-          {% for option in ['clinic','portal','backoffice','shared'] %}
-            <option value="{{ option }}" {{ filters.scope == option ? 'selected' : '' }}>{{ option }}</option>
-          {% endfor %}
-        </select>
+        {# Custom select component for scope filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'scope',
+          id: 'scope-filter',
+          placeholder: '(tous)',
+          value: filters.scope,
+          options: [
+            { value: 'clinic', label: 'clinic' },
+            { value: 'portal', label: 'portal' },
+            { value: 'backoffice', label: 'backoffice' },
+            { value: 'shared', label: 'shared' },
+          ],
+          clearable: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Locale</label>
@@ -50,11 +58,19 @@
       <input type="hidden" name="_token" value="{{ csrf_token }}">
       <div class="field">
         <label class="field-label">Scope *</label>
-        <select name="scope" class="form-input" required>
-          {% for option in ['clinic','portal','backoffice','shared'] %}
-            <option value="{{ option }}" {{ filters.scope == option ? 'selected' : '' }}>{{ option }}</option>
-          {% endfor %}
-        </select>
+        {# Custom select component for scope in upsert form #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'scope',
+          id: 'scope-upsert',
+          value: filters.scope,
+          options: [
+            { value: 'clinic', label: 'clinic' },
+            { value: 'portal', label: 'portal' },
+            { value: 'backoffice', label: 'backoffice' },
+            { value: 'shared', label: 'shared' },
+          ],
+          required: true,
+        }) }}
       </div>
       <div class="field">
         <label class="field-label">Locale *</label>

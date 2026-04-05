@@ -10,12 +10,20 @@
 
       <div class="field">
         <label class="field-label">Clinic *</label>
-        <select name="clinic_id" class="form-input" required>
-          <option value="">-- Selectionner une clinique --</option>
-          {% for clinic in clinics.clinics %}
-            <option value="{{ clinic.id }}">{{ clinic.name }} ({{ clinic.slug }})</option>
-          {% endfor %}
-        </select>
+        {# Custom select component for clinic selection #}
+        {% set clinic_options = [] %}
+        {% for clinic in clinics.clinics %}
+          {% set clinic_options = clinic_options|merge([{ value: clinic.id, label: clinic.name ~ ' (' ~ clinic.slug ~ ')' }]) %}
+        {% endfor %}
+        {{ include('components/ui/select.html.twig', {
+          name: 'clinic_id',
+          id: 'clinic_id',
+          placeholder: '-- Selectionner une clinique --',
+          value: '',
+          options: clinic_options,
+          required: true,
+          searchable: true,
+        }) }}
       </div>
 
       <div class="field">
@@ -33,21 +41,35 @@
 
       <div class="field">
         <label class="field-label">Role *</label>
-        <select name="role" class="form-input" required>
-          <option value="">-- Selectionner un role --</option>
-          <option value="CLINIC_ADMIN">Clinic Admin</option>
-          <option value="VETERINARY">Veterinary</option>
-          <option value="ASSISTANT_VETERINARY">Assistant Veterinary</option>
-        </select>
+        {# Custom select component for role selection #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'role',
+          id: 'role',
+          placeholder: '-- Selectionner un role --',
+          value: '',
+          options: [
+            { value: 'CLINIC_ADMIN', label: 'Clinic Admin' },
+            { value: 'VETERINARY', label: 'Veterinary' },
+            { value: 'ASSISTANT_VETERINARY', label: 'Assistant Veterinary' },
+          ],
+          required: true,
+        }) }}
       </div>
 
       <div class="field">
         <label class="field-label">Engagement *</label>
-        <select name="engagement" class="form-input" required>
-          <option value="">-- Selectionner un engagement --</option>
-          <option value="EMPLOYEE">Employee</option>
-          <option value="CONTRACTOR">Contractor (freelance)</option>
-        </select>
+        {# Custom select component for engagement selection #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'engagement',
+          id: 'engagement',
+          placeholder: '-- Selectionner un engagement --',
+          value: '',
+          options: [
+            { value: 'EMPLOYEE', label: 'Employee' },
+            { value: 'CONTRACTOR', label: 'Contractor (freelance)' },
+          ],
+          required: true,
+        }) }}
       </div>
 
       <div class="field">
