@@ -9,12 +9,12 @@ import { initUI } from 'vs/ui';
  */
 const PAGE_MODULES = {
   clinic_dashboard:              'pages/home',
-  clinic_scheduling_dashboard:   'pages/scheduling-agenda',
-  clinic_scheduling_planning:    'pages/scheduling-planning',
-  clinic_scheduling_waiting_room:'pages/scheduling-waiting-room',
+  clinic_scheduling_dashboard:   'pages/scheduling/agenda',
+  clinic_scheduling_planning:    'pages/scheduling/planning',
+  clinic_scheduling_waiting_room:'pages/scheduling/waiting-room',
   clinic_hospitalisations:       'pages/hospitalisations',
-  clinic_clients_list:           'pages/clients-list',
-  clinic_clients_view:           'pages/client-view',
+  clinic_clients_list:           'pages/clients/list',
+  clinic_clients_view:           'pages/clients/view',
   clinic_consultation_details:   'pages/consultation',
   clinic_select_clinic:          'pages/select-clinic',
 };

@@ -48,23 +48,23 @@ return [
     'pages/home' => [
         'path' => './assets/js/pages/home.js',
     ],
-    'pages/scheduling-agenda' => [
-        'path' => './assets/js/pages/scheduling-agenda.js',
+    'pages/scheduling/agenda' => [
+        'path' => './assets/js/pages/scheduling/agenda.js',
     ],
-    'pages/scheduling-planning' => [
-        'path' => './assets/js/pages/scheduling-planning.js',
+    'pages/scheduling/planning' => [
+        'path' => './assets/js/pages/scheduling/planning.js',
     ],
-    'pages/scheduling-waiting-room' => [
-        'path' => './assets/js/pages/scheduling-waiting-room.js',
+    'pages/scheduling/waiting-room' => [
+        'path' => './assets/js/pages/scheduling/waiting-room.js',
     ],
     'pages/hospitalisations' => [
         'path' => './assets/js/pages/hospitalisations.js',
     ],
-    'pages/clients-list' => [
-        'path' => './assets/js/pages/clients-list.js',
+    'pages/clients/list' => [
+        'path' => './assets/js/pages/clients/list.js',
     ],
-    'pages/client-view' => [
-        'path' => './assets/js/pages/client-view.js',
+    'pages/clients/view' => [
+        'path' => './assets/js/pages/clients/view.js',
     ],
     'pages/consultation' => [
         'path' => './assets/js/pages/consultation.js',
