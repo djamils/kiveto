@@ -64,7 +64,7 @@ export default class extends Controller {
 
     this.hiddenTarget.value = value;
     this.labelTarget.textContent = label;
-    this.labelTarget.classList.remove('text-subtle');
+    this.labelTarget.classList.remove('is-placeholder');
 
     // Update selected state and check icon on all options
     this.optionTargets.forEach(opt => {
@@ -72,7 +72,7 @@ export default class extends Controller {
       opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
       const checkIcon = opt.querySelector('svg');
       if (checkIcon) {
-        checkIcon.classList.toggle('invisible', !isSelected);
+        checkIcon.classList.toggle('hidden', !isSelected);
       }
     });
 
@@ -93,12 +93,12 @@ export default class extends Controller {
 
     this.hiddenTarget.value = '';
     this.labelTarget.textContent = this.placeholderValue;
-    this.labelTarget.classList.add('text-subtle');
+    this.labelTarget.classList.add('is-placeholder');
 
     this.optionTargets.forEach(opt => {
       opt.setAttribute('aria-selected', 'false');
       const checkIcon = opt.querySelector('svg');
-      if (checkIcon) checkIcon.classList.add('invisible');
+      if (checkIcon) checkIcon.classList.add('hidden');
     });
 
     if (this.hasClearTarget) {
@@ -222,11 +222,11 @@ export default class extends Controller {
 
   _highlightOption(visibleOptions) {
     // Remove highlight from all
-    this.optionTargets.forEach(opt => opt.classList.remove('bg-surface-hover'));
+    this.optionTargets.forEach(opt => opt.classList.remove('is-focused'));
 
     if (this._focusedIndex >= 0 && visibleOptions[this._focusedIndex]) {
       const opt = visibleOptions[this._focusedIndex];
-      opt.classList.add('bg-surface-hover');
+      opt.classList.add('is-focused');
       opt.scrollIntoView({ block: 'nearest' });
     }
   }

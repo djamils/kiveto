@@ -418,6 +418,145 @@ select.form-input {
   border-bottom: 1px solid var(--border-light);
 }
 
+/* ─────────────────────────────────────────────
+   CUSTOM SELECT (Stimulus controller)
+   ─────────────────────────────────────────────
+   Animated dropdown select that matches the design system.
+   See assets/controllers/select_controller.js
+*/
+.ki-select {
+  position: relative;
+}
+
+.ki-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  font-size: var(--text-base);
+  font-family: inherit;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  outline: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--t-normal);
+}
+
+.ki-select-trigger:hover { border-color: var(--border-strong); background: var(--surface-card); }
+.ki-select-trigger:focus {
+  border-color: var(--brand-400);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-focus);
+}
+
+.ki-select-trigger.is-disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  background: var(--surface-hover);
+}
+
+/* Small trigger — matches .form-input-sm (32px) */
+.ki-select-trigger--sm {
+  height: 32px;
+  font-size: var(--text-md);
+  padding: 0 var(--space-2);
+}
+
+.ki-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
+.ki-select-label.is-placeholder { color: var(--text-subtle); }
+
+.ki-select-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  margin-left: var(--space-1);
+}
+
+.ki-select-chevron {
+  color: var(--text-subtle);
+  flex-shrink: 0;
+}
+
+.ki-select-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  padding: 0;
+  transition: var(--t-fast);
+}
+.ki-select-clear:hover { background: var(--surface-hover); color: var(--text-muted); }
+
+/* Dropdown panel */
+.ki-select-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin-top: var(--space-1);
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.ki-select-search {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ki-select-options {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.ki-select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background .1s;
+  border-radius: var(--radius-sm);
+  margin: 1px var(--space-1);
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  width: calc(100% - var(--space-2));
+  text-align: left;
+}
+
+.ki-select-option:hover,
+.ki-select-option.is-focused { background: var(--surface-subtle); color: var(--text-primary); }
+
+.ki-select-check {
+  flex-shrink: 0;
+  color: var(--brand-600);
+}
+
+
 @media (max-width: 640px) {
   .form-grid,
   .form-grid-3 {

@@ -43,13 +43,13 @@
   /* ── Sort group ── */
   .cl-sort-group { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
   .cl-sort-label { font-size: var(--text-sm); color: var(--text-subtle); }
-  /* Sort select — compact variant for the custom select component */
+  /* Sort select — compact variant */
   .cl-sort-select-wrap { width: 140px; }
-  .cl-sort-select-wrap button[data-select-target="trigger"] {
-    padding: 4px var(--space-2);
+  .cl-sort-select-wrap .ki-select-trigger {
+    height: 28px;
     font-size: var(--text-sm);
     background: var(--surface-card);
-    min-height: auto;
+    padding: 0 var(--space-2);
   }
 
   /* ── Column picker ── */
@@ -57,9 +57,9 @@
   .col-picker-btn { display: inline-flex; align-items: center; gap: var(--space-1); padding: 4px var(--space-2); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium); border: 1px solid var(--border-medium); background: var(--surface-card); color: var(--text-muted); cursor: pointer; font-family: inherit; transition: var(--transition-fast); }
   .col-picker-btn:hover { background: var(--surface-subtle); }
   .col-picker-btn.active { border-color: var(--brand-500); color: var(--brand-600); background: var(--brand-50); }
-  /* Col-picker popover — now uses Kiveto .popover class for animation.
-     Custom styles below override only the inner content layout. */
-  .col-picker-content { padding: var(--space-2); }
+  /* Col-picker popover — uses Kiveto .popover class for animation.
+     Content padding matches original design. */
+  .col-picker-content { padding: var(--space-1); }
   .col-picker-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-md); color: var(--text-secondary); transition: var(--transition-fast); }
   .col-picker-item:hover { background: var(--surface-subtle); }
   .col-picker-item input[type=checkbox] { cursor: pointer; accent-color: var(--brand-600); }
