@@ -13,24 +13,6 @@
   .page-body { flex: 1; display: flex; overflow: hidden; }
 
   /* ─────────────────────────────────────────────
-     STATS PILLS (topbar)
-     ───────────────────────────────────────────── */
-  .hosp-stats { display: flex; gap: 6px; }
-  .hosp-pill { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; }
-  .hosp-pill--blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
-  .hosp-pill--red   { background: #fef2f2; border: 1px solid #fecaca; }
-  .hosp-pill--green { background: #f0fdf4; border: 1px solid #bbf7d0; }
-  .hosp-pill-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .hosp-pill-dot--blue  { background: #3b82f6; }
-  .hosp-pill-dot--red   { background: #dc2626; }
-  .hosp-pill-dot--green { background: #16a34a; }
-  .hosp-pill-count { font-size: 12px; font-weight: 500; }
-  .hosp-pill-count--blue  { color: #2563eb; }
-  .hosp-pill-count--red   { color: #dc2626; }
-  .hosp-pill-count--green { color: #059669; }
-  .hosp-pill-label { font-size: 11.5px; color: #64748b; }
-
-  /* ─────────────────────────────────────────────
      BOTTOM SHEET HANDLE
      ───────────────────────────────────────────── */
   .hosp-bs-handle { padding: 8px; display: flex; justify-content: center; flex-shrink: 0; }
@@ -152,7 +134,6 @@
   [data-page="clinic_hospitalisations"] {
     .hosp-panel { width: 100%; }
     .detail-panel { display: none; }
-    .topbar-stats { display: none; }
   }
 }
 
@@ -181,4 +162,26 @@
     .detail-scroll { overflow: visible; padding: 0; }
     .widget { break-inside: avoid; margin-bottom: 16px; }
   }
+}
+
+/* ─────────────────────────────────────────────
+   STATS PILLS — lives in topbar, outside <main data-page>
+   ───────────────────────────────────────────── */
+.hosp-stats { display: flex; gap: 6px; }
+.hosp-pill { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; }
+.hosp-pill--blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+.hosp-pill--red   { background: #fef2f2; border: 1px solid #fecaca; }
+.hosp-pill--green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.hosp-pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+.hosp-pill-dot--blue  { background: #3b82f6; }
+.hosp-pill-dot--red   { background: #dc2626; }
+.hosp-pill-dot--green { background: #16a34a; }
+.hosp-pill-count { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.hosp-pill-count--blue  { color: #2563eb; }
+.hosp-pill-count--red   { color: #dc2626; }
+.hosp-pill-count--green { color: #059669; }
+.hosp-pill-label { font-size: var(--text-xs); color: var(--text-muted); }
+
+@media (max-width: 1024px) {
+  .topbar-stats { display: none; }
 }
