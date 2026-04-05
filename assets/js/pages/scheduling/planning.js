@@ -669,9 +669,13 @@ export function init() {
   // Default to week view on tablet, day on mobile
   if(window.innerWidth <= 640){ currentView='day'; }
   else if(window.innerWidth <= 1024){ currentView='week'; }
-  renderLegend();
-  renderMiniCal();
-  renderPlanning();
+  // Only render if the planning grid is empty (skip when restored from Turbo cache)
+  var planningGrid = document.getElementById('mini-cal-grid');
+  if (!planningGrid || !planningGrid.children.length) {
+    renderLegend();
+    renderMiniCal();
+    renderPlanning();
+  }
 
   // Click outside preview — clear all previews
   _mousedownHandler = function(e){

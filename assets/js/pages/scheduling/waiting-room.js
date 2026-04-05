@@ -374,8 +374,13 @@ export function init() {
   // Keyboard shortcuts
   document.addEventListener('keydown', _onKeydown);
 
-  // Initial layout and periodic refresh
-  applyLayout();
+  // Only render if the queue is empty (skip when restored from Turbo cache)
+  var queueList = document.getElementById('queue-list');
+  if (!queueList || !queueList.children.length) {
+    applyLayout();
+  }
+
+  // Always re-attach resize listener and refresh interval (cleared by cleanup)
   window.addEventListener('resize', applyLayout);
   refreshInterval = setInterval(function () { renderQueue(); renderQueueTab(); }, 30000);
 }

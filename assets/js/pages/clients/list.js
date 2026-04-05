@@ -482,9 +482,11 @@ export function init() {
   lucide.createIcons();
 
   // Sort select — listen for change events from the custom select Stimulus controller
+  // Guard against duplicate listeners across Turbo cache restores
   var sortInput = document.getElementById('sort-select');
-  if (sortInput) {
+  if (sortInput && !sortInput._kivetoListenerAttached) {
     sortInput.addEventListener('change', function() { renderTable(); });
+    sortInput._kivetoListenerAttached = true;
   }
 
   // Keyboard shortcuts
@@ -513,7 +515,11 @@ export function init() {
   window.goPage = goPage;
   window.changePageSize = changePageSize;
 
-  renderTable();
+  // Only render if the table is empty (skip when restored from Turbo cache)
+  var body = document.getElementById('tbl-body');
+  if (!body || !body.children.length) {
+    renderTable();
+  }
 }
 
 export function cleanup() {

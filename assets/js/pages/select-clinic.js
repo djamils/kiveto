@@ -158,7 +158,10 @@ export function init() {
   };
   clinicList.addEventListener('scroll', scrollHandler);
 
-  renderList(CLINICS);
+  // Only render if the list is empty (skip when restored from Turbo cache)
+  if (!clinicList || !clinicList.children.length) {
+    renderList(CLINICS);
+  }
 }
 
 export function cleanup() {

@@ -1011,10 +1011,14 @@ export function init() {
     currentView = 'day';
     currentWeekStart = today;
   }
-  renderMiniCal();
-  renderWeek();
-  renderDayPlanning();
-  initMotifFilters();
+  // Only render if the agenda is empty (skip when restored from Turbo cache)
+  var agendaInner = document.getElementById('agenda-inner');
+  if (!agendaInner || !agendaInner.children.length) {
+    renderMiniCal();
+    renderWeek();
+    renderDayPlanning();
+    initMotifFilters();
+  }
 
   _resizeHandler = function(){
     if(window.innerWidth <= 640 && currentView === 'week'){

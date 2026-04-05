@@ -693,10 +693,13 @@ export function init() {
   };
   document.addEventListener('mousemove', _mousemoveHandler);
 
-  // Initialize
-  buildTabs();
-  buildAuxContact(ANIMALS[0]);
-  renderAnimal(ANIMALS[0]);
+  // Only render if tabs are empty (skip when restored from Turbo cache)
+  var tabContainer = document.getElementById('animal-tabs');
+  if (!tabContainer || !tabContainer.children.length) {
+    buildTabs();
+    buildAuxContact(ANIMALS[0]);
+    renderAnimal(ANIMALS[0]);
+  }
 }
 
 export function cleanup() {

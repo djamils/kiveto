@@ -267,12 +267,18 @@ let _diagInputHandler = null;
 export function init() {
   lucide.createIcons();
 
-  // Layout
-  applyLayout();
+  // Only rebuild layout if content is empty (skip when restored from Turbo cache)
+  var desktopScroll = document.getElementById('desktop-scroll');
+  var needsRender = !desktopScroll || !desktopScroll.querySelector('.consult-grid, .widget');
+  if (needsRender) {
+    applyLayout();
+  }
+
+  // Always re-attach resize listener (cleared by cleanup)
   _resizeHandler = applyLayout;
   window.addEventListener('resize', _resizeHandler);
 
-  // Timer
+  // Always restart timer (cleared by cleanup)
   mins=0;secs=0;
   _timerInterval=setInterval(function(){
     secs++;if(secs===60){secs=0;mins++;}

@@ -526,8 +526,12 @@ export function init() {
   window.closeBs = closeBs;
   window.closeSlide = closeSlide;
 
-  renderList();
-  selectPatient(1);
+  // Only render if the list is empty (skip when restored from Turbo cache)
+  var hospList = document.getElementById('hosp-list');
+  if (!hospList || !hospList.children.length) {
+    renderList();
+    selectPatient(1);
+  }
 
   document.addEventListener('keydown', _onKeydown);
 }
