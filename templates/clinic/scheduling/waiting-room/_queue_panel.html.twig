@@ -13,5 +13,6 @@
     <button class="qf-tab" data-f="attente" onclick="setQFilter(this)">En attente</button>
     <button class="qf-tab" data-f="consultation" onclick="setQFilter(this)">Consultation</button>
   </div>
-  <div class="queue-list" id="queue-list"></div>
+  {# Preserve JS-rendered content during Turbo swaps #}
+  <div class="queue-list" id="queue-list" data-turbo-temporary></div>
 </div>

@@ -43,7 +43,8 @@
         <button class="qf-tab" data-f="attente" onclick="setQFilterTab(this)">En attente</button>
         <button class="qf-tab" data-f="consultation" onclick="setQFilterTab(this)">Consultation</button>
       </div>
-      <div class="queue-list" id="queue-list-tab"></div>
+      {# Preserve JS-rendered content during Turbo swaps #}
+      <div class="queue-list" id="queue-list-tab" data-turbo-temporary></div>
     </div>
     <div class="tab-pane wr-tab-pane--rooms" id="tab-rooms">
       <div class="widget wr-mb-3"><div class="wh"><span class="wt">V&eacute;t&eacute;rinaires de garde</span></div><div class="wr-vets-grid" id="vets-list-tab"></div></div>

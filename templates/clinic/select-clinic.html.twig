@@ -49,7 +49,8 @@
   </div>
 
   <div class="list-zone" id="list-zone">
-    <div class="list" id="clinic-list" role="listbox" aria-label="Sélectionnez une clinique"></div>
+    {# Preserve JS-rendered content during Turbo swaps #}
+    <div class="list" id="clinic-list" data-turbo-temporary role="listbox" aria-label="Sélectionnez une clinique"></div>
   </div>
 
   <p class="scroll-hint hidden" id="scroll-hint" aria-hidden="true">

@@ -45,6 +45,22 @@ function onBeforeCache() {
   }
 }
 
+// Preserve JS-rendered content during Turbo body swap.
+// Containers marked with [data-turbo-temporary] are populated by JS (renderTable, etc.).
+// The server sends them empty, but the cache has them full. Before swapping, copy
+// the content from the current DOM into the incoming DOM so the swap is seamless.
+document.addEventListener('turbo:before-render', (event) => {
+  const newBody = event.detail.newBody;
+  newBody.querySelectorAll('[data-turbo-temporary]').forEach(newEl => {
+    if (newEl.id && !newEl.children.length) {
+      const oldEl = document.getElementById(newEl.id);
+      if (oldEl && oldEl.children.length) {
+        newEl.innerHTML = oldEl.innerHTML;
+      }
+    }
+  });
+});
+
 // Turbo fires turbo:load on every navigation including initial page load
 document.addEventListener('turbo:load', onLoad);
 document.addEventListener('turbo:before-cache', onBeforeCache);

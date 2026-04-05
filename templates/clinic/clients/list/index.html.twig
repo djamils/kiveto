@@ -70,8 +70,9 @@
           <div></div>
         </div>
       </div>
-      <div class="tbl-body" id="tbl-body"></div>
-      <div class="pagination" id="pagination"></div>
+      {# Preserve JS-rendered content during Turbo swaps #}
+      <div class="tbl-body" id="tbl-body" data-turbo-temporary></div>
+      <div class="pagination" id="pagination" data-turbo-temporary></div>
     </div>
 
     <!-- Desktop detail panel -->

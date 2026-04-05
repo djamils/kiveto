@@ -51,7 +51,8 @@
           </button>
         </div>
       </div>
-      <div class="mini-cal-grid" id="mini-cal-grid">
+      {# Preserve JS-rendered content during Turbo swaps #}
+      <div class="mini-cal-grid" id="mini-cal-grid" data-turbo-temporary>
         {# Filled by JS #}
       </div>
     </div>
@@ -192,7 +193,7 @@
 
       {# Grid body #}
       <div class="agenda-body" id="agenda-body">
-        <div class="agenda-inner" id="agenda-inner" style="grid-template-columns:55px repeat(7,1fr);">
+        <div class="agenda-inner" id="agenda-inner" data-turbo-temporary style="grid-template-columns:55px repeat(7,1fr);">
           {# Filled by JS #}
         </div>
       </div>

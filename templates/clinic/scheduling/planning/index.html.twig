@@ -58,7 +58,8 @@
       <div class="mini-cal-dow">J</div><div class="mini-cal-dow">V</div><div class="mini-cal-dow">S</div>
       <div class="mini-cal-dow">D</div>
     </div>
-    <div class="mini-cal-grid" id="mini-cal-grid"></div>
+    {# Preserve JS-rendered content during Turbo swaps #}
+    <div class="mini-cal-grid" id="mini-cal-grid" data-turbo-temporary></div>
   </div>
 
   <!-- Vet filters -->
@@ -155,11 +156,12 @@
   <!-- LEGEND -->
   <div style="display:flex;align-items:center;gap:8px;padding:8px 18px;background:#fff;border-bottom:1px solid #e8edf2;flex-shrink:0;overflow-x:auto;">
     <span style="font-size:10.5px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;flex-shrink:0;">Types :</span>
-    <div id="legend-items" style="display:flex;gap:6px;flex-wrap:nowrap;"></div>
+    <div id="legend-items" data-turbo-temporary style="display:flex;gap:6px;flex-wrap:nowrap;"></div>
   </div>
 
   <!-- PLANNING -->
-  <div class="planning-wrap" id="planning-wrap">
+  {# Preserve JS-rendered content during Turbo swaps #}
+  <div class="planning-wrap" id="planning-wrap" data-turbo-temporary>
     <!-- Filled by JS -->
   </div>
 

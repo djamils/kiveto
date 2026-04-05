@@ -4,5 +4,6 @@
     <span class="hosp-head-label">Patients hospitalisés</span>
     <span class="hosp-head-count" id="list-count"></span>
   </div>
-  <div class="hp-list" id="hosp-list"></div>
+  {# Preserve JS-rendered content during Turbo swaps #}
+  <div class="hp-list" id="hosp-list" data-turbo-temporary></div>
 </div>
