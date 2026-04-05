@@ -57,16 +57,6 @@
   .col-picker-btn { display: inline-flex; align-items: center; gap: var(--space-1); padding: 4px var(--space-2); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-medium); border: 1px solid var(--border-medium); background: var(--surface-card); color: var(--text-muted); cursor: pointer; font-family: inherit; transition: var(--transition-fast); }
   .col-picker-btn:hover { background: var(--surface-subtle); }
   .col-picker-btn.active { border-color: var(--brand-500); color: var(--brand-600); background: var(--brand-50); }
-  /* Col-picker popover — uses Kiveto .popover class for animation.
-     Content padding matches original design. */
-  .col-picker-content { padding: var(--space-1); }
-  .col-picker-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-md); color: var(--text-secondary); transition: var(--transition-fast); }
-  .col-picker-item:hover { background: var(--surface-subtle); }
-  .col-picker-item input[type=checkbox] { cursor: pointer; accent-color: var(--brand-600); }
-  .col-picker-divider { height: 1px; background: var(--border-light); margin: var(--space-1) 0; }
-  .cl-picker-heading { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .07em; padding: var(--space-1) var(--space-2) var(--space-1); }
-  .cl-picker-reset { width: 100%; padding: var(--space-1) var(--space-2); text-align: left; font-size: var(--text-sm); color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: inherit; border-radius: var(--radius-md); }
-  .cl-picker-reset:hover { background: var(--surface-subtle); }
 
   /* ── Main area ── */
   .main-area { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
@@ -145,6 +135,16 @@
 /* Slide backdrop -- lives outside data-page element */
 .slide-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .15); z-index: 19; display: none; }
 .slide-backdrop.open { display: block; }
+
+/* Column picker popover — unscoped because popover.js moves it to <body> */
+.col-picker-content { padding: var(--space-1); }
+.col-picker-item { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-md); color: var(--text-secondary); transition: var(--t-fast); }
+.col-picker-item:hover { background: var(--surface-subtle); }
+.col-picker-item input[type=checkbox] { cursor: pointer; accent-color: var(--brand-600); }
+.col-picker-divider { height: 1px; background: var(--border-light); margin: var(--space-1) 0; }
+.cl-picker-heading { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-subtle); text-transform: uppercase; letter-spacing: .07em; padding: var(--space-1) var(--space-2) var(--space-1); }
+.cl-picker-reset { width: 100%; padding: var(--space-1) var(--space-2); text-align: left; font-size: var(--text-sm); color: var(--text-muted); background: none; border: none; cursor: pointer; font-family: inherit; border-radius: var(--radius-md); }
+.cl-picker-reset:hover { background: var(--surface-subtle); }
 
 /* Bottom sheet -- fixed positioned, lives outside data-page element */
 #bso { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, .3); z-index: 100; backdrop-filter: blur(2px); }
