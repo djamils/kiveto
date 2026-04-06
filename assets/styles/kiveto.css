@@ -80,7 +80,7 @@
   --surface-page:   #f1f5f9; /* app page background */
   --surface-card:   #ffffff; /* cards / widgets background */
   --surface-subtle: #f8fafc; /* inputs background, secondary areas */
-  --surface-hover:  #f1f5f9; /* hover on interactive elements */
+  --surface-hover:  #eef2ff; /* hover on interactive elements (light indigo tint) */
 
   /* ── Borders ── */
   --border-light:  #e8edf2; /* main separators */
