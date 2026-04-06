@@ -16,10 +16,14 @@
     <i data-lucide="file-check-2"></i>
     <span>Rapports</span>
   </button>
-  <a href="{{ path('clinic_clients_new') }}" class="btn btn-primary btn-sm">
-    <i data-lucide="plus"></i>
+  <button type="button" class="btn btn-secondary btn-sm" data-modal-open="modal-new-animal">
+    <i data-lucide="paw-print"></i>
+    <span>Nouvel animal</span>
+  </button>
+  <button type="button" class="btn btn-primary btn-sm" data-modal-open="modal-new-client">
+    <i data-lucide="user-plus"></i>
     <span>Nouveau client</span>
-  </a>
+  </button>
 {% endblock %}
 
 {% block content %}
@@ -79,6 +83,10 @@
     <span>En savoir plus</span>
   </a>
 </div>
+
+{# New client / new animal modals #}
+{{ include('clinic/clients/list/_modal_new_client.html.twig') }}
+{{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
 
 <div id="toast"></div>
 {% endblock %}

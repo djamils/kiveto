@@ -139,8 +139,13 @@
       background: var(--surface-subtle);
       z-index: 1;
     }
-    .dg-th-checkbox { width: 40px; padding-left: 16px; }
+    .dg-th-checkbox {
+      width: 40px;
+      padding-left: 16px;
+      vertical-align: middle;
+    }
     .dg-th-actions  { width: 70px; }
+    .data-grid tbody td.dg-th-checkbox { padding-top: 0; padding-bottom: 0; }
 
     .dg-th-sortable {
       @apply cursor-pointer select-none;
@@ -172,10 +177,13 @@
     .data-grid tbody tr:last-child td { border-bottom: none; }
 
     .dg-checkbox {
+      display: block;
       width: 16px;
       height: 16px;
+      margin: 0;
       accent-color: var(--brand-600);
       cursor: pointer;
+      vertical-align: middle;
     }
     .dg-name-cell {
       @apply flex items-center;
@@ -308,6 +316,164 @@
     background: var(--surface-subtle);
     border-radius: 9999px;
     margin-left: 4px;
+  }
+
+  /* ── Unscoped: wizard modal (used in nouvel animal) ── */
+  .wizard-modal {
+    @apply flex flex-col;
+  }
+  .wizard-head-left {
+    @apply flex items-center gap-3;
+  }
+  .wizard-step-label {
+    @apply text-xs text-text-subtle;
+    padding: 2px 8px;
+    background: var(--surface-subtle);
+    border-radius: 9999px;
+  }
+
+  /* Stepper */
+  .wizard-stepper {
+    @apply flex items-center justify-center;
+    padding: 16px 20px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface-subtle);
+  }
+  .wizard-step {
+    @apply flex items-center;
+    gap: 8px;
+    color: var(--text-subtle);
+    font-size: 13px;
+    font-weight: 500;
+    transition: color .15s;
+  }
+  .wizard-step-num {
+    @apply flex items-center justify-center shrink-0;
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-medium);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all .15s;
+  }
+  .wizard-step.is-active {
+    color: var(--brand-600);
+  }
+  .wizard-step.is-active .wizard-step-num {
+    background: var(--brand-600);
+    color: #fff;
+    border-color: var(--brand-600);
+  }
+  .wizard-step.is-done {
+    color: var(--text-secondary);
+  }
+  .wizard-step.is-done .wizard-step-num {
+    background: var(--brand-50);
+    color: var(--brand-600);
+    border-color: var(--brand-600);
+  }
+  .wizard-step-sep {
+    width: 32px;
+    height: 1px;
+    background: var(--border-medium);
+  }
+
+  /* Wizard body */
+  .wizard-body {
+    padding: 24px 20px;
+  }
+  .wizard-pane {
+    @apply flex flex-col;
+    gap: 16px;
+  }
+  .wizard-section-title {
+    @apply font-medium;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  /* Choice grid (existing/new owner) */
+  .wizard-choice-grid {
+    @apply grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .wizard-choice {
+    @apply relative flex items-center w-full text-left cursor-pointer font-sans;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface-card);
+    border: 1.5px solid var(--border-light);
+    border-radius: 8px;
+    transition: all .15s;
+  }
+  .wizard-choice:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+  .wizard-choice.is-active {
+    border-color: var(--brand-500);
+    background: var(--brand-50);
+  }
+  .wizard-choice-icon {
+    @apply flex items-center justify-center shrink-0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .wizard-choice-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .wizard-choice-body {
+    @apply flex-1 min-w-0;
+  }
+  .wizard-choice-title {
+    @apply font-medium;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .wizard-choice-sub {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-top: 2px;
+  }
+  .wizard-choice-check {
+    @apply flex items-center justify-center shrink-0;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--brand-600);
+    color: #fff;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .wizard-choice-check svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 3;
+  }
+  .wizard-choice.is-active .wizard-choice-check {
+    opacity: 1;
+  }
+
+  .wizard-owner-panel {
+    @apply flex flex-col;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  /* Wizard footer (modal-foot variant) */
+  .wizard-foot {
+    justify-content: space-between !important;
+  }
+  .wizard-foot-right {
+    @apply flex items-center;
+    gap: 8px;
   }
 
   /* ── Unscoped: column picker items with check icon (popover content moved to body) ── */
