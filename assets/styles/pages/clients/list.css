@@ -171,7 +171,7 @@
       transition: background .12s;
       border-bottom: 1px solid var(--border-light);
     }
-    .data-grid tbody tr:hover { background: var(--surface-hover); }
+    .data-grid tbody tr:hover { background: var(--surface-subtle); }
     .data-grid tbody tr:last-child { border-bottom: none; }
     .data-grid tbody td {
       padding: 10px 12px;
@@ -181,15 +181,8 @@
     }
     .data-grid tbody tr:last-child td { border-bottom: none; }
 
-    .dg-checkbox {
-      display: block;
-      width: 16px;
-      height: 16px;
-      margin: 0;
-      accent-color: var(--brand-600);
-      cursor: pointer;
-      vertical-align: middle;
-    }
+    /* .dg-checkbox kept as positional helper; visual styling comes from .ki-checkbox */
+    .dg-checkbox { vertical-align: middle; }
     .dg-name-cell {
       @apply flex items-center;
       gap: 8px;

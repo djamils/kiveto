@@ -165,7 +165,7 @@ function renderClientsTable() {
 
   tbody.innerHTML = pageItems.map(c => `
     <tr>
-      <td class="dg-th-checkbox"><input type="checkbox" class="dg-checkbox" aria-label="Sélectionner ${escapeHtml(c.first + ' ' + c.last)}"/></td>
+      <td class="dg-th-checkbox"><input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Sélectionner ${escapeHtml(c.first + ' ' + c.last)}"/></td>
       <td>
         <div class="dg-name-cell">
           <span class="dg-avatar" style="background:${c.bg};color:${c.color};">${escapeHtml(c.initials)}</span>
@@ -260,7 +260,7 @@ function renderAnimalsTable() {
 
   tbody.innerHTML = pageItems.map(a => `
     <tr>
-      <td class="dg-th-checkbox"><input type="checkbox" class="dg-checkbox" aria-label="Sélectionner ${escapeHtml(a.name)}"/></td>
+      <td class="dg-th-checkbox"><input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Sélectionner ${escapeHtml(a.name)}"/></td>
       <td>
         <div class="dg-name-cell">
           <span class="dg-avatar" style="background:#f1f5f9;color:#475569;font-size:14px;">${SPECIES_EMOJI[a.species] || '🐾'}</span>

@@ -233,6 +233,52 @@
 
   /* ── CHECKBOX & RADIO ── */
 
+  /* Standalone checkbox — usable without a wrapper, app-wide UI kit class */
+  input[type="checkbox"].ki-checkbox,
+  input[type="radio"].ki-checkbox {
+    @apply rounded-sm border border-border-strong bg-surface-card shrink-0
+           cursor-pointer relative inline-block align-middle;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    appearance: none;
+    transition: var(--t-fast);
+  }
+  input[type="radio"].ki-checkbox {
+    @apply rounded-full;
+  }
+  input[type="checkbox"].ki-checkbox:hover,
+  input[type="radio"].ki-checkbox:hover {
+    border-color: var(--brand-500);
+  }
+  input[type="checkbox"].ki-checkbox:checked,
+  input[type="radio"].ki-checkbox:checked {
+    @apply bg-brand-600 border-brand-600;
+  }
+  input[type="checkbox"].ki-checkbox:checked::after {
+    content: '';
+    @apply absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+  input[type="radio"].ki-checkbox:checked::after {
+    content: '';
+    @apply absolute rounded-full;
+    inset: 3px;
+    background: #fff;
+  }
+  input[type="checkbox"].ki-checkbox:focus-visible,
+  input[type="radio"].ki-checkbox:focus-visible {
+    outline: 2px solid theme('colors.brand.400');
+    outline-offset: 2px;
+  }
+
   .check-wrap {
     @apply flex items-center gap-2 cursor-pointer select-none;
   }
