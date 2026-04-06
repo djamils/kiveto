@@ -85,8 +85,9 @@
 
 {# ── Navigation structure (BC-aligned) ── #}
 {% set nav_items = [
-  { section: 'Clinique' },
   { key: 'clinic_dashboard',              label: 'Tableau de bord',    icon: icon_grid,        route: 'clinic_dashboard' },
+
+  { section: 'Clinique' },
   { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard', new_tab: true },
   { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning', new_tab: true },
   { key: 'clinic_scheduling_waiting_room', label: 'Salle d\'attente',  icon: icon_clock,       route: 'clinic_scheduling_waiting_room' },
@@ -187,6 +188,27 @@
     </div>
   </div>
 
+  {# ── Changelog popover (opened from sidebar footer) ── #}
+  <div class="popover hidden" id="app-changelog-popover" style="width: 280px;">
+    <p class="popover-head">Quoi de neuf</p>
+    <a href="#" class="nav-item">
+      <span class="flex-1 min-w-0">
+        <span class="block text-sm font-medium text-text-primary">v0.5.0 — Sélecteur de cliniques</span>
+        <span class="block text-xs text-text-subtle">5 avril 2026</span>
+      </span>
+    </a>
+    <a href="#" class="nav-item">
+      <span class="flex-1 min-w-0">
+        <span class="block text-sm font-medium text-text-primary">v0.4.0 — Animations UI</span>
+        <span class="block text-xs text-text-subtle">3 avril 2026</span>
+      </span>
+    </a>
+    <div class="popover-divider"></div>
+    <a href="#" class="nav-item text-center justify-center text-sm text-brand-600">
+      Voir tout l'historique
+    </a>
+  </div>
+
   {# ── Help popover (opened from sidebar footer) ── #}
   <div class="popover hidden" id="app-help-popover" style="width: 220px;">
     <a href="#" class="nav-item">
@@ -201,6 +223,19 @@
       <i data-lucide="keyboard"></i>
       <span>Raccourcis clavier</span>
     </a>
+  </div>
+
+  {# ── Search field (between clinic switcher and navigation) ── #}
+  <div class="sb-search">
+    <button
+      type="button"
+      class="sb-search-trigger"
+      aria-label="Ouvrir la recherche"
+      data-modal-open="search-modal"
+    >
+      <i data-lucide="search" class="sb-search-icon"></i>
+      <span class="sb-search-placeholder">Rechercher…</span>
+    </button>
   </div>
 
   {# ── Main navigation ── #}
@@ -226,15 +261,16 @@
     {% endfor %}
   </nav>
 
-  {# ── Sidebar footer: search + help ── #}
+  {# ── Sidebar footer: changelog + help ── #}
   <div class="sb-foot">
     <button
       type="button"
       class="sb-foot-btn"
-      aria-label="Recherche globale (Ctrl+K)"
+      aria-label="Quoi de neuf"
+      data-popover-anchor="app-changelog-popover"
     >
-      <i data-lucide="search"></i>
-      <span>Recherche</span>
+      <i data-lucide="sparkles"></i>
+      <span>Quoi de neuf</span>
     </button>
 
     <div class="sb-foot-sep" aria-hidden="true"></div>

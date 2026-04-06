@@ -723,8 +723,9 @@
     color: #fff;
   }
 
-  /* Page-specific modal variants — fixed positioned, outside data-page scope */
-  .modal-overlay {
+  /* Page-specific modal variants — fixed positioned, outside data-page scope.
+     Prefixed with wr- to avoid colliding with the global .modal-overlay system. */
+  .wr-modal-overlay {
     @apply fixed items-center justify-center;
     inset: 0;
     background: rgba(15,23,42,.4);
@@ -732,8 +733,8 @@
     z-index: 500;
     display: none;
   }
-  .modal-overlay.open { @apply flex; }
-  .modal-box {
+  .wr-modal-overlay.open { @apply flex; }
+  .wr-modal-box {
     @apply overflow-y-auto;
     background: var(--surface-card, #fff);
     border-radius: var(--radius-lg, 12px);
@@ -745,23 +746,23 @@
     transform: scale(.97);
     transition: all .2s cubic-bezier(.34,1.56,.64,1);
   }
-  .modal-overlay.open .modal-box { opacity: 1; transform: scale(1); }
-  .modal-head {
+  .wr-modal-overlay.open .wr-modal-box { opacity: 1; transform: scale(1); }
+  .wr-modal-head {
     @apply flex items-center justify-between sticky top-0;
     padding: var(--space-4, 16px) var(--space-5, 20px);
     border-bottom: 1px solid var(--border-light, #e8edf2);
     background: var(--surface-card, #fff);
     z-index: 1;
   }
-  .modal-title {
+  .wr-modal-title {
     font-size: var(--text-base, 14px);
     font-weight: var(--weight-medium, 500);
     color: var(--text-primary, #0f172a);
   }
-  .modal-body {
+  .wr-modal-body {
     padding: var(--space-4, 16px) var(--space-5, 20px);
   }
-  .modal-foot {
+  .wr-modal-foot {
     @apply flex justify-end;
     padding: var(--space-3, 12px) var(--space-5, 20px) var(--space-4, 16px);
     border-top: 1px solid var(--border-light, #e8edf2);

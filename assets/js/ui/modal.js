@@ -228,4 +228,14 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Support for declarative [data-modal-open="modal-id"] triggers (click)
+document.addEventListener('click', (e) => {
+  const trigger = e.target.closest('[data-modal-open]');
+  if (trigger) {
+    const id = trigger.dataset.modalOpen;
+    if (id) open(id);
+  }
+});
+
+
 export const modal = { open, close, confirm };

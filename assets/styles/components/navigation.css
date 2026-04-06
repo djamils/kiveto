@@ -13,7 +13,7 @@
 
   /* Group title */
   .nav-section {
-    @apply text-xs font-medium text-text-subtle uppercase mt-2;
+    @apply text-xs font-medium text-text-subtle uppercase mt-2 mb-1;
     letter-spacing: .08em;
     padding: var(--space-2) var(--space-4) var(--space-1);
   }

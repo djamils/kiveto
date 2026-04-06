@@ -333,7 +333,7 @@ let refreshInterval = null;
 
 function _onKeydown(e) {
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(function (m) { m.classList.remove('open'); });
+    document.querySelectorAll('.wr-modal-overlay.open').forEach(function (m) { m.classList.remove('open'); });
     closeDetailSlide();
     closeBottomSheet();
   }

@@ -1,0 +1,91 @@
+{#
+ # Kiveto — templates/components/layout/search_modal.html.twig
+ # ───────────────────────────────────────────────────────────
+ # Global search modal — opens via [data-modal-open="search-modal"].
+ # The first input is autofocused by modal.js when opened.
+ #}
+
+<div
+  class="modal-overlay search-modal-overlay hidden"
+  id="search-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="search-modal-label"
+  data-controller="modal"
+  data-modal-id-value="search-modal"
+>
+  <div class="modal search-modal" style="max-width: 640px;">
+
+    {# Search input — autofocused on open #}
+    <div class="search-modal-head">
+      <i data-lucide="search" class="search-modal-icon"></i>
+      <input
+        type="search"
+        class="search-modal-input"
+        id="search-modal-label"
+        placeholder="Rechercher dans Kiveto…"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button
+        type="button"
+        class="search-modal-close"
+        aria-label="Fermer"
+        data-modal-close
+      >
+        <kbd class="search-modal-kbd">esc</kbd>
+      </button>
+    </div>
+
+    {# Results / suggestions #}
+    <div class="search-modal-body">
+      <div class="search-modal-section">
+        <p class="search-modal-section-title">Récents</p>
+        <a href="#" class="nav-item">
+          <i data-lucide="clock"></i>
+          <span class="flex-1 min-w-0 truncate">Sophie Dubois</span>
+          <span class="text-xs text-text-subtle">Client</span>
+        </a>
+        <a href="#" class="nav-item">
+          <i data-lucide="clock"></i>
+          <span class="flex-1 min-w-0 truncate">Vaccination annuelle</span>
+          <span class="text-xs text-text-subtle">Acte</span>
+        </a>
+      </div>
+
+      <div class="search-modal-section">
+        <p class="search-modal-section-title">Actions rapides</p>
+        <a href="#" class="nav-item">
+          <i data-lucide="user-plus"></i>
+          <span>Nouveau client</span>
+        </a>
+        <a href="#" class="nav-item">
+          <i data-lucide="calendar-plus"></i>
+          <span>Nouveau rendez-vous</span>
+        </a>
+        <a href="#" class="nav-item">
+          <i data-lucide="stethoscope"></i>
+          <span>Nouvelle consultation</span>
+        </a>
+      </div>
+    </div>
+
+    {# Footer with keyboard hints #}
+    <div class="search-modal-foot">
+      <span class="flex items-center gap-1">
+        <kbd class="search-modal-kbd">↑</kbd>
+        <kbd class="search-modal-kbd">↓</kbd>
+        Naviguer
+      </span>
+      <span class="flex items-center gap-1">
+        <kbd class="search-modal-kbd">↵</kbd>
+        Sélectionner
+      </span>
+      <span class="flex items-center gap-1">
+        <kbd class="search-modal-kbd">esc</kbd>
+        Fermer
+      </span>
+    </div>
+
+  </div>
+</div>

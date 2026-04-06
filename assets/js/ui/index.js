@@ -32,4 +32,6 @@ export { tabs }    from 'kiveto/tabs';
 export function initUI() {
   import('kiveto/tabs').then(({ tabs }) => tabs.init());
   import('kiveto/popover').then(({ popover }) => popover.init());
+  // Side-effect import: registers declarative [data-modal-open] / [data-modal-close] listeners
+  import('kiveto/modal');
 }
