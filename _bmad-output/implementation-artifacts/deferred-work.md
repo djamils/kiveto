@@ -40,3 +40,24 @@
 ## ~~Turbo cache flash on navigation (2026-04-05)~~ — DONE
 
 Fixed in commit 9600920: all page module `init()` functions are now idempotent.
+
+## Align border-radius & shadow systems with Metronic convention (2026-04-06)
+
+**Context:** Surfaced during sidebar popover refinement. Metronic uses a base `--radius: 0.5rem` (8px) with calc-based sizes: `sm = calc(--radius - 4px)`, `md = calc(--radius - 2px)`, `lg = var(--radius)`, `xl = calc(--radius + 4px)`. Our current scale is `sm: 4px, md: 8px, lg: 12px`. Shadows are similarly lighter in Metronic (e.g. `shadow-md shadow-black/5`).
+
+**Goals (do this on a separate branch — impacts 104+ CSS occurrences for radius alone):**
+
+**Border radius:**
+- Restructure `@theme` tokens to match Metronic naming:
+  - `--radius-sm`: 4px (unchanged)
+  - `--radius-md`: 8px → 6px
+  - `--radius-lg`: 12px → 8px
+  - Add `--radius-xl`: 12px
+- Audit every component using `rounded-md` / `rounded-lg` and decide the target size per component (cards, modals, inputs, nav-items, buttons, etc.)
+- Update components accordingly — some that were 12px may need to stay at 12px (→ `rounded-xl`)
+- Remove the hardcoded `border-radius: 6px` on the popover (would become `@apply rounded-md`)
+
+**Shadows:**
+- Review all `--shadow-*` tokens in `@theme` and lighten to match Metronic's subtle approach (opacity 5% instead of 8-14%)
+- Audit every component using `shadow-*` utilities and adjust accordingly
+- Remove the hardcoded shadow on the popover (would become `@apply shadow-md`)

@@ -235,8 +235,8 @@
     @apply fixed;
     background: var(--surface-card);
     border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .05), 0 2px 4px -2px rgba(0, 0, 0, .05);
     z-index: var(--z-popover);
     animation: popover-in-down .15s var(--ease-overlay);
     min-width: 180px;

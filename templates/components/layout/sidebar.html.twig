@@ -77,9 +77,9 @@
 
 {# TODO: Replace with real clinic data from backend (user's clinics + active clinic ID) #}
 {% set _clinics_sample = [
-  { id: 'c1', name: clinic.name|default('Ma clinique'), letter: clinic.name|default('C')|first|upper },
-  { id: 'c2', name: 'Clinique Bastille',  letter: 'B' },
-  { id: 'c3', name: 'Clinique Nation',    letter: 'N' },
+  { id: 'c1', name: clinic.name|default('Ma clinique'), letter: clinic.name|default('C')|first|upper, color: 'bg-brand-600' },
+  { id: 'c2', name: 'Clinique Bastille',  letter: 'B', color: 'bg-success-600' },
+  { id: 'c3', name: 'Clinique Nation',    letter: 'N', color: 'bg-warning-600' },
 ] %}
 {% set _active_clinic_id = 'c1' %}
 
@@ -130,7 +130,7 @@
       {% for c in _clinics_sample %}
         {% set _is_active_clinic = c.id == _active_clinic_id %}
         <button type="button" class="nav-item">
-          <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">{{ c.letter }}</span>
+          <span class="rounded-md text-white text-xs uppercase shrink-0 flex items-center justify-center {{ c.color }}" style="width:20px;height:20px;">{{ c.letter }}</span>
           <span class="truncate flex-1 min-w-0 text-left">{{ c.name }}</span>
           {% if _is_active_clinic %}{{ icon_check|raw }}{% endif %}
         </button>
