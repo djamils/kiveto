@@ -1,8 +1,10 @@
 {#
  # Kiveto — templates/components/layout/search_modal.html.twig
  # ───────────────────────────────────────────────────────────
- # Global search modal — opens via [data-modal-open="search-modal"].
- # The first input is autofocused by modal.js when opened.
+ # Centre de recherche — global search center.
+ # Opens via [data-modal-open="search-modal"]. The first focusable
+ # input (the search input) is autofocused by modal.js on open.
+ # Live filtering powered by the `search-center` Stimulus controller.
  #}
 
 <div
@@ -10,81 +12,330 @@
   id="search-modal"
   role="dialog"
   aria-modal="true"
-  aria-labelledby="search-modal-label"
-  data-controller="modal"
-  data-modal-id-value="search-modal"
+  aria-labelledby="search-modal-title"
 >
-  <div class="modal search-modal" style="max-width: 640px;">
+  <div
+    class="modal search-modal"
+    style="max-width: 880px;"
+    data-controller="search-center"
+  >
 
-    {# Search input — autofocused on open #}
-    <div class="search-modal-head">
-      <i data-lucide="search" class="search-modal-icon"></i>
-      <input
-        type="search"
-        class="search-modal-input"
-        id="search-modal-label"
-        placeholder="Rechercher dans Kiveto…"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <button
-        type="button"
-        class="search-modal-close"
-        aria-label="Fermer"
-        data-modal-close
-      >
-        <kbd class="search-modal-kbd">esc</kbd>
+    {# ── Title bar ── #}
+    <div class="search-modal-titlebar">
+      <div class="search-modal-titlebar-left">
+        <i data-lucide="search-code" class="search-modal-title-icon"></i>
+        <h2 class="search-modal-title" id="search-modal-title">Centre de recherche</h2>
+        <span class="search-modal-badge">Bêta</span>
+      </div>
+      <button type="button" class="search-modal-close-btn" aria-label="Fermer" data-modal-close>
+        <i data-lucide="x"></i>
       </button>
     </div>
 
-    {# Results / suggestions #}
-    <div class="search-modal-body">
-      <div class="search-modal-section">
-        <p class="search-modal-section-title">Récents</p>
-        <a href="#" class="nav-item">
-          <i data-lucide="clock"></i>
-          <span class="flex-1 min-w-0 truncate">Sophie Dubois</span>
-          <span class="text-xs text-text-subtle">Client</span>
-        </a>
-        <a href="#" class="nav-item">
-          <i data-lucide="clock"></i>
-          <span class="flex-1 min-w-0 truncate">Vaccination annuelle</span>
-          <span class="text-xs text-text-subtle">Acte</span>
-        </a>
-      </div>
-
-      <div class="search-modal-section">
-        <p class="search-modal-section-title">Actions rapides</p>
-        <a href="#" class="nav-item">
-          <i data-lucide="user-plus"></i>
-          <span>Nouveau client</span>
-        </a>
-        <a href="#" class="nav-item">
-          <i data-lucide="calendar-plus"></i>
-          <span>Nouveau rendez-vous</span>
-        </a>
-        <a href="#" class="nav-item">
-          <i data-lucide="stethoscope"></i>
-          <span>Nouvelle consultation</span>
-        </a>
-      </div>
+    {# ── Big search input ── #}
+    <div class="search-modal-input-wrap">
+      <i data-lucide="search" class="search-modal-input-icon"></i>
+      <input
+        type="search"
+        class="search-modal-big-input"
+        placeholder="Rechercher un client, un animal, un document, un RDV…"
+        autocomplete="off"
+        spellcheck="false"
+        data-search-center-target="input"
+        data-action="input->search-center#filter"
+      />
     </div>
 
-    {# Footer with keyboard hints #}
+    {# ── Filter pills ── #}
+    <div class="search-modal-filters" role="tablist" aria-label="Filtrer par type">
+      <button type="button" class="search-modal-pill is-active"
+              data-search-center-target="pill"
+              data-type="all"
+              data-action="click->search-center#selectType"
+              role="tab" aria-selected="true">
+        <i data-lucide="layers"></i>
+        <span>Tout</span>
+      </button>
+      <button type="button" class="search-modal-pill"
+              data-search-center-target="pill"
+              data-type="client"
+              data-action="click->search-center#selectType"
+              role="tab">
+        <i data-lucide="users"></i>
+        <span>Clients</span>
+      </button>
+      <button type="button" class="search-modal-pill"
+              data-search-center-target="pill"
+              data-type="animal"
+              data-action="click->search-center#selectType"
+              role="tab">
+        <i data-lucide="paw-print"></i>
+        <span>Animaux</span>
+      </button>
+      <button type="button" class="search-modal-pill"
+              data-search-center-target="pill"
+              data-type="document"
+              data-action="click->search-center#selectType"
+              role="tab">
+        <i data-lucide="file-text"></i>
+        <span>Documents</span>
+      </button>
+      <button type="button" class="search-modal-pill"
+              data-search-center-target="pill"
+              data-type="appointment"
+              data-action="click->search-center#selectType"
+              role="tab">
+        <i data-lucide="calendar"></i>
+        <span>RDV</span>
+      </button>
+      <button type="button" class="search-modal-pill"
+              data-search-center-target="pill"
+              data-type="consultation"
+              data-action="click->search-center#selectType"
+              role="tab">
+        <i data-lucide="stethoscope"></i>
+        <span>Consultations</span>
+      </button>
+    </div>
+
+    {# ── Body — results / suggestions ── #}
+    <div class="search-modal-body">
+
+      {# Recent section — single column #}
+      <div class="search-result-section" data-search-center-target="section">
+        <div class="search-result-section-head">
+          <i data-lucide="clock"></i>
+          <span>Récents</span>
+        </div>
+
+        <a href="#" class="search-result"
+           data-search-center-target="result" data-type="client"
+           data-search="sophie dubois client">
+          <span class="search-result-icon search-result-icon--brand">
+            <i data-lucide="user"></i>
+          </span>
+          <div class="search-result-body">
+            <p class="search-result-title">Sophie Dubois</p>
+            <p class="search-result-sub">3 animaux · Cliente depuis 2021</p>
+          </div>
+          <span class="search-result-type">Client</span>
+        </a>
+
+        <a href="#" class="search-result"
+           data-search-center-target="result" data-type="animal"
+           data-search="milo berger australien sophie dubois">
+          <span class="search-result-icon search-result-icon--success">
+            <i data-lucide="paw-print"></i>
+          </span>
+          <div class="search-result-body">
+            <p class="search-result-title">Milo · Berger Australien</p>
+            <p class="search-result-sub">5 ans · Sophie Dubois · Dernier RDV 12 mars</p>
+          </div>
+          <span class="search-result-type">Animal</span>
+        </a>
+
+        <a href="#" class="search-result"
+           data-search-center-target="result" data-type="document"
+           data-search="ordonnance or 2026 152 vaccination annuelle">
+          <span class="search-result-icon search-result-icon--purple">
+            <i data-lucide="file-text"></i>
+          </span>
+          <div class="search-result-body">
+            <p class="search-result-title">Ordonnance OR-2026-152</p>
+            <p class="search-result-sub">Vaccination annuelle · 02 avril 2026</p>
+          </div>
+          <span class="search-result-type">Document</span>
+        </a>
+      </div>
+
+      {# Suggestions — multi-column by type #}
+      <div class="search-result-suggestions">
+
+        {# ── Clients column ── #}
+        <div class="search-result-column" data-search-center-target="section">
+          <div class="search-result-section-head">
+            <i data-lucide="users"></i>
+            <span>Clients</span>
+          </div>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="client"
+             data-search="marie martin">
+            <span class="search-result-icon search-result-icon--brand">
+              <i data-lucide="user"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Marie Martin</p>
+              <p class="search-result-sub">2 animaux</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="client"
+             data-search="pierre bernard">
+            <span class="search-result-icon search-result-icon--brand">
+              <i data-lucide="user"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Pierre Bernard</p>
+              <p class="search-result-sub">1 animal</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="client"
+             data-search="emma roux">
+            <span class="search-result-icon search-result-icon--brand">
+              <i data-lucide="user"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Emma Roux</p>
+              <p class="search-result-sub">4 animaux</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="client"
+             data-search="lucas petit">
+            <span class="search-result-icon search-result-icon--brand">
+              <i data-lucide="user"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Lucas Petit</p>
+              <p class="search-result-sub">1 animal</p>
+            </div>
+          </a>
+        </div>
+
+        {# ── Animaux column ── #}
+        <div class="search-result-column" data-search-center-target="section">
+          <div class="search-result-section-head">
+            <i data-lucide="paw-print"></i>
+            <span>Animaux</span>
+          </div>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="animal"
+             data-search="luna persan marie martin">
+            <span class="search-result-icon search-result-icon--success">
+              <i data-lucide="paw-print"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Luna · Persan</p>
+              <p class="search-result-sub">3 ans · Marie Martin</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="animal"
+             data-search="rocky boxer pierre bernard">
+            <span class="search-result-icon search-result-icon--success">
+              <i data-lucide="paw-print"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Rocky · Boxer</p>
+              <p class="search-result-sub">7 ans · Pierre Bernard</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="animal"
+             data-search="bella maine coon emma roux">
+            <span class="search-result-icon search-result-icon--success">
+              <i data-lucide="paw-print"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Bella · Maine Coon</p>
+              <p class="search-result-sub">2 ans · Emma Roux</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="animal"
+             data-search="cookie labrador lucas petit">
+            <span class="search-result-icon search-result-icon--success">
+              <i data-lucide="paw-print"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Cookie · Labrador</p>
+              <p class="search-result-sub">4 ans · Lucas Petit</p>
+            </div>
+          </a>
+        </div>
+
+        {# ── Consultations column ── #}
+        <div class="search-result-column" data-search-center-target="section">
+          <div class="search-result-section-head">
+            <i data-lucide="stethoscope"></i>
+            <span>Consultations</span>
+          </div>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="consultation"
+             data-search="vaccination annuelle milo">
+            <span class="search-result-icon search-result-icon--purple">
+              <i data-lucide="syringe"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Vaccination annuelle</p>
+              <p class="search-result-sub">Milo · 12 mars 2026</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="consultation"
+             data-search="sterilisation luna">
+            <span class="search-result-icon search-result-icon--purple">
+              <i data-lucide="scissors"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Stérilisation</p>
+              <p class="search-result-sub">Luna · 28 février 2026</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="consultation"
+             data-search="bilan sanguin rocky">
+            <span class="search-result-icon search-result-icon--purple">
+              <i data-lucide="droplet"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Bilan sanguin</p>
+              <p class="search-result-sub">Rocky · 18 février 2026</p>
+            </div>
+          </a>
+
+          <a href="#" class="search-result-compact"
+             data-search-center-target="result" data-type="consultation"
+             data-search="examen dentaire bella">
+            <span class="search-result-icon search-result-icon--purple">
+              <i data-lucide="smile"></i>
+            </span>
+            <div class="search-result-body">
+              <p class="search-result-title">Examen dentaire</p>
+              <p class="search-result-sub">Bella · 5 février 2026</p>
+            </div>
+          </a>
+        </div>
+
+      </div>
+
+      {# Empty state #}
+      <div class="search-modal-empty" data-search-center-target="empty" style="display:none;">
+        <i data-lucide="search-x"></i>
+        <p class="search-modal-empty-title">Aucun résultat</p>
+        <p class="search-modal-empty-sub">Essayez une autre recherche ou changez de filtre.</p>
+      </div>
+
+    </div>
+
+    {# ── Footer ── #}
     <div class="search-modal-foot">
-      <span class="flex items-center gap-1">
-        <kbd class="search-modal-kbd">↑</kbd>
-        <kbd class="search-modal-kbd">↓</kbd>
-        Naviguer
-      </span>
-      <span class="flex items-center gap-1">
-        <kbd class="search-modal-kbd">↵</kbd>
-        Sélectionner
-      </span>
-      <span class="flex items-center gap-1">
-        <kbd class="search-modal-kbd">esc</kbd>
+      <span class="search-modal-foot-meta">Centre de recherche Kiveto</span>
+      <button type="button" class="btn btn-secondary btn-sm" data-modal-close>
         Fermer
-      </span>
+      </button>
     </div>
 
   </div>
