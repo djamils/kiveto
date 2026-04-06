@@ -26,8 +26,8 @@ let currentCleanup = null;
 initUI();
 
 function onLoad() {
-  // Render Lucide icons in the new DOM
-  createIcons({ icons });
+  // Render Lucide icons in the new DOM with a default 16x16 size
+  createIcons({ icons, attrs: { width: 16, height: 16 } });
 
   // Consume flash toast data attributes (replaces inline <script> tags)
   document.querySelectorAll('[data-flash-toast]').forEach(el => {

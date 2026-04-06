@@ -1,0 +1,163 @@
+{#
+ # Kiveto — templates/components/layout/header.html.twig
+ # ─────────────────────────────────────────────────────
+ # Global app header. Spans full width above sidebar + content.
+ #
+ # Right-side slots: notifications, language selector, profile avatar.
+ # Each opens a popover via the declarative popover system.
+ #}
+
+{% set icon_fr_flag %}
+  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
+    <rect width="6" height="13" fill="#002395"/>
+    <rect x="6" width="6" height="13" fill="#fff"/>
+    <rect x="12" width="6" height="13" fill="#ED2939"/>
+  </svg>
+{% endset %}
+
+{% set icon_en_flag %}
+  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
+    <rect width="18" height="13" fill="#012169"/>
+    <path d="M0 0l18 13M18 0L0 13" stroke="#fff" stroke-width="2.6"/>
+    <path d="M0 0l18 13M18 0L0 13" stroke="#C8102E" stroke-width="1.4"/>
+    <path d="M9 0v13M0 6.5h18" stroke="#fff" stroke-width="4"/>
+    <path d="M9 0v13M0 6.5h18" stroke="#C8102E" stroke-width="2.4"/>
+  </svg>
+{% endset %}
+
+<header class="app-header">
+
+  {# ── Left: brand ── #}
+  <div class="app-header-left">
+    <a href="{{ path('clinic_dashboard') }}" class="app-brand" aria-label="Kiveto">
+      <span class="app-brand-logo" aria-hidden="true">K</span>
+    </a>
+  </div>
+
+  {# ── Right: notif + language + profile ── #}
+  <div class="app-header-right">
+
+    {# Notifications #}
+    <button
+      class="app-header-btn"
+      type="button"
+      aria-label="Notifications"
+      data-popover-anchor="app-notif-popover"
+    >
+      <i data-lucide="bell"></i>
+      <span class="app-header-dot" aria-hidden="true"></span>
+    </button>
+
+    <div class="app-header-sep" aria-hidden="true"></div>
+
+    {# Language selector #}
+    <button
+      class="app-header-lang"
+      type="button"
+      aria-label="Langue"
+      data-popover-anchor="app-lang-popover"
+    >
+      {{ icon_fr_flag|raw }}
+      <span class="app-header-lang-label">FR</span>
+      <i data-lucide="chevron-down" class="app-header-lang-chevron"></i>
+    </button>
+
+    <div class="app-header-sep" aria-hidden="true"></div>
+
+    {# Profile avatar #}
+    <button
+      class="app-header-profile"
+      type="button"
+      aria-label="Profil"
+      data-popover-anchor="app-profile-popover"
+    >
+      <span class="avatar avatar-sm" style="background:var(--brand-600);color:#fff;">
+        {{ app.user.email|default('U')|first|upper }}
+      </span>
+    </button>
+
+  </div>
+
+</header>
+
+{# ── Notifications popover ── #}
+<div class="popover hidden" id="app-notif-popover" style="width: 320px;">
+  <p class="popover-head">Notifications</p>
+  <div class="app-notif-list">
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-success-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Nouveau RDV confirmé</span>
+        <span class="block text-xs text-text-subtle">Sophie Dubois · il y a 5 min</span>
+      </span>
+    </a>
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-warning-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Analyse en attente</span>
+        <span class="block text-xs text-text-subtle">Bilan sanguin · il y a 1 h</span>
+      </span>
+    </a>
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-danger-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Stock critique</span>
+        <span class="block text-xs text-text-subtle">Antibiotique · plus que 3 unités</span>
+      </span>
+    </a>
+  </div>
+  <div class="popover-divider"></div>
+  <a href="#" class="nav-item text-center justify-center text-sm text-brand-600">
+    Voir toutes les notifications
+  </a>
+</div>
+
+{# ── Language popover ── #}
+<div class="popover hidden" id="app-lang-popover" style="width: 160px;">
+  <button type="button" class="nav-item">
+    {{ icon_fr_flag|raw }}
+    <span class="flex-1 text-left">Français</span>
+    <i data-lucide="check" class="text-brand-600 shrink-0" style="width:16px;height:16px;"></i>
+  </button>
+  <button type="button" class="nav-item">
+    {{ icon_en_flag|raw }}
+    <span class="flex-1 text-left">English</span>
+  </button>
+</div>
+
+{# ── Profile popover ── #}
+<div class="popover hidden" id="app-profile-popover" style="width: 240px;">
+  <div class="app-profile-head">
+    <span class="avatar avatar-md" style="background:var(--brand-600);color:#fff;">
+      {{ app.user.email|default('U')|first|upper }}
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-sm font-medium text-text-primary">{{ app.user.email|default('Utilisateur') }}</p>
+      <p class="text-xs text-text-subtle">Vétérinaire</p>
+    </div>
+  </div>
+
+  <div class="popover-divider"></div>
+
+  <div>
+    <a href="#" class="nav-item">
+      <i data-lucide="user"></i>
+      <span>Mon profil</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i data-lucide="settings"></i>
+      <span>Paramètres</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i data-lucide="moon"></i>
+      <span>Mode sombre</span>
+    </a>
+  </div>
+
+  <div class="popover-divider"></div>
+
+  <a href="/logout" class="nav-item">
+    <i data-lucide="log-out"></i>
+    <span>Se déconnecter</span>
+  </a>
+</div>

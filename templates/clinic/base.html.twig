@@ -25,8 +25,14 @@
 {% block show_topbar %}true{% endblock %}
 
 {% block body %}
-{# ── App Shell ── #}
-<div class="app-shell">
+{# ── App Root (header on top, then shell) ── #}
+<div class="app-root">
+
+  {# Global header #}
+  {{ include('components/layout/header.html.twig') }}
+
+  {# ── App Shell ── #}
+  <div class="app-shell">
 
   {# Sidebar (desktop: fixed / mobile: drawer) — hidden on scheduling pages #}
   {% if block('show_sidebar')|trim == 'true' %}
@@ -69,7 +75,9 @@
 
   </div>{# /app-content #}
 
-</div>{# /app-shell #}
+  </div>{# /app-shell #}
+
+</div>{# /app-root #}
 
 {# FAB mobile #}
 {% block fab %}{% endblock %}

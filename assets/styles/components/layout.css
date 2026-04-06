@@ -5,8 +5,122 @@
 
   /* ── APP SHELL ── */
 
+  /* Outer root — header on top, shell below */
+  .app-root {
+    @apply flex flex-col overflow-hidden bg-surface-page;
+    height: 100vh;
+  }
+
   .app-shell {
-    @apply flex h-screen overflow-hidden bg-surface-page;
+    @apply flex flex-1 overflow-hidden bg-surface-page;
+    min-height: 0;
+  }
+
+  /* ── GLOBAL HEADER ── */
+
+  .app-header {
+    @apply flex items-center justify-between shrink-0 px-4 z-sticky;
+    height: 40px;
+    background: var(--brand-100);
+  }
+
+  .app-header-left {
+    @apply flex items-center gap-3;
+  }
+
+  .app-brand {
+    @apply flex items-center gap-2 no-underline;
+  }
+
+  .app-brand-logo {
+    @apply flex items-center justify-center text-white text-xs uppercase;
+    width: 22px;
+    height: 22px;
+    background: var(--brand-600);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .app-header-right {
+    @apply flex items-center gap-1;
+  }
+
+  .app-header-sep {
+    @apply shrink-0;
+    width: 1px;
+    height: 16px;
+    background: var(--border-medium);
+    margin: 0 4px;
+  }
+
+  .app-header-btn {
+    @apply relative flex items-center justify-center rounded-md border-none
+           bg-transparent cursor-pointer text-text-muted;
+    width: 32px;
+    height: 32px;
+    transition: var(--t-fast);
+  }
+  .app-header-btn:hover {
+    background: var(--brand-200);
+    color: var(--text-primary);
+  }
+  .app-header-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .app-header-dot {
+    @apply absolute rounded-full;
+    top: 7px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+    background: var(--color-danger-600);
+    border: 1.5px solid var(--brand-100);
+  }
+
+  .app-header-lang {
+    @apply flex items-center gap-1 rounded-md border-none
+           bg-transparent cursor-pointer text-text-secondary;
+    padding: 0 8px;
+    height: 32px;
+    transition: var(--t-fast);
+  }
+  .app-header-lang:hover {
+    background: var(--brand-200);
+  }
+  .app-header-lang-label {
+    @apply text-xs font-medium;
+    letter-spacing: .03em;
+  }
+  .app-header-lang-chevron {
+    width: 12px;
+    height: 12px;
+    color: var(--text-subtle);
+  }
+
+  .app-header-profile {
+    @apply flex items-center justify-center rounded-full border-none
+           bg-transparent cursor-pointer p-0;
+    width: 32px;
+    height: 32px;
+    transition: var(--t-fast);
+  }
+  .app-header-profile:hover {
+    background: var(--brand-200);
+  }
+
+  /* ── Header popover specifics ── */
+
+  .app-notif-dot {
+    @apply rounded-full shrink-0;
+    width: 6px;
+    height: 6px;
+    margin-top: 7px;
+  }
+
+  .app-profile-head {
+    @apply flex items-center gap-3;
+    padding: 8px 12px;
   }
 
   /* Main area (topbar + scrollable content) */
