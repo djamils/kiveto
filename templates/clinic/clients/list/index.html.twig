@@ -1,112 +1,63 @@
 {#
- # Kiveto -- templates/clinic/clients/list.html.twig
- # ─────────────────────────────────────────────────
- # Client & animal list page -- pixel-perfect reproduction of vetos-clients.html mockup.
- # This page has its own topbar inside the content area.
+ # Kiveto -- templates/clinic/clients/list/index.html.twig
+ # ──────────────────────────────────────────────────────
+ # Clients & Animaux page — 3 tabs (Vue d'ensemble / Clients / Animaux)
+ # with data tables, hover actions, and a global overview dashboard.
  #}
 {% extends 'clinic/base.html.twig' %}
 
 {% block title %}Clients & Animaux{% endblock %}
+{% block page_icon %}<i data-lucide="users-round"></i>{% endblock %}
 {% block page_title %}Clients & Animaux{% endblock %}
-{% block show_topbar %}false{% endblock %}
 
+{% block topbar_actions %}
+  <button type="button" class="btn btn-secondary btn-sm" onclick="showToast('Export CSV…','#4338ca')">
+    <i data-lucide="download"></i>
+    <span>Exporter</span>
+  </button>
+  <a href="{{ path('clinic_clients_new') }}" class="btn btn-primary btn-sm">
+    <i data-lucide="plus"></i>
+    <span>Nouveau client</span>
+  </a>
+{% endblock %}
 
 {% block content %}
-  {% include 'clinic/clients/list/_topbar.html.twig' %}
+<div class="ca-page" data-tabs>
 
-  <div class="main-area">
-    <div class="table-wrap">
-      <div class="tbl-header">
-        <div class="tbl-filter-bar">
-          <button class="fp active" id="filter-all" onclick="setFilter('all')">Tous <span class="cnt" id="cnt-all">0</span></button>
-          <button class="fp" id="filter-recent" onclick="setFilter('recent')"><i data-lucide="clock" class="cl-icon-xs"></i><span class="fp-label">Récents</span></button>
-          <button class="fp" id="filter-cat" onclick="setFilter('cat')">🐱 <span class="fp-label">Chats</span> <span class="cnt" id="cnt-cat">0</span></button>
-          <button class="fp" id="filter-dog" onclick="setFilter('dog')">🐶 <span class="fp-label">Chiens</span> <span class="cnt" id="cnt-dog">0</span></button>
-          <button class="fp" id="filter-other" onclick="setFilter('other')">🐾 <span class="fp-label">Autres</span> <span class="cnt" id="cnt-other">0</span></button>
-          <button class="fp cl-filter--alert" id="filter-alert" onclick="setFilter('alert')"><i data-lucide="alert-triangle" class="cl-icon-xs"></i><span class="fp-label">Alertes</span> <span class="cnt" id="cnt-alert">0</span></button>
-          <div class="cl-sort-group">
-            <span class="cl-sort-label">Trier</span>
-            {{ include('components/ui/select.html.twig', {
-              name: 'sort',
-              id: 'sort-select',
-              value: 'name',
-              extra_class: 'cl-sort-select-wrap',
-              options: [
-                { value: 'name', label: 'Nom' },
-                { value: 'recent', label: 'Dernier RDV' },
-                { value: 'animals', label: 'Nb animaux' },
-              ]
-            }) }}
-          </div>
-          <!-- Column picker -->
-          <div class="col-picker-wrap" id="col-picker-wrap">
-            <button class="col-picker-btn" id="col-picker-btn" data-popover-anchor="col-picker-popover">
-              <i data-lucide="columns" class="cl-icon-xxs"></i>Colonnes
-            </button>
-            <div class="popover hidden" id="col-picker-popover" style="min-width: 180px;">
-              <div class="col-picker-content">
-                <p class="cl-picker-heading">Afficher</p>
-                <label class="col-picker-item"><input type="checkbox" id="col-cb-phone" checked onchange="toggleCol('phone',this.checked)"> Téléphone</label>
-                <label class="col-picker-item"><input type="checkbox" id="col-cb-email" checked onchange="toggleCol('email',this.checked)"> Email</label>
-                <label class="col-picker-item"><input type="checkbox" id="col-cb-lastrdv" checked onchange="toggleCol('lastrdv',this.checked)"> Dernier RDV</label>
-                <label class="col-picker-item"><input type="checkbox" id="col-cb-nextrdv" checked onchange="toggleCol('nextrdv',this.checked)"> Prochain RDV</label>
-                <div class="col-picker-divider"></div>
-                <button class="cl-picker-reset" onclick="resetCols()">Réinitialiser</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="tbl-col-head" id="tbl-col-head" style="--grid:28px 1fr 130px 160px 100px 100px 60px 52px;">
-          <div></div>
-          <div class="col-th">Client / Animaux <i data-lucide="chevrons-up-down" class="cl-icon-xxs cl-icon--faded"></i></div>
-          <div class="col-th col-phone">Téléphone</div>
-          <div class="col-th col-email">Email</div>
-          <div class="col-th col-lastrdv" onclick="setSort('recent')">Dernier RDV</div>
-          <div class="col-th col-nextrdv">Prochain RDV</div>
-          <div class="col-th">Statut</div>
-          <div></div>
-        </div>
-      </div>
-      {# Preserve JS-rendered content during Turbo swaps #}
-      <div class="tbl-body" id="tbl-body" data-turbo-temporary></div>
-      <div class="pagination" id="pagination" data-turbo-temporary></div>
-    </div>
-
-    <!-- Desktop detail panel -->
-    <div class="detail-panel" id="detail-panel">
-      <div class="cl-dp-content" id="dp-content">
-        <div id="dp-header"></div>
-        <div class="dp-scroll" id="dp-scroll">
-          <div class="cl-dp-empty" id="dp-empty">
-            <div class="cl-dp-empty-icon">
-              <i data-lucide="users" class="cl-icon-lg cl-icon--border"></i>
-            </div>
-            <p class="cl-dp-empty-title">Sélectionnez un client</p>
-            <p class="cl-dp-empty-desc">Cliquez sur une ligne pour voir la fiche et les animaux</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Slide detail -- tablet -->
-    <div class="slide-backdrop" id="slide-backdrop" onclick="closeSlide()"></div>
-    <div class="detail-slide" id="detail-slide">
-      <div id="slide-header"></div>
-      <div class="dp-scroll" id="slide-scroll"></div>
-    </div>
-
+  {# ── Tabs nav ── #}
+  <div class="tab-bar-line ca-tabs">
+    <button type="button" class="tab-line active" data-tab-target="ca-overview">
+      <i data-lucide="layout-dashboard"></i>
+      <span>Vue d'ensemble</span>
+    </button>
+    <button type="button" class="tab-line" data-tab-target="ca-clients">
+      <i data-lucide="users"></i>
+      <span>Clients</span>
+      <span class="tab-count" id="ca-tab-count-clients">0</span>
+    </button>
+    <button type="button" class="tab-line" data-tab-target="ca-animals">
+      <i data-lucide="paw-print"></i>
+      <span>Animaux</span>
+      <span class="tab-count" id="ca-tab-count-animals">0</span>
+    </button>
   </div>
 
-  <!-- Bottom sheet -- portrait -->
-  <div id="bso" onclick="closeBottomSheet()"></div>
-  <div id="bs">
-    <div class="cl-bs-handle">
-      <div class="cl-bs-grip"></div>
-    </div>
-    <div class="cl-bs-scroll" id="bs-scroll"></div>
+  {# ── Tab panels ── #}
+  <div id="ca-overview" class="ca-tab-panel">
+    {{ include('clinic/clients/list/_tab_overview.html.twig') }}
   </div>
 
-  <div id="toast"></div>
+  <div id="ca-clients" class="ca-tab-panel hidden">
+    {{ include('clinic/clients/list/_tab_clients.html.twig') }}
+  </div>
+
+  <div id="ca-animals" class="ca-tab-panel hidden">
+    {{ include('clinic/clients/list/_tab_animals.html.twig') }}
+  </div>
+
+</div>
+
+<div id="toast"></div>
 {% endblock %}
 
 {% block javascripts %}

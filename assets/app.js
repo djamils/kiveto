@@ -77,6 +77,13 @@ document.addEventListener('turbo:before-render', (event) => {
   });
 });
 
+// Listen for icon refresh requests from page modules that re-render content.
+// Pages dispatch `kiveto:icons-refresh` after injecting new HTML containing
+// `<i data-lucide="…">` elements that need to become SVGs.
+document.addEventListener('kiveto:icons-refresh', () => {
+  createIcons({ icons, attrs: { width: 16, height: 16 } });
+});
+
 // Turbo fires turbo:load on every navigation including initial page load
 document.addEventListener('turbo:load', onLoad);
 document.addEventListener('turbo:before-cache', onBeforeCache);

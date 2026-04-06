@@ -1,0 +1,146 @@
+{# Clients tab — data card with table, filters, hover actions, pagination #}
+
+<div class="data-card">
+
+  {# ── Card header: search + filters + view settings ── #}
+  <div class="data-card-head">
+    <div class="data-card-head-left">
+      <div class="data-search">
+        <i data-lucide="search" class="data-search-icon"></i>
+        <input
+          type="search"
+          id="clients-search"
+          class="data-search-input"
+          placeholder="Rechercher un client…"
+          oninput="onClientSearch(this.value)"
+          autocomplete="off"
+        />
+      </div>
+
+      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-status">
+        <i data-lucide="circle-dot"></i>
+        <span>Statut</span>
+      </button>
+
+      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-species">
+        <i data-lucide="paw-print"></i>
+        <span>Espèce</span>
+      </button>
+
+      <div class="popover hidden" id="clients-filter-status" style="min-width:180px;">
+        <p class="popover-head">Filtrer par statut</p>
+        <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
+          <i data-lucide="layers"></i>
+          <span>Tous</span>
+        </button>
+        <button type="button" class="nav-item" onclick="setClientFilter('alert',this)">
+          <i data-lucide="alert-triangle"></i>
+          <span>Avec alertes</span>
+        </button>
+        <button type="button" class="nav-item" onclick="setClientFilter('recent',this)">
+          <i data-lucide="clock"></i>
+          <span>Récents (30j)</span>
+        </button>
+      </div>
+
+      <div class="popover hidden" id="clients-filter-species" style="min-width:180px;">
+        <p class="popover-head">Filtrer par espèce</p>
+        <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
+          <span>Toutes espèces</span>
+        </button>
+        <button type="button" class="nav-item" onclick="setClientFilter('cat',this)">
+          <span>🐱 Chats</span>
+        </button>
+        <button type="button" class="nav-item" onclick="setClientFilter('dog',this)">
+          <span>🐶 Chiens</span>
+        </button>
+        <button type="button" class="nav-item" onclick="setClientFilter('other',this)">
+          <span>🐾 Autres</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="data-card-head-right">
+      <button type="button" class="data-filter-btn" data-popover-anchor="clients-cols-popover">
+        <i data-lucide="settings-2"></i>
+        <span>Colonnes</span>
+      </button>
+      <div class="popover hidden" id="clients-cols-popover" style="min-width:200px;">
+        <p class="popover-head">Afficher</p>
+        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('email',this.checked)"> Email</label>
+        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('phone',this.checked)"> Téléphone</label>
+        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('animals',this.checked)"> Animaux</label>
+        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('lastrdv',this.checked)"> Dernier RDV</label>
+      </div>
+    </div>
+  </div>
+
+  {# ── Table ── #}
+  <div class="data-card-table">
+    <table class="data-grid">
+      <thead>
+        <tr>
+          <th class="dg-th-checkbox">
+            <input type="checkbox" class="dg-checkbox" aria-label="Tout sélectionner"/>
+          </th>
+          <th class="dg-th-sortable" onclick="setClientSort('name')">
+            <span>Nom</span>
+            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
+          </th>
+          <th class="dg-th-sortable col-email">
+            <span>Email</span>
+            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
+          </th>
+          <th class="dg-th-sortable col-phone">
+            <span>Téléphone</span>
+          </th>
+          <th class="dg-th-sortable col-animals">
+            <span>Animaux</span>
+          </th>
+          <th class="dg-th-sortable col-lastrdv" onclick="setClientSort('recent')">
+            <span>Dernier RDV</span>
+            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Statut</span>
+          </th>
+          <th class="dg-th-actions"></th>
+        </tr>
+      </thead>
+      <tbody id="clients-tbody" data-turbo-temporary>
+        {# Rendered by JS — see assets/js/pages/clients/list.js #}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Pagination footer ── #}
+  <div class="data-card-foot">
+    <div class="data-pagination-left">
+      <span class="data-pagination-label">Lignes par page</span>
+      {{ include('components/ui/select.html.twig', {
+        name: 'clients-page-size',
+        id: 'clients-page-size',
+        value: '10',
+        extra_class: 'data-pagination-select',
+        options: [
+          { value: '10', label: '10' },
+          { value: '25', label: '25' },
+          { value: '50', label: '50' },
+          { value: '100', label: '100' },
+        ]
+      }) }}
+    </div>
+    <div class="data-pagination-right">
+      <span class="data-pagination-info" id="clients-pagination-info">1 - 10 sur 12</span>
+      <div class="data-pagination-buttons">
+        <button type="button" class="data-pagination-btn" id="clients-prev" onclick="goClientPage(-1)" aria-label="Précédent">
+          <i data-lucide="chevron-left"></i>
+        </button>
+        <button type="button" class="data-pagination-btn" id="clients-next" onclick="goClientPage(1)" aria-label="Suivant">
+          <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
