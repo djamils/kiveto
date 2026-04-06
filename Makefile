@@ -98,6 +98,7 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
+	assets tailwind-build \
 	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
@@ -114,6 +115,8 @@ help:
 	@echo "  vendor          composer install"
 	@echo "  init-db         drop/create/migrate"
 	@echo "  ci              QA pipeline"
+	@echo "  assets          tailwind:build + asset-map:compile"
+	@echo "  tailwind-build  compile Tailwind CSS"
 	@echo ""
 	@echo "Options:"
 	@echo "  V=1             verbose output"
@@ -143,6 +146,7 @@ install:
 	$(MAKE) init-test-db; \
 	$(MAKE) migrate-test-db; \
 	$(MAKE) load-fixtures; \
+	$(MAKE) assets; \
 	$(MAKE) ready
 
 clean:
@@ -179,6 +183,16 @@ vendor:
 	@$(call step,Installing PHP dependencies...)
 	$(Q)$(call run,$(COMPOSER) install --no-interaction --prefer-dist --no-progress)
 	@$(call ok,Dependencies installed)
+
+tailwind-build:
+	@$(call step,Compiling Tailwind CSS...)
+	$(Q)$(SYMFONY) tailwind:build --minify
+	@$(call ok,Tailwind CSS compiled)
+
+assets: tailwind-build
+	@$(call step,Compiling AssetMapper...)
+	$(Q)$(SYMFONY) asset-map:compile
+	@$(call ok,Assets compiled)
 
 wait-db:
 	@$(call step,Waiting for MySQL to be ready...)
@@ -327,7 +341,7 @@ ready:
 ##
 ## QUALITY ASSURANCE
 ##
-ci: php-cs-fixer.dry-run phpcs phpstan test
+ci: php-cs-fixer.dry-run phpcs phpstan tailwind-build test
 
 phpstan:
 	@$(call step,Running PHPStan...)
