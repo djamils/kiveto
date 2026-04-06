@@ -77,12 +77,33 @@
            flex items-center px-5 gap-3 relative z-sticky;
   }
 
+  .topbar-left {
+    @apply flex items-center gap-2 min-w-0;
+    flex: 0 0 auto;
+  }
+
+  .topbar-center {
+    @apply flex items-center justify-center flex-1 min-w-0;
+  }
+
   .topbar-right {
-    @apply ml-auto flex items-center gap-2;
+    @apply flex items-center gap-2 ml-auto;
+    flex: 0 0 auto;
+  }
+
+  /* When no center slot, push topbar-right to the far end */
+  .topbar:not(:has(.topbar-center)) .topbar-left {
+    flex: 1 1 auto;
+  }
+
+  .topbar-icon {
+    @apply flex items-center justify-center shrink-0 text-text-muted;
+    width: 18px;
+    height: 18px;
   }
 
   .topbar-title {
-    @apply text-lg font-medium text-text-primary;
+    @apply text-lg font-medium text-text-primary truncate;
     letter-spacing: -.2px;
   }
 

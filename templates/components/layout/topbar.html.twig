@@ -1,120 +1,71 @@
 {#
  # Kiveto — templates/components/layout/topbar.html.twig
  # ─────────────────────────────────────────────────────────
- # Page topbar.
+ # Common page topbar with 3 slots: left (icon + title),
+ # center (search), right (actions/badges).
  #
- # Parameters:
- #   title        string   Page title (required)
- #   subtitle     string   Optional subtitle / description
- #   search       bool     Show search field (default: false)
- #   search_placeholder string  (default: 'Rechercher...')
- #   search_attrs string   Attributes on the input (e.g. data-action)
- #   actions      array    Array of buttons: [{ label, variant, size, icon_left, attrs, href }]
- #   breadcrumb   array    [{ label, href? }]  — breadcrumb trail (last item = active)
- #   burger       bool     Show burger button (mobile) (default: true)
- #   extra_class  string
+ # All slots are optional. Pages fill them via Twig blocks
+ # on the parent `clinic/base.html.twig`:
  #
- # Examples:
- #   {{ include('components/layout/topbar.html.twig', {
- #       title: 'Agenda',
- #       search: true,
- #       actions: [
- #           { label: 'Nouveau RDV', variant: 'primary', icon_left: plusIcon,
- #             attrs: 'data-action="click->rdv#openDrawer"' },
- #       ],
- #   }) }}
+ #   {% block page_icon %}<svg .../>{% endblock %}
+ #   {% block page_title %}Clients & Patients{% endblock %}
+ #   {% block topbar_search %}<input .../>{% endblock %}
+ #   {% block topbar_actions %}<button .../>{% endblock %}
+ #
+ # Parameters (passed by the base template):
+ #   burger         bool   Show burger button (mobile) (default: true)
+ #   page_icon      string Raw HTML (usually an <svg>) — left of the title
+ #   page_title     string Page title (required)
+ #   topbar_search  string Raw HTML — rendered in the center
+ #   topbar_actions string Raw HTML — rendered on the right
  #}
 
-{% set _show_burger = burger is not defined or burger != false %}
+{% set _burger = burger|default(true) %}
+{% set _icon = page_icon|default('')|trim %}
+{% set _title = page_title|default('')|trim %}
+{% set _search = topbar_search|default('')|trim %}
+{% set _actions = topbar_actions|default('')|trim %}
 
 {% set icon_burger %}
   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
   </svg>
 {% endset %}
-{% set icon_search %}
-  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-    <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>
-  </svg>
-{% endset %}
 
-<header class="topbar{% if extra_class is defined %} {{ extra_class }}{% endif %}">
+<header class="topbar">
 
-  {# Mobile burger #}
-  {% if _show_burger %}
-    <button
-      class="btn btn-ghost btn-icon btn-sm show-mobile"
-      type="button"
-      aria-label="Menu"
-      data-action="click->sidebar#toggle"
-    >
-      {{ icon_burger|raw }}
-    </button>
+  {# ── Left: burger + icon + title ── #}
+  <div class="topbar-left">
+    {% if _burger %}
+      <button
+        class="btn btn-ghost btn-icon btn-sm show-mobile"
+        type="button"
+        aria-label="Menu"
+        data-action="click->sidebar#toggle"
+      >
+        {{ icon_burger|raw }}
+      </button>
+    {% endif %}
+
+    {% if _icon %}
+      <span class="topbar-icon" aria-hidden="true">{{ _icon|raw }}</span>
+    {% endif %}
+
+    <h1 class="topbar-title">{{ _title }}</h1>
+  </div>
+
+  {# ── Center: optional search ── #}
+  {% if _search %}
+    <div class="topbar-center hide-mobile">
+      {{ _search|raw }}
+    </div>
   {% endif %}
 
-  {# Title or breadcrumb #}
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
-    {% if breadcrumb is defined and breadcrumb %}
-      <nav class="breadcrumb hide-mobile" aria-label="Fil d'ariane">
-        {% for crumb in breadcrumb %}
-          {% if not loop.last %}
-            <span class="breadcrumb-item">
-              {% if crumb.href is defined %}<a href="{{ crumb.href }}">{{ crumb.label }}</a>
-              {% else %}{{ crumb.label }}{% endif %}
-            </span>
-            <span class="breadcrumb-sep" aria-hidden="true">/</span>
-          {% else %}
-            <span class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</span>
-          {% endif %}
-        {% endfor %}
-      </nav>
-      <h1 class="topbar-title">{{ title }}</h1>
-    {% else %}
-      <h1 class="topbar-title">{{ title }}</h1>
-      {% if subtitle is defined and subtitle %}
-        <p style="font-size:var(--text-sm);color:var(--text-subtle);line-height:1.3;" class="hide-mobile">
-          {{ subtitle }}
-        </p>
-      {% endif %}
-    {% endif %}
-  </div>
+  {# ── Right: optional actions ── #}
+  {% if _actions %}
+    <div class="topbar-right">
+      {{ _actions|raw }}
+    </div>
+  {% endif %}
 
-  {# Right side: search + actions #}
-  <div class="topbar-right">
-
-    {% if search is defined and search %}
-      <div class="search-wrap hide-mobile">
-        {{ icon_search|raw }}
-        <input
-          type="search"
-          class="search-input"
-          placeholder="{{ search_placeholder|default('Rechercher...') }}"
-          autocomplete="off"
-          {{ search_attrs|default('')|raw }}
-        >
-      </div>
-    {% endif %}
-
-    {% if actions is defined and actions %}
-      {% for action in actions %}
-        {{ include('components/ui/button.html.twig', {
-          label:      action.label|default(''),
-          variant:    action.variant|default('secondary'),
-          size:       action.size|default('sm'),
-          icon_left:  action.icon_left|default(null),
-          icon_only:  action.icon_only|default(null),
-          href:       action.href|default(null),
-          disabled:   action.disabled|default(false),
-          attrs:      action.attrs|default(''),
-          extra_class: action.extra_class|default('') ~ (action.hide_mobile is defined and action.hide_mobile ? ' hide-mobile' : ''),
-        }) }}
-      {% endfor %}
-    {% endif %}
-
-    {# Raw HTML actions from page blocks (badges, custom buttons) #}
-    {% if raw_actions is defined and raw_actions %}
-      {{ raw_actions|raw }}
-    {% endif %}
-
-  </div>
 </header>
