@@ -1,8 +1,9 @@
 {#
  # Kiveto -- templates/clinic/clients/list/index.html.twig
  # ──────────────────────────────────────────────────────
- # Clients & Animaux page — 3 tabs (Vue d'ensemble / Clients / Animaux)
- # with data tables, hover actions, and a global overview dashboard.
+ # Clients & Animaux page — 2 tabs (Clients / Animaux) with data tables
+ # and hover-revealed row actions. The overview/dashboard role belongs
+ # to the main Tableau de bord page.
  #}
 {% extends 'clinic/base.html.twig' %}
 
@@ -26,11 +27,7 @@
 
   {# ── Tabs nav ── #}
   <div class="tab-bar-line ca-tabs">
-    <button type="button" class="tab-line active" data-tab-target="ca-overview">
-      <i data-lucide="layout-dashboard"></i>
-      <span>Vue d'ensemble</span>
-    </button>
-    <button type="button" class="tab-line" data-tab-target="ca-clients">
+    <button type="button" class="tab-line active" data-tab-target="ca-clients">
       <i data-lucide="users"></i>
       <span>Clients</span>
       <span class="tab-count" id="ca-tab-count-clients">0</span>
@@ -43,11 +40,7 @@
   </div>
 
   {# ── Tab panels ── #}
-  <div id="ca-overview" class="ca-tab-panel">
-    {{ include('clinic/clients/list/_tab_overview.html.twig') }}
-  </div>
-
-  <div id="ca-clients" class="ca-tab-panel hidden">
+  <div id="ca-clients" class="ca-tab-panel">
     {{ include('clinic/clients/list/_tab_clients.html.twig') }}
   </div>
 
