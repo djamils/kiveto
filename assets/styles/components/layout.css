@@ -48,7 +48,7 @@
     @apply shrink-0;
     width: 1px;
     height: 16px;
-    background: var(--border-medium);
+    background: var(--brand-300, #a5b4fc);
     margin: 0 4px;
   }
 
@@ -157,6 +157,36 @@
     @apply w-sidebar shrink-0 bg-surface-card border-r border-border-light
            flex flex-col overflow-hidden z-drawer;
     transition: transform .22s ease;
+  }
+
+  /* ── SIDEBAR FOOTER (lang + help) ── */
+
+  .sb-foot {
+    @apply shrink-0 flex items-center justify-between border-t border-border-light;
+    height: 45px;
+    gap: 0;
+    padding: 0;
+  }
+
+  .sb-foot-btn {
+    @apply flex flex-1 items-center justify-center gap-1.5 border-none
+           bg-transparent cursor-pointer text-text-secondary
+           text-md font-medium font-sans;
+    height: 100%;
+    transition: var(--t-fast);
+  }
+  .sb-foot-btn:hover {
+    @apply bg-surface-hover;
+  }
+  .sb-foot-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .sb-foot-sep {
+    @apply shrink-0 bg-border-light;
+    width: 1px;
+    height: 100%;
   }
 
   /* Sidebar header (logo + clinic switcher) */

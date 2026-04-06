@@ -7,24 +7,6 @@
  # Each opens a popover via the declarative popover system.
  #}
 
-{% set icon_fr_flag %}
-  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
-    <rect width="6" height="13" fill="#002395"/>
-    <rect x="6" width="6" height="13" fill="#fff"/>
-    <rect x="12" width="6" height="13" fill="#ED2939"/>
-  </svg>
-{% endset %}
-
-{% set icon_en_flag %}
-  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
-    <rect width="18" height="13" fill="#012169"/>
-    <path d="M0 0l18 13M18 0L0 13" stroke="#fff" stroke-width="2.6"/>
-    <path d="M0 0l18 13M18 0L0 13" stroke="#C8102E" stroke-width="1.4"/>
-    <path d="M9 0v13M0 6.5h18" stroke="#fff" stroke-width="4"/>
-    <path d="M9 0v13M0 6.5h18" stroke="#C8102E" stroke-width="2.4"/>
-  </svg>
-{% endset %}
-
 <header class="app-header">
 
   {# ── Left: brand ── #}
@@ -46,20 +28,6 @@
     >
       <i data-lucide="bell"></i>
       <span class="app-header-dot" aria-hidden="true"></span>
-    </button>
-
-    <div class="app-header-sep" aria-hidden="true"></div>
-
-    {# Language selector #}
-    <button
-      class="app-header-lang"
-      type="button"
-      aria-label="Langue"
-      data-popover-anchor="app-lang-popover"
-    >
-      {{ icon_fr_flag|raw }}
-      <span class="app-header-lang-label">FR</span>
-      <i data-lucide="chevron-down" class="app-header-lang-chevron"></i>
     </button>
 
     <div class="app-header-sep" aria-hidden="true"></div>
@@ -110,19 +78,6 @@
   <a href="#" class="nav-item text-center justify-center text-sm text-brand-600">
     Voir toutes les notifications
   </a>
-</div>
-
-{# ── Language popover ── #}
-<div class="popover hidden" id="app-lang-popover" style="width: 160px;">
-  <button type="button" class="nav-item">
-    {{ icon_fr_flag|raw }}
-    <span class="flex-1 text-left">Français</span>
-    <i data-lucide="check" class="text-brand-600 shrink-0" style="width:16px;height:16px;"></i>
-  </button>
-  <button type="button" class="nav-item">
-    {{ icon_en_flag|raw }}
-    <span class="flex-1 text-left">English</span>
-  </button>
 </div>
 
 {# ── Profile popover ── #}
