@@ -4,6 +4,41 @@
 
 @layer components {
 
+  /* Quick actions in topbar (dashboard) — outside data-page scope so they
+     work inside the global topbar component */
+  .qa-topbar-group {
+    @apply flex items-center gap-1;
+  }
+  .qa-topbar-btn {
+    @apply flex items-center gap-2 rounded-md border-none bg-transparent
+           cursor-pointer text-text-secondary text-md font-medium font-sans;
+    height: 32px;
+    padding: 0 10px;
+    transition: var(--t-fast);
+  }
+  .qa-topbar-btn:hover {
+    @apply bg-surface-hover text-text-primary;
+  }
+  .qa-topbar-icon {
+    @apply flex items-center justify-center rounded-md shrink-0;
+    width: 22px;
+    height: 22px;
+  }
+  .qa-topbar-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Hide labels on narrower screens — keep only icons */
+  @media (max-width: 1280px) {
+    .qa-topbar-label {
+      @apply hidden;
+    }
+    .qa-topbar-btn {
+      padding: 0 6px;
+    }
+  }
+
   [data-page="clinic_dashboard"] {
 
     /* Pages visibility toggle */
@@ -133,66 +168,6 @@
       font-size: var(--text-sm); color: var(--brand-500);
       background: none; border: none; cursor: pointer;
       font-family: inherit; font-weight: var(--weight-medium);
-    }
-
-    /* Quick actions — wrapper */
-    .dash-quick-actions { margin-bottom: var(--space-4); }
-    .qa-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
-    .qa-list { @apply flex flex-col; gap: 2px; }
-
-    .qa-btn {
-      @apply flex items-center w-full text-left cursor-pointer;
-      gap: var(--space-2); padding: 6px var(--space-2); border-radius: var(--radius-md);
-      border: none; background: transparent; font-family: inherit;
-      font-size: var(--text-md); color: var(--text-secondary);
-      transition: var(--transition-fast);
-    }
-    .qa-btn:hover { background: var(--surface-subtle); }
-    .qa-btn:active { transform: scale(.98); background: var(--surface-hover); }
-
-    .qa-icon {
-      @apply flex items-center justify-center shrink-0;
-      width: 26px; height: 26px; border-radius: var(--radius-sm);
-      transition: transform .15s;
-    }
-    .qa-btn:hover .qa-icon { transform: scale(1.06); }
-
-    .qa-btn::before {
-      content: ''; width: 3px; height: 16px; border-radius: 2px;
-      @apply shrink-0; margin-right: -4px; opacity: .55;
-    }
-    .qa-btn.c-blue   .qa-icon { background: #dbeafe; }
-    .qa-btn.c-green  .qa-icon { background: #dcfce7; }
-    .qa-btn.c-amber  .qa-icon { background: #fef9c3; }
-    .qa-btn.c-purple .qa-icon { background: #f3e8ff; }
-    .qa-btn.c-rose   .qa-icon { background: #ffe4e6; }
-    .qa-btn.c-blue::before   { background: #3b82f6; }
-    .qa-btn.c-green::before  { background: #22c55e; }
-    .qa-btn.c-amber::before  { background: #f59e0b; }
-    .qa-btn.c-purple::before { background: #a855f7; }
-    .qa-btn.c-rose::before   { background: #f43f5e; }
-
-    /* Quick actions — independent widget variant */
-    .qa-widget {
-      @apply flex flex-row items-center w-full text-left cursor-pointer;
-      gap: var(--space-2); padding: var(--space-2) var(--space-3);
-      background: var(--surface-card); border: 1px solid var(--border-light);
-      border-radius: var(--radius-md); font-family: inherit;
-      transition: box-shadow .15s, transform .1s, border-color .15s;
-    }
-    .qa-widget:hover {
-      box-shadow: var(--shadow-sm); transform: translateY(-1px);
-      border-color: var(--border-medium);
-    }
-    .qa-widget:active { transform: translateY(0); box-shadow: none; }
-
-    .qa-widget-icon {
-      @apply flex items-center justify-center shrink-0;
-      width: 28px; height: 28px; border-radius: var(--radius-sm);
-    }
-    .qa-widget-label {
-      font-size: var(--text-md); font-weight: var(--weight-medium);
-      color: var(--text-secondary); line-height: 1.2;
     }
 
     /* Hospitalisations section wrapper */
@@ -498,7 +473,6 @@
     .kanban { grid-template-columns: 1fr 1fr; }
     .dash-header-grid { grid-template-columns: 1fr; }
     .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }
 @media (max-width: 768px) {
@@ -506,7 +480,6 @@
     .row1 { grid-template-columns: 1fr; }
     .kanban { grid-template-columns: 1fr 1fr; }
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
-    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }
 @media (max-width: 480px) {
@@ -516,6 +489,5 @@
     .kanban { grid-template-columns: 1fr; }
     .kpi-strip { grid-template-columns: 1fr 1fr; }
     .dash-kpi-grid { grid-template-columns: 1fr 1fr; }
-    .qa-grid { grid-template-columns: repeat(3, 1fr); }
   }
 }
