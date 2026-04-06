@@ -191,7 +191,6 @@ function selectPatient(id) {
   } else {
     document.getElementById('patient-detail-wrap').innerHTML = '<div class="widget" style="margin-bottom:12px;">' + html + '</div>';
   }
-  lucide.createIcons();
 }
 
 function selectPatientTab(id) {
@@ -202,7 +201,6 @@ function selectPatientTab(id) {
   var bs = document.getElementById('bs');
   bs.style.display = 'flex';
   requestAnimationFrame(function () { bs.style.transform = 'translateY(0)'; });
-  lucide.createIcons();
 }
 
 function closeBottomSheet() {
@@ -320,7 +318,6 @@ function applyLayout() {
     var tl = document.getElementById('timeline-list'); if (tl) tl.innerHTML = timelineHTML();
     selectPatient(PATIENTS[0].id);
   }
-  lucide.createIcons();
 }
 
 // ════════════════════════════════════════════════════
@@ -349,7 +346,6 @@ function _onKeydown(e) {
 /** Initialise the waiting room page. */
 export function init() {
   // Initialise Lucide icons already present in the HTML
-  lucide.createIcons();
 
   // Start clock
   updateClock();

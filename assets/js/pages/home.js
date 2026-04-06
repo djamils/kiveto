@@ -22,11 +22,6 @@ export function init() {
   // Start the dashboard clock
   tickClock();
   clockInterval = setInterval(tickClock, 10000);
-
-  // Initialize Lucide icons for dashboard content
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
 }
 
 export function cleanup() {

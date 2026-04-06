@@ -267,7 +267,6 @@ function renderTable(){
     +'</div>';
   }).join('');
   applyGridToHeader();
-  lucide.createIcons();
   renderPagination(list.length, totalPages);
 }
 
@@ -439,7 +438,6 @@ function openClientPanel(clientId, focusAnimalId){
     bs.style.display='flex';
     requestAnimationFrame(function(){bs.style.transform='translateY(0)';});
   }
-  lucide.createIcons();
   renderTable();
 }
 
@@ -456,7 +454,6 @@ function switchAnimalTab(clientId, animalId){
   } else {
     document.getElementById('bs-scroll').innerHTML=html.header+html.body;
   }
-  lucide.createIcons();
   renderTable();
 }
 
@@ -470,7 +467,7 @@ function closeDetail(){
   document.getElementById('dp-scroll').innerHTML='<div id="dp-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px 24px;text-align:center;"><div style="width:56px;height:56px;border-radius:var(--radius-lg);background:var(--surface-subtle);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-4);"><i data-lucide=\'users\' style=\'width:24px;height:24px;color:var(--border-medium);\'></i></div><p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-secondary);margin-bottom:var(--space-1);">Sélectionnez un client</p><p style="font-size:var(--text-md);color:var(--text-subtle);max-width:200px;">Cliquez sur une ligne pour voir la fiche</p></div>';
   document.querySelectorAll('.client-row-wrap').forEach(function(r){r.classList.remove('active');});
   selectedClientId=null;dpAnimalTab=null;
-  renderTable();lucide.createIcons();
+  renderTable();
 }
 function closeSlide(){document.getElementById('detail-slide').classList.remove('open');document.getElementById('slide-backdrop').classList.remove('open');}
 function closeBottomSheet(){var bs=document.getElementById('bs');bs.style.transform='translateY(100%)';setTimeout(function(){bs.style.display='none';document.getElementById('bso').style.display='none';},300);}
@@ -479,8 +476,6 @@ function closeBottomSheet(){var bs=document.getElementById('bs');bs.style.transf
 let _keydownHandler = null;
 
 export function init() {
-  lucide.createIcons();
-
   // Sort select — listen for change events from the custom select Stimulus controller
   // Guard against duplicate listeners across Turbo cache restores
   var sortInput = document.getElementById('sort-select');

@@ -17,14 +17,10 @@
   {# Toast container #}
   <div class="toast-container" id="kiveto-toast-container" aria-live="polite"></div>
 
-  {# Flash messages → auto toasts #}
+  {# Flash messages — rendered as data attributes, consumed by JS on turbo:load #}
   {% for type, messages in app.flashes %}
     {% for message in messages %}
-      <script type="module">
-        import('kiveto/toast').then(({ toast }) => {
-          toast.{{ type == 'error' ? 'danger' : type }}({{ message|json_encode|raw }});
-        });
-      </script>
+      <div data-flash-toast data-type="{{ type == 'error' ? 'danger' : type }}" data-message="{{ message }}" hidden></div>
     {% endfor %}
   {% endfor %}
 

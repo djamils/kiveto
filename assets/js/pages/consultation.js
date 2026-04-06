@@ -45,7 +45,6 @@ function toggleEditMotif(){
   v.style.display=editing?'block':'none';
   e.style.display=editing?'none':'block';
   b.innerHTML=editing?'<i data-lucide="pencil" style="width:10px;height:10px;"></i>Modifier':'<i data-lucide="check" style="width:10px;height:10px;"></i>Valider';
-  lucide.createIcons();
 }
 function toggleEditVitals(){
   var v=document.getElementById('vitals-view'),e=document.getElementById('vitals-edit'),b=document.getElementById('vitals-edit-btn');
@@ -53,7 +52,6 @@ function toggleEditVitals(){
   v.style.display=editing?'block':'none';
   e.style.display=editing?'none':'block';
   b.innerHTML=editing?'<i data-lucide="pencil" style="width:10px;height:10px;"></i>Modifier':'<i data-lucide="check" style="width:10px;height:10px;"></i>Valider';
-  lucide.createIcons();
 }
 
 /* -- Pain score -- */
@@ -192,8 +190,10 @@ function hideExamensP(){document.getElementById('examens-col').style.display='no
 var vitalData={poids:{label:'Poids (kg)',values:[4.2,4.1,4.0,4.0,3.9,3.8],color:'#22c55e',norm:[3.5,5.0]},temp:{label:'Température (°C)',values:[38.5,38.6,38.4,39.0,38.8,39.6],color:'#ef4444',norm:[38.0,39.2]},fc:{label:'FC (bpm)',values:[130,135,128,140,138,142],color:'#6366f1',norm:[100,160]},fr:{label:'FR (/min)',values:[24,26,22,28,26,28],color:'#f59e0b',norm:[15,30]}};
 var visits=['sep.25','oct.25','nov.25','déc.25','jan.26','Auj.'];
 var activeVital='poids',chartInst=null;
-function initChart(){
+async function initChart(){
   var ctx=document.getElementById('vitals-chart');if(!ctx)return;
+  // Dynamic import — Chart.js is provided via importmap
+  var { Chart } = await import('chart.js');
   var d=vitalData[activeVital]||vitalData.poids;
   chartInst=new Chart(ctx,{type:'line',data:{labels:visits,datasets:[{data:d.values,borderColor:d.color,backgroundColor:d.color+'18',borderWidth:2,pointRadius:3,pointBackgroundColor:d.color,pointBorderColor:'#fff',pointBorderWidth:1.5,fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.parsed.y+(activeVital==='poids'?' kg':activeVital==='temp'?' °C':activeVital==='fc'?' bpm':'');}}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},color:'#94a3b8'}},y:{grid:{color:'#f1f5f9'},ticks:{font:{size:9},color:'#94a3b8'},suggestedMin:d.norm[0]*.97,suggestedMax:d.norm[1]*1.03}}}});
 }
@@ -202,10 +202,10 @@ function selectVital(el,vital){
   activeVital=vital;
   document.querySelectorAll('.vital-pill').forEach(function(c){c.style.boxShadow='';c.classList.remove('active-vital');});
   var panel=document.getElementById('charts-and-score');if(panel)panel.style.display='block';
-  if(vital==='douleur'){el.style.boxShadow='0 0 0 2px #f97316';el.classList.add('active-vital');var cl=document.getElementById('chart-label');if(cl)cl.textContent='Douleur — historique';if(!chartInst)setTimeout(function(){initChart();updateChartForPain();},50);else updateChartForPain();return;}
+  if(vital==='douleur'){el.style.boxShadow='0 0 0 2px #f97316';el.classList.add('active-vital');var cl=document.getElementById('chart-label');if(cl)cl.textContent='Douleur — historique';if(!chartInst)setTimeout(function(){initChart().then(updateChartForPain);},50);else updateChartForPain();return;}
   el.style.boxShadow='0 0 0 2px '+vitalData[vital].color;el.classList.add('active-vital');
   var cl=document.getElementById('chart-label');if(cl)cl.textContent=vitalData[vital].label;
-  if(!chartInst){setTimeout(initChart,50);return;}
+  if(!chartInst){setTimeout(function(){initChart();},50);return;}
   var d=vitalData[vital];
   chartInst.data.datasets[0].data=d.values;chartInst.data.datasets[0].borderColor=d.color;chartInst.data.datasets[0].backgroundColor=d.color+'18';chartInst.data.datasets[0].pointBackgroundColor=d.color;chartInst.options.scales.y.suggestedMin=d.norm[0]*.97;chartInst.options.scales.y.suggestedMax=d.norm[1]*1.03;chartInst.update();
 }
@@ -225,7 +225,7 @@ function closeConsult(){var o=document.getElementById('modal-overlay');o.classLi
 function closeModal(){var o=document.getElementById('modal-overlay');o.classList.remove('open');}
 function signDoc(){var a=document.getElementById('sign-area'),l=document.getElementById('sign-label');a.classList.add('signed');a.style.borderColor='var(--brand-500)';a.style.borderStyle='solid';a.style.background='var(--brand-50)';a.style.cursor='default';l.innerHTML='<svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="margin-right:5px;"><path d="M2 8l4 4 8-8" stroke="var(--brand-600)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="color:var(--brand-600);font-weight:var(--weight-medium);">Signé électroniquement — Dr. Rousseau</span>';l.style.display='flex';l.style.alignItems='center';a.onmouseenter=null;a.onmouseleave=null;a.onclick=null;}
 function confirmClose(){var btn=document.getElementById('modal-confirm-btn');btn.innerHTML='<svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Enregistré !';btn.style.background='#16a34a';btn.style.pointerEvents='none';setTimeout(closeModal,1200);}
-function openExamensModal(){document.getElementById('examens-modal').classList.add('open');lucide.createIcons();}
+function openExamensModal(){document.getElementById('examens-modal').classList.add('open');}
 function closeExamensModal(){document.getElementById('examens-modal').classList.remove('open');}
 function addExamen(){
   var type=document.getElementById('new-examen-type').value;
@@ -265,7 +265,6 @@ let _resizeHandler = null;
 let _diagInputHandler = null;
 
 export function init() {
-  lucide.createIcons();
 
   // Only rebuild layout if content is empty (skip when restored from Turbo cache)
   var desktopScroll = document.getElementById('desktop-scroll');

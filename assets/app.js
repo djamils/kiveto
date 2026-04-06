@@ -1,6 +1,7 @@
 import './stimulus_bootstrap.js';
 import './styles/app.css';
 import { initUI } from 'kiveto/ui';
+import { createIcons, icons } from 'lucide';
 
 /**
  * Page-module dispatcher.
@@ -25,6 +26,21 @@ let currentCleanup = null;
 initUI();
 
 function onLoad() {
+  // Render Lucide icons in the new DOM
+  createIcons({ icons });
+
+  // Consume flash toast data attributes (replaces inline <script> tags)
+  document.querySelectorAll('[data-flash-toast]').forEach(el => {
+    const type = el.dataset.type || 'info';
+    const message = el.dataset.message;
+    if (message) {
+      import('kiveto/toast').then(({ toast }) => {
+        if (typeof toast[type] === 'function') toast[type](message);
+      });
+    }
+    el.remove();
+  });
+
   const pageEl = document.querySelector('[data-page]');
   const page = pageEl?.dataset.page;
 

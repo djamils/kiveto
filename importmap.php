@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Returns the importmap for this application.
  *
@@ -15,7 +13,7 @@ declare(strict_types=1);
  */
 return [
     'app' => [
-        'path'       => './assets/app.js',
+        'path' => './assets/app.js',
         'entrypoint' => true,
     ],
     '@hotwired/stimulus' => [
@@ -71,5 +69,14 @@ return [
     ],
     'pages/select-clinic' => [
         'path' => './assets/js/pages/select-clinic.js',
+    ],
+    'lucide' => [
+        'version' => '1.7.0',
+    ],
+    'chart.js' => [
+        'version' => '4.5.1',
+    ],
+    '@kurkle/color' => [
+        'version' => '0.3.4',
     ],
 ];
