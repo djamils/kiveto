@@ -31,6 +31,7 @@ export default class extends Controller {
   static values  = {
     open:        { type: Boolean, default: false },
     placeholder: { type: String,  default: 'Sélectionner...' },
+    direction:   { type: String,  default: 'auto' },
   };
 
   /** @type {number} Currently focused option index (-1 = none) */
@@ -176,6 +177,20 @@ export default class extends Controller {
     this.dropdownTarget.classList.remove('hidden');
     this.dropdownTarget.classList.remove('animate-popover-out');
     this.dropdownTarget.classList.add('animate-popover-in');
+
+    // Direction: forced "up" or auto-flip if no room below
+    this.dropdownTarget.classList.remove('ki-select-dropdown--up');
+    if (this.directionValue === 'up') {
+      this.dropdownTarget.classList.add('ki-select-dropdown--up');
+    } else {
+      const trigRect = this.triggerTarget.getBoundingClientRect();
+      const ddH = this.dropdownTarget.offsetHeight;
+      const spaceBelow = window.innerHeight - trigRect.bottom;
+      const spaceAbove = trigRect.top;
+      if (spaceBelow < ddH + 8 && spaceAbove > spaceBelow) {
+        this.dropdownTarget.classList.add('ki-select-dropdown--up');
+      }
+    }
 
     // Focus search input if available, otherwise focus dropdown
     requestAnimationFrame(() => {

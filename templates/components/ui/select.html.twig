@@ -50,6 +50,7 @@
   class="ki-select{{ extra_class is defined ? ' ' ~ extra_class : '' }}"
   data-controller="select"
   data-select-placeholder-value="{{ _placeholder }}"
+  {% if direction is defined and direction == 'up' %}data-select-direction-value="up"{% endif %}
   data-action="keydown->select#onKeydown"
 >
   {# Hidden input for form submission #}

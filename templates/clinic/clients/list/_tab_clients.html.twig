@@ -17,12 +17,12 @@
         />
       </div>
 
-      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-status">
+      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-status" data-popover-align="left">
         <i data-lucide="circle-dot"></i>
         <span>Statut</span>
       </button>
 
-      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-species">
+      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-species" data-popover-align="left">
         <i data-lucide="paw-print"></i>
         <span>Espèce</span>
       </button>
@@ -133,6 +133,7 @@
         name: 'clients-page-size',
         id: 'clients-page-size',
         value: '10',
+        direction: 'up',
         extra_class: 'data-pagination-select',
         options: [
           { value: '10', label: '10' },

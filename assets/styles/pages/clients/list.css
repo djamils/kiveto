@@ -3,6 +3,40 @@
 
 @layer components {
 
+  /* Filter button (used in topbar + data card head) */
+  .data-filter-btn {
+    @apply inline-flex items-center font-medium cursor-pointer;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--surface-card);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    transition: all .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .data-filter-btn svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-subtle);
+  }
+  .data-filter-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+  .data-filter-btn.data-filter-btn--sm {
+    height: 28px;
+    padding: 0 8px;
+  }
+  .data-filter-btn.is-active {
+    border-color: var(--brand-500);
+    color: var(--brand-600);
+    background: var(--brand-50);
+  }
+
   [data-page="clinic_clients_list"] {
 
     /* ── Icon size utilities (kept from previous design) ── */
@@ -31,7 +65,7 @@
 
     /* ── Data card (Clients & Animaux tabs) ── */
     .data-card {
-      @apply flex flex-col overflow-hidden;
+      @apply flex flex-col;
       background: var(--surface-card);
       height: 100%;
     }
@@ -82,35 +116,6 @@
       box-shadow: var(--shadow-focus);
     }
 
-    /* Filter button */
-    .data-filter-btn {
-      @apply inline-flex items-center font-medium cursor-pointer;
-      gap: 6px;
-      height: 32px;
-      padding: 0 10px;
-      font-size: 12px;
-      font-family: inherit;
-      background: var(--surface-card);
-      border: 1px solid var(--border-medium);
-      border-radius: 8px;
-      color: var(--text-secondary);
-      transition: all .15s;
-      box-shadow: 0 1px 2px rgba(0,0,0,.04);
-    }
-    .data-filter-btn svg {
-      width: 14px;
-      height: 14px;
-      color: var(--text-subtle);
-    }
-    .data-filter-btn:hover {
-      background: var(--surface-hover);
-      border-color: var(--border-strong);
-    }
-    .data-filter-btn.is-active {
-      border-color: var(--brand-500);
-      color: var(--brand-600);
-      background: var(--brand-50);
-    }
 
     /* ── Data table ── */
     .data-card-table {
@@ -257,10 +262,10 @@
     /* ── Pagination footer ── */
     .data-card-foot {
       @apply flex items-center justify-between flex-wrap;
-      padding: 8px 16px;
+      padding: 6px 16px;
       border-top: 1px solid var(--border-light);
       gap: 12px;
-      min-height: 48px;
+      height: 45px;
     }
     .data-pagination-left {
       @apply flex items-center;
@@ -270,10 +275,18 @@
       font-size: var(--text-xs);
       color: var(--text-muted);
     }
-    .data-pagination-select { width: 80px; }
+    .data-pagination-select { width: 72px; }
     .data-pagination-select .ki-select-trigger {
-      height: 28px;
+      height: 32px;
+      padding: 0 10px;
       font-size: 12px;
+      font-weight: 500;
+      background: var(--surface-card);
+      border: 1px solid var(--border-medium);
+    }
+    .data-pagination-select .ki-select-trigger:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
     }
     .data-pagination-right {
       @apply flex items-center;
