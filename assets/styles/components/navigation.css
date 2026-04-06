@@ -7,6 +7,8 @@
 
   .nav {
     @apply flex-1 py-2 overflow-y-auto;
+    padding-left: 2px;
+    padding-right: 2px;
   }
 
   /* Group title */
@@ -18,8 +20,8 @@
 
   /* Navigation item */
   .nav-item {
-    @apply flex items-center gap-2 p-1 px-2 rounded-md text-base font-normal
-           text-text-muted cursor-pointer no-underline border-none
+    @apply flex items-center gap-2 py-1.5 px-2 rounded-md text-base font-normal
+           text-text-secondary cursor-pointer no-underline border-none
            bg-transparent font-sans;
     margin: 1px var(--space-1);
     transition: var(--t-fast);
@@ -29,15 +31,12 @@
 
   .nav-item svg {
     @apply shrink-0;
-    opacity: .7;
+    opacity: 1;
     transition: opacity .12s;
   }
 
   .nav-item:hover {
-    @apply bg-surface-subtle text-text-secondary;
-  }
-  .nav-item:hover svg {
-    opacity: 1;
+    @apply bg-surface-hover;
   }
 
   .nav-item.active {
@@ -82,13 +81,13 @@
   }
 
   .nav-sub-item {
-    @apply flex items-center gap-2 p-1 px-2 rounded-md text-md text-text-muted
+    @apply flex items-center gap-2 p-1 px-2 rounded-md text-md text-text-secondary
            cursor-pointer no-underline;
     margin: 1px var(--space-1);
     transition: var(--t-fast);
   }
   .nav-sub-item:hover {
-    @apply bg-surface-subtle text-text-secondary;
+    @apply bg-surface-hover;
   }
   .nav-sub-item.active {
     @apply text-brand-600 font-medium;

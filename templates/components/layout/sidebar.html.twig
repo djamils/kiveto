@@ -57,11 +57,31 @@
     <circle cx="12" cy="12" r="3"/>
   </svg>
 {% endset %}
-{% set icon_chevrons %}
-  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+{% set icon_chevron_down %}
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-text-subtle" aria-hidden="true">
+    <path d="m6 9 6 6 6-6"/>
   </svg>
 {% endset %}
+
+{% set icon_check %}
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-600 ml-auto shrink-0" aria-hidden="true">
+    <path d="M20 6 9 17l-5-5"/>
+  </svg>
+{% endset %}
+
+{% set icon_plus %}
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 5v14M5 12h14"/>
+  </svg>
+{% endset %}
+
+{# TODO: Replace with real clinic data from backend (user's clinics + active clinic ID) #}
+{% set _clinics_sample = [
+  { id: 'c1', name: clinic.name|default('Ma clinique'), letter: clinic.name|default('C')|first|upper },
+  { id: 'c2', name: 'Clinique Bastille',  letter: 'B' },
+  { id: 'c3', name: 'Clinique Nation',    letter: 'N' },
+] %}
+{% set _active_clinic_id = 'c1' %}
 
 {# ── Navigation structure (BC-aligned) ── #}
 {% set nav_items = [
@@ -89,20 +109,48 @@
       class="sb-clinic-btn"
       type="button"
       aria-label="Changer de clinique"
+      data-popover-anchor="clinic-switcher-popover"
+      data-popover-align="left"
     >
       <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">
         {{ clinic.name|default('C')|first|upper }}
       </span>
-      <span style="flex:1;min-width:0;">
-        <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
-          {{ clinic.name|default('Ma clinique') }}
-        </span>
-        <span style="font-size:var(--text-xs);color:var(--text-subtle);">
-          {{ clinic.type|default('Vétérinaire') }}
-        </span>
+      <span class="truncate flex-1 min-w-0 text-left">
+        {{ clinic.name|default('Ma clinique') }}
       </span>
-      {{ icon_chevrons|raw }}
+      {{ icon_chevron_down|raw }}
     </button>
+  </div>
+
+  {# Clinic switcher popover (opened by sb-clinic-btn, managed by popover.js) #}
+  <div class="popover clinic-switcher-popover hidden" id="clinic-switcher-popover" style="width: 256px;">
+    {# Section 1: clinic list #}
+    <div class="clinic-switcher-section">
+      <p class="popover-head">Cliniques</p>
+      {% for c in _clinics_sample %}
+        {% set _is_active_clinic = c.id == _active_clinic_id %}
+        <button type="button" class="nav-item">
+          <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">{{ c.letter }}</span>
+          <span class="truncate flex-1 min-w-0 text-left">{{ c.name }}</span>
+          {% if _is_active_clinic %}{{ icon_check|raw }}{% endif %}
+        </button>
+      {% endfor %}
+    </div>
+
+    <div class="popover-divider"></div>
+
+    {# Section 2: clinic settings #}
+    <div class="clinic-switcher-section">
+      <p class="popover-head">Gestion</p>
+      <a href="#" class="nav-item">
+        {{ icon_settings|raw }}
+        <span>Paramètres de la clinique</span>
+      </a>
+      <a href="#" class="nav-item">
+        {{ icon_users|raw }}
+        <span>Membres &amp; rôles</span>
+      </a>
+    </div>
   </div>
 
   {# ── Main navigation ── #}
@@ -127,30 +175,5 @@
       {% endif %}
     {% endfor %}
   </nav>
-
-  {# ── Footer: settings + user ── #}
-  <div class="sb-foot">
-    <a href="#" class="sb-settings">
-      {{ icon_settings|raw }}
-      <span style="font-size:var(--text-base);">Paramètres</span>
-    </a>
-    <div style="padding:var(--space-1) var(--space-2) var(--space-2);">
-      <div class="sb-user">
-        {{ include('components/ui/avatar.html.twig', {
-            name: user.email|default('Utilisateur'),
-            image: null,
-        }) }}
-        <span style="flex:1;min-width:0;">
-          <span class="truncate" style="display:block;font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-primary);">
-            {{ user.email|default('Utilisateur') }}
-          </span>
-          <span style="font-size:var(--text-xs);color:var(--text-subtle);">
-            Vétérinaire
-          </span>
-        </span>
-        {{ icon_chevrons|raw }}
-      </div>
-    </div>
-  </div>
 
 </aside>

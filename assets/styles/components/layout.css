@@ -47,13 +47,18 @@
 
   /* Sidebar header (logo + clinic switcher) */
   .sb-top {
-    @apply h-topbar flex items-center px-3 border-b border-border-light shrink-0;
+    @apply h-topbar flex items-center border-b border-border-light shrink-0;
+    padding-left: 2px;
+    padding-right: 2px;
   }
 
-  /* Clinic switcher button */
+  /* Clinic switcher button — matches .nav-item width and alignment */
   .sb-clinic-btn {
-    @apply w-full flex items-center gap-2 p-2 rounded-md border-none
-           bg-transparent cursor-pointer text-left font-sans;
+    @apply flex items-center gap-2 py-1.5 px-2 rounded-md border-none
+           bg-transparent cursor-pointer text-left text-base font-normal
+           text-text-secondary font-sans;
+    margin: 1px var(--space-1);
+    width: calc(100% - var(--space-2));
     transition: var(--t-fast);
   }
   .sb-clinic-btn:hover {
@@ -64,24 +69,6 @@
     outline-offset: 1px;
   }
 
-  /* Sidebar footer */
-  .sb-foot {
-    @apply border-t border-border-light shrink-0;
-    padding: 4px 4px 8px;
-  }
-
-  /* Settings / user items */
-  .sb-settings,
-  .sb-user {
-    @apply flex items-center gap-2 p-2 rounded-md text-base text-text-muted
-           cursor-pointer no-underline;
-    margin: 1px 4px;
-    transition: var(--t-fast);
-  }
-  .sb-settings:hover,
-  .sb-user:hover {
-    @apply bg-surface-subtle text-text-secondary;
-  }
 
   /* ── TOPBAR ── */
 
