@@ -123,8 +123,9 @@
   }
 
   .tab-line {
-    @apply p-2 px-4 text-md font-medium text-text-muted cursor-pointer
+    @apply inline-flex items-center gap-2 px-4 text-md font-medium text-text-muted cursor-pointer
            border-none bg-transparent font-sans whitespace-nowrap;
+    height: 40px;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
     transition: var(--t-fast);
