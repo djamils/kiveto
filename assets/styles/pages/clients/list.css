@@ -309,6 +309,38 @@
     border-radius: 9999px;
     margin-left: 4px;
   }
+
+  /* ── Unscoped: column picker items with check icon (popover content moved to body) ── */
+  .col-picker-item {
+    @apply relative flex items-center w-full cursor-pointer text-md text-text-secondary font-sans border-none bg-transparent text-left;
+    padding: 6px 10px 6px 32px;
+    margin: 1px 4px;
+    border-radius: 6px;
+    transition: background .12s;
+    width: calc(100% - 8px);
+  }
+  .col-picker-item:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+  .col-picker-check {
+    @apply absolute flex items-center justify-center;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--brand-600);
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .col-picker-check svg {
+    width: 14px;
+    height: 14px;
+  }
+  .col-picker-item.is-checked .col-picker-check {
+    opacity: 1;
+  }
 }
 
 /* ── Responsive overrides ── */

@@ -337,6 +337,11 @@ function toggleStar(btn) {
   btn.classList.toggle('is-starred');
 }
 
+function toggleColCheck(btn /*, col */) {
+  btn.classList.toggle('is-checked');
+  // TODO: wire actual column visibility once column-hide is needed
+}
+
 // ── Init / cleanup ────────────────────────────────────────────────
 let _pageSizeListenersAttached = false;
 
@@ -387,6 +392,7 @@ export function init() {
   window.setAnimalStatusFilter = setAnimalStatusFilter;
   window.goAnimalPage       = goAnimalPage;
   window.toggleStar         = toggleStar;
+  window.toggleColCheck     = toggleColCheck;
 }
 
 export function cleanup() {

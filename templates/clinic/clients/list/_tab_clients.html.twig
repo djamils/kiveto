@@ -27,7 +27,7 @@
         <span>Espèce</span>
       </button>
 
-      <div class="popover hidden" id="clients-filter-status" style="min-width:180px;">
+      <div class="popover hidden" id="clients-filter-status" style="width:180px;">
         <p class="popover-head">Filtrer par statut</p>
         <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
           <i data-lucide="layers"></i>
@@ -43,7 +43,7 @@
         </button>
       </div>
 
-      <div class="popover hidden" id="clients-filter-species" style="min-width:180px;">
+      <div class="popover hidden" id="clients-filter-species" style="width:180px;">
         <p class="popover-head">Filtrer par espèce</p>
         <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
           <span>Toutes espèces</span>
@@ -65,12 +65,24 @@
         <i data-lucide="settings-2"></i>
         <span>Colonnes</span>
       </button>
-      <div class="popover hidden" id="clients-cols-popover" style="min-width:200px;">
+      <div class="popover hidden" id="clients-cols-popover" style="width:200px;">
         <p class="popover-head">Afficher</p>
-        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('email',this.checked)"> Email</label>
-        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('phone',this.checked)"> Téléphone</label>
-        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('animals',this.checked)"> Animaux</label>
-        <label class="col-picker-item"><input type="checkbox" checked onchange="toggleClientCol('lastrdv',this.checked)"> Dernier RDV</label>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'email')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Email</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'phone')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Téléphone</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'animals')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Animaux</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'lastrdv')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Dernier RDV</span>
+        </button>
       </div>
     </div>
   </div>

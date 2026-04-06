@@ -27,7 +27,7 @@
         <span>Statut</span>
       </button>
 
-      <div class="popover hidden" id="animals-filter-species" style="min-width:180px;">
+      <div class="popover hidden" id="animals-filter-species" style="width:180px;">
         <p class="popover-head">Espèce</p>
         <button type="button" class="nav-item" onclick="setAnimalFilter('all',this)"><span>Toutes</span></button>
         <button type="button" class="nav-item" onclick="setAnimalFilter('Canin',this)"><span>🐶 Chiens</span></button>
@@ -36,7 +36,7 @@
         <button type="button" class="nav-item" onclick="setAnimalFilter('Oiseau',this)"><span>🦜 Oiseaux</span></button>
       </div>
 
-      <div class="popover hidden" id="animals-filter-status" style="min-width:180px;">
+      <div class="popover hidden" id="animals-filter-status" style="width:180px;">
         <p class="popover-head">Statut</p>
         <button type="button" class="nav-item" onclick="setAnimalStatusFilter('all',this)"><span>Tous</span></button>
         <button type="button" class="nav-item" onclick="setAnimalStatusFilter('ok',this)"><span>✓ En bonne santé</span></button>
@@ -50,13 +50,28 @@
         <i data-lucide="settings-2"></i>
         <span>Colonnes</span>
       </button>
-      <div class="popover hidden" id="animals-cols-popover" style="min-width:200px;">
+      <div class="popover hidden" id="animals-cols-popover" style="width:200px;">
         <p class="popover-head">Afficher</p>
-        <label class="col-picker-item"><input type="checkbox" checked> Race</label>
-        <label class="col-picker-item"><input type="checkbox" checked> Propriétaire</label>
-        <label class="col-picker-item"><input type="checkbox" checked> Âge</label>
-        <label class="col-picker-item"><input type="checkbox" checked> Dernier RDV</label>
-        <label class="col-picker-item"><input type="checkbox" checked> Prochain RDV</label>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'breed')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Race</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'owner')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Propriétaire</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'age')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Âge</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'lastrdv')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Dernier RDV</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'nextrdv')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Prochain RDV</span>
+        </button>
       </div>
     </div>
   </div>
