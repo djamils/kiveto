@@ -12,8 +12,8 @@
 
 {% block title %}Tableau de bord - {{ currentClinicName }}{% endblock %}
 
+{% block page_icon %}<i data-lucide="layout-grid"></i>{% endblock %}
 {% block page_title %}Vue d'ensemble{% endblock %}
-{% block page_subtitle %}14 patients hospitalisés · 3 analyses en attente{% endblock %}
 
 {% block topbar_actions %}
   <button class="btn-rpanel" onclick="document.getElementById('rpanel').classList.add('open');document.getElementById('rpanelOverlay').classList.add('is-open');" aria-label="Ouvrir le panneau latéral">

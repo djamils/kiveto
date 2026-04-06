@@ -98,6 +98,8 @@
 
   .topbar-icon {
     @apply flex items-center justify-center shrink-0 text-text-muted;
+  }
+  .topbar-icon svg {
     width: 18px;
     height: 18px;
   }
