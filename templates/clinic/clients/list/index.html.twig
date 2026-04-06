@@ -12,9 +12,9 @@
 {% block page_title %}Clients & Animaux{% endblock %}
 
 {% block topbar_actions %}
-  <button type="button" class="btn btn-secondary btn-sm" onclick="showToast('Export CSV…','#4338ca')">
-    <i data-lucide="download"></i>
-    <span>Exporter</span>
+  <button type="button" class="btn btn-secondary btn-sm" data-popover-anchor="ca-reports-popover">
+    <i data-lucide="file-check-2"></i>
+    <span>Rapports</span>
   </button>
   <a href="{{ path('clinic_clients_new') }}" class="btn btn-primary btn-sm">
     <i data-lucide="plus"></i>
@@ -48,6 +48,36 @@
     {{ include('clinic/clients/list/_tab_animals.html.twig') }}
   </div>
 
+</div>
+
+{# Reports popover (opened by topbar Rapports button) #}
+<div class="popover hidden" id="ca-reports-popover" style="width: 230px;">
+  <a href="#" class="nav-item" onclick="showToast('Génération du rapport…','#4338ca');return false;">
+    <i data-lucide="chart-no-axes-column"></i>
+    <span>Générer un rapport</span>
+  </a>
+  <a href="#" class="nav-item" onclick="showToast('Historique des rapports','#4338ca');return false;">
+    <i data-lucide="history"></i>
+    <span>Historique des rapports</span>
+  </a>
+
+  <div class="popover-divider"></div>
+
+  <a href="#" class="nav-item" onclick="showToast('Export CSV…','#4338ca');return false;">
+    <i data-lucide="download"></i>
+    <span>Exporter en CSV</span>
+  </a>
+  <a href="#" class="nav-item" onclick="showToast('Export Excel…','#4338ca');return false;">
+    <i data-lucide="file-spreadsheet"></i>
+    <span>Exporter en Excel</span>
+  </a>
+
+  <div class="popover-divider"></div>
+
+  <a href="#" class="nav-item text-text-subtle" onclick="showToast('Aide rapports','#4338ca');return false;">
+    <i data-lucide="info"></i>
+    <span>En savoir plus</span>
+  </a>
 </div>
 
 <div id="toast"></div>
