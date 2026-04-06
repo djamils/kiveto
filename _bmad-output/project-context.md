@@ -19,6 +19,9 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **PHP** >= 8.5 (strict_types=1 on every file; `\NoDiscard` is a native PHP 8.5 attribute used in this codebase)
 - **Symfony** 7.4.* — Framework, Security, Messenger, AssetMapper, Twig, UX Turbo, Stimulus
   - **AssetMapper only** — no Webpack Encore, no `node_modules`, no `webpack.config.js`
+- **Tailwind CSS** v4.2 via `symfonycasts/tailwind-bundle` (standalone CLI, CSS-first config via `@theme`)
+- **Stimulus** 3.2.2 — interactive UI components
+- **Turbo** 7.3.0 — AJAX navigation (Turbo Drive), partial updates (Turbo Frames/Streams)
 - **Doctrine ORM** ^3.5 + Doctrine Migrations Bundle ^3.7
   - `UuidType` comes from `Symfony\Bridge\Doctrine\Types\UuidType`, NOT from Doctrine directly
 - **Symfony UID** 7.4.* — UUIDs generated via `SymfonyUuidV7Generator` (UUIDv7)
@@ -136,6 +139,45 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Never mock Value Objects in tests** — instantiate them directly: `ClinicId::fromString('018f1b1e-...')`
 - **Foundry factories target Doctrine Entities only** — never create a Foundry factory for a Domain Aggregate
 
+### Frontend / Turbo / Tailwind Rules
+
+- **Tailwind CSS** v4.2 via `symfonycasts/tailwind-bundle` (standalone CLI, no Node.js)
+  - Config is CSS-first: `@theme` in `assets/styles/tailwind.css`, no `tailwind.config.js`
+  - Component styles use `@layer components` + `@apply` in domain-based files (`components/*.css`, `pages/*.css`)
+  - CSS reset is in `assets/styles/base.css`, imported by `tailwind.css` inside `@layer base`
+  - Design tokens (`:root` CSS variables) remain in `assets/styles/kiveto.css`
+  - `@keyframes` animations remain in `assets/styles/kiveto.css`
+  - Run `php bin/console tailwind:build` after CSS changes; update `binary_version` in `config/packages/symfonycasts_tailwind.yaml` to upgrade
+- **Turbo Drive** — all navigation is AJAX by default
+  - `<meta name="turbo-cache-control" content="no-preview">` in `base.html.twig` — prevents flash on cache preview
+  - **Never put `<script>` tags in `<body>`** — Turbo re-executes them on every navigation. Scripts go in `<head>` with `defer`, or use Stimulus controllers
+  - **Never use inline `onclick`/`onchange` handlers** — use Stimulus `data-action` attributes instead
+  - **Never attach global `window.xxx` functions** — use Stimulus controllers with targets and actions
+  - Page modules (`assets/js/pages/*.js`) must have **idempotent `init()`** — check if DOM content exists before re-rendering (Turbo cache restores filled DOM)
+  - Page modules must export `cleanup()` to remove event listeners and clear timers (called on `turbo:before-cache`)
+- **Turbo Frames** — use for **partial page updates** (scoped navigation)
+  - Wrap content sections in `<turbo-frame id="unique-id">` when only that section should update on navigation
+  - Links inside a frame navigate only the frame, not the full page
+  - Use `loading="lazy"` for deferred content that loads after the page
+  - Controllers can detect frame requests via `$request->headers->get('Turbo-Frame')`
+- **Turbo Streams** — use for **form responses** and **real-time updates**
+  - On form success: return a Turbo Stream response that updates specific DOM elements instead of a full redirect (when appropriate)
+  - Check `TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()` in controllers
+  - Always provide a non-JS fallback (`redirectToRoute()` with 303)
+  - Use Twig components: `<twig:Turbo:Stream:Replace>`, `<twig:Turbo:Stream:Append>`, etc.
+  - For entity broadcasting with Mercure: use `#[Broadcast]` attribute + 3-block template (create/update/remove)
+- **Stimulus** — the standard for interactive JavaScript
+  - Every interactive UI component should be a Stimulus controller (not inline JS)
+  - Controllers in `assets/controllers/` with naming convention `{name}_controller.js`
+  - Use `data-controller`, `data-action`, `data-{controller}-target` attributes in Twig
+  - Controllers connect/disconnect cleanly with Turbo navigations — no manual lifecycle management needed
+  - Existing controllers: `select_controller.js` (custom select), `csrf_protection_controller.js`
+- **Forms** — Symfony form theme in `templates/form/kiveto_form_theme.html.twig`
+  - All `<select>` single-choice rendered as custom `ki-select` Stimulus component
+  - `<select multiple>` stays native
+  - Forms return **422** on validation errors automatically (Symfony 7.4+)
+  - Redirect with **302/303** on success
+
 ---
 
 ## Usage Guidelines
@@ -155,4 +197,4 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Review periodically for outdated rules
 - The AccessControl BC README is the reference template for BC documentation
 
-_Last Updated: 2026-03-29_
+_Last Updated: 2026-04-06_
