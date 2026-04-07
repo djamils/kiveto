@@ -1,0 +1,38 @@
+{# Right panel: Stock & Alerts section #}
+<div class="rp-section rp-section--bordered">
+  <div class="rp-head">
+    <div class="rp-head-left">
+      <i data-lucide="alert-circle" style="width:12px;height:12px;color:var(--color-danger-600);"></i>
+      <span class="rp-head-title">Stock &amp; Alertes</span>
+      <span class="badge b-alert badge-sm" style="padding:1px 6px;">9</span>
+    </div>
+    <div class="rp-actions">
+      <button class="rp-link-btn">Voir tout &rarr;</button>
+      <button class="rpanel-close" onclick="document.getElementById('rpanel').classList.remove('open');document.getElementById('rpanelOverlay').classList.remove('is-open');" aria-label="Fermer">
+        <svg width="10" height="10" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="rp-scroll">
+    <table class="rp-table">
+      <thead>
+        <tr>
+          <th>Produit</th>
+          <th>Qt&eacute;</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td title="Gants chirurgicaux L">Gants chir. L</td><td class="rp-qty--danger">3 bo&icirc;tes</td><td><span class="badge b-alert badge-sm">Rupture</span></td></tr>
+        <tr><td title="K&eacute;tamine 10%">K&eacute;tamine 10%</td><td class="rp-qty--danger">0 flacon</td><td><span class="badge b-alert badge-sm">Rupture</span></td></tr>
+        <tr><td title="Rimadyl 25mg — AINS">Rimadyl 25mg</td><td class="rp-qty--warning">12 unit&eacute;s</td><td><span class="badge b-warn badge-sm">Faible</span></td></tr>
+        <tr><td title="Propofol 1% — Expir&eacute;">Propofol 1%</td><td class="rp-qty--muted">&mdash;</td><td><span class="badge b-alert badge-sm">Expir&eacute;</span></td></tr>
+        <tr><td title="Vaccin Leptospirose — Expir&eacute;">Vaccin Lepto.</td><td class="rp-qty--muted">&mdash;</td><td><span class="badge b-alert badge-sm">Expir&eacute;</span></td></tr>
+        <tr><td title="Seringues 5ml st&eacute;riles">Seringues 5ml</td><td class="rp-qty--warning">18 unit&eacute;s</td><td><span class="badge b-warn badge-sm">Faible</span></td></tr>
+        <tr><td title="Compresses st&eacute;riles 10x10">Compresses st&eacute;r.</td><td class="rp-qty--warning">2 paquets</td><td><span class="badge b-warn badge-sm">Faible</span></td></tr>
+        <tr><td title="Amoxicilline 250mg — Expire bient&ocirc;t">Amoxicilline 250mg</td><td class="rp-qty--subtle">84 unit&eacute;s</td><td><span class="badge b-purple badge-sm">Bient&ocirc;t</span></td></tr>
+        <tr><td title="Vaccin antirabique — Expire bient&ocirc;t">Vaccin antirabique</td><td class="rp-qty--subtle">6 doses</td><td><span class="badge b-purple badge-sm">Bient&ocirc;t</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,76 @@
+{#
+ # Kiveto -- templates/clinic/home/index.html.twig
+ # ──────────────────────────────────────────────
+ # Dashboard (home) page for the active clinic.
+ # Extends clinic/base.html.twig (with sidebar + topbar).
+ #
+ # Variables from controller:
+ #   currentClinicId    string (UUID)
+ #   currentClinicName  string
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Tableau de bord - {{ currentClinicName }}{% endblock %}
+
+{% block page_icon %}<i data-lucide="layout-grid"></i>{% endblock %}
+{% block page_title %}Vue d'ensemble{% endblock %}
+
+{% block topbar_actions %}
+  <div class="qa-topbar-group">
+    <button class="qa-topbar-btn" type="button" aria-label="Nouveau patient">
+      <span class="qa-topbar-icon" style="background:#dbeafe;color:#2563eb;">
+        <i data-lucide="user-plus"></i>
+      </span>
+      <span class="qa-topbar-label">Nouveau patient</span>
+    </button>
+
+    <button class="qa-topbar-btn" type="button" aria-label="Prise de RDV">
+      <span class="qa-topbar-icon" style="background:#dcfce7;color:#16a34a;">
+        <i data-lucide="calendar-plus"></i>
+      </span>
+      <span class="qa-topbar-label">Prise de RDV</span>
+    </button>
+
+    <button class="qa-topbar-btn" type="button" aria-label="Walk-in sans RDV">
+      <span class="qa-topbar-icon" style="background:#fef9c3;color:#d97706;">
+        <i data-lucide="zap"></i>
+      </span>
+      <span class="qa-topbar-label">Walk-in</span>
+    </button>
+
+    <button class="qa-topbar-btn" type="button" aria-label="Hospitaliser un patient">
+      <span class="qa-topbar-icon" style="background:#f3e8ff;color:#9333ea;">
+        <i data-lucide="bed"></i>
+      </span>
+      <span class="qa-topbar-label">Hospitaliser</span>
+    </button>
+
+    <button class="qa-topbar-btn" type="button" aria-label="Imprimer ordonnance">
+      <span class="qa-topbar-icon" style="background:#ffe4e6;color:#e11d48;">
+        <i data-lucide="printer"></i>
+      </span>
+      <span class="qa-topbar-label">Imprimer ordo.</span>
+    </button>
+  </div>
+
+  <button class="btn-rpanel" onclick="document.getElementById('rpanel').classList.add('open');document.getElementById('rpanelOverlay').classList.add('is-open');" aria-label="Ouvrir le panneau latéral">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M9 3h12v18H9M3 9h6M3 15h6"/></svg>
+  </button>
+{% endblock %}
+
+
+{% block content %}
+  {{ include('clinic/home/_header.html.twig') }}
+  {{ include('clinic/home/_hospitalisations.html.twig') }}
+  {{ include('clinic/home/_kanban.html.twig') }}
+{% endblock %}
+
+{% block rpanel %}
+{# Right Panel -- Stock & Tasks #}
+<div class="app-rpanel" id="rpanel">
+  {{ include('clinic/home/_rpanel_stock.html.twig') }}
+  {{ include('clinic/home/_rpanel_tasks.html.twig') }}
+</div>
+{% endblock %}
+
+{% block javascripts %}{% endblock %}

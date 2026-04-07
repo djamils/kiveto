@@ -1,0 +1,108 @@
+/* assets/styles/pages/common.css
+   Common page styles — full-height page overrides, scrollbars,
+   mini calendar, vet filter, burger button, drawer overlay, form grids */
+
+@layer components {
+
+  /* Full-height pages — remove body padding, enable flex fill.
+     Targets main[data-page] directly for padding,
+     uses :has() to propagate overflow/flex to parent containers. */
+  main.app-body[data-page="clinic_scheduling_dashboard"],
+  main.app-body[data-page="clinic_scheduling_planning"],
+  main.app-body[data-page="clinic_scheduling_waiting_room"],
+  main.app-body[data-page="clinic_hospitalisations"],
+  main.app-body[data-page="clinic_clients_list"],
+  main.app-body[data-page="clinic_clients_view"],
+  main.app-body[data-page="clinic_consultation_details"],
+  main.app-body[data-page="clinic_select_clinic"] {
+    padding: 0 !important;
+    @apply flex flex-col flex-1 overflow-hidden min-h-0;
+  }
+
+  /* Propagate full-height to scroll and main-wrap containers */
+  .app-scroll:has(> main[data-page="clinic_scheduling_dashboard"]),
+  .app-scroll:has(> main[data-page="clinic_scheduling_planning"]),
+  .app-scroll:has(> main[data-page="clinic_scheduling_waiting_room"]),
+  .app-scroll:has(> main[data-page="clinic_hospitalisations"]),
+  .app-scroll:has(> main[data-page="clinic_clients_list"]),
+  .app-scroll:has(> main[data-page="clinic_clients_view"]),
+  .app-scroll:has(> main[data-page="clinic_consultation_details"]),
+  .app-scroll:has(> main[data-page="clinic_select_clinic"]) {
+    overflow: hidden !important;
+    @apply flex flex-col flex-1 min-h-0;
+  }
+
+  /* Thin scrollbar */
+  * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+  ::-webkit-scrollbar { width: 2px; height: 2px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+  ::-webkit-scrollbar-button { display: none; }
+
+  /* Toast notification */
+  #toast {
+    @apply fixed pointer-events-none;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    opacity: 0;
+    transition: all .25s;
+    z-index: 999;
+  }
+
+  /* ── Mini calendar ── */
+  .mini-cal { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+  .mini-cal-head { @apply flex items-center justify-between; margin-bottom: 10px; }
+  .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .mini-cal-dow { font-size: 10px; font-weight: 600; color: #94a3b8; text-align: center; padding-bottom: 2px; }
+  .mini-cal-day {
+    aspect-ratio: 1;
+    @apply flex items-center justify-center relative;
+    font-size: 11px; border-radius: 5px; cursor: pointer;
+    transition: all .1s; color: #475569;
+  }
+  .mini-cal-day:hover { background: #f1f5f9; }
+  .mini-cal-day.today { background: #4338ca; color: #fff; font-weight: 700; }
+  .mini-cal-day.selected { background: #eef2ff; color: #4338ca; font-weight: 600; }
+  .mini-cal-day.other-month { color: #cbd5e1; }
+  .mini-cal-day.has-blocks::after {
+    content: ''; display: block; width: 3px; height: 3px; border-radius: 50%;
+    background: #4338ca; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  }
+
+  /* ── Vet filter ── */
+  .vet-filter { padding: 10px 14px; }
+  .vet-chip {
+    @apply flex items-center cursor-pointer;
+    gap: 7px; padding: 5px 8px; border-radius: 7px;
+    transition: background .1s; margin-bottom: 3px;
+  }
+  .vet-chip:hover { background: #f8fafc; }
+  .vet-dot { @apply rounded-full shrink-0; width: 10px; height: 10px; }
+
+  /* ── Burger button override ── */
+  .btn-burger {
+    @apply hidden shrink-0 cursor-pointer;
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid #e2e8f0; background: #f8fafc;
+    align-items: center; justify-content: center; color: #64748b;
+  }
+  .btn-burger:hover { background: #f1f5f9; }
+
+  /* ── Drawer overlay for pages ── */
+  .drawer-overlay {
+    @apply hidden fixed inset-0;
+    background: rgba(15, 23, 42, .3); z-index: 80; backdrop-filter: blur(2px);
+  }
+  .drawer-overlay.open { @apply block; }
+
+  /* ── Form grid patterns ── */
+  .form-row { margin-bottom: 12px; }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+}

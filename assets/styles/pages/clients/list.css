@@ -1,0 +1,541 @@
+/* assets/styles/pages/clients/list.css
+   Clients & Animaux page — tabs, data card, table, hover actions */
+
+@layer components {
+
+  /* Filter button (used in topbar + data card head) */
+  .data-filter-btn {
+    @apply inline-flex items-center font-medium cursor-pointer;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-family: inherit;
+    background: var(--surface-card);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    transition: all .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .data-filter-btn svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-subtle);
+  }
+  .data-filter-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+  .data-filter-btn.data-filter-btn--sm {
+    height: 28px;
+    padding: 0 8px;
+  }
+  .data-filter-btn.is-active {
+    border-color: var(--brand-500);
+    color: var(--brand-600);
+    background: var(--brand-50);
+  }
+
+  [data-page="clinic_clients_list"] {
+
+    /* ── Icon size utilities (kept from previous design) ── */
+    .cl-icon-xxs { width: 10px; height: 10px; }
+    .cl-icon-xs  { width: 11px; height: 11px; }
+    .cl-icon-sm  { width: 14px; height: 14px; }
+    .cl-icon-md  { width: 18px; height: 18px; }
+    .cl-icon-lg  { width: 24px; height: 24px; }
+    .cl-icon--faded  { @apply opacity-50; }
+    .cl-icon--border { color: var(--border-medium); }
+
+    /* ── Page wrapper ── */
+    .ca-page {
+      @apply flex flex-col flex-1 overflow-hidden;
+    }
+    .ca-tab-panel {
+      @apply flex-1 overflow-auto;
+      min-height: 0;
+    }
+
+    /* ── Tabs (white bar full-width, no margin) ── */
+    .ca-tabs {
+      background: var(--surface-card);
+      padding: 0 20px;
+    }
+
+    /* ── Data card (Clients & Animaux tabs) ── */
+    .data-card {
+      @apply flex flex-col;
+      background: var(--surface-card);
+      height: 100%;
+    }
+    .data-card-head {
+      @apply flex items-center justify-between flex-wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-light);
+      gap: 8px;
+    }
+    .data-card-head-left {
+      @apply flex items-center flex-wrap;
+      gap: 8px;
+    }
+    .data-card-head-right {
+      @apply flex items-center;
+      gap: 8px;
+    }
+
+    /* Search */
+    .data-search { @apply relative flex items-center; }
+    .data-search-icon {
+      @apply absolute pointer-events-none;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+      width: 14px;
+      height: 14px;
+    }
+    .data-search-input {
+      height: 32px;
+      width: 240px;
+      padding: 0 12px 0 32px;
+      font-size: 13px;
+      font-family: inherit;
+      background: var(--surface-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 8px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color .15s;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .data-search-input::placeholder { color: var(--text-subtle); }
+    .data-search-input:hover { border-color: var(--border-strong); }
+    .data-search-input:focus {
+      border-color: var(--brand-400);
+      box-shadow: var(--shadow-focus);
+    }
+
+
+    /* ── Data table ── */
+    .data-card-table {
+      @apply flex-1 overflow-auto;
+      min-height: 0;
+    }
+    .data-grid {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      table-layout: auto;
+    }
+    .data-grid thead { background: var(--surface-subtle); }
+    .data-grid thead th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-light);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      background: var(--surface-subtle);
+      z-index: 1;
+    }
+    .dg-th-checkbox {
+      width: 40px;
+      padding-left: 16px;
+      vertical-align: middle;
+    }
+    .dg-th-actions  { width: 70px; }
+    .data-grid tbody td.dg-th-checkbox { padding-top: 0; padding-bottom: 0; }
+
+    .dg-th-sortable {
+      @apply cursor-pointer select-none;
+    }
+    .dg-th-sortable:hover { color: var(--text-secondary); }
+    .dg-th-sortable span { vertical-align: middle; }
+    .dg-sort-icon {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      vertical-align: middle;
+      margin-left: 4px;
+      color: var(--text-disabled);
+      opacity: .7;
+    }
+
+    .data-grid tbody tr {
+      transition: background .12s;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .data-grid tbody tr:hover { background: var(--surface-subtle); }
+    .data-grid tbody tr:last-child { border-bottom: none; }
+    .data-grid tbody td {
+      padding: 10px 12px;
+      vertical-align: middle;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-light);
+    }
+    .data-grid tbody tr:last-child td { border-bottom: none; }
+
+    /* .dg-checkbox kept as positional helper; visual styling comes from .ki-checkbox */
+    .dg-checkbox { vertical-align: middle; }
+    .dg-name-cell {
+      @apply flex items-center;
+      gap: 8px;
+    }
+    .dg-avatar {
+      @apply flex items-center justify-center shrink-0 font-medium;
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      font-size: 11px;
+    }
+    .dg-name-link {
+      @apply font-medium;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .dg-name-link:hover { color: var(--brand-600); }
+    .dg-cell-muted  { color: var(--text-muted); }
+    .dg-cell-strong { color: var(--text-primary); font-weight: 500; }
+
+    .dg-animals-chips {
+      @apply flex items-center flex-wrap;
+      gap: 4px;
+    }
+    .dg-animal-chip {
+      @apply inline-flex items-center cursor-pointer;
+      gap: 4px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-light);
+      border-radius: 9999px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .dg-animal-chip:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    /* ── Hover row actions ── */
+    .dg-row-actions {
+      @apply flex items-center justify-end;
+      gap: 4px;
+    }
+    .dg-row-action {
+      @apply flex items-center justify-center cursor-pointer border-none;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all .12s;
+    }
+    .dg-row-action svg { width: 14px; height: 14px; }
+    .dg-row-action:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+    .dg-row-action--star { color: var(--text-subtle); }
+    .dg-row-action--star.is-starred { color: #f59e0b; }
+    .dg-row-action--menu {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s;
+    }
+    .data-grid tbody tr:hover .dg-row-action--menu {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ── Pagination footer ── */
+    .data-card-foot {
+      @apply flex items-center justify-between flex-wrap;
+      padding: 6px 16px;
+      border-top: 1px solid var(--border-light);
+      gap: 12px;
+      height: 45px;
+    }
+    .data-pagination-left {
+      @apply flex items-center;
+      gap: 8px;
+    }
+    .data-pagination-label {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .data-pagination-select { width: 72px; }
+    .data-pagination-select .ki-select-trigger {
+      height: 32px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--surface-card);
+      border: 1px solid var(--border-medium);
+    }
+    .data-pagination-select .ki-select-trigger:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+    }
+    .data-pagination-right {
+      @apply flex items-center;
+      gap: 12px;
+    }
+    .data-pagination-info {
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .data-pagination-buttons {
+      @apply flex items-center;
+      gap: 4px;
+    }
+    .data-pagination-btn {
+      @apply flex items-center justify-center cursor-pointer;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border-medium);
+      border-radius: 6px;
+      background: var(--surface-card);
+      color: var(--text-muted);
+    }
+    .data-pagination-btn svg { width: 14px; height: 14px; }
+    .data-pagination-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+    .data-pagination-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+  }
+
+  /* ── Unscoped: tab count pill (used inside .tab-line) ── */
+  .tab-count {
+    font-size: var(--text-xs);
+    color: var(--text-subtle);
+    padding: 1px 6px;
+    background: var(--surface-subtle);
+    border-radius: 9999px;
+    margin-left: 4px;
+  }
+
+  /* ── Unscoped: wizard modal (used in nouvel animal) ── */
+  .wizard-modal {
+    @apply flex flex-col;
+  }
+  .wizard-head-left {
+    @apply flex items-center gap-3;
+  }
+  .wizard-step-label {
+    @apply text-xs text-text-subtle;
+    padding: 2px 8px;
+    background: var(--surface-subtle);
+    border-radius: 9999px;
+  }
+
+  /* Stepper */
+  .wizard-stepper {
+    @apply flex items-center justify-center;
+    padding: 16px 20px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface-subtle);
+  }
+  .wizard-step {
+    @apply flex items-center;
+    gap: 8px;
+    color: var(--text-subtle);
+    font-size: 13px;
+    font-weight: 500;
+    transition: color .15s;
+  }
+  .wizard-step-num {
+    @apply flex items-center justify-center shrink-0;
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-medium);
+    font-size: 12px;
+    font-weight: 600;
+    transition: all .15s;
+  }
+  .wizard-step.is-active {
+    color: var(--brand-600);
+  }
+  .wizard-step.is-active .wizard-step-num {
+    background: var(--brand-600);
+    color: #fff;
+    border-color: var(--brand-600);
+  }
+  .wizard-step.is-done {
+    color: var(--text-secondary);
+  }
+  .wizard-step.is-done .wizard-step-num {
+    background: var(--brand-50);
+    color: var(--brand-600);
+    border-color: var(--brand-600);
+  }
+  .wizard-step-sep {
+    width: 32px;
+    height: 1px;
+    background: var(--border-medium);
+  }
+
+  /* Wizard body */
+  .wizard-body {
+    padding: 24px 20px;
+  }
+  .wizard-pane {
+    @apply flex flex-col;
+    gap: 16px;
+  }
+  .wizard-section-title {
+    @apply font-medium;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  /* Choice grid (existing/new owner) */
+  .wizard-choice-grid {
+    @apply grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .wizard-choice {
+    @apply relative flex items-center w-full text-left cursor-pointer font-sans;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface-card);
+    border: 1.5px solid var(--border-light);
+    border-radius: 8px;
+    transition: all .15s;
+  }
+  .wizard-choice:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+  .wizard-choice.is-active {
+    border-color: var(--brand-500);
+    background: var(--brand-50);
+  }
+  .wizard-choice-icon {
+    @apply flex items-center justify-center shrink-0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .wizard-choice-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .wizard-choice-body {
+    @apply flex-1 min-w-0;
+  }
+  .wizard-choice-title {
+    @apply font-medium;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .wizard-choice-sub {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin-top: 2px;
+  }
+  .wizard-choice-check {
+    @apply flex items-center justify-center shrink-0;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--brand-600);
+    color: #fff;
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .wizard-choice-check svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 3;
+  }
+  .wizard-choice.is-active .wizard-choice-check {
+    opacity: 1;
+  }
+
+  .wizard-owner-panel {
+    @apply flex flex-col;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  /* Wizard footer (modal-foot variant) */
+  .wizard-foot {
+    justify-content: space-between !important;
+  }
+  .wizard-foot-right {
+    @apply flex items-center;
+    gap: 8px;
+  }
+
+  /* ── Unscoped: column picker items with check icon (popover content moved to body) ── */
+  .col-picker-item {
+    @apply relative flex items-center w-full cursor-pointer text-md text-text-secondary font-sans border-none bg-transparent text-left;
+    padding: 6px 10px 6px 32px;
+    margin: 1px 4px;
+    border-radius: 6px;
+    transition: background .12s;
+    width: calc(100% - 8px);
+  }
+  .col-picker-item:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+  .col-picker-check {
+    @apply absolute flex items-center justify-center;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--brand-600);
+    opacity: 0;
+    transition: opacity .12s;
+  }
+  .col-picker-check svg {
+    width: 14px;
+    height: 14px;
+  }
+  .col-picker-item.is-checked .col-picker-check {
+    opacity: 1;
+  }
+}
+
+/* ── Responsive overrides ── */
+@media (max-width: 1280px) {
+  [data-page="clinic_clients_list"] {
+    .ca-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .col-email { display: none !important; }
+  }
+}
+
+@media (max-width: 1024px) {
+  [data-page="clinic_clients_list"] {
+    .ca-overview-cols { grid-template-columns: 1fr; }
+    .col-phone { display: none !important; }
+    .col-nextrdv { display: none !important; }
+    .data-search-input { width: 180px; }
+  }
+}
+
+@media (max-width: 640px) {
+  [data-page="clinic_clients_list"] {
+    .ca-kpi-grid { grid-template-columns: 1fr; }
+    .col-animals { display: none !important; }
+    .col-lastrdv { display: none !important; }
+  }
+}

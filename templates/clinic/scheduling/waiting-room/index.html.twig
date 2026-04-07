@@ -1,0 +1,77 @@
+{#
+ # Kiveto — templates/clinic/scheduling/waiting-room/index.html.twig
+ # ─────────────────────────────────────────────────────────────────
+ # Waiting room — real-time queue management.
+ # Source: vetos-salle-attente.html mockup
+ #
+ # Variables:
+ #   waitingRoomEntries  array    List of waiting-room entry DTOs
+ #   currentClinicId     string   Active clinic UUID
+ #   currentClinicName   string   Active clinic display name
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block show_topbar %}false{% endblock %}
+{% block page_title %}Salle d'attente{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('styles/pages/scheduling-waiting-room.css') }}"/>
+{% endblock %}
+
+{% block content %}
+{% include 'clinic/scheduling/waiting-room/_topbar.html.twig' %}
+
+<!-- Desktop layout -->
+<div class="page-body" id="page-body-desktop">
+  {% include 'clinic/scheduling/waiting-room/_queue_panel.html.twig' %}
+  {% include 'clinic/scheduling/waiting-room/_control_panel.html.twig' %}
+</div>
+
+<!-- Tablet portrait layout -->
+<div class="page-body wr-page-body--tabs" id="page-body-tabs">
+  <div class="wr-tab-container">
+    <div class="tab-pane active" id="tab-queue">
+      <div class="queue-head">
+        <span class="wr-queue-title">File d'attente</span>
+        <span class="wr-queue-count" id="queue-count-tab">7 patients</span>
+      </div>
+      <div class="queue-filter">
+        <button class="qf-tab active" data-f="all" onclick="setQFilterTab(this)">Tous</button>
+        <button class="qf-tab urg" data-f="urgence" onclick="setQFilterTab(this)">Urgences</button>
+        <button class="qf-tab" data-f="attente" onclick="setQFilterTab(this)">En attente</button>
+        <button class="qf-tab" data-f="consultation" onclick="setQFilterTab(this)">Consultation</button>
+      </div>
+      {# Preserve JS-rendered content during Turbo swaps #}
+      <div class="queue-list" id="queue-list-tab" data-turbo-temporary></div>
+    </div>
+    <div class="tab-pane wr-tab-pane--rooms" id="tab-rooms">
+      <div class="widget wr-mb-3"><div class="wh"><span class="wt">V&eacute;t&eacute;rinaires de garde</span></div><div class="wr-vets-grid" id="vets-list-tab"></div></div>
+      <div class="widget"><div class="wh"><span class="wt">Flux de la journ&eacute;e</span><span class="wr-widget-subtitle">9h&ndash;18h</span></div><div class="wb" id="timeline-list-tab"></div></div>
+    </div>
+  </div>
+  <div class="bottom-tabs">
+    <button class="bottom-tab active" id="btab-queue" onclick="switchTab('queue')"><i data-lucide="list" class="wr-icon-md"></i><span class="bottom-tab-label">File d'attente</span></button>
+    <button class="bottom-tab" id="btab-rooms" onclick="switchTab('rooms')"><i data-lucide="door-open" class="wr-icon-md"></i><span class="bottom-tab-label">V&eacute;t&eacute;rinaires &amp; Flux</span></button>
+  </div>
+</div>
+
+<!-- FABs tablet -->
+<div class="fab-group" id="fab-group">
+  <button class="fab fab-danger" onclick="openModal('modal-urgence')"><i data-lucide="alert-triangle" class="wr-icon-fab"></i> Urgence</button>
+  <button class="fab fab-primary" onclick="openModal('modal-checkin')"><i data-lucide="plus" class="wr-icon-fab"></i> Check-in patient</button>
+</div>
+
+<!-- Bottom sheet portrait -->
+<div class="wr-bottom-sheet-overlay" id="bso" onclick="closeBottomSheet()"></div>
+<div class="wr-bottom-sheet" id="bs">
+  <div class="wr-bottom-sheet-handle"><div class="wr-bottom-sheet-grip"></div></div>
+  <div class="wr-bottom-sheet-content" id="bs-content"></div>
+</div>
+
+{% include 'clinic/scheduling/waiting-room/_modals.html.twig' %}
+
+<div id="wr-toast"></div>
+{% endblock %}
+
+{% block javascripts %}
+{% endblock %}

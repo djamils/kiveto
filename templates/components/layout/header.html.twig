@@ -1,0 +1,118 @@
+{#
+ # Kiveto — templates/components/layout/header.html.twig
+ # ─────────────────────────────────────────────────────
+ # Global app header. Spans full width above sidebar + content.
+ #
+ # Right-side slots: notifications, language selector, profile avatar.
+ # Each opens a popover via the declarative popover system.
+ #}
+
+<header class="app-header">
+
+  {# ── Left: brand ── #}
+  <div class="app-header-left">
+    <a href="{{ path('clinic_dashboard') }}" class="app-brand" aria-label="Kiveto">
+      <span class="app-brand-logo" aria-hidden="true">K</span>
+    </a>
+  </div>
+
+  {# ── Right: notif + language + profile ── #}
+  <div class="app-header-right">
+
+    {# Notifications #}
+    <button
+      class="app-header-btn"
+      type="button"
+      aria-label="Notifications"
+      data-popover-anchor="app-notif-popover"
+    >
+      <i data-lucide="bell"></i>
+      <span class="app-header-dot" aria-hidden="true"></span>
+    </button>
+
+    <div class="app-header-sep" aria-hidden="true"></div>
+
+    {# Profile avatar #}
+    <button
+      class="app-header-profile"
+      type="button"
+      aria-label="Profil"
+      data-popover-anchor="app-profile-popover"
+    >
+      <span class="avatar avatar-sm" style="background:var(--brand-600);color:#fff;">
+        {{ app.user.email|default('U')|first|upper }}
+      </span>
+    </button>
+
+  </div>
+
+</header>
+
+{# ── Notifications popover ── #}
+<div class="popover hidden" id="app-notif-popover" style="width: 320px;">
+  <p class="popover-head">Notifications</p>
+  <div class="app-notif-list">
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-success-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Nouveau RDV confirmé</span>
+        <span class="block text-xs text-text-subtle">Sophie Dubois · il y a 5 min</span>
+      </span>
+    </a>
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-warning-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Analyse en attente</span>
+        <span class="block text-xs text-text-subtle">Bilan sanguin · il y a 1 h</span>
+      </span>
+    </a>
+    <a href="#" class="nav-item">
+      <span class="app-notif-dot" style="background:var(--color-danger-600);"></span>
+      <span class="flex-1 min-w-0">
+        <span class="truncate block text-sm font-medium text-text-primary">Stock critique</span>
+        <span class="block text-xs text-text-subtle">Antibiotique · plus que 3 unités</span>
+      </span>
+    </a>
+  </div>
+  <div class="popover-divider"></div>
+  <a href="#" class="nav-item text-center justify-center text-sm text-brand-600">
+    Voir toutes les notifications
+  </a>
+</div>
+
+{# ── Profile popover ── #}
+<div class="popover hidden" id="app-profile-popover" style="width: 240px;">
+  <div class="app-profile-head">
+    <span class="avatar avatar-md" style="background:var(--brand-600);color:#fff;">
+      {{ app.user.email|default('U')|first|upper }}
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="truncate text-sm font-medium text-text-primary">{{ app.user.email|default('Utilisateur') }}</p>
+      <p class="text-xs text-text-subtle">Vétérinaire</p>
+    </div>
+  </div>
+
+  <div class="popover-divider"></div>
+
+  <div>
+    <a href="#" class="nav-item">
+      <i data-lucide="user"></i>
+      <span>Mon profil</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i data-lucide="settings"></i>
+      <span>Paramètres</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i data-lucide="moon"></i>
+      <span>Mode sombre</span>
+    </a>
+  </div>
+
+  <div class="popover-divider"></div>
+
+  <a href="/logout" class="nav-item">
+    <i data-lucide="log-out"></i>
+    <span>Se déconnecter</span>
+  </a>
+</div>

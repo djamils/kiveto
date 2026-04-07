@@ -1,0 +1,92 @@
+{#
+ # Kiveto — templates/components/layout/drawer.html.twig
+ # ─────────────────────────────────────────────────────────
+ # Generic drawer wrapper.
+ # Content is injected via the "drawer_body" Twig block.
+ #
+ # Parameters:
+ #   id           string   Unique drawer ID (required)
+ #   title        string   Title displayed in the header
+ #   size         string   sm | md | lg  (default: md = 420px)
+ #   show_footer  bool     Show footer with buttons (default: false)
+ #   cancel_label string   (default: 'Annuler')
+ #   submit_label string   (default: 'Enregistrer')
+ #   submit_variant string (default: 'primary')
+ #   submit_attrs string   Attributes on the submit button
+ #   form_id      string   If provided, the submit button targets this form (form="...")
+ #   extra_class  string
+ #
+ # Usage in a Twig page:
+ #
+ #   embed 'components/layout/drawer.html.twig' with { id: 'rdvDrawer', ... }
+ #     block drawer_body → drawer content
+ #   endembed
+ #
+ #   Trigger:
+ #   <button data-action="click->drawer#open" data-drawer-id-param="rdvDrawer">Ouvrir</button>
+ #}
+
+{% set icon_close %}
+  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+  </svg>
+{% endset %}
+
+{% set _size_class = '' %}
+{% if size is defined %}
+  {% if size == 'sm' %}{% set _size_class = 'drawer-sm' %}
+  {% elseif size == 'lg' %}{% set _size_class = 'drawer-lg' %}
+  {% endif %}
+{% endif %}
+
+<div
+  class="drawer-overlay {{ _size_class }}{% if extra_class is defined %} {{ extra_class }}{% endif %}"
+  id="{{ id }}"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="{{ id }}-title"
+  data-controller="drawer"
+  data-drawer-id-value="{{ id }}"
+>
+  <aside class="drawer">
+
+    <div class="drawer-head">
+      <span class="drawer-title" id="{{ id }}-title">{{ title|default('') }}</span>
+      <button
+        class="btn btn-ghost btn-icon btn-sm"
+        type="button"
+        aria-label="Fermer"
+        data-action="click->drawer#close"
+        data-drawer-id-param="{{ id }}"
+      >
+        {{ icon_close|raw }}
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      {% block drawer_body %}{% endblock %}
+    </div>
+
+    {% if show_footer is defined and show_footer %}
+      <div class="drawer-foot">
+        <button
+          class="btn btn-secondary btn-sm"
+          type="button"
+          data-action="click->drawer#close"
+          data-drawer-id-param="{{ id }}"
+        >
+          {{ cancel_label|default('Annuler') }}
+        </button>
+        <button
+          class="btn btn-{{ submit_variant|default('primary') }} btn-sm"
+          type="{% if form_id is defined and form_id %}submit{% else %}button{% endif %}"
+          {% if form_id is defined and form_id %}form="{{ form_id }}"{% endif %}
+          {{ submit_attrs|default('')|raw }}
+        >
+          {{ submit_label|default('Enregistrer') }}
+        </button>
+      </div>
+    {% endif %}
+
+  </aside>
+</div>

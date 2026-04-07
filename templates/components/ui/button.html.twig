@@ -1,0 +1,76 @@
+{#
+ # Kiveto — templates/components/ui/button.html.twig
+ # ─────────────────────────────────────────────────────
+ # Universal button.
+ #
+ # Parameters:
+ #   label       string   Button text
+ #   variant     string   primary | secondary | ghost | danger | danger-solid | success  (default: secondary)
+ #   size        string   lg | md | sm | xs  (default: md)
+ #   icon_left   string   SVG string before the label
+ #   icon_right  string   SVG string after the label
+ #   icon_only   string   SVG string — renders the button as a square (btn-icon)
+ #   type        string   button | submit | reset  (default: button)
+ #   href        string   If provided, renders an <a> instead of a <button>
+ #   disabled    bool     (default: false)
+ #   loading     bool     Loading state  (default: false)
+ #   extra_class string   Additional CSS classes
+ #   attrs       string   Raw HTML attributes (e.g. "data-action='click->drawer#open'")
+ #   id          string   id attribute
+ #
+ # Examples:
+ #   {{ include('components/ui/button.html.twig', {
+ #       label: 'Ajouter un RDV', variant: 'primary',
+ #       icon_left: '<svg>...</svg>',
+ #   }) }}
+ #
+ #   {{ include('components/ui/button.html.twig', {
+ #       icon_only: '<svg>...</svg>', variant: 'ghost', size: 'sm',
+ #       attrs: 'data-action="click->rdv#openDrawer"',
+ #   }) }}
+ #}
+
+{% set _variant = variant|default('secondary') %}
+{% set _size    = size|default('md') %}
+{% set _type    = type|default('button') %}
+
+{% set _cls = 'btn btn-' ~ _variant %}
+{% if _size == 'lg' %}{% set _cls = _cls ~ ' btn-lg' %}
+{% elseif _size == 'sm' %}{% set _cls = _cls ~ ' btn-sm' %}
+{% elseif _size == 'xs' %}{% set _cls = _cls ~ ' btn-xs' %}
+{% endif %}
+{% if icon_only is defined and icon_only %}{% set _cls = _cls ~ ' btn-icon' %}{% endif %}
+{% if loading is defined and loading %}{% set _cls = _cls ~ ' is-loading' %}{% endif %}
+{% if extra_class is defined %}{% set _cls = _cls ~ ' ' ~ extra_class %}{% endif %}
+
+{% if href is defined and href %}
+  <a
+    href="{{ href }}"
+    class="{{ _cls }}"
+    {% if id is defined %}id="{{ id }}"{% endif %}
+    {% if disabled is defined and disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+    {{ attrs|default('')|raw }}
+  >
+{% else %}
+  <button
+    type="{{ _type }}"
+    class="{{ _cls }}"
+    {% if id is defined %}id="{{ id }}"{% endif %}
+    {% if disabled is defined and disabled %}disabled{% endif %}
+    {{ attrs|default('')|raw }}
+  >
+{% endif %}
+
+  {% if icon_only is defined and icon_only %}
+    {{ icon_only|raw }}
+  {% else %}
+    {% if icon_left is defined and icon_left %}{{ icon_left|raw }}{% endif %}
+    {% if loading is defined and loading %}
+      <span class="btn-label">{{ label|default('') }}</span>
+    {% else %}
+      {{ label|default('') }}
+    {% endif %}
+    {% if icon_right is defined and icon_right %}{{ icon_right|raw }}{% endif %}
+  {% endif %}
+
+{% if href is defined and href %}</a>{% else %}</button>{% endif %}

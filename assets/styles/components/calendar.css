@@ -1,0 +1,126 @@
+/* assets/styles/components/calendar.css
+   Kiveto UI kit — inline calendar component (.ki-calendar) */
+
+@layer components {
+  .ki-calendar {
+    width: 100%;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: #0f172a;
+    user-select: none;
+  }
+
+  .ki-calendar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 2px 8px;
+  }
+
+  .ki-calendar-title {
+    flex: 1;
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0f172a;
+    text-transform: capitalize;
+  }
+
+  .ki-calendar-nav {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .ki-calendar-nav:hover { background: #f1f5f9; color: #0f172a; }
+
+  .ki-calendar-dow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  .ki-calendar-dow-cell {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 4px 0;
+  }
+  .ki-calendar-dow-cell.is-weekend { color: #cbd5e1; }
+
+  .ki-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .ki-calendar-day {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    min-height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: #334155;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .12s, color .12s, box-shadow .12s;
+  }
+  .ki-calendar-day:hover { background: #f1f5f9; color: #0f172a; }
+  .ki-calendar-day:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #c7d2fe;
+  }
+
+  .ki-calendar-day.is-outside-month { color: #cbd5e1; }
+  .ki-calendar-day.is-weekend       { color: #94a3b8; }
+  .ki-calendar-day.is-outside-month.is-weekend { color: #e2e8f0; }
+
+  .ki-calendar-day.is-today {
+    color: #4338ca;
+    font-weight: 700;
+  }
+  .ki-calendar-day.is-today::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #4338ca;
+  }
+
+  .ki-calendar-day.is-week-selected {
+    background: #eef2ff;
+    color: #4338ca;
+  }
+  .ki-calendar-day.is-week-selected.is-outside-month {
+    background: #f5f3ff;
+    color: #a5b4fc;
+  }
+
+  .ki-calendar-day.is-selected {
+    background: #4338ca !important;
+    color: #fff !important;
+    font-weight: 700;
+  }
+  .ki-calendar-day.is-selected::after { background: #fff; }
+}

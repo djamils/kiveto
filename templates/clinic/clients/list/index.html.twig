@@ -1,0 +1,96 @@
+{#
+ # Kiveto -- templates/clinic/clients/list/index.html.twig
+ # ──────────────────────────────────────────────────────
+ # Clients & Animaux page — 2 tabs (Clients / Animaux) with data tables
+ # and hover-revealed row actions. The overview/dashboard role belongs
+ # to the main Tableau de bord page.
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Clients & Animaux{% endblock %}
+{% block page_icon %}<i data-lucide="users-round"></i>{% endblock %}
+{% block page_title %}Clients & Animaux{% endblock %}
+
+{% block topbar_actions %}
+  <button type="button" class="data-filter-btn data-filter-btn--sm" data-popover-anchor="ca-reports-popover">
+    <i data-lucide="file-check-2"></i>
+    <span>Rapports</span>
+  </button>
+  <button type="button" class="data-filter-btn data-filter-btn--sm" data-modal-open="modal-new-animal">
+    <i data-lucide="paw-print"></i>
+    <span>Nouvel animal</span>
+  </button>
+  <button type="button" class="btn btn-primary btn-sm" data-modal-open="modal-new-client">
+    <i data-lucide="user-plus"></i>
+    <span>Nouveau client</span>
+  </button>
+{% endblock %}
+
+{% block content %}
+<div class="ca-page" data-tabs>
+
+  {# ── Tabs nav ── #}
+  <div class="tab-bar-line ca-tabs">
+    <button type="button" class="tab-line active" data-tab-target="ca-clients">
+      <i data-lucide="users"></i>
+      <span>Clients</span>
+      <span class="tab-count" id="ca-tab-count-clients">0</span>
+    </button>
+    <button type="button" class="tab-line" data-tab-target="ca-animals">
+      <i data-lucide="paw-print"></i>
+      <span>Animaux</span>
+      <span class="tab-count" id="ca-tab-count-animals">0</span>
+    </button>
+  </div>
+
+  {# ── Tab panels ── #}
+  <div id="ca-clients" class="ca-tab-panel">
+    {{ include('clinic/clients/list/_tab_clients.html.twig') }}
+  </div>
+
+  <div id="ca-animals" class="ca-tab-panel hidden">
+    {{ include('clinic/clients/list/_tab_animals.html.twig') }}
+  </div>
+
+</div>
+
+{# Reports popover (opened by topbar Rapports button) #}
+<div class="popover hidden" id="ca-reports-popover" style="width: 230px;">
+  <a href="#" class="nav-item" onclick="showToast('Génération du rapport…','#4338ca');return false;">
+    <i data-lucide="chart-no-axes-column"></i>
+    <span>Générer un rapport</span>
+  </a>
+  <a href="#" class="nav-item" onclick="showToast('Historique des rapports','#4338ca');return false;">
+    <i data-lucide="history"></i>
+    <span>Historique des rapports</span>
+  </a>
+
+  <div class="popover-divider"></div>
+
+  <a href="#" class="nav-item" onclick="showToast('Export CSV…','#4338ca');return false;">
+    <i data-lucide="download"></i>
+    <span>Exporter en CSV</span>
+  </a>
+  <a href="#" class="nav-item" onclick="showToast('Export Excel…','#4338ca');return false;">
+    <i data-lucide="file-spreadsheet"></i>
+    <span>Exporter en Excel</span>
+  </a>
+
+  <div class="popover-divider"></div>
+
+  <a href="#" class="nav-item text-text-subtle" onclick="showToast('Aide rapports','#4338ca');return false;">
+    <i data-lucide="info"></i>
+    <span>En savoir plus</span>
+  </a>
+</div>
+
+{# New client / new animal modals #}
+{{ include('clinic/clients/list/_modal_new_client.html.twig') }}
+{{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block javascripts %}
+<script>window.ROUTES = { clientsNew: '{{ path("clinic_clients_new") }}', clientsList: '{{ path("clinic_clients_list") }}' };</script>
+{% endblock %}

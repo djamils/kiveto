@@ -1,0 +1,26 @@
+{# Billing section inside the close-consultation modal right sidebar #}
+{# Note: This partial is included inside _modals.html.twig close consultation modal #}
+<div class="consult-billing-sidebar">
+  <p class="w-title">Actes &amp; Facturation</p>
+  <div class="consult-billing-items">
+    <div class="consult-billing-row"><div class="consult-billing-item-info"><p class="consult-billing-item-name">Consultation</p><p class="consult-billing-item-type">Acte standard</p></div><span class="consult-act-price">35,00 €</span></div>
+    <div class="consult-billing-row"><div class="consult-billing-item-info"><p class="consult-billing-item-name">Vaccination FeLV</p><p class="consult-billing-item-type">Acte + vaccin</p></div><span class="consult-act-price">18,00 €</span></div>
+    <div class="consult-billing-row"><div class="consult-billing-item-info"><p class="consult-billing-item-name">Smecta</p><p class="consult-billing-item-type">Médicament</p></div><span class="consult-act-price">4,50 €</span></div>
+    <div class="consult-billing-row"><div class="consult-billing-item-info"><p class="consult-billing-item-name">NaCl 0,9% SC</p><p class="consult-billing-item-type">Soin</p></div><span class="consult-act-price">6,00 €</span></div>
+  </div>
+  <div class="consult-billing-totals">
+    <div class="consult-billing-line"><span>HT</span><span>52,92 €</span></div>
+    <div class="consult-billing-line consult-billing-line--spaced"><span>TVA 20%</span><span>10,58 €</span></div>
+    <div class="consult-billing-total"><span>Total TTC</span><span>63,50 €</span></div>
+  </div>
+  <div>
+    <p class="w-title consult-mb-xs">Mode de paiement</p>
+    <div class="consult-payment-grid">
+      <button id="pay-cb" onclick="setPaiement(this,'cb')" class="consult-payment-btn">💳 CB</button>
+      <button id="pay-esp" onclick="setPaiement(this,'esp')" class="consult-payment-btn">💵 Espèces</button>
+      <button id="pay-chq" onclick="setPaiement(this,'chq')" class="consult-payment-btn">📄 Chèque</button>
+      <button id="pay-diff" onclick="setPaiement(this,'diff')" class="consult-payment-btn">⏳ Différé</button>
+    </div>
+  </div>
+  <button id="modal-confirm-btn" onclick="confirmClose()" class="btn btn-primary consult-confirm-btn"><i data-lucide="check" class="consult-icon-sm"></i>Enregistrer &amp; Clôturer</button>
+</div>

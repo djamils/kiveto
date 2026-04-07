@@ -99,23 +99,25 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         $userId      = trim($token->getUserIdentifier());
 
         if ('' === $userId) {
-            return new RedirectResponse($this->urlGenerator->generate($this->loginRouteForContext($authContext)));
+            $redirectUrl = $this->urlGenerator->generate($this->loginRouteForContext($authContext));
+            return $this->createSuccessResponse($request, $redirectUrl);
         }
 
         if (AuthenticationContext::CLINIC !== $authContext) {
-            return new RedirectResponse($this->urlGenerator->generate($this->successRouteForContext($authContext)));
+            $redirectUrl = $this->urlGenerator->generate($this->successRouteForContext($authContext));
+            return $this->createSuccessResponse($request, $redirectUrl);
         }
 
         $result = $this->queryBus->ask(new ResolveActiveClinic($userId));
         \assert($result instanceof ActiveClinicResult);
 
-        return match ($result->type) {
-            ActiveClinicResultType::NONE     => new RedirectResponse($this->urlGenerator->generate('clinic_no_access')),
-            ActiveClinicResultType::SINGLE   => $this->handleSingleClinic($result),
-            ActiveClinicResultType::MULTIPLE => new RedirectResponse(
-                $this->urlGenerator->generate('clinic_select_clinic')
-            ),
+        $redirectUrl = match ($result->type) {
+            ActiveClinicResultType::NONE     => $this->urlGenerator->generate('clinic_no_access'),
+            ActiveClinicResultType::SINGLE   => $this->getUrlForSingleClinic($result),
+            ActiveClinicResultType::MULTIPLE => $this->urlGenerator->generate('clinic_select_clinic'),
         };
+
+        return $this->createSuccessResponse($request, $redirectUrl);
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
@@ -145,6 +147,28 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($result->clinic->clinicId));
 
         return new RedirectResponse($this->urlGenerator->generate('clinic_dashboard'));
+    }
+
+    private function getUrlForSingleClinic(ActiveClinicResult $result): string
+    {
+        \assert(null !== $result->clinic);
+        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($result->clinic->clinicId));
+
+        return $this->urlGenerator->generate('clinic_dashboard');
+    }
+
+    private function createSuccessResponse(Request $request, string $redirectUrl): Response
+    {
+        // Si la requête attend du JSON, renvoyer une réponse JSON
+        if ($request->getContentTypeFormat() === 'json' || $request->headers->get('Accept') === 'application/json') {
+            return new JsonResponse([
+                'success' => true,
+                'redirect' => $redirectUrl,
+            ]);
+        }
+
+        // Sinon, redirection classique
+        return new RedirectResponse($redirectUrl);
     }
 
     private function resolveContext(Request $request): AuthenticationContext

@@ -1,0 +1,67 @@
+{#
+ # Kiveto — templates/components/ui/calendar.html.twig
+ # ───────────────────────────────────────────────────
+ # Reusable inline calendar (month view) component.
+ # Inspired by reui.io/docs/calendar and react-day-picker.
+ # Wired by assets/controllers/calendar_controller.js (Stimulus).
+ #
+ # Parameters:
+ #   id              string  Custom DOM id (default: auto)
+ #   selected        string  Pre-selected date (ISO yyyy-mm-dd, default: today)
+ #   month           string  Initial visible month (ISO yyyy-mm-dd, default: selected)
+ #   week_highlight  bool    If true, highlight the whole week of selected (default: false)
+ #   show_dow_short  bool    Use single-letter day labels (default: false → "Lun" "Mar" …)
+ #   extra_class     string  Extra classes on the wrapper
+ #
+ # Events emitted on the root element:
+ #   calendar:select { detail: { date: 'yyyy-mm-dd' } }
+ #
+ # Usage:
+ #   {{ include('components/ui/calendar.html.twig', {
+ #     selected: '2026-04-07',
+ #     week_highlight: true,
+ #   }) }}
+ #}
+{% set _id             = id|default('cal-' ~ random()) %}
+{% set _selected       = selected|default('') %}
+{% set _month          = month|default(_selected) %}
+{% set _week_highlight = week_highlight|default(false) %}
+{% set _show_dow_short = show_dow_short|default(false) %}
+
+<div
+  id="{{ _id }}"
+  class="ki-calendar{{ extra_class is defined ? ' ' ~ extra_class : '' }}"
+  data-controller="calendar"
+  data-calendar-selected-value="{{ _selected }}"
+  data-calendar-month-value="{{ _month }}"
+  data-calendar-week-highlight-value="{{ _week_highlight ? 'true' : 'false' }}"
+  data-calendar-dow-short-value="{{ _show_dow_short ? 'true' : 'false' }}"
+>
+  <div class="ki-calendar-head">
+    <button
+      type="button"
+      class="ki-calendar-nav"
+      data-action="click->calendar#prevMonth"
+      aria-label="Mois précédent"
+    >
+      <svg width="12" height="12" fill="none" viewBox="0 0 12 12">
+        <path d="M7.5 2l-4 4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <span class="ki-calendar-title" data-calendar-target="title"></span>
+    <button
+      type="button"
+      class="ki-calendar-nav"
+      data-action="click->calendar#nextMonth"
+      aria-label="Mois suivant"
+    >
+      <svg width="12" height="12" fill="none" viewBox="0 0 12 12">
+        <path d="M4.5 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="ki-calendar-dow" data-calendar-target="dow"></div>
+
+  <div class="ki-calendar-grid" data-calendar-target="grid" data-turbo-temporary></div>
+</div>

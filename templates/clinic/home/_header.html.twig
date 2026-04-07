@@ -1,0 +1,62 @@
+{# Dashboard header: clock widget + 4 KPI cards #}
+<div class="dash-header-grid">
+
+  {# Clock -- central element, vet glances at the time constantly #}
+  <div class="widget dash-clock-widget">
+    <p id="dash-clock" class="dash-clock"></p>
+    <p id="dash-date" class="dash-date"></p>
+  </div>
+
+  {# 4 operational KPIs -- real-time situation #}
+  <div class="dash-kpi-grid">
+
+    <div class="kpi-card k-blue" role="button" tabindex="0">
+      <div class="kpi-head-row">
+        <div class="kpi-icon kpi-icon--blue">
+          <i data-lucide="calendar-check" style="width:14px;height:14px;color:#2563eb;"></i>
+        </div>
+        <span class="kpi-badge">Aujourd'hui</span>
+      </div>
+      <p class="kpi-num">18</p>
+      <p class="kpi-label">Rendez-vous</p>
+      <p class="kpi-delta kpi-delta--success"><i data-lucide="check-circle" style="width:10px;height:10px;"></i> 8 termin&eacute;s &middot; 6 en cours</p>
+    </div>
+
+    <div class="kpi-card k-amber" role="button" tabindex="0">
+      <div class="kpi-head-row">
+        <div class="kpi-icon kpi-icon--amber">
+          <i data-lucide="users" style="width:14px;height:14px;color:#d97706;"></i>
+        </div>
+        <span class="kpi-badge">En attente</span>
+      </div>
+      <p class="kpi-num">4</p>
+      <p class="kpi-label">Salle d'attente</p>
+      <p class="kpi-delta kpi-delta--warning"><i data-lucide="clock" style="width:10px;height:10px;"></i> Moy. 18 min d'attente</p>
+    </div>
+
+    <div class="kpi-card k-red" role="button" tabindex="0">
+      <div class="kpi-head-row">
+        <div class="kpi-icon kpi-icon--red">
+          <i data-lucide="bed" style="width:14px;height:14px;color:#dc2626;"></i>
+        </div>
+        <span class="kpi-badge kpi-badge--danger">2 critiques</span>
+      </div>
+      <p class="kpi-num">14</p>
+      <p class="kpi-label">Hospitalis&eacute;s</p>
+      <p class="kpi-delta kpi-delta--danger"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Bruno &amp; Titan — urgents</p>
+    </div>
+
+    <div class="kpi-card k-green" role="button" tabindex="0">
+      <div class="kpi-head-row">
+        <div class="kpi-icon kpi-icon--green">
+          <i data-lucide="package-x" style="width:14px;height:14px;color:#16a34a;"></i>
+        </div>
+        <span class="kpi-badge kpi-badge--danger">2 ruptures</span>
+      </div>
+      <p class="kpi-num">9</p>
+      <p class="kpi-label">Alertes stock</p>
+      <p class="kpi-delta kpi-delta--danger"><i data-lucide="x-circle" style="width:10px;height:10px;"></i> Gants chir. &middot; K&eacute;tamine</p>
+    </div>
+
+  </div>
+</div>

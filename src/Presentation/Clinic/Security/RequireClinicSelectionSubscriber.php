@@ -20,6 +20,7 @@ final readonly class RequireClinicSelectionSubscriber implements EventSubscriber
         'clinic_select_clinic_post',
         'clinic_no_access',
         'clinic_logout',
+        'clinic_lock',
     ];
 
     public function __construct(

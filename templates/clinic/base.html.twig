@@ -1,72 +1,93 @@
-<!doctype html>
-<html  class="h-full" data-kt-theme="true" data-kt-theme-mode="light" dir="ltr" lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+{#
+ # Kiveto — templates/clinic/base.html.twig
+ # ─────────────────────────────────────────
+ # Base template for all authenticated clinic pages.
+ # Inherit: {% extends 'clinic/base.html.twig' %}
+ #
+ # Available blocks:
+ #   title         — Page <title>
+ #   page_title    — Title displayed in the topbar (required)
+ #   page_subtitle — Topbar subtitle (optional)
+ #   topbar_search — bool: show search (default: false)
+ #   topbar_actions — Topbar buttons
+ #   breadcrumb    — Breadcrumb trail
+ #   content       — Main content (required)
+ #   rpanel        — Optional right panel
+ #   modals        — Page modals
+ #   drawers       — Page drawers
+ #   fab           — Optional mobile FAB
+ #   stylesheets   — Additional CSS
+ #   javascripts   — Additional JS
+ #}
+{% extends 'base.html.twig' %}
 
-        <link rel="stylesheet" href="{{ asset('theme/vendors/keenicons/styles.bundle.css') }}">
-        <link rel="stylesheet" href="{{ asset('theme/css/styles.css') }}">
+{% block show_sidebar %}true{% endblock %}
+{% block show_topbar %}true{% endblock %}
 
-        <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+{% block body %}
+{# ── App Root (header on top, then shell) ── #}
+<div class="app-root">
 
-        <title>{% block title %}Tableau de bord{% endblock %}</title>
+  {# Global header #}
+  {{ include('components/layout/header.html.twig') }}
 
-        {% block stylesheets %}{% endblock %}
-    </head>
+  {# ── App Shell ── #}
+  <div class="app-shell">
 
-    <body class="antialiased flex h-full text-base text-foreground bg-background text-foreground bg-background flex h-full text-base antialiased">
-    <script>
-        const defaultThemeMode = 'light'; // light|dark|system
-        let themeMode;
+  {# Sidebar (desktop: fixed / mobile: drawer) — hidden on scheduling pages #}
+  {% if block('show_sidebar')|trim == 'true' %}
+  {{ include('components/layout/sidebar.html.twig', {
+    clinic: activeClinic|default({ name: 'Ma clinique', type: 'Vétérinaire' }),
+    user: app.user,
+    active_item: app.request.attributes.get('_route'),
+  }) }}
 
-        if (document.documentElement) {
-            if (localStorage.getItem('kt-theme')) {
-                themeMode = localStorage.getItem('kt-theme');
-            } else if (
-                document.documentElement.hasAttribute('data-kt-theme-mode')
-            ) {
-                themeMode =
-                    document.documentElement.getAttribute('data-kt-theme-mode');
-            } else {
-                themeMode = defaultThemeMode;
-            }
+  {# Mobile sidebar overlay #}
+  <div class="sidebar-overlay" id="sidebarOverlay" data-action="click->sidebar#close"></div>
+  {% endif %}
 
-            if (themeMode === 'system') {
-                themeMode = window.matchMedia('(prefers-color-scheme: dark)').matches
-                    ? 'dark'
-                    : 'light';
-            }
+  {# Main area #}
+  <div class="app-content">
 
-            document.documentElement.classList.add(themeMode);
-        }
-    </script>
-        <!-- Page -->
-        <!-- Main -->
-        <div class="flex grow">
+    {# Topbar — hidden on pages with their own specialized topbar #}
+    {% if block('show_topbar')|trim == 'true' %}
+      {{ include('components/layout/topbar.html.twig', {
+        burger:         block('show_sidebar')|trim == 'true',
+        page_icon:      block('page_icon') is defined ? block('page_icon') : '',
+        page_title:     block('page_title') is defined ? block('page_title') : '',
+        topbar_search:  block('topbar_search') is defined ? block('topbar_search') : '',
+        topbar_actions: block('topbar_actions') is defined ? block('topbar_actions') : '',
+      }) }}
+    {% endif %}
 
-            <!-- Wrapper -->
-            <div class="flex grow h-screen flex-col [--header-height:40px] [--content-header-height:54px] [--sidebar-width:250px] [--sidebar-width-collapsed:52px] [--sidebar-header-height:54px] [--sidebar-footer-height:45px] [--sidebar-footer-collapsed-height:90px]">
-                {% include 'clinic/partials/_header.html.twig' %}
+    {# Flex row: scroll area + optional right panel #}
+    <div class="app-main-wrap">
+      <div class="app-scroll">
+        <main class="app-body" id="main-content" data-page="{{ app.request.attributes.get('_route') }}">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+      {% block rpanel %}{% endblock %}
+    </div>
 
-                <!-- Content -->
-                <main class="grow pt-5" id="content" role="content">
-                    {% block content %}{% endblock %}
-                </main>
-                <!-- End of Content -->
+    {# Overlay behind rpanel drawer on tablet #}
+    <div class="rpanel-overlay" id="rpanelOverlay" onclick="document.getElementById('rpanel')?.classList.remove('open');this.classList.remove('is-open');"></div>
 
-            </div>
-            <!-- End of Wrapper -->
-        </div>
-        <!-- End of Main -->
-        <!-- End of Page -->
+  </div>{# /app-content #}
 
-        {% block javascripts %}
-            <script src="{{ asset('theme/js/core.bundle.js') }}" defer></script>
-            <script src="{{ asset('theme/vendors/ktui/ktui.min.js') }}" defer></script>
-            <script src="{{ asset('theme/vendors/apexcharts/apexcharts.min.js') }}" defer></script>
-            <script src="{{ asset('theme/js/widgets/general.js') }}" defer></script>
+  </div>{# /app-shell #}
 
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
-    </body>
-</html>
+</div>{# /app-root #}
+
+{# FAB mobile #}
+{% block fab %}{% endblock %}
+
+{# Page drawers #}
+{% block drawers %}{% endblock %}
+
+{# Global search modal #}
+{{ include('components/layout/search_modal.html.twig') }}
+
+{# Page modals #}
+{% block modals %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Rapports{% endblock %}
+{% block page_icon %}<i data-lucide="bar-chart-3"></i>{% endblock %}
+{% block page_title %}Rapports{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:400px;">
+  {{ include('components/ui/empty_state.html.twig', {
+    title: 'Bientôt disponible',
+    subtitle: 'Les rapports et statistiques seront disponibles prochainement.',
+  }) }}
+</div>
+{% endblock %}

@@ -1,76 +1,749 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 40px auto; }
-        form { display: flex; flex-direction: column; gap: 12px; }
-        label { font-weight: bold; }
-        input { padding: 8px; font-size: 14px; }
-        button { padding: 10px; font-size: 15px; cursor: pointer; }
-        .error { color: #c00; }
-        .success { color: #080; }
-    </style>
-</head>
-<body>
-    <h1>Login {{ app | title }}</h1>
-    <form id="login-form">
-        <div>
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required>
+{#
+ # Kiveto -- templates/security/login.html.twig
+ # Login page with split layout: branding aside (desktop) + login card.
+ # Extends base.html.twig (no sidebar).
+ #
+ # Variables from controller:
+ #   error          AuthenticationException|null   Authentication error
+ #   last_username  string                         Last entered username/email
+ #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block stylesheets %}
+<style>
+
+    /* ─────────────────────────────────────────
+       RESET page login
+       Override le background de la baseline
+    ───────────────────────────────────────── */
+    html {
+      height: 100%;
+    }
+
+    body {
+      min-height: 100%;           /* pas 100vh -- laisse le contenu pousser */
+      height: auto;               /* override baseline height:100% */
+      display: flex;
+      flex-direction: column;     /* centre verticalement via margin auto */
+      align-items: center;
+      background-color: var(--brand-950);
+      background-image:
+        radial-gradient(ellipse 70% 60% at 15% 20%, rgba(67,56,202,.18) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 85% 80%, rgba(99,102,241,.1) 0%, transparent 55%);
+      background-attachment: fixed; /* fond fixe meme au scroll */
+      overflow-x: hidden;
+      overflow-y: auto;           /* scroll si contenu > viewport */
+      padding: var(--space-6) var(--space-4);
+    }
+
+    /* Decorative grid background */
+    body::before {
+      content: '';
+      position: fixed;            /* fixed = reste en fond au scroll */
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg,  transparent, transparent 47px, rgba(255,255,255,.016) 47px, rgba(255,255,255,.016) 48px),
+        repeating-linear-gradient(90deg, transparent, transparent 47px, rgba(255,255,255,.016) 47px, rgba(255,255,255,.016) 48px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─────────────────────────────────────────
+       SHELL -- centered main container
+    ───────────────────────────────────────── */
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 900px;
+      margin: auto;               /* centre verticalement quand body est flex-col */
+      display: flex;
+      align-items: center;
+      gap: var(--space-10);
+    }
+
+    /* ─────────────────────────────────────────
+       ASIDE -- left branding
+    ───────────────────────────────────────── */
+    .aside {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+    }
+
+    .aside-brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      background: var(--brand-600);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
+    }
+
+    .brand-name {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-medium);
+      color: #fff;
+      letter-spacing: -.2px;
+    }
+
+    .brand-sub {
+      font-size: var(--text-sm);
+      color: rgba(255,255,255,.35);
+      margin-top: 2px;
+    }
+
+    .tagline-title {
+      font-size: 28px;
+      font-weight: 300;
+      color: #fff;
+      line-height: 1.25;
+      letter-spacing: -.4px;
+    }
+
+    .tagline-title strong {
+      font-weight: var(--weight-medium);
+      color: var(--brand-100);
+    }
+
+    .tagline-sub {
+      font-size: var(--text-md);
+      color: rgba(255,255,255,.4);
+      line-height: var(--lh-loose);
+      margin-top: var(--space-3);
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .feature-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: var(--brand-500);
+      flex-shrink: 0;
+      opacity: .7;
+    }
+
+    .feature-text {
+      font-size: var(--text-sm);
+      color: rgba(255,255,255,.35);
+    }
+
+    .security-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--radius-full);
+      padding: var(--space-1) var(--space-3);
+    }
+
+    .security-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: #4ade80;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(74,222,128,.5);
+    }
+
+    .security-text {
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,.4);
+    }
+
+    /* ─────────────────────────────────────────
+       CARD -- login form
+    ───────────────────────────────────────── */
+    .card {
+      width: 400px;
+      flex-shrink: 0;
+      background: var(--surface-card);
+      border-radius: var(--radius-lg);
+      padding: var(--space-8);
+      box-shadow: var(--shadow-xl);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .card-header {
+      margin-bottom: var(--space-8);
+    }
+
+    .card-title {
+      font-size: var(--text-xl);
+      font-weight: var(--weight-medium);
+      color: var(--text-primary);
+      letter-spacing: -.3px;
+      margin-bottom: var(--space-1);
+    }
+
+    .card-sub {
+      font-size: var(--text-md);
+      color: var(--text-subtle);
+    }
+
+    /* Form */
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+
+    /* Inputs with icon */
+    .field-inner {
+      position: relative;
+    }
+
+    .field-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-subtle);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Override .form-input from baseline to add icon padding */
+    .fi-with-icon {
+      padding-left: 38px;
+    }
+
+    .fi-with-toggle {
+      padding-right: 40px;
+    }
+
+    /* Eye toggle button */
+    .eye-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-subtle);
+      background: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      transition: var(--transition-fast);
+    }
+
+    .eye-btn:hover { color: var(--text-secondary); background: var(--surface-hover); }
+    .eye-btn:active { transform: translateY(-50%) scale(.95); }
+
+    /* Full-width primary button */
+    .btn-submit {
+      width: 100%;
+      height: 40px;
+      background: var(--brand-900);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--text-base);
+      font-weight: var(--weight-medium);
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      transition: var(--transition-normal);
+      letter-spacing: -.1px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: var(--brand-800);
+      box-shadow: 0 4px 16px rgba(30,27,75,.2);
+    }
+
+    .btn-submit:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    .btn-submit:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .btn-submit.is-loading {
+      opacity: .7;
+      pointer-events: none;
+    }
+
+    /* Forgotten password link */
+    .btn-link {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: var(--text-md);
+      color: var(--brand-600);
+      cursor: pointer;
+      text-align: right;
+      align-self: flex-end;
+      padding: var(--space-1);
+      border-radius: var(--radius-sm);
+      transition: var(--transition-fast);
+    }
+
+    .btn-link:hover { color: var(--brand-800); background: var(--brand-50); }
+
+    /* Card footer */
+    .card-footer {
+      margin-top: var(--space-6);
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--slate-100);
+      font-size: var(--text-xs);
+      color: var(--text-subtle);
+      text-align: center;
+    }
+
+    /* Authentication error alert */
+    .login-error {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: var(--color-danger-bg, #fee2e2);
+      color: var(--color-danger-text, #dc2626);
+      font-size: var(--text-md);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-danger-border, #fecaca);
+    }
+
+    /* ─────────────────────────────────────────
+       RESPONSIVE
+
+       Breakpoints:
+       >= 860px   -> Desktop: split layout (aside + card)
+       600-859px  -> Tablet landscape: centered card, aside hidden
+       < 600px    -> Mobile: full-width card, reduced padding
+    ───────────────────────────────────────── */
+
+    /* Tablet landscape (e.g. iPad mini landscape = 768px) */
+    @media (max-width: 859px) {
+      body {
+        padding: var(--space-6) var(--space-6);
+      }
+
+      .shell {
+        justify-content: center;
+      }
+
+      .aside {
+        display: none;
+      }
+
+      .card {
+        width: 440px;
+        max-width: 100%;
+      }
+    }
+
+    /* Tablet portrait (e.g. iPad = 768px portrait, small tablets = 600px) */
+    @media (max-width: 700px) {
+      body {
+        padding: var(--space-6) var(--space-5);
+        align-items: stretch; /* card takes full available width */
+      }
+
+      .shell {
+        margin: auto 0;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        padding: var(--space-6);
+      }
+
+      .card-header {
+        margin-bottom: var(--space-6);
+      }
+    }
+
+    /* Mobile (< 480px) */
+    @media (max-width: 480px) {
+      body {
+        padding: var(--space-4) var(--space-4);
+      }
+
+      .card {
+        padding: var(--space-5) var(--space-4);
+        border-radius: var(--radius-lg);
+        /* No border on mobile -- saves visual space */
+        box-shadow: var(--shadow-lg);
+      }
+
+      .card-title {
+        font-size: var(--text-lg);  /* 16px instead of 20px */
+      }
+
+      .tagline-title {
+        font-size: 22px;
+      }
+
+      /* Larger inputs for touch */
+      .form-input {
+        height: 44px;             /* easier to tap on touch */
+        font-size: var(--text-base);
+      }
+
+      .btn-submit {
+        height: 44px;
+      }
+    }
+
+    /* Very small mobile (< 360px -- e.g. iPhone SE) */
+    @media (max-width: 360px) {
+      body {
+        padding: var(--space-3) var(--space-3);
+      }
+
+      .card {
+        padding: var(--space-4) var(--space-3);
+      }
+    }
+
+    /* Reduced height (mobile landscape, < 500px height) */
+    @media (max-height: 500px) {
+      body {
+        padding: var(--space-3) var(--space-4);
+        justify-content: flex-start;
+      }
+
+      .card-header {
+        margin-bottom: var(--space-4);
+      }
+
+      .login-form {
+        gap: var(--space-3);
+      }
+
+      .card-footer {
+        margin-top: var(--space-4);
+      }
+    }
+
+</style>
+{% endblock %}
+
+{% block body %}
+
+<div class="shell">
+
+  {# Branding (desktop only) #}
+  <div class="aside">
+    <div class="aside-brand">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
+          <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <p class="brand-name">VET-OS</p>
+        <p class="brand-sub">Plateforme vétérinaire</p>
+      </div>
+    </div>
+
+    <div>
+      <p class="tagline-title">La clinique<br><strong>sous contrôle.</strong></p>
+      <p class="tagline-sub">Consultations, planning, hospitalisations<br>et dossiers patients — en un seul endroit.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Agenda intelligent multi-vétérinaires</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Dossiers médicaux & ordonnances</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Suivi des hospitalisations en temps réel</span></div>
+      <div class="feature"><div class="feature-dot"></div><span class="feature-text">Catalogue & gestion des stocks</span></div>
+    </div>
+
+    <div>
+      <div class="security-pill">
+        <div class="security-dot"></div>
+        <span class="security-text">Connexion sécurisée · Accès accrédité</span>
+      </div>
+    </div>
+  </div>
+
+  {# Login form #}
+  <div class="card">
+    <div class="card-header">
+      <p class="card-title">Connexion</p>
+      <p class="card-sub">Entrez vos identifiants pour accéder à l'espace clinique.</p>
+    </div>
+
+    <form class="login-form" action="{{ path('clinic_login') }}" method="post">
+
+      {# Authentication error #}
+      {% if error is defined and error %}
+        <div class="login-error" role="alert">
+          <svg width="14" height="14" fill="none" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M6 4v3M6 8.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          {{ error.messageKey|trans(error.messageData, 'security') }}
         </div>
-        <div>
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
+      {% endif %}
+
+      {# CSRF token #}
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}"/>
+
+      {# Email #}
+      <div class="field">
+        <label class="field-label" for="login-email">Adresse email</label>
+        <div class="field-inner">
+          <span class="field-icon" aria-hidden="true">
+            <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+              <rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M1 6l7 4 7-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input
+            class="form-input fi-with-icon"
+            id="login-email"
+            name="_username"
+            type="email"
+            placeholder="vous@votreclinique.fr"
+            value=""
+            autocomplete="email"
+            aria-label="Adresse email"
+            aria-describedby="err-email"
+          />
         </div>
-        <button type="submit">Sign in</button>
+        <p class="field-error" id="err-email" role="alert" aria-live="polite">
+          <svg width="12" height="12" fill="none" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M6 4v3M6 8.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          Adresse email invalide.
+        </p>
+      </div>
+
+      {# Password #}
+      <div class="field">
+        <label class="field-label" for="login-pwd">Mot de passe</label>
+        <div class="field-inner">
+          <span class="field-icon" aria-hidden="true">
+            <svg width="14" height="14" fill="none" viewBox="0 0 16 16">
+              <rect x="2" y="7" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input
+            class="form-input fi-with-icon fi-with-toggle"
+            id="login-pwd"
+            name="_password"
+            type="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            aria-label="Mot de passe"
+            aria-describedby="err-pwd"
+          />
+          <button
+            class="eye-btn"
+            id="eye-btn"
+            onclick="togglePwd()"
+            type="button"
+            aria-label="Afficher le mot de passe"
+            tabindex="-1"
+          >
+            <svg id="eye-icon" width="15" height="15" fill="none" viewBox="0 0 16 16">
+              <ellipse cx="8" cy="8" rx="7" ry="4.5" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="8" cy="8" r="2" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        <p class="field-error" id="err-pwd" role="alert" aria-live="polite">
+          <svg width="12" height="12" fill="none" viewBox="0 0 12 12" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M6 4v3M6 8.5v.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          Email ou mot de passe incorrect.
+        </p>
+      </div>
+
+      {# Actions #}
+      <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-2)">
+        <button
+          class="btn-submit"
+          id="login-btn"
+          type="submit"
+          aria-label="Se connecter"
+        >
+          <span id="login-label">Se connecter</span>
+        </button>
+
+        <button class="btn-link" onclick="handleForgot()" type="button">
+          Mot de passe oublié ?
+        </button>
+      </div>
+
     </form>
-    <p id="message"></p>
 
-    <script>
-        const form = document.getElementById('login-form');
-        const message = document.getElementById('message');
+    <div class="card-footer">
+      © 2026 VET-OS · Accès restreint aux membres accrédités
+    </div>
+  </div>
 
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            message.textContent = '';
-            message.className = '';
+</div>
 
-            const payload = {
-                email: form.email.value,
-                password: form.password.value,
-            };
+<div id="toast" role="status" aria-live="polite"></div>
 
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', // important for session cookies
-                    body: JSON.stringify(payload),
-                });
+{% endblock %}
 
-                const data = await response.json().catch(() => ({}));
+{% block javascripts %}
+<script>
+  /* -- Toast -- */
+  function toast(msg, color = '#16a34a', icon = '\u2713') {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.innerHTML = `<span aria-hidden="true">${icon}</span><span>${msg}</span>`;
+    t.style.background = color;
+    t.style.opacity = '1';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(t._t);
+    t._t = setTimeout(() => {
+      t.style.opacity = '0';
+      t.style.transform = 'translateX(-50%) translateY(8px)';
+    }, 2800);
+  }
 
-                if (response.ok) {
-                    message.textContent = data.message ?? 'Logged in successfully.';
-                    message.className = 'success';
-                    window.location.href = '/';
-                    return;
-                }
+  /* -- Toggle password visibility -- */
+  let pwdVisible = false;
+  function togglePwd() {
+    pwdVisible = !pwdVisible;
+    const input = document.getElementById('login-pwd');
+    const icon  = document.getElementById('eye-icon');
+    const btn   = document.getElementById('eye-btn');
+    input.type = pwdVisible ? 'text' : 'password';
+    btn.setAttribute('aria-label', pwdVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+    icon.innerHTML = pwdVisible
+      ? `<ellipse cx="8" cy="8" rx="7" ry="4.5" stroke="currentColor" stroke-width="1.3"/>
+         <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>`
+      : `<ellipse cx="8" cy="8" rx="7" ry="4.5" stroke="currentColor" stroke-width="1.3"/>
+         <circle cx="8" cy="8" r="2" fill="currentColor"/>`;
+  }
 
-                message.textContent = data.message ??
-                    data?.error?.code ??
-                    'Login failed.';
-                message.className = 'error';
-            } catch (error) {
-                message.textContent = 'Network error.';
-                message.className = 'error';
-            }
+  /* -- Validation -- */
+  function clearErrors() {
+    document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+    document.querySelectorAll('.form-input').forEach(i => i.classList.remove('is-error'));
+  }
+
+  function showError(fieldId, errId) {
+    document.getElementById(fieldId).classList.add('is-error');
+    document.getElementById(errId).classList.add('show');
+    document.getElementById(fieldId).focus();
+  }
+
+  /* -- Forgotten password -- */
+  function handleForgot() {
+    const email = document.getElementById('login-email').value.trim();
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast('Email de réinitialisation envoyé à ' + email, '#4338ca', '\u2709');
+    } else {
+      toast('Entrez d\'abord votre adresse email.', '#b45309', '!');
+    }
+  }
+
+  /* -- Form submission -- */
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('.login-form');
+    const emailInput = document.getElementById('login-email');
+    const pwdInput = document.getElementById('login-pwd');
+    const submitBtn = document.getElementById('login-btn');
+    const submitLabel = document.getElementById('login-label');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const email = emailInput.value.trim();
+      const password = pwdInput.value;
+
+      // Validation côté client
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('login-email', 'err-email');
+        return;
+      }
+
+      if (!password) {
+        showError('login-pwd', 'err-pwd');
+        return;
+      }
+
+      // État de chargement
+      submitBtn.disabled = true;
+      submitBtn.classList.add('is-loading');
+      submitLabel.textContent = 'Connexion...';
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
         });
 
-    </script>
-</body>
-</html>
-
+        if (response.ok) {
+          // Authentification réussie - redirection gérée par le serveur
+          const data = await response.json().catch(() => ({}));
+          if (data.redirect) {
+            window.location.href = data.redirect;
+          } else {
+            // Si pas de redirect dans la réponse, recharger la page
+            window.location.reload();
+          }
+        } else {
+          // Erreur d'authentification
+          const data = await response.json();
+          const errorMsg = data?.error?.message || 'Identifiants incorrects';
+          showError('login-pwd', 'err-pwd');
+          toast(errorMsg, '#dc2626', '✕');
+          
+          // Réinitialiser le bouton
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('is-loading');
+          submitLabel.textContent = 'Se connecter';
+        }
+      } catch (error) {
+        console.error('Erreur de connexion:', error);
+        toast('Erreur de connexion. Veuillez réessayer.', '#dc2626', '✕');
+        
+        // Réinitialiser le bouton
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('is-loading');
+        submitLabel.textContent = 'Se connecter';
+      }
+    });
+  });
+</script>
+{% endblock %}

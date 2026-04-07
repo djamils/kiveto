@@ -1,51 +1,57 @@
+{# Backoffice — Create new clinic form #}
 {% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Nouvelle clinique{% endblock %}
-{% block page_title %}➕ Créer une Clinique{% endblock %}
+{% block page_title %}Creer une Clinique{% endblock %}
 
-{% block body %}
-<div class="card">
-            <form method="post" action="{{ path('backoffice_clinics_create') }}">
-                <input type="hidden" name="_token" value="{{ csrf_token }}">
+{% block content %}
+  <div class="widget widget-pad" style="max-width:640px;">
+    <form method="post" action="{{ path('backoffice_clinics_create') }}">
+      <input type="hidden" name="_token" value="{{ csrf_token }}">
 
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Nom*</label>
-                    <input name="name" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
-                </div>
+      <div class="field" style="margin-bottom:var(--space-3);">
+        <label class="field-label">Nom *</label>
+        <input name="name" class="form-input" required>
+      </div>
 
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Slug* <small>(format: a-z, 0-9, -)</small></label>
-                    <input name="slug" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" pattern="[a-z0-9-]+" required>
-                </div>
+      <div class="field" style="margin-bottom:var(--space-3);">
+        <label class="field-label">Slug * <small style="color:var(--text-subtle);">(format: a-z, 0-9, -)</small></label>
+        <input name="slug" class="form-input" pattern="[a-z0-9-]+" required>
+      </div>
 
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Timezone* <small>(IANA format)</small></label>
-                    <input name="time_zone" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="Europe/Paris" required>
-                    <small style="color: #95a5a6;">Ex: Europe/Paris, America/New_York, UTC</small>
-                </div>
+      <div class="field" style="margin-bottom:var(--space-3);">
+        <label class="field-label">Timezone * <small style="color:var(--text-subtle);">(IANA format)</small></label>
+        <input name="time_zone" class="form-input" value="Europe/Paris" required>
+        <small style="color:var(--text-subtle);">Ex: Europe/Paris, America/New_York, UTC</small>
+      </div>
 
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Locale* <small>(format: fr-FR, en-US)</small></label>
-                    <input name="locale" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="fr-FR" pattern="[a-z]{2}-[A-Z]{2}" required>
-                </div>
+      <div class="field" style="margin-bottom:var(--space-3);">
+        <label class="field-label">Locale * <small style="color:var(--text-subtle);">(format: fr-FR, en-US)</small></label>
+        <input name="locale" class="form-input" value="fr-FR" pattern="[a-z]{2}-[A-Z]{2}" required>
+      </div>
 
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Groupe (optionnel)</label>
-                    <select name="clinic_group_id" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
-                        <option value="">(aucun)</option>
-                        {% for group in groups.clinicGroups %}
-                            {% if group.status.value == 'active' %}
-                                <option value="{{ group.id }}">{{ group.name }}</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
+      <div class="field" style="margin-bottom:var(--space-4);">
+        <label class="field-label">Groupe (optionnel)</label>
+        {# Custom select component for clinic group — only active groups shown #}
+        {% set group_options = [] %}
+        {% for group in groups.clinicGroups %}
+          {% if group.status.value == 'active' %}
+            {% set group_options = group_options|merge([{ value: group.id, label: group.name }]) %}
+          {% endif %}
+        {% endfor %}
+        {{ include('components/ui/select.html.twig', {
+          name: 'clinic_group_id',
+          id: 'clinic_group_id',
+          placeholder: '(aucun)',
+          value: '',
+          options: group_options,
+          clearable: true,
+        }) }}
+      </div>
 
-                <div style="margin-top: 20px;">
-                    <button type="submit" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Créer la clinique</button>
-                    <a href="{{ path('backoffice_clinics') }}" style="display: inline-block; padding: 10px 20px; background: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-weight: 500; margin-left: 10px;">Annuler</a>
-                </div>
-            </form>
-        </div>
-    </div>
+      <div style="display:flex;gap:var(--space-2);">
+        <button type="submit" class="btn btn-primary">Creer la clinique</button>
+        <a href="{{ path('backoffice_clinics') }}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </form>
+  </div>
 {% endblock %}

@@ -1,0 +1,29 @@
+{#
+ # Kiveto — templates/components/ui/spinner.html.twig
+ # ──────────────────────────────────────────────────────
+ # Inline loader spinner.
+ #
+ # Parameters:
+ #   size        string   sm | md | lg  (default: md)
+ #   label       string   Accessible sr-only text  (default: 'Chargement...')
+ #   centered    bool     Wrap in a centered container  (default: false)
+ #   extra_class string
+ #}
+
+{% set _cls = 'spinner' %}
+{% if size is defined %}
+  {% if size == 'sm' %}{% set _cls = _cls ~ ' spinner-sm' %}
+  {% elseif size == 'lg' %}{% set _cls = _cls ~ ' spinner-lg' %}
+  {% endif %}
+{% endif %}
+{% if extra_class is defined %}{% set _cls = _cls ~ ' ' ~ extra_class %}{% endif %}
+
+{% if centered is defined and centered %}
+  <div style="display:flex;align-items:center;justify-content:center;padding:var(--space-8) 0;">
+{% endif %}
+
+<span class="{{ _cls }}" role="status" aria-label="{{ label|default('Chargement...') }}"></span>
+
+{% if centered is defined and centered %}
+  </div>
+{% endif %}

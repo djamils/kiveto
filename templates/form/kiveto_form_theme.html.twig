@@ -1,0 +1,298 @@
+{#
+ # Kiveto — templates/form/kiveto_form_theme.html.twig
+ # ───────────────────────────────────────────────────────
+ # Symfony form theme that automatically applies the design system
+ # to all form_widget() / form_row() / form_errors().
+ #
+ # Activation in config/packages/twig.yaml:
+ #   twig:
+ #     form_themes:
+ #       - 'form/kiveto_form_theme.html.twig'
+ #
+ # Or on a specific form:
+ #   {% form_theme form 'form/kiveto_form_theme.html.twig' %}
+ #}
+
+{# ── ROW (label + widget + errors + help) ── #}
+{% block form_row %}
+  <div class="field{% if not valid %} has-error{% endif %}{{ row_attr.class is defined ? ' ' ~ row_attr.class : '' }}">
+    {% if label is not same as(false) %}
+      {{ form_label(form) }}
+    {% endif %}
+    {{ form_widget(form) }}
+    {{ form_errors(form) }}
+    {{ form_help(form) }}
+  </div>
+{% endblock %}
+
+{# ── LABEL ── #}
+{% block form_label %}
+  {% if label is not same as(false) %}
+    {% set label_attr = label_attr|merge({ class: 'field-label ' ~ (label_attr.class|default('')) }) %}
+    <label
+      {% if id is defined %}for="{{ id }}"{% endif %}
+      {% for attrname, attrvalue in label_attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+    >
+      {{ label|default(name|humanize)|trans({}, translation_domain) }}
+      {% if required %}<span aria-hidden="true" style="color:var(--color-danger-600);">*</span>{% endif %}
+    </label>
+  {% endif %}
+{% endblock %}
+
+{# ── ERRORS ── #}
+{% block form_errors %}
+  {% if errors|length > 0 %}
+    {% for error in errors %}
+      <span class="field-error show" role="alert">
+        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4m0 4h.01"/>
+        </svg>
+        {{ error.message }}
+      </span>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
+
+{# ── HELP ── #}
+{% block form_help %}
+  {% if help %}
+    <p class="field-hint">{{ help|trans({}, translation_domain) }}</p>
+  {% endif %}
+{% endblock %}
+
+{# ── INPUT WIDGET BASE ── #}
+{% block form_widget_simple %}
+  {% set attr = attr|merge({
+    class: 'form-input ' ~ (not valid ? 'is-error' : '') ~ ' ' ~ (attr.class|default(''))
+  }) %}
+  <input
+    type="{{ type|default('text') }}"
+    id="{{ id }}"
+    name="{{ full_name }}"
+    value="{{ value }}"
+    {% if required %}required{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if read_only %}readonly{% endif %}
+    {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+  />
+{% endblock %}
+
+{# ── TEXTAREA ── #}
+{% block textarea_widget %}
+  {% set attr = attr|merge({
+    class: 'form-input ' ~ (not valid ? 'is-error' : '') ~ ' ' ~ (attr.class|default(''))
+  }) %}
+  <textarea
+    id="{{ id }}"
+    name="{{ full_name }}"
+    {% if required %}required{% endif %}
+    {% if disabled %}disabled{% endif %}
+    {% if read_only %}readonly{% endif %}
+    {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+  >{{ value }}</textarea>
+{% endblock %}
+
+{# ── SELECT ── #}
+{% block choice_widget_collapsed %}
+  {% if multiple %}
+    {# Multiple select — keep native #}
+    {% set attr = attr|merge({
+      class: 'form-input ' ~ (not valid ? 'is-error' : '') ~ ' ' ~ (attr.class|default(''))
+    }) %}
+    <select
+      id="{{ id }}"
+      name="{{ full_name }}[]"
+      multiple
+      {% if required %}required{% endif %}
+      {% if disabled %}disabled{% endif %}
+      {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+    >
+      {% for group_label, choice in choices %}
+        {% if choice is iterable %}
+          <optgroup label="{{ group_label|trans({}, translation_domain) }}">
+            {% for choice in choice %}
+              <option value="{{ choice.value }}"{% if choice.value in value %} selected{% endif %}>
+                {{ choice.label|trans({}, translation_domain) }}
+              </option>
+            {% endfor %}
+          </optgroup>
+        {% else %}
+          <option value="{{ choice.value }}"{% if choice.value in value %} selected{% endif %}>
+            {{ choice.label|trans({}, translation_domain) }}
+          </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  {% else %}
+    {# Single select — custom animated Select component #}
+    {% set _sf_value = value|first is defined ? value|first : (value is iterable ? '' : value) %}
+    {% set _sf_selected_label = '' %}
+    {% set _flat_options = [] %}
+
+    {% if placeholder is not none %}
+      {% set _flat_options = _flat_options|merge([{ value: '', label: placeholder|trans({}, translation_domain) }]) %}
+    {% endif %}
+
+    {% for group_label, choice in choices %}
+      {% if choice is iterable %}
+        {% for choice in choice %}
+          {% set _flat_options = _flat_options|merge([{ value: choice.value, label: choice.label|trans({}, translation_domain) }]) %}
+          {% if choice.value == _sf_value %}{% set _sf_selected_label = choice.label|trans({}, translation_domain) %}{% endif %}
+        {% endfor %}
+      {% else %}
+        {% set _flat_options = _flat_options|merge([{ value: choice.value, label: choice.label|trans({}, translation_domain) }]) %}
+        {% if choice.value == _sf_value %}{% set _sf_selected_label = choice.label|trans({}, translation_domain) %}{% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {% set _sf_placeholder = placeholder is not none ? placeholder|trans({}, translation_domain) : 'Sélectionner...' %}
+
+    <div
+      class="ki-select{{ not valid ? ' has-error' : '' }}{{ attr.class is defined ? ' ' ~ attr.class : '' }}"
+      data-controller="select"
+      data-select-placeholder-value="{{ _sf_placeholder }}"
+      data-action="keydown->select#onKeydown"
+    >
+      <input
+        type="hidden"
+        name="{{ full_name }}"
+        value="{{ _sf_value }}"
+        id="{{ id }}"
+        data-select-target="hidden"
+        {% if required %}required{% endif %}
+      />
+
+      <button
+        type="button"
+        class="ki-select-trigger{{ disabled ? ' is-disabled' : '' }}"
+        data-select-target="trigger"
+        data-action="click->select#toggle"
+        role="combobox"
+        aria-expanded="false"
+        aria-haspopup="listbox"
+        aria-controls="{{ id }}-listbox"
+        {{ disabled ? 'disabled' : '' }}
+      >
+        <span
+          data-select-target="label"
+          class="ki-select-label{{ _sf_selected_label ? '' : ' is-placeholder' }}"
+        >{{ _sf_selected_label ? _sf_selected_label : _sf_placeholder }}</span>
+        <span class="ki-select-icons">
+          <svg class="ki-select-chevron" width="10" height="6" fill="none" viewBox="0 0 10 6">
+            <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+
+      <div
+        class="ki-select-dropdown hidden"
+        data-select-target="dropdown"
+        role="listbox"
+        id="{{ id }}-listbox"
+      >
+        {% if _flat_options|length > 6 %}
+          <div class="ki-select-search">
+            <input
+              type="text"
+              class="form-input form-input-sm"
+              placeholder="Rechercher..."
+              data-select-target="search"
+              data-action="input->select#filter"
+              autocomplete="off"
+            />
+          </div>
+        {% endif %}
+
+        <div class="ki-select-options">
+          {% for opt in _flat_options %}
+            <button
+              type="button"
+              class="ki-select-option"
+              data-select-target="option"
+              data-action="click->select#select"
+              data-value="{{ opt.value }}"
+              data-label="{{ opt.label }}"
+              role="option"
+              aria-selected="{{ opt.value == _sf_value ? 'true' : 'false' }}"
+            >
+              <svg
+                class="ki-select-check{{ opt.value == _sf_value ? '' : ' hidden' }}"
+                width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"
+                aria-hidden="true"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="truncate">{{ opt.label }}</span>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{# ── CHECKBOX ── #}
+{% block checkbox_widget %}
+  <label class="check-wrap">
+    <input
+      type="checkbox"
+      id="{{ id }}"
+      name="{{ full_name }}"
+      value="{{ value }}"
+      {% if checked %}checked{% endif %}
+      {% if required %}required{% endif %}
+      {% if disabled %}disabled{% endif %}
+      {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+    />
+    <span class="check-label">
+      {% if label is not same as(false) %}
+        {{ label|default(name|humanize)|trans({}, translation_domain) }}
+      {% endif %}
+    </span>
+  </label>
+{% endblock %}
+
+{# ── RADIO ── #}
+{% block radio_widget %}
+  <label class="check-wrap">
+    <input
+      type="radio"
+      id="{{ id }}"
+      name="{{ full_name }}"
+      value="{{ value }}"
+      {% if checked %}checked{% endif %}
+      {% if required %}required{% endif %}
+      {% if disabled %}disabled{% endif %}
+      {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+    />
+    <span class="check-label">
+      {% if label is not same as(false) %}
+        {{ label|default(name|humanize)|trans({}, translation_domain) }}
+      {% endif %}
+    </span>
+  </label>
+{% endblock %}
+
+{# ── SUBMIT ── #}
+{% block submit_widget %}
+  {% set attr = attr|merge({ class: 'btn btn-primary ' ~ (attr.class|default('')) }) %}
+  <button
+    type="submit"
+    {% if disabled %}disabled{% endif %}
+    {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+  >
+    {{ label|default('Enregistrer')|trans({}, translation_domain) }}
+  </button>
+{% endblock %}
+
+{# ── BUTTON ── #}
+{% block button_widget %}
+  {% set attr = attr|merge({ class: 'btn btn-secondary ' ~ (attr.class|default('')) }) %}
+  <button
+    type="button"
+    {% if disabled %}disabled{% endif %}
+    {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
+  >
+    {{ label|default('')|trans({}, translation_domain) }}
+  </button>
+{% endblock %}

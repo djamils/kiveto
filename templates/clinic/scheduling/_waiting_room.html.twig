@@ -1,0 +1,123 @@
+{#
+ # Kiveto — templates/clinic/scheduling/_waiting_room.html.twig
+ # ────────────────────────────────────────────────────────────
+ # Waiting room queue panel using Kiveto widget + queue-card pattern.
+ #
+ # Variables (inherited from dashboard):
+ #   waitingRoomEntries  array   List of waiting-room entry DTOs
+ #}
+
+<div class="widget">
+    {# Widget header #}
+    <div class="w-head">
+        <span class="w-title">File d'attente</span>
+        <div style="display: flex; align-items: center; gap: var(--space-2);">
+            <span class="badge" style="background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);">
+                {{ waitingRoomEntries|length }} patient{{ waitingRoomEntries|length > 1 ? 's' : '' }}
+            </span>
+            <button class="btn btn-secondary btn-xs" type="button" onclick="location.reload()">
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5"/><path stroke-linecap="round" d="M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 013.51 15"/></svg>
+            </button>
+        </div>
+    </div>
+
+    {# Queue list #}
+    {% if waitingRoomEntries is empty %}
+        <div class="w-body" style="text-align: center; padding: var(--space-6) var(--space-4);">
+            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="color: var(--color-success-text); margin: 0 auto var(--space-2);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p style="font-size: var(--text-md); color: var(--text-muted);">Aucun patient en attente</p>
+        </div>
+    {% else %}
+        <div>
+            {% for entry in waitingRoomEntries %}
+                {# Determine stripe colour based on status/mode #}
+                {% set stripe_class = 'attente' %}
+                {% if entry.arrivalMode == 'EMERGENCY' %}
+                    {% set stripe_class = 'urgence' %}
+                {% elseif entry.status == 'IN_SERVICE' %}
+                    {% set stripe_class = 'consult' %}
+                {% elseif entry.status == 'CALLED' %}
+                    {% set stripe_class = 'prio' %}
+                {% endif %}
+
+                <div class="qcard{% if entry.arrivalMode == 'EMERGENCY' %} urgence{% endif %}">
+                    {# Left colour stripe #}
+                    <div class="qcard-stripe {{ stripe_class }}"></div>
+
+                    {# Card body #}
+                    <div class="qcard-body">
+                        <div style="flex: 1; min-width: 0;">
+                            {# Badges row #}
+                            <div style="display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-1); flex-wrap: wrap;">
+                                {% if entry.arrivalMode == 'EMERGENCY' %}
+                                    <span class="badge" style="background: var(--color-danger-bg); color: var(--color-danger-text);">URGENCE</span>
+                                {% endif %}
+
+                                {% if entry.origin == 'SCHEDULED' %}
+                                    <span class="badge" style="background: var(--color-info-bg); color: var(--color-info-text);">RDV</span>
+                                {% else %}
+                                    <span class="badge" style="background: var(--color-warning-bg); color: var(--color-warning-text);">Walk-in</span>
+                                {% endif %}
+
+                                {# Status badge #}
+                                {% if entry.status == 'WAITING' %}
+                                    <span class="badge" style="background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);">En attente</span>
+                                {% elseif entry.status == 'CALLED' %}
+                                    <span class="badge" style="background: var(--color-info-bg); color: var(--color-info-text);">Appel&eacute;</span>
+                                {% elseif entry.status == 'IN_SERVICE' %}
+                                    <span class="badge" style="background: var(--color-success-bg); color: var(--color-success-text);">En cours</span>
+                                {% endif %}
+
+                                {% if entry.priority > 0 %}
+                                    <span class="badge" style="background: var(--color-warning-bg); color: var(--color-warning-text);">P{{ entry.priority }}</span>
+                                {% endif %}
+                            </div>
+
+                            {# Patient name / description #}
+                            <div class="qcard-name">
+                                {% if entry.ownerId %}
+                                    Proprio {{ entry.ownerId|slice(0, 8) }}...
+                                {% elseif entry.foundAnimalDescription %}
+                                    {{ entry.foundAnimalDescription }}
+                                {% else %}
+                                    Patient inconnu
+                                {% endif %}
+                            </div>
+
+                            {# Triage notes #}
+                            {% if entry.triageNotes %}
+                                <div class="qcard-motif">{{ entry.triageNotes }}</div>
+                            {% endif %}
+                        </div>
+
+                        {# Right side: arrival time + actions #}
+                        <div class="qcard-right">
+                            <span class="wait-big">{{ entry.arrivedAtUtc|date('H:i') }}</span>
+                            <span class="wait-label">arrivée</span>
+
+                            {# Action buttons #}
+                            <div style="display: flex; gap: var(--space-1); margin-top: var(--space-1);">
+                                {% if entry.status == 'WAITING' or entry.status == 'CALLED' %}
+                                    <form method="post" action="{{ path('clinic_scheduling_waitingroom_start', {entryId: entry.id}) }}">
+                                        <button type="submit" class="btn btn-green btn-xs">Démarrer</button>
+                                    </form>
+                                {% endif %}
+
+                                {% if entry.status == 'IN_SERVICE' %}
+                                    <form method="post" action="{{ path('clinic_consultation_start_from_waiting_room', {entryId: entry.id}) }}">
+                                        <button type="submit" class="btn btn-primary btn-xs">Consultation</button>
+                                    </form>
+                                    <form method="post" action="{{ path('clinic_scheduling_waitingroom_close', {entryId: entry.id}) }}" onsubmit="return confirm('Terminer sans consultation ?');">
+                                        <button type="submit" class="btn btn-secondary btn-xs">Terminer</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

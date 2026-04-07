@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Returns the importmap for this application.
  *
@@ -15,7 +13,7 @@ declare(strict_types=1);
  */
 return [
     'app' => [
-        'path'       => './assets/app.js',
+        'path' => './assets/app.js',
         'entrypoint' => true,
     ],
     '@hotwired/stimulus' => [
@@ -26,5 +24,59 @@ return [
     ],
     '@hotwired/turbo' => [
         'version' => '7.3.0',
+    ],
+    'kiveto/ui' => [
+        'path' => './assets/js/ui/index.js',
+    ],
+    'kiveto/drawer' => [
+        'path' => './assets/js/ui/drawer.js',
+    ],
+    'kiveto/modal' => [
+        'path' => './assets/js/ui/modal.js',
+    ],
+    'kiveto/toast' => [
+        'path' => './assets/js/ui/toast.js',
+    ],
+    'kiveto/popover' => [
+        'path' => './assets/js/ui/popover.js',
+    ],
+    'kiveto/tabs' => [
+        'path' => './assets/js/ui/tabs.js',
+    ],
+    'pages/home' => [
+        'path' => './assets/js/pages/home.js',
+    ],
+    'pages/scheduling/agenda' => [
+        'path' => './assets/js/pages/scheduling/agenda.js',
+    ],
+    'pages/scheduling/planning' => [
+        'path' => './assets/js/pages/scheduling/planning.js',
+    ],
+    'pages/scheduling/waiting-room' => [
+        'path' => './assets/js/pages/scheduling/waiting-room.js',
+    ],
+    'pages/hospitalisations' => [
+        'path' => './assets/js/pages/hospitalisations.js',
+    ],
+    'pages/clients/list' => [
+        'path' => './assets/js/pages/clients/list.js',
+    ],
+    'pages/clients/view' => [
+        'path' => './assets/js/pages/clients/view.js',
+    ],
+    'pages/consultation' => [
+        'path' => './assets/js/pages/consultation.js',
+    ],
+    'pages/select-clinic' => [
+        'path' => './assets/js/pages/select-clinic.js',
+    ],
+    'lucide' => [
+        'version' => '1.7.0',
+    ],
+    'chart.js' => [
+        'version' => '4.5.1',
+    ],
+    '@kurkle/color' => [
+        'version' => '0.3.4',
     ],
 ];

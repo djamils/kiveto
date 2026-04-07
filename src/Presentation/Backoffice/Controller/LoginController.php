@@ -18,7 +18,7 @@ final class LoginController extends AbstractController
         }
 
         return $this->render('security/login.html.twig', [
-            'app' => 'backoffice',
+            'context' => 'backoffice',
         ]);
     }
 }

@@ -1,0 +1,255 @@
+/*
+ * ═══════════════════════════════════════════════════════════
+ *  Kiveto Design System — kiveto.css  (v2.1)
+ *  Tokens, reset & global animations
+ * ═══════════════════════════════════════════════════════════
+ *
+ *  This file contains ONLY:
+ *    1. CSS Tokens (root variables)
+ *    2. Reset & base
+ *    3. Global animations (@keyframes)
+ *
+ *  Utility typography, flexbox helpers, and component classes
+ *  have been migrated to tailwind.css (@layer components).
+ *
+ *  ─── STRICT RULES ──────────────────────────────────────────
+ *  ✗ Never write a px value outside of --space-N
+ *  ✗ Never use a font-size outside of --text-{xs..xl}
+ *  ✗ Never use a border-radius outside of --radius-{sm|md|lg|full}
+ *  ✗ Never hardcode a color present in the tokens
+ *  ✗ Font-weight: 400 or 500 only (normal / medium)
+ *  ═══════════════════════════════════════════════════════════
+ */
+
+/* ─────────────────────────────────────────────
+   1. TOKENS — Single source of truth
+   ───────────────────────────────────────────── */
+:root {
+
+  /* ── Brand (Indigo) ── */
+  --brand-950:  #0d0b2e;
+  --brand-900:  #1e1b4b;
+  --brand-800:  #2d2a6e;
+  --brand-700:  #3730a3;
+  --brand-600:  #4338ca;
+  --brand-500:  #6366f1;
+  --brand-400:  #818cf8;
+  --brand-200:  #c7d2fe;
+  --brand-100:  #e0e7ff;
+  --brand-50:   #eef2ff;
+
+  /* ── Neutrals (Slate) ── */
+  --slate-950:  #020617;
+  --slate-900:  #0f172a;
+  --slate-800:  #1e293b;
+  --slate-700:  #334155;
+  --slate-600:  #475569;
+  --slate-500:  #64748b;
+  --slate-400:  #94a3b8;
+  --slate-300:  #cbd5e1;
+  --slate-200:  #e2e8f0;
+  --slate-150:  #e8edf2; /* custom — standard app border */
+  --slate-100:  #f1f5f9;
+  --slate-50:   #f8fafc;
+
+  /* ── Semantic statuses ── */
+  --color-success-bg:     #f0fdf4;
+  --color-success-text:   #15803d;
+  --color-success-border: #bbf7d0;
+  --color-success-600:    #16a34a;
+
+  --color-warning-bg:     #fff7ed;
+  --color-warning-text:   #c2410c;
+  --color-warning-border: #fed7aa;
+  --color-warning-600:    #d97706;
+
+  --color-danger-bg:      #fef2f2;
+  --color-danger-text:    #b91c1c;
+  --color-danger-border:  #fecaca;
+  --color-danger-600:     #dc2626;
+
+  --color-info-bg:        #eff6ff;
+  --color-info-text:      #1d4ed8;
+  --color-info-border:    #bfdbfe;
+
+  --color-purple-bg:      #f5f3ff;
+  --color-purple-text:    #7c3aed;
+  --color-purple-border:  #ddd6fe;
+
+  /* ── Surfaces ── */
+  --surface-page:   #f1f5f9; /* app page background */
+  --surface-card:   #ffffff; /* cards / widgets background */
+  --surface-subtle: #f8fafc; /* inputs background, secondary areas */
+  --surface-hover:  #eef2ff; /* hover on interactive elements (light indigo tint) */
+
+  /* ── Borders ── */
+  --border-light:  #e8edf2; /* main separators */
+  --border-medium: #e2e8f0; /* input borders */
+  --border-strong: #cbd5e1; /* inactive focus, input hover */
+
+  /* ── Text ── */
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+  --text-subtle:    #94a3b8;
+  --text-disabled:  #cbd5e1;
+
+  /* ── Typography — 6 STRICT sizes ──
+     XS   11px  uppercase labels, meta, timestamps
+     SM   12px  badges, secondary descriptions
+     MD   13px  nav, table cells
+     BASE 14px  main body, buttons, inputs
+     LG   16px  section titles
+     XL   20px  page titles
+  */
+  --text-xs:   11px;
+  --text-sm:   12px;
+  --text-md:   13px;
+  --text-base: 14px;
+  --text-lg:   16px;
+  --text-xl:   20px;
+
+  /* ── Font weights ── */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ── Line heights ── */
+  --lh-tight:  1.2;
+  --lh-normal: 1.5;
+  --lh-loose:  1.6;
+
+  /* ── Spacing — multiples of 4 ONLY ── */
+  --space-0:  0px;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Border radius — 3 values + circle ── */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-xs:          0 1px 2px rgba(0,0,0,.06);
+  --shadow-sm:          0 1px 4px rgba(0,0,0,.08);
+  --shadow-md:          0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+  --shadow-lg:          0 8px 24px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06);
+  --shadow-xl:          0 20px 48px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
+  --shadow-focus:       0 0 0 3px rgba(99,102,241,.18);
+  --shadow-focus-danger:0 0 0 3px rgba(220,38,38,.14);
+
+  /* ── Layout dimensions ── */
+  --sidebar-width: 250px;
+  --topbar-height: 52px;
+  --rpanel-width:  310px;
+
+  /* ── Transitions ── */
+  --t-fast:   all .12s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-normal: all .16s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-slow:   all .24s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Overlay easing (snappy decelerate curve) ── */
+  --ease-overlay: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Z-index semantic scale ── */
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-drawer:   300;
+  --z-overlay:  400;
+  --z-modal:    500;
+  --z-popover:  600;
+  --z-toast:    9000;
+  --z-tooltip:  9999;
+}
+
+
+/* 2. RESET & BASE — moved to base.css (imported by tailwind.css) */
+
+
+/* ─────────────────────────────────────────────
+   3. GLOBAL ANIMATIONS
+   ───────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes slide-in-bottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .5; }
+}
+
+/* Enhanced overlay animations (reui.io-inspired) */
+@keyframes overlay-in {
+  from { opacity: 0; transform: scale(.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes overlay-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.95); }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes popover-in-down {
+  from { opacity: 0; transform: scale(.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes popover-in-up {
+  from { opacity: 0; transform: scale(.95) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes popover-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.95); }
+}

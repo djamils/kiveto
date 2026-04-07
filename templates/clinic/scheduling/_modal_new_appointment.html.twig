@@ -1,0 +1,123 @@
+{#
+ # Kiveto — templates/clinic/scheduling/_modal_new_appointment.html.twig
+ # ─────────────────────────────────────────────────────────────────────
+ # Modal for creating a new appointment. Uses the Kiveto modal component.
+ #
+ # Variables (inherited from dashboard):
+ #   selectedDate  DateTimeImmutable   Pre-filled date for the new appointment
+ #}
+
+{% embed 'components/layout/modal.html.twig' with {
+    id: 'modalNewAppointment',
+    title: 'Nouveau rendez-vous',
+    size: 'md',
+    show_footer: true,
+    cancel_label: 'Annuler',
+    submit_label: 'Créer le RDV',
+    submit_variant: 'primary',
+    form_id: 'formNewAppointment',
+} %}
+    {% block modal_body %}
+        <form
+            id="formNewAppointment"
+            method="post"
+            action="{{ path('clinic_scheduling_appointment_create') }}"
+        >
+            {# Date & time #}
+            <div class="form-row">
+                <label class="form-label">Date et heure <span style="color: var(--color-danger-text);">*</span></label>
+                <input
+                    type="datetime-local"
+                    name="startsAtUtc"
+                    class="form-input"
+                    value="{{ selectedDate|date('Y-m-d\\TH:i') }}"
+                    required
+                >
+            </div>
+
+            {# Duration #}
+            <div class="form-row">
+                <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
+                {# Duration selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'durationMinutes',
+                  value: '30',
+                  options: [
+                    { value: '15', label: '15 min' },
+                    { value: '30', label: '30 min' },
+                    { value: '45', label: '45 min' },
+                    { value: '60', label: '1 heure' },
+                    { value: '90', label: '1h30' },
+                    { value: '120', label: '2 heures' },
+                  ]
+                }) }}
+            </div>
+
+            {# Practitioner #}
+            <div class="form-row">
+                <label class="form-label">Praticien (optionnel)</label>
+                <input
+                    type="text"
+                    name="practitionerUserId"
+                    class="form-input"
+                    placeholder="UUID du praticien"
+                >
+                <span style="font-size: var(--text-xs); color: var(--text-subtle); margin-top: 2px; display: block;">
+                    Laissez vide pour un RDV non assigné
+                </span>
+            </div>
+
+            {# Owner #}
+            <div class="form-row">
+                <label class="form-label">Propriétaire (optionnel)</label>
+                <input
+                    type="text"
+                    name="ownerId"
+                    class="form-input"
+                    placeholder="UUID du propriétaire"
+                >
+            </div>
+
+            {# Animal #}
+            <div class="form-row">
+                <label class="form-label">Animal (optionnel)</label>
+                <input
+                    type="text"
+                    name="animalId"
+                    class="form-input"
+                    placeholder="UUID de l'animal"
+                >
+            </div>
+
+            {# Reason #}
+            <div class="form-row">
+                <label class="form-label">Motif</label>
+                {# Reason selector (custom select component) #}
+                {{ include('components/ui/select.html.twig', {
+                  name: 'reason',
+                  placeholder: '-- Sélectionner --',
+                  clearable: true,
+                  options: [
+                    { value: 'Consultation', label: 'Consultation' },
+                    { value: 'Vaccination', label: 'Vaccination' },
+                    { value: 'Chirurgie', label: 'Chirurgie' },
+                    { value: 'Contrôle', label: 'Contrôle' },
+                    { value: 'Urgence', label: 'Urgence' },
+                    { value: 'Autre', label: 'Autre' },
+                  ]
+                }) }}
+            </div>
+
+            {# Notes #}
+            <div class="form-row">
+                <label class="form-label">Notes</label>
+                <textarea
+                    name="notes"
+                    class="form-input"
+                    rows="3"
+                    placeholder="Notes additionnelles..."
+                ></textarea>
+            </div>
+        </form>
+    {% endblock %}
+{% endembed %}

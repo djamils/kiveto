@@ -1,0 +1,109 @@
+{#
+ # Kiveto — templates/clinic/animals/view.html.twig
+ # ─────────────────────────────────────────────────
+ # Animal detail page with identity info, species, breed, and actions.
+ #
+ # Variables:
+ #   animal           AnimalDto { id, name, species, breedName, status,
+ #                    createdAt, updatedAt }
+ #   currentClinicName  string
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}{{ animal.name }} - {{ currentClinicName }}{% endblock %}
+
+{% block page_title %}{{ animal.name }}{% endblock %}
+
+{% block topbar_actions %}
+  {% if animal.status == 'active' %}
+    {{ include('components/ui/button.html.twig', {
+      label: 'Modifier',
+      variant: 'primary',
+      size: 'sm',
+      href: path('clinic_animals_edit', {id: animal.id}),
+    }) }}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {# Breadcrumb navigation #}
+  <nav style="margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);">
+    <a href="{{ path('clinic_animals_list') }}" style="color:var(--brand-600);">Animaux</a>
+    <span style="margin:0 var(--space-1);">/</span>
+    <span style="color:var(--text-primary);">{{ animal.name }}</span>
+  </nav>
+
+  {# Animal identity widget #}
+  <div class="widget" style="margin-bottom:var(--space-4);">
+    <div class="widget-head">
+      <span class="widget-title">Identite</span>
+      <div style="display:flex;gap:var(--space-2);">
+        {% if animal.status == 'active' %}
+          <span class="badge b-ok">Actif</span>
+        {% else %}
+          <span class="badge b-grey">Archive</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="widget-body">
+      <div class="info-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3);">
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Nom</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">{{ animal.name }}</div>
+        </div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Espece</div>
+          <div style="font-size:var(--text-sm);">
+            {% if animal.species == 'DOG' %}
+              <span class="badge b-dog">Chien</span>
+            {% elseif animal.species == 'CAT' %}
+              <span class="badge b-cat">Chat</span>
+            {% else %}
+              <span class="badge b-other">NAC</span>
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Race</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">
+            {% if animal.breedName %}
+              {{ animal.breedName }}
+            {% else %}
+              &mdash;
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">Cree le</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">{{ animal.createdAt|date('d/m/Y H:i') }}</div>
+        </div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px;">ID</div>
+          <div style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);font-family:monospace;">{{ animal.id|slice(0, 8) }}...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Action buttons #}
+  <div style="display:flex;gap:var(--space-2);">
+    {% if animal.status == 'active' %}
+      <a href="{{ path('clinic_animals_edit', {id: animal.id}) }}" class="btn btn-primary">Modifier</a>
+      <form method="post" action="{{ path('clinic_animals_archive', {id: animal.id}) }}" style="display:inline;">
+        <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+        <button type="submit" class="btn btn-secondary"
+                onclick="return confirm('Etes-vous sur de vouloir archiver cet animal ?');">
+          Archiver
+        </button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ path('clinic_animals_unarchive', {id: animal.id}) }}" style="display:inline;">
+        <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+        <button type="submit" class="btn btn-success"
+                onclick="return confirm('Etes-vous sur de vouloir desarchiver cet animal ?');">
+          Desarchiver
+        </button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

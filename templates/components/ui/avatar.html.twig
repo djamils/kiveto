@@ -1,0 +1,52 @@
+{#
+ # Kiveto — templates/components/ui/avatar.html.twig
+ # ─────────────────────────────────────────────────────
+ # Initials or image avatar.
+ #
+ # Parameters:
+ #   name        string   Full name → automatically generates initials
+ #   initials    string   Explicit initials (takes priority over name)
+ #   image       string   Image URL (takes priority over initials)
+ #   size        string   sm (24px) | md (36px) | lg (44px)  (default: base 28px)
+ #   color       string   Custom color CSS classes (e.g. 'bg-brand-100 text-brand-700')
+ #   extra_class string
+ #
+ # Examples:
+ #   {{ include('components/ui/avatar.html.twig', { name: 'Marie Dupont' }) }}
+ #   {{ include('components/ui/avatar.html.twig', { name: user.fullName, size: 'md' }) }}
+ #   {{ include('components/ui/avatar.html.twig', { image: user.avatarUrl, size: 'lg' }) }}
+ #}
+
+{# Compute initials from name #}
+{% if initials is defined and initials %}
+  {% set _initials = initials|upper %}
+{% elseif name is defined and name %}
+  {% set _parts = name|split(' ') %}
+  {% if _parts|length >= 2 %}
+    {% set _initials = (_parts[0]|first ~ _parts[1]|first)|upper %}
+  {% else %}
+    {% set _initials = name|slice(0, 2)|upper %}
+  {% endif %}
+{% else %}
+  {% set _initials = '?' %}
+{% endif %}
+
+{% set _cls = 'avatar' %}
+{% if size is defined %}
+  {% if size == 'sm' %}{% set _cls = _cls ~ ' avatar-sm' %}
+  {% elseif size == 'md' %}{% set _cls = _cls ~ ' avatar-md' %}
+  {% elseif size == 'lg' %}{% set _cls = _cls ~ ' avatar-lg' %}
+  {% endif %}
+{% endif %}
+{% if extra_class is defined %}{% set _cls = _cls ~ ' ' ~ extra_class %}{% endif %}
+
+{% if image is defined and image %}
+  <img
+    class="{{ _cls }}"
+    src="{{ image }}"
+    alt="{{ name|default('Avatar') }}"
+    style="object-fit:cover;"
+  >
+{% else %}
+  <span class="{{ _cls }}" aria-hidden="true">{{ _initials }}</span>
+{% endif %}

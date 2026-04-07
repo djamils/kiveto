@@ -1,0 +1,69 @@
+{#
+ # Kiveto — templates/clinic/consultation/detail/index.html.twig
+ # ─────────────────────────────────────────────────────────────
+ # Consultation detail page — Kiveto design from vetos-consultation.html mockup.
+ # Patient banner, 2-column layout with vitals/diagnosis left, SOAP notes right,
+ # acts, prescriptions, plan, history drawer, modals.
+ #
+ # Variables:
+ #   consultation  ConsultationDto   The consultation data
+ #   pageTitle     string            Page title (e.g. "Consultation")
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_title %}Consultation{% endblock %}
+
+{% block breadcrumb %}
+  <a>Rendez-vous</a>
+  <i data-lucide="chevron-right" class="consult-breadcrumb-sep"></i>
+  <a class="bc-middle">19 mars 2026</a>
+  <i data-lucide="chevron-right" class="consult-breadcrumb-sep"></i>
+  <span>Luna — Consultation</span>
+{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('styles/vetos-design-system.css') }}"/>
+<link rel="stylesheet" href="{{ asset('styles/pages/consultation.css') }}"/>
+{% endblock %}
+
+{% block topbar_actions %}
+    <div class="consult-status-badge">
+        <div class="pulse-dot"></div>
+        <span class="consult-status-label">En cours</span>
+    </div>
+    <div class="topbar-actions consult-topbar-btns">
+      <button class="btn btn-secondary btn-xs"><i data-lucide="x" class="consult-icon-xs"></i><span>Annuler</span></button>
+      <button class="btn btn-primary btn-xs" onclick="closeConsult()"><i data-lucide="check" class="consult-icon-xs"></i><span>Clôturer la visite</span></button>
+    </div>
+{% endblock %}
+
+{% block content %}
+  {# Patient banner (desktop + compact) #}
+  {% include 'clinic/consultation/detail/_patient_banner.html.twig' %}
+
+  {# Desktop scroll body with 2-column grid #}
+  <div class="scroll" id="desktop-scroll">
+  <div class="body">
+  <div class="consult-grid">
+    {# Left column: vitals, motif, acts #}
+    {% include 'clinic/consultation/detail/_sidebar_vitals.html.twig' %}
+
+    {# Right column: SOAP notes, plan, tablet tabs #}
+    {% include 'clinic/consultation/detail/_soap_notes.html.twig' %}
+  </div>
+  </div>
+  </div>
+
+  <div id="toast"></div>
+{% endblock %}
+
+{% block drawers %}
+  {% include 'clinic/consultation/detail/_drawer_history.html.twig' %}
+{% endblock %}
+
+{% block modals %}
+  {% include 'clinic/consultation/detail/_modals.html.twig' %}
+{% endblock %}
+
+{% block javascripts %}
+{% endblock %}

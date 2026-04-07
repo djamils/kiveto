@@ -1,0 +1,29 @@
+{# History drawer — patient medical timeline #}
+<div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="drawer" class="drawer">
+  <div class="consult-drawer-head">
+    <div><p class="consult-drawer-title">Historique médical</p><p class="consult-drawer-subtitle">Luna · #PAT-00412 · 5 visites</p></div>
+    <button class="btn-close" onclick="closeDrawer()"><i data-lucide="x" class="consult-icon-xs"></i></button>
+  </div>
+  <div class="consult-drawer-tabs">
+    <button class="sel-tab active" onclick="this.closest('div').querySelectorAll('.sel-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">Tout</button>
+    <button class="sel-tab" onclick="this.closest('div').querySelectorAll('.sel-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">Consultations</button>
+    <button class="sel-tab" onclick="this.closest('div').querySelectorAll('.sel-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">Vaccins</button>
+    <button class="sel-tab" onclick="this.closest('div').querySelectorAll('.sel-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')">Chirurgies</button>
+  </div>
+  <div class="consult-drawer-body">
+    {# Current visit #}
+    <div class="tl-item"><div class="tl-dot consult-tl-dot--active"></div><div class="consult-tl-content"><div class="consult-drawer-row"><span class="consult-drawer-item-title consult-tl-title--active">En cours</span><span class="consult-drawer-item-date">19 mars 2026</span></div><p class="consult-tl-desc">Troubles digestifs · Suivi vaccinal</p><p class="consult-tl-date">Dr. Rousseau</p></div></div>
+
+    {# Past visits #}
+    <div class="tl-item consult-clickable"><div class="tl-dot consult-tl-dot--past"></div><div class="consult-tl-content consult-drawer-hoverable" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background=''"><div class="consult-drawer-row"><span class="consult-drawer-item-title">Gastro-entérite</span><span class="consult-drawer-item-date">12 jan. 2026</span></div><p class="consult-tl-desc">Smecta · NaCl SC · Rétablissement J+4</p><div class="consult-drawer-tags"><span class="consult-drawer-tag consult-drawer-tag--consult">Consultation</span><span class="consult-drawer-tag-vet">Dr. Rousseau</span></div></div></div>
+
+    <div class="tl-item consult-clickable"><div class="tl-dot consult-tl-dot--past"></div><div class="consult-tl-content consult-drawer-hoverable" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background=''"><div class="consult-drawer-row"><span class="consult-drawer-item-title">Bilan annuel + vaccination</span><span class="consult-drawer-item-date">8 sept. 2025</span></div><p class="consult-tl-desc">Typhus · Coryza · FeLV · Rage administrés</p><div class="consult-drawer-tags"><span class="consult-drawer-tag consult-drawer-tag--vaccine">Vaccins</span><span class="consult-drawer-tag consult-drawer-tag--consult">Consultation</span><span class="consult-drawer-tag-vet">Dr. Rousseau</span></div></div></div>
+
+    <div class="tl-item consult-clickable"><div class="tl-dot consult-tl-dot--past"></div><div class="consult-tl-content consult-drawer-hoverable" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background=''"><div class="consult-drawer-row"><span class="consult-drawer-item-title">Dermatite allergique</span><span class="consult-drawer-item-date">3 mars 2025</span></div><p class="consult-tl-desc">Cortison topique · Antihistaminique 10j</p><div class="consult-drawer-tags"><span class="consult-drawer-tag consult-drawer-tag--consult">Consultation</span><span class="consult-drawer-tag-vet">Dr. Patel</span></div></div></div>
+
+    <div class="tl-item consult-clickable"><div class="tl-dot consult-tl-dot--surgery"></div><div class="consult-tl-content consult-drawer-hoverable" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background=''"><div class="consult-drawer-row"><span class="consult-drawer-item-title">Stérilisation</span><span class="consult-drawer-item-date">3 avr. 2024</span></div><p class="consult-tl-desc">Ovariectomie · Anesthésie générale · Isoflurane</p><div class="consult-drawer-tags"><span class="consult-drawer-tag consult-drawer-tag--surgery">Chirurgie</span><span class="consult-drawer-tag-vet">Dr. Rousseau</span></div><div class="interaction-pill consult-drawer-allergy"><i data-lucide="alert-circle" class="consult-icon-xs consult-icon-orange"></i><span class="consult-drawer-allergy-text">Allergie notée : Pénicilline — réaction cutanée</span></div></div></div>
+
+    <div class="tl-item"><div class="tl-dot consult-tl-dot--first"></div><div class="consult-tl-content consult-drawer-item-pad"><div class="consult-drawer-row"><span class="consult-drawer-item-title">Première visite</span><span class="consult-drawer-item-date">15 jan. 2022</span></div><p class="consult-tl-desc">Chaton 8 semaines · Primo-vaccination · Passeport créé</p></div></div>
+  </div>
+</div>

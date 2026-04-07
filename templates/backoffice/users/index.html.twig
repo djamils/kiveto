@@ -1,100 +1,143 @@
+{# Backoffice — Users listing page #}
 {% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Utilisateurs{% endblock %}
-{% block page_title %}👤 Utilisateurs{% endblock %}
+{% block page_title %}Utilisateurs{% endblock %}
 
-{% block body %}
-<div class="card">
-    <h3>Filtrer</h3>
-    <form method="get" action="{{ path('backoffice_users') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-        <div>
-            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Recherche (email)</label>
-            <input name="search" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" value="{{ filters.search }}" placeholder="user@example.com">
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Type</label>
-            <select name="type" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
-                <option value="">(tous)</option>
-                <option value="CLINIC_MEMBER" {{ filters.type == 'CLINIC_MEMBER' ? 'selected' : '' }}>Clinic Member</option>
-                <option value="CLINIC_ADMIN" {{ filters.type == 'CLINIC_ADMIN' ? 'selected' : '' }}>Clinic Admin</option>
-                <option value="PLATFORM_ADMIN" {{ filters.type == 'PLATFORM_ADMIN' ? 'selected' : '' }}>Platform Admin</option>
-            </select>
-        </div>
-        <div>
-            <label style="display: block; margin-bottom: 5px; font-size: 0.875rem; color: #7f8c8d;">Statut</label>
-            <select name="status" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
-                <option value="">(tous)</option>
-                <option value="ACTIVE" {{ filters.status == 'ACTIVE' ? 'selected' : '' }}>Active</option>
-                <option value="SUSPENDED" {{ filters.status == 'SUSPENDED' ? 'selected' : '' }}>Suspended</option>
-                <option value="PENDING" {{ filters.status == 'PENDING' ? 'selected' : '' }}>Pending</option>
-            </select>
-        </div>
-        <div style="display: flex; align-items: end;">
-            <button type="submit" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Rechercher</button>
-        </div>
+{% block content %}
+  {# Filters #}
+  <div class="widget widget-pad" style="margin-bottom:var(--space-4);">
+    <h3 style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);">
+      Filtrer
+    </h3>
+    <form method="get" action="{{ path('backoffice_users') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);align-items:end;">
+      <div class="field">
+        <label class="field-label">Recherche (email)</label>
+        <input name="search" class="form-input" value="{{ filters.search }}" placeholder="user@example.com">
+      </div>
+      <div class="field">
+        <label class="field-label">Type</label>
+        {# Custom select component for type filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'type',
+          id: 'type',
+          placeholder: '(tous)',
+          value: filters.type,
+          options: [
+            { value: 'CLINIC_MEMBER', label: 'Clinic Member' },
+            { value: 'CLINIC_ADMIN', label: 'Clinic Admin' },
+            { value: 'PLATFORM_ADMIN', label: 'Platform Admin' },
+          ],
+          clearable: true,
+        }) }}
+      </div>
+      <div class="field">
+        <label class="field-label">Statut</label>
+        {# Custom select component for status filter #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'status',
+          id: 'status',
+          placeholder: '(tous)',
+          value: filters.status,
+          options: [
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'SUSPENDED', label: 'Suspended' },
+            { value: 'PENDING', label: 'Pending' },
+          ],
+          clearable: true,
+        }) }}
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Rechercher</button>
+      </div>
     </form>
-</div>
+  </div>
 
-<div class="card">
-    <h3>Résultats ({{ collection.total }})</h3>
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background: #ecf0f1;">
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">ID (UUID)</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Email</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Type</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Statut</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Email vérifié</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Créé le</th>
-                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #bdc3c7;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for user in collection.users %}
-                <tr style="border-bottom: 1px solid #ecf0f1;">
-                    <td style="padding: 12px;">
-                        <code style="font-size: 0.75rem; background: #ecf0f1; padding: 4px 6px; border-radius: 3px; display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">{{ user.id }}</code>
-                        <button onclick="navigator.clipboard.writeText('{{ user.id }}'); this.textContent='✓'" style="margin-left: 5px; padding: 2px 6px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.75rem;">📋</button>
-                    </td>
-                    <td style="padding: 12px;">{{ user.email }}</td>
-                    <td style="padding: 12px;">
-                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; font-weight: 500; background: {{ user.type == 'PLATFORM_ADMIN' ? '#e74c3c' : (user.type == 'CLINIC_ADMIN' ? '#f39c12' : '#95a5a6') }}; color: white;">
-                            {{ user.type }}
-                        </span>
-                    </td>
-                    <td style="padding: 12px;">
-                        <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; font-weight: 500; background: {{ user.status == 'ACTIVE' ? '#27ae60' : (user.status == 'SUSPENDED' ? '#e74c3c' : '#95a5a6') }}; color: white;">
-                            {{ user.status }}
-                        </span>
-                    </td>
-                    <td style="padding: 12px;">
-                        {% if user.emailVerifiedAt %}
-                            <span style="color: #27ae60;">✓ {{ user.emailVerifiedAt|date('Y-m-d H:i') }}</span>
-                        {% else %}
-                            <span style="color: #e74c3c;">✗ Non vérifié</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 12px;">{{ user.createdAt|date('Y-m-d H:i') }}</td>
-                    <td style="padding: 12px;">
-                        <a href="{{ path('backoffice_clinic_memberships_new') }}?user_id={{ user.id }}" style="padding: 6px 12px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-size: 0.875rem;">
-                            ➕ Ajouter à une clinique
-                        </a>
-                    </td>
-                </tr>
-            {% else %}
-                <tr><td colspan="7" style="padding: 20px; text-align: center; color: #95a5a6;">Aucun utilisateur trouvé</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+  {# Results table #}
+  <div class="widget" style="margin-bottom:var(--space-4);">
+    <div class="widget-pad" style="border-bottom:1px solid var(--border-default);">
+      <h3 style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary);">
+        Resultats ({{ collection.total }})
+      </h3>
     </div>
-</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead class="dt-head">
+          <tr>
+            <th>ID (UUID)</th>
+            <th>Email</th>
+            <th>Type</th>
+            <th>Statut</th>
+            <th>Email verifie</th>
+            <th>Cree le</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody class="dt-body">
+          {% for user in collection.users %}
+            <tr class="dt-row">
+              <td>
+                <code style="font-size:var(--text-xs);display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;">{{ user.id }}</code>
+                <button
+                  onclick="navigator.clipboard.writeText('{{ user.id }}');this.textContent='OK'"
+                  class="btn btn-sm btn-ghost"
+                  style="font-size:var(--text-xs);padding:2px 6px;"
+                >
+                  copier
+                </button>
+              </td>
+              <td>{{ user.email }}</td>
+              <td>
+                {% if user.type == 'PLATFORM_ADMIN' %}
+                  <span class="badge b-fail">{{ user.type }}</span>
+                {% elseif user.type == 'CLINIC_ADMIN' %}
+                  <span class="badge b-wait">{{ user.type }}</span>
+                {% else %}
+                  <span class="badge b-muted">{{ user.type }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.status == 'ACTIVE' %}
+                  <span class="badge b-ok">{{ user.status }}</span>
+                {% elseif user.status == 'SUSPENDED' %}
+                  <span class="badge b-fail">{{ user.status }}</span>
+                {% else %}
+                  <span class="badge b-muted">{{ user.status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.emailVerifiedAt %}
+                  <span style="color:var(--color-green-600);">{{ user.emailVerifiedAt|date('Y-m-d H:i') }}</span>
+                {% else %}
+                  <span style="color:var(--color-red-600);">Non verifie</span>
+                {% endif %}
+              </td>
+              <td>{{ user.createdAt|date('Y-m-d H:i') }}</td>
+              <td>
+                <a href="{{ path('backoffice_clinic_memberships_new') }}?user_id={{ user.id }}" class="btn btn-sm btn-primary">
+                  Ajouter a une clinique
+                </a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" style="text-align:center;padding:var(--space-4);color:var(--text-subtle);">
+                Aucun utilisateur trouve
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-<div class="card">
-    <h3>💡 Info</h3>
-    <p style="color: #7f8c8d; margin: 0;">
-        Pour créer des utilisateurs, utilisez l'interface Portal (inscription) ou créez-les via fixture/migration.
-        Cette page permet de voir les UUIDs des utilisateurs pour les assigner aux cliniques.
+  {# Info note #}
+  <div class="widget widget-pad">
+    <h3 style="font-size:var(--text-base);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-2);">
+      Info
+    </h3>
+    <p style="color:var(--text-subtle);margin:0;">
+      Pour creer des utilisateurs, utilisez l'interface Portal (inscription) ou creez-les via fixture/migration.
+      Cette page permet de voir les UUIDs des utilisateurs pour les assigner aux cliniques.
     </p>
-</div>
+  </div>
 {% endblock %}

@@ -1,91 +1,93 @@
+{# Backoffice dashboard page #}
 {% extends 'backoffice/base.html.twig' %}
 
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}📊 Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
-{% block body %}
-    <div class="card">
-        <h3>Bienvenue dans le Backoffice Kiveto</h3>
-        <p>Gestion centralisée de la plateforme vétérinaire</p>
+{% block content %}
+  {# Quick stats #}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-3);margin-bottom:var(--space-4);">
+    <div class="widget widget-pad">
+      <p style="font-size:var(--text-sm);color:var(--text-subtle);">Cliniques</p>
+      <p style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);">&mdash;</p>
     </div>
-    
-    <div class="stats">
-        <div class="stat-card primary">
-            <div class="label">Cliniques</div>
-            <div class="value">—</div>
-        </div>
-        
-        <div class="stat-card success">
-            <div class="label">Groupes</div>
-            <div class="value">—</div>
-        </div>
-        
-        <div class="stat-card warning">
-            <div class="label">Membres</div>
-            <div class="value">—</div>
-        </div>
-        
-        <div class="stat-card danger">
-            <div class="label">Traductions</div>
-            <div class="value">—</div>
-        </div>
+    <div class="widget widget-pad">
+      <p style="font-size:var(--text-sm);color:var(--text-subtle);">Groupes</p>
+      <p style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);">&mdash;</p>
     </div>
-    
-    <div class="card" style="margin-top: 30px;">
-        <h3>🚀 Accès rapide</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
-            <a href="{{ path('backoffice_clinics_new') }}" style="display: block; padding: 15px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
-                ➕ Créer une clinique
-            </a>
-            
-            <a href="{{ path('backoffice_clinic_memberships_new') }}" style="display: block; padding: 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
-                👤 Ajouter un membre
-            </a>
-            
-            <a href="{{ path('backoffice_translations') }}" style="display: block; padding: 15px; background: #f39c12; color: white; text-decoration: none; border-radius: 6px; text-align: center; font-weight: 500;">
-                🌐 Gérer les traductions
-            </a>
-        </div>
+    <div class="widget widget-pad">
+      <p style="font-size:var(--text-sm);color:var(--text-subtle);">Membres</p>
+      <p style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);">&mdash;</p>
     </div>
-    
-    <div class="card">
-        <h3>📋 Navigation</h3>
-        <ul style="list-style: none; padding-left: 0;">
-            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
-                <a href="{{ path('backoffice_clinics') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                    🏥 Gérer les cliniques
-                </a>
-                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
-                    Voir, créer et modifier les cliniques vétérinaires
-                </p>
-            </li>
-            
-            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
-                <a href="{{ path('backoffice_clinic_groups') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                    🏢 Gérer les groupes de cliniques
-                </a>
-                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
-                    Organiser les cliniques en groupes
-                </p>
-            </li>
-            
-            <li style="padding: 10px 0; border-bottom: 1px solid #ecf0f1;">
-                <a href="{{ path('backoffice_clinic_memberships') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                    👥 Gérer les membres des cliniques
-                </a>
-                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
-                    Attribuer des utilisateurs aux cliniques avec des rôles
-                </p>
-            </li>
-            
-            <li style="padding: 10px 0;">
-                <a href="{{ path('backoffice_translations') }}" style="color: #3498db; text-decoration: none; font-weight: 500;">
-                    🌐 Gérer les traductions
-                </a>
-                <p style="font-size: 0.875rem; color: #7f8c8d; margin-top: 5px;">
-                    Traduire l'interface dans différentes langues
-                </p>
-            </li>
-        </ul>
+    <div class="widget widget-pad">
+      <p style="font-size:var(--text-sm);color:var(--text-subtle);">Traductions</p>
+      <p style="font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--text-primary);">&mdash;</p>
     </div>
+  </div>
+
+  {# Welcome card #}
+  <div class="widget widget-pad" style="margin-bottom:var(--space-4);">
+    <h3 style="font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-2);">
+      Bienvenue dans le Backoffice Kiveto
+    </h3>
+    <p style="color:var(--text-subtle);">Gestion centralisee de la plateforme veterinaire</p>
+  </div>
+
+  {# Quick actions #}
+  <div class="widget widget-pad" style="margin-bottom:var(--space-4);">
+    <h3 style="font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);">
+      Acces rapide
+    </h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--space-2);">
+      <a href="{{ path('backoffice_clinics_new') }}" class="btn btn-primary" style="text-align:center;">
+        Creer une clinique
+      </a>
+      <a href="{{ path('backoffice_clinic_memberships_new') }}" class="btn btn-success" style="text-align:center;">
+        Ajouter un membre
+      </a>
+      <a href="{{ path('backoffice_translations') }}" class="btn btn-warning" style="text-align:center;">
+        Gerer les traductions
+      </a>
+    </div>
+  </div>
+
+  {# Navigation links #}
+  <div class="widget widget-pad">
+    <h3 style="font-size:var(--text-lg);font-weight:var(--weight-semibold);color:var(--text-primary);margin-bottom:var(--space-3);">
+      Navigation
+    </h3>
+    <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+      <div style="padding:var(--space-2) 0;border-bottom:1px solid var(--border-default);">
+        <a href="{{ path('backoffice_clinics') }}" style="font-weight:var(--weight-medium);color:var(--brand-600);text-decoration:none;">
+          Gerer les cliniques
+        </a>
+        <p style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:var(--space-1);">
+          Voir, creer et modifier les cliniques veterinaires
+        </p>
+      </div>
+      <div style="padding:var(--space-2) 0;border-bottom:1px solid var(--border-default);">
+        <a href="{{ path('backoffice_clinic_groups') }}" style="font-weight:var(--weight-medium);color:var(--brand-600);text-decoration:none;">
+          Gerer les groupes de cliniques
+        </a>
+        <p style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:var(--space-1);">
+          Organiser les cliniques en groupes
+        </p>
+      </div>
+      <div style="padding:var(--space-2) 0;border-bottom:1px solid var(--border-default);">
+        <a href="{{ path('backoffice_clinic_memberships') }}" style="font-weight:var(--weight-medium);color:var(--brand-600);text-decoration:none;">
+          Gerer les membres des cliniques
+        </a>
+        <p style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:var(--space-1);">
+          Attribuer des utilisateurs aux cliniques avec des roles
+        </p>
+      </div>
+      <div style="padding:var(--space-2) 0;">
+        <a href="{{ path('backoffice_translations') }}" style="font-weight:var(--weight-medium);color:var(--brand-600);text-decoration:none;">
+          Gerer les traductions
+        </a>
+        <p style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:var(--space-1);">
+          Traduire l'interface dans differentes langues
+        </p>
+      </div>
+    </div>
+  </div>
 {% endblock %}

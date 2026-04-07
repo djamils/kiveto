@@ -1,0 +1,246 @@
+{# All consultation modals: prescription, examens, close consultation, vaccine #}
+
+{# -- Prescription modal -- #}
+<div id="rx-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeRxModal()">
+  <div id="rx-modal-box" class="modal-box consult-modal-rx">
+    <div class="modal-head">
+      <div><p class="consult-modal-title">Ordonnance</p><p class="consult-modal-subtitle">Luna · 19 mars 2026 · Dr. Rousseau · N° 75-12384</p></div>
+      <div class="consult-flex-center">
+        <button class="btn btn-secondary btn-xs"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M4 6V2h8v4M4 12H2V7h12v5h-2M4 12v2h8v-2H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Imprimer</button>
+        <button class="btn btn-secondary btn-xs"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Envoyer par mail</button>
+        <button class="btn-close" onclick="closeRxModal()"><i data-lucide="x" class="consult-icon-xs"></i></button>
+      </div>
+    </div>
+    <div class="consult-modal-rx-body">
+      {# Left: search & new medication form #}
+      <div class="consult-modal-rx-left">
+        <div><label class="form-label">Rechercher un médicament</label><div class="consult-search-wrapper"><i data-lucide="search" class="consult-search-icon"></i><input type="text" class="form-input consult-search-input" placeholder="DCI, nom commercial..."></div></div>
+        <div class="consult-rx-new-form">
+          <p class="w-title">Nouveau médicament</p>
+          <div class="consult-rx-form-grid">
+            <div class="consult-rx-form-full"><label class="form-label">Nom / DCI</label><input type="text" class="form-input" placeholder="ex: Smecta, Amoxicilline..."></div>
+            <div><label class="form-label">Posologie</label><input type="text" class="form-input" placeholder="ex: 1 cp matin"></div>
+            <div><label class="form-label">Durée</label><input type="text" class="form-input" placeholder="ex: 7 jours"></div>
+            <div><label class="form-label">Voie</label>
+              {{ include('components/ui/select.html.twig', {
+                name: 'voie',
+                value: 'orale',
+                options: [
+                  { value: 'orale', label: 'Orale' },
+                  { value: 'sc', label: 'SC' },
+                  { value: 'iv', label: 'IV' },
+                  { value: 'im', label: 'IM' },
+                  { value: 'topique', label: 'Topique' },
+                ]
+              }) }}
+            </div>
+            <div><label class="form-label">Quantité</label><input type="text" class="form-input" placeholder="ex: 1 boîte"></div>
+          </div>
+          <button class="btn btn-primary consult-rx-add-btn"><i data-lucide="plus" class="consult-icon-xs"></i>Ajouter à l'ordonnance</button>
+        </div>
+        <div><label class="form-label">Recommandations au propriétaire</label><textarea class="form-input" rows="3">Diète 24h puis repas fractionnés × 3/j. Aliments humides digestibles. Consulter si pas d'amélioration sous 48h.</textarea></div>
+      </div>
+      {# Right: prescription list #}
+      <div class="consult-modal-rx-right">
+        <div class="consult-rx-list-header">
+          <p class="w-title">Prescriptions <span class="consult-rx-count">2</span></p>
+          <div class="consult-rx-no-interaction"><svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6l2.5 2.5 5-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Aucune interaction</div>
+        </div>
+        {# Smecta card #}
+        <div class="consult-rx-card">
+          <div class="consult-rx-card-head"><div class="consult-flex-center"><div class="consult-rx-icon"><svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="#1d4ed8" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="#1d4ed8" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><p class="consult-rx-drug-name">Smecta</p><p class="consult-rx-drug-dci">Dioctahèdre smectite</p></div></div><button class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+          <div class="consult-rx-details-grid">
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Posologie</p><p class="consult-rx-detail-value">1 sachet/j</p></div>
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Durée</p><p class="consult-rx-detail-value">5 jours</p></div>
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Voie</p><p class="consult-rx-detail-value">Orale</p></div>
+          </div>
+        </div>
+        {# NaCl card #}
+        <div class="consult-rx-card">
+          <div class="consult-rx-card-head"><div class="consult-flex-center"><div class="consult-rx-icon"><svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M3 2h10a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="#1d4ed8" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="#1d4ed8" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><p class="consult-rx-drug-name">NaCl 0,9%</p><p class="consult-rx-drug-dci">Chlorure de sodium</p></div></div><button class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+          <div class="consult-rx-details-grid">
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Posologie</p><p class="consult-rx-detail-value">50ml séance</p></div>
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Durée</p><p class="consult-rx-detail-value">Unique</p></div>
+            <div class="consult-rx-detail-cell"><p class="consult-rx-detail-label">Voie</p><p class="consult-rx-detail-value">SC</p></div>
+          </div>
+        </div>
+        <div class="consult-add-dashed" onmouseenter="this.style.borderColor='var(--brand-400)';this.style.color='var(--brand-600)'" onmouseleave="this.style.borderColor='var(--border-medium)';this.style.color='var(--text-subtle)'"><i data-lucide="plus" class="consult-icon-xs"></i>Ajouter un médicament</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# -- Examens modal -- #}
+<div id="examens-modal" class="modal-overlay" onclick="if(event.target===this)closeExamensModal()">
+  <div class="modal-box consult-modal-examens">
+    <div class="modal-head">
+      <div><p class="consult-modal-title">Examens complémentaires</p><p class="consult-modal-subtitle">Luna · Consultation du 19 mars 2026</p></div>
+      <div class="consult-flex-center">
+        <button class="btn btn-secondary btn-xs" onclick="showToast('Examens transmis au labo','#059669')"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M3 8l4 4 6-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Transmettre au labo</button>
+        <button class="btn-close" onclick="closeExamensModal()"><i data-lucide="x" class="consult-icon-xs"></i></button>
+      </div>
+    </div>
+    <div class="consult-modal-examens-body">
+      {# Requested exams #}
+      <div>
+        <p class="w-title consult-mb-xs">Examens demandés</p>
+        <div class="consult-examens-list" id="examens-modal-list">
+          <div class="consult-examen-modal-row">
+            <div class="consult-examen-modal-icon consult-examen-modal-icon--blue"><svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M3 4h10a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="#1d4ed8" stroke-width="1.4"/><path d="M5 8h6" stroke="#1d4ed8" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+            <div class="consult-examen-modal-info">
+              <p class="consult-examen-modal-name">Bilan sanguin</p>
+              <p class="consult-examen-modal-detail">CBC + Biochimie complète</p>
+            </div>
+            <div class="consult-flex-center">
+              {# TODO: wire onchange handler #}
+              {{ include('components/ui/select.html.twig', {
+                name: 'examen_status_bilan',
+                value: 'demande',
+                extra_class: 'consult-examen-status-select',
+                options: [
+                  { value: 'demande', label: 'Demandé' },
+                  { value: 'en_cours', label: 'En cours' },
+                  { value: 'resultats_recus', label: 'Résultats reçus' },
+                  { value: 'annule', label: 'Annulé' },
+                ]
+              }) }}
+              <button class="consult-plan-delete-btn" onclick="this.closest('div[class*=consult-examen-modal-row]').remove()"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </div>
+          </div>
+          <div class="consult-examen-modal-row">
+            <div class="consult-examen-modal-icon consult-examen-modal-icon--green"><svg width="16" height="16" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="8" rx="5" ry="6.5" stroke="#15803d" stroke-width="1.4"/><path d="M4 8h8M8 3v10" stroke="#15803d" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+            <div class="consult-examen-modal-info">
+              <p class="consult-examen-modal-name">Échographie abdominale</p>
+              <p class="consult-examen-modal-detail">Exploration digestive complète</p>
+            </div>
+            <div class="consult-flex-center">
+              {# TODO: wire onchange handler #}
+              {{ include('components/ui/select.html.twig', {
+                name: 'examen_status_echo',
+                value: 'a_planifier',
+                extra_class: 'consult-examen-status-select',
+                options: [
+                  { value: 'a_planifier', label: 'À planifier' },
+                  { value: 'demande', label: 'Demandé' },
+                  { value: 'en_cours', label: 'En cours' },
+                  { value: 'resultats_recus', label: 'Résultats reçus' },
+                ]
+              }) }}
+              <button class="consult-plan-delete-btn" onclick="this.closest('div[class*=consult-examen-modal-row]').remove()"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {# Add an exam form #}
+      <div class="consult-examen-add-form">
+        <p class="w-title consult-mb-xs">Ajouter un examen</p>
+        <div class="consult-examen-form-grid">
+          <div class="consult-rx-form-full"><label class="form-label">Type d'examen</label>
+            {{ include('components/ui/select.html.twig', {
+              name: 'examen_type',
+              id: 'new-examen-type',
+              placeholder: '— Choisir —',
+              value: '',
+              options: [
+                { value: 'bilan_sanguin', label: 'Bilan sanguin (CBC)' },
+                { value: 'biochimie', label: 'Biochimie' },
+                { value: 'analyse_urine', label: "Analyse d'urine" },
+                { value: 'radiographie', label: 'Radiographie' },
+                { value: 'echographie', label: 'Échographie' },
+                { value: 'cytologie', label: 'Cytologie' },
+                { value: 'coproparasitologie', label: 'Coproparasitologie' },
+                { value: 'test_fiv_felv', label: 'Test FIV/FeLV' },
+                { value: 'autre', label: 'Autre' },
+              ]
+            }) }}
+          </div>
+          <div><label class="form-label">Précisions</label><input type="text" class="form-input" id="new-examen-detail" placeholder="ex: Abdominale, thoracique..."></div>
+          <div><label class="form-label">Urgence</label>
+            {{ include('components/ui/select.html.twig', {
+              name: 'examen_urgence',
+              id: 'new-examen-urgence',
+              value: 'normal',
+              options: [
+                { value: 'normal', label: 'Normal' },
+                { value: 'prioritaire', label: 'Prioritaire' },
+                { value: 'urgent', label: 'Urgent' },
+              ]
+            }) }}
+          </div>
+        </div>
+        <button class="btn btn-primary consult-examen-add-btn" onclick="addExamen()"><i data-lucide="plus" class="consult-icon-sm"></i>Ajouter l'examen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# -- Close consultation modal -- #}
+<div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box" class="modal-box consult-modal-close">
+    <div class="modal-head">
+      <div><p class="consult-modal-title">Clôturer la consultation</p><p class="consult-modal-subtitle">Luna · Persan · 4 ans · 19 mars 2026 · Dr. Rousseau</p></div>
+      <button class="btn-close" onclick="closeModal()"><i data-lucide="x" class="consult-icon-xs"></i></button>
+    </div>
+    <div class="consult-close-grid">
+      {# Left: summary #}
+      <div class="consult-close-left">
+        <div>
+          <p class="w-title consult-mb-xs">Résumé médical</p>
+          <div class="consult-close-summary-grid">
+            <div class="consult-close-summary-card"><p class="w-title consult-mb-xxs">Diagnostic</p><p class="consult-close-summary-value">Gastro-entérite légère</p><span class="consult-close-cause-badge">Cause infectieuse suspectée</span></div>
+            <div class="consult-close-summary-card"><p class="w-title consult-mb-xxs">Plan de traitement</p><ul class="consult-close-plan-list"><li class="consult-close-plan-item"><span class="consult-close-bullet"></span>Réhydratation SC NaCl 50ml</li><li class="consult-close-plan-item"><span class="consult-close-bullet"></span>Smecta 1 sachet/j · 5j</li><li class="consult-close-plan-item"><span class="consult-close-bullet"></span>Diète 24h puis repas fractionnés</li></ul></div>
+          </div>
+          <div class="consult-close-vax-alert"><i data-lucide="alert-circle" class="consult-close-vax-icon"></i><span class="consult-close-vax-text">Rappel FeLV administré — à reporter dans le carnet vaccinal</span></div>
+        </div>
+        <div>
+          <p class="w-title consult-mb-xs">Prochain rendez-vous</p>
+          <div class="consult-close-rdv-grid">
+            <div><label class="form-label">Date</label><input type="date" class="form-input" value="2026-03-24"></div>
+            <div><label class="form-label">Heure</label><input type="time" class="form-input" value="10:30"></div>
+            <div><label class="form-label">Motif</label>
+              {{ include('components/ui/select.html.twig', {
+                name: 'rdv_motif',
+                value: 'controle_j5',
+                options: [
+                  { value: 'controle_j5', label: 'Contrôle J+5' },
+                  { value: 'suivi_vaccinal', label: 'Suivi vaccinal' },
+                  { value: 'bilan_general', label: 'Bilan général' },
+                ]
+              }) }}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="consult-close-signature-header"><p class="w-title">Signature vétérinaire</p><div class="consult-flex-center"><div class="consult-close-vet-avatar">DR</div><span class="consult-close-vet-name">Dr. Rousseau</span><span class="consult-close-vet-id">· N° 75-12384</span></div></div>
+          <div id="sign-area" class="consult-close-sign-area" onmouseenter="if(!this.classList.contains('signed')){this.style.borderColor='var(--brand-400)';this.style.background='var(--brand-50)'}" onmouseleave="if(!this.classList.contains('signed')){this.style.borderColor='var(--border-medium)';this.style.background=''}" onclick="signDoc()">
+            <span id="sign-label" class="consult-close-sign-label">Cliquer pour signer électroniquement</span>
+          </div>
+        </div>
+      </div>
+      {# Right: billing sidebar #}
+      {% include 'clinic/consultation/detail/_billing.html.twig' %}
+    </div>
+  </div>
+</div>
+
+{# -- Vaccine modal -- #}
+<div id="vax-modal" class="modal-overlay" onclick="if(event.target===this)closeVaxModal()">
+  <div class="modal-box consult-modal-vax">
+    <div class="modal-head">
+      <div><p class="consult-modal-title">Rappel vaccinal FeLV</p><p class="consult-modal-subtitle">Luna · Persan 4 ans</p></div>
+      <button class="btn-close" onclick="closeVaxModal()"><i data-lucide="x" class="consult-icon-xs"></i></button>
+    </div>
+    <div class="consult-vax-body">
+      <div class="consult-vax-alert"><p class="consult-vax-alert-title">Dernier rappel FeLV : 8 sept. 2025 — Dr. Rousseau</p><p class="consult-vax-alert-desc">Prochain rappel recommandé : avant le 8 sept. 2026</p></div>
+      <div class="consult-vax-form-row">
+        <div><label class="form-label">Date d'administration</label><input type="date" class="form-input" value="2026-03-19"></div>
+        <div><label class="form-label">Lot vaccin</label><input type="text" class="form-input" placeholder="N° lot..."></div>
+      </div>
+      <div><label class="form-label">Prochain rappel</label><input type="date" class="form-input" value="2027-03-19"></div>
+      <div class="consult-vax-actions">
+        <button class="btn btn-secondary" onclick="closeVaxModal()">Annuler</button>
+        <button class="btn btn-primary" onclick="showToast('Vaccination FeLV enregistrée','#059669');closeVaxModal()"><i data-lucide="check" class="consult-icon-sm"></i>Administrer rappel FeLV</button>
+      </div>
+    </div>
+  </div>
+</div>

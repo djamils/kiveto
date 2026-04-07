@@ -1,0 +1,14 @@
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Catalogue{% endblock %}
+{% block page_icon %}<i data-lucide="package"></i>{% endblock %}
+{% block page_title %}Catalogue{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:400px;">
+  {{ include('components/ui/empty_state.html.twig', {
+    title: 'Bientôt disponible',
+    subtitle: 'Le catalogue des produits, médicaments et actes sera disponible prochainement.',
+  }) }}
+</div>
+{% endblock %}

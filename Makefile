@@ -98,7 +98,8 @@ endef
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
-	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations shared-migrations \
+	assets tailwind-build \
+	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
 
@@ -114,6 +115,8 @@ help:
 	@echo "  vendor          composer install"
 	@echo "  init-db         drop/create/migrate"
 	@echo "  ci              QA pipeline"
+	@echo "  assets          tailwind:build + asset-map:compile"
+	@echo "  tailwind-build  compile Tailwind CSS"
 	@echo ""
 	@echo "Options:"
 	@echo "  V=1             verbose output"
@@ -143,6 +146,7 @@ install:
 	$(MAKE) init-test-db; \
 	$(MAKE) migrate-test-db; \
 	$(MAKE) load-fixtures; \
+	$(MAKE) assets; \
 	$(MAKE) ready
 
 clean:
@@ -179,6 +183,16 @@ vendor:
 	@$(call step,Installing PHP dependencies...)
 	$(Q)$(call run,$(COMPOSER) install --no-interaction --prefer-dist --no-progress)
 	@$(call ok,Dependencies installed)
+
+tailwind-build:
+	@$(call step,Compiling Tailwind CSS...)
+	$(Q)$(SYMFONY) tailwind:build --minify
+	@$(call ok,Tailwind CSS compiled)
+
+assets: tailwind-build
+	@$(call step,Compiling AssetMapper...)
+	$(Q)$(SYMFONY) asset-map:compile
+	@$(call ok,Assets compiled)
 
 wait-db:
 	@$(call step,Waiting for MySQL to be ready...)
@@ -237,7 +251,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations clinical-care-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -257,7 +271,27 @@ clinic-migrations:
 access-control-migrations:
 	@$(call step,Generating migrations for AccessControl...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\AccessControl' --filter-expression='/^access_control__/')
-	@$(call ok,Clinic migrations generated)
+	@$(call ok,AccessControl migrations generated)
+
+client-migrations:
+	@$(call step,Generating migrations for Client...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Client' --filter-expression='/^client__/')
+	@$(call ok,Client migrations generated)
+
+animal-migrations:
+	@$(call step,Generating migrations for Animal...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Animal' --filter-expression='/^animal__/')
+	@$(call ok,Animal migrations generated)
+
+scheduling-migrations:
+	@$(call step,Generating migrations for Scheduling...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Scheduling' --filter-expression='/^scheduling__/')
+	@$(call ok,Scheduling migrations generated)
+
+clinical-care-migrations:
+	@$(call step,Generating migrations for ClinicalCare...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\ClinicalCare' --filter-expression='/^clinical_care__/')
+	@$(call ok,ClinicalCare migrations generated)
 
 shared-migrations:
 	@$(call step,Generating migrations for Shared (technical tables)...)
@@ -307,7 +341,7 @@ ready:
 ##
 ## QUALITY ASSURANCE
 ##
-ci: php-cs-fixer.dry-run phpcs phpstan test
+ci: php-cs-fixer.dry-run phpcs phpstan tailwind-build test
 
 phpstan:
 	@$(call step,Running PHPStan...)

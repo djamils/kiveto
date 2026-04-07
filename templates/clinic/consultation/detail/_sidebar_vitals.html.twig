@@ -1,0 +1,108 @@
+{# Left column: motif, vitals, pain score, acts & billing #}
+<div class="col-left" id="col-clinique">
+
+  {# Motif #}
+  <div class="widget">
+    <div class="w-head">
+      <div class="consult-flex-center">
+        <span class="w-title">Motif de consultation</span>
+        <span class="consult-timestamp">ASV · 10h52</span>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="toggleEditMotif()" id="motif-edit-btn"><i data-lucide="pencil" class="consult-icon-xs"></i>Modifier</button>
+    </div>
+    <div class="w-body" id="motif-view">
+      <div class="consult-motif-tags">
+        <span class="motif-tag consult-motif-tag--active">✦ Suivi vaccinal</span>
+        <span class="motif-tag consult-motif-tag--active">Troubles digestifs</span>
+      </div>
+      <div class="field-readonly"><span class="consult-field-text">Propriétaire signale une légère perte d'appétit depuis 2 jours. Luna est moins active. Pas de vomissements.</span></div>
+    </div>
+    <div class="w-body" id="motif-edit" style="display:none;">
+      <div class="consult-motif-tags">
+        <span class="motif-tag consult-motif-tag--active consult-clickable" onclick="toggleMotif(this)">✦ Suivi vaccinal</span>
+        <span class="motif-tag consult-motif-tag--active consult-clickable" onclick="toggleMotif(this)">Troubles digestifs</span>
+        <span class="motif-tag consult-clickable" onclick="toggleMotif(this)">Dermatologie</span>
+        <span class="motif-tag consult-clickable" onclick="toggleMotif(this)">Bilan général</span>
+        <span class="motif-tag consult-clickable" onclick="toggleMotif(this)">+ Autre</span>
+      </div>
+      <textarea class="form-input" rows="2">Propriétaire signale une légère perte d'appétit depuis 2 jours. Luna est moins active. Pas de vomissements.</textarea>
+    </div>
+  </div>
+
+  {# Vitals #}
+  <div class="widget">
+    <div class="w-head">
+      <div class="consult-flex-center">
+        <span class="w-title">Signes vitaux</span>
+        <span class="consult-timestamp">ASV · 10h54</span>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="toggleEditVitals()" id="vitals-edit-btn"><i data-lucide="pencil" class="consult-icon-xs"></i>Modifier</button>
+    </div>
+    <div id="vitals-view" class="consult-vitals-view">
+      <div class="consult-vitals-grid">
+        <div class="vital-pill ok" data-vital="poids" onclick="selectVital(this,'poids')"><div class="vital-num">3.8 <span class="vital-unit">kg</span></div><div class="vital-lbl">Poids <span class="consult-trend-ok">↓0.2</span></div></div>
+        <div class="vital-pill alert" data-vital="temp" onclick="selectVital(this,'temp')"><div class="vital-num">39.6 <span class="vital-unit">°C</span></div><div class="vital-lbl">Temp. <span class="consult-trend-alert">↑</span></div></div>
+        <div class="vital-pill" data-vital="fc" onclick="selectVital(this,'fc')"><div class="vital-num">142 <span class="vital-unit">bpm</span></div><div class="vital-lbl">FC</div></div>
+        <div class="vital-pill" data-vital="fr" onclick="selectVital(this,'fr')"><div class="vital-num">28 <span class="vital-unit">/min</span></div><div class="vital-lbl">FR</div></div>
+        <div class="vital-pill" id="pain-card" data-vital="douleur" onclick="selectVital(this,'douleur')"><div class="vital-num consult-pain-placeholder" id="pain-card-val">—</div><div class="vital-lbl">Douleur</div></div>
+      </div>
+      <p class="consult-vitals-hint">Cliquer pour afficher la courbe</p>
+      <div id="charts-and-score" class="consult-chart-container" style="display:none;">
+        <div class="consult-chart-header">
+          <span id="chart-label" class="consult-chart-label">Poids (kg)</span>
+          <button onclick="closeChart()" class="consult-chart-close">✕</button>
+        </div>
+        <div class="consult-chart-canvas"><canvas id="vitals-chart"></canvas></div>
+      </div>
+    </div>
+    <div id="vitals-edit" class="consult-vitals-edit" style="display:none;">
+      <div class="consult-vitals-edit-grid">
+        <div><label class="consult-input-label">Poids (kg)</label><input type="number" step="0.1" class="form-input consult-input-compact" value="3.8"></div>
+        <div><label class="consult-input-label">Temp. (°C)</label><input type="number" step="0.1" class="form-input consult-input-compact" value="39.6"></div>
+        <div><label class="consult-input-label">FC (bpm)</label><input type="number" class="form-input consult-input-compact" value="142"></div>
+        <div><label class="consult-input-label">FR (/min)</label><input type="number" class="form-input consult-input-compact" value="28"></div>
+      </div>
+      <div class="consult-pain-panel">
+        <div class="consult-pain-header">
+          <span class="consult-pain-title">Score douleur</span>
+          <span id="pain-label" class="consult-pain-value">Non évalué</span>
+        </div>
+        <div class="consult-pain-grid">
+          <div onclick="setPainScore(this,0)" data-score="0" class="consult-pain-cell">0</div>
+          <div onclick="setPainScore(this,1)" data-score="1" class="consult-pain-cell">1</div>
+          <div onclick="setPainScore(this,2)" data-score="2" class="consult-pain-cell">2</div>
+          <div onclick="setPainScore(this,3)" data-score="3" class="consult-pain-cell">3</div>
+          <div onclick="setPainScore(this,4)" data-score="4" class="consult-pain-cell">4</div>
+          <div onclick="setPainScore(this,5)" data-score="5" class="consult-pain-cell">5</div>
+          <div onclick="setPainScore(this,6)" data-score="6" class="consult-pain-cell">6</div>
+          <div onclick="setPainScore(this,7)" data-score="7" class="consult-pain-cell">7</div>
+          <div onclick="setPainScore(this,8)" data-score="8" class="consult-pain-cell">8</div>
+          <div onclick="setPainScore(this,9)" data-score="9" class="consult-pain-cell">9</div>
+          <div onclick="setPainScore(this,10)" data-score="10" class="consult-pain-cell">10</div>
+        </div>
+        <div class="consult-pain-legend"><span>Aucune</span><span>Légère</span><span>Modérée</span><span>Intense</span></div>
+      </div>
+    </div>
+    <div class="consult-spacer-sm"></div>
+  </div>
+
+  {# Acts & Billing #}
+  <div class="widget">
+    <div class="w-head"><span class="w-title">Actes &amp; Facturation</span></div>
+    <div class="w-body consult-acts-body">
+      <div id="actes-list" class="consult-acts-list">
+        <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Consultation</p></div><span class="consult-act-price">35,00 €</span></div>
+        <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Vaccination FeLV</p></div><span class="consult-act-price">18,00 €</span></div>
+        <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Smecta</p></div><span class="consult-act-price">4,50 €</span></div>
+        <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">NaCl 0,9% SC</p></div><span class="consult-act-price">6,00 €</span></div>
+        <div class="consult-add-dashed" onmouseenter="this.style.borderColor='var(--brand-400)';this.style.color='var(--brand-600)'" onmouseleave="this.style.borderColor='var(--border-medium)';this.style.color='var(--text-subtle)'"><i data-lucide="plus" class="consult-icon-xs"></i>Ajouter</div>
+      </div>
+      <div class="consult-acts-totals">
+        <div class="consult-acts-subtotal"><span>Sous-total HT</span><span>52,92 €</span></div>
+        <div class="consult-acts-subtotal consult-acts-subtotal--spaced"><span>TVA (20%)</span><span>10,58 €</span></div>
+        <div class="consult-acts-total"><span>Total TTC</span><span id="actes-total">63,50 €</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>

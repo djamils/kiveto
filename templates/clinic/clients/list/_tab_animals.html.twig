@@ -1,0 +1,150 @@
+{# Animals tab — data card with animals table, filters, hover actions, pagination #}
+
+<div class="data-card">
+
+  {# ── Card header: search + filters ── #}
+  <div class="data-card-head">
+    <div class="data-card-head-left">
+      <div class="data-search">
+        <i data-lucide="search" class="data-search-icon"></i>
+        <input
+          type="search"
+          id="animals-search"
+          class="data-search-input"
+          placeholder="Rechercher un animal…"
+          oninput="onAnimalSearch(this.value)"
+          autocomplete="off"
+        />
+      </div>
+
+      <button type="button" class="data-filter-btn" data-popover-anchor="animals-filter-species" data-popover-align="left">
+        <i data-lucide="paw-print"></i>
+        <span>Espèce</span>
+      </button>
+
+      <button type="button" class="data-filter-btn" data-popover-anchor="animals-filter-status" data-popover-align="left">
+        <i data-lucide="circle-dot"></i>
+        <span>Statut</span>
+      </button>
+
+      <div class="popover hidden" id="animals-filter-species" style="width:180px;">
+        <p class="popover-head">Espèce</p>
+        <button type="button" class="nav-item" onclick="setAnimalFilter('all',this)"><span>Toutes</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalFilter('Canin',this)"><span>🐶 Chiens</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalFilter('Félin',this)"><span>🐱 Chats</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalFilter('Lapin',this)"><span>🐰 Lapins</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalFilter('Oiseau',this)"><span>🦜 Oiseaux</span></button>
+      </div>
+
+      <div class="popover hidden" id="animals-filter-status" style="width:180px;">
+        <p class="popover-head">Statut</p>
+        <button type="button" class="nav-item" onclick="setAnimalStatusFilter('all',this)"><span>Tous</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalStatusFilter('ok',this)"><span>✓ En bonne santé</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalStatusFilter('warn',this)"><span>⚠ Surveillance</span></button>
+        <button type="button" class="nav-item" onclick="setAnimalStatusFilter('alert',this)"><span>🚨 Alerte</span></button>
+      </div>
+    </div>
+
+    <div class="data-card-head-right">
+      <button type="button" class="data-filter-btn" data-popover-anchor="animals-cols-popover">
+        <i data-lucide="settings-2"></i>
+        <span>Colonnes</span>
+      </button>
+      <div class="popover hidden" id="animals-cols-popover" style="width:200px;">
+        <p class="popover-head">Afficher</p>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'breed')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Race</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'owner')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Propriétaire</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'age')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Âge</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'lastrdv')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Dernier RDV</span>
+        </button>
+        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'nextrdv')">
+          <span class="col-picker-check"><i data-lucide="check"></i></span>
+          <span>Prochain RDV</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Table ── #}
+  <div class="data-card-table">
+    <table class="data-grid">
+      <thead>
+        <tr>
+          <th class="dg-th-checkbox">
+            <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Tout sélectionner"/>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Nom</span>
+            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Race</span>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Propriétaire</span>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Âge</span>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Dernier RDV</span>
+            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Prochain RDV</span>
+          </th>
+          <th class="dg-th-sortable">
+            <span>Statut</span>
+          </th>
+          <th class="dg-th-actions"></th>
+        </tr>
+      </thead>
+      <tbody id="animals-tbody" data-turbo-temporary>
+        {# Rendered by JS — see assets/js/pages/clients/list.js #}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Pagination footer ── #}
+  <div class="data-card-foot">
+    <div class="data-pagination-left">
+      <span class="data-pagination-label">Lignes par page</span>
+      {{ include('components/ui/select.html.twig', {
+        name: 'animals-page-size',
+        id: 'animals-page-size',
+        value: '10',
+        direction: 'up',
+        extra_class: 'data-pagination-select',
+        options: [
+          { value: '10', label: '10' },
+          { value: '25', label: '25' },
+          { value: '50', label: '50' },
+          { value: '100', label: '100' },
+        ]
+      }) }}
+    </div>
+    <div class="data-pagination-right">
+      <span class="data-pagination-info" id="animals-pagination-info">1 - 10 sur 15</span>
+      <div class="data-pagination-buttons">
+        <button type="button" class="data-pagination-btn" id="animals-prev" onclick="goAnimalPage(-1)" aria-label="Précédent">
+          <i data-lucide="chevron-left"></i>
+        </button>
+        <button type="button" class="data-pagination-btn" id="animals-next" onclick="goAnimalPage(1)" aria-label="Suivant">
+          <i data-lucide="chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

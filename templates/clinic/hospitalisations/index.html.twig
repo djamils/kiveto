@@ -1,0 +1,74 @@
+{#
+ # Kiveto — templates/clinic/hospitalisations/index.html.twig
+ # ──────────────────────────────────────────────────────────
+ # Hospitalisation dashboard — Kiveto design from vetos-hospitalisation.html mockup.
+ # Left panel: patient list. Right panel: detail with tabs, widgets,
+ # care checklist, evolution timeline, hydration gauge.
+ #
+ # Variables:
+ #   currentClinicId    string   Active clinic UUID
+ #   currentClinicName  string   Active clinic name
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Hospitalisation - {{ currentClinicName }}{% endblock %}
+{% block page_icon %}<i data-lucide="bed-double"></i>{% endblock %}
+{% block page_title %}Hospitalisation{% endblock %}
+
+{% block stylesheets %}
+<link rel="stylesheet" href="{{ asset('styles/pages/hospitalisations.css') }}">
+{% endblock %}
+
+{% block topbar_actions %}
+    {# Stats pills #}
+    <div class="topbar-stats hosp-stats">
+      <div class="hosp-pill hosp-pill--blue">
+        <div class="hosp-pill-dot hosp-pill-dot--blue"></div>
+        <span class="hosp-pill-count hosp-pill-count--blue" id="stat-hosp">4</span>
+        <span class="hosp-pill-label">hospitalisés</span>
+      </div>
+      <div class="hosp-pill hosp-pill--red">
+        <div class="hosp-pill-dot hosp-pill-dot--red"></div>
+        <span class="hosp-pill-count hosp-pill-count--red" id="stat-critique">1</span>
+        <span class="hosp-pill-label">critique</span>
+      </div>
+      <div class="hosp-pill hosp-pill--green">
+        <div class="hosp-pill-dot hosp-pill-dot--green"></div>
+        <span class="hosp-pill-count hosp-pill-count--green" id="stat-sortie-prev">2</span>
+        <span class="hosp-pill-label">sorties prévues aujourd'hui</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-xs topbar-new-btn" onclick="openModal('modal-admission')">
+      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>Nouvelle admission</span>
+    </button>
+{% endblock %}
+
+{% block content %}
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeSidebar()"></div>
+<div id="bs-overlay" onclick="closeBs()"></div>
+<div id="bs">
+  <div class="hosp-bs-handle">
+    <div class="hosp-bs-handle-bar"></div>
+  </div>
+  <div id="bs-inner"></div>
+</div>
+
+<div class="page-body">
+
+  {# Left panel: patient cards #}
+  {% include 'clinic/hospitalisations/_patient_list.html.twig' %}
+
+  {# Right panel: detail view with empty state #}
+  {% include 'clinic/hospitalisations/_detail_panel.html.twig' %}
+
+</div>
+
+{# All modals: admission, soin, evolution, sortie #}
+{% include 'clinic/hospitalisations/_modals.html.twig' %}
+
+<div id="toast"></div>
+{% endblock %}
+
+{% block javascripts %}
+{% endblock %}

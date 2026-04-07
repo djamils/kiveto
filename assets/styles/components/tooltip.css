@@ -1,0 +1,157 @@
+/* assets/styles/components/tooltip.css
+   Kiveto UI kit — CSS-only tooltip primitive (.ki-tooltip).
+
+   Usage:
+     <button class="ki-tooltip" data-tooltip="Mon label" data-tooltip-pos="right">
+       <svg>…</svg>
+     </button>
+
+   Positions: right (default) | left | top | bottom
+
+   Notes:
+   - Pure CSS, no JS, no extra DOM.
+   - Anchor element must be position:relative-able (handled here).
+   - Parent containers should not clip overflow if you want the tooltip to
+     escape (e.g. set overflow:visible on the rail sidebar).
+*/
+
+@layer components {
+  .ki-tooltip { position: relative; }
+
+  .ki-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    background: var(--slate-900, #0f172a);
+    color: var(--slate-50, #f8fafc);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 6px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: var(--z-tooltip, 9999);
+    transition: opacity .14s ease, transform .14s ease, visibility .14s;
+  }
+
+  .ki-tooltip::before {
+    content: '';
+    position: absolute;
+    border: 5px solid transparent;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: var(--z-tooltip, 9999);
+    transition: opacity .14s ease, transform .14s ease, visibility .14s;
+  }
+
+  .ki-tooltip:hover::after,
+  .ki-tooltip:hover::before,
+  .ki-tooltip:focus-visible::after,
+  .ki-tooltip:focus-visible::before {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: .15s;
+  }
+
+  /* ── Right (default) ── */
+  .ki-tooltip::after,
+  .ki-tooltip[data-tooltip-pos="right"]::after {
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+  }
+  .ki-tooltip:hover::after,
+  .ki-tooltip[data-tooltip-pos="right"]:hover::after,
+  .ki-tooltip:focus-visible::after,
+  .ki-tooltip[data-tooltip-pos="right"]:focus-visible::after {
+    transform: translateY(-50%) translateX(0);
+  }
+  .ki-tooltip::before,
+  .ki-tooltip[data-tooltip-pos="right"]::before {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+    border-right-color: var(--slate-900, #0f172a);
+  }
+  .ki-tooltip:hover::before,
+  .ki-tooltip[data-tooltip-pos="right"]:hover::before,
+  .ki-tooltip:focus-visible::before,
+  .ki-tooltip[data-tooltip-pos="right"]:focus-visible::before {
+    transform: translateY(-50%) translateX(0);
+  }
+
+  /* ── Left ── */
+  .ki-tooltip[data-tooltip-pos="left"]::after {
+    right: calc(100% + 10px);
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+  }
+  .ki-tooltip[data-tooltip-pos="left"]:hover::after,
+  .ki-tooltip[data-tooltip-pos="left"]:focus-visible::after {
+    transform: translateY(-50%) translateX(0);
+  }
+  .ki-tooltip[data-tooltip-pos="left"]::before {
+    right: 100%;
+    left: auto;
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+    border-left-color: var(--slate-900, #0f172a);
+    border-right-color: transparent;
+  }
+  .ki-tooltip[data-tooltip-pos="left"]:hover::before,
+  .ki-tooltip[data-tooltip-pos="left"]:focus-visible::before {
+    transform: translateY(-50%) translateX(0);
+  }
+
+  /* ── Top ── */
+  .ki-tooltip[data-tooltip-pos="top"]::after {
+    bottom: calc(100% + 10px);
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  .ki-tooltip[data-tooltip-pos="top"]:hover::after,
+  .ki-tooltip[data-tooltip-pos="top"]:focus-visible::after {
+    transform: translateX(-50%) translateY(0);
+  }
+  .ki-tooltip[data-tooltip-pos="top"]::before {
+    bottom: 100%;
+    left: 50%;
+    top: auto;
+    right: auto;
+    transform: translateX(-50%) translateY(0);
+    border-top-color: var(--slate-900, #0f172a);
+    border-right-color: transparent;
+  }
+  .ki-tooltip[data-tooltip-pos="top"]:hover::before,
+  .ki-tooltip[data-tooltip-pos="top"]:focus-visible::before {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Bottom ── */
+  .ki-tooltip[data-tooltip-pos="bottom"]::after {
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+  }
+  .ki-tooltip[data-tooltip-pos="bottom"]:hover::after,
+  .ki-tooltip[data-tooltip-pos="bottom"]:focus-visible::after {
+    transform: translateX(-50%) translateY(0);
+  }
+  .ki-tooltip[data-tooltip-pos="bottom"]::before {
+    top: 100%;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) translateY(0);
+    border-bottom-color: var(--slate-900, #0f172a);
+    border-right-color: transparent;
+  }
+  .ki-tooltip[data-tooltip-pos="bottom"]:hover::before,
+  .ki-tooltip[data-tooltip-pos="bottom"]:focus-visible::before {
+    transform: translateX(-50%) translateY(0);
+  }
+}

@@ -1,0 +1,116 @@
+{# Dashboard kanban -- 4-column board: Planned, Waiting, In consultation, Discharged #}
+<div class="kanban">
+
+  {# Column: Planned #}
+  <div class="kol kol-planned">
+    <div class="kol-head">
+      <span class="kol-title">Planifi&eacute;</span>
+      <span class="kol-count">3</span>
+    </div>
+    <div class="kol-body">
+      <div class="kcard">
+        <p class="kcard-name">Bella</p>
+        <p class="kcard-meta">Canin &middot; Bouledogue fran&ccedil;ais</p>
+        <p class="kcard-reason">Suivi post-op (st&eacute;rilisation)</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>10h00 &middot; Maria Torres</div>
+      </div>
+      <div class="kcard">
+        <p class="kcard-name">Oscar</p>
+        <p class="kcard-meta">F&eacute;lin &middot; Maine Coon</p>
+        <p class="kcard-reason">D&eacute;tartrage dentaire</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>10h30 &middot; David Chen</div>
+      </div>
+      <div class="kcard">
+        <p class="kcard-name">Whiskers</p>
+        <p class="kcard-meta">F&eacute;lin &middot; Persan</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>11h00</div>
+      </div>
+    </div>
+  </div>
+
+  {# Column: Waiting room #}
+  <div class="kol kol-waiting">
+    <div class="kol-head">
+      <span class="kol-title">Salle d'attente</span>
+      <span class="kol-count">2</span>
+    </div>
+    <div class="kol-body">
+      <div class="kcard kcard-accent-orange">
+        <div class="kcard-head">
+          <p class="kcard-name">Milo</p>
+          <span class="badge b-wait">En attente</span>
+        </div>
+        <p class="kcard-meta">F&eacute;lin &middot; British Shorthair</p>
+        <p class="kcard-reason">Toux persistante depuis 3 jours</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>James Park &middot; 9h45</div>
+      </div>
+      <div class="kcard kcard-accent-orange">
+        <div class="kcard-head">
+          <p class="kcard-name">Rocky</p>
+          <span class="badge b-wait">En attente</span>
+        </div>
+        <p class="kcard-meta">Canin &middot; Labrador</p>
+        <p class="kcard-reason">Allergie cutan&eacute;e, d&eacute;mangeaisons</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>Emily Davis &middot; 9h50</div>
+      </div>
+    </div>
+  </div>
+
+  {# Column: In consultation #}
+  <div class="kol kol-consult">
+    <div class="kol-head">
+      <span class="kol-title">En consultation</span>
+      <span class="kol-count">2</span>
+    </div>
+    <div class="kol-body">
+      <div class="kcard kcard-accent-blue">
+        <div class="kcard-head">
+          <p class="kcard-name">Luna</p>
+          <span class="badge b-exam">En consultation</span>
+        </div>
+        <p class="kcard-meta">Canin &middot; Golden Retriever</p>
+        <p class="kcard-reason">Bilan annuel + vaccination</p>
+        <div class="kcard-time kcard-time--spaced"><i data-lucide="clock" style="width:10px;height:10px;"></i>Salle 2 &middot; 9h30 &middot; Sarah Jenkins</div>
+        <div class="kcard-vitals">
+          <div><p class="vital-label">Poids</p><p class="vital-val">28,5 kg</p></div>
+          <div><p class="vital-label">Temp.</p><p class="vital-val">38,5&deg;C</p></div>
+          <div><p class="vital-label">FC</p><p class="vital-val">92 bpm</p></div>
+        </div>
+      </div>
+      <div class="kcard kcard-accent-blue">
+        <div class="kcard-head">
+          <p class="kcard-name">Max</p>
+          <span class="badge b-exam">En consultation</span>
+        </div>
+        <p class="kcard-meta">Canin &middot; Berger Allemand</p>
+        <p class="kcard-reason">Boiterie patte avant droite</p>
+        <div class="kcard-time"><i data-lucide="clock" style="width:10px;height:10px;"></i>Salle 1 &middot; 9h00 &middot; Lisa Wong</div>
+      </div>
+    </div>
+  </div>
+
+  {# Column: Discharged #}
+  <div class="kol kol-done">
+    <div class="kol-head">
+      <span class="kol-title">Sortie</span>
+      <span class="kol-count">1</span>
+    </div>
+    <div class="kol-body">
+      <div class="kcard kcard-accent-green">
+        <div class="kcard-head">
+          <p class="kcard-name">Cleo</p>
+          <span class="badge b-out">Sortie</span>
+        </div>
+        <p class="kcard-meta">Tom Anderson</p>
+        <p class="kcard-reason">Otite — traitement termin&eacute;</p>
+        <div class="kcard-price">
+          <span class="kcard-invoice-label">
+            <i data-lucide="receipt" style="width:11px;height:11px;"></i> Facture pr&ecirc;te
+          </span>
+          <span class="kcard-invoice-amount">85,00 &euro;</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

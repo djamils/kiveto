@@ -1,0 +1,152 @@
+{# Partial: modals — all client view modals #}
+
+{# ── MODAL: Edit owner ── #}
+<div class="modal-overlay" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title">Éditer le propriétaire</p><button onclick="closeModal('modal-owner')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="cv-grid-2">
+        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
+        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" value="{{ client is defined ? client.lastName : 'Dubois' }}"></div>
+      </div>
+      <div class="form-row"><label class="form-label">Adresse</label><input class="form-input" value="12 rue de la Paix, 75001 Paris"></div>
+      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Médecin, Retraité…"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-owner')">Enregistrer</button></div>
+  </div>
+</div>
+
+{# ── MODAL: Phones and contacts ── #}
+<div class="modal-overlay" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title">Contacts & Téléphones</p><button onclick="closeModal('modal-phones')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <p class="cv-modal-hint">Vous pouvez ajouter plusieurs numéros et leur donner un nom.</p>
+      <div class="cv-phone-rows">
+        <div class="cv-phone-row">
+          <div><label class="form-label">Téléphone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
+          <div><label class="form-label">Libellé</label><input class="form-input" value="Mobile principal"></div>
+          <button class="btn btn-secondary btn-xs cv-phone-delete" onclick="toast('Supprimé','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="cv-phone-row">
+          <div><input class="form-input cv-phone-input-no-margin" placeholder="+33 6 …"></div>
+          <div><input class="form-input" placeholder="Ex : Domicile, Travail…"></div>
+          <button class="btn btn-secondary btn-xs cv-phone-delete"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutée','#4338ca')">
+        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numéro
+      </button>
+      <div class="cv-email-section">
+        <p class="cv-email-label">Email</p>
+        <input class="form-input" value="s.dubois@email.fr">
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-phones')">Enregistrer</button></div>
+  </div>
+</div>
+
+{# ── MODAL: Communication preferences ── #}
+<div class="modal-overlay" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title">Préférences de communication</p><button onclick="closeModal('modal-prefs')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Canal préféré</label>
+        {{ include('components/ui/select.html.twig', {
+          name: 'communication_channel',
+          placeholder: 'Sélectionner...',
+          value: 'sms',
+          options: [
+            { value: 'sms', label: 'SMS' },
+            { value: 'email', label: 'Email' },
+            { value: 'telephone', label: 'Téléphone' },
+            { value: 'none', label: 'Aucune préférence' },
+          ]
+        }) }}
+      </div>
+      <div class="form-row"><label class="form-label">Plage horaire de contact</label>
+        {{ include('components/ui/select.html.twig', {
+          name: 'time_preference',
+          placeholder: 'Sélectionner...',
+          value: 'morning',
+          options: [
+            { value: 'morning', label: 'Matin (8h–12h)' },
+            { value: 'afternoon', label: 'Après-midi (12h–18h)' },
+            { value: 'evening', label: 'Soirée (18h–20h)' },
+            { value: 'all_day', label: 'Toute la journée' },
+          ]
+        }) }}
+      </div>
+      <div class="form-row"><label class="form-label">Rappels automatiques</label>
+        <div class="cv-checkbox-group">
+          <label class="cv-checkbox-label"><input type="checkbox" checked class="cv-checkbox">Rappel RDV 24h avant</label>
+          <label class="cv-checkbox-label"><input type="checkbox" checked class="cv-checkbox">Rappel vaccin à renouveler</label>
+          <label class="cv-checkbox-label"><input type="checkbox" class="cv-checkbox">Newsletter clinique</label>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">Note libre</label><input class="form-input" value="Disponible le matin uniquement"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
+  </div>
+</div>
+
+{# ── MODAL: Animal identification ── #}
+<div class="modal-overlay" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="cv-grid-2">
+        <div class="form-row"><label class="form-label">Transpondeur (puce)</label><input class="form-input" id="fi-chip" placeholder="15 chiffres"></div>
+        <div class="form-row"><label class="form-label">Tatouage</label><input class="form-input" id="fi-tattoo" placeholder="Code tatouage"></div>
+        <div class="form-row"><label class="form-label">N° Passeport</label><input class="form-input" id="fi-passport" placeholder="FR…"></div>
+        <div class="form-row"><label class="form-label">N° LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
+        <div class="form-row"><label class="form-label">N° SIRE (équidé)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
+        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador × Border Collie"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-ident')">Enregistrer</button></div>
+  </div>
+</div>
+
+{# ── MODAL: Auxiliary contact ── #}
+<div class="modal-overlay" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <p class="cv-modal-description">Personne à contacter en l'absence du propriétaire principal.</p>
+      <div class="cv-grid-2">
+        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" id="ac-first" placeholder="Prénom"></div>
+        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" id="ac-last" placeholder="Nom"></div>
+        <div class="form-row"><label class="form-label">Téléphone</label><input class="form-input" id="ac-phone" placeholder="+33 6 …"></div>
+        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin…"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistré','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
+  </div>
+</div>
+
+{# ── MODAL: Animal status ── #}
+<div class="modal-overlay" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
+  <div class="modal-box">
+    <div class="modal-head"><p class="cv-modal-title">Statut de l'animal</p><button onclick="closeModal('modal-status')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label">Statut</label>
+        {# TODO: wire onchange handler #}
+        {{ include('components/ui/select.html.twig', {
+          name: 'animal_status',
+          id: 'animal-status-sel',
+          value: 'alive',
+          options: [
+            { value: 'alive', label: 'Vivant' },
+            { value: 'deceased', label: 'Décédé' },
+            { value: 'missing', label: 'Disparu' },
+            { value: 'given', label: 'Cédé (vendu / donné)' },
+          ]
+        }) }}
+      </div>
+      <div class="form-row" id="status-date-row"><label class="form-label">Date</label><input type="date" class="form-input" id="status-date"></div>
+      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input cv-textarea-no-resize" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau propriétaire…"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis à jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
+  </div>
+</div>
