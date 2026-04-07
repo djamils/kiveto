@@ -121,6 +121,7 @@
 @import "./components/feedback.css";
 @import "./components/utilities.css";
 @import "./components/calendar.css";
+@import "./components/tooltip.css";
 
 /* Pages */
 @import "./pages/common.css";

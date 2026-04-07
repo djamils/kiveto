@@ -245,9 +245,14 @@
 
   /* ── SIDEBAR RAIL MODE ──
      Compact icon-only sidebar used on pages that need maximum horizontal space
-     (scheduling agenda + planning). Hides labels, centers icons. */
+     (scheduling agenda + planning). Hides labels, centers icons. Labels are
+     repurposed as hover tooltips that escape the sidebar (overflow:visible). */
   .sidebar.sidebar--rail {
     width: 56px;
+    overflow: visible;
+  }
+  .sidebar--rail .nav {
+    overflow: visible;
   }
   .sidebar--rail .sb-top {
     padding: 0;
@@ -275,6 +280,7 @@
   .sidebar--rail .nav-section { display: none; }
   .sidebar--rail .nav { padding: 4px 0; }
   .sidebar--rail .nav-item {
+    position: relative;
     width: 40px;
     height: 36px;
     margin: 2px auto;
@@ -283,10 +289,11 @@
     gap: 0;
     border-radius: 8px;
   }
+  /* Labels are hidden in rail mode — replaced by .ki-tooltip on the
+     nav/footer/clinic-switcher buttons themselves. */
   .sidebar--rail .nav-item > span,
-  .sidebar--rail .nav-item > .nav-badge {
-    display: none;
-  }
+  .sidebar--rail .nav-item > .nav-badge,
+  .sidebar--rail .sb-foot-btn > span { display: none; }
   .sidebar--rail .sb-foot {
     flex-direction: column;
     height: auto;
@@ -302,7 +309,7 @@
     border-radius: 8px;
     flex: 0 0 auto;
   }
-  .sidebar--rail .sb-foot-btn > span { display: none; }
+  /* (sb-foot-btn label kept as hover tooltip — see rules above) */
 
 
   /* ── TOPBAR ── */

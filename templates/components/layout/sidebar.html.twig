@@ -129,7 +129,8 @@
   {# ── Header: clinic switcher ── #}
   <div class="sb-top">
     <button
-      class="sb-clinic-btn"
+      class="sb-clinic-btn{% if _rail %} ki-tooltip{% endif %}"
+      {% if _rail %}data-tooltip="Changer de clinique" data-tooltip-pos="right"{% endif %}
       type="button"
       aria-label="Changer de clinique"
       data-popover-anchor="clinic-switcher-popover"
@@ -251,7 +252,8 @@
         {% set _is_active = active_item is defined and (active_item == item.key or active_item starts with item.key) %}
         <a
           href="{{ item.route ? path(item.route) : '#' }}"
-          class="nav-item{% if _is_active %} active{% endif %}"
+          class="nav-item{% if _is_active %} active{% endif %}{% if _rail %} ki-tooltip{% endif %}"
+          {% if _rail %}data-tooltip="{{ item.label }}" data-tooltip-pos="right"{% endif %}
           {% if _is_active %}aria-current="page"{% endif %}
           {% if item.new_tab is defined and item.new_tab %}target="_blank" rel="noopener"{% endif %}
         >
@@ -269,7 +271,8 @@
   <div class="sb-foot">
     <button
       type="button"
-      class="sb-foot-btn"
+      class="sb-foot-btn{% if _rail %} ki-tooltip{% endif %}"
+      {% if _rail %}data-tooltip="Quoi de neuf" data-tooltip-pos="right"{% endif %}
       aria-label="Quoi de neuf"
       data-popover-anchor="app-changelog-popover"
     >
@@ -281,7 +284,8 @@
 
     <button
       type="button"
-      class="sb-foot-btn"
+      class="sb-foot-btn{% if _rail %} ki-tooltip{% endif %}"
+      {% if _rail %}data-tooltip="Aide" data-tooltip-pos="right"{% endif %}
       aria-label="Aide"
       data-popover-anchor="app-help-popover"
     >
