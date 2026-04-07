@@ -108,7 +108,9 @@ final class AppointmentTest extends TestCase
         $newPractitioner = new PractitionerAssignee(UserId::fromString('55555555-5555-5555-5555-555555555555'));
         $appointment->changePractitionerAssignee($newPractitioner);
 
-        self::assertTrue($appointment->practitionerAssignee()->equals($newPractitioner));
+        $assignee = $appointment->practitionerAssignee();
+        self::assertNotNull($assignee);
+        self::assertTrue($assignee->equals($newPractitioner));
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);

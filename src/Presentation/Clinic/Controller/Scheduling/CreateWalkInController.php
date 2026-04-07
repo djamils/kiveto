@@ -26,22 +26,20 @@ final class CreateWalkInController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $data = $request->request->all();
-
         try {
-            // Convert empty strings to null for optional fields
-            $ownerId                = !empty($data['ownerId']) ? $data['ownerId'] : null;
-            $animalId               = !empty($data['animalId']) ? $data['animalId'] : null;
-            $foundAnimalDescription = !empty($data['foundAnimalDescription']) ? $data['foundAnimalDescription'] : null;
-            $triageNotes            = !empty($data['triageNotes']) ? $data['triageNotes'] : null;
+            // Convert empty strings to null for optional fields.
+            $ownerId                = $request->request->getString('ownerId') ?: null;
+            $animalId               = $request->request->getString('animalId') ?: null;
+            $foundAnimalDescription = $request->request->getString('foundAnimalDescription') ?: null;
+            $triageNotes            = $request->request->getString('triageNotes') ?: null;
 
             $this->commandBus->dispatch(new CreateWaitingRoomWalkInEntry(
                 clinicId: $currentClinicId->toString(),
                 ownerId: $ownerId,
                 animalId: $animalId,
                 foundAnimalDescription: $foundAnimalDescription,
-                arrivalMode: $data['arrivalMode'] ?? 'STANDARD',
-                priority: (int) ($data['priority'] ?? 0),
+                arrivalMode: $request->request->getString('arrivalMode', 'STANDARD'),
+                priority: $request->request->getInt('priority'),
                 triageNotes: $triageNotes,
             ));
 

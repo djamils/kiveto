@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Scheduling\Application\Query\GetAppointmentDetails;
 
+use App\Shared\Infrastructure\Persistence\DbalRow;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -45,19 +46,19 @@ final readonly class GetAppointmentDetailsHandler
         }
 
         return new AppointmentDetails(
-            id: $result['id'],
-            clinicId: $result['clinic_id'],
-            ownerId: $result['owner_id'],
-            animalId: $result['animal_id'],
-            practitionerUserId: $result['practitioner_user_id'],
-            startsAtUtc: $result['starts_at_utc'],
-            durationMinutes: (int) $result['duration_minutes'],
-            status: $result['status'],
-            reason: $result['reason'],
-            notes: $result['notes'],
-            serviceStartedAtUtc: $result['service_started_at_utc'],
-            createdAtUtc: $result['created_at_utc'],
-            updatedAtUtc: $result['updated_at_utc'],
+            id: DbalRow::string($result, 'id'),
+            clinicId: DbalRow::string($result, 'clinic_id'),
+            ownerId: DbalRow::nullableString($result, 'owner_id'),
+            animalId: DbalRow::nullableString($result, 'animal_id'),
+            practitionerUserId: DbalRow::nullableString($result, 'practitioner_user_id'),
+            startsAtUtc: DbalRow::string($result, 'starts_at_utc'),
+            durationMinutes: DbalRow::int($result, 'duration_minutes'),
+            status: DbalRow::string($result, 'status'),
+            reason: DbalRow::nullableString($result, 'reason'),
+            notes: DbalRow::nullableString($result, 'notes'),
+            serviceStartedAtUtc: DbalRow::nullableString($result, 'service_started_at_utc'),
+            createdAtUtc: DbalRow::string($result, 'created_at_utc'),
+            updatedAtUtc: DbalRow::string($result, 'updated_at_utc'),
         );
     }
 }

@@ -18,12 +18,16 @@ final class RecordChiefComplaintController extends AbstractController
     ) {
     }
 
-    #[Route('/clinic/consultations/{id}/chief-complaint', name: 'clinic_consultation_record_chief_complaint', methods: ['POST'])]
+    #[Route(
+        '/clinic/consultations/{id}/chief-complaint',
+        name: 'clinic_consultation_record_chief_complaint',
+        methods: ['POST'],
+    )]
     public function __invoke(string $id, Request $request): Response
     {
-        $chiefComplaint = $request->request->get('chiefComplaint');
+        $chiefComplaint = $request->request->getString('chiefComplaint');
 
-        if (empty($chiefComplaint)) {
+        if ('' === $chiefComplaint) {
             $this->addFlash('error', 'Le motif de consultation est obligatoire.');
 
             return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);

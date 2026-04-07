@@ -23,8 +23,7 @@ final class TimeSlotTest extends TestCase
         $startsAt = new \DateTimeImmutable('2026-02-01 09:00:00');
         $timeSlot = new TimeSlot($startsAt, 45);
 
-        $expectedEnd = new \DateTimeImmutable('2026-02-01 09:45:00');
-        self::assertEquals($expectedEnd, $timeSlot->endsAtUtc());
+        self::assertSame('2026-02-01 09:45:00', $timeSlot->endsAtUtc()->format('Y-m-d H:i:s'));
     }
 
     public function testCannotCreateTimeSlotWithZeroDuration(): void

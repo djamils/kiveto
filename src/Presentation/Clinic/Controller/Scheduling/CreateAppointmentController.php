@@ -26,17 +26,16 @@ final class CreateAppointmentController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $data = $request->request->all();
-
         try {
-            $startsAt = new \DateTimeImmutable($data['startsAtUtc'] ?? 'now');
+            $startsAtRaw = $request->request->getString('startsAtUtc', 'now');
+            $startsAt    = new \DateTimeImmutable($startsAtRaw);
 
-            // Convert empty strings to null for optional UUID fields
-            $ownerId            = !empty($data['ownerId']) ? $data['ownerId'] : null;
-            $animalId           = !empty($data['animalId']) ? $data['animalId'] : null;
-            $practitionerUserId = !empty($data['practitionerUserId']) ? $data['practitionerUserId'] : null;
-            $reason             = !empty($data['reason']) ? $data['reason'] : null;
-            $notes              = !empty($data['notes']) ? $data['notes'] : null;
+            // Convert empty strings to null for optional fields.
+            $ownerId            = $request->request->getString('ownerId') ?: null;
+            $animalId           = $request->request->getString('animalId') ?: null;
+            $practitionerUserId = $request->request->getString('practitionerUserId') ?: null;
+            $reason             = $request->request->getString('reason') ?: null;
+            $notes              = $request->request->getString('notes') ?: null;
 
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: $currentClinicId->toString(),
@@ -44,7 +43,7 @@ final class CreateAppointmentController extends AbstractController
                 animalId: $animalId,
                 practitionerUserId: $practitionerUserId,
                 startsAtUtc: $startsAt,
-                durationMinutes: (int) ($data['durationMinutes'] ?? 30),
+                durationMinutes: $request->request->getInt('durationMinutes', 30),
                 reason: $reason,
                 notes: $notes,
             ));

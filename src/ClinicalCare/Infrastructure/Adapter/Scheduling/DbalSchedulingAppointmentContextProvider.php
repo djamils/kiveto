@@ -7,6 +7,7 @@ namespace App\ClinicalCare\Infrastructure\Adapter\Scheduling;
 use App\ClinicalCare\Application\Port\AppointmentContextDTO;
 use App\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface;
 use App\ClinicalCare\Domain\ValueObject\AppointmentId;
+use App\Shared\Infrastructure\Persistence\DbalRow;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
@@ -43,18 +44,12 @@ final readonly class DbalSchedulingAppointmentContextProvider implements Schedul
         }
 
         return new AppointmentContextDTO(
-            clinicId: Uuid::fromBinary($result['clinic_id'])->toRfc4122(),
-            linkedWaitingRoomEntryId: $result['waiting_room_entry_id']
-                ? Uuid::fromBinary($result['waiting_room_entry_id'])->toRfc4122()
-                : null,
-            ownerId: $result['owner_id']
-                ? Uuid::fromBinary($result['owner_id'])->toRfc4122()
-                : null,
-            animalId: $result['animal_id']
-                ? Uuid::fromBinary($result['animal_id'])->toRfc4122()
-                : null,
-            arrivalMode: $result['arrival_mode'],
-            status: $result['status'],
+            clinicId: DbalRow::uuid($result, 'clinic_id'),
+            linkedWaitingRoomEntryId: DbalRow::nullableUuid($result, 'waiting_room_entry_id'),
+            ownerId: DbalRow::nullableUuid($result, 'owner_id'),
+            animalId: DbalRow::nullableUuid($result, 'animal_id'),
+            arrivalMode: DbalRow::nullableString($result, 'arrival_mode'),
+            status: DbalRow::string($result, 'status'),
         );
     }
 }

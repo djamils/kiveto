@@ -43,8 +43,10 @@ final readonly class TimeSlot
 
     public function equals(self $other): bool
     {
-        // DateTimeImmutable instances must be compared by value, not by reference.
-        return $this->startsAtUtc == $other->startsAtUtc
+        // Compare DateTimeImmutable by timestamp + microseconds — strict_comparison
+        // forbids `==`, and `===` would compare references (always false for distinct
+        // instances).
+        return $this->startsAtUtc->format('U.u') === $other->startsAtUtc->format('U.u')
             && $this->durationMinutes === $other->durationMinutes;
     }
 }

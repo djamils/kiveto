@@ -48,7 +48,9 @@ final class WaitingRoomEntryTest extends TestCase
         self::assertTrue($entry->id()->equals($entryId));
         self::assertSame(WaitingRoomEntryOrigin::SCHEDULED, $entry->origin());
         self::assertSame(WaitingRoomEntryStatus::WAITING, $entry->status());
-        self::assertTrue($entry->linkedAppointmentId()->equals($appointmentId));
+        $linkedAppointmentId = $entry->linkedAppointmentId();
+        self::assertNotNull($linkedAppointmentId);
+        self::assertTrue($linkedAppointmentId->equals($appointmentId));
 
         $events = $entry->recordedDomainEvents();
         self::assertCount(1, $events);
@@ -177,8 +179,12 @@ final class WaitingRoomEntryTest extends TestCase
         $animalId = AnimalId::fromString('44444444-4444-4444-4444-444444444444');
         $entry->linkToOwnerAndAnimal($ownerId, $animalId);
 
-        self::assertTrue($entry->ownerId()->equals($ownerId));
-        self::assertTrue($entry->animalId()->equals($animalId));
+        $linkedOwnerId  = $entry->ownerId();
+        $linkedAnimalId = $entry->animalId();
+        self::assertNotNull($linkedOwnerId);
+        self::assertNotNull($linkedAnimalId);
+        self::assertTrue($linkedOwnerId->equals($ownerId));
+        self::assertTrue($linkedAnimalId->equals($animalId));
 
         $events = $entry->recordedDomainEvents();
         self::assertCount(1, $events);

@@ -100,11 +100,13 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
         if ('' === $userId) {
             $redirectUrl = $this->urlGenerator->generate($this->loginRouteForContext($authContext));
+
             return $this->createSuccessResponse($request, $redirectUrl);
         }
 
         if (AuthenticationContext::CLINIC !== $authContext) {
             $redirectUrl = $this->urlGenerator->generate($this->successRouteForContext($authContext));
+
             return $this->createSuccessResponse($request, $redirectUrl);
         }
 
@@ -141,14 +143,6 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         ], JsonResponse::HTTP_UNAUTHORIZED);
     }
 
-    private function handleSingleClinic(ActiveClinicResult $result): RedirectResponse
-    {
-        \assert(null !== $result->clinic);
-        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($result->clinic->clinicId));
-
-        return new RedirectResponse($this->urlGenerator->generate('clinic_dashboard'));
-    }
-
     private function getUrlForSingleClinic(ActiveClinicResult $result): string
     {
         \assert(null !== $result->clinic);
@@ -160,9 +154,9 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
     private function createSuccessResponse(Request $request, string $redirectUrl): Response
     {
         // Si la requête attend du JSON, renvoyer une réponse JSON
-        if ($request->getContentTypeFormat() === 'json' || $request->headers->get('Accept') === 'application/json') {
+        if ('json' === $request->getContentTypeFormat() || 'application/json' === $request->headers->get('Accept')) {
             return new JsonResponse([
-                'success' => true,
+                'success'  => true,
                 'redirect' => $redirectUrl,
             ]);
         }

@@ -189,10 +189,10 @@ final class WaitingRoomEntry extends AggregateRoot
             throw new \DomainException('Cannot update triage for a closed entry.');
         }
 
-        if ($this->priority === $priority
+        $unchanged = $this->priority === $priority
             && $this->triageNotes === $triageNotes
-            && $this->arrivalMode === $arrivalMode
-        ) {
+            && $this->arrivalMode === $arrivalMode;
+        if ($unchanged) {
             return;
         }
 

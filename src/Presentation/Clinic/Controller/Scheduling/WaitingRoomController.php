@@ -35,8 +35,8 @@ final class WaitingRoomController extends AbstractController
 
         return $this->render('clinic/scheduling/waiting-room/index.html.twig', [
             'waitingRoomEntries' => $waitingRoomEntries,
-            'currentClinicId'   => $currentClinicId->toString(),
-            'currentClinicName' => $clinic->name,
+            'currentClinicId'    => $currentClinicId->toString(),
+            'currentClinicName'  => $clinic->name,
         ]);
     }
 }

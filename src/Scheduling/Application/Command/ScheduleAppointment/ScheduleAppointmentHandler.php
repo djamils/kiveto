@@ -59,12 +59,13 @@ final readonly class ScheduleAppointmentHandler
             $practitionerUserId = UserId::fromString($command->practitionerUserId);
 
             // Validate practitioner is eligible
-            if (!$this->membershipEligibilityChecker->isUserEligibleForClinicAt(
+            $isEligible = $this->membershipEligibilityChecker->isUserEligibleForClinicAt(
                 userId: $practitionerUserId,
                 clinicId: $clinicId,
                 at: $now,
                 allowedRoles: ['VETERINARY', 'ASSISTANT_VETERINARY'],
-            )) {
+            );
+            if (!$isEligible) {
                 throw new \DomainException(\sprintf(
                     'User "%s" is not eligible as practitioner for clinic "%s".',
                     $command->practitionerUserId,

@@ -335,7 +335,12 @@ final class Consultation extends AggregateRoot
         return $this->acts;
     }
 
-    // For reconstitution from persistence
+    /**
+     * Rebuild a Consultation aggregate from persisted state.
+     *
+     * @param array<ClinicalNoteRecord> $notes
+     * @param array<PerformedActRecord> $acts
+     */
     public static function reconstitute(
         ConsultationId $id,
         ClinicId $clinicId,

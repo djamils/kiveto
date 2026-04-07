@@ -18,12 +18,15 @@ final class StartConsultationFromWaitingRoomController extends AbstractControlle
     ) {
     }
 
-    #[Route('/clinic/consultations/start-from-waiting-room/{entryId}', name: 'clinic_consultation_start_from_waiting_room', methods: ['POST'])]
+    #[Route(
+        '/clinic/consultations/start-from-waiting-room/{entryId}',
+        name: 'clinic_consultation_start_from_waiting_room',
+        methods: ['POST'],
+    )]
     public function __invoke(string $entryId): Response
     {
-        /** @var SecurityUser $user */
         $user = $this->getUser();
-        \assert(null !== $user);
+        \assert($user instanceof SecurityUser);
 
         try {
             $consultationId = $this->commandBus->dispatch(

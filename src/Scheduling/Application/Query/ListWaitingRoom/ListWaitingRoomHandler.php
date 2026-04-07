@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Scheduling\Application\Query\ListWaitingRoom;
 
+use App\Shared\Infrastructure\Persistence\DbalRow;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -50,25 +51,30 @@ final readonly class ListWaitingRoomHandler
             'clinicId' => $query->clinicId,
         ]);
 
-        return array_map(
-            fn (array $row) => new WaitingRoomEntryItem(
-                id: $row['id'],
-                clinicId: $row['clinic_id'],
-                origin: $row['origin'],
-                arrivalMode: $row['arrival_mode'],
-                linkedAppointmentId: $row['linked_appointment_id'],
-                ownerId: $row['owner_id'],
-                animalId: $row['animal_id'],
-                foundAnimalDescription: $row['found_animal_description'],
-                priority: (int) $row['priority'],
-                triageNotes: $row['triage_notes'],
-                status: $row['status'],
-                arrivedAtUtc: $row['arrived_at_utc'],
-                calledAtUtc: $row['called_at_utc'],
-                serviceStartedAtUtc: $row['service_started_at_utc'],
-                closedAtUtc: $row['closed_at_utc'],
-            ),
-            $results
+        return array_map(fn (array $row): WaitingRoomEntryItem => $this->hydrateRow($row), $results);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function hydrateRow(array $row): WaitingRoomEntryItem
+    {
+        return new WaitingRoomEntryItem(
+            id: DbalRow::string($row, 'id'),
+            clinicId: DbalRow::string($row, 'clinic_id'),
+            origin: DbalRow::string($row, 'origin'),
+            arrivalMode: DbalRow::string($row, 'arrival_mode'),
+            linkedAppointmentId: DbalRow::nullableString($row, 'linked_appointment_id'),
+            ownerId: DbalRow::nullableString($row, 'owner_id'),
+            animalId: DbalRow::nullableString($row, 'animal_id'),
+            foundAnimalDescription: DbalRow::nullableString($row, 'found_animal_description'),
+            priority: DbalRow::int($row, 'priority'),
+            triageNotes: DbalRow::nullableString($row, 'triage_notes'),
+            status: DbalRow::string($row, 'status'),
+            arrivedAtUtc: DbalRow::string($row, 'arrived_at_utc'),
+            calledAtUtc: DbalRow::nullableString($row, 'called_at_utc'),
+            serviceStartedAtUtc: DbalRow::nullableString($row, 'service_started_at_utc'),
+            closedAtUtc: DbalRow::nullableString($row, 'closed_at_utc'),
         );
     }
 }

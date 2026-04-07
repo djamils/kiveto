@@ -7,6 +7,7 @@ namespace App\ClinicalCare\Application\Query\GetConsultationDetails;
 final readonly class ConsultationDetailsDTO
 {
     /**
+     * @param array{weightKg: ?string, temperatureC: ?string}|null              $vitals
      * @param list<array{noteType: string, content: string, createdAt: string}> $notes
      * @param list<array{label: string, quantity: string, performedAt: string}> $acts
      */

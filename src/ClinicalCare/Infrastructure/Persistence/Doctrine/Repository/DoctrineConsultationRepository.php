@@ -30,7 +30,7 @@ final readonly class DoctrineConsultationRepository implements ConsultationRepos
     {
         $consultationIdBinary = Uuid::fromString($consultation->getId()->toString())->toBinary();
 
-        $existingEntity = $this->em->find(ConsultationEntity::class, $consultationIdBinary);
+        $existingEntity     = $this->em->find(ConsultationEntity::class, $consultationIdBinary);
         $consultationEntity = $this->mapper->toEntity($consultation, $existingEntity);
 
         if (null === $existingEntity) {

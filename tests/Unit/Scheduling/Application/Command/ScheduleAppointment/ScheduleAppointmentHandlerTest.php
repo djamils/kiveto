@@ -20,17 +20,18 @@ use App\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 final class ScheduleAppointmentHandlerTest extends TestCase
 {
-    private AppointmentRepositoryInterface $appointmentRepository;
-    private MembershipEligibilityCheckerInterface $membershipEligibilityChecker;
-    private AppointmentConflictCheckerInterface $conflictChecker;
-    private OwnerExistenceCheckerInterface $ownerExistenceChecker;
-    private AnimalExistenceCheckerInterface $animalExistenceChecker;
-    private UuidGeneratorInterface $uuidGenerator;
-    private ClockInterface $clock;
+    private AppointmentRepositoryInterface&MockObject $appointmentRepository;
+    private MembershipEligibilityCheckerInterface&MockObject $membershipEligibilityChecker;
+    private AppointmentConflictCheckerInterface&MockObject $conflictChecker;
+    private OwnerExistenceCheckerInterface&MockObject $ownerExistenceChecker;
+    private AnimalExistenceCheckerInterface&MockObject $animalExistenceChecker;
+    private UuidGeneratorInterface&MockObject $uuidGenerator;
+    private ClockInterface&MockObject $clock;
     private ScheduleAppointmentHandler $handler;
 
     protected function setUp(): void
@@ -247,7 +248,9 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     public function testScheduleAppointmentFailsWhenOverlapDetected(): void
     {
         $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Practitioner "44444444-4444-4444-4444-444444444444" has an overlapping appointment');
+        $this->expectExceptionMessage(
+            'Practitioner "44444444-4444-4444-4444-444444444444" has an overlapping appointment',
+        );
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
@@ -270,7 +273,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $this->conflictChecker->expects(self::once())
             ->method('hasOverlap')
-            ->willReturn(true);
+            ->willReturn(true)
+        ;
 
         ($this->handler)($command);
     }
