@@ -19,6 +19,7 @@ use App\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
 
 final class ScheduleAppointmentHandlerTest extends TestCase
@@ -168,6 +169,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $appointmentId);
     }
 
+    #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenOwnerDoesNotExist(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -190,6 +192,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         ($this->handler)($command);
     }
 
+    #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenAnimalDoesNotExist(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -212,6 +215,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         ($this->handler)($command);
     }
 
+    #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenPractitionerNotEligible(): void
     {
         $this->expectException(\DomainException::class);
@@ -239,6 +243,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         ($this->handler)($command);
     }
 
+    #[AllowMockObjectsWithoutExpectations]
     public function testScheduleAppointmentFailsWhenOverlapDetected(): void
     {
         $this->expectException(\DomainException::class);

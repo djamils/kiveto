@@ -37,6 +37,9 @@ final readonly class ScheduleAppointmentHandler
 
     public function __invoke(ScheduleAppointment $command): string
     {
+        // Capture "now" once so eligibility check and createdAt are consistent.
+        $now = $this->clock->now();
+
         $clinicId = ClinicId::fromString($command->clinicId);
         $ownerId  = $command->ownerId ? OwnerId::fromString($command->ownerId) : null;
         $animalId = $command->animalId ? AnimalId::fromString($command->animalId) : null;
@@ -59,7 +62,7 @@ final readonly class ScheduleAppointmentHandler
             if (!$this->membershipEligibilityChecker->isUserEligibleForClinicAt(
                 userId: $practitionerUserId,
                 clinicId: $clinicId,
-                at: $this->clock->now(),
+                at: $now,
                 allowedRoles: ['VETERINARY', 'ASSISTANT_VETERINARY'],
             )) {
                 throw new \DomainException(\sprintf(
@@ -96,7 +99,7 @@ final readonly class ScheduleAppointmentHandler
             timeSlot: $timeSlot,
             reason: $command->reason,
             notes: $command->notes,
-            createdAt: $this->clock->now(),
+            createdAt: $now,
         );
 
         $this->appointmentRepository->save($appointment);
