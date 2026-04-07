@@ -136,8 +136,8 @@ function toast(m, c = '#16a34a') {
   }, 2500);
 }
 
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { var el = document.getElementById(id); if(el){ el.classList.remove('hidden'); el.classList.add('open'); } }
+function closeModal(id) { var el = document.getElementById(id); if(el){ el.classList.remove('open'); el.classList.add('hidden'); } }
 
 function fmtDays(dateStr) {
   const d = Math.floor((new Date() - new Date(dateStr)) / 86400000);
@@ -505,7 +505,7 @@ function closeSlide() {
 
 // Keyboard handler reference for cleanup
 function _onKeydown(e) {
-  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => { m.classList.remove('open'); m.classList.add('hidden'); });
 }
 
 // ════════════════════════════════════════════════════
