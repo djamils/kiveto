@@ -92,39 +92,23 @@ function showToast(msg, color='#16a34a'){
 }
 
 // =============== MINI CAL ===============
-function renderMiniCal(){
-  const y = miniCalDate.getFullYear(), m = miniCalDate.getMonth();
-  document.getElementById('mini-month').textContent = `${MONTHS_FR[m]} ${y}`;
-  const grid = document.getElementById('mini-cal-grid');
-  grid.innerHTML = '';
-  const first = new Date(y,m,1);
-  const startDow = (first.getDay()+6)%7;
-  const days = new Date(y,m+1,0).getDate();
-  const blockDates = new Set(blocks.map(b=>b.date));
+// Calendar UI kit replaces the legacy mini-cal — kept as no-ops so any
+// remaining call sites stay safe.
+function renderMiniCal(){ syncCalendarFromState(); }
+function miniCalPrev(){}
+function miniCalNext(){}
 
-  for(let i=0;i<startDow;i++){
-    const prev = new Date(y,m,1-startDow+i);
-    const el = document.createElement('div');
-    el.className='mini-cal-day other-month';
-    el.textContent = prev.getDate();
-    el.onclick=()=>{ currentDate=prev; currentView='day'; setView('day'); renderMiniCal(); };
-    grid.appendChild(el);
-  }
-  for(let d=1;d<=days;d++){
-    const el = document.createElement('div');
-    el.className='mini-cal-day';
-    el.textContent=d;
-    const thisDate=new Date(y,m,d);
-    const ds=fmtDate(thisDate);
-    if(ds===fmtDate(today)) el.classList.add('today');
-    if(ds===fmtDate(currentDate) && currentView!=='month') el.classList.add('selected');
-    if(blockDates.has(ds)) el.classList.add('has-blocks');
-    el.onclick=()=>{ currentDate=thisDate; if(currentView==='month') setView('day'); else renderPlanning(); renderMiniCal(); };
-    grid.appendChild(el);
+/** Sync the UI kit calendar selection with currentDate. */
+function syncCalendarFromState(){
+  const root = document.getElementById('scheduling-calendar');
+  if(!root) return;
+  const ctrl = window.Stimulus && window.Stimulus.getControllerForElementAndIdentifier
+    ? window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar')
+    : null;
+  if(ctrl && typeof ctrl.setSelected === 'function'){
+    ctrl.setSelected(fmtDate(currentDate));
   }
 }
-function miniCalPrev(){ miniCalDate.setMonth(miniCalDate.getMonth()-1); renderMiniCal(); }
-function miniCalNext(){ miniCalDate.setMonth(miniCalDate.getMonth()+1); renderMiniCal(); }
 
 // =============== LEGEND ===============
 function renderLegend(){
@@ -149,7 +133,7 @@ function toggleVet(el, vet){
 function setView(v){
   currentView = v;
   ['day','week','month'].forEach(x=>{
-    document.getElementById('view-'+x+'-btn').classList.toggle('active', x===v);
+    document.getElementById('view-'+x+'-btn').classList.toggle('is-active', x===v);
   });
   renderPlanning();
   renderMiniCal();
@@ -374,7 +358,7 @@ function renderVetRow(vetKey, vet, dateStr, dayBlocks, totalW){
   }
 
   // Preview block (hidden by default)
-  row+=`<div id="drag-preview-${vetKey}-${dateStr}" style="display:none;position:absolute;top:6px;bottom:6px;border-radius:5px;background:rgba(99,102,241,.08);border:1.5px dashed #818cf8;pointer-events:none;z-index:5;">
+  row+=`<div id="drag-preview-${vetKey}-${dateStr}" style="display:none;position:absolute;top:2px;bottom:2px;border-radius:5px;background:rgba(99,102,241,.08);border:1.5px dashed #818cf8;pointer-events:none;z-index:5;">
     <div id="drag-label-${vetKey}-${dateStr}" style="padding:2px 6px;font-size:var(--text-xs);font-weight:var(--weight-medium);color:#6366f1;white-space:nowrap;"></div>
   </div>`;
 
@@ -642,6 +626,7 @@ function closeSidebar(){
 
 // =============== EVENT LISTENERS (stored for cleanup) ===============
 let _mousedownHandler = null;
+let _calendarSelectHandler = null;
 
 // =============== EXPOSE TO WINDOW (for onclick attributes in HTML) ===============
 window.closeSidebar = closeSidebar;
@@ -670,11 +655,11 @@ export function init() {
   if(window.innerWidth <= 640){ currentView='day'; }
   else if(window.innerWidth <= 1024){ currentView='week'; }
   // Only render if the planning grid is empty (skip when restored from Turbo cache)
-  var planningGrid = document.getElementById('mini-cal-grid');
+  var planningGrid = document.getElementById('planning-wrap');
   if (!planningGrid || !planningGrid.children.length) {
     renderLegend();
-    renderMiniCal();
     renderPlanning();
+    setTimeout(syncCalendarFromState, 0);
   }
 
   // Click outside preview — clear all previews
@@ -688,10 +673,21 @@ export function init() {
   };
   document.addEventListener('mousedown', _mousedownHandler);
 
+  // Wire UI kit calendar → planning navigation
+  _calendarSelectHandler = function(e){
+    var iso = e && e.detail && e.detail.date;
+    if(!iso) return;
+    var parts = iso.split('-').map(Number);
+    currentDate = new Date(parts[0], parts[1]-1, parts[2]);
+    if(currentView === 'month') setView('day');
+    else renderPlanning();
+  };
+  document.addEventListener('calendar:select', _calendarSelectHandler);
+
   // Sync view buttons
   ['day','week','month'].forEach(function(x){
     var btn=document.getElementById('view-'+x+'-btn');
-    if(btn) btn.classList.toggle('active', x===currentView);
+    if(btn) btn.classList.toggle('is-active', x===currentView);
   });
 }
 
@@ -699,6 +695,10 @@ export function cleanup() {
   if(_mousedownHandler) {
     document.removeEventListener('mousedown', _mousedownHandler);
     _mousedownHandler = null;
+  }
+  if(_calendarSelectHandler) {
+    document.removeEventListener('calendar:select', _calendarSelectHandler);
+    _calendarSelectHandler = null;
   }
 
   // Clean up window references

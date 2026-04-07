@@ -120,6 +120,7 @@
 @import "./components/overlays.css";
 @import "./components/feedback.css";
 @import "./components/utilities.css";
+@import "./components/calendar.css";
 
 /* Pages */
 @import "./pages/common.css";
@@ -128,6 +129,7 @@
 @import "./pages/clients/view.css";
 @import "./pages/consultation.css";
 @import "./pages/hospitalisations.css";
+@import "./pages/scheduling/_shared.css";
 @import "./pages/scheduling/agenda.css";
 @import "./pages/scheduling/planning.css";
 @import "./pages/scheduling/waiting-room.css";

@@ -243,6 +243,67 @@
     outline-offset: 1px;
   }
 
+  /* ── SIDEBAR RAIL MODE ──
+     Compact icon-only sidebar used on pages that need maximum horizontal space
+     (scheduling agenda + planning). Hides labels, centers icons. */
+  .sidebar.sidebar--rail {
+    width: 56px;
+  }
+  .sidebar--rail .sb-top {
+    padding: 0;
+    justify-content: center;
+  }
+  .sidebar--rail .sb-clinic-btn {
+    width: 40px;
+    margin: 0 auto;
+    padding: 6px;
+    justify-content: center;
+    gap: 0;
+  }
+  .sidebar--rail .sb-clinic-btn > .truncate,
+  .sidebar--rail .sb-clinic-btn > svg:last-child {
+    display: none;
+  }
+  .sidebar--rail .sb-search-placeholder { display: none; }
+  .sidebar--rail .sb-search { padding: 12px 8px 4px; }
+  .sidebar--rail .sb-search-trigger {
+    width: 40px;
+    margin: 0 auto;
+    padding: 0;
+    justify-content: center;
+  }
+  .sidebar--rail .nav-section { display: none; }
+  .sidebar--rail .nav { padding: 4px 0; }
+  .sidebar--rail .nav-item {
+    width: 40px;
+    height: 36px;
+    margin: 2px auto;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    border-radius: 8px;
+  }
+  .sidebar--rail .nav-item > span,
+  .sidebar--rail .nav-item > .nav-badge {
+    display: none;
+  }
+  .sidebar--rail .sb-foot {
+    flex-direction: column;
+    height: auto;
+    padding: 6px 0;
+    gap: 0;
+  }
+  .sidebar--rail .sb-foot-sep { display: none; }
+  .sidebar--rail .sb-foot-btn {
+    width: 40px;
+    height: 36px;
+    margin: 2px auto;
+    padding: 0;
+    border-radius: 8px;
+    flex: 0 0 auto;
+  }
+  .sidebar--rail .sb-foot-btn > span { display: none; }
+
 
   /* ── TOPBAR ── */
 

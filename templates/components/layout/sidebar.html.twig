@@ -88,8 +88,8 @@
   { key: 'clinic_dashboard',              label: 'Tableau de bord',    icon: icon_grid,        route: 'clinic_dashboard' },
 
   { section: 'Clinique' },
-  { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard', new_tab: true },
-  { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning', new_tab: true },
+  { key: 'clinic_scheduling_dashboard',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_dashboard' },
+  { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning' },
   { key: 'clinic_scheduling_waiting_room', label: 'Salle d\'attente',  icon: icon_clock,       route: 'clinic_scheduling_waiting_room' },
 
   { section: 'Médical' },
@@ -120,7 +120,11 @@
   </svg>
 {% endset %}
 
-<aside class="sidebar" id="appSidebar" data-controller="sidebar">
+{# Compact icon-rail mode on pages that need maximum horizontal space (e.g. scheduling). #}
+{% set _route = app.request.attributes.get('_route') %}
+{% set _rail = _route in ['clinic_scheduling_dashboard', 'clinic_scheduling_planning'] %}
+
+<aside class="sidebar{% if _rail %} sidebar--rail{% endif %}" id="appSidebar" data-controller="sidebar">
 
   {# ── Header: clinic switcher ── #}
   <div class="sb-top">

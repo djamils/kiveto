@@ -243,48 +243,25 @@ const DOW_FR = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
 // =============== MINI CALENDAR ===============
-function renderMiniCal(){
-  const y = miniCalDate.getFullYear(), m = miniCalDate.getMonth();
-  document.getElementById('mini-month').textContent = `${MONTHS_FR[m]} ${y}`;
-  const grid = document.getElementById('mini-cal-grid');
-  grid.innerHTML = '';
-  // Day-of-week headers
-  ['L','M','M','J','V','S','D'].forEach(d => {
-    const el = document.createElement('div');
-    el.className = 'mini-cal-dow';
-    el.textContent = d;
-    grid.appendChild(el);
-  });
-  const first = new Date(y, m, 1);
-  const startDow = (first.getDay()+6)%7; // Mon=0
-  const days = new Date(y, m+1, 0).getDate();
-  for(let i=0;i<startDow;i++){
-    const el = document.createElement('div');
-    grid.appendChild(el);
-  }
-  const rdvDates = new Set(appointments.map(a => a.date));
-  for(let d=1;d<=days;d++){
-    const el = document.createElement('div');
-    el.className = 'mini-cal-day';
-    el.textContent = d;
-    const thisDate = new Date(y,m,d);
-    const dateStr = fmtDate(thisDate);
-    if(fmtDate(thisDate)===fmtDate(today)) el.classList.add('today');
-    const ws = getWeekStart(thisDate);
-    if(fmtDate(ws)===fmtDate(currentWeekStart)) el.classList.add('selected');
-    if(rdvDates.has(dateStr)) el.classList.add('has-rdv');
-    el.onclick = () => {
-      currentWeekStart = getWeekStart(thisDate);
-      selectedDay = dateStr;
-      renderWeek();
-      renderMiniCal();
-      renderDayPlanning();
-    };
-    grid.appendChild(el);
+// Calendar UI kit replaces the legacy mini-cal — these are kept as no-ops so any
+// remaining call sites stay safe; the real selection handling lives in syncCalendarFromState()
+// and the calendar:select event listener registered at boot.
+function renderMiniCal(){ syncCalendarFromState(); }
+function miniCalPrev(){}
+function miniCalNext(){}
+
+/** Push current week/day state into the UI kit calendar so its selection follows the agenda. */
+function syncCalendarFromState(){
+  const root = document.getElementById('scheduling-calendar');
+  if(!root) return;
+  const ctrl = window.Stimulus && window.Stimulus.getControllerForElementAndIdentifier
+    ? window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar')
+    : null;
+  const iso = currentView === 'day' ? fmtDate(currentWeekStart) : fmtDate(currentWeekStart);
+  if(ctrl && typeof ctrl.setSelected === 'function'){
+    ctrl.setSelected(iso);
   }
 }
-function miniCalPrev(){ miniCalDate.setMonth(miniCalDate.getMonth()-1); renderMiniCal(); }
-function miniCalNext(){ miniCalDate.setMonth(miniCalDate.getMonth()+1); renderMiniCal(); }
 
 // =============== WEEK RENDER ===============
 const HOUR_START = 7;
@@ -756,8 +733,8 @@ function goToday(){ currentWeekStart = getWeekStart(today); renderWeek(); render
 function setView(v){
   currentView = v;
   if(v==='day') currentWeekStart = today;
-  document.getElementById('view-week').style.cssText = v==='week' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:#fff;color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:transparent;color:var(--text-muted);';
-  document.getElementById('view-day').style.cssText = v==='day' ? 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:#fff;color:var(--text-primary);box-shadow:0 1px 3px rgba(0,0,0,.08);' : 'padding:4px 10px;border-radius:6px;border:none;font-size:var(--text-sm);font-weight:var(--weight-medium);cursor:pointer;font-family:inherit;background:transparent;color:var(--text-muted);';
+  document.getElementById('view-week').classList.toggle('is-active', v==='week');
+  document.getElementById('view-day').classList.toggle('is-active', v==='day');
   renderWeek();
 }
 
@@ -979,6 +956,7 @@ function renderFreeSlotBlock(col, vetKey, vet, dateStr, startMin, endMin){
 // =============== EVENT LISTENERS (stored for cleanup) ===============
 let _resizeHandler = null;
 let _inputHandler = null;
+let _calendarSelectHandler = null;
 
 // =============== EXPOSE TO WINDOW (for onclick attributes in HTML) ===============
 window.closeAgendaSidebar = closeAgendaSidebar;
@@ -1032,6 +1010,21 @@ export function init() {
     if(e.target && e.target.id === 'new-rdv-time') updateEndTime();
   };
   document.addEventListener('input', _inputHandler);
+
+  // Wire UI kit calendar → agenda navigation
+  _calendarSelectHandler = function(e){
+    var iso = e && e.detail && e.detail.date;
+    if(!iso) return;
+    var parts = iso.split('-').map(Number);
+    var picked = new Date(parts[0], parts[1]-1, parts[2]);
+    currentWeekStart = currentView === 'week' ? getWeekStart(picked) : picked;
+    selectedDay = iso;
+    renderWeek();
+    renderDayPlanning();
+  };
+  document.addEventListener('calendar:select', _calendarSelectHandler);
+  // Initial sync once Stimulus has booted the calendar controller
+  setTimeout(syncCalendarFromState, 0);
 }
 
 export function cleanup() {
@@ -1042,6 +1035,10 @@ export function cleanup() {
   if(_inputHandler) {
     document.removeEventListener('input', _inputHandler);
     _inputHandler = null;
+  }
+  if(_calendarSelectHandler) {
+    document.removeEventListener('calendar:select', _calendarSelectHandler);
+    _calendarSelectHandler = null;
   }
 
   // Clean up window references
