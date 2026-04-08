@@ -2,6 +2,14 @@
 
 Le Bounded Context **Shared** fournit les abstractions et composants partagés par tous les autres Bounded Contexts de Kiveto.
 
+## Event dispatch policy
+
+`Shared/` may host buses, publishers and abstract event classes
+(`AbstractDomainEvent`, `EventBus`, `DomainEventPublisher`, …), but
+contains no concrete business `DomainEvent` and never `dispatch()`es
+directly. Dispatch always originates from an aggregate inside a Bounded
+Context.
+
 ## Responsabilités
 
 - **Domain Events**: Infrastructure pour les événements de domaine (enregistrement, métadonnées, versionning)
