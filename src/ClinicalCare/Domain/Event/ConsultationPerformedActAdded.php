@@ -29,11 +29,11 @@ final readonly class ConsultationPerformedActAdded extends AbstractDomainEvent
     {
         return [
             'consultationId'  => $this->consultationId->toString(),
-            'label'           => $this->act->label,
-            'quantity'        => $this->act->quantity,
-            'performedAt'     => $this->act->performedAt->format(\DateTimeInterface::ATOM),
-            'createdAt'       => $this->act->createdAt->format(\DateTimeInterface::ATOM),
-            'createdByUserId' => $this->act->createdByUserId->toString(),
+            'label'           => $this->act->getLabel(),
+            'quantity'        => $this->act->getQuantity(),
+            'performedAt'     => $this->act->getPerformedAtUtc()->format(\DateTimeInterface::ATOM),
+            'createdAt'       => $this->act->getCreatedAtUtc()->format(\DateTimeInterface::ATOM),
+            'createdByUserId' => $this->act->getCreatedByUserId(),
             'occurredOn'      => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }

@@ -14,7 +14,7 @@ use App\Scheduling\Domain\WaitingRoomEntry;
 use App\Scheduling\Infrastructure\Persistence\Doctrine\Entity\WaitingRoomEntryEntity;
 use Symfony\Component\Uid\Uuid;
 
-final class WaitingRoomEntryMapper
+class WaitingRoomEntryMapper
 {
     public function toDomain(WaitingRoomEntryEntity $entity): WaitingRoomEntry
     {

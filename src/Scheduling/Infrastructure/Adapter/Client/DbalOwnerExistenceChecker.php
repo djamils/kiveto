@@ -7,6 +7,7 @@ namespace App\Scheduling\Infrastructure\Adapter\Client;
 use App\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
 use App\Scheduling\Domain\ValueObject\OwnerId;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DbalOwnerExistenceChecker implements OwnerExistenceCheckerInterface
 {
@@ -17,10 +18,14 @@ final readonly class DbalOwnerExistenceChecker implements OwnerExistenceCheckerI
 
     public function exists(OwnerId $ownerId): bool
     {
-        $sql = 'SELECT COUNT(*) as cnt FROM client__owners WHERE id = :ownerId';
+        // In the Client BC the "owner" of an appointment IS a client — there is
+        // no separate client__owners table. Query the canonical client__clients table.
+        // The id column is stored as BINARY(16) by Doctrine's UuidType — bind the
+        // binary representation, not the RFC 4122 string.
+        $sql = 'SELECT COUNT(*) as cnt FROM client__clients WHERE id = :ownerId';
 
         $result = $this->connection->fetchAssociative($sql, [
-            'ownerId' => $ownerId->toString(),
+            'ownerId' => Uuid::fromString($ownerId->toString())->toBinary(),
         ]);
 
         return ($result['cnt'] ?? 0) > 0;

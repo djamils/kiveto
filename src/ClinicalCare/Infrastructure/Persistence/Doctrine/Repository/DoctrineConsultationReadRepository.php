@@ -7,6 +7,7 @@ namespace App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository;
 use App\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface;
 use App\ClinicalCare\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\ClinicalCare\Domain\ValueObject\ConsultationId;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
@@ -19,11 +20,11 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
     public function findById(ConsultationId $consultationId): ConsultationDetailsDTO
     {
-        $uuid = Uuid::fromString($consultationId->toString());
+        $uuid                 = Uuid::fromString($consultationId->toString());
         $consultationIdBinary = $uuid->toBinary();
 
         // Fetch consultation
-        $sql = 'SELECT * FROM clinical_care__consultations WHERE id = :id';
+        $sql          = 'SELECT * FROM clinical_care__consultations WHERE id = :id';
         $consultation = $this->connection->fetchAssociative($sql, [
             'id' => $consultationIdBinary,
         ]);
@@ -43,11 +44,19 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         $notesResult = $this->connection->fetchAllAssociative($sqlNotes, [
             'consultationId' => $consultationIdBinary,
         ]);
-        $notes = array_map(fn (array $row) => [
-            'noteType'  => $row['note_type'],
-            'content'   => $row['content'],
-            'createdAt' => $row['created_at_utc'],
-        ], $notesResult);
+        $notes = array_map(
+            /**
+             * @param array<string, mixed> $row
+             *
+             * @return array{noteType: string, content: string, createdAt: string}
+             */
+            fn (array $row): array => [
+                'noteType'  => RowAccessor::string($row, 'note_type'),
+                'content'   => RowAccessor::string($row, 'content'),
+                'createdAt' => RowAccessor::string($row, 'created_at_utc'),
+            ],
+            $notesResult,
+        );
 
         // Fetch acts
         $sqlActs = 'SELECT label, quantity, performed_at_utc 
@@ -57,37 +66,47 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         $actsResult = $this->connection->fetchAllAssociative($sqlActs, [
             'consultationId' => $consultationIdBinary,
         ]);
-        $acts = array_map(fn (array $row) => [
-            'label'       => $row['label'],
-            'quantity'    => $row['quantity'],
-            'performedAt' => $row['performed_at_utc'],
-        ], $actsResult);
+        $acts = array_map(
+            /**
+             * @param array<string, mixed> $row
+             *
+             * @return array{label: string, quantity: string, performedAt: string}
+             */
+            fn (array $row): array => [
+                'label'       => RowAccessor::string($row, 'label'),
+                'quantity'    => RowAccessor::string($row, 'quantity'),
+                'performedAt' => RowAccessor::string($row, 'performed_at_utc'),
+            ],
+            $actsResult,
+        );
 
         // Build vitals array if present
-        $vitals = null;
-        if (null !== $consultation['weight_kg'] || null !== $consultation['temperature_c']) {
+        $weightKg     = RowAccessor::nullableString($consultation, 'weight_kg');
+        $temperatureC = RowAccessor::nullableString($consultation, 'temperature_c');
+        $vitals       = null;
+        if (null !== $weightKg || null !== $temperatureC) {
             $vitals = [
-                'weightKg'     => $consultation['weight_kg'],
-                'temperatureC' => $consultation['temperature_c'],
+                'weightKg'     => $weightKg,
+                'temperatureC' => $temperatureC,
             ];
         }
 
         return new ConsultationDetailsDTO(
-            consultationId: Uuid::fromBinary($consultation['id'])->toString(),
-            clinicId: Uuid::fromBinary($consultation['clinic_id'])->toString(),
-            practitionerUserId: Uuid::fromBinary($consultation['practitioner_user_id'])->toString(),
-            status: $consultation['status'],
-            appointmentId: $consultation['appointment_id'] ? Uuid::fromBinary($consultation['appointment_id'])->toString() : null,
-            waitingRoomEntryId: $consultation['waiting_room_entry_id'] ? Uuid::fromBinary($consultation['waiting_room_entry_id'])->toString() : null,
-            ownerId: $consultation['owner_id'] ? Uuid::fromBinary($consultation['owner_id'])->toString() : null,
-            animalId: $consultation['animal_id'] ? Uuid::fromBinary($consultation['animal_id'])->toString() : null,
-            chiefComplaint: $consultation['chief_complaint'],
+            consultationId: RowAccessor::uuid($consultation, 'id'),
+            clinicId: RowAccessor::uuid($consultation, 'clinic_id'),
+            practitionerUserId: RowAccessor::uuid($consultation, 'practitioner_user_id'),
+            status: RowAccessor::string($consultation, 'status'),
+            appointmentId: RowAccessor::nullableUuid($consultation, 'appointment_id'),
+            waitingRoomEntryId: RowAccessor::nullableUuid($consultation, 'waiting_room_entry_id'),
+            ownerId: RowAccessor::nullableUuid($consultation, 'owner_id'),
+            animalId: RowAccessor::nullableUuid($consultation, 'animal_id'),
+            chiefComplaint: RowAccessor::nullableString($consultation, 'chief_complaint'),
             vitals: $vitals,
             notes: $notes,
             acts: $acts,
-            summary: $consultation['summary'],
-            startedAtUtc: $consultation['started_at_utc'],
-            closedAtUtc: $consultation['closed_at_utc'],
+            summary: RowAccessor::nullableString($consultation, 'summary'),
+            startedAtUtc: RowAccessor::string($consultation, 'started_at_utc'),
+            closedAtUtc: RowAccessor::nullableString($consultation, 'closed_at_utc'),
         );
     }
 }

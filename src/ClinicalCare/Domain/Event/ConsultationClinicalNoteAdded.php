@@ -29,10 +29,10 @@ final readonly class ConsultationClinicalNoteAdded extends AbstractDomainEvent
     {
         return [
             'consultationId'  => $this->consultationId->toString(),
-            'noteType'        => $this->note->noteType->value,
-            'content'         => $this->note->content,
-            'createdAt'       => $this->note->createdAt->format(\DateTimeInterface::ATOM),
-            'createdByUserId' => $this->note->createdByUserId->toString(),
+            'noteType'        => $this->note->getNoteType()->value,
+            'content'         => $this->note->getContent(),
+            'createdAt'       => $this->note->getCreatedAtUtc()->format(\DateTimeInterface::ATOM),
+            'createdByUserId' => $this->note->getCreatedByUserId(),
             'occurredOn'      => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }

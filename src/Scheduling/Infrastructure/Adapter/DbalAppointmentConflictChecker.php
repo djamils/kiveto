@@ -10,6 +10,7 @@ use App\Scheduling\Domain\ValueObject\ClinicId;
 use App\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Scheduling\Domain\ValueObject\UserId;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DbalAppointmentConflictChecker implements AppointmentConflictCheckerInterface
 {
@@ -37,16 +38,17 @@ final readonly class DbalAppointmentConflictChecker implements AppointmentConfli
               )
         SQL;
 
+        // clinic_id, practitioner_user_id and id are stored as BINARY(16) by Doctrine's UuidType.
         $params = [
-            'clinicId'           => $clinicId->toString(),
-            'practitionerUserId' => $practitionerUserId->toString(),
+            'clinicId'           => Uuid::fromString($clinicId->toString())->toBinary(),
+            'practitionerUserId' => Uuid::fromString($practitionerUserId->toString())->toBinary(),
             'startsAt'           => $timeSlot->startsAtUtc()->format('Y-m-d H:i:s'),
             'endsAt'             => $endsAt->format('Y-m-d H:i:s'),
         ];
 
         if (null !== $excludeAppointmentId) {
             $sql .= ' AND id != :excludeId';
-            $params['excludeId'] = $excludeAppointmentId->toString();
+            $params['excludeId'] = Uuid::fromString($excludeAppointmentId->toString())->toBinary();
         }
 
         $result = $this->connection->fetchAssociative($sql, $params);

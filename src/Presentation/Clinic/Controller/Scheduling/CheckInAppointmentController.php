@@ -12,7 +12,11 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/scheduling/appointments/{appointmentId}/check-in', name: 'clinic_scheduling_appointment_checkin', methods: ['POST'])]
+#[Route(
+    '/scheduling/appointments/{appointmentId}/check-in',
+    name: 'clinic_scheduling_appointment_checkin',
+    methods: ['POST'],
+)]
 final class CheckInAppointmentController extends AbstractController
 {
     public function __construct(
@@ -29,8 +33,8 @@ final class CheckInAppointmentController extends AbstractController
         try {
             $this->commandBus->dispatch(new CreateWaitingRoomEntryFromAppointment(
                 appointmentId: $appointmentId,
-                arrivalMode: $request->request->get('arrivalMode', 'STANDARD'),
-                priority: (int) $request->request->get('priority', 0),
+                arrivalMode: $request->request->getString('arrivalMode', 'STANDARD'),
+                priority: $request->request->getInt('priority'),
             ));
 
             $this->addFlash('success', 'Patient enregistré dans la file d\'attente.');

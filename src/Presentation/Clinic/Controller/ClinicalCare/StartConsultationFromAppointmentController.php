@@ -18,12 +18,15 @@ final class StartConsultationFromAppointmentController extends AbstractControlle
     ) {
     }
 
-    #[Route('/clinic/consultations/start-from-appointment/{appointmentId}', name: 'clinic_consultation_start_from_appointment', methods: ['POST'])]
+    #[Route(
+        '/clinic/consultations/start-from-appointment/{appointmentId}',
+        name: 'clinic_consultation_start_from_appointment',
+        methods: ['POST'],
+    )]
     public function __invoke(string $appointmentId): Response
     {
-        /** @var SecurityUser $user */
         $user = $this->getUser();
-        \assert(null !== $user);
+        \assert($user instanceof SecurityUser);
 
         try {
             $consultationId = $this->commandBus->dispatch(

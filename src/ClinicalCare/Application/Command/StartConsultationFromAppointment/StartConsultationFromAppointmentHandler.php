@@ -41,19 +41,22 @@ final readonly class StartConsultationFromAppointmentHandler
         $clinicId           = ClinicId::fromString($appointmentContext->clinicId);
 
         // 2. Check eligibility (VETERINARY role required)
-        if (!$this->eligibilityChecker->isEligibleForClinicAt(
+        $isEligible = $this->eligibilityChecker->isEligibleForClinicAt(
             $startedByUserId,
             $clinicId,
             $now,
             ['VETERINARY'],
-        )) {
+        );
+        if (!$isEligible) {
             throw new \DomainException('User is not eligible as practitioner for this clinic');
         }
 
         // 3. Check intake requirement (unless EMERGENCY bypass)
         $isEmergency = 'EMERGENCY' === $appointmentContext->arrivalMode;
         if (!$isEmergency && null === $appointmentContext->linkedWaitingRoomEntryId) {
-            throw new \DomainException('Appointment must be checked-in before starting consultation (waiting room entry required)');
+            throw new \DomainException(
+                'Appointment must be checked-in before starting consultation (waiting room entry required)',
+            );
         }
 
         // 4. Ensure appointment is in service

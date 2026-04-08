@@ -189,10 +189,10 @@ final class WaitingRoomEntry extends AggregateRoot
             throw new \DomainException('Cannot update triage for a closed entry.');
         }
 
-        if ($this->priority === $priority
+        $unchanged = $this->priority === $priority
             && $this->triageNotes === $triageNotes
-            && $this->arrivalMode === $arrivalMode
-        ) {
+            && $this->arrivalMode === $arrivalMode;
+        if ($unchanged) {
             return;
         }
 
@@ -278,7 +278,13 @@ final class WaitingRoomEntry extends AggregateRoot
             throw new \DomainException('Cannot link owner/animal to a closed entry.');
         }
 
-        if ($this->ownerId === $ownerId && $this->animalId === $animalId) {
+        // Compare value objects by value, not by reference (===), to avoid emitting
+        // a phantom event when the same identifiers are linked again.
+        $ownerUnchanged = (null === $this->ownerId && null === $ownerId)
+            || (null !== $this->ownerId && null !== $ownerId && $this->ownerId->equals($ownerId));
+        $animalUnchanged = (null === $this->animalId && null === $animalId)
+            || (null !== $this->animalId && null !== $animalId && $this->animalId->equals($animalId));
+        if ($ownerUnchanged && $animalUnchanged) {
             return;
         }
 

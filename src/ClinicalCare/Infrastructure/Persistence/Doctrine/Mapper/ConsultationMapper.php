@@ -32,28 +32,26 @@ final readonly class ConsultationMapper
         $entity->setClinicId(Uuid::fromString($consultation->getClinicId()->toString())->toBinary());
         $entity->setAppointmentId($consultation->getAppointmentId()
             ? Uuid::fromString($consultation->getAppointmentId()->toString())->toBinary()
-            : null
-        );
+            : null);
         $entity->setWaitingRoomEntryId($consultation->getWaitingRoomEntryId()
             ? Uuid::fromString($consultation->getWaitingRoomEntryId()->toString())->toBinary()
-            : null
-        );
+            : null);
         $entity->setOwnerId($consultation->getOwnerId()
             ? Uuid::fromString($consultation->getOwnerId()->toString())->toBinary()
-            : null
-        );
+            : null);
         $entity->setAnimalId($consultation->getAnimalId()
             ? Uuid::fromString($consultation->getAnimalId()->toString())->toBinary()
-            : null
+            : null);
+        $entity->setPractitionerUserId(
+            Uuid::fromString($consultation->getPractitionerUserId()->toString())->toBinary(),
         );
-        $entity->setPractitionerUserId(Uuid::fromString($consultation->getPractitionerUserId()->toString())->toBinary());
         $entity->setStatus($consultation->getStatus()->value);
         $entity->setChiefComplaint($consultation->getChiefComplaint());
         $entity->setSummary($consultation->getSummary());
 
         $vitals = $consultation->getVitals();
-        $entity->setWeightKg($vitals?->getWeightKg() !== null ? (string) $vitals->getWeightKg() : null);
-        $entity->setTemperatureC($vitals?->getTemperatureC() !== null ? (string) $vitals->getTemperatureC() : null);
+        $entity->setWeightKg(null !== $vitals?->getWeightKg() ? (string) $vitals->getWeightKg() : null);
+        $entity->setTemperatureC(null !== $vitals?->getTemperatureC() ? (string) $vitals->getTemperatureC() : null);
 
         $entity->setStartedAtUtc($consultation->getStartedAtUtc());
         $entity->setClosedAtUtc($consultation->getClosedAtUtc());
@@ -63,10 +61,14 @@ final readonly class ConsultationMapper
         return $entity;
     }
 
+    /**
+     * @param array<\App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity> $noteEntities
+     * @param array<\App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity> $actEntities
+     */
     public function toDomain(ConsultationEntity $entity, array $noteEntities, array $actEntities): Consultation
     {
-        $notes = array_map($this->noteMapper->toDomain(...), $noteEntities);
-        $acts  = array_map($this->actMapper->toDomain(...), $actEntities);
+        $notes = array_values(array_map($this->noteMapper->toDomain(...), $noteEntities));
+        $acts  = array_values(array_map($this->actMapper->toDomain(...), $actEntities));
 
         $vitals = null;
         if (null !== $entity->getWeightKg() || null !== $entity->getTemperatureC()) {

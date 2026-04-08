@@ -12,7 +12,11 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/scheduling/waiting-room/{entryId}/start-service', name: 'clinic_scheduling_waitingroom_start', methods: ['POST'])]
+#[Route(
+    '/scheduling/waiting-room/{entryId}/start-service',
+    name: 'clinic_scheduling_waitingroom_start',
+    methods: ['POST'],
+)]
 final class StartServiceController extends AbstractController
 {
     public function __construct(

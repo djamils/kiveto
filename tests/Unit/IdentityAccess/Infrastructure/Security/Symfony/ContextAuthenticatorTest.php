@@ -20,6 +20,7 @@ use App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -137,6 +138,50 @@ final class ContextAuthenticatorTest extends TestCase
         );
 
         self::assertInstanceOf(RedirectResponse::class, $response);
+    }
+
+    public function testOnAuthenticationSuccessReturnsJsonResponseWhenAcceptHeaderIsJson(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::PORTAL);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-456');
+
+        $request = Request::create(
+            'https://portal.example/login',
+            'POST',
+            server: ['HTTP_HOST' => 'portal.example'],
+        );
+        $request->headers->set('Accept', 'application/json');
+
+        $response = $authenticator->onAuthenticationSuccess($request, $token, 'main');
+
+        self::assertInstanceOf(JsonResponse::class, $response);
+        $payload = json_decode((string) $response->getContent(), true);
+        self::assertSame(['success' => true, 'redirect' => '/portal_home'], $payload);
+    }
+
+    public function testOnAuthenticationSuccessReturnsJsonResponseWhenContentTypeIsJson(): void
+    {
+        $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
+
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUserIdentifier')->willReturn('user-789');
+
+        $request = Request::create(
+            'https://backoffice.example/login',
+            'POST',
+            server: [
+                'HTTP_HOST'    => 'backoffice.example',
+                'CONTENT_TYPE' => 'application/json',
+            ],
+        );
+
+        $response = $authenticator->onAuthenticationSuccess($request, $token, 'main');
+
+        self::assertInstanceOf(JsonResponse::class, $response);
+        $payload = json_decode((string) $response->getContent(), true);
+        self::assertSame(['success' => true, 'redirect' => '/backoffice_home'], $payload);
     }
 
     public function testOnAuthenticationSuccessWithEmptyUserId(): void

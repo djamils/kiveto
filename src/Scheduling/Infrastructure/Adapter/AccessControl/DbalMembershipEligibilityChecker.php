@@ -7,8 +7,10 @@ namespace App\Scheduling\Infrastructure\Adapter\AccessControl;
 use App\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Scheduling\Domain\ValueObject\ClinicId;
 use App\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DbalMembershipEligibilityChecker implements MembershipEligibilityCheckerInterface
 {
@@ -34,9 +36,10 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
               AND (valid_until_utc IS NULL OR valid_until_utc >= :checkDate)
         SQL;
 
+        // user_id and clinic_id columns are stored as BINARY(16) by Doctrine's UuidType.
         $result = $this->connection->fetchAssociative($sql, [
-            'userId'       => $userId->toString(),
-            'clinicId'     => $clinicId->toString(),
+            'userId'       => Uuid::fromString($userId->toString())->toBinary(),
+            'clinicId'     => Uuid::fromString($clinicId->toString())->toBinary(),
             'checkDate'    => $at->format('Y-m-d H:i:s'),
             'allowedRoles' => $allowedRoles,
         ], [
@@ -62,7 +65,7 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
         SQL;
 
         $results = $this->connection->fetchAllAssociative($sql, [
-            'clinicId'     => $clinicId->toString(),
+            'clinicId'     => Uuid::fromString($clinicId->toString())->toBinary(),
             'checkDate'    => $at->format('Y-m-d H:i:s'),
             'allowedRoles' => $allowedRoles,
         ], [
@@ -71,8 +74,9 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
 
         $practitioners = [];
         foreach ($results as $row) {
+            // user_id is stored as BINARY(16) — decode back to RFC 4122 string.
             $practitioners[] = [
-                'userId'      => $row['user_id'],
+                'userId'      => RowAccessor::uuid($row, 'user_id'),
                 'displayName' => null, // Could be enriched from IdentityAccess BC if needed
             ];
         }

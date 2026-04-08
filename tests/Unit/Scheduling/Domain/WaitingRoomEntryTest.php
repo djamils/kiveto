@@ -48,7 +48,9 @@ final class WaitingRoomEntryTest extends TestCase
         self::assertTrue($entry->id()->equals($entryId));
         self::assertSame(WaitingRoomEntryOrigin::SCHEDULED, $entry->origin());
         self::assertSame(WaitingRoomEntryStatus::WAITING, $entry->status());
-        self::assertTrue($entry->linkedAppointmentId()->equals($appointmentId));
+        $linkedAppointmentId = $entry->linkedAppointmentId();
+        self::assertNotNull($linkedAppointmentId);
+        self::assertTrue($linkedAppointmentId->equals($appointmentId));
 
         $events = $entry->recordedDomainEvents();
         self::assertCount(1, $events);
@@ -81,6 +83,18 @@ final class WaitingRoomEntryTest extends TestCase
         $events = $entry->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(WaitingRoomWalkInEntryCreated::class, $events[0]);
+    }
+
+    public function testUpdateTriageWithIdenticalValuesIsIdempotent(): void
+    {
+        $entry        = $this->createSampleEntry();
+        $pulledEvents = $entry->pullDomainEvents();
+        unset($pulledEvents);
+
+        // Sample entry was created with priority=0, no triageNotes, STANDARD mode.
+        $entry->updateTriage(0, null, WaitingRoomArrivalMode::STANDARD);
+
+        self::assertCount(0, $entry->recordedDomainEvents());
     }
 
     public function testUpdateTriage(): void
@@ -177,8 +191,12 @@ final class WaitingRoomEntryTest extends TestCase
         $animalId = AnimalId::fromString('44444444-4444-4444-4444-444444444444');
         $entry->linkToOwnerAndAnimal($ownerId, $animalId);
 
-        self::assertTrue($entry->ownerId()->equals($ownerId));
-        self::assertTrue($entry->animalId()->equals($animalId));
+        $linkedOwnerId  = $entry->ownerId();
+        $linkedAnimalId = $entry->animalId();
+        self::assertNotNull($linkedOwnerId);
+        self::assertNotNull($linkedAnimalId);
+        self::assertTrue($linkedOwnerId->equals($ownerId));
+        self::assertTrue($linkedAnimalId->equals($animalId));
 
         $events = $entry->recordedDomainEvents();
         self::assertCount(1, $events);
@@ -209,6 +227,93 @@ final class WaitingRoomEntryTest extends TestCase
         $entry->startService($serviceStartedAt, null);
 
         self::assertSame(WaitingRoomEntryStatus::IN_SERVICE, $entry->status());
+    }
+
+    public function testCannotCallFromClosedState(): void
+    {
+        $entry = $this->createSampleEntry();
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:30:00'), null);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot transition from CLOSED to CALLED.');
+
+        $entry->call(new \DateTimeImmutable('2026-02-01 09:35:00'), null);
+    }
+
+    public function testCannotStartServiceFromClosedState(): void
+    {
+        $entry = $this->createSampleEntry();
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:30:00'), null);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot transition from CLOSED to IN_SERVICE.');
+
+        $entry->startService(new \DateTimeImmutable('2026-02-01 09:35:00'), null);
+    }
+
+    public function testCannotCloseAlreadyClosedEntry(): void
+    {
+        $entry = $this->createSampleEntry();
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:30:00'), null);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot transition from CLOSED to CLOSED.');
+
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:35:00'), null);
+    }
+
+    public function testLinkToOwnerAndAnimalIsIdempotentWhenAlreadyLinked(): void
+    {
+        $entry  = $this->createSampleEntry();
+        $pulled = $entry->pullDomainEvents();
+        unset($pulled);
+
+        // The sample entry was created with the same owner/animal — re-linking is a no-op.
+        $entry->linkToOwnerAndAnimal(
+            OwnerId::fromString('33333333-3333-3333-3333-333333333333'),
+            AnimalId::fromString('44444444-4444-4444-4444-444444444444'),
+        );
+
+        self::assertCount(0, $entry->recordedDomainEvents());
+    }
+
+    public function testCannotLinkOwnerAndAnimalOnClosedEntry(): void
+    {
+        $entry = $this->createSampleEntry();
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:30:00'), null);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot link owner/animal to a closed entry.');
+
+        $entry->linkToOwnerAndAnimal(null, null);
+    }
+
+    public function testGettersExposeAggregateState(): void
+    {
+        $arrivedAt = new \DateTimeImmutable('2026-02-01 09:00:00');
+        $entry     = $this->createSampleEntry();
+
+        self::assertTrue(
+            $entry->clinicId()->equals(ClinicId::fromString('11111111-1111-1111-1111-111111111111')),
+        );
+        self::assertSame(
+            $arrivedAt->format('Y-m-d H:i:s'),
+            $entry->arrivedAtUtc()->format('Y-m-d H:i:s'),
+        );
+        self::assertNull($entry->calledByUserId());
+        self::assertNull($entry->serviceStartedByUserId());
+        self::assertNull($entry->closedByUserId());
+
+        // Now drive the entry through the lifecycle and assert the user-id getters.
+        $userId = UserId::fromString('99999999-9999-9999-9999-999999999999');
+        $entry->call(new \DateTimeImmutable('2026-02-01 09:05:00'), $userId);
+        self::assertTrue($entry->calledByUserId()?->equals($userId));
+
+        $entry->startService(new \DateTimeImmutable('2026-02-01 09:10:00'), $userId);
+        self::assertTrue($entry->serviceStartedByUserId()?->equals($userId));
+
+        $entry->close(new \DateTimeImmutable('2026-02-01 09:30:00'), $userId);
+        self::assertTrue($entry->closedByUserId()?->equals($userId));
     }
 
     public function testReconstituteCreatesInstanceWithoutEvents(): void

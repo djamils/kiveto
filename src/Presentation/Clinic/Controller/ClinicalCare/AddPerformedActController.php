@@ -22,15 +22,14 @@ final class AddPerformedActController extends AbstractController
     #[Route('/clinic/consultations/{id}/acts', name: 'clinic_consultation_add_act', methods: ['POST'])]
     public function __invoke(string $id, Request $request): Response
     {
-        /** @var SecurityUser $user */
         $user = $this->getUser();
-        \assert(null !== $user);
+        \assert($user instanceof SecurityUser);
 
-        $label       = $request->request->get('label');
-        $quantity    = $request->request->get('quantity', 1.0);
-        $performedAt = $request->request->get('performedAt', (new \DateTimeImmutable())->format('c'));
+        $label       = $request->request->getString('label');
+        $quantity    = (float) $request->request->getString('quantity', '1');
+        $performedAt = $request->request->getString('performedAt', (new \DateTimeImmutable())->format('c'));
 
-        if (empty($label)) {
+        if ('' === $label) {
             $this->addFlash('error', 'Le libellé de l\'acte est obligatoire.');
 
             return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
@@ -41,7 +40,7 @@ final class AddPerformedActController extends AbstractController
                 new AddPerformedAct(
                     consultationId: $id,
                     label: $label,
-                    quantity: (float) $quantity,
+                    quantity: $quantity,
                     performedAt: $performedAt,
                     createdByUserId: $user->id(),
                 )

@@ -29,8 +29,8 @@ final readonly class ConsultationVitalsRecorded extends AbstractDomainEvent
     {
         return [
             'consultationId' => $this->consultationId->toString(),
-            'weightKg'       => $this->vitals->weightKg,
-            'temperatureC'   => $this->vitals->temperatureC,
+            'weightKg'       => $this->vitals->getWeightKg(),
+            'temperatureC'   => $this->vitals->getTemperatureC(),
             'occurredOn'     => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
     }

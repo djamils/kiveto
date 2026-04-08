@@ -42,10 +42,11 @@ final readonly class CreateWaitingRoomEntryFromAppointmentHandler
         }
 
         // Ensure no active entry for this appointment
-        if ($this->waitingRoomReadRepository->hasActiveEntryForAppointment(
+        $hasActiveEntry = $this->waitingRoomReadRepository->hasActiveEntryForAppointment(
             $appointment->clinicId(),
-            $appointmentId
-        )) {
+            $appointmentId,
+        );
+        if ($hasActiveEntry) {
             throw new WaitingRoomEntryAlreadyExistsException(\sprintf(
                 'An active waiting room entry already exists for appointment "%s".',
                 $command->appointmentId

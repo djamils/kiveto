@@ -15,6 +15,7 @@ use App\ClinicalCare\Domain\ValueObject\OwnerId;
 use App\ClinicalCare\Domain\ValueObject\UserId;
 use App\ClinicalCare\Domain\ValueObject\WaitingRoomEntryId;
 use App\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetails;
+use App\Scheduling\Application\Query\GetWaitingRoomEntryDetails\WaitingRoomEntryDetailsDTO;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -43,16 +44,18 @@ final readonly class StartConsultationFromWaitingRoomEntryHandler
                 $command->waitingRoomEntryId,
             )
         );
+        \assert($entryDetails instanceof WaitingRoomEntryDetailsDTO);
 
         $clinicId = ClinicId::fromString($entryDetails->clinicId);
 
         // 2. Check eligibility (VETERINARY role required)
-        if (!$this->eligibilityChecker->isEligibleForClinicAt(
+        $isEligible = $this->eligibilityChecker->isEligibleForClinicAt(
             $startedByUserId,
             $clinicId,
             $now,
             ['VETERINARY'],
-        )) {
+        );
+        if (!$isEligible) {
             throw new \DomainException('User is not eligible as practitioner for this clinic');
         }
 

@@ -21,16 +21,9 @@ final readonly class MessengerSchedulingServiceCoordinator implements Scheduling
         AppointmentId $appointmentId,
         UserId $triggeredByUserId,
     ): void {
-        try {
-            $this->commandBus->dispatch(
-                new \App\Scheduling\Application\Command\StartServiceForAppointment\StartServiceForAppointment(
-                    appointmentId: $appointmentId->toString(),
-                    serviceStartedByUserId: $triggeredByUserId->toString(),
-                )
-            );
-        } catch (\Exception) {
-            // Already in service or completed = OK, ignore
-        }
+        // TODO: Scheduling BC does not yet expose a StartServiceForAppointment command;
+        // when it does, dispatch it here. Until then this is a no-op so the calling
+        // ClinicalCare flow does not block.
     }
 
     public function ensureWaitingRoomEntryInService(
@@ -57,7 +50,6 @@ final readonly class MessengerSchedulingServiceCoordinator implements Scheduling
             $this->commandBus->dispatch(
                 new \App\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment(
                     appointmentId: $appointmentId->toString(),
-                    completedByUserId: $triggeredByUserId->toString(),
                 )
             );
         } catch (\Exception) {

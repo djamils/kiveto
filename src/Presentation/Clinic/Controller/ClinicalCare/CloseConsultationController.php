@@ -22,18 +22,17 @@ final class CloseConsultationController extends AbstractController
     #[Route('/clinic/consultations/{id}/close', name: 'clinic_consultation_close', methods: ['POST'])]
     public function __invoke(string $id, Request $request): Response
     {
-        /** @var SecurityUser $user */
         $user = $this->getUser();
-        \assert(null !== $user);
+        \assert($user instanceof SecurityUser);
 
-        $summary = $request->request->get('summary');
+        $summary = $request->request->getString('summary');
 
         try {
             $this->commandBus->dispatch(
                 new CloseConsultation(
                     consultationId: $id,
                     closedByUserId: $user->id(),
-                    summary: !empty($summary) ? $summary : null,
+                    summary: '' !== $summary ? $summary : null,
                 )
             );
 

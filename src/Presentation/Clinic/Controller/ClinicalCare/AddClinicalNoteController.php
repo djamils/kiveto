@@ -22,14 +22,13 @@ final class AddClinicalNoteController extends AbstractController
     #[Route('/clinic/consultations/{id}/notes', name: 'clinic_consultation_add_note', methods: ['POST'])]
     public function __invoke(string $id, Request $request): Response
     {
-        /** @var SecurityUser $user */
         $user = $this->getUser();
-        \assert(null !== $user);
+        \assert($user instanceof SecurityUser);
 
-        $noteType = $request->request->get('noteType');
-        $content  = $request->request->get('content');
+        $noteType = $request->request->getString('noteType');
+        $content  = $request->request->getString('content');
 
-        if (empty($noteType) || empty($content)) {
+        if ('' === $noteType || '' === $content) {
             $this->addFlash('error', 'Le type et le contenu de la note sont obligatoires.');
 
             return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);

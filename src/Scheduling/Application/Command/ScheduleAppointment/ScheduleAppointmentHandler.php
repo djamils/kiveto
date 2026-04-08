@@ -37,6 +37,9 @@ final readonly class ScheduleAppointmentHandler
 
     public function __invoke(ScheduleAppointment $command): string
     {
+        // Capture "now" once so eligibility check and createdAt are consistent.
+        $now = $this->clock->now();
+
         $clinicId = ClinicId::fromString($command->clinicId);
         $ownerId  = $command->ownerId ? OwnerId::fromString($command->ownerId) : null;
         $animalId = $command->animalId ? AnimalId::fromString($command->animalId) : null;
@@ -56,12 +59,13 @@ final readonly class ScheduleAppointmentHandler
             $practitionerUserId = UserId::fromString($command->practitionerUserId);
 
             // Validate practitioner is eligible
-            if (!$this->membershipEligibilityChecker->isUserEligibleForClinicAt(
+            $isEligible = $this->membershipEligibilityChecker->isUserEligibleForClinicAt(
                 userId: $practitionerUserId,
                 clinicId: $clinicId,
-                at: $this->clock->now(),
+                at: $now,
                 allowedRoles: ['VETERINARY', 'ASSISTANT_VETERINARY'],
-            )) {
+            );
+            if (!$isEligible) {
                 throw new \DomainException(\sprintf(
                     'User "%s" is not eligible as practitioner for clinic "%s".',
                     $command->practitionerUserId,
@@ -96,7 +100,7 @@ final readonly class ScheduleAppointmentHandler
             timeSlot: $timeSlot,
             reason: $command->reason,
             notes: $command->notes,
-            createdAt: $this->clock->now(),
+            createdAt: $now,
         );
 
         $this->appointmentRepository->save($appointment);

@@ -108,7 +108,9 @@ final class AppointmentTest extends TestCase
         $newPractitioner = new PractitionerAssignee(UserId::fromString('55555555-5555-5555-5555-555555555555'));
         $appointment->changePractitionerAssignee($newPractitioner);
 
-        self::assertTrue($appointment->practitionerAssignee()->equals($newPractitioner));
+        $assignee = $appointment->practitionerAssignee();
+        self::assertNotNull($assignee);
+        self::assertTrue($assignee->equals($newPractitioner));
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);
@@ -225,6 +227,134 @@ final class AppointmentTest extends TestCase
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(0, $events);
+    }
+
+    public function testCannotChangePractitionerOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot change practitioner for a terminated appointment.');
+
+        $appointment->changePractitionerAssignee(
+            new PractitionerAssignee(UserId::fromString('99999999-9999-9999-9999-999999999999')),
+        );
+    }
+
+    public function testCannotUnassignPractitionerOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot unassign practitioner from a terminated appointment.');
+
+        $appointment->unassignPractitioner();
+    }
+
+    public function testCannotStartServiceOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot start service for a terminated appointment.');
+
+        $appointment->startService(new \DateTimeImmutable('2026-04-10 09:05:00'));
+    }
+
+    public function testChangePractitionerAssigneeWithSameAssigneeIsIdempotent(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $pulled      = $appointment->pullDomainEvents();
+        unset($pulled);
+
+        $sameAssignee = new PractitionerAssignee(
+            UserId::fromString('44444444-4444-4444-4444-444444444444'),
+        );
+        $appointment->changePractitionerAssignee($sameAssignee);
+
+        self::assertCount(0, $appointment->recordedDomainEvents());
+    }
+
+    public function testCancelTwiceIsIdempotent(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+        $pulled = $appointment->pullDomainEvents();
+        unset($pulled);
+
+        $appointment->cancel();
+        self::assertCount(0, $appointment->recordedDomainEvents());
+    }
+
+    public function testCannotCancelCompletedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->complete();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot cancel an appointment that is already terminated.');
+
+        $appointment->cancel();
+    }
+
+    public function testMarkNoShowTwiceIsIdempotent(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->markNoShow();
+        $pulled = $appointment->pullDomainEvents();
+        unset($pulled);
+
+        $appointment->markNoShow();
+        self::assertCount(0, $appointment->recordedDomainEvents());
+    }
+
+    public function testCannotMarkNoShowOnCompletedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->complete();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot mark as no-show an appointment that is already terminated.');
+
+        $appointment->markNoShow();
+    }
+
+    public function testCompleteTwiceIsIdempotent(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->complete();
+        $pulled = $appointment->pullDomainEvents();
+        unset($pulled);
+
+        $appointment->complete();
+        self::assertCount(0, $appointment->recordedDomainEvents());
+    }
+
+    public function testCannotCompleteCancelledAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot complete an appointment that is already terminated.');
+
+        $appointment->complete();
+    }
+
+    public function testGettersExposeAggregateState(): void
+    {
+        $appointment = $this->createSampleAppointment();
+
+        $owner  = $appointment->ownerId();
+        $animal = $appointment->animalId();
+        self::assertNotNull($owner);
+        self::assertNotNull($animal);
+        self::assertTrue($owner->equals(OwnerId::fromString('22222222-2222-2222-2222-222222222222')));
+        self::assertTrue($animal->equals(AnimalId::fromString('33333333-3333-3333-3333-333333333333')));
+        self::assertSame('2026-01-30 12:00:00', $appointment->createdAt()->format('Y-m-d H:i:s'));
     }
 
     public function testReconstituteCreatesInstanceWithoutEvents(): void
