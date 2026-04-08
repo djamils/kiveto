@@ -789,7 +789,6 @@
     .rx-row:hover { background: var(--surface-hover); }
 
     /* ── In progress badge ── */
-    @keyframes pls { 0%, 100% { opacity: 1; transform: scale(1) } 50% { opacity: .4; transform: scale(.75) } }
     .pulse-dot {
       width: 6px;
       height: 6px;
@@ -907,9 +906,6 @@
     .consult-tl-title--active { color: var(--brand-600); }
     .consult-tl-desc { font-size: var(--text-sm); color: var(--text-muted); }
     .consult-tl-date { font-size: var(--text-xs); color: var(--text-subtle); }
-
-    /* ── Fade in animation ── */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
 
     /* ── Bottom tabs — portrait ── */
     .bottom-tabs {
@@ -1414,4 +1410,14 @@
     .breadcrumb .bc-middle { display: none; }
     .topbar-actions .btn span { display: none; }
   }
+}
+
+/* ── Keyframes (must live outside @layer for Tailwind v4) ── */
+@keyframes pls {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .4; transform: scale(.75); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
