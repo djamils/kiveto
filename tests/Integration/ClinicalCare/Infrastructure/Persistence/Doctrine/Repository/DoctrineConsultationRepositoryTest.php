@@ -149,5 +149,23 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
         self::assertSame(38.2, $final->getVitals()->getTemperatureC());
         self::assertCount(1, $final->getNotes());
         self::assertCount(1, $final->getActs());
+
+        // Sanity-check the entity-level getConsultationId() getters by querying
+        // the children directly via the EntityManager.
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        \assert($em instanceof \Doctrine\ORM\EntityManagerInterface);
+        $consultationIdBinary = \Symfony\Component\Uid\Uuid::fromString(self::CONSULTATION_ID)->toBinary();
+
+        $noteEntity = $em->getRepository(
+            \App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity::class,
+        )->findOneBy(['consultationId' => $consultationIdBinary]);
+        self::assertNotNull($noteEntity);
+        self::assertSame($consultationIdBinary, $noteEntity->getConsultationId());
+
+        $actEntity = $em->getRepository(
+            \App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity::class,
+        )->findOneBy(['consultationId' => $consultationIdBinary]);
+        self::assertNotNull($actEntity);
+        self::assertSame($consultationIdBinary, $actEntity->getConsultationId());
     }
 }
