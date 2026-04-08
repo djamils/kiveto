@@ -14,6 +14,7 @@ use App\Scheduling\Infrastructure\Persistence\Doctrine\Entity\WaitingRoomEntryEn
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomReadRepositoryInterface
 {
@@ -33,9 +34,10 @@ final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomRea
               AND status IN (:activeStatuses)
         SQL;
 
+        // clinic_id and linked_appointment_id are stored as BINARY(16).
         $result = $this->connection->fetchAssociative($sql, [
-            'clinicId'       => $clinicId->toString(),
-            'appointmentId'  => $appointmentId->toString(),
+            'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+            'appointmentId'  => Uuid::fromString($appointmentId->toString())->toBinary(),
             'activeStatuses' => [
                 WaitingRoomEntryStatus::WAITING->value,
                 WaitingRoomEntryStatus::CALLED->value,
@@ -62,7 +64,7 @@ final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomRea
         $repository = $this->entityManager->getRepository(WaitingRoomEntryEntity::class);
 
         // Convert string UUID to Symfony Uuid object for Doctrine
-        $uuid = \Symfony\Component\Uid\Uuid::fromString($waitingRoomEntryId->toString());
+        $uuid = Uuid::fromString($waitingRoomEntryId->toString());
 
         $entity = $repository->find($uuid);
 
