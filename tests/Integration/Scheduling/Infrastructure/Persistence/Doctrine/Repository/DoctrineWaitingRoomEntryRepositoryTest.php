@@ -85,11 +85,44 @@ final class DoctrineWaitingRoomEntryRepositoryTest extends KernelTestCase
         self::assertSame(WaitingRoomEntryStatus::CALLED, $loaded->status());
     }
 
+    public function testToEntityHandlesAlreadyClosedNewEntry(): void
+    {
+        // Build an entry that has already gone through call/startService/close
+        // BEFORE its first save — this exercises the not-null branches of every
+        // user-id setter inside WaitingRoomEntryMapper::toEntity (the "new entity"
+        // path), which the lifecycle round trip below could not reach because it
+        // saves once per transition through updateEntity.
+        $userId = \App\Scheduling\Domain\ValueObject\UserId::fromString(
+            'ffffffff-ffff-ffff-ffff-ffffffffffff',
+        );
+
+        $entry = WaitingRoomEntry::createWalkIn(
+            id: WaitingRoomEntryId::fromString('99999999-1111-1111-1111-111111111111'),
+            clinicId: ClinicId::fromString('99999999-2222-2222-2222-222222222222'),
+            ownerId: null,
+            animalId: null,
+            foundAnimalDescription: 'Stray',
+            arrivalMode: WaitingRoomArrivalMode::STANDARD,
+            priority: 0,
+            triageNotes: null,
+            arrivedAtUtc: new \DateTimeImmutable('2026-04-10 08:55:00'),
+        );
+        $entry->call(new \DateTimeImmutable('2026-04-10 09:00:00'), $userId);
+        $entry->startService(new \DateTimeImmutable('2026-04-10 09:05:00'), $userId);
+        $entry->close(new \DateTimeImmutable('2026-04-10 09:30:00'), $userId);
+
+        $this->repository->save($entry);
+
+        $loaded = $this->repository->findById($entry->id());
+        self::assertNotNull($loaded);
+        self::assertNotNull($loaded->serviceStartedByUserId());
+    }
+
     public function testRoundTripExercisesAllNullableMapperBranches(): void
     {
-        // Drive the entry through the full lifecycle so every nullable field
-        // (calledAt/UserId, serviceStartedAt/UserId, closedAt/UserId, owner/animal)
-        // ends up populated, exercising every branch in WaitingRoomEntryMapper::toDomain.
+        // Drive the entry through the full lifecycle, saving at every step so
+        // both toEntity (first save) AND updateEntity (subsequent saves) are
+        // exercised on every nullable column.
         $entry = WaitingRoomEntry::createFromAppointment(
             id: WaitingRoomEntryId::fromString('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
             clinicId: ClinicId::fromString('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
@@ -101,9 +134,18 @@ final class DoctrineWaitingRoomEntryRepositoryTest extends KernelTestCase
             arrivedAtUtc: new \DateTimeImmutable('2026-04-10 08:55:00'),
         );
 
+        // Save once to create the entity (toEntity branch).
+        $this->repository->save($entry);
+
         $userId = \App\Scheduling\Domain\ValueObject\UserId::fromString('ffffffff-ffff-ffff-ffff-ffffffffffff');
+
+        // Save after every transition so updateEntity is exercised on every nullable column.
         $entry->call(new \DateTimeImmutable('2026-04-10 09:00:00'), $userId);
+        $this->repository->save($entry);
+
         $entry->startService(new \DateTimeImmutable('2026-04-10 09:05:00'), $userId);
+        $this->repository->save($entry);
+
         $entry->close(new \DateTimeImmutable('2026-04-10 09:30:00'), $userId);
         $this->repository->save($entry);
 

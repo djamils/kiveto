@@ -229,6 +229,41 @@ final class AppointmentTest extends TestCase
         self::assertCount(0, $events);
     }
 
+    public function testCannotChangePractitionerOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot change practitioner for a terminated appointment.');
+
+        $appointment->changePractitionerAssignee(
+            new PractitionerAssignee(UserId::fromString('99999999-9999-9999-9999-999999999999')),
+        );
+    }
+
+    public function testCannotUnassignPractitionerOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot unassign practitioner from a terminated appointment.');
+
+        $appointment->unassignPractitioner();
+    }
+
+    public function testCannotStartServiceOnTerminatedAppointment(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot start service for a terminated appointment.');
+
+        $appointment->startService(new \DateTimeImmutable('2026-04-10 09:05:00'));
+    }
+
     public function testChangePractitionerAssigneeWithSameAssigneeIsIdempotent(): void
     {
         $appointment = $this->createSampleAppointment();

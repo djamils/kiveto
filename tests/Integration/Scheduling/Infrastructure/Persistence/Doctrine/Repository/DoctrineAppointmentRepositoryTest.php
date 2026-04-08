@@ -67,6 +67,31 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         self::assertSame(AppointmentStatus::CANCELLED, $loaded->status());
     }
 
+    public function testHydratedEntityExposesUpdatedAt(): void
+    {
+        // Cover AppointmentEntity::getUpdatedAt — the only entity getter that wasn't
+        // exercised by any other path because the domain Appointment doesn't expose it.
+        $id        = '02345678-9abc-def0-1234-56789abcdef0';
+        $updatedAt = new \DateTimeImmutable('2026-04-10 09:00:00');
+
+        AppointmentEntityFactory::createOne([
+            'id'        => \Symfony\Component\Uid\Uuid::fromString($id),
+            'updatedAt' => $updatedAt,
+        ]);
+
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        \assert($em instanceof \Doctrine\ORM\EntityManagerInterface);
+        $entity = $em->find(
+            \App\Scheduling\Infrastructure\Persistence\Doctrine\Entity\AppointmentEntity::class,
+            \Symfony\Component\Uid\Uuid::fromString($id),
+        );
+        self::assertNotNull($entity);
+        self::assertSame(
+            $updatedAt->format('Y-m-d H:i:s'),
+            $entity->getUpdatedAt()->format('Y-m-d H:i:s'),
+        );
+    }
+
     public function testFindByIdRehydratesFromExistingFoundryEntity(): void
     {
         $id       = '01234567-89ab-cdef-0123-456789abcdef';

@@ -85,6 +85,18 @@ final class WaitingRoomEntryTest extends TestCase
         self::assertInstanceOf(WaitingRoomWalkInEntryCreated::class, $events[0]);
     }
 
+    public function testUpdateTriageWithIdenticalValuesIsIdempotent(): void
+    {
+        $entry        = $this->createSampleEntry();
+        $pulledEvents = $entry->pullDomainEvents();
+        unset($pulledEvents);
+
+        // Sample entry was created with priority=0, no triageNotes, STANDARD mode.
+        $entry->updateTriage(0, null, WaitingRoomArrivalMode::STANDARD);
+
+        self::assertCount(0, $entry->recordedDomainEvents());
+    }
+
     public function testUpdateTriage(): void
     {
         $entry        = $this->createSampleEntry();
