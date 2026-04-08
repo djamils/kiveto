@@ -4,37 +4,31 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Infrastructure\Persistence\Doctrine\Mapping;
 
-use App\Billing\Infrastructure\Persistence\Doctrine\Entity\Invoice;
-use App\Billing\Infrastructure\Persistence\Doctrine\Entity\Line;
-use App\Foo\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
 use App\Shared\Infrastructure\Persistence\Doctrine\Mapping\BoundedContextPrefixNamingStrategy;
-use App\Shared\Infrastructure\Something\Foo;
 use Doctrine\ORM\Mapping\NamingStrategy;
 use PHPUnit\Framework\TestCase;
 
 final class BoundedContextPrefixNamingStrategyTest extends TestCase
 {
-    public function testClassToTableNameAddsPrefixAndPluralizes(): void
+    public function testClassToTableNameAddsContextBucketPrefixAndPluralizes(): void
     {
-        $fqcn = Invoice::class;
+        $fqcn = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Clinic';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())
             ->method('classToTableName')
             ->with($fqcn)
-            ->willReturn('invoice')
+            ->willReturn('clinic')
         ;
 
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
-        self::assertSame('billing__invoices', $strategy->classToTableName(
-            $fqcn,
-        ));
+        self::assertSame('clinic__clinics', $strategy->classToTableName($fqcn));
     }
 
-    public function testNormalizeRemovesPrefixAndEntitySuffix(): void
+    public function testNormalizeRemovesEntitySuffixForSystemBucket(): void
     {
-        $fqcn = 'App\\Translation\\Infrastructure\\Persistence\\Doctrine\\Entity\\TranslationEntryEntity';
+        $fqcn = 'App\\System\\Translation\\Infrastructure\\Persistence\\Doctrine\\Entity\\TranslationEntryEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())
@@ -45,13 +39,13 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
-        // translation prefix stripped, _entity suffix stripped, then pluralized
+        // translation prefix derived, _entity suffix stripped, then pluralized
         self::assertSame('translation__translation_entries', $strategy->classToTableName($fqcn));
     }
 
-    public function testNormalizeOnlySuffix(): void
+    public function testCamelCaseBoundedContextNameIsSnakeCased(): void
     {
-        $fqcn = UserEntity::class;
+        $fqcn = 'App\\System\\IdentityAccess\\Infrastructure\\Persistence\\Doctrine\\Entity\\UserEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner
@@ -63,13 +57,12 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
-        // Prefix "foo" detected and "_entity" suffix removed before pluralization
-        self::assertSame('foo__users', $strategy->classToTableName($fqcn));
+        self::assertSame('identity_access__users', $strategy->classToTableName($fqcn));
     }
 
-    public function testClassToTableNameWithoutPrefixKeepsPlural(): void
+    public function testClassToTableNameWithoutBucketPrefixKeepsPlural(): void
     {
-        $fqcn = Foo::class;
+        $fqcn = 'App\\Shared\\Infrastructure\\Something\\Foo';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())
@@ -80,36 +73,26 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
-        self::assertSame('foos', $strategy->classToTableName(
-            $fqcn,
-        ));
+        self::assertSame('foos', $strategy->classToTableName($fqcn));
     }
 
     public function testJoinTableNameAddsPrefix(): void
     {
-        $source = Invoice::class;
-        $target = Line::class;
+        $source = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Invoice';
+        $target = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Line';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())
             ->method('joinTableName')
-            ->with(
-                $source,
-                $target,
-                'lines',
-            )
+            ->with($source, $target, 'lines')
             ->willReturn('invoice_line')
         ;
 
         $strategy = new BoundedContextPrefixNamingStrategy($inner);
 
         self::assertSame(
-            'billing__invoice_line',
-            $strategy->joinTableName(
-                $source,
-                $target,
-                'lines',
-            ),
+            'clinic__invoice_line',
+            $strategy->joinTableName($source, $target, 'lines'),
         );
     }
 
