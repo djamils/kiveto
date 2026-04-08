@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Application\Command\RegisterUser;
 
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\System\IdentityAccess\Application\Command\RegisterUser\RegisterUser;
 use App\System\IdentityAccess\Application\Command\RegisterUser\RegisterUserHandler;
 use App\System\IdentityAccess\Domain\Event\UserRegistered;
@@ -14,9 +17,6 @@ use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\Backoff
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
-use App\Shared\Application\Bus\EventBusInterface;
-use App\Shared\Application\Event\DomainEventPublisher;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Tests\Shared\Time\FrozenClock;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

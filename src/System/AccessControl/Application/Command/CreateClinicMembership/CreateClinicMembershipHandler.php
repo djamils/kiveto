@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Application\Command\CreateClinicMembership;
 
+use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\AccessControl\Application\Exception\ClinicMembershipAlreadyExistsException;
 use App\System\AccessControl\Domain\ClinicMembership;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicId;
 use App\System\AccessControl\Domain\ValueObject\MembershipId;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
-use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

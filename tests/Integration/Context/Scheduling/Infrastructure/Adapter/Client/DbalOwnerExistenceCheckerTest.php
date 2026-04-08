@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Adapter\Client;
 
-use App\Fixtures\Context\Client\Factory\ClientEntityFactory;
 use App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
 use App\Context\Scheduling\Domain\ValueObject\OwnerId;
+use App\Fixtures\Context\Client\Factory\ClientEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

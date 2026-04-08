@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Application\Command\CreateClinicMembership;
 
+use App\Shared\Application\Bus\CommandInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
-use App\Shared\Application\Bus\CommandInterface;
 
 final readonly class CreateClinicMembership implements CommandInterface
 {

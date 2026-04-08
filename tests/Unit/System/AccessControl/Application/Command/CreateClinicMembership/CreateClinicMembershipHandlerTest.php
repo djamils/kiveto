@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\AccessControl\Application\Command\CreateClinicMembership;
 
+use App\Context\Clinic\Domain\Clinic;
+use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Localization\Locale;
+use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembership;
 use App\System\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembershipHandler;
 use App\System\AccessControl\Application\Exception\ClinicMembershipAlreadyExistsException;
@@ -11,18 +20,9 @@ use App\System\AccessControl\Domain\ClinicMembership;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
-use App\Context\Clinic\Domain\Clinic;
-use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
-use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
-use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
-use App\Shared\Domain\Localization\Locale;
-use App\Shared\Domain\Localization\TimeZone;
-use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
 final class CreateClinicMembershipHandlerTest extends TestCase

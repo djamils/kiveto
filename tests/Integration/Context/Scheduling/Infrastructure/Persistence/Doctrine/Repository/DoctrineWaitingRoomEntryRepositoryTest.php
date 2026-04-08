@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository;
 
-use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
@@ -13,6 +12,7 @@ use App\Context\Scheduling\Domain\ValueObject\WaitingRoomArrivalMode;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryId;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryStatus;
 use App\Context\Scheduling\Domain\WaitingRoomEntry;
+use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

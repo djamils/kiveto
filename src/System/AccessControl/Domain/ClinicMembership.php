@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Domain;
 
+use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\System\AccessControl\Domain\Event\ClinicMembershipCreated;
 use App\System\AccessControl\Domain\Event\ClinicMembershipDisabled;
 use App\System\AccessControl\Domain\Event\ClinicMembershipEnabled;
@@ -16,7 +17,6 @@ use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\System\AccessControl\Domain\ValueObject\MembershipId;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class ClinicMembership extends AggregateRoot
 {

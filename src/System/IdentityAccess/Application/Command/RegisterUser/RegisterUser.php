@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Application\Command\RegisterUser;
 
-use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use App\Shared\Application\Bus\CommandInterface;
+use App\System\IdentityAccess\Domain\ValueObject\UserType;
 
 final readonly class RegisterUser implements CommandInterface
 {

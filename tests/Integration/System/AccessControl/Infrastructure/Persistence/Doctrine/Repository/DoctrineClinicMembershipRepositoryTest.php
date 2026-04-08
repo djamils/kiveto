@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
 use App\System\AccessControl\Domain\ClinicMembership;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicId;
@@ -12,7 +13,6 @@ use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\System\AccessControl\Domain\ValueObject\MembershipId;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;

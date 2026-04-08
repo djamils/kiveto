@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Application\Query\GetUserMembershipInClinic;
 
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicId;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

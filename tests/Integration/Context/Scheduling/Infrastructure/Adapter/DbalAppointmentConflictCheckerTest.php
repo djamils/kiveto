@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Adapter;
 
-use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

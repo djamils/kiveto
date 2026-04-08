@@ -6,9 +6,9 @@ namespace App\Tests\Integration\Context\ClinicalCare\Infrastructure\Adapter\Sche
 
 use App\Context\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface;
 use App\Context\ClinicalCare\Domain\ValueObject\AppointmentId;
+use App\Context\Scheduling\Domain\ValueObject\WaitingRoomArrivalMode;
 use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
-use App\Context\Scheduling\Domain\ValueObject\WaitingRoomArrivalMode;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

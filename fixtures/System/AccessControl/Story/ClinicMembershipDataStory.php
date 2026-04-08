@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Fixtures\System\AccessControl\Story;
 
-use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
+use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use Zenstruck\Foundry\Story;
 

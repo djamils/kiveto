@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
+use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection;
+use App\Context\Clinic\Application\Query\ListClinics\ListClinics;
+use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
@@ -15,10 +19,6 @@ use App\System\AccessControl\Application\Query\ListAllMemberships\MembershipColl
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
-use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection;
-use App\Context\Clinic\Application\Query\ListClinics\ListClinics;
-use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

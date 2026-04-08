@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Application\Command\RegisterUser;
 
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
-use App\Shared\Application\Event\DomainEventPublisher;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
-use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 

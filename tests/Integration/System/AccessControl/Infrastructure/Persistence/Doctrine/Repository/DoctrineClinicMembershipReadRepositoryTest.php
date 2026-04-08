@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
+use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
+use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\System\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
-use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
-use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;

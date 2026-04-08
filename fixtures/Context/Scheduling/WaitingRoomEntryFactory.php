@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Fixtures\Scheduling;
+namespace App\Fixtures\Context\Scheduling;
 
 use App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AnimalId;

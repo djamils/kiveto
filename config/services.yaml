@@ -31,23 +31,23 @@ services:
         resource: '../src/Presentation/Backoffice/Controller/'
         tags: ['controller.service_arguments']
 
-    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic:
-        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
+    App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic:
+        class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
-            $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::CLINIC
+            $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
+            $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::CLINIC
 
-    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
-        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
+    App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal:
+        class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
-            $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::PORTAL
+            $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
+            $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::PORTAL
 
-    App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
-        class: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
+    App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice:
+        class: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider
         arguments:
-            $users: '@App\IdentityAccess\Domain\Repository\UserRepositoryInterface'
-            $type: !php/const App\IdentityAccess\Domain\ValueObject\UserType::BACKOFFICE
+            $users: '@App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface'
+            $type: !php/const App\System\IdentityAccess\Domain\ValueObject\UserType::BACKOFFICE
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -112,47 +112,47 @@ services:
     # BOUNDED CONTEXT: IDENTITY ACCESS
     # ============================================================================
 
-    App\IdentityAccess\Domain\Repository\UserRepositoryInterface:
-        class: App\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineUserRepository
+    App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DoctrineUserRepository
 
-    App\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~
+    App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
     # ============================================================================
 
-    App\Translation\Domain\Repository\TranslationCatalogRepository:
-        class: App\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationCatalogRepository
+    App\System\Translation\Domain\Repository\TranslationCatalogRepository:
+        class: App\System\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationCatalogRepository
 
-    App\Translation\Domain\Repository\TranslationSearchRepository:
-        class: App\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationSearchRepository
+    App\System\Translation\Domain\Repository\TranslationSearchRepository:
+        class: App\System\Translation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTranslationSearchRepository
 
-    App\Translation\Application\Port\CatalogCacheInterface:
-        class: App\Translation\Infrastructure\Cache\SymfonyCatalogCache
+    App\System\Translation\Application\Port\CatalogCacheInterface:
+        class: App\System\Translation\Infrastructure\Cache\SymfonyCatalogCache
         arguments:
             $cachePool: '@cache.translation_catalog'
 
-    App\Translation\Application\Port\AppScopeResolverInterface:
-        class: App\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
+    App\System\Translation\Application\Port\AppScopeResolverInterface:
+        class: App\System\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
 
-    App\Translation\Application\Port\LocaleResolverInterface:
-        class: App\Translation\Infrastructure\Resolver\DefaultLocaleResolver
+    App\System\Translation\Application\Port\LocaleResolverInterface:
+        class: App\System\Translation\Infrastructure\Resolver\DefaultLocaleResolver
 
-    App\Translation\Infrastructure\Provider\TranslationCatalogProvider:
+    App\System\Translation\Infrastructure\Provider\TranslationCatalogProvider:
         arguments:
-            $repository: '@App\Translation\Domain\Repository\TranslationSearchRepository'
-            $cache: '@App\Translation\Application\Port\CatalogCacheInterface'
+            $repository: '@App\System\Translation\Domain\Repository\TranslationSearchRepository'
+            $cache: '@App\System\Translation\Application\Port\CatalogCacheInterface'
             $ttl: 3600
         tags:
             - { name: kernel.reset, method: reset }
 
-    App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator:
+    App\System\Translation\Infrastructure\Symfony\Translator\CatalogTranslator:
         decorates: translator
         arguments:
-            $fallbackTranslator: '@App\Translation\Infrastructure\Symfony\Translator\CatalogTranslator.inner'
-            $catalogProvider: '@App\Translation\Infrastructure\Provider\TranslationCatalogProvider'
-            $scopeResolver: '@App\Translation\Application\Port\AppScopeResolverInterface'
-            $localeResolver: '@App\Translation\Application\Port\LocaleResolverInterface'
+            $fallbackTranslator: '@App\System\Translation\Infrastructure\Symfony\Translator\CatalogTranslator.inner'
+            $catalogProvider: '@App\System\Translation\Infrastructure\Provider\TranslationCatalogProvider'
+            $scopeResolver: '@App\System\Translation\Application\Port\AppScopeResolverInterface'
+            $localeResolver: '@App\System\Translation\Application\Port\LocaleResolverInterface'
             $formatter: '@translator.formatter'
         tags:
             - { name: kernel.reset, method: reset }
@@ -161,35 +161,35 @@ services:
     # BOUNDED CONTEXT: CLINIC
     # ============================================================================
 
-    App\Clinic\Domain\Repository\ClinicRepositoryInterface:
-        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicRepository
+    App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicRepository
 
-    App\Clinic\Domain\Repository\ClinicGroupRepositoryInterface:
-        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupRepository
+    App\Context\Clinic\Domain\Repository\ClinicGroupRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupRepository
 
-    App\Clinic\Application\Port\ClinicReadRepositoryInterface:
-        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicReadRepository
+    App\Context\Clinic\Application\Port\ClinicReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicReadRepository
 
-    App\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
-        class: App\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
+    App\Context\Clinic\Application\Port\ClinicGroupReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicGroupReadRepository
 
-    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
-    App\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~
+    App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper: ~
+    App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: CLINIC ACCESS
     # ============================================================================
 
-    App\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface:
-        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
+    App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
 
-    App\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface:
-        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
+    App\System\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
 
-    App\AccessControl\Application\Port\MembershipAdminRepositoryInterface:
-        class: App\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
+    App\System\AccessControl\Application\Port\MembershipAdminRepositoryInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
 
-    App\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+    App\System\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
 
     # Context
     App\Shared\Application\Context\CurrentClinicContextInterface:
@@ -199,82 +199,82 @@ services:
     # BOUNDED CONTEXT: CLIENT
     # ============================================================================
 
-    App\Client\Domain\Repository\ClientRepositoryInterface:
-        class: App\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientRepository
+    App\Context\Client\Domain\Repository\ClientRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientRepository
 
-    App\Client\Application\Port\ClientReadRepositoryInterface:
-        class: App\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientReadRepository
+    App\Context\Client\Application\Port\ClientReadRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientReadRepository
 
-    App\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper: ~
+    App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: ANIMAL
     # ============================================================================
 
-    App\Animal\Domain\Port\AnimalRepositoryInterface:
-        class: App\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalRepository
+    App\Context\Animal\Domain\Port\AnimalRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalRepository
 
-    App\Animal\Domain\Port\AnimalReadRepositoryInterface:
-        class: App\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalReadRepository
+    App\Context\Animal\Domain\Port\AnimalReadRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrineAnimalReadRepository
 
-    App\Animal\Infrastructure\Persistence\Doctrine\AnimalMapper: ~
+    App\Context\Animal\Infrastructure\Persistence\Doctrine\AnimalMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: SCHEDULING
     # ============================================================================
 
-    App\Scheduling\Domain\Repository\AppointmentRepositoryInterface:
-        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineAppointmentRepository
+    App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineAppointmentRepository
 
-    App\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface:
-        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomEntryRepository
+    App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomEntryRepository
 
-    App\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface:
-        class: App\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomReadRepository
+    App\Context\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomReadRepository
 
-    App\Scheduling\Application\Port\MembershipEligibilityCheckerInterface:
-        class: App\Scheduling\Infrastructure\Adapter\AccessControl\DbalMembershipEligibilityChecker
+    App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\AccessControl\DbalMembershipEligibilityChecker
 
-    App\Scheduling\Application\Port\AppointmentConflictCheckerInterface:
-        class: App\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker
+    App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker
 
-    App\Scheduling\Application\Port\OwnerExistenceCheckerInterface:
-        class: App\Scheduling\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+    App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
 
-    App\Scheduling\Application\Port\AnimalExistenceCheckerInterface:
-        class: App\Scheduling\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+    App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
 
-    App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
-    App\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
+    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
+    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: CLINICAL CARE
     # ============================================================================
 
-    App\ClinicalCare\Domain\Repository\ConsultationRepositoryInterface:
-        class: App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
+    App\Context\ClinicalCare\Domain\Repository\ConsultationRepositoryInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
 
-    App\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface:
-        class: App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
+    App\Context\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
 
-    App\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
-        class: App\ClinicalCare\Infrastructure\Adapter\AccessControl\DbalPractitionerEligibilityChecker
+    App\Context\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\AccessControl\DbalPractitionerEligibilityChecker
 
-    App\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface:
-        class: App\ClinicalCare\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider
+    App\Context\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider
 
-    App\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterface:
-        class: App\ClinicalCare\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
+    App\Context\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
 
-    App\ClinicalCare\Application\Port\OwnerExistenceCheckerInterface:
-        class: App\ClinicalCare\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+    App\Context\ClinicalCare\Application\Port\OwnerExistenceCheckerInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
 
-    App\ClinicalCare\Application\Port\AnimalExistenceCheckerInterface:
-        class: App\ClinicalCare\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+    App\Context\ClinicalCare\Application\Port\AnimalExistenceCheckerInterface:
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
 
-    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
-    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
-    App\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
+    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
+    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
+    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
 
 when@dev: &services_dev
     services:

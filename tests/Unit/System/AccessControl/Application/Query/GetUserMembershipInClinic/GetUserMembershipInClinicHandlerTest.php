@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\AccessControl\Application\Query\GetUserMembershipInClinic;
 
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\AccessControl\Application\Query\GetUserMembershipInClinic\GetUserMembershipInClinic;
 use App\System\AccessControl\Application\Query\GetUserMembershipInClinic\GetUserMembershipInClinicHandler;
 use App\System\AccessControl\Application\Query\GetUserMembershipInClinic\MembershipDetails;
@@ -15,7 +16,6 @@ use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\System\AccessControl\Domain\ValueObject\MembershipId;
 use App\System\AccessControl\Domain\ValueObject\UserId;
-use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
 final class GetUserMembershipInClinicHandlerTest extends TestCase

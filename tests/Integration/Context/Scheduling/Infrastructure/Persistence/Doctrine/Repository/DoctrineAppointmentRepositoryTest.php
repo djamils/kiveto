@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository;
 
-use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AnimalId;
@@ -15,6 +14,7 @@ use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

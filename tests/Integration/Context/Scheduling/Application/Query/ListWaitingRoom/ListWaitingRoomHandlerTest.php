@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Application\Query\ListWaitingRoom;
 
-use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
 use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoomHandler;
 use App\Context\Scheduling\Application\Query\ListWaitingRoom\WaitingRoomEntryItem;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryStatus;
+use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

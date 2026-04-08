@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Application\Query\GetWaitingRoomEntryDetails;
 
-use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use App\Context\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetails;
 use App\Context\Scheduling\Application\Query\GetWaitingRoomEntryDetails\GetWaitingRoomEntryDetailsHandler;
 use App\Context\Scheduling\Application\Query\GetWaitingRoomEntryDetails\WaitingRoomEntryDetailsDTO;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomArrivalMode;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryOrigin;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryStatus;
+use App\Fixtures\Context\Scheduling\Factory\WaitingRoomEntryEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

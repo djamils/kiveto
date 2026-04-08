@@ -12,7 +12,7 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 {
     public function testClassToTableNameAddsContextBucketPrefixAndPluralizes(): void
     {
-        $fqcn = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Clinic';
+        $fqcn = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\ClinicEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())
@@ -28,6 +28,7 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
     public function testNormalizeRemovesEntitySuffixForSystemBucket(): void
     {
+        /** @var class-string $fqcn */
         $fqcn = 'App\\System\\Translation\\Infrastructure\\Persistence\\Doctrine\\Entity\\TranslationEntryEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
@@ -45,6 +46,7 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
     public function testCamelCaseBoundedContextNameIsSnakeCased(): void
     {
+        /** @var class-string $fqcn */
         $fqcn = 'App\\System\\IdentityAccess\\Infrastructure\\Persistence\\Doctrine\\Entity\\UserEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
@@ -62,6 +64,7 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
     public function testClassToTableNameWithoutBucketPrefixKeepsPlural(): void
     {
+        /** @var class-string $fqcn */
         $fqcn = 'App\\Shared\\Infrastructure\\Something\\Foo';
 
         $inner = $this->createMock(NamingStrategy::class);
@@ -78,8 +81,8 @@ final class BoundedContextPrefixNamingStrategyTest extends TestCase
 
     public function testJoinTableNameAddsPrefix(): void
     {
-        $source = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Invoice';
-        $target = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\Line';
+        $source = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\ClinicEntity';
+        $target = 'App\\Context\\Clinic\\Infrastructure\\Persistence\\Doctrine\\Entity\\ClinicGroupEntity';
 
         $inner = $this->createMock(NamingStrategy::class);
         $inner->expects(self::once())

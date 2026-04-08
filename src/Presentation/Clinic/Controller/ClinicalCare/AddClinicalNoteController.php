@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\ClinicalCare;
 
 use App\Context\ClinicalCare\Application\Command\AddClinicalNote\AddClinicalNote;
-use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

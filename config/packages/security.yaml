@@ -2,21 +2,21 @@ security:
     # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
-        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User: 'auto'
-        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser: 'auto'
-        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser: 'auto'
-        App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser: 'auto'
+        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\User: 'auto'
+        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUser: 'auto'
+        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUser: 'auto'
+        App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUser: 'auto'
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         clinic_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic
+            id: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.clinic
 
         portal_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal
+            id: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.portal
 
         backoffice_user_provider:
-            id: App\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice
+            id: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice
 
     firewalls:
         dev:
@@ -30,7 +30,7 @@ security:
             host: '^clinic\.kiveto\.local$'
             provider: clinic_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
+                - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -41,7 +41,7 @@ security:
             host: '^portal\.kiveto\.local$'
             provider: portal_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
+                - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true
@@ -52,7 +52,7 @@ security:
             host: '^backoffice\.kiveto\.local$'
             provider: backoffice_user_provider
             custom_authenticators:
-                - App\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
+                - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
                 invalidate_session: true

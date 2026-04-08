@@ -24,50 +24,50 @@ doctrine:
             IdentityAccess:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/IdentityAccess/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/System/IdentityAccess/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity'
                 alias: IdentityAccess
             Translation:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Translation/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\Translation\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/System/Translation/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\Translation\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Translation
             Clinic:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Clinic/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\Clinic\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/Context/Clinic/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Clinic
             AccessControl:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/AccessControl/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\AccessControl\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/System/AccessControl/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\AccessControl\Infrastructure\Persistence\Doctrine\Entity'
                 alias: AccessControl
             Client:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Client/Infrastructure/Persistence/Doctrine'
-                prefix: 'App\Client\Infrastructure\Persistence\Doctrine'
+                dir: '%kernel.project_dir%/src/Context/Client/Infrastructure/Persistence/Doctrine'
+                prefix: 'App\Context\Client\Infrastructure\Persistence\Doctrine'
                 alias: Client
             Animal:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Animal/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\Animal\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/Context/Animal/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Animal
             Scheduling:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Scheduling/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\Scheduling\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/Context/Scheduling/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Scheduling
             ClinicalCare:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/ClinicalCare/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity'
+                dir: '%kernel.project_dir%/src/Context/ClinicalCare/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity'
                 alias: ClinicalCare
         controller_resolver:
             auto_mapping: false

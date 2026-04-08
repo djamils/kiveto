@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Application\Query\ResolveActiveClinic;
 
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\System\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
-use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

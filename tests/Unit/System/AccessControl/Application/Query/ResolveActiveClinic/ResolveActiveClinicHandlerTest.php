@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\AccessControl\Application\Query\ResolveActiveClinic;
 
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\System\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResultType;
 use App\System\AccessControl\Application\Query\ResolveActiveClinic\ResolveActiveClinic;
 use App\System\AccessControl\Application\Query\ResolveActiveClinic\ResolveActiveClinicHandler;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
-use App\Shared\Application\Bus\QueryBusInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ResolveActiveClinicHandlerTest extends TestCase

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface;
 use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
@@ -11,7 +12,6 @@ use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use App\System\AccessControl\Domain\ValueObject\UserId;
 use App\System\AccessControl\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
-use App\Shared\Domain\Time\ClockInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;

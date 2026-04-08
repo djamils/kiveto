@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\Shared\Application\Bus\QueryBusInterface;
+use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
 use App\System\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
@@ -17,8 +19,6 @@ use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator;
-use App\Shared\Application\Bus\QueryBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;

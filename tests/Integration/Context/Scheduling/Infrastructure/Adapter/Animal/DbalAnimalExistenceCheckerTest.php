@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Adapter\Animal;
 
-use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface;
 use App\Context\Scheduling\Domain\ValueObject\AnimalId;
+use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

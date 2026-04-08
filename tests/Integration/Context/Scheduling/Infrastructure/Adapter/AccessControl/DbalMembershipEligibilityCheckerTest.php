@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Adapter\AccessControl;
 
-use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
-use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Fixtures\System\AccessControl\Factory\ClinicMembershipEntityFactory;
+use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Domain;
 
+use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\System\IdentityAccess\Domain\Event\UserRegistered;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
-use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class User extends AggregateRoot
 {

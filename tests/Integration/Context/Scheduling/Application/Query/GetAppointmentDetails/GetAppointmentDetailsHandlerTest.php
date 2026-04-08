@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Application\Query\GetAppointmentDetails;
 
-use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetailsHandler;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
+use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

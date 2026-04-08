@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Scheduling\Application\Query\GetAgendaForClinicDay;
 
-use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDay\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDay\GetAgendaForClinicDay;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDay\GetAgendaForClinicDayHandler;
+use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 

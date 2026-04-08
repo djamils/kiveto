@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\System\AccessControl\Application\Query\ListAllMemberships;
 
+use App\Shared\Application\Bus\QueryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
-use App\Shared\Application\Bus\QueryInterface;
 
 final readonly class ListAllMemberships implements QueryInterface
 {
