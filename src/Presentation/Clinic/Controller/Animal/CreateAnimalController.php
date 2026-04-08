@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Animal;
 
-use App\Animal\Application\Command\CreateAnimal\CreateAnimal;
+use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

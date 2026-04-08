@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Client;
 
-use App\Client\Application\Command\ArchiveClient\ArchiveClient;
+use App\Context\Client\Application\Command\ArchiveClient\ArchiveClient;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller;
 
-use App\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
-use App\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Clinic\Application\Query\GetClinic\GetClinic;
-use App\Clinic\Domain\ValueObject\ClinicId;
-use App\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
+use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
+use App\System\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
+use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

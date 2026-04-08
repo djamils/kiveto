@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling;
 
-use App\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Clinic\Application\Query\GetClinic\GetClinic;
-use App\Scheduling\Application\Query\GetAgendaForClinicDay\GetAgendaForClinicDay;
-use App\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
+use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
+use App\Context\Scheduling\Application\Query\GetAgendaForClinicDay\GetAgendaForClinicDay;
+use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;

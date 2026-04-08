@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\System\Translation\Application\Command;
+
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Event\DomainEventInterface;
+use App\Shared\Domain\Time\ClockInterface;
+use App\System\Translation\Application\Command\UpsertTranslation\UpsertTranslation;
+use App\System\Translation\Application\Command\UpsertTranslation\UpsertTranslationHandler;
+use App\System\Translation\Application\Port\CatalogCacheInterface;
+use App\System\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\System\Translation\Domain\TranslationCatalog;
+use App\System\Translation\Domain\ValueObject\TranslationCatalogId;
+use PHPUnit\Framework\TestCase;
+
+final class UpsertTranslationHandlerTest extends TestCase
+{
+    public function testUpsertPersistsInvalidatesAndPublishesEvent(): void
+    {
+        $catalogId = TranslationCatalogId::fromStrings('clinic', 'fr-FR', 'messages');
+
+        $repo = $this->createMock(TranslationCatalogRepository::class);
+        $repo->expects(self::once())
+            ->method('find')
+            ->with($catalogId)
+            ->willReturn(null)
+        ;
+        $repo->expects(self::once())
+            ->method('save')
+            ->with(self::callback(static function (TranslationCatalog $catalog): bool {
+                return $catalog->hasKey(
+                    \App\System\Translation\Domain\ValueObject\TranslationKey::fromString('hello'),
+                );
+            }))
+        ;
+
+        $cache = $this->createMock(CatalogCacheInterface::class);
+        $cache->expects(self::once())
+            ->method('delete')
+            ->with($catalogId)
+        ;
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::once())
+            ->method('publish')
+            ->with([], self::isInstanceOf(DomainEventInterface::class))
+        ;
+
+        $handler = new UpsertTranslationHandler(
+            $repo,
+            $cache,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
+
+        $handler(new UpsertTranslation('clinic', 'fr-FR', 'messages', 'hello', 'Hello', null, 'actor-1'));
+    }
+}

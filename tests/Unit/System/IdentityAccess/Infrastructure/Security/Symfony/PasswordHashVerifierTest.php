@@ -1,0 +1,35 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Security\Symfony;
+
+use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\PasswordHashVerifier;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
+use Symfony\Component\PasswordHasher\PasswordHasherInterface;
+
+final class PasswordHashVerifierTest extends TestCase
+{
+    public function testVerifyDelegatesToHasher(): void
+    {
+        $hasher = $this->createMock(PasswordHasherInterface::class);
+        $hasher->expects(self::once())
+            ->method('verify')
+            ->with('$hash', 'plain')
+            ->willReturn(true)
+        ;
+
+        $factory = $this->createMock(PasswordHasherFactoryInterface::class);
+        $factory->expects(self::once())
+            ->method('getPasswordHasher')
+            ->with(UserEntity::class)
+            ->willReturn($hasher)
+        ;
+
+        $verifier = new PasswordHashVerifier($factory);
+
+        self::assertTrue($verifier->verify('plain', '$hash'));
+    }
+}

@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\System\IdentityAccess\Infrastructure\Security\Symfony;
+
+use App\System\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
+use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
+use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
+
+final readonly class PasswordHashVerifier implements PasswordHashVerifierInterface
+{
+    public function __construct(private PasswordHasherFactoryInterface $hasherFactory)
+    {
+    }
+
+    public function verify(string $plainPassword, string $passwordHash): bool
+    {
+        $hasher = $this->hasherFactory->getPasswordHasher(UserEntity::class);
+
+        return $hasher->verify($passwordHash, $plainPassword);
+    }
+}

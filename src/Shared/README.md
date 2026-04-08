@@ -77,7 +77,7 @@ public function __construct(
 
 declare(strict_types=1);
 
-namespace App\IdentityAccess\Domain\Event;
+namespace App\System\IdentityAccess\Domain\Event;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 

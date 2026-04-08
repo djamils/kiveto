@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\ClinicalCare;
 
-use App\ClinicalCare\Application\Query\GetConsultationDetails\GetConsultationDetails;
+use App\Context\ClinicalCare\Application\Query\GetConsultationDetails\GetConsultationDetails;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;

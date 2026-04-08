@@ -1,0 +1,87 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Context\Client\Application\Command\CreateClient;
+
+use App\Context\Client\Domain\Client;
+use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Context\Client\Domain\ValueObject\ClientId;
+use App\Context\Client\Domain\ValueObject\ClientIdentity;
+use App\Context\Client\Domain\ValueObject\ContactLabel;
+use App\Context\Client\Domain\ValueObject\ContactMethod;
+use App\Context\Client\Domain\ValueObject\ContactMethodType;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Domain\ValueObject\EmailAddress;
+use App\Shared\Domain\ValueObject\PhoneNumber;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
+
+#[AsMessageHandler]
+final readonly class CreateClientHandler
+{
+    public function __construct(
+        private ClientRepositoryInterface $clientRepository,
+        private DomainEventPublisher $domainEventPublisher,
+        private ClockInterface $clock,
+    ) {
+    }
+
+    public function __invoke(CreateClient $command): string
+    {
+        $clinicId = ClinicId::fromString($command->clinicId);
+        $clientId = ClientId::fromString(Uuid::v7()->toString());
+
+        $identity = new ClientIdentity(
+            firstName: $command->firstName,
+            lastName: $command->lastName,
+        );
+
+        $contactMethods = $this->buildContactMethods($command->contactMethods);
+
+        $client = Client::create(
+            id: $clientId,
+            clinicId: $clinicId,
+            identity: $identity,
+            contactMethods: $contactMethods,
+            createdAt: $this->clock->now(),
+        );
+
+        $this->clientRepository->save($client);
+        $this->domainEventPublisher->publish($client);
+
+        return $clientId->toString();
+    }
+
+    /**
+     * @param list<ContactMethodDto> $dtos
+     *
+     * @return list<ContactMethod>
+     */
+    private function buildContactMethods(array $dtos): array
+    {
+        return array_map(
+            function (ContactMethodDto $dto): ContactMethod {
+                $type  = ContactMethodType::from($dto->type);
+                $label = ContactLabel::from($dto->label);
+
+                if (ContactMethodType::PHONE === $type) {
+                    return ContactMethod::phone(
+                        PhoneNumber::fromString($dto->value),
+                        $label,
+                        $dto->isPrimary,
+                    );
+                }
+
+                return ContactMethod::email(
+                    EmailAddress::fromString($dto->value),
+                    $label,
+                    $dto->isPrimary,
+                );
+            },
+            $dtos,
+        );
+    }
+}

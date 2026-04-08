@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Client;
 
-use App\Client\Application\Command\CreateClient\ContactMethodDto;
-use App\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
+use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

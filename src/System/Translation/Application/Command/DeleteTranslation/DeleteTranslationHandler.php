@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\System\Translation\Application\Command\DeleteTranslation;
+
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Time\ClockInterface;
+use App\System\Translation\Application\Port\CatalogCacheInterface;
+use App\System\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\System\Translation\Domain\TranslationCatalog;
+use App\System\Translation\Domain\ValueObject\ActorId;
+use App\System\Translation\Domain\ValueObject\TranslationCatalogId;
+use App\System\Translation\Domain\ValueObject\TranslationKey;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+#[AsMessageHandler]
+final class DeleteTranslationHandler
+{
+    public function __construct(
+        private readonly TranslationCatalogRepository $catalogs,
+        private readonly CatalogCacheInterface $cache,
+        private readonly ClockInterface $clock,
+        private readonly DomainEventPublisher $domainEventPublisher,
+    ) {
+    }
+
+    public function __invoke(DeleteTranslation $command): void
+    {
+        $now = $this->clock->now();
+
+        $catalogId = TranslationCatalogId::fromStrings($command->scope, $command->locale, $command->domain);
+        $catalog   = $this->catalogs->find($catalogId) ?? TranslationCatalog::createEmpty($catalogId);
+
+        $catalog->remove(
+            TranslationKey::fromString($command->key),
+            null !== $command->actorId ? ActorId::fromString($command->actorId) : null,
+            $now,
+        );
+
+        $this->catalogs->save($catalog);
+        $this->cache->delete($catalogId);
+
+        $this->domainEventPublisher->publish($catalog);
+    }
+}

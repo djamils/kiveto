@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\System\Translation\Application\Command;
+
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Event\DomainEventInterface;
+use App\Shared\Domain\Time\ClockInterface;
+use App\System\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslations;
+use App\System\Translation\Application\Command\BulkUpsertTranslations\BulkUpsertTranslationsHandler;
+use App\System\Translation\Application\Port\CatalogCacheInterface;
+use App\System\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\System\Translation\Domain\TranslationCatalog;
+use App\System\Translation\Domain\ValueObject\TranslationCatalogId;
+use PHPUnit\Framework\TestCase;
+
+final class BulkUpsertTranslationsHandlerTest extends TestCase
+{
+    public function testBulkGroupsByCatalogInvalidatesAndPublishes(): void
+    {
+        $repo = $this->createMock(TranslationCatalogRepository::class);
+        $repo->expects(self::exactly(2))
+            ->method('find')
+            ->willReturn(null)
+        ;
+        $repo->expects(self::exactly(2))
+            ->method('save')
+            ->with(self::isInstanceOf(TranslationCatalog::class))
+        ;
+
+        $cache = $this->createMock(CatalogCacheInterface::class);
+        $cache->expects(self::exactly(2))
+            ->method('delete')
+            ->with(self::isInstanceOf(TranslationCatalogId::class))
+        ;
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-01T12:00:00Z'));
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::exactly(2))
+            ->method('publish')
+            ->with([], self::isInstanceOf(DomainEventInterface::class))
+        ;
+
+        $handler = new BulkUpsertTranslationsHandler(
+            $repo,
+            $cache,
+            $clock,
+            new DomainEventPublisher($eventBus),
+        );
+
+        $handler(new BulkUpsertTranslations([
+            ['scope' => 'clinic', 'locale' => 'fr-FR', 'domain' => 'messages', 'key' => 'k1', 'value' => 'v1'],
+            ['scope' => 'clinic', 'locale' => 'fr-FR', 'domain' => 'messages', 'key' => 'k2', 'value' => 'v2'],
+            ['scope' => 'portal', 'locale' => 'en-GB', 'domain' => 'auth', 'key' => 'k3', 'value' => 'v3'],
+        ]));
+    }
+}

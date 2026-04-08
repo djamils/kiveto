@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
-use App\IdentityAccess\Application\Query\ListUsers\ListUsers;
-use App\IdentityAccess\Application\Query\ListUsers\UserCollection;
+use App\System\IdentityAccess\Application\Query\ListUsers\ListUsers;
+use App\System\IdentityAccess\Application\Query\ListUsers\UserCollection;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

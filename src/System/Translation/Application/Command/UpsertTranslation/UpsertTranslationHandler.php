@@ -1,0 +1,49 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\System\Translation\Application\Command\UpsertTranslation;
+
+use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Time\ClockInterface;
+use App\System\Translation\Application\Port\CatalogCacheInterface;
+use App\System\Translation\Domain\Repository\TranslationCatalogRepository;
+use App\System\Translation\Domain\TranslationCatalog;
+use App\System\Translation\Domain\ValueObject\ActorId;
+use App\System\Translation\Domain\ValueObject\TranslationCatalogId;
+use App\System\Translation\Domain\ValueObject\TranslationKey;
+use App\System\Translation\Domain\ValueObject\TranslationText;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+#[AsMessageHandler]
+final class UpsertTranslationHandler
+{
+    public function __construct(
+        private readonly TranslationCatalogRepository $catalogs,
+        private readonly CatalogCacheInterface $cache,
+        private readonly ClockInterface $clock,
+        private readonly DomainEventPublisher $domainEventPublisher,
+    ) {
+    }
+
+    public function __invoke(UpsertTranslation $command): void
+    {
+        $now = $this->clock->now();
+
+        $catalogId = TranslationCatalogId::fromStrings($command->scope, $command->locale, $command->domain);
+        $catalog   = $this->catalogs->find($catalogId) ?? TranslationCatalog::createEmpty($catalogId);
+
+        $catalog->upsert(
+            TranslationKey::fromString($command->key),
+            TranslationText::fromString($command->value),
+            $now,
+            null !== $command->actorId ? ActorId::fromString($command->actorId) : null,
+            $command->description,
+        );
+
+        $this->catalogs->save($catalog);
+        $this->cache->delete($catalogId);
+
+        $this->domainEventPublisher->publish($catalog);
+    }
+}

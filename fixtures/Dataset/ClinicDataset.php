@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Dataset;
 
-use App\Fixtures\AccessControl\Story\ClinicMembershipDataStory;
-use App\Fixtures\Animal\Story\AnimalDataStory;
-use App\Fixtures\Client\Story\ClientDataStory;
-use App\Fixtures\Clinic\Story\ClinicDataStory;
-use App\Fixtures\IdentityAccess\Factory\ClinicUserFactory;
-use App\Fixtures\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\AccessControl\Story\ClinicMembershipDataStory;
+use App\Fixtures\Context\Animal\Story\AnimalDataStory;
+use App\Fixtures\Context\Client\Story\ClientDataStory;
+use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
+use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
+use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 

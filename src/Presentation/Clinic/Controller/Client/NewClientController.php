@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Client;
 
-use App\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Clinic\Application\Query\GetClinic\GetClinic;
+use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

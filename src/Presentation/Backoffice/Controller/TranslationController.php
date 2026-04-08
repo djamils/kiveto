@@ -6,10 +6,10 @@ namespace App\Presentation\Backoffice\Controller;
 
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
-use App\Translation\Application\Command\DeleteTranslation\DeleteTranslation;
-use App\Translation\Application\Command\UpsertTranslation\UpsertTranslation;
-use App\Translation\Application\Query\SearchTranslations\SearchTranslations;
-use App\Translation\Application\Query\SearchTranslations\TranslationSearchResult;
+use App\System\Translation\Application\Command\DeleteTranslation\DeleteTranslation;
+use App\System\Translation\Application\Command\UpsertTranslation\UpsertTranslation;
+use App\System\Translation\Application\Query\SearchTranslations\SearchTranslations;
+use App\System\Translation\Application\Query\SearchTranslations\TranslationSearchResult;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

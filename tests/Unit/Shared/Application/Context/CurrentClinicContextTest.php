@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Application\Context;
 
-use App\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Context\CurrentClinicContext;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use PHPUnit\Framework\TestCase;

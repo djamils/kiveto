@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Application\Context;
 
-use App\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 final readonly class CurrentClinicContext implements CurrentClinicContextInterface
