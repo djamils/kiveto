@@ -5,13 +5,53 @@ declare(strict_types=1);
 namespace App\Shared\Infrastructure\Persistence;
 
 /**
- * Type-safe accessors for DBAL associative rows.
+ * Type-safe accessors for associative rows returned by raw SQL queries.
  *
- * DBAL hands back `array<string, mixed>`, which makes feeding query results
- * into typed DTOs unpleasant under PHPStan's max level. These helpers narrow
- * the value before returning it so the calling code stays cast-free.
+ * ## Why this class exists
+ *
+ * Doctrine DBAL methods like `Connection::fetchAssociative()` and
+ * `fetchAllAssociative()` return data shaped as `array<string, mixed>` —
+ * the driver has no idea which columns are strings, ints, UUIDs, etc.
+ *
+ * Our query handlers feed those rows into strictly-typed read DTOs. Under
+ * PHPStan's max level, that creates two pain points:
+ *
+ *   1. **Plain casts on `mixed` are forbidden** — `(string) $row['id']`
+ *      raises "Cannot cast mixed to string" because PHPStan does not trust
+ *      that `mixed` is scalar.
+ *   2. **Passing `mixed` directly to a typed parameter is forbidden** —
+ *      `new MyDTO(id: $row['id'])` raises "expects string, mixed given".
+ *
+ * We could litter every query handler with manual `is_string()` ladders,
+ * `assert()` calls, or PHPDoc `@var` hints — but that would be verbose,
+ * inconsistent across files, and hide bugs when a column unexpectedly
+ * comes back as `null`.
+ *
+ * `RowAccessor` centralises that narrowing logic in one place: each helper
+ * method takes the raw row + a column name, runs an `is_*` check on the
+ * value, and returns a properly typed scalar. Calling code stays cast-free
+ * and reads naturally:
+ *
+ *     $dto = new ConsultationDTO(
+ *         id:           RowAccessor::uuid($row, 'id'),
+ *         clinicId:     RowAccessor::uuid($row, 'clinic_id'),
+ *         status:       RowAccessor::string($row, 'status'),
+ *         priority:     RowAccessor::int($row, 'priority'),
+ *         closedAtUtc:  RowAccessor::nullableString($row, 'closed_at_utc'),
+ *     );
+ *
+ * If a row contains an unexpected type (e.g. an object where a scalar was
+ * expected), the helpers throw `LogicException` with the column name —
+ * loud and easy to debug.
+ *
+ * ## When to use it
+ *
+ * Use `RowAccessor` in any class that hydrates a DTO/value object from a
+ * raw DBAL row (typically Application query handlers and Infrastructure
+ * read-side adapters). Do **not** use it for ORM entities — Doctrine ORM
+ * already returns properly-typed objects via metadata mapping.
  */
-final class DbalRow
+final class RowAccessor
 {
     /**
      * @param array<string, mixed> $row

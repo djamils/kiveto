@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Scheduling\Application\Query\GetAgendaForClinicDay;
 
-use App\Shared\Infrastructure\Persistence\DbalRow;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -66,16 +66,16 @@ final readonly class GetAgendaForClinicDayHandler
     private function hydrateRow(array $row): AppointmentItem
     {
         return new AppointmentItem(
-            id: DbalRow::string($row, 'id'),
-            clinicId: DbalRow::string($row, 'clinic_id'),
-            ownerId: DbalRow::nullableString($row, 'owner_id'),
-            animalId: DbalRow::nullableString($row, 'animal_id'),
-            practitionerUserId: DbalRow::nullableString($row, 'practitioner_user_id'),
-            startsAtUtc: DbalRow::string($row, 'starts_at_utc'),
-            durationMinutes: DbalRow::int($row, 'duration_minutes'),
-            status: DbalRow::string($row, 'status'),
-            reason: DbalRow::nullableString($row, 'reason'),
-            notes: DbalRow::nullableString($row, 'notes'),
+            id: RowAccessor::string($row, 'id'),
+            clinicId: RowAccessor::string($row, 'clinic_id'),
+            ownerId: RowAccessor::nullableString($row, 'owner_id'),
+            animalId: RowAccessor::nullableString($row, 'animal_id'),
+            practitionerUserId: RowAccessor::nullableString($row, 'practitioner_user_id'),
+            startsAtUtc: RowAccessor::string($row, 'starts_at_utc'),
+            durationMinutes: RowAccessor::int($row, 'duration_minutes'),
+            status: RowAccessor::string($row, 'status'),
+            reason: RowAccessor::nullableString($row, 'reason'),
+            notes: RowAccessor::nullableString($row, 'notes'),
         );
     }
 }

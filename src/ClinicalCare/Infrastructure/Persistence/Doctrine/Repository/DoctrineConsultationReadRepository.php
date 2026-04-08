@@ -7,7 +7,7 @@ namespace App\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository;
 use App\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface;
 use App\ClinicalCare\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\ClinicalCare\Domain\ValueObject\ConsultationId;
-use App\Shared\Infrastructure\Persistence\DbalRow;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
@@ -51,9 +51,9 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
              * @return array{noteType: string, content: string, createdAt: string}
              */
             fn (array $row): array => [
-                'noteType'  => DbalRow::string($row, 'note_type'),
-                'content'   => DbalRow::string($row, 'content'),
-                'createdAt' => DbalRow::string($row, 'created_at_utc'),
+                'noteType'  => RowAccessor::string($row, 'note_type'),
+                'content'   => RowAccessor::string($row, 'content'),
+                'createdAt' => RowAccessor::string($row, 'created_at_utc'),
             ],
             $notesResult,
         );
@@ -73,16 +73,16 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
              * @return array{label: string, quantity: string, performedAt: string}
              */
             fn (array $row): array => [
-                'label'       => DbalRow::string($row, 'label'),
-                'quantity'    => DbalRow::string($row, 'quantity'),
-                'performedAt' => DbalRow::string($row, 'performed_at_utc'),
+                'label'       => RowAccessor::string($row, 'label'),
+                'quantity'    => RowAccessor::string($row, 'quantity'),
+                'performedAt' => RowAccessor::string($row, 'performed_at_utc'),
             ],
             $actsResult,
         );
 
         // Build vitals array if present
-        $weightKg     = DbalRow::nullableString($consultation, 'weight_kg');
-        $temperatureC = DbalRow::nullableString($consultation, 'temperature_c');
+        $weightKg     = RowAccessor::nullableString($consultation, 'weight_kg');
+        $temperatureC = RowAccessor::nullableString($consultation, 'temperature_c');
         $vitals       = null;
         if (null !== $weightKg || null !== $temperatureC) {
             $vitals = [
@@ -92,21 +92,21 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         }
 
         return new ConsultationDetailsDTO(
-            consultationId: DbalRow::uuid($consultation, 'id'),
-            clinicId: DbalRow::uuid($consultation, 'clinic_id'),
-            practitionerUserId: DbalRow::uuid($consultation, 'practitioner_user_id'),
-            status: DbalRow::string($consultation, 'status'),
-            appointmentId: DbalRow::nullableUuid($consultation, 'appointment_id'),
-            waitingRoomEntryId: DbalRow::nullableUuid($consultation, 'waiting_room_entry_id'),
-            ownerId: DbalRow::nullableUuid($consultation, 'owner_id'),
-            animalId: DbalRow::nullableUuid($consultation, 'animal_id'),
-            chiefComplaint: DbalRow::nullableString($consultation, 'chief_complaint'),
+            consultationId: RowAccessor::uuid($consultation, 'id'),
+            clinicId: RowAccessor::uuid($consultation, 'clinic_id'),
+            practitionerUserId: RowAccessor::uuid($consultation, 'practitioner_user_id'),
+            status: RowAccessor::string($consultation, 'status'),
+            appointmentId: RowAccessor::nullableUuid($consultation, 'appointment_id'),
+            waitingRoomEntryId: RowAccessor::nullableUuid($consultation, 'waiting_room_entry_id'),
+            ownerId: RowAccessor::nullableUuid($consultation, 'owner_id'),
+            animalId: RowAccessor::nullableUuid($consultation, 'animal_id'),
+            chiefComplaint: RowAccessor::nullableString($consultation, 'chief_complaint'),
             vitals: $vitals,
             notes: $notes,
             acts: $acts,
-            summary: DbalRow::nullableString($consultation, 'summary'),
-            startedAtUtc: DbalRow::string($consultation, 'started_at_utc'),
-            closedAtUtc: DbalRow::nullableString($consultation, 'closed_at_utc'),
+            summary: RowAccessor::nullableString($consultation, 'summary'),
+            startedAtUtc: RowAccessor::string($consultation, 'started_at_utc'),
+            closedAtUtc: RowAccessor::nullableString($consultation, 'closed_at_utc'),
         );
     }
 }

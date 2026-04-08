@@ -7,7 +7,7 @@ namespace App\Scheduling\Infrastructure\Adapter\AccessControl;
 use App\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Scheduling\Domain\ValueObject\ClinicId;
 use App\Scheduling\Domain\ValueObject\UserId;
-use App\Shared\Infrastructure\Persistence\DbalRow;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
@@ -73,7 +73,7 @@ final readonly class DbalMembershipEligibilityChecker implements MembershipEligi
         $practitioners = [];
         foreach ($results as $row) {
             $practitioners[] = [
-                'userId'      => DbalRow::string($row, 'user_id'),
+                'userId'      => RowAccessor::string($row, 'user_id'),
                 'displayName' => null, // Could be enriched from IdentityAccess BC if needed
             ];
         }

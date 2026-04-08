@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Scheduling\Application\Query\ListWaitingRoom;
 
-use App\Shared\Infrastructure\Persistence\DbalRow;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -60,21 +60,21 @@ final readonly class ListWaitingRoomHandler
     private function hydrateRow(array $row): WaitingRoomEntryItem
     {
         return new WaitingRoomEntryItem(
-            id: DbalRow::string($row, 'id'),
-            clinicId: DbalRow::string($row, 'clinic_id'),
-            origin: DbalRow::string($row, 'origin'),
-            arrivalMode: DbalRow::string($row, 'arrival_mode'),
-            linkedAppointmentId: DbalRow::nullableString($row, 'linked_appointment_id'),
-            ownerId: DbalRow::nullableString($row, 'owner_id'),
-            animalId: DbalRow::nullableString($row, 'animal_id'),
-            foundAnimalDescription: DbalRow::nullableString($row, 'found_animal_description'),
-            priority: DbalRow::int($row, 'priority'),
-            triageNotes: DbalRow::nullableString($row, 'triage_notes'),
-            status: DbalRow::string($row, 'status'),
-            arrivedAtUtc: DbalRow::string($row, 'arrived_at_utc'),
-            calledAtUtc: DbalRow::nullableString($row, 'called_at_utc'),
-            serviceStartedAtUtc: DbalRow::nullableString($row, 'service_started_at_utc'),
-            closedAtUtc: DbalRow::nullableString($row, 'closed_at_utc'),
+            id: RowAccessor::string($row, 'id'),
+            clinicId: RowAccessor::string($row, 'clinic_id'),
+            origin: RowAccessor::string($row, 'origin'),
+            arrivalMode: RowAccessor::string($row, 'arrival_mode'),
+            linkedAppointmentId: RowAccessor::nullableString($row, 'linked_appointment_id'),
+            ownerId: RowAccessor::nullableString($row, 'owner_id'),
+            animalId: RowAccessor::nullableString($row, 'animal_id'),
+            foundAnimalDescription: RowAccessor::nullableString($row, 'found_animal_description'),
+            priority: RowAccessor::int($row, 'priority'),
+            triageNotes: RowAccessor::nullableString($row, 'triage_notes'),
+            status: RowAccessor::string($row, 'status'),
+            arrivedAtUtc: RowAccessor::string($row, 'arrived_at_utc'),
+            calledAtUtc: RowAccessor::nullableString($row, 'called_at_utc'),
+            serviceStartedAtUtc: RowAccessor::nullableString($row, 'service_started_at_utc'),
+            closedAtUtc: RowAccessor::nullableString($row, 'closed_at_utc'),
         );
     }
 }
