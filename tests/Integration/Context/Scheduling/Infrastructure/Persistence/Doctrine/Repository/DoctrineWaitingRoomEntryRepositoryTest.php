@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface;
+use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\OwnerId;
@@ -128,7 +129,7 @@ final class DoctrineWaitingRoomEntryRepositoryTest extends KernelTestCase
             clinicId: ClinicId::fromString('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
             linkedAppointmentId: AppointmentId::fromString('cccccccc-cccc-cccc-cccc-cccccccccccc'),
             ownerId: OwnerId::fromString('dddddddd-dddd-dddd-dddd-dddddddddddd'),
-            animalId: \App\Context\Scheduling\Domain\ValueObject\AnimalId::fromString('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+            animalId: AnimalId::fromString('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
             arrivalMode: WaitingRoomArrivalMode::STANDARD,
             priority: 0,
             arrivedAtUtc: new \DateTimeImmutable('2026-04-10 08:55:00'),

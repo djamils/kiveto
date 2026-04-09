@@ -38,7 +38,9 @@ final class CloseWaitingRoomEntryHandlerTest extends TestCase
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:30:00'));
         $this->repository->expects(self::once())
             ->method('save')
-            ->with(self::callback(static fn (WaitingRoomEntry $e): bool => WaitingRoomEntryStatus::CLOSED === $e->status()))
+            ->with(self::callback(
+                static fn (WaitingRoomEntry $e): bool => WaitingRoomEntryStatus::CLOSED === $e->status(),
+            ))
         ;
 
         ($this->handler)(new CloseWaitingRoomEntry(
@@ -65,7 +67,9 @@ final class CloseWaitingRoomEntryHandlerTest extends TestCase
         $this->repository->expects(self::once())->method('findById')->willReturn(null);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Waiting room entry with ID "11111111-1111-1111-1111-111111111111" does not exist.');
+        $this->expectExceptionMessage(
+            'Waiting room entry with ID "11111111-1111-1111-1111-111111111111" does not exist.',
+        );
 
         ($this->handler)(new CloseWaitingRoomEntry(
             waitingRoomEntryId: '11111111-1111-1111-1111-111111111111',

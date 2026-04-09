@@ -42,7 +42,9 @@ final class RecordChiefComplaintHandlerTest extends TestCase
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:05:00'));
         $this->consultations->expects(self::once())
             ->method('save')
-            ->with(self::callback(static fn (Consultation $c): bool => 'Limping for 3 days' === $c->getChiefComplaint()))
+            ->with(self::callback(
+                static fn (Consultation $c): bool => 'Limping for 3 days' === $c->getChiefComplaint(),
+            ))
         ;
 
         ($this->handler)(new RecordChiefComplaint(

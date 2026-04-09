@@ -8,6 +8,7 @@ use App\Context\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterf
 use App\Context\ClinicalCare\Domain\ValueObject\AppointmentId;
 use App\Context\ClinicalCare\Domain\ValueObject\UserId;
 use App\Context\ClinicalCare\Domain\ValueObject\WaitingRoomEntryId;
+use App\Context\Scheduling\Application\Command\StartServiceForWaitingRoomEntry\StartServiceForWaitingRoomEntry;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 final readonly class MessengerSchedulingServiceCoordinator implements SchedulingServiceCoordinatorInterface
@@ -32,7 +33,7 @@ final readonly class MessengerSchedulingServiceCoordinator implements Scheduling
     ): void {
         try {
             $this->commandBus->dispatch(
-                new \App\Context\Scheduling\Application\Command\StartServiceForWaitingRoomEntry\StartServiceForWaitingRoomEntry(
+                new StartServiceForWaitingRoomEntry(
                     waitingRoomEntryId: $entryId->toString(),
                     serviceStartedByUserId: $triggeredByUserId->toString(),
                 )

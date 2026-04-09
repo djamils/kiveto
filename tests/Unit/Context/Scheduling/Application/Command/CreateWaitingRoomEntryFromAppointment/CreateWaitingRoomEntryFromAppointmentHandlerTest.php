@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment;
 
-use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointment;
-use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointmentHandler;
+use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointment as CreateEntryCmd; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointmentHandler as CreateEntryHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Scheduling\Application\Exception\WaitingRoomEntryAlreadyExistsException;
 use App\Context\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface;
 use App\Context\Scheduling\Domain\Appointment;
@@ -28,7 +28,7 @@ final class CreateWaitingRoomEntryFromAppointmentHandlerTest extends TestCase
     private WaitingRoomReadRepositoryInterface&MockObject $entryReadRepository;
     private UuidGeneratorInterface&MockObject $uuidGenerator;
     private ClockInterface&MockObject $clock;
-    private CreateWaitingRoomEntryFromAppointmentHandler $handler;
+    private CreateEntryHandler $handler;
 
     protected function setUp(): void
     {
@@ -38,7 +38,7 @@ final class CreateWaitingRoomEntryFromAppointmentHandlerTest extends TestCase
         $this->uuidGenerator         = $this->createMock(UuidGeneratorInterface::class);
         $this->clock                 = $this->createMock(ClockInterface::class);
 
-        $this->handler = new CreateWaitingRoomEntryFromAppointmentHandler(
+        $this->handler = new CreateEntryHandler(
             $this->appointmentRepository,
             $this->entryRepository,
             $this->entryReadRepository,
@@ -70,7 +70,7 @@ final class CreateWaitingRoomEntryFromAppointmentHandlerTest extends TestCase
             ->with(self::isInstanceOf(WaitingRoomEntry::class))
         ;
 
-        $entryId = ($this->handler)(new CreateWaitingRoomEntryFromAppointment(
+        $entryId = ($this->handler)(new CreateEntryCmd(
             appointmentId: $appointmentId->toString(),
             arrivalMode: 'STANDARD',
             priority: 0,
@@ -87,7 +87,7 @@ final class CreateWaitingRoomEntryFromAppointmentHandlerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Appointment with ID "11111111-1111-1111-1111-111111111111" does not exist.');
 
-        ($this->handler)(new CreateWaitingRoomEntryFromAppointment(
+        ($this->handler)(new CreateEntryCmd(
             appointmentId: '11111111-1111-1111-1111-111111111111',
         ));
     }
@@ -107,7 +107,7 @@ final class CreateWaitingRoomEntryFromAppointmentHandlerTest extends TestCase
 
         $this->expectException(WaitingRoomEntryAlreadyExistsException::class);
 
-        ($this->handler)(new CreateWaitingRoomEntryFromAppointment(
+        ($this->handler)(new CreateEntryCmd(
             appointmentId: $appointmentId->toString(),
         ));
     }

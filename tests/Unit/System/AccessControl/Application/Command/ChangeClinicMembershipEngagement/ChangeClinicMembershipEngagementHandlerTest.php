@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement;
 
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagementHandler;
+use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagementHandler as ChangeEngagementHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\System\AccessControl\Domain\ClinicMembership;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicId;
@@ -46,7 +46,7 @@ final class ChangeClinicMembershipEngagementHandlerTest extends TestCase
             ->with(self::isInstanceOf(ClinicMembership::class))
         ;
 
-        $handler = new ChangeClinicMembershipEngagementHandler($repository);
+        $handler = new ChangeEngagementHandler($repository);
         $command = new ChangeClinicMembershipEngagement(
             membershipId: '11111111-1111-1111-1111-111111111111',
             engagement: ClinicMembershipEngagement::CONTRACTOR,
@@ -62,7 +62,7 @@ final class ChangeClinicMembershipEngagementHandlerTest extends TestCase
         $repository = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repository->method('findById')->willReturn(null);
 
-        $handler = new ChangeClinicMembershipEngagementHandler($repository);
+        $handler = new ChangeEngagementHandler($repository);
         $command = new ChangeClinicMembershipEngagement(
             membershipId: '11111111-1111-1111-1111-111111111111',
             engagement: ClinicMembershipEngagement::CONTRACTOR,

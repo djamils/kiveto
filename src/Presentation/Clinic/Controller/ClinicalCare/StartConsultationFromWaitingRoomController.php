@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\ClinicalCare;
 
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry;
+use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry as StartConsultationFromEntry; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,7 +30,7 @@ final class StartConsultationFromWaitingRoomController extends AbstractControlle
 
         try {
             $consultationId = $this->commandBus->dispatch(
-                new StartConsultationFromWaitingRoomEntry(
+                new StartConsultationFromEntry(
                     waitingRoomEntryId: $entryId,
                     startedByUserId: $user->id(),
                 )

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling;
 
-use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointment;
+use App\Context\Scheduling\Application\Command\CreateWaitingRoomEntryFromAppointment\CreateWaitingRoomEntryFromAppointment as CreateEntryFromAppointment; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,7 +31,7 @@ final class CheckInAppointmentController extends AbstractController
         \assert(null !== $currentClinicId);
 
         try {
-            $this->commandBus->dispatch(new CreateWaitingRoomEntryFromAppointment(
+            $this->commandBus->dispatch(new CreateEntryFromAppointment(
                 appointmentId: $appointmentId,
                 arrivalMode: $request->request->getString('arrivalMode', 'STANDARD'),
                 priority: $request->request->getInt('priority'),

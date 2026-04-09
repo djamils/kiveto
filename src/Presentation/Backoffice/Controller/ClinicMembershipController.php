@@ -10,7 +10,7 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
 use App\System\AccessControl\Application\Command\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
+use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\System\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembership;
 use App\System\AccessControl\Application\Command\DisableClinicMembership\DisableClinicMembership;
 use App\System\AccessControl\Application\Command\EnableClinicMembership\EnableClinicMembership;
@@ -236,7 +236,7 @@ final class ClinicMembershipController extends AbstractController
             $validFrom  = new \DateTimeImmutable($validFromStr);
             $validUntil = '' !== $validUntilStr ? new \DateTimeImmutable($validUntilStr) : null;
 
-            $this->commandBus->dispatch(new ChangeClinicMembershipValidityWindow($id, $validFrom, $validUntil));
+            $this->commandBus->dispatch(new ChangeMembershipValidityWindow($id, $validFrom, $validUntil));
 
             $this->addFlash('success', 'Période de validité modifiée avec succès.');
         } catch (\Throwable $e) {

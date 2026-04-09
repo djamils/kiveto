@@ -41,7 +41,9 @@ final class StartServiceForWaitingRoomEntryHandlerTest extends TestCase
         ;
         $this->repository->expects(self::once())
             ->method('save')
-            ->with(self::callback(static fn (WaitingRoomEntry $e): bool => WaitingRoomEntryStatus::IN_SERVICE === $e->status()))
+            ->with(self::callback(
+                static fn (WaitingRoomEntry $e): bool => WaitingRoomEntryStatus::IN_SERVICE === $e->status(),
+            ))
         ;
 
         ($this->handler)(new StartServiceForWaitingRoomEntry(
@@ -68,7 +70,9 @@ final class StartServiceForWaitingRoomEntryHandlerTest extends TestCase
         $this->repository->expects(self::once())->method('findById')->willReturn(null);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Waiting room entry with ID "11111111-1111-1111-1111-111111111111" does not exist.');
+        $this->expectExceptionMessage(
+            'Waiting room entry with ID "11111111-1111-1111-1111-111111111111" does not exist.',
+        );
 
         ($this->handler)(new StartServiceForWaitingRoomEntry(
             waitingRoomEntryId: '11111111-1111-1111-1111-111111111111',

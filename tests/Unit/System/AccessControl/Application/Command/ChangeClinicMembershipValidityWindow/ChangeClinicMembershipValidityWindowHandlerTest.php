@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow;
 
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindowHandler; // phpcs:ignore
+use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindowHandler as ChangeValidityWindowHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\System\AccessControl\Domain\ClinicMembership;
 use App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface;
 use App\System\AccessControl\Domain\ValueObject\ClinicId;
@@ -49,8 +49,8 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
             ->with(self::isInstanceOf(ClinicMembership::class))
         ;
 
-        $handler = new ChangeClinicMembershipValidityWindowHandler($repository);
-        $command = new ChangeClinicMembershipValidityWindow(
+        $handler = new ChangeValidityWindowHandler($repository);
+        $command = new ChangeValidityWindow(
             membershipId: '11111111-1111-1111-1111-111111111111',
             validFrom: $newValidFrom,
             validUntil: $newValidUntil,
@@ -67,8 +67,8 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
         $repository = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repository->method('findById')->willReturn(null);
 
-        $handler = new ChangeClinicMembershipValidityWindowHandler($repository);
-        $command = new ChangeClinicMembershipValidityWindow(
+        $handler = new ChangeValidityWindowHandler($repository);
+        $command = new ChangeValidityWindow(
             membershipId: '11111111-1111-1111-1111-111111111111',
             validFrom: new \DateTimeImmutable('2024-06-01'),
             validUntil: new \DateTimeImmutable('2025-06-01'),

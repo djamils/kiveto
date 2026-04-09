@@ -45,8 +45,10 @@ final class MessengerSchedulingServiceCoordinatorTest extends TestCase
     {
         $this->commandBus->expects(self::once())
             ->method('dispatch')
-            ->with(self::callback(static fn (StartServiceForWaitingRoomEntry $cmd): bool => self::ENTRY_ID === $cmd->waitingRoomEntryId
-                && self::USER_ID === $cmd->serviceStartedByUserId))
+            ->with(self::callback(static function (StartServiceForWaitingRoomEntry $cmd): bool {
+                return self::ENTRY_ID === $cmd->waitingRoomEntryId
+                    && self::USER_ID === $cmd->serviceStartedByUserId;
+            }))
             ->willReturn(new \stdClass())
         ;
 
@@ -76,7 +78,9 @@ final class MessengerSchedulingServiceCoordinatorTest extends TestCase
     {
         $this->commandBus->expects(self::once())
             ->method('dispatch')
-            ->with(self::callback(static fn (CompleteAppointment $cmd): bool => self::APPOINTMENT_ID === $cmd->appointmentId))
+            ->with(self::callback(
+                static fn (CompleteAppointment $cmd): bool => self::APPOINTMENT_ID === $cmd->appointmentId,
+            ))
             ->willReturn(new \stdClass())
         ;
 

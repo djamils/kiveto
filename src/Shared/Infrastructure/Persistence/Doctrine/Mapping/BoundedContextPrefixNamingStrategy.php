@@ -79,7 +79,9 @@ readonly class BoundedContextPrefixNamingStrategy implements NamingStrategy
 
     private function prefixFor(string $className): string
     {
-        $pattern = '/^App\\\\(?:Context|System)\\\\([^\\\\]+)\\\\Infrastructure\\\\Persistence\\\\Doctrine\\\\Entity\\\\/';
+        $bucket  = '(?:Context|System)';
+        $tail    = 'Infrastructure\\\\Persistence\\\\Doctrine\\\\Entity\\\\';
+        $pattern = '/^App\\\\' . $bucket . '\\\\([^\\\\]+)\\\\' . $tail . '/';
 
         if (1 !== preg_match($pattern, $className, $matches)) {
             return '';

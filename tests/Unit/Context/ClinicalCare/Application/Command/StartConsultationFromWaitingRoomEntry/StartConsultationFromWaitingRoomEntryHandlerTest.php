@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry;
 
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry;
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntryHandler;
+use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry as StartFromEntryCmd; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntryHandler as StartFromEntryHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface;
 use App\Context\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\ClinicalCare\Domain\Consultation;
@@ -28,7 +28,7 @@ final class StartConsultationFromWaitingRoomEntryHandlerTest extends TestCase
     private SchedulingServiceCoordinatorInterface&MockObject $coordinator;
     private QueryBusInterface&MockObject $queryBus;
     private ClockInterface&MockObject $clock;
-    private StartConsultationFromWaitingRoomEntryHandler $handler;
+    private StartFromEntryHandler $handler;
 
     protected function setUp(): void
     {
@@ -38,7 +38,7 @@ final class StartConsultationFromWaitingRoomEntryHandlerTest extends TestCase
         $this->queryBus      = $this->createMock(QueryBusInterface::class);
         $this->clock         = $this->createMock(ClockInterface::class);
 
-        $this->handler = new StartConsultationFromWaitingRoomEntryHandler(
+        $this->handler = new StartFromEntryHandler(
             $this->consultations,
             $this->eligibility,
             $this->coordinator,
@@ -75,7 +75,7 @@ final class StartConsultationFromWaitingRoomEntryHandlerTest extends TestCase
             ->with(self::isInstanceOf(Consultation::class))
         ;
 
-        $consultationId = ($this->handler)(new StartConsultationFromWaitingRoomEntry(
+        $consultationId = ($this->handler)(new StartFromEntryCmd(
             waitingRoomEntryId: self::ENTRY_ID,
             startedByUserId: self::USER_ID,
         ));
@@ -110,7 +110,7 @@ final class StartConsultationFromWaitingRoomEntryHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('User is not eligible as practitioner for this clinic');
 
-        ($this->handler)(new StartConsultationFromWaitingRoomEntry(
+        ($this->handler)(new StartFromEntryCmd(
             waitingRoomEntryId: self::ENTRY_ID,
             startedByUserId: self::USER_ID,
         ));

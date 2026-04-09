@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\ClinicalCare\Application\Command\StartConsultationFromAppointment;
 
 use App\Context\ClinicalCare\Application\Command\StartConsultationFromAppointment\StartConsultationFromAppointment;
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromAppointment\StartConsultationFromAppointmentHandler;
+use App\Context\ClinicalCare\Application\Command\StartConsultationFromAppointment\StartConsultationFromAppointmentHandler as StartFromAppointmentHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\ClinicalCare\Application\Port\AppointmentContextDTO;
 use App\Context\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface;
 use App\Context\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface;
@@ -29,7 +29,7 @@ final class StartConsultationFromAppointmentHandlerTest extends TestCase
     private SchedulingAppointmentContextProviderInterface&MockObject $contextProvider;
     private SchedulingServiceCoordinatorInterface&MockObject $coordinator;
     private ClockInterface&MockObject $clock;
-    private StartConsultationFromAppointmentHandler $handler;
+    private StartFromAppointmentHandler $handler;
 
     protected function setUp(): void
     {
@@ -39,7 +39,7 @@ final class StartConsultationFromAppointmentHandlerTest extends TestCase
         $this->coordinator     = $this->createMock(SchedulingServiceCoordinatorInterface::class);
         $this->clock           = $this->createMock(ClockInterface::class);
 
-        $this->handler = new StartConsultationFromAppointmentHandler(
+        $this->handler = new StartFromAppointmentHandler(
             $this->consultations,
             $this->eligibility,
             $this->contextProvider,

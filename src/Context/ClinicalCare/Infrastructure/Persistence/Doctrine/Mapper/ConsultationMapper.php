@@ -14,7 +14,9 @@ use App\Context\ClinicalCare\Domain\ValueObject\OwnerId;
 use App\Context\ClinicalCare\Domain\ValueObject\UserId;
 use App\Context\ClinicalCare\Domain\ValueObject\Vitals;
 use App\Context\ClinicalCare\Domain\ValueObject\WaitingRoomEntryId;
+use App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity;
 use App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ConsultationEntity;
+use App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ConsultationMapper
@@ -62,8 +64,8 @@ final readonly class ConsultationMapper
     }
 
     /**
-     * @param array<\App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity> $noteEntities
-     * @param array<\App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity> $actEntities
+     * @param array<ClinicalNoteEntity> $noteEntities
+     * @param array<PerformedActEntity> $actEntities
      */
     public function toDomain(ConsultationEntity $entity, array $noteEntities, array $actEntities): Consultation
     {
