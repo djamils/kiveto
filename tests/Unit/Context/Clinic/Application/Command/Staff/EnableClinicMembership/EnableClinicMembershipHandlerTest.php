@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\EnableClinicMembership;
+
+use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;
+use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembershipHandler;
+use App\Context\Clinic\Domain\Staff\ClinicMembership;
+use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
+use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
+use PHPUnit\Framework\TestCase;
+
+final class EnableClinicMembershipHandlerTest extends TestCase
+{
+    private const string MEMBERSHIP_ID = '01912345-6789-7abc-8def-000000000001';
+
+    public function testEnablesDisabledMembership(): void
+    {
+        $membership = ClinicMembership::reconstitute(
+            id: ClinicMembershipId::fromString(self::MEMBERSHIP_ID),
+            clinicId: ClinicId::fromString('01912345-6789-7abc-8def-000000000002'),
+            userId: UserId::fromString('01912345-6789-7abc-8def-000000000003'),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            status: ClinicMembershipStatus::DISABLED,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+        );
+
+        $repo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $repo->method('findById')->willReturn($membership);
+        $repo->expects(self::once())->method('save');
+
+        $eventBus = $this->createMock(EventBusInterface::class);
+        $eventBus->expects(self::once())->method('publish');
+
+        $handler = new EnableClinicMembershipHandler($repo, new DomainEventPublisher($eventBus));
+        $handler(new EnableClinicMembership(self::MEMBERSHIP_ID));
+
+        self::assertSame(ClinicMembershipStatus::ACTIVE, $membership->status());
+    }
+
+    public function testThrowsWhenNotFound(): void
+    {
+        $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);
+        $repo->method('findById')->willReturn(null);
+
+        $handler = new EnableClinicMembershipHandler($repo, new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $handler(new EnableClinicMembership(self::MEMBERSHIP_ID));
+    }
+}
