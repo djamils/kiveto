@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller;
 
-use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,7 +27,7 @@ final class HomeController extends AbstractController
 
         if (null !== $currentClinicId) {
             $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
-            \assert($clinic instanceof \App\Context\Clinic\Application\Query\GetClinic\ClinicDto);
+            \assert($clinic instanceof \App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto);
             $clinicName = $clinic->name;
         }
 

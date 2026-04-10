@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Clinic\Application\Port\ClinicMembershipReadRepositoryInterface;
-use App\Context\Clinic\Application\Query\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;

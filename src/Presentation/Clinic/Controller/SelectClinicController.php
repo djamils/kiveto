@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller;
 
-use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
-use App\Context\Clinic\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\Context\Clinic\Application\Query\ListClinicsForUser\ListClinicsForUser;
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;

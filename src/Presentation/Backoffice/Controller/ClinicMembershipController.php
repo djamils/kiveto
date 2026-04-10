@@ -10,8 +10,8 @@ use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityW
 use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;
-use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection; // phpcs:ignore Generic.Files.LineLength.TooLong
-use App\Context\Clinic\Application\Query\ListClinics\ListClinics;
+use App\Context\Clinic\Application\Query\Clinic\ListClinics\ClinicCollection; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Clinic\Application\Query\Clinic\ListClinics\ListClinics;
 use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\ListAllMemberships;
 use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\MembershipCollection;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;

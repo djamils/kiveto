@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Port;
 
-use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection;
+use App\Context\Clinic\Application\Query\Clinic\ListClinics\ClinicCollection;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 
 interface ClinicReadRepositoryInterface

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Infrastructure\Security\Symfony;
 
-use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResult;
-use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResultType;
-use App\Context\Clinic\Application\Query\ResolveActiveClinic\ResolveActiveClinic;
+use App\Context\Clinic\Application\Query\Clinic\ResolveActiveClinic\ActiveClinicResult;
+use App\Context\Clinic\Application\Query\Clinic\ResolveActiveClinic\ActiveClinicResultType;
+use App\Context\Clinic\Application\Query\Clinic\ResolveActiveClinic\ResolveActiveClinic;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;

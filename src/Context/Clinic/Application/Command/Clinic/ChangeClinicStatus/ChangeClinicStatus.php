@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Context\Clinic\Application\Command\Clinic\ChangeClinicStatus;
+
+use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Shared\Application\Bus\CommandInterface;
+
+final readonly class ChangeClinicStatus implements CommandInterface
+{
+    public function __construct(
+        public string $clinicId,
+        public ClinicStatus $status,
+    ) {
+    }
+}

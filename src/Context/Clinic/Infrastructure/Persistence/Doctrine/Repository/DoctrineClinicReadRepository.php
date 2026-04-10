@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Clinic\Application\Port\ClinicReadRepositoryInterface;
-use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection;
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\Clinic\ListClinics\ClinicCollection;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use Doctrine\ORM\EntityManagerInterface;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Security\Symfony;
 
-use App\Context\Clinic\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResult;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Clinic\ResolveActiveClinic\ActiveClinicResult;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Shared\Application\Bus\QueryBusInterface;

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
-use App\Context\Clinic\Application\Command\ActivateClinicGroup\ActivateClinicGroup;
-use App\Context\Clinic\Application\Command\CreateClinicGroup\CreateClinicGroup;
-use App\Context\Clinic\Application\Command\RenameClinicGroup\RenameClinicGroup;
-use App\Context\Clinic\Application\Command\SuspendClinicGroup\SuspendClinicGroup;
-use App\Context\Clinic\Application\Query\ListClinicGroups\ClinicGroupCollection;
-use App\Context\Clinic\Application\Query\ListClinicGroups\ListClinicGroups;
+use App\Context\Clinic\Application\Command\Clinic\ActivateClinicGroup\ActivateClinicGroup;
+use App\Context\Clinic\Application\Command\Clinic\CreateClinicGroup\CreateClinicGroup;
+use App\Context\Clinic\Application\Command\Clinic\RenameClinicGroup\RenameClinicGroup;
+use App\Context\Clinic\Application\Command\Clinic\SuspendClinicGroup\SuspendClinicGroup;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicGroups\ClinicGroupCollection;
+use App\Context\Clinic\Application\Query\Clinic\ListClinicGroups\ListClinicGroups;
 use App\Context\Clinic\Domain\ValueObject\ClinicGroupStatus;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
