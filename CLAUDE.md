@@ -72,6 +72,9 @@ that drops a BC's coverage below 100% is rejected.
   rules — if a rule conflicts with what you want to do, the rule wins.
 - PHPStan runs at `level: max`. Don't use `mixed` or untyped arrays at API
   boundaries; add proper type annotations.
+- **Single-action controllers only.** Every controller has exactly one
+  public method (`__invoke()`) handling exactly one route. No multi-action
+  controllers — split them into separate classes instead.
 
 ### 6. Bounded Context boundaries
 
@@ -120,3 +123,5 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 - Don't skip pre-commit hooks (`--no-verify`) or sign-off (`--no-gpg-sign`)
   unless the user explicitly tells you to.
 - Don't create new documentation files (`*.md`) unless explicitly asked.
+- Don't put multiple routes/actions in a single controller — one
+  `__invoke()` per controller, no exceptions.

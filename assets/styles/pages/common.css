@@ -7,7 +7,7 @@
   /* Full-height pages — remove body padding, enable flex fill.
      Targets main[data-page] directly for padding,
      uses :has() to propagate overflow/flex to parent containers. */
-  main.app-body[data-page="clinic_scheduling_dashboard"],
+  main.app-body[data-page="clinic_scheduling_agenda"],
   main.app-body[data-page="clinic_scheduling_planning"],
   main.app-body[data-page="clinic_scheduling_waiting_room"],
   main.app-body[data-page="clinic_hospitalisations"],
@@ -20,7 +20,7 @@
   }
 
   /* Propagate full-height to scroll and main-wrap containers */
-  .app-scroll:has(> main[data-page="clinic_scheduling_dashboard"]),
+  .app-scroll:has(> main[data-page="clinic_scheduling_agenda"]),
   .app-scroll:has(> main[data-page="clinic_scheduling_planning"]),
   .app-scroll:has(> main[data-page="clinic_scheduling_waiting_room"]),
   .app-scroll:has(> main[data-page="clinic_hospitalisations"]),
