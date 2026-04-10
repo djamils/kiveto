@@ -124,17 +124,6 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        $previous = $exception->getPrevious();
-
-        if ($previous instanceof AuthenticationDeniedException) {
-            return new JsonResponse([
-                'error' => [
-                    'code'    => $previous->errorCode(),
-                    'message' => $previous->getMessage(),
-                ],
-            ], $previous->httpStatusCode());
-        }
-
         return new JsonResponse([
             'error' => [
                 'code'    => 'AUTHENTICATION_FAILED',

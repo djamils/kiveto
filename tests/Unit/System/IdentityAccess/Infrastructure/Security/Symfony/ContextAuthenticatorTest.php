@@ -101,7 +101,7 @@ final class ContextAuthenticatorTest extends TestCase
         $authenticator->authenticate($request);
     }
 
-    public function testOnAuthenticationFailureForDomainException(): void
+    public function testOnAuthenticationFailureReturnsGenericErrorForDomainException(): void
     {
         $authenticator = $this->authenticatorFor(UserType::CLINIC);
         $request       = Request::create('https://clinic.example/login', 'POST');
@@ -111,7 +111,7 @@ final class ContextAuthenticatorTest extends TestCase
         );
 
         self::assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
-        self::assertStringContainsString('INVALID_CREDENTIALS', (string) $response->getContent());
+        self::assertStringContainsString('AUTHENTICATION_FAILED', (string) $response->getContent());
     }
 
     public function testOnAuthenticationFailureDefault(): void
@@ -280,6 +280,7 @@ final class ContextAuthenticatorTest extends TestCase
             engagement: ClinicMembershipEngagement::EMPLOYEE,
             validFrom: new \DateTimeImmutable(),
             validUntil: null,
+            isDefault: false,
         );
 
         $queryBus = $this->createStub(QueryBusInterface::class);
@@ -325,6 +326,7 @@ final class ContextAuthenticatorTest extends TestCase
             engagement: ClinicMembershipEngagement::EMPLOYEE,
             validFrom: new \DateTimeImmutable(),
             validUntil: null,
+            isDefault: false,
         );
 
         $clinic2 = new AccessibleClinic(
@@ -336,6 +338,7 @@ final class ContextAuthenticatorTest extends TestCase
             engagement: ClinicMembershipEngagement::CONTRACTOR,
             validFrom: new \DateTimeImmutable(),
             validUntil: null,
+            isDefault: false,
         );
 
         $queryBus = $this->createStub(QueryBusInterface::class);
