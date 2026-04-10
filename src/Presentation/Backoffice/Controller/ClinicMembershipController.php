@@ -6,7 +6,7 @@ namespace App\Presentation\Backoffice\Controller;
 
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;

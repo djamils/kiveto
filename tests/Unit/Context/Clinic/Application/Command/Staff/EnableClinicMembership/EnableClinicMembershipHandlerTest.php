@@ -54,7 +54,8 @@ final class EnableClinicMembershipHandlerTest extends TestCase
         $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repo->method('findById')->willReturn(null);
 
-        $handler = new EnableClinicMembershipHandler($repo, new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $publisher = new DomainEventPublisher($this->createStub(EventBusInterface::class));
+        $handler   = new EnableClinicMembershipHandler($repo, $publisher);
 
         $this->expectException(\InvalidArgumentException::class);
         $handler(new EnableClinicMembership(self::MEMBERSHIP_ID));

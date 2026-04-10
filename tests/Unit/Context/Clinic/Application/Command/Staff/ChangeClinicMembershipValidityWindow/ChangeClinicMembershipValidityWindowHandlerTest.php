@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow;
 
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindowHandler;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindowHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
@@ -48,7 +48,8 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
         $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repo->method('findById')->willReturn(null);
 
-        $handler = new ChangeClinicMembershipValidityWindowHandler($repo, new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $publisher = new DomainEventPublisher($this->createStub(EventBusInterface::class));
+        $handler   = new ChangeClinicMembershipValidityWindowHandler($repo, $publisher);
 
         $this->expectException(\InvalidArgumentException::class);
         $handler(new ChangeClinicMembershipValidityWindow(self::MEMBERSHIP_ID, new \DateTimeImmutable(), null));

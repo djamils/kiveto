@@ -54,7 +54,8 @@ final class ChangeClinicMembershipRoleHandlerTest extends TestCase
         $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repo->method('findById')->willReturn(null);
 
-        $handler = new ChangeClinicMembershipRoleHandler($repo, new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $publisher = new DomainEventPublisher($this->createStub(EventBusInterface::class));
+        $handler   = new ChangeClinicMembershipRoleHandler($repo, $publisher);
 
         $this->expectException(\InvalidArgumentException::class);
         $handler(new ChangeClinicMembershipRole(self::MEMBERSHIP_ID, ClinicMemberRole::MANAGER));

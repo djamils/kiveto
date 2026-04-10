@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Context\Clinic\Infrastructure\Persistence\Doctri
 
 use App\Context\Clinic\Application\Port\MembershipAdminRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
@@ -164,8 +165,8 @@ final class DoctrineMembershipAdminRepositoryTest extends KernelTestCase
             ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
         ;
 
-        $employees   = $this->repo()->listAll(engagement: \App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement::EMPLOYEE);
-        $contractors = $this->repo()->listAll(engagement: \App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement::CONTRACTOR);
+        $employees   = $this->repo()->listAll(engagement: ClinicMembershipEngagement::EMPLOYEE);
+        $contractors = $this->repo()->listAll(engagement: ClinicMembershipEngagement::CONTRACTOR);
 
         self::assertSame(0, $employees->total);
         self::assertSame(1, $contractors->total);

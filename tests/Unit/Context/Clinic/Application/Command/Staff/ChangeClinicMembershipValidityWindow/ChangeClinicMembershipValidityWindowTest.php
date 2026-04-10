@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow;
 
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
 use PHPUnit\Framework\TestCase;
 
 final class ChangeClinicMembershipValidityWindowTest extends TestCase

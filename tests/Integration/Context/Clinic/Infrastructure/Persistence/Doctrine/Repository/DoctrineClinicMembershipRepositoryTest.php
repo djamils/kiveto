@@ -49,7 +49,9 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
 
     public function testFindByIdReturnsNullWhenNotFound(): void
     {
-        self::assertNull($this->repo()->findById(ClinicMembershipId::fromString('01912345-6789-7abc-8def-000000000099')));
+        $id = ClinicMembershipId::fromString('01912345-6789-7abc-8def-000000000099');
+
+        self::assertNull($this->repo()->findById($id));
     }
 
     public function testFindByClinicAndUser(): void

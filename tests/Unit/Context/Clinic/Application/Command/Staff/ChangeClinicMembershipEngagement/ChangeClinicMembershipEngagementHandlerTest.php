@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement;
 
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagementHandler;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagementHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
@@ -44,7 +44,8 @@ final class ChangeClinicMembershipEngagementHandlerTest extends TestCase
         $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);
         $repo->method('findById')->willReturn(null);
 
-        $handler = new ChangeClinicMembershipEngagementHandler($repo, new DomainEventPublisher($this->createStub(EventBusInterface::class)));
+        $publisher = new DomainEventPublisher($this->createStub(EventBusInterface::class));
+        $handler   = new ChangeClinicMembershipEngagementHandler($repo, $publisher);
 
         $this->expectException(\InvalidArgumentException::class);
         $handler(new ChangeClinicMembershipEngagement(self::MEMBERSHIP_ID, ClinicMembershipEngagement::CONTRACTOR));
