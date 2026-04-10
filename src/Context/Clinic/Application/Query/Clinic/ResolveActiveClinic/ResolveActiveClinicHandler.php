@@ -27,7 +27,7 @@ final readonly class ResolveActiveClinicHandler
         return match (true) {
             0 === $count => ActiveClinicResult::none(),
             1 === $count => $this->handleSingleClinic($accessibleClinics[0]),
-            default      => ActiveClinicResult::multiple($this->filterAccessibleClinics($accessibleClinics)),
+            default      => $this->resolveMultipleClinics($this->filterAccessibleClinics($accessibleClinics)),
         };
     }
 
@@ -36,6 +36,20 @@ final readonly class ResolveActiveClinicHandler
         \assert($clinic instanceof AccessibleClinic);
 
         return ActiveClinicResult::single($clinic);
+    }
+
+    /**
+     * @param AccessibleClinic[] $clinics
+     */
+    private function resolveMultipleClinics(array $clinics): ActiveClinicResult
+    {
+        $defaults = array_filter($clinics, static fn (AccessibleClinic $clinic): bool => $clinic->isDefault);
+
+        if (1 === \count($defaults)) {
+            return ActiveClinicResult::single(reset($defaults));
+        }
+
+        return ActiveClinicResult::multiple($clinics);
     }
 
     /**
