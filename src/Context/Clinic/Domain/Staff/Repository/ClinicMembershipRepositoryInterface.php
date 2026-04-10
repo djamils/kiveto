@@ -18,4 +18,8 @@ interface ClinicMembershipRepositoryInterface
     public function findByClinicAndUser(ClinicId $clinicId, UserId $userId): ?ClinicMembership;
 
     public function existsByClinicAndUser(ClinicId $clinicId, UserId $userId): bool;
+
+    public function findDefaultForUser(UserId $userId): ?ClinicMembership;
+
+    public function saveAll(ClinicMembership ...$memberships): void;
 }

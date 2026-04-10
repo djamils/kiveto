@@ -45,6 +45,7 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
         self::assertSame(ClinicMemberRole::VETERINARY, $found->role());
         self::assertSame(ClinicMembershipEngagement::EMPLOYEE, $found->engagement());
         self::assertSame(ClinicMembershipStatus::ACTIVE, $found->status());
+        self::assertFalse($found->isDefault());
     }
 
     public function testFindByIdReturnsNullWhenNotFound(): void
@@ -102,6 +103,52 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
             ClinicId::fromString(self::CLINIC_ID),
             UserId::fromString(self::USER_ID),
         ));
+    }
+
+    public function testFindDefaultForUserReturnsActiveDefaultMembership(): void
+    {
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withUserId(self::USER_ID)
+            ->asVeterinary()
+            ->asEmployee()
+            ->asDefault()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $found = $this->repo()->findDefaultForUser(UserId::fromString(self::USER_ID));
+
+        self::assertNotNull($found);
+        self::assertTrue($found->isDefault());
+        self::assertSame(self::USER_ID, $found->userId()->toString());
+    }
+
+    public function testFindDefaultForUserReturnsNullWhenNoDefault(): void
+    {
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withUserId(self::USER_ID)
+            ->asVeterinary()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        self::assertNull($this->repo()->findDefaultForUser(UserId::fromString(self::USER_ID)));
+    }
+
+    public function testFindDefaultForUserIgnoresDisabledMembership(): void
+    {
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withUserId(self::USER_ID)
+            ->asVeterinary()
+            ->asEmployee()
+            ->asDefault()
+            ->disabled()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        self::assertNull($this->repo()->findDefaultForUser(UserId::fromString(self::USER_ID)));
     }
 
     public function testSaveUpdatesExistingEntity(): void

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Auth;
 
+use App\Context\Clinic\Application\Command\Staff\SetDefaultClinic\SetDefaultClinic;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
@@ -24,6 +26,7 @@ final class SubmitSelectClinicController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly CommandBusInterface $commandBus,
     ) {
     }
 
@@ -63,15 +66,20 @@ final class SubmitSelectClinicController extends AbstractController
 
                 return $this->redirectToRoute('clinic_select_clinic');
             }
-
-            $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($clinicId));
-
-            return $this->redirectToRoute('clinic_dashboard');
         } catch (\Throwable $e) {
             $this->addFlash('error', 'Erreur: ' . $e->getMessage());
 
             return $this->redirectToRoute('clinic_select_clinic');
         }
+
+        $this->commandBus->dispatch(new SetDefaultClinic(
+            clinicId: $clinicId,
+            userId: $user->id(),
+        ));
+
+        $this->currentClinicContext->setCurrentClinicId(ClinicId::fromString($clinicId));
+
+        return $this->redirectToRoute('clinic_dashboard');
     }
 
     private function assertCsrf(Request $request): void

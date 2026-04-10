@@ -47,6 +47,9 @@ class ClinicMembershipEntity
     #[ORM\Column(name: 'created_at_utc', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(name: 'is_default', type: 'boolean', options: ['default' => false])]
+    private bool $isDefault = false;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -135,5 +138,15 @@ class ClinicMembershipEntity
     public function setCreatedAt(\DateTimeImmutable $createdAt): void
     {
         $this->createdAt = $createdAt;
+    }
+
+    public function getIsDefault(): bool
+    {
+        return $this->isDefault;
+    }
+
+    public function setIsDefault(bool $isDefault): void
+    {
+        $this->isDefault = $isDefault;
     }
 }

@@ -37,6 +37,7 @@ final class ClinicMembershipMapperTest extends TestCase
         $entity->setValidFrom(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
         $entity->setValidUntil(new \DateTimeImmutable('2026-12-31T23:59:59Z'));
         $entity->setCreatedAt(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $entity->setIsDefault(false);
 
         $domain = $this->mapper->toDomain($entity);
 
@@ -49,6 +50,7 @@ final class ClinicMembershipMapperTest extends TestCase
         self::assertSame($entity->getValidFrom(), $domain->validFrom());
         self::assertSame($entity->getValidUntil(), $domain->validUntil());
         self::assertSame($entity->getCreatedAt(), $domain->createdAt());
+        self::assertFalse($domain->isDefault());
     }
 
     public function testToDomainWithNullValidUntil(): void
@@ -63,10 +65,12 @@ final class ClinicMembershipMapperTest extends TestCase
         $entity->setValidFrom(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
         $entity->setValidUntil(null);
         $entity->setCreatedAt(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $entity->setIsDefault(true);
 
         $domain = $this->mapper->toDomain($entity);
 
         self::assertNull($domain->validUntil());
+        self::assertTrue($domain->isDefault());
         self::assertSame(ClinicMemberRole::MANAGER, $domain->role());
         self::assertSame(ClinicMembershipEngagement::CONTRACTOR, $domain->engagement());
         self::assertSame(ClinicMembershipStatus::DISABLED, $domain->status());
@@ -84,6 +88,7 @@ final class ClinicMembershipMapperTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-01-01T00:00:00Z'),
             validUntil: new \DateTimeImmutable('2026-06-30T23:59:59Z'),
             createdAt: new \DateTimeImmutable('2026-01-01T00:00:00Z'),
+            isDefault: false,
         );
 
         $entity = $this->mapper->toEntity($membership);
@@ -97,6 +102,7 @@ final class ClinicMembershipMapperTest extends TestCase
         self::assertSame($membership->validFrom(), $entity->getValidFrom());
         self::assertSame($membership->validUntil(), $entity->getValidUntil());
         self::assertSame($membership->createdAt(), $entity->getCreatedAt());
+        self::assertFalse($entity->getIsDefault());
     }
 
     public function testRoundTripSymmetry(): void
@@ -111,6 +117,7 @@ final class ClinicMembershipMapperTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-03-01T00:00:00Z'),
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-03-01T00:00:00Z'),
+            isDefault: false,
         );
 
         $reconstituted = $this->mapper->toDomain($this->mapper->toEntity($original));
@@ -124,5 +131,6 @@ final class ClinicMembershipMapperTest extends TestCase
         self::assertSame($original->validFrom(), $reconstituted->validFrom());
         self::assertSame($original->validUntil(), $reconstituted->validUntil());
         self::assertSame($original->createdAt(), $reconstituted->createdAt());
+        self::assertSame($original->isDefault(), $reconstituted->isDefault());
     }
 }

@@ -18,6 +18,7 @@ final readonly class AccessibleClinic
         public ClinicMembershipEngagement $engagement,
         public \DateTimeImmutable $validFrom,
         public ?\DateTimeImmutable $validUntil,
+        public bool $isDefault,
     ) {
     }
 }

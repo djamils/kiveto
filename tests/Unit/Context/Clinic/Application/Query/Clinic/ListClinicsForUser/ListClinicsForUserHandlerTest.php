@@ -26,6 +26,7 @@ final class ListClinicsForUserHandlerTest extends TestCase
             engagement: ClinicMembershipEngagement::EMPLOYEE,
             validFrom: new \DateTimeImmutable('2026-01-01'),
             validUntil: null,
+            isDefault: false,
         );
 
         $readRepo = $this->createStub(ClinicMembershipReadRepositoryInterface::class);

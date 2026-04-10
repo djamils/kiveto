@@ -71,6 +71,11 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
         return $this->with(['engagement' => ClinicMembershipEngagement::CONTRACTOR, 'validUntil' => $validUntil]);
     }
 
+    public function asDefault(): self
+    {
+        return $this->with(['isDefault' => true]);
+    }
+
     public function disabled(): self
     {
         return $this->with(['status' => ClinicMembershipStatus::DISABLED]);
@@ -91,6 +96,7 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
             'validFrom'  => $validFrom,
             'validUntil' => null,
             'createdAt'  => $createdAt,
+            'isDefault'  => false,
         ];
     }
 }
