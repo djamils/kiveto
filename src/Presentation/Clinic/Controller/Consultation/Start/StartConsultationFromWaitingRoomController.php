@@ -42,7 +42,7 @@ final class StartConsultationFromWaitingRoomController extends AbstractControlle
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors du démarrage de la consultation : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

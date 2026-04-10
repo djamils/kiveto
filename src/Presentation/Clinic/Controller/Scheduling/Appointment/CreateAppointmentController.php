@@ -50,11 +50,11 @@ final class CreateAppointmentController extends AbstractController
 
             $this->addFlash('success', 'Rendez-vous créé avec succès.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors de la création du rendez-vous : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

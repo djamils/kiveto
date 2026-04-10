@@ -42,11 +42,11 @@ final class StartServiceController extends AbstractController
 
             $this->addFlash('success', 'Service démarré.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

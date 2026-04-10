@@ -45,11 +45,11 @@ final class CreateWalkInController extends AbstractController
 
             $this->addFlash('success', 'Entrée walk-in créée avec succès.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors de la création : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

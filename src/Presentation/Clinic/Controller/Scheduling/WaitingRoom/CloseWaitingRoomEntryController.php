@@ -38,11 +38,11 @@ final class CloseWaitingRoomEntryController extends AbstractController
 
             $this->addFlash('success', 'Entrée fermée.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

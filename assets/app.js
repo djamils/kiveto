@@ -10,7 +10,7 @@ import { createIcons, icons } from 'lucide';
  */
 const PAGE_MODULES = {
   clinic_dashboard:              'pages/home',
-  clinic_scheduling_dashboard:   'pages/scheduling/agenda',
+  clinic_scheduling_agenda:      'pages/scheduling/agenda',
   clinic_scheduling_planning:    'pages/scheduling/planning',
   clinic_scheduling_waiting_room:'pages/scheduling/waiting-room',
   clinic_hospitalisations:       'pages/hospitalisations',

@@ -39,11 +39,11 @@ final class CheckInAppointmentController extends AbstractController
 
             $this->addFlash('success', 'Patient enregistré dans la file d\'attente.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors du check-in : ' . $e->getMessage());
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         }
     }
 }

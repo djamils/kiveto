@@ -38,7 +38,7 @@ final class CloseConsultationController extends AbstractController
 
             $this->addFlash('success', 'Consultation clôturée avec succès.');
 
-            return $this->redirectToRoute('clinic_scheduling_dashboard');
+            return $this->redirectToRoute('clinic_scheduling_agenda');
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors de la clôture : ' . $e->getMessage());
 

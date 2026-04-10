@@ -19,12 +19,12 @@
 
     {# Date navigator #}
     <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border-light);">
-        <a href="{{ path('clinic_scheduling_dashboard', {date: selectedDate|date_modify('-1 day')|date('Y-m-d')}) }}" class="btn btn-secondary btn-xs">
+        <a href="{{ path('clinic_scheduling_agenda', {date: selectedDate|date_modify('-1 day')|date('Y-m-d')}) }}" class="btn btn-secondary btn-xs">
             <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
             Précédent
         </a>
-        <a href="{{ path('clinic_scheduling_dashboard') }}" class="btn btn-secondary btn-xs">Aujourd'hui</a>
-        <a href="{{ path('clinic_scheduling_dashboard', {date: selectedDate|date_modify('+1 day')|date('Y-m-d')}) }}" class="btn btn-secondary btn-xs">
+        <a href="{{ path('clinic_scheduling_agenda') }}" class="btn btn-secondary btn-xs">Aujourd'hui</a>
+        <a href="{{ path('clinic_scheduling_agenda', {date: selectedDate|date_modify('+1 day')|date('Y-m-d')}) }}" class="btn btn-secondary btn-xs">
             Suivant
             <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>

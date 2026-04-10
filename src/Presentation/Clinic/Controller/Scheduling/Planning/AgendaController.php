@@ -16,8 +16,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/scheduling/dashboard', name: 'clinic_scheduling_dashboard', methods: ['GET'])]
-final class DashboardController extends AbstractController
+#[Route('/scheduling/agenda', name: 'clinic_scheduling_agenda', methods: ['GET'])]
+final class AgendaController extends AbstractController
 {
     public function __construct(
         private readonly QueryBusInterface $queryBus,

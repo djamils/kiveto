@@ -1,11 +1,11 @@
 /* assets/styles/pages/scheduling/_shared.css
    Shared layout for Agenda + Planning pages — contextual aside, page header, shell.
-   Scope: matches both clinic_scheduling_dashboard and clinic_scheduling_planning. */
+   Scope: matches both clinic_scheduling_agenda and clinic_scheduling_planning. */
 
 @layer components {
   /* Lock scheduling pages to a flex column with no padding so the
      scheduling-shell can take all remaining height. */
-  [data-page="clinic_scheduling_dashboard"].app-body,
+  [data-page="clinic_scheduling_agenda"].app-body,
   [data-page="clinic_scheduling_planning"].app-body {
     padding: 0;
     display: flex;
@@ -14,7 +14,7 @@
     min-height: 0;
   }
 
-  [data-page="clinic_scheduling_dashboard"],
+  [data-page="clinic_scheduling_agenda"],
   [data-page="clinic_scheduling_planning"] {
 
     .scheduling-shell {
@@ -186,7 +186,7 @@
 
   /* Tablet — collapse aside into a drawer */
   @media (max-width: 1024px) {
-    [data-page="clinic_scheduling_dashboard"],
+    [data-page="clinic_scheduling_agenda"],
     [data-page="clinic_scheduling_planning"] {
       .scheduling-aside {
         position: fixed;
