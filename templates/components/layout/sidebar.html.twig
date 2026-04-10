@@ -75,13 +75,13 @@
   </svg>
 {% endset %}
 
-{# TODO: Replace with real clinic data from backend (user's clinics + active clinic ID) #}
-{% set _clinics_sample = [
-  { id: 'c1', name: clinic.name|default('Ma clinique'), letter: clinic.name|default('C')|first|upper, color: 'bg-brand-600' },
-  { id: 'c2', name: 'Clinique Bastille',  letter: 'B', color: 'bg-success-600' },
-  { id: 'c3', name: 'Clinique Nation',    letter: 'N', color: 'bg-warning-600' },
-] %}
-{% set _active_clinic_id = 'c1' %}
+{# Real clinic data from backend (user's accessible clinics + active clinic ID) #}
+{% set _sidebar_data = clinic_sidebar_data() %}
+{% set _user_clinics = _sidebar_data.clinics %}
+{% set _active_clinic_id = _sidebar_data.activeClinicId %}
+
+{# Color palette for clinic logos #}
+{% set _clinic_colors = ['bg-brand-600', 'bg-success-600', 'bg-warning-600', 'bg-danger-600', 'bg-purple-600', 'bg-sky-600', 'bg-orange-600', 'bg-emerald-600'] %}
 
 {# ── Navigation structure (BC-aligned) ── #}
 {% set nav_items = [
@@ -128,19 +128,26 @@
 
   {# ── Header: clinic switcher ── #}
   <div class="sb-top">
+    {% set _active_clinic_name = clinic.name|default('Ma clinique') %}
+    {% for c in _user_clinics %}
+      {% if c.clinicId == _active_clinic_id %}
+        {% set _active_clinic_name = c.clinicName %}
+      {% endif %}
+    {% endfor %}
     <button
       class="sb-clinic-btn{% if _rail %} ki-tooltip{% endif %}"
-      {% if _rail %}data-tooltip="Changer de clinique" data-tooltip-pos="right"{% endif %}
+      {% if _rail %}data-tooltip="{{ _active_clinic_name }}" data-tooltip-pos="right"{% endif %}
       type="button"
       aria-label="Changer de clinique"
+      title="{{ _active_clinic_name }}"
       data-popover-anchor="clinic-switcher-popover"
       data-popover-align="left"
     >
       <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">
-        {{ clinic.name|default('C')|first|upper }}
+        {{ _active_clinic_name|first|upper }}
       </span>
       <span class="truncate flex-1 min-w-0 text-left">
-        {{ clinic.name|default('Ma clinique') }}
+        {{ _active_clinic_name }}
       </span>
       {{ icon_chevron_down|raw }}
     </button>
@@ -151,13 +158,18 @@
     {# Section 1: clinic list #}
     <div class="clinic-switcher-section">
       <p class="popover-head">Cliniques</p>
-      {% for c in _clinics_sample %}
-        {% set _is_active_clinic = c.id == _active_clinic_id %}
-        <button type="button" class="nav-item">
-          <span class="rounded-md text-white text-xs uppercase shrink-0 flex items-center justify-center {{ c.color }}" style="width:20px;height:20px;">{{ c.letter }}</span>
-          <span class="truncate flex-1 min-w-0 text-left">{{ c.name }}</span>
-          {% if _is_active_clinic %}{{ icon_check|raw }}{% endif %}
-        </button>
+      {% for c in _user_clinics %}
+        {% set _is_active_clinic = c.clinicId == _active_clinic_id %}
+        {% set _color = _clinic_colors[loop.index0 % _clinic_colors|length] %}
+        <form method="post" action="{{ path('clinic_select_clinic_post') }}" style="display:contents;">
+          <input type="hidden" name="_token" value="{{ csrf_token('clinic_select_clinic') }}"/>
+          <input type="hidden" name="clinic_id" value="{{ c.clinicId }}"/>
+          <button type="submit" class="nav-item" title="{{ c.clinicName }}">
+            <span class="rounded-md text-white text-xs uppercase shrink-0 flex items-center justify-center {{ _color }}" style="width:20px;height:20px;">{{ c.clinicName|first|upper }}</span>
+            <span class="truncate flex-1 min-w-0 text-left">{{ c.clinicName }}</span>
+            {% if _is_active_clinic %}{{ icon_check|raw }}{% endif %}
+          </button>
+        </form>
       {% endfor %}
     </div>
 
