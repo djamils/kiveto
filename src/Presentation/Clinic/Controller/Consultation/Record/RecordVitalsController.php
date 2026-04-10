@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Consultation\Record;
 
-use App\Context\ClinicalCare\Application\Command\RecordVitals\RecordVitals;
+use App\Context\Consultation\Application\Command\RecordVitals\RecordVitals;
 use App\Shared\Application\Bus\CommandBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

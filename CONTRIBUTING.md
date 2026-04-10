@@ -95,14 +95,14 @@ Format:
 ### Scope
 
 Optional but recommended. Use the BC name in lowercase or a short subsystem
-name: `ui-kit`, `scheduling`, `clinical-care`, `clients`, `agenda`, etc.
+name: `ui-kit`, `scheduling`, `consultation`, `clients`, `agenda`, etc.
 
 ### Examples
 
 ```
 feat(scheduling): add WaitingRoomEntry triage update flow
 fix(ui-kit): align tooltip arrow with the rectangle
-test(clinical-care): cover Application/Command handlers
+test(consultation): cover Application/Command handlers
 chore(ci): get make ci fully green (cs-fixer + phpcs + phpstan + tests)
 refactor(shared): rename DbalRow → RowAccessor with explanatory PHPDoc
 docs: move per-BC implementation notes to docs/legacy

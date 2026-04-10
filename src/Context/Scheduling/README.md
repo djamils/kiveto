@@ -42,7 +42,7 @@ The **Scheduling** Bounded Context manages appointments and waiting room operati
 - **AccessControl BC**: Validates practitioner membership and roles
 - **Client BC**: Validates owner existence
 - **Animal BC**: Validates animal existence
-- **ClinicalCare BC** (future): Consultation start triggers service start in scheduling
+- **Consultation BC** (future): Consultation start triggers service start in scheduling
 
 ## Anti-Corruption Layer
 

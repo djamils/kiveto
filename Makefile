@@ -99,7 +99,7 @@ endef
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	assets tailwind-build \
-	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations shared-migrations \
+	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
 
@@ -251,7 +251,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations clinical-care-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -288,10 +288,10 @@ scheduling-migrations:
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Scheduling' --filter-expression='/^scheduling__/')
 	@$(call ok,Scheduling migrations generated)
 
-clinical-care-migrations:
-	@$(call step,Generating migrations for ClinicalCare...)
-	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\ClinicalCare' --filter-expression='/^clinical_care__/')
-	@$(call ok,ClinicalCare migrations generated)
+consultation-migrations:
+	@$(call step,Generating migrations for Consultation...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Consultation' --filter-expression='/^consultation__/')
+	@$(call ok,Consultation migrations generated)
 
 shared-migrations:
 	@$(call step,Generating migrations for Shared (technical tables)...)
