@@ -267,33 +267,33 @@ services:
     App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
 
     # ============================================================================
-    # BOUNDED CONTEXT: CLINICAL CARE
+    # BOUNDED CONTEXT: CONSULTATION
     # ============================================================================
 
-    App\Context\ClinicalCare\Domain\Repository\ConsultationRepositoryInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
+    App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface:
+        class: App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationRepository
 
-    App\Context\ClinicalCare\Application\Port\ConsultationReadRepositoryInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
+    App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface:
+        class: App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
 
-    App\Context\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\Clinic\DbalPractitionerEligibilityChecker
+    App\Context\Consultation\Application\Port\PractitionerEligibilityCheckerInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Clinic\DbalPractitionerEligibilityChecker
 
-    App\Context\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider
+    App\Context\Consultation\Application\Port\SchedulingAppointmentContextProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider
 
-    App\Context\ClinicalCare\Application\Port\SchedulingServiceCoordinatorInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
+    App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
 
-    App\Context\ClinicalCare\Application\Port\OwnerExistenceCheckerInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+    App\Context\Consultation\Application\Port\OwnerExistenceCheckerInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
 
-    App\Context\ClinicalCare\Application\Port\AnimalExistenceCheckerInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+    App\Context\Consultation\Application\Port\AnimalExistenceCheckerInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
 
-    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
-    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
-    App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
 
 when@dev: &services_dev
     services:

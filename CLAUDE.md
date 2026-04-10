@@ -17,7 +17,7 @@ working on the repo behaves consistently across sessions and machines.
 - **Architecture:** DDD monolith organised by Bounded Contexts under
   `src/<BC>/{Domain,Application,Infrastructure}`. Presentation lives under
   `src/Presentation/<App>/`.
-- **Bounded Contexts:** AccessControl, Animal, Client, Clinic, ClinicalCare,
+- **Bounded Contexts:** AccessControl, Animal, Client, Clinic, Consultation,
   IdentityAccess, Scheduling, Shared, Translation. Each has its canonical
   description in `src/<BC>/README.md`.
 - **Planning method:** BMAD (`_bmad/`), artefacts in `_bmad-output/`.

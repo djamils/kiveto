@@ -63,12 +63,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Scheduling/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Scheduling
-            ClinicalCare:
+            Consultation:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Context/ClinicalCare/Infrastructure/Persistence/Doctrine/Entity'
-                prefix: 'App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Entity'
-                alias: ClinicalCare
+                dir: '%kernel.project_dir%/src/Context/Consultation/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Consultation
         controller_resolver:
             auto_mapping: false
 

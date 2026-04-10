@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Consultation\Start;
 
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromAppointment\StartConsultationFromAppointment;
+use App\Context\Consultation\Application\Command\StartConsultationFromAppointment\StartConsultationFromAppointment;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

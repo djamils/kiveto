@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Consultation\Start;
 
-use App\Context\ClinicalCare\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry as StartConsultationFromEntry; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Consultation\Application\Command\StartConsultationFromWaitingRoomEntry\StartConsultationFromWaitingRoomEntry as StartConsultationFromEntry; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
