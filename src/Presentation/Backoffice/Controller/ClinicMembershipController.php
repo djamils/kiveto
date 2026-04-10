@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
-use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow;
+use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
+use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
+use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;
+use App\Context\Clinic\Application\Query\ListClinics\ClinicCollection; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Application\Query\ListClinics\ListClinics;
+use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\ListAllMemberships;
+use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\MembershipCollection;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
-use App\System\AccessControl\Application\Command\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
-use App\System\AccessControl\Application\Command\CreateClinicMembership\CreateClinicMembership;
-use App\System\AccessControl\Application\Command\DisableClinicMembership\DisableClinicMembership;
-use App\System\AccessControl\Application\Command\EnableClinicMembership\EnableClinicMembership;
-use App\System\AccessControl\Application\Query\ListAllMemberships\ListAllMemberships;
-use App\System\AccessControl\Application\Query\ListAllMemberships\MembershipCollection;
-use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
-use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
-use App\System\AccessControl\Domain\ValueObject\ClinicMembershipStatus;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -82,7 +82,7 @@ Toutes les entities incluent les index optimisés selon le spec.
   - `findById()` : Reconstitution aggregate complet
 
 #### Adapters (Anti-corruption - 5 fichiers)
-- ✅ `DbalPractitionerEligibilityChecker` - Query `access_control__clinic_memberships`
+- ✅ `DbalPractitionerEligibilityChecker` - Query `clinic__clinic_memberships`
 - ✅ `DbalSchedulingAppointmentContextProvider` - Query `scheduling__appointments` + joins
 - ✅ `MessengerSchedulingServiceCoordinator` - Dispatch commands Scheduling via Messenger
 - ✅ `DbalOwnerExistenceChecker` - Query `client__owners`

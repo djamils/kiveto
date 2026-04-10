@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\Context\Clinic\Application\Query\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResult;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\System\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
-use App\System\AccessControl\Domain\ValueObject\ClinicMemberRole;
-use App\System\AccessControl\Domain\ValueObject\ClinicMembershipEngagement;
 use App\System\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
@@ -332,7 +332,7 @@ final class ContextAuthenticatorTest extends TestCase
             clinicName: 'Clinic 2',
             clinicSlug: 'clinic-2',
             clinicStatus: 'active',
-            memberRole: ClinicMemberRole::CLINIC_ADMIN,
+            memberRole: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::CONTRACTOR,
             validFrom: new \DateTimeImmutable(),
             validUntil: null,

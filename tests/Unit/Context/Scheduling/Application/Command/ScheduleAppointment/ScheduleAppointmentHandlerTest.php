@@ -91,7 +91,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
                 self::callback(fn ($id) => $id instanceof UserId),
                 self::callback(fn ($id) => $id instanceof ClinicId),
                 self::anything(),
-                ['VETERINARY', 'ASSISTANT_VETERINARY']
+                ['VETERINARY', 'VETERINARY_ASSISTANT']
             )
             ->willReturn(true)
         ;

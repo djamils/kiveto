@@ -177,19 +177,38 @@ services:
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicGroupMapper: ~
 
     # ============================================================================
-    # BOUNDED CONTEXT: CLINIC ACCESS
+    # BOUNDED CONTEXT: CLINIC — STAFF
     # ============================================================================
 
-    App\System\AccessControl\Domain\Repository\ClinicMembershipRepositoryInterface:
-        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
+    App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipRepository
 
-    App\System\AccessControl\Application\Port\ClinicMembershipReadRepositoryInterface:
-        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
+    App\Context\Clinic\Application\Port\ClinicMembershipReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineClinicMembershipReadRepository
 
-    App\System\AccessControl\Application\Port\MembershipAdminRepositoryInterface:
-        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
+    App\Context\Clinic\Application\Port\MembershipAdminRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineMembershipAdminRepository
 
-    App\System\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+    App\Context\Clinic\Application\Port\UserExistenceCheckerInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\DbalUserExistenceChecker
+
+    App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+
+    # ============================================================================
+    # BOUNDED CONTEXT: ACCESS CONTROL (RBAC)
+    # ============================================================================
+
+    App\System\AccessControl\Domain\Repository\RoleAssignmentRepositoryInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineRoleAssignmentRepository
+
+    App\System\AccessControl\Domain\Repository\RolePermissionRepositoryInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\Repository\DoctrineRolePermissionRepository
+
+    App\System\AccessControl\Application\Port\AccessControlServiceInterface:
+        class: App\System\AccessControl\Infrastructure\Persistence\Doctrine\DbalAccessControlService
+
+    App\System\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\RoleAssignmentMapper: ~
+    App\System\AccessControl\Infrastructure\Persistence\Doctrine\Mapper\RolePermissionMapper: ~
 
     # Context
     App\Shared\Application\Context\CurrentClinicContextInterface:
@@ -233,7 +252,7 @@ services:
         class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomReadRepository
 
     App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface:
-        class: App\Context\Scheduling\Infrastructure\Adapter\AccessControl\DbalMembershipEligibilityChecker
+        class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\DbalMembershipEligibilityChecker
 
     App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker
@@ -258,7 +277,7 @@ services:
         class: App\Context\ClinicalCare\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
 
     App\Context\ClinicalCare\Application\Port\PractitionerEligibilityCheckerInterface:
-        class: App\Context\ClinicalCare\Infrastructure\Adapter\AccessControl\DbalPractitionerEligibilityChecker
+        class: App\Context\ClinicalCare\Infrastructure\Adapter\Clinic\DbalPractitionerEligibilityChecker
 
     App\Context\ClinicalCare\Application\Port\SchedulingAppointmentContextProviderInterface:
         class: App\Context\ClinicalCare\Infrastructure\Adapter\Scheduling\DbalSchedulingAppointmentContextProvider

@@ -7,7 +7,8 @@ namespace App\Fixtures\Dataset;
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
-use App\Fixtures\System\AccessControl\Story\ClinicMembershipDataStory;
+use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
+use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
@@ -26,7 +27,10 @@ final class ClinicDataset extends Story
 
         ClinicUserFactory::createMany(5);
 
-        // Create memberships (assign users to clinics)
+        // Seed RBAC role_permissions (static reference data)
+        RolePermissionSeedStory::load();
+
+        // Create memberships (assign users to clinics — triggers RBAC sync via events)
         ClinicMembershipDataStory::load();
 
         // Create Client BC data

@@ -63,7 +63,7 @@ final readonly class ScheduleAppointmentHandler
                 userId: $practitionerUserId,
                 clinicId: $clinicId,
                 at: $now,
-                allowedRoles: ['VETERINARY', 'ASSISTANT_VETERINARY'],
+                allowedRoles: ['VETERINARY', 'VETERINARY_ASSISTANT'],
             );
             if (!$isEligible) {
                 throw new \DomainException(\sprintf(

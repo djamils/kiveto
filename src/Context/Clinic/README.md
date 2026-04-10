@@ -13,7 +13,36 @@ Le Bounded Context **Clinic** gère les informations relatives aux cliniques vé
 - Clients et animaux
 - Dossiers médicaux
 - Finance
-- Accès VET/ASV (géré par un futur BC ClinicMembership/AccessControl)
+- Agendas et rendez-vous (Scheduling BC)
+- Finance
+
+## Staff Sub-domain
+
+The **Staff** sub-domain (`Domain/Staff/`) manages clinic memberships:
+who works at which clinic, in which role.
+
+### Core Concepts
+
+- **ClinicMembership** — aggregate root linking a user to a clinic with a
+  role, engagement type, validity window, and status.
+- **ClinicPermission** — enum of permission slugs (e.g. `create_prescription`,
+  `view_medical_record`).
+- **StaffRolePermissionMap** — static map: role → list of permissions. Used
+  by AccessControl BC to seed its RBAC projection.
+
+### Roles (`ClinicMemberRole`)
+
+- `MANAGER` — full clinic administration
+- `VETERINARY` — clinical practitioner
+- `VETERINARY_ASSISTANT` — assists veterinary staff
+- `RECEPTIONIST` — front desk operations
+
+### Event Flow
+
+ClinicMembership domain events (`ClinicMembershipCreated`, `Disabled`,
+`Enabled`, `RoleChanged`, etc.) are published via `DomainEventPublisher`
+after persistence. The AccessControl BC listens to these events and syncs
+its RBAC projection (role assignments + role permissions)
 
 ## Architecture
 

@@ -6,11 +6,11 @@ namespace App\Presentation\Clinic\Controller;
 
 use App\Context\Clinic\Application\Query\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\GetClinic\GetClinic;
+use App\Context\Clinic\Application\Query\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\System\AccessControl\Application\Query\ListClinicsForUser\AccessibleClinic;
-use App\System\AccessControl\Application\Query\ListClinicsForUser\ListClinicsForUser;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;

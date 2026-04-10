@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Infrastructure\Security\Symfony;
 
+use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResult;
+use App\Context\Clinic\Application\Query\ResolveActiveClinic\ActiveClinicResultType;
+use App\Context\Clinic\Application\Query\ResolveActiveClinic\ResolveActiveClinic;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\System\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResult;
-use App\System\AccessControl\Application\Query\ResolveActiveClinic\ActiveClinicResultType;
-use App\System\AccessControl\Application\Query\ResolveActiveClinic\ResolveActiveClinic;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserHandler;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticateUserQuery;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\AuthenticationContext;
