@@ -62,6 +62,24 @@ final class DoctrineClinicMembershipReadRepositoryTest extends KernelTestCase
         self::assertSame([], $result);
     }
 
+    public function testReturnsClinicWithNonNullValidUntil(): void
+    {
+        $clinic = ClinicEntityFactory::createOne(['slug' => 'test-read-validuntil']);
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId(self::USER_ID)
+            ->asVeterinary()
+            ->asContractor(new \DateTimeImmutable('2027-01-01'))
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $result = $this->repo()->findAccessibleClinicsForUser(UserId::fromString(self::USER_ID));
+
+        self::assertCount(1, $result);
+        self::assertNotNull($result[0]->validUntil);
+    }
+
     private function repo(): ClinicMembershipReadRepositoryInterface
     {
         $repo = self::getContainer()->get(ClinicMembershipReadRepositoryInterface::class);

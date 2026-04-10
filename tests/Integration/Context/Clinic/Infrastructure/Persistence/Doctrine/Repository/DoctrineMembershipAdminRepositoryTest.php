@@ -95,6 +95,83 @@ final class DoctrineMembershipAdminRepositoryTest extends KernelTestCase
         self::assertSame([], $collection->memberships);
     }
 
+    public function testListAllWithClinicIdFilter(): void
+    {
+        $clinic1 = ClinicEntityFactory::createOne(['slug' => 'admin-clinic1']);
+        $clinic2 = ClinicEntityFactory::createOne(['slug' => 'admin-clinic2']);
+        $user    = ClinicUserFactory::new()->withEmail('clinicfilter@kiveto.local')->create();
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic1->getId()->toRfc4122())
+            ->withUserId($user->getId()->toRfc4122())
+            ->asVeterinary()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic2->getId()->toRfc4122())
+            ->withUserId($user->getId()->toRfc4122())
+            ->asManager()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $collection = $this->repo()->listAll(clinicId: $clinic1->getId()->toRfc4122());
+
+        self::assertSame(1, $collection->total);
+        self::assertSame($clinic1->getId()->toRfc4122(), $collection->memberships[0]->clinicId);
+    }
+
+    public function testListAllWithUserIdFilter(): void
+    {
+        $clinic = ClinicEntityFactory::createOne(['slug' => 'admin-userfilter']);
+        $user1  = ClinicUserFactory::new()->withEmail('user1filter@kiveto.local')->create();
+        $user2  = ClinicUserFactory::new()->withEmail('user2filter@kiveto.local')->create();
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($user1->getId()->toRfc4122())
+            ->asVeterinary()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($user2->getId()->toRfc4122())
+            ->asManager()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $collection = $this->repo()->listAll(userId: $user1->getId()->toRfc4122());
+
+        self::assertSame(1, $collection->total);
+        self::assertSame($user1->getId()->toRfc4122(), $collection->memberships[0]->userId);
+    }
+
+    public function testListAllWithEngagementFilter(): void
+    {
+        $clinic = ClinicEntityFactory::createOne(['slug' => 'admin-engfilter']);
+        $user   = ClinicUserFactory::new()->withEmail('engfilter@kiveto.local')->create();
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($user->getId()->toRfc4122())
+            ->asVeterinary()
+            ->asContractor(new \DateTimeImmutable('2027-01-01'))
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $employees   = $this->repo()->listAll(engagement: \App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement::EMPLOYEE);
+        $contractors = $this->repo()->listAll(engagement: \App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement::CONTRACTOR);
+
+        self::assertSame(0, $employees->total);
+        self::assertSame(1, $contractors->total);
+        self::assertNotNull($contractors->memberships[0]->validUntil);
+    }
+
     private function repo(): MembershipAdminRepositoryInterface
     {
         $repo = self::getContainer()->get(MembershipAdminRepositoryInterface::class);
