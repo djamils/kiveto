@@ -7,6 +7,7 @@ namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
@@ -80,5 +81,45 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
         ]);
 
         return $count > 0;
+    }
+
+    public function findDefaultForUser(UserId $userId): ?ClinicMembership
+    {
+        $repository = $this->entityManager->getRepository(ClinicMembershipEntity::class);
+
+        $entity = $repository->findOneBy([
+            'userId'    => Uuid::fromString($userId->toString()),
+            'isDefault' => true,
+            'status'    => ClinicMembershipStatus::ACTIVE,
+        ]);
+
+        if (null === $entity) {
+            return null;
+        }
+
+        return $this->mapper->toDomain($entity);
+    }
+
+    public function saveAll(ClinicMembership ...$memberships): void
+    {
+        $repository = $this->entityManager->getRepository(ClinicMembershipEntity::class);
+
+        foreach ($memberships as $membership) {
+            $entity = $repository->find(Uuid::fromString($membership->id()->toString()));
+
+            if (null === $entity) {
+                $entity = $this->mapper->toEntity($membership);
+                $this->entityManager->persist($entity);
+            } else {
+                $entity->setRole($membership->role());
+                $entity->setEngagement($membership->engagement());
+                $entity->setStatus($membership->status());
+                $entity->setValidFrom($membership->validFrom());
+                $entity->setValidUntil($membership->validUntil());
+                $entity->setIsDefault($membership->isDefault());
+            }
+        }
+
+        $this->entityManager->flush();
     }
 }

@@ -96,7 +96,8 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): Response
     {
         $authContext = $this->resolveContext($request);
-        $userId      = trim($token->getUserIdentifier());
+        $user        = $token->getUser();
+        $userId      = $user instanceof SecurityUser ? $user->id() : '';
 
         if ('' === $userId) {
             $redirectUrl = $this->urlGenerator->generate($this->loginRouteForContext($authContext));

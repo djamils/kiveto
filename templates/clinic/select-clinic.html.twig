@@ -31,7 +31,7 @@
         <p class="head-title">Bienvenue sur VET-OS</p>
         <p class="head-sub">Choisissez votre clinique par défaut — elle sera chargée automatiquement à chaque connexion.</p>
       </div>
-      <button class="btn-deconnect" onclick="window.location.href='{{ path('clinic_login') }}'" type="button" aria-label="Se déconnecter">
+      <button class="btn-deconnect" onclick="window.location.href='{{ path('_logout_clinic') }}'" type="button" aria-label="Se déconnecter">
         Déconnexion
       </button>
     </div>
@@ -66,7 +66,7 @@
       <p class="sel-label" id="sel-label">Sélectionnez votre clinique par défaut</p>
     </div>
     <div class="foot-actions">
-      <button class="btn-back" onclick="window.location.href='{{ path('clinic_login') }}'" type="button">Retour</button>
+      <button class="btn-back" onclick="window.location.href='{{ path('_logout_clinic') }}'" type="button">Retour</button>
       <button class="btn-enter" id="enter-btn" onclick="enter()" type="button" disabled
         aria-label="Définir cette clinique et accéder à l'application">
         Définir et accéder
@@ -95,7 +95,7 @@
   {# Inject server-side clinic data for the external module #}
   window.CLINICS = [
     {% for clinic in clinics %}
-    { id: "{{ clinic.clinicId }}", name: "{{ clinic.clinicName }}", slug: "{{ clinic.clinicSlug }}", role: "{{ clinic.memberRole.value }}", engagement: "{{ clinic.engagement.value }}" },
+    { id: "{{ clinic.clinicId }}", name: "{{ clinic.clinicName }}", slug: "{{ clinic.clinicSlug }}", role: "{{ clinic.memberRole.value }}", engagement: "{{ clinic.engagement.value }}", isDefault: {{ clinic.isDefault ? 'true' : 'false' }} },
     {% endfor %}
   ];
 </script>

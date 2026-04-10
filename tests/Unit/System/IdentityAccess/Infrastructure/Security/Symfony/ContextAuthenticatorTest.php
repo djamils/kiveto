@@ -19,6 +19,7 @@ use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -128,12 +129,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::CLINIC);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-123');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
-            $token,
+            $this->tokenWithUser(),
             'main',
         );
 
@@ -144,9 +142,6 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::PORTAL);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-456');
-
         $request = Request::create(
             'https://portal.example/login',
             'POST',
@@ -154,7 +149,7 @@ final class ContextAuthenticatorTest extends TestCase
         );
         $request->headers->set('Accept', 'application/json');
 
-        $response = $authenticator->onAuthenticationSuccess($request, $token, 'main');
+        $response = $authenticator->onAuthenticationSuccess($request, $this->tokenWithUser('user-456', UserType::PORTAL), 'main');
 
         self::assertInstanceOf(JsonResponse::class, $response);
         $payload = json_decode((string) $response->getContent(), true);
@@ -165,9 +160,6 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-789');
-
         $request = Request::create(
             'https://backoffice.example/login',
             'POST',
@@ -177,7 +169,7 @@ final class ContextAuthenticatorTest extends TestCase
             ],
         );
 
-        $response = $authenticator->onAuthenticationSuccess($request, $token, 'main');
+        $response = $authenticator->onAuthenticationSuccess($request, $this->tokenWithUser('user-789', UserType::BACKOFFICE), 'main');
 
         self::assertInstanceOf(JsonResponse::class, $response);
         $payload = json_decode((string) $response->getContent(), true);
@@ -188,12 +180,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::CLINIC);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
-            $token,
+            $this->tokenWithoutUser(),
             'main',
         );
 
@@ -205,12 +194,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::PORTAL);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://portal.example/login', 'POST', server: ['HTTP_HOST' => 'portal.example']),
-            $token,
+            $this->tokenWithoutUser(),
             'main',
         );
 
@@ -222,12 +208,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://backoffice.example/login', 'POST', server: ['HTTP_HOST' => 'backoffice.example']),
-            $token,
+            $this->tokenWithoutUser(),
             'main',
         );
 
@@ -239,12 +222,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::PORTAL);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-456');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://portal.example/login', 'POST', server: ['HTTP_HOST' => 'portal.example']),
-            $token,
+            $this->tokenWithUser('user-456', UserType::PORTAL),
             'main',
         );
 
@@ -256,12 +236,9 @@ final class ContextAuthenticatorTest extends TestCase
     {
         $authenticator = $this->authenticatorFor(UserType::BACKOFFICE);
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-789');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://backoffice.example/login', 'POST', server: ['HTTP_HOST' => 'backoffice.example']),
-            $token,
+            $this->tokenWithUser('user-789', UserType::BACKOFFICE),
             'main',
         );
 
@@ -302,12 +279,9 @@ final class ContextAuthenticatorTest extends TestCase
             $currentClinicContext
         );
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-123');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
-            $token,
+            $this->tokenWithUser(),
             'main',
         );
 
@@ -353,12 +327,9 @@ final class ContextAuthenticatorTest extends TestCase
             $currentClinicContext
         );
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-123');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
-            $token,
+            $this->tokenWithUser(),
             'main',
         );
 
@@ -380,12 +351,9 @@ final class ContextAuthenticatorTest extends TestCase
             $currentClinicContext
         );
 
-        $token = $this->createStub(TokenInterface::class);
-        $token->method('getUserIdentifier')->willReturn('user-123');
-
         $response = $authenticator->onAuthenticationSuccess(
             Request::create('https://clinic.example/login', 'POST', server: ['HTTP_HOST' => 'clinic.example']),
-            $token,
+            $this->tokenWithUser(),
             'main',
         );
 
@@ -566,6 +534,25 @@ final class ContextAuthenticatorTest extends TestCase
             $queryBus,
             $currentClinicContext
         );
+    }
+
+    private function tokenWithUser(string $userId = 'user-123', UserType $type = UserType::CLINIC): TokenInterface
+    {
+        $securityUser = new SecurityUser($userId, 'test@example.com', $type);
+        $token        = $this->createStub(TokenInterface::class);
+        $token->method('getUser')->willReturn($securityUser);
+        $token->method('getUserIdentifier')->willReturn('test@example.com');
+
+        return $token;
+    }
+
+    private function tokenWithoutUser(): TokenInterface
+    {
+        $token = $this->createStub(TokenInterface::class);
+        $token->method('getUser')->willReturn(null);
+        $token->method('getUserIdentifier')->willReturn('');
+
+        return $token;
     }
 
     private function urlGenerator(): UrlGeneratorInterface
