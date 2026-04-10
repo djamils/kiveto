@@ -36,6 +36,7 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
             $entity->setStatus($membership->status());
             $entity->setValidFrom($membership->validFrom());
             $entity->setValidUntil($membership->validUntil());
+            $entity->setIsDefault($membership->isDefault());
         }
 
         $this->entityManager->flush();

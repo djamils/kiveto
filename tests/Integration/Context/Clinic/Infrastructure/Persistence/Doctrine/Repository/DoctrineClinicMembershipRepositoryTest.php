@@ -45,6 +45,7 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
         self::assertSame(ClinicMemberRole::VETERINARY, $found->role());
         self::assertSame(ClinicMembershipEngagement::EMPLOYEE, $found->engagement());
         self::assertSame(ClinicMembershipStatus::ACTIVE, $found->status());
+        self::assertFalse($found->isDefault());
     }
 
     public function testFindByIdReturnsNullWhenNotFound(): void

@@ -24,6 +24,7 @@ final class AccessibleClinicTest extends TestCase
             engagement: ClinicMembershipEngagement::EMPLOYEE,
             validFrom: $validFrom,
             validUntil: null,
+            isDefault: false,
         );
 
         self::assertSame('clinic-uuid', $clinic->clinicId);

@@ -34,6 +34,7 @@ final class EnableClinicMembershipHandlerTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-01-01'),
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: false,
         );
 
         $repo = $this->createMock(ClinicMembershipRepositoryInterface::class);

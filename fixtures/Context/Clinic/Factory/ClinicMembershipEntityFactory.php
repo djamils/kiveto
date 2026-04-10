@@ -91,6 +91,7 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
             'validFrom'  => $validFrom,
             'validUntil' => null,
             'createdAt'  => $createdAt,
+            'isDefault'  => false,
         ];
     }
 }

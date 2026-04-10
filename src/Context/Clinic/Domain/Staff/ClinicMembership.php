@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Domain\Staff;
 
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipCreated;
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDefaultChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDisabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEnabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEngagementChanged;
@@ -29,6 +30,7 @@ final class ClinicMembership extends AggregateRoot
     private \DateTimeImmutable $validFrom;
     private ?\DateTimeImmutable $validUntil;
     private \DateTimeImmutable $createdAt;
+    private bool $isDefault;
 
     private function __construct()
     {
@@ -56,6 +58,7 @@ final class ClinicMembership extends AggregateRoot
         $membership->validFrom  = $validFrom;
         $membership->validUntil = $validUntil;
         $membership->createdAt  = $createdAt;
+        $membership->isDefault  = false;
 
         $membership->recordDomainEvent(new ClinicMembershipCreated(
             membershipId: $id->toString(),
@@ -80,6 +83,7 @@ final class ClinicMembership extends AggregateRoot
         \DateTimeImmutable $validFrom,
         ?\DateTimeImmutable $validUntil,
         \DateTimeImmutable $createdAt,
+        bool $isDefault,
     ): self {
         $membership             = new self();
         $membership->id         = $id;
@@ -91,6 +95,7 @@ final class ClinicMembership extends AggregateRoot
         $membership->validFrom  = $validFrom;
         $membership->validUntil = $validUntil;
         $membership->createdAt  = $createdAt;
+        $membership->isDefault  = $isDefault;
 
         return $membership;
     }
@@ -177,6 +182,43 @@ final class ClinicMembership extends AggregateRoot
             userId: $this->userId->toString(),
             validFrom: $validFrom->format(\DateTimeInterface::ATOM),
             validUntil: $validUntil?->format(\DateTimeInterface::ATOM),
+        ));
+    }
+
+    public function isDefault(): bool
+    {
+        return $this->isDefault;
+    }
+
+    public function setAsDefault(): void
+    {
+        if ($this->isDefault) {
+            return;
+        }
+
+        $this->isDefault = true;
+
+        $this->recordDomainEvent(new ClinicMembershipDefaultChanged(
+            membershipId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            userId: $this->userId->toString(),
+            isDefault: true,
+        ));
+    }
+
+    public function clearDefault(): void
+    {
+        if (!$this->isDefault) {
+            return;
+        }
+
+        $this->isDefault = false;
+
+        $this->recordDomainEvent(new ClinicMembershipDefaultChanged(
+            membershipId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            userId: $this->userId->toString(),
+            isDefault: false,
         ));
     }
 

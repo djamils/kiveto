@@ -33,6 +33,25 @@ final class DoctrineClinicMembershipReadRepositoryTest extends KernelTestCase
 
         self::assertCount(1, $result);
         self::assertSame($clinic->getId()->toRfc4122(), $result[0]->clinicId);
+        self::assertFalse($result[0]->isDefault);
+    }
+
+    public function testFindAccessibleClinicsReturnsIsDefaultField(): void
+    {
+        $clinic = ClinicEntityFactory::createOne(['slug' => 'test-read-default']);
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId(self::USER_ID)
+            ->asVeterinary()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01'), 'isDefault' => true])
+        ;
+
+        $result = $this->repo()->findAccessibleClinicsForUser(UserId::fromString(self::USER_ID));
+
+        self::assertCount(1, $result);
+        self::assertTrue($result[0]->isDefault);
     }
 
     public function testReturnsEmptyForDisabledMembership(): void

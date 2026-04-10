@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Clinic\Domain\Staff;
 
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipCreated;
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDefaultChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDisabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEnabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEngagementChanged;
@@ -223,6 +224,7 @@ final class ClinicMembershipTest extends TestCase
             validFrom: $validFrom,
             validUntil: $validUntil,
             createdAt: $createdAt,
+            isDefault: false,
         );
 
         self::assertSame(self::ID, $membership->id()->toString());
@@ -233,6 +235,124 @@ final class ClinicMembershipTest extends TestCase
         self::assertSame($validUntil, $membership->validUntil());
         self::assertSame($createdAt, $membership->createdAt());
         self::assertSame([], $membership->recordedDomainEvents());
+    }
+
+    public function testCreateSetsIsDefaultToFalse(): void
+    {
+        $membership = $this->createMembership();
+
+        self::assertFalse($membership->isDefault());
+    }
+
+    public function testSetAsDefaultRecordsEvent(): void
+    {
+        $membership = $this->createMembership();
+        $_          = $membership->pullDomainEvents();
+
+        $membership->setAsDefault();
+
+        self::assertTrue($membership->isDefault());
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipDefaultChanged::class, $events[0]);
+        $expectedPayload = [
+            'membershipId' => self::ID,
+            'clinicId'     => self::CLINIC_ID,
+            'userId'       => self::USER_ID,
+            'isDefault'    => true,
+        ];
+        self::assertSame($expectedPayload, $events[0]->payload());
+    }
+
+    public function testSetAsDefaultIsIdempotent(): void
+    {
+        $membership = $this->createMembership();
+        $_          = $membership->pullDomainEvents();
+
+        $membership->setAsDefault();
+        $membership->setAsDefault();
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+    }
+
+    public function testClearDefaultRecordsEvent(): void
+    {
+        $membership = $this->createMembership();
+        $membership->setAsDefault();
+        $_ = $membership->pullDomainEvents();
+
+        $membership->clearDefault();
+
+        self::assertFalse($membership->isDefault());
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipDefaultChanged::class, $events[0]);
+        $expectedPayload = [
+            'membershipId' => self::ID,
+            'clinicId'     => self::CLINIC_ID,
+            'userId'       => self::USER_ID,
+            'isDefault'    => false,
+        ];
+        self::assertSame($expectedPayload, $events[0]->payload());
+    }
+
+    public function testClearDefaultIsIdempotent(): void
+    {
+        $membership = $this->createMembership();
+        $_          = $membership->pullDomainEvents();
+
+        $membership->clearDefault();
+
+        self::assertSame([], $membership->recordedDomainEvents());
+    }
+
+    public function testReconstituteWithIsDefaultTrue(): void
+    {
+        $membership = ClinicMembership::reconstitute(
+            id: ClinicMembershipId::fromString(self::ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            userId: UserId::fromString(self::USER_ID),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            status: ClinicMembershipStatus::ACTIVE,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: true,
+        );
+
+        self::assertTrue($membership->isDefault());
+    }
+
+    public function testReconstituteWithIsDefaultTrueThenClearDefaultRecordsEvent(): void
+    {
+        $membership = ClinicMembership::reconstitute(
+            id: ClinicMembershipId::fromString(self::ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            userId: UserId::fromString(self::USER_ID),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            status: ClinicMembershipStatus::ACTIVE,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: true,
+        );
+
+        $membership->clearDefault();
+
+        self::assertFalse($membership->isDefault());
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipDefaultChanged::class, $events[0]);
+        $expectedPayload = [
+            'membershipId' => self::ID,
+            'clinicId'     => self::CLINIC_ID,
+            'userId'       => self::USER_ID,
+            'isDefault'    => false,
+        ];
+        self::assertSame($expectedPayload, $events[0]->payload());
     }
 
     private function createMembership(): ClinicMembership
@@ -264,6 +384,7 @@ final class ClinicMembershipTest extends TestCase
             validFrom: $validFrom ?? new \DateTimeImmutable('2026-01-01'),
             validUntil: $validUntil,
             createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: false,
         );
     }
 }

@@ -46,7 +46,8 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                 m.role,
                 m.engagement,
                 m.valid_from_utc,
-                m.valid_until_utc
+                m.valid_until_utc,
+                m.is_default
             FROM %s m
             INNER JOIN %s c ON c.id = m.clinic_id
             WHERE m.user_id = :userId
@@ -75,6 +76,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                 \assert(\is_string($row['valid_from_utc']));
                 \assert(\is_string($row['role']) || \is_int($row['role']));
                 \assert(\is_string($row['engagement']) || \is_int($row['engagement']));
+                \assert(\is_int($row['is_default']) || \is_bool($row['is_default']));
 
                 return new AccessibleClinic(
                     clinicId: $row['clinic_id'],
@@ -91,6 +93,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                             return new \DateTimeImmutable($val);
                         })($row['valid_until_utc'])
                         : null,
+                    isDefault: (bool) $row['is_default'],
                 );
             },
             $results
