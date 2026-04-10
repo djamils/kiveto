@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class NoAccessController extends AbstractController
 {
     #[Route(path: '/no-access', name: 'clinic_no_access', methods: ['GET'])]
-    public function noAccess(): Response
+    public function __invoke(): Response
     {
         return $this->render('clinic/no-clinic-access.html.twig');
     }
