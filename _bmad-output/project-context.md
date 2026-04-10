@@ -177,6 +177,10 @@ _This file contains critical rules and patterns that AI agents must follow when 
   - `<select multiple>` stays native
   - Forms return **422** on validation errors automatically (Symfony 7.4+)
   - Redirect with **302/303** on success
+  - **Form strategy by app:**
+    - **Backoffice** — Symfony Form component + classic POST (full-page submit, standard redirect)
+    - **VetApp / Portal** — Symfony Form component + Stimulus AJAX (fluid UX, Turbo Stream responses)
+    - **Request DTO without Form** — only for pure JSON/API endpoints, never for Twig-rendered pages
 
 ---
 
