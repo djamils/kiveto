@@ -216,17 +216,9 @@ function renderWeek() {
     </div>`;
   }
 
-  // Week label: month(s) + year, with an ISO week-number badge next to it.
-  const ws = weekDays[0];
-  const we = weekDays[weekDays.length - 1];
-  const label = document.getElementById('week-label');
-  if (label) {
-    const monthLabel = view === 'week'
-      ? monthRangeLabel(ws, we)
-      : `${MONTHS_FR[ws.getMonth()]} ${ws.getFullYear()}`;
-    const week = isoWeekNumber(ws);
-    label.innerHTML = `<span>${escapeHtml(monthLabel)}</span><span class="week-number-badge">Semaine ${week}</span>`;
-  }
+  // The "Month year · Semaine N" label in the static header is patched
+  // in place by patchHeaderNav() / renderHeaderLabel(), called from
+  // bootstrapFromPayload() before renderWeek(). Nothing to do here.
 
   // Day headers
   const todayIso = toClinicLocalParts(nowDate, AGENDA_DATA.clinicTimezone).dateStr;
@@ -663,8 +655,103 @@ function bootstrapFromPayload() {
   buildVetIndex();
   prepareAppointments();
   buildWeekDays();
+  patchHeaderNav();
   renderWeek();
   syncSidebarCalendar();
+}
+
+// Update the static page-header: nav link hrefs, view-toggle active state,
+// and the "Month year · Semaine N" label. Done in place so the header DOM
+// is never rebuilt on frame navigation — no visible snap.
+function patchHeaderNav() {
+  if (!AGENDA_DATA) return;
+
+  const [y, m, d] = AGENDA_DATA.selectedDate.split('-').map(Number);
+  const sel = new Date(y, m - 1, d);
+  const step = view === 'day' ? 1 : 7;
+
+  const prev = new Date(sel);
+  prev.setDate(sel.getDate() - step);
+  const next = new Date(sel);
+  next.setDate(sel.getDate() + step);
+
+  const setHref = (selector, url) => {
+    const el = document.querySelector(selector);
+    if (el) el.setAttribute('href', url);
+  };
+  setHref('[data-nav="prev"]', `/scheduling/agenda?date=${isoDate(prev)}&view=${view}`);
+  setHref('[data-nav="next"]', `/scheduling/agenda?date=${isoDate(next)}&view=${view}`);
+  setHref('[data-nav="today"]', `/scheduling/agenda?view=${view}`);
+  setHref('[data-nav="week-view"]', `/scheduling/agenda?date=${AGENDA_DATA.selectedDate}&view=week`);
+  setHref('[data-nav="day-view"]', `/scheduling/agenda?date=${AGENDA_DATA.selectedDate}&view=day`);
+
+  document.querySelectorAll('[data-nav="week-view"]').forEach((el) => {
+    el.classList.toggle('is-active', view === 'week');
+  });
+  document.querySelectorAll('[data-nav="day-view"]').forEach((el) => {
+    el.classList.toggle('is-active', view === 'day');
+  });
+
+  renderHeaderLabel();
+}
+
+// Structured label: two child spans (month + week badge). On first run we
+// build them; on subsequent runs we only touch a span if its text actually
+// changed, and the change is wrapped in a quick fade so identical renders
+// produce zero visual movement.
+function renderHeaderLabel() {
+  const label = document.getElementById('week-label');
+  if (!label || !AGENDA_DATA) return;
+
+  const ws = weekDays[0];
+  const we = weekDays[weekDays.length - 1];
+  const monthLabel = view === 'week'
+    ? monthRangeLabel(ws, we)
+    : `${MONTHS_FR[ws.getMonth()]} ${ws.getFullYear()}`;
+  const weekText = `Semaine ${isoWeekNumber(ws)}`;
+
+  let monthEl = label.querySelector('.week-month-label');
+  let badgeEl = label.querySelector('.week-number-badge');
+
+  if (!monthEl || !badgeEl) {
+    // First render: build the structure.
+    label.innerHTML = '';
+    monthEl = document.createElement('span');
+    monthEl.className = 'week-month-label';
+    monthEl.textContent = monthLabel;
+    badgeEl = document.createElement('span');
+    badgeEl.className = 'week-number-badge';
+    badgeEl.textContent = weekText;
+    label.appendChild(monthEl);
+    label.appendChild(badgeEl);
+    return;
+  }
+
+  // Subsequent renders: only touch what changed, fade in place.
+  if (monthEl.textContent !== monthLabel) fadeSwapText(monthEl, monthLabel);
+  if (badgeEl.textContent !== weekText) fadeSwapText(badgeEl, weekText);
+}
+
+// Quick fade-out → swap text → fade-in on a single element. No-op if the
+// content is already up to date (caller guards).
+const LABEL_FADE_OUT_MS = 70;
+const LABEL_FADE_IN_MS = 110;
+function fadeSwapText(el, newText) {
+  el.style.transition = `opacity ${LABEL_FADE_OUT_MS}ms ease-out`;
+  el.style.opacity = '0';
+  const onOut = () => {
+    el.removeEventListener('transitionend', onOut);
+    el.textContent = newText;
+    el.style.transition = `opacity ${LABEL_FADE_IN_MS}ms ease-in`;
+    el.style.opacity = '1';
+    const onIn = () => {
+      el.removeEventListener('transitionend', onIn);
+      el.style.transition = '';
+      el.style.opacity = '';
+    };
+    el.addEventListener('transitionend', onIn);
+  };
+  el.addEventListener('transitionend', onOut);
 }
 
 function syncSidebarCalendar() {
@@ -741,15 +828,13 @@ function onCalendarSelect(e) {
 }
 
 function onNavigationClick(e) {
-  // Capture-phase delegated click on any <a> inside the agenda frame, fired
-  // before Turbo intercepts the click. We only set _pendingNavDirection so
-  // the upcoming turbo:before-frame-render handler knows which way to slide.
+  // Capture-phase delegated click on any <a data-turbo-frame="agenda-frame">,
+  // fired before Turbo intercepts the click. The header lives OUTSIDE the
+  // frame so we match by attribute instead of DOM containment.
   const target = e.target;
   if (!target || typeof target.closest !== 'function') return;
-  const a = target.closest('a');
+  const a = target.closest('a[data-turbo-frame="agenda-frame"]');
   if (!a || !a.href) return;
-  const frame = document.getElementById('agenda-frame');
-  if (!frame || !frame.contains(a)) return;
   _pendingNavDirection = directionFromHref(a.href);
 }
 

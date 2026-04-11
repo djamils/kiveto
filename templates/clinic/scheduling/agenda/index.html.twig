@@ -28,29 +28,27 @@
     currentUserId: currentUserId,
   }) }}
 
-  {# ── MAIN CONTENT (Turbo Frame) ── #}
-  {# Only the agenda grid + its JSON payload are inside the frame so that
-   # calendar-based navigation swaps just the grid without re-rendering the
-   # aside, calendar or filters. History advance is handled manually in
-   # agenda.js via history.pushState() because data-turbo-action="advance"
-   # on the frame caused layout glitches when combined with link clicks. #}
-  <turbo-frame id="agenda-frame">
+  {# ── MAIN CONTENT ── #}
+  {# The page header lives OUTSIDE the turbo-frame so it's never swapped:
+   # nav link hrefs, is-active state and the week label are patched in place
+   # from agenda.js whenever the frame reloads. The `data-turbo-frame`
+   # attribute on each <a> still routes its click to the frame. #}
   <div class="scheduling-content">
 
-    {# PAGE HEADER (no topbar) #}
+    {# PAGE HEADER (no topbar) — static across frame swaps #}
     <div class="scheduling-page-header">
       <button class="btn-burger" onclick="toggleAgendaSidebar()" aria-label="Filtres">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
 
       <div class="scheduling-page-header-nav">
-        <a href="{{ todayLink }}" class="data-filter-btn data-filter-btn--sm" id="today-btn">Aujourd'hui</a>
+        <a href="{{ todayLink }}" data-nav="today" data-turbo-frame="agenda-frame" class="data-filter-btn data-filter-btn--sm" id="today-btn">Aujourd'hui</a>
 
         <div class="scheduling-page-header-chevrons">
-          <a href="{{ prevLink }}" class="data-filter-btn data-filter-btn--sm" aria-label="Précédent">
+          <a href="{{ prevLink }}" data-nav="prev" data-turbo-frame="agenda-frame" class="data-filter-btn data-filter-btn--sm" aria-label="Précédent">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
           </a>
-          <a href="{{ nextLink }}" class="data-filter-btn data-filter-btn--sm" aria-label="Suivant">
+          <a href="{{ nextLink }}" data-nav="next" data-turbo-frame="agenda-frame" class="data-filter-btn data-filter-btn--sm" aria-label="Suivant">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
           </a>
         </div>
@@ -61,8 +59,8 @@
       <div style="flex:1;"></div>
 
       <div class="scheduling-view-toggle">
-        <a href="{{ weekViewLink }}" id="view-week" class="{{ view == 'week' ? 'is-active' : '' }}">Semaine</a>
-        <a href="{{ dayViewLink }}" id="view-day" class="{{ view == 'day' ? 'is-active' : '' }}">Jour</a>
+        <a href="{{ weekViewLink }}" data-nav="week-view" data-turbo-frame="agenda-frame" id="view-week" class="{{ view == 'week' ? 'is-active' : '' }}">Semaine</a>
+        <a href="{{ dayViewLink }}" data-nav="day-view" data-turbo-frame="agenda-frame" id="view-day" class="{{ view == 'day' ? 'is-active' : '' }}">Jour</a>
       </div>
 
       <button id="free-slots-btn" type="button" onclick="toggleFreeSlots()" class="data-filter-btn data-filter-btn--sm">
@@ -82,44 +80,44 @@
       </button>
     </div>
 
-    {# AGENDA GRID #}
-    <div class="agenda-wrap">
-      <div class="agenda-head" id="agenda-head" style="grid-template-columns:55px repeat(7,1fr) 6px;">
-        <div style="background:#fff;"></div>
+    {# ── AGENDA GRID (Turbo Frame — only this swaps on navigation) ── #}
+    <turbo-frame id="agenda-frame">
+      <div class="agenda-wrap">
+        <div class="agenda-head" id="agenda-head" style="grid-template-columns:55px repeat(7,1fr) 6px;">
+          <div style="background:#fff;"></div>
+        </div>
+        <div class="agenda-body" id="agenda-body">
+          <div class="agenda-inner" id="agenda-inner" data-turbo-temporary style="grid-template-columns:55px repeat(7,1fr);"></div>
+        </div>
       </div>
-      <div class="agenda-body" id="agenda-body">
-        <div class="agenda-inner" id="agenda-inner" data-turbo-temporary style="grid-template-columns:55px repeat(7,1fr);"></div>
-      </div>
-    </div>
+
+      {#
+       # Server → client payload for agenda.js. Expected shape:
+       # {
+       #   appointments: list<AppointmentItem>
+       #   veterinarians: list<ClinicVeterinarianItem>
+       #   view: 'day' | 'week'
+       #   selectedDate: string ("Y-m-d")
+       #   currentUserId: string (UUID)
+       #   clinicTimezone: string (IANA)
+       #   checkinUrlTemplate: string (URL with literal '__ID__' placeholder)
+       # }
+       # Inside the frame so it's delivered alongside the replaced grid.
+       #}
+      <script type="application/json" id="agenda-data">
+      {{ {
+        appointments: appointments,
+        veterinarians: veterinarians,
+        view: view,
+        selectedDate: selectedDate|date('Y-m-d'),
+        currentUserId: currentUserId,
+        clinicTimezone: clinicTimezone,
+        checkinUrlTemplate: checkinUrlTemplate,
+      }|json_encode|raw }}
+      </script>
+    </turbo-frame>
 
   </div>
-
-  {#
-   # Server → client payload for agenda.js. Expected shape:
-   # {
-   #   appointments: list<AppointmentItem>  // {id, clinicId, ownerId?, animalId?, practitionerUserId?, startsAtUtc ("Y-m-d H:i:s"), durationMinutes, status, reason?, notes?}
-   #   veterinarians: list<ClinicVeterinarianItem>  // {userId, role, engagement}
-   #   view: 'day' | 'week'
-   #   selectedDate: string ("Y-m-d")
-   #   currentUserId: string (UUID)
-   #   clinicTimezone: string (IANA, e.g. "Europe/Paris")
-   #   checkinUrlTemplate: string (URL with literal '__ID__' placeholder)
-   # }
-   # Kept inside the turbo-frame so a frame navigation delivers the new
-   # payload alongside the replaced grid.
-   #}
-  <script type="application/json" id="agenda-data">
-  {{ {
-    appointments: appointments,
-    veterinarians: veterinarians,
-    view: view,
-    selectedDate: selectedDate|date('Y-m-d'),
-    currentUserId: currentUserId,
-    clinicTimezone: clinicTimezone,
-    checkinUrlTemplate: checkinUrlTemplate,
-  }|json_encode|raw }}
-  </script>
-  </turbo-frame>
 </div>
 
 {# OVERLAY (close popups) #}
