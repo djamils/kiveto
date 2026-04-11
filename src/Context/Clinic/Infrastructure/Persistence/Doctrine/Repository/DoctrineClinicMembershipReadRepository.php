@@ -6,10 +6,12 @@ namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Clinic\Application\Port\ClinicMembershipReadRepositoryInterface;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
+use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -94,6 +96,48 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                         })($row['valid_until_utc'])
                         : null,
                     isDefault: (bool) $row['is_default'],
+                );
+            },
+            $results
+        );
+    }
+
+    public function findVeterinariansForClinic(ClinicId $clinicId): array
+    {
+        $sql = \sprintf(
+            <<<'SQL'
+            SELECT
+                BIN_TO_UUID(m.user_id) AS user_id,
+                m.role,
+                m.engagement
+            FROM %s m
+            INNER JOIN %s c ON c.id = m.clinic_id
+            WHERE m.clinic_id = :clinicId
+              AND m.status = :activeStatus
+              AND m.role = :veterinaryRole
+              AND c.status = 'active'
+            ORDER BY m.created_at_utc ASC, m.user_id ASC
+        SQL,
+            $this->membershipTableName,
+            self::CLINIC_TABLE_NAME,
+        );
+
+        $results = $this->connection->fetchAllAssociative($sql, [
+            'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+            'activeStatus'   => ClinicMembershipStatus::ACTIVE->value,
+            'veterinaryRole' => ClinicMemberRole::VETERINARY->value,
+        ]);
+
+        return array_map(
+            function (array $row): ClinicVeterinarianItem {
+                \assert(\is_string($row['user_id']));
+                \assert(\is_string($row['role']) || \is_int($row['role']));
+                \assert(\is_string($row['engagement']) || \is_int($row['engagement']));
+
+                return new ClinicVeterinarianItem(
+                    userId: $row['user_id'],
+                    role: (string) $row['role'],
+                    engagement: (string) $row['engagement'],
                 );
             },
             $results

@@ -2,8 +2,8 @@
 title: 'Wire Agenda Page to Real Backend Data'
 slug: 'wire-agenda-to-real-data'
 created: '2026-04-11'
-status: 'ready-for-dev'
-stepsCompleted: [1, 2, 3, 4]
+status: 'completed'
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 tech_stack:
   - PHP 8.5
   - Symfony 7.4

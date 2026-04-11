@@ -11,10 +11,15 @@
  #   page             string   'agenda' | 'planning' (default: 'agenda')
  #   selected_date    string   ISO yyyy-mm-dd of the initially selected day
  #   week_highlight   bool     Highlight the whole active week (agenda mode)
+ #   veterinarians    list     List of ClinicVeterinarianItem {userId, role, engagement}
+ #   currentUserId    ?string  Current user id — highlighted as "Moi"
  #}
 {% set _page = page|default('agenda') %}
 {% set _selected_date = selected_date|default('') %}
 {% set _week_highlight = week_highlight|default(false) %}
+{% set _veterinarians = veterinarians|default([]) %}
+{% set _current_user_id = currentUserId|default(null) %}
+{% set _vet_palette = ['#4338ca','#0891b2','#059669','#db2777','#7c3aed','#b45309','#0369a1','#9d174d'] %}
 
 <aside class="scheduling-aside">
 
@@ -30,35 +35,23 @@
   {# ── Vets filter ── #}
   <div class="scheduling-aside-section">
     <p class="scheduling-aside-label">Vétérinaires</p>
-    <div class="vet-chip" onclick="toggleVet(this,'rousseau')">
-      <div class="vet-dot" style="background:#4338ca;"></div>
-      <span>Dr. Rousseau</span>
-      <svg id="check-rousseau" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#4338ca" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="vet-chip" onclick="toggleVet(this,'martin')">
-      <div class="vet-dot" style="background:#0891b2;"></div>
-      <span>Dr. Martin</span>
-      <svg id="check-martin" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#0891b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="vet-chip" onclick="toggleVet(this,'dupont')">
-      <div class="vet-dot" style="background:#059669;"></div>
-      <span>Dr. Dupont</span>
-      <svg id="check-dupont" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#059669" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="vet-chip" onclick="toggleVet(this,'lambert')">
-      <div class="vet-dot" style="background:#db2777;"></div>
-      <span>Dr. Lambert</span>
-      <svg id="check-lambert" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="#db2777" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
+    {% if _veterinarians|length > 0 %}
+      {% for index, vet in _veterinarians %}
+        {% set _is_me = _current_user_id is not null and vet.userId == _current_user_id %}
+        {% set _label = _is_me ? 'Moi' : ('Praticien ' ~ (index + 1)) %}
+        {% set _color = _is_me ? '#0d9488' : _vet_palette[index % _vet_palette|length] %}
+        <div class="vet-chip" data-vet-id="{{ vet.userId }}" onclick="toggleVet(this, '{{ vet.userId }}')">
+          <div class="vet-dot" style="background:{{ _color }};"></div>
+          <span>{{ _label }}</span>
+          <svg class="vet-check" data-vet-check="{{ vet.userId }}" width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M3 8l3.5 3.5 6.5-7" stroke="{{ _color }}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="scheduling-aside-empty">Aucun vétérinaire actif dans cette clinique.</p>
+    {% endif %}
   </div>
 
-  {% if _page == 'agenda' %}
-    {# ── RDV type filters (filled by JS) ── #}
-    <div class="scheduling-aside-section scheduling-aside-section-grow">
-      <p class="scheduling-aside-label">Types de RDV</p>
-      <div id="motif-filters" class="motif-filters" data-turbo-temporary></div>
-    </div>
-  {% else %}
+  {% if _page != 'agenda' %}
     {# ── Planning legend (filled by JS) ── #}
     <div class="scheduling-aside-section scheduling-aside-section-grow">
       <p class="scheduling-aside-label">Types d'activité</p>

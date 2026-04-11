@@ -17,6 +17,18 @@
   [data-page="clinic_scheduling_agenda"],
   [data-page="clinic_scheduling_planning"] {
 
+    /* Turbo Frame wraps only the grid (.agenda-wrap + JSON payload) — the
+       page header stays outside and is patched in place from JS. The frame
+       becomes the flex:1 child of .scheduling-content so the grid fills the
+       remaining height below the header. */
+    turbo-frame#agenda-frame {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+    }
+
     .scheduling-shell {
       display: flex;
       flex: 1;
@@ -45,7 +57,7 @@
     .scheduling-aside-section-grow { flex: 1; min-height: 0; }
     .scheduling-aside-label {
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 500;
       color: #94a3b8;
       text-transform: uppercase;
       letter-spacing: .08em;
@@ -131,14 +143,39 @@
     .scheduling-page-header-nav {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
+    }
+    .scheduling-page-header-chevrons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .scheduling-page-header-label {
-      font-size: 13.5px;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: 6px;
+      font-size: 17px;
+      font-weight: 500;
       color: #0f172a;
       min-width: 180px;
-      text-align: center;
+      line-height: 1;
+    }
+    .scheduling-page-header-label .week-number-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      /* Asymmetric padding compensates DM Sans metrics (cap-height sits high
+         in the em box, so we pad more at the top to push the glyphs visually
+         down to the pill's optical center). */
+      padding: 4px 9px 3px;
+      border-radius: 999px;
+      background: var(--brand-50, #eef2ff);
+      color: var(--brand-600, #4338ca);
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: .02em;
+      line-height: 1;
     }
 
     .scheduling-view-toggle {
@@ -148,7 +185,8 @@
       padding: 2px;
       gap: 1px;
     }
-    .scheduling-view-toggle button {
+    .scheduling-view-toggle button,
+    .scheduling-view-toggle a {
       padding: 4px 12px;
       border-radius: 6px;
       border: none;
@@ -159,29 +197,15 @@
       font-weight: 500;
       cursor: pointer;
       transition: all .12s;
+      text-decoration: none;
     }
-    .scheduling-view-toggle button.is-active {
+    .scheduling-view-toggle button.is-active,
+    .scheduling-view-toggle a.is-active {
       background: #fff;
       color: #0f172a;
       box-shadow: 0 1px 3px rgba(0,0,0,.08);
     }
 
-    .scheduling-page-header .free-dur-btn {
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 500;
-      border: 1.5px solid #e2e8f0;
-      background: #fff;
-      color: #64748b;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .scheduling-page-header .free-dur-btn.is-active {
-      border-color: #4338ca;
-      background: #eef2ff;
-      color: #4338ca;
-    }
   }
 
   /* Tablet — collapse aside into a drawer */
