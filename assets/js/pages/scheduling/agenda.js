@@ -647,28 +647,11 @@ window.toggleFreeSlots = toggleFreeSlots;
 window.setFreeDur = setFreeDur;
 window.openNewRdvGlobal = openNewRdvGlobal;
 
-// =============== CALENDAR ↔ AGENDA NAVIGATION ===============
-// The sidebar calendar (ui kit component) dispatches a `calendar:select`
-// event with { detail: { date: 'YYYY-MM-DD' } } when the user clicks a day.
-// We relay that to a Turbo Drive navigation so the whole agenda reloads
-// with the new `?date=` query param, preserving the current `view=`.
-let _calendarSelectHandler = null;
-
-function onCalendarSelect(e) {
-  const iso = e && e.detail && e.detail.date;
-  if (!iso || typeof iso !== 'string') return;
-  if (iso === AGENDA_DATA.selectedDate) return; // no-op re-click
-
-  const url = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=${encodeURIComponent(view)}`;
-  if (window.Turbo && typeof window.Turbo.visit === 'function') {
-    window.Turbo.visit(url);
-  } else {
-    window.location.assign(url);
-  }
-}
-
-// =============== INIT / CLEANUP ===============
-export function init() {
+// =============== PAYLOAD + RENDER BOOTSTRAP ===============
+// Reads #agenda-data (fresh after each frame swap), rebuilds state and
+// renders the grid. Safe to call on both the initial page load and after
+// every `turbo:frame-load`.
+function bootstrapFromPayload() {
   const dataNode = document.getElementById('agenda-data');
   if (!dataNode) return;
 
@@ -680,14 +663,99 @@ export function init() {
   buildVetIndex();
   prepareAppointments();
   buildWeekDays();
+  renderWeek();
+  syncSidebarCalendar();
+}
 
-  const agendaInner = document.getElementById('agenda-inner');
-  if (!agendaInner || !agendaInner.children.length) {
-    renderWeek();
+function syncSidebarCalendar() {
+  // The sidebar calendar is OUTSIDE the turbo-frame, so its Stimulus
+  // controller survives frame swaps. After a navigation, push the new
+  // selected date into the calendar so the sidebar stays in sync with
+  // the agenda grid.
+  const root = document.getElementById('scheduling-calendar');
+  if (!root || !window.Stimulus || typeof window.Stimulus.getControllerForElementAndIdentifier !== 'function') return;
+  const ctrl = window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar');
+  if (ctrl && typeof ctrl.setSelected === 'function') {
+    ctrl.setSelected(AGENDA_DATA.selectedDate);
+  }
+}
+
+// =============== CALENDAR ↔ AGENDA NAVIGATION ===============
+// All frame navigations — sidebar calendar click, header link click, etc. —
+// go through the same path: Turbo swaps the frame contents, then we run
+// bootstrapFromPayload() and manually push the new URL to history. We do
+// NOT use data-turbo-action="advance" on the frame because it caused layout
+// glitches in our flex shell when combined with link clicks.
+let _calendarSelectHandler = null;
+let _frameLoadHandler = null;
+let _popstateHandler = null;
+let _bootstrappedOnce = false;
+
+function onCalendarSelect(e) {
+  const iso = e && e.detail && e.detail.date;
+  if (!iso || typeof iso !== 'string') return;
+  if (iso === AGENDA_DATA.selectedDate) return; // no-op re-click
+
+  const frame = document.getElementById('agenda-frame');
+  if (!frame) return;
+  frame.src = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=${encodeURIComponent(view)}`;
+}
+
+function onFrameLoad(e) {
+  const frame = e.target;
+  if (!frame || frame.id !== 'agenda-frame') return;
+
+  bootstrapFromPayload();
+
+  // Skip history manipulation on the very first frame-load that fires when
+  // the frame is initially parsed on a full page load — the URL is already
+  // correct and pushing again would create a duplicate entry.
+  if (!_bootstrappedOnce) {
+    _bootstrappedOnce = true;
+    return;
   }
 
-  _calendarSelectHandler = onCalendarSelect;
-  document.addEventListener('calendar:select', _calendarSelectHandler);
+  // Sync the browser URL with the new frame src so back/forward and
+  // bookmarks work. Only push when the target differs from the current
+  // location to avoid no-op duplicate entries.
+  if (frame.src) {
+    const target = new URL(frame.src, window.location.origin);
+    const current = window.location.pathname + window.location.search;
+    const next = target.pathname + target.search;
+    if (current !== next) {
+      window.history.pushState({}, '', next);
+    }
+  }
+}
+
+function onPopState() {
+  // Browser back/forward — reload the frame from the new URL so the agenda
+  // matches the history entry the user just moved to.
+  const frame = document.getElementById('agenda-frame');
+  if (!frame) return;
+  const url = window.location.pathname + window.location.search;
+  const absolute = new URL(url, window.location.origin).href;
+  if (frame.src !== absolute) {
+    frame.src = url;
+  }
+}
+
+// =============== INIT / CLEANUP ===============
+export function init() {
+  bootstrapFromPayload();
+
+  if (!_calendarSelectHandler) {
+    _calendarSelectHandler = onCalendarSelect;
+    document.addEventListener('calendar:select', _calendarSelectHandler);
+  }
+  if (!_frameLoadHandler) {
+    _frameLoadHandler = onFrameLoad;
+    document.addEventListener('turbo:frame-load', _frameLoadHandler);
+  }
+  if (!_popstateHandler) {
+    _popstateHandler = onPopState;
+    window.addEventListener('popstate', _popstateHandler);
+  }
 }
 
 export function cleanup() {
@@ -704,4 +772,13 @@ export function cleanup() {
     document.removeEventListener('calendar:select', _calendarSelectHandler);
     _calendarSelectHandler = null;
   }
+  if (_frameLoadHandler) {
+    document.removeEventListener('turbo:frame-load', _frameLoadHandler);
+    _frameLoadHandler = null;
+  }
+  if (_popstateHandler) {
+    window.removeEventListener('popstate', _popstateHandler);
+    _popstateHandler = null;
+  }
+  _bootstrappedOnce = false;
 }

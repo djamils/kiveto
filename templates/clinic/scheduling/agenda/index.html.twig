@@ -28,7 +28,13 @@
     currentUserId: currentUserId,
   }) }}
 
-  {# ── MAIN CONTENT ── #}
+  {# ── MAIN CONTENT (Turbo Frame) ── #}
+  {# Only the agenda grid + its JSON payload are inside the frame so that
+   # calendar-based navigation swaps just the grid without re-rendering the
+   # aside, calendar or filters. History advance is handled manually in
+   # agenda.js via history.pushState() because data-turbo-action="advance"
+   # on the frame caused layout glitches when combined with link clicks. #}
+  <turbo-frame id="agenda-frame">
   <div class="scheduling-content">
 
     {# PAGE HEADER (no topbar) #}
@@ -87,6 +93,33 @@
     </div>
 
   </div>
+
+  {#
+   # Server → client payload for agenda.js. Expected shape:
+   # {
+   #   appointments: list<AppointmentItem>  // {id, clinicId, ownerId?, animalId?, practitionerUserId?, startsAtUtc ("Y-m-d H:i:s"), durationMinutes, status, reason?, notes?}
+   #   veterinarians: list<ClinicVeterinarianItem>  // {userId, role, engagement}
+   #   view: 'day' | 'week'
+   #   selectedDate: string ("Y-m-d")
+   #   currentUserId: string (UUID)
+   #   clinicTimezone: string (IANA, e.g. "Europe/Paris")
+   #   checkinUrlTemplate: string (URL with literal '__ID__' placeholder)
+   # }
+   # Kept inside the turbo-frame so a frame navigation delivers the new
+   # payload alongside the replaced grid.
+   #}
+  <script type="application/json" id="agenda-data">
+  {{ {
+    appointments: appointments,
+    veterinarians: veterinarians,
+    view: view,
+    selectedDate: selectedDate|date('Y-m-d'),
+    currentUserId: currentUserId,
+    clinicTimezone: clinicTimezone,
+    checkinUrlTemplate: checkinUrlTemplate,
+  }|json_encode|raw }}
+  </script>
+  </turbo-frame>
 </div>
 
 {# OVERLAY (close popups) #}
@@ -134,30 +167,6 @@
     </button>
   </div>
 </div>
-
-{#
- # Server → client payload for agenda.js. Expected shape:
- # {
- #   appointments: list<AppointmentItem>  // {id, clinicId, ownerId?, animalId?, practitionerUserId?, startsAtUtc ("Y-m-d H:i:s"), durationMinutes, status, reason?, notes?}
- #   veterinarians: list<ClinicVeterinarianItem>  // {userId, role, engagement}
- #   view: 'day' | 'week'
- #   selectedDate: string ("Y-m-d")
- #   currentUserId: string (UUID)
- #   clinicTimezone: string (IANA, e.g. "Europe/Paris")
- #   checkinUrlTemplate: string (URL with literal '__ID__' placeholder)
- # }
- #}
-<script type="application/json" id="agenda-data">
-{{ {
-  appointments: appointments,
-  veterinarians: veterinarians,
-  view: view,
-  selectedDate: selectedDate|date('Y-m-d'),
-  currentUserId: currentUserId,
-  clinicTimezone: clinicTimezone,
-  checkinUrlTemplate: checkinUrlTemplate,
-}|json_encode|raw }}
-</script>
 
 {# Single hidden check-in form — JS sets .action per appointment before submit. #}
 <form id="checkin-form" method="POST" action="" style="display:none;">

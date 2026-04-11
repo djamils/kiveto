@@ -17,6 +17,18 @@
   [data-page="clinic_scheduling_agenda"],
   [data-page="clinic_scheduling_planning"] {
 
+    /* Turbo Frame wraps the agenda main column. Make the frame itself the
+       flex child of .scheduling-shell so its content (.scheduling-content +
+       the JSON payload script) behaves like a normal flex column. Using
+       display:contents here caused layout glitches on frame swaps. */
+    turbo-frame#agenda-frame {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+    }
+
     .scheduling-shell {
       display: flex;
       flex: 1;
