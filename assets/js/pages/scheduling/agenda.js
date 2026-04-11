@@ -689,7 +689,45 @@ function syncSidebarCalendar() {
 let _calendarSelectHandler = null;
 let _frameLoadHandler = null;
 let _popstateHandler = null;
+let _navClickHandler = null;
+let _beforeFrameRenderHandler = null;
+let _frameRenderHandler = null;
 let _bootstrappedOnce = false;
+
+// Direction of the upcoming frame swap — 'prev', 'next' or null (fade only).
+// Set by onNavigationClick / onCalendarSelect before the frame reloads, then
+// consumed and cleared by the turbo frame render handlers.
+let _pendingNavDirection = null;
+
+// Transition tuning (ms / px / opacity).
+const NAV_OUT_MS = 80;
+const NAV_IN_MS = 140;
+const NAV_SHIFT_PX = 24;
+// Minimum opacity during the swap — keep the grid mostly visible so the
+// slide reads as "motion" rather than "content disappearing".
+const NAV_MIN_OPACITY = '0.55';
+
+function computeDirection(newIso) {
+  if (!newIso || !AGENDA_DATA || !AGENDA_DATA.selectedDate) return null;
+  if (newIso < AGENDA_DATA.selectedDate) return 'prev';
+  if (newIso > AGENDA_DATA.selectedDate) return 'next';
+  return null;
+}
+
+function directionFromHref(href) {
+  try {
+    const url = new URL(href, window.location.origin);
+    let date = url.searchParams.get('date');
+    if (!date) {
+      // "Today" link omits the date param — resolve it client-side in the
+      // clinic timezone so it can be compared to selectedDate.
+      date = toClinicLocalParts(new Date(), AGENDA_DATA.clinicTimezone).dateStr;
+    }
+    return computeDirection(date);
+  } catch (_e) {
+    return null;
+  }
+}
 
 function onCalendarSelect(e) {
   const iso = e && e.detail && e.detail.date;
@@ -698,7 +736,83 @@ function onCalendarSelect(e) {
 
   const frame = document.getElementById('agenda-frame');
   if (!frame) return;
+  _pendingNavDirection = computeDirection(iso);
   frame.src = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=${encodeURIComponent(view)}`;
+}
+
+function onNavigationClick(e) {
+  // Capture-phase delegated click on any <a> inside the agenda frame, fired
+  // before Turbo intercepts the click. We only set _pendingNavDirection so
+  // the upcoming turbo:before-frame-render handler knows which way to slide.
+  const target = e.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const a = target.closest('a');
+  if (!a || !a.href) return;
+  const frame = document.getElementById('agenda-frame');
+  if (!frame || !frame.contains(a)) return;
+  _pendingNavDirection = directionFromHref(a.href);
+}
+
+function onBeforeFrameRender(e) {
+  const frame = e.target;
+  if (!frame || frame.id !== 'agenda-frame') return;
+
+  // We animate `.agenda-wrap` (grid only), not the frame itself, so that
+  // the page header — still inside the frame so its hrefs and label stay
+  // server-rendered — doesn't slide along with the grid.
+  const wrap = frame.querySelector('.agenda-wrap');
+  if (!wrap) return;
+
+  // Defer Turbo's DOM swap so the "slide-out + fade-out" transition can run
+  // to completion first, then resume() below hands control back to Turbo.
+  e.preventDefault();
+
+  const dir = _pendingNavDirection;
+  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : dir === 'prev' ? `${NAV_SHIFT_PX}px` : '0px';
+
+  wrap.style.willChange = 'opacity, transform';
+  wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${outX})`;
+
+  window.setTimeout(() => {
+    if (e.detail && typeof e.detail.resume === 'function') e.detail.resume();
+  }, NAV_OUT_MS + 10);
+}
+
+function onFrameRender(e) {
+  const frame = e.target;
+  if (!frame || frame.id !== 'agenda-frame') return;
+
+  // The new DOM is already mounted — grab the fresh .agenda-wrap.
+  const wrap = frame.querySelector('.agenda-wrap');
+  if (!wrap) return;
+
+  const dir = _pendingNavDirection;
+  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : dir === 'prev' ? `-${NAV_SHIFT_PX}px` : '0px';
+
+  // Jump to the "entering" position without transition, then animate back
+  // to the resting state after a forced reflow so the transition actually
+  // kicks in on the already-mounted new DOM.
+  wrap.style.transition = 'none';
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${inX})`;
+  // eslint-disable-next-line no-unused-expressions
+  wrap.offsetHeight;
+
+  wrap.style.transition = `opacity ${NAV_IN_MS}ms ease-out, transform ${NAV_IN_MS}ms ease-out`;
+  wrap.style.opacity = '1';
+  wrap.style.transform = 'translateX(0)';
+
+  const onEnd = () => {
+    wrap.style.transition = '';
+    wrap.style.transform = '';
+    wrap.style.opacity = '';
+    wrap.style.willChange = '';
+    _pendingNavDirection = null;
+    wrap.removeEventListener('transitionend', onEnd);
+  };
+  wrap.addEventListener('transitionend', onEnd);
 }
 
 function onFrameLoad(e) {
@@ -756,6 +870,20 @@ export function init() {
     _popstateHandler = onPopState;
     window.addEventListener('popstate', _popstateHandler);
   }
+  if (!_navClickHandler) {
+    _navClickHandler = onNavigationClick;
+    // Capture phase so we set the direction BEFORE Turbo's bubble-phase
+    // link handler decides to navigate the frame.
+    document.addEventListener('click', _navClickHandler, true);
+  }
+  if (!_beforeFrameRenderHandler) {
+    _beforeFrameRenderHandler = onBeforeFrameRender;
+    document.addEventListener('turbo:before-frame-render', _beforeFrameRenderHandler);
+  }
+  if (!_frameRenderHandler) {
+    _frameRenderHandler = onFrameRender;
+    document.addEventListener('turbo:frame-render', _frameRenderHandler);
+  }
 }
 
 export function cleanup() {
@@ -780,5 +908,18 @@ export function cleanup() {
     window.removeEventListener('popstate', _popstateHandler);
     _popstateHandler = null;
   }
+  if (_navClickHandler) {
+    document.removeEventListener('click', _navClickHandler, true);
+    _navClickHandler = null;
+  }
+  if (_beforeFrameRenderHandler) {
+    document.removeEventListener('turbo:before-frame-render', _beforeFrameRenderHandler);
+    _beforeFrameRenderHandler = null;
+  }
+  if (_frameRenderHandler) {
+    document.removeEventListener('turbo:frame-render', _frameRenderHandler);
+    _frameRenderHandler = null;
+  }
   _bootstrappedOnce = false;
+  _pendingNavDirection = null;
 }
