@@ -523,6 +523,18 @@ function setFreeDur(dur) {
 }
 
 function renderFreeSlots(col, dateStr) {
+  // Past free slots aren't actionable — a vet can't book a patient into a
+  // window that has already started. Filter by "now" in the clinic timezone:
+  //   - past days: nothing at all
+  //   - today: only slots whose start is strictly after current minute
+  //   - future days: everything
+  const nowParts = toClinicLocalParts(nowDate, AGENDA_DATA.clinicTimezone);
+  const todayIso = nowParts.dateStr;
+  if (dateStr < todayIso) return;
+  const isToday = dateStr === todayIso;
+  const [nh, nm] = nowParts.timeStr.split(':').map(Number);
+  const nowMin = nh * 60 + nm;
+
   [...activeVets].forEach((userId) => {
     const vet = vetById[userId];
     if (!vet) return;
@@ -550,7 +562,9 @@ function renderFreeSlots(col, dateStr) {
       // not at 08:07 / 08:27 / …
       let t = Math.ceil(gap.s / 15) * 15;
       while (t + freeDuration <= gap.e) {
-        renderFreeSlotBlock(col, vet, dateStr, t, t + freeDuration);
+        if (!isToday || t > nowMin) {
+          renderFreeSlotBlock(col, vet, dateStr, t, t + freeDuration);
+        }
         t += freeDuration;
       }
     });
