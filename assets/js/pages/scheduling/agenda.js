@@ -83,7 +83,14 @@ function currentUtcOffsetLabel(timezone) {
       timeZoneName: 'shortOffset',
     }).formatToParts(new Date());
     const tzName = parts.find((p) => p.type === 'timeZoneName');
-    return tzName ? tzName.value : '';
+    if (!tzName) return '';
+    // Intl returns "GMT+2" or "GMT+2:30" — pad the hour part to two digits
+    // for a stable, aligned display ("GMT+02", "GMT+02:30", "GMT").
+    const match = /^GMT([+-])(\d+)(?::(\d+))?$/.exec(tzName.value);
+    if (!match) return tzName.value;
+    const sign = match[1];
+    const hh = match[2].padStart(2, '0');
+    return match[3] ? `GMT${sign}${hh}:${match[3]}` : `GMT${sign}${hh}`;
   } catch (_e) {
     return '';
   }
@@ -243,7 +250,7 @@ function renderWeek() {
   for (let h = HOUR_START; h <= HOUR_END; h += 1) {
     const lbl = document.createElement('div');
     lbl.className = 'time-label';
-    lbl.textContent = String(h);
+    lbl.textContent = `${h}:00`;
     timeCol.appendChild(lbl);
   }
   inner.appendChild(timeCol);

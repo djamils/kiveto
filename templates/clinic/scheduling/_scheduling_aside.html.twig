@@ -51,13 +51,7 @@
     {% endif %}
   </div>
 
-  {% if _page == 'agenda' %}
-    {# ── RDV type filters (filled by JS) ── #}
-    <div class="scheduling-aside-section scheduling-aside-section-grow">
-      <p class="scheduling-aside-label">Types de RDV</p>
-      <div id="motif-filters" class="motif-filters" data-turbo-temporary></div>
-    </div>
-  {% else %}
+  {% if _page != 'agenda' %}
     {# ── Planning legend (filled by JS) ── #}
     <div class="scheduling-aside-section scheduling-aside-section-grow">
       <p class="scheduling-aside-label">Types d'activité</p>
