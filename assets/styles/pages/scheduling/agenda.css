@@ -213,9 +213,6 @@
       z-index: 100;
     }
 
-    /* Free-slot duration buttons */
-    .free-dur-btn { transition: all .13s; }
-
     /* Sidebar free-slots wrap */
     #sb-free-slots-wrap { @apply hidden; }
 

@@ -21,7 +21,7 @@ final class ClinicDataStory extends Story
             ->withId(self::INDEPENDENT_CLINIC_ID)
             ->withSlug('clinic-paris')
             ->withName('Clinique Vétérinaire de Paris')
-            ->create()
+            ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
         ;
 
         // 1 clinicGroup + 1 clinic rattachée
@@ -36,7 +36,7 @@ final class ClinicDataStory extends Story
             ->withSlug('clinic-lyon')
             ->withName('Clinique Vétérinaire de Lyon')
             ->withGroupId(self::GROUP_ID)
-            ->create()
+            ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
         ;
 
         // Quelques cliniques supplémentaires pour les tests

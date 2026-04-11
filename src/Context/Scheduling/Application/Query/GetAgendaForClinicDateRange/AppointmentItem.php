@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDay;
+namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange;
 
 final readonly class AppointmentItem
 {

@@ -46,6 +46,15 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
+        // Third Paris veterinarian — intentionally has NO appointments in
+        // SchedulingStory so the agenda's week view can verify an empty vet
+        // column appears (see AC-Empty-veterinarian).
+        $emptyParisVet = ClinicUserFactory::new()
+            ->withEmail('vet2@kiveto.local')
+            ->withPlainPassword('vet2')
+            ->create()
+        ;
+
         // Assign veterinarian to Paris clinic via command bus
         $this->commandBus->dispatch(new CreateClinicMembership(
             clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
@@ -86,6 +95,14 @@ final class ClinicMembershipDataStory extends Story
             role: ClinicMemberRole::VETERINARY,
             engagement: ClinicMembershipEngagement::CONTRACTOR,
             validUntil: $validUntil,
+        ));
+
+        // Third Paris veterinarian membership — stays empty on purpose.
+        $this->commandBus->dispatch(new CreateClinicMembership(
+            clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
+            userId: $emptyParisVet->getId()->toRfc4122(),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
     }
 }

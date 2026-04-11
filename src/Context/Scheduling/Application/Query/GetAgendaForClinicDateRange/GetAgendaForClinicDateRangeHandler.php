@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDay;
+namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange;
 
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
-final readonly class GetAgendaForClinicDayHandler
+final readonly class GetAgendaForClinicDateRangeHandler
 {
     public function __construct(
         private Connection $connection,
@@ -19,11 +19,8 @@ final readonly class GetAgendaForClinicDayHandler
     /**
      * @return list<AppointmentItem>
      */
-    public function __invoke(GetAgendaForClinicDay $query): array
+    public function __invoke(GetAgendaForClinicDateRange $query): array
     {
-        $startOfDay = $query->date->setTime(0, 0, 0);
-        $endOfDay   = $query->date->setTime(23, 59, 59);
-
         $sql = <<<'SQL'
             SELECT
                 BIN_TO_UUID(id) as id,
@@ -38,14 +35,14 @@ final readonly class GetAgendaForClinicDayHandler
                 notes
             FROM scheduling__appointments
             WHERE clinic_id = UUID_TO_BIN(:clinicId)
-              AND starts_at_utc >= :startOfDay
-              AND starts_at_utc <= :endOfDay
+              AND starts_at_utc >= :fromUtc
+              AND starts_at_utc <= :toUtc
         SQL;
 
         $params = [
-            'clinicId'   => $query->clinicId,
-            'startOfDay' => $startOfDay->format('Y-m-d H:i:s'),
-            'endOfDay'   => $endOfDay->format('Y-m-d H:i:s'),
+            'clinicId' => $query->clinicId,
+            'fromUtc'  => $query->fromUtc->format('Y-m-d H:i:s'),
+            'toUtc'    => $query->toUtc->format('Y-m-d H:i:s'),
         ];
 
         if (null !== $query->practitionerUserId) {
