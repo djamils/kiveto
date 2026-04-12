@@ -139,6 +139,42 @@ final class ClientFormTypeTest extends TypeTestCase
         );
     }
 
+    public function testInvalidPhoneTriggersPhoneTypeValidation(): void
+    {
+        $form = $this->factory->create(ClientFormType::class);
+
+        $form->submit([
+            'firstName' => 'Sophie',
+            'lastName'  => 'Martin',
+            'email'     => '',
+            'phone'     => '0612345678',
+        ]);
+
+        self::assertFalse($form->isValid());
+        self::assertStringContainsString(
+            'Le numéro de téléphone est invalide.',
+            (string) $form->get('phone')->getErrors(),
+        );
+    }
+
+    public function testPhoneWithLettersTriggersValidation(): void
+    {
+        $form = $this->factory->create(ClientFormType::class);
+
+        $form->submit([
+            'firstName' => 'Sophie',
+            'lastName'  => 'Martin',
+            'email'     => '',
+            'phone'     => 'abc',
+        ]);
+
+        self::assertFalse($form->isValid());
+        self::assertStringContainsString(
+            'Le numéro de téléphone est invalide.',
+            (string) $form->get('phone')->getErrors(),
+        );
+    }
+
     protected function getExtensions(): array
     {
         $validator = Validation::createValidatorBuilder()

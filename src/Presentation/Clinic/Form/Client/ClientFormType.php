@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Form\Client;
 
+use App\Shared\Presentation\Form\Type\PhoneType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\TelType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -15,7 +15,6 @@ use Symfony\Component\Validator\Constraints\Callback;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
-use Symfony\Component\Validator\Constraints\Regex;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 final class ClientFormType extends AbstractType
@@ -41,14 +40,9 @@ final class ClientFormType extends AbstractType
                     new Email(message: "Cette adresse email n'est pas valide."),
                 ],
             ])
-            ->add('phone', TelType::class, [
-                'required'    => false,
-                'constraints' => [
-                    new Regex(
-                        pattern: '/^[+\s]?[\d\s]{6,20}$/',
-                        message: 'Le numéro de téléphone est invalide (ex : +33 6 12 34 56 78 ou 0612345678).',
-                    ),
-                ],
+            ->add('phone', PhoneType::class, [
+                'required'   => false,
+                'empty_data' => '',
             ])
             ->add('_returnTo', HiddenType::class, [
                 'mapped'   => false,

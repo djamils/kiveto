@@ -18,8 +18,8 @@ final class PhoneNumber
             throw new \InvalidArgumentException('Phone number cannot be empty.');
         }
 
-        if (!preg_match('/^[+]?[0-9]{6,20}$/', $cleaned)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid phone number: "%s".', $value));
+        if (!preg_match('/^\+[1-9]\d{6,14}$/', $cleaned)) {
+            throw new \InvalidArgumentException(\sprintf('Invalid phone number: "%s". Expected E.164 format (e.g. +33612345678).', $value));
         }
 
         return new self($cleaned);

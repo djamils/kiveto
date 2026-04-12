@@ -76,6 +76,19 @@
   />
 {% endblock %}
 
+{# ── PHONE INPUT ── #}
+{% block phone_widget %}
+  {% include 'components/ui/phone.html.twig' with {
+    name: full_name,
+    id: id,
+    value: value|default(''),
+    required: required|default(false),
+    disabled: disabled|default(false),
+    valid: valid|default(true),
+    attr: attr|default({}),
+  } only %}
+{% endblock %}
+
 {# ── TEXTAREA ── #}
 {% block textarea_widget %}
   {% set attr = attr|merge({

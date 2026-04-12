@@ -9,39 +9,46 @@ use PHPUnit\Framework\TestCase;
 
 final class PhoneNumberTest extends TestCase
 {
-    public function testFromStringWithValidPhoneNumber(): void
+    public function testFromStringWithValidE164(): void
     {
-        $phone = PhoneNumber::fromString('0123456789');
+        $phone = PhoneNumber::fromString('+33612345678');
 
-        $this->assertSame('0123456789', $phone->toString());
-    }
-
-    public function testFromStringWithInternationalFormat(): void
-    {
-        $phone = PhoneNumber::fromString('+33123456789');
-
-        $this->assertSame('+33123456789', $phone->toString());
+        $this->assertSame('+33612345678', $phone->toString());
     }
 
     public function testFromStringRemovesWhitespace(): void
     {
-        $phone = PhoneNumber::fromString('01 23 45 67 89');
+        $phone = PhoneNumber::fromString('+33 6 12 34 56 78');
 
-        $this->assertSame('0123456789', $phone->toString());
+        $this->assertSame('+33612345678', $phone->toString());
     }
 
     public function testFromStringTrimsWhitespace(): void
     {
-        $phone = PhoneNumber::fromString('  0123456789  ');
+        $phone = PhoneNumber::fromString('  +33612345678  ');
 
-        $this->assertSame('0123456789', $phone->toString());
+        $this->assertSame('+33612345678', $phone->toString());
     }
 
     public function testFromStringWithMultipleSpaces(): void
     {
-        $phone = PhoneNumber::fromString('+33  1  23  45  67  89');
+        $phone = PhoneNumber::fromString('+33  6  12  34  56  78');
 
-        $this->assertSame('+33123456789', $phone->toString());
+        $this->assertSame('+33612345678', $phone->toString());
+    }
+
+    public function testAcceptsMinimumLength(): void
+    {
+        $phone = PhoneNumber::fromString('+1234567');
+
+        $this->assertSame('+1234567', $phone->toString());
+    }
+
+    public function testAcceptsMaximumLength(): void
+    {
+        $phone = PhoneNumber::fromString('+123456789012345');
+
+        $this->assertSame('+123456789012345', $phone->toString());
     }
 
     public function testFromStringRejectsEmptyString(): void
@@ -60,51 +67,67 @@ final class PhoneNumberTest extends TestCase
         PhoneNumber::fromString('   ');
     }
 
+    public function testFromStringRejectsLocalFormat(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected E.164 format');
+
+        PhoneNumber::fromString('0612345678');
+    }
+
+    public function testFromStringRejectsZeroAfterPlus(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected E.164 format');
+
+        PhoneNumber::fromString('+0123456789');
+    }
+
     public function testFromStringRejectsTooShort(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid phone number: "12345".');
+        $this->expectExceptionMessage('Expected E.164 format');
 
-        PhoneNumber::fromString('12345');
+        PhoneNumber::fromString('+123456');
     }
 
     public function testFromStringRejectsTooLong(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid phone number: "123456789012345678901".');
+        $this->expectExceptionMessage('Expected E.164 format');
 
-        PhoneNumber::fromString('123456789012345678901');
+        PhoneNumber::fromString('+1234567890123456');
     }
 
     public function testFromStringRejectsLetters(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid phone number: "01234ABCDE".');
+        $this->expectExceptionMessage('Expected E.164 format');
 
-        PhoneNumber::fromString('01234ABCDE');
+        PhoneNumber::fromString('+33ABCDEFGH');
     }
 
     public function testFromStringRejectsSpecialCharacters(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid phone number: "0123-456-789".');
+        $this->expectExceptionMessage('Expected E.164 format');
 
-        PhoneNumber::fromString('0123-456-789');
+        PhoneNumber::fromString('+33-612-345-678');
     }
 
-    public function testFromStringRejectsParentheses(): void
+    public function testFromStringRejectsMissingPlus(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid phone number: "(01) 23 45 67 89".');
+        $this->expectExceptionMessage('Expected E.164 format');
 
-        PhoneNumber::fromString('(01) 23 45 67 89');
+        PhoneNumber::fromString('33612345678');
     }
 
     public function testEquals(): void
     {
-        $phone1 = PhoneNumber::fromString('0123456789');
-        $phone2 = PhoneNumber::fromString('0123456789');
-        $phone3 = PhoneNumber::fromString('9876543210');
+        $phone1 = PhoneNumber::fromString('+33612345678');
+        $phone2 = PhoneNumber::fromString('+33612345678');
+        $phone3 = PhoneNumber::fromString('+44791112345');
 
         $this->assertTrue($phone1->equals($phone2));
         $this->assertFalse($phone1->equals($phone3));
@@ -112,23 +135,9 @@ final class PhoneNumberTest extends TestCase
 
     public function testEqualsWithNormalizedSpaces(): void
     {
-        $phone1 = PhoneNumber::fromString('01 23 45 67 89');
-        $phone2 = PhoneNumber::fromString('0123456789');
+        $phone1 = PhoneNumber::fromString('+33 6 12 34 56 78');
+        $phone2 = PhoneNumber::fromString('+33612345678');
 
         $this->assertTrue($phone1->equals($phone2));
-    }
-
-    public function testAcceptsMinimumLength(): void
-    {
-        $phone = PhoneNumber::fromString('123456');
-
-        $this->assertSame('123456', $phone->toString());
-    }
-
-    public function testAcceptsMaximumLength(): void
-    {
-        $phone = PhoneNumber::fromString('12345678901234567890');
-
-        $this->assertSame('12345678901234567890', $phone->toString());
     }
 }

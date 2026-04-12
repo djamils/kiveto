@@ -48,20 +48,26 @@ final class UpdateClientController extends AbstractController
             throw new \InvalidArgumentException('Au moins un moyen de contact est obligatoire.');
         }
 
-        // Update identity
-        $this->commandBus->dispatch(new UpdateClientIdentity(
-            clinicId: $currentClinicId->toString(),
-            clientId: $id,
-            firstName: $firstName,
-            lastName: $lastName,
-        ));
+        try {
+            // Update identity
+            $this->commandBus->dispatch(new UpdateClientIdentity(
+                clinicId: $currentClinicId->toString(),
+                clientId: $id,
+                firstName: $firstName,
+                lastName: $lastName,
+            ));
 
-        // Replace contact methods
-        $this->commandBus->dispatch(new ReplaceClientContactMethods(
-            clinicId: $currentClinicId->toString(),
-            clientId: $id,
-            contactMethods: $contactMethods,
-        ));
+            // Replace contact methods
+            $this->commandBus->dispatch(new ReplaceClientContactMethods(
+                clinicId: $currentClinicId->toString(),
+                clientId: $id,
+                contactMethods: $contactMethods,
+            ));
+        } catch (\InvalidArgumentException $e) {
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('clinic_clients_view', ['id' => $id]);
+        }
 
         $this->addFlash('success', \sprintf('Client "%s %s" modifié avec succès.', $firstName, $lastName));
 

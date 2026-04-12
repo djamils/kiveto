@@ -82,7 +82,7 @@
                 </div>
               </td>
               <td class="col-email">{{ client.primaryEmail|default('—') }}</td>
-              <td class="col-phone">{{ client.primaryPhone|default('—') }}</td>
+              <td class="col-phone">{{ client.primaryPhone ? client.primaryPhone|phone_display(true) : '—' }}</td>
               {# Cross-BC fallback — pending follow-up enrichment spec. #}
               <td class="col-animals">—</td>
               <td class="col-lastrdv">—</td>

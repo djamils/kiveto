@@ -510,4 +510,44 @@
   .ki-select-check {
     @apply shrink-0 text-brand-600;
   }
+
+  /* ── PHONE INPUT (ki-phone Stimulus controller) ── */
+
+  .ki-phone { @apply relative flex items-center; }
+  .ki-phone-country {
+    @apply flex items-center gap-1 shrink-0 cursor-pointer bg-surface-subtle
+           border border-border-medium border-r-0 rounded-l-md px-2;
+    height: 36px;
+  }
+  .ki-phone-country:hover { @apply bg-surface-card border-border-strong; }
+  .ki-phone-flag { width: 20px; height: 15px; border-radius: 2px; }
+  .ki-phone-dial-text { @apply text-md text-text-secondary; }
+  .ki-phone-chevron { @apply text-text-subtle shrink-0; width: 10px; }
+  .ki-phone-input {
+    @apply flex-1 text-base font-sans bg-surface-subtle border border-border-medium
+           rounded-r-md px-3 outline-none text-text-primary;
+    height: 36px; border-left: none;
+    transition: var(--t-normal);
+  }
+  .ki-phone-input:focus { @apply border-brand-400 bg-surface-card shadow-focus; }
+  .ki-phone-input.is-error { @apply border-danger-600 bg-danger-bg; }
+  .ki-phone:focus-within .ki-phone-country { @apply border-brand-400; }
+  .ki-phone-dropdown {
+    @apply fixed z-popover bg-surface-card border border-border-light overflow-hidden;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,.05);
+  }
+  .ki-phone-dropdown.hidden { display: none; }
+  .ki-phone-options { @apply overflow-y-auto; max-height: 240px; padding: var(--space-1) 0; }
+  .ki-phone-option {
+    @apply flex items-center gap-2 text-md cursor-pointer rounded-sm bg-transparent
+           font-sans text-left text-text-secondary;
+    padding: var(--space-2) var(--space-3); min-height: 44px;
+    margin: 1px var(--space-1); width: calc(100% - var(--space-2));
+  }
+  .ki-phone-option:hover, .ki-phone-option.is-focused {
+    @apply bg-surface-subtle text-text-primary;
+  }
+  .ki-phone-option-dial { @apply text-text-muted; min-width: 40px; }
+  @media (max-width: 639px) { .ki-phone-dial-text { display: none; } }
 }

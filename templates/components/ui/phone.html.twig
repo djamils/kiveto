@@ -1,0 +1,73 @@
+{#
+ # Kiveto — templates/components/ui/phone.html.twig
+ # ─────────────────────────────────────────────────
+ # International phone input with country selector (Stimulus controller).
+ #
+ # Parameters:
+ #   name         string   Form field name (required)
+ #   id           string   Custom id (default: auto from name)
+ #   value        string   E.164 value (default: '')
+ #   required     bool     (default: false)
+ #   disabled     bool     (default: false)
+ #   valid        bool     (default: true)
+ #   attr         object   Extra HTML attributes (default: {})
+ #
+ # Usage:
+ #   {% include 'components/ui/phone.html.twig' with {
+ #     name: 'phone',
+ #     value: '+33612345678',
+ #   } %}
+ #}
+
+{% set _name     = name|default('phone') %}
+{% set _id       = id|default('phone-' ~ _name) %}
+{% set _value    = value|default('') %}
+{% set _required = required|default(false) %}
+{% set _disabled = disabled|default(false) %}
+{% set _valid    = valid|default(true) %}
+{% set _attr     = attr|default({}) %}
+
+<div class="ki-phone"
+     data-controller="phone-input"
+     data-phone-input-default-country-value="FR"
+     {% for key, val in _attr %}{{ key }}="{{ val }}" {% endfor %}
+>
+  {# Hidden input — real form value (E.164) #}
+  <input type="hidden"
+         name="{{ _name }}"
+         value="{{ _value }}"
+         id="{{ _id }}"
+         data-phone-input-target="hidden"
+         autocomplete="off"
+         {% if _required %}required{% endif %}
+  >
+
+  {# Country selector trigger #}
+  <button type="button"
+          class="ki-phone-country"
+          data-phone-input-target="countryTrigger"
+          data-action="click->phone-input#toggleDropdown"
+          {% if _disabled %}disabled{% endif %}
+  >
+    <span class="fi ki-phone-flag" data-phone-input-target="flagIcon"></span>
+    <span class="ki-phone-dial-text" data-phone-input-target="dialText"></span>
+    <svg class="ki-phone-chevron" viewBox="0 0 10 6" fill="none">
+      <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+  {# Visible input — user types here #}
+  <input type="tel"
+         inputmode="tel"
+         autocomplete="tel-national"
+         class="ki-phone-input{{ not _valid ? ' is-error' : '' }}"
+         data-phone-input-target="input"
+         data-action="input->phone-input#onInput keydown->phone-input#onKeydown paste->phone-input#onPaste"
+         {% if _disabled %}disabled{% endif %}
+  >
+
+  {# Dropdown — populated by Stimulus from COUNTRIES array #}
+  <div class="ki-phone-dropdown hidden" data-phone-input-target="dropdown">
+    <div class="ki-phone-options" data-phone-input-target="options"></div>
+  </div>
+</div>

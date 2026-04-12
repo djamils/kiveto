@@ -7,6 +7,7 @@ namespace App\Fixtures\Context\Client\Factory;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentProxyObjectFactory;
 
@@ -27,9 +28,11 @@ final class ContactMethodEntityFactory extends PersistentProxyObjectFactory
 
     public function phone(?string $number = null): self
     {
+        $raw = $number ?? self::faker()->numerify('+336########');
+
         return $this->with([
             'type'  => ContactMethodType::PHONE,
-            'value' => $number ?? self::faker()->numerify('+33 # ## ## ## ##'),
+            'value' => PhoneNumber::fromString($raw)->toString(),
         ]);
     }
 
@@ -75,7 +78,7 @@ final class ContactMethodEntityFactory extends PersistentProxyObjectFactory
             ]),
             'value' => fn (array $attributes) => ContactMethodType::EMAIL === $attributes['type']
                 ? self::faker()->email()
-                : self::faker()->numerify('+33 # ## ## ## ##'),
+                : PhoneNumber::fromString(self::faker()->numerify('+336########'))->toString(),
             'isPrimary' => false,
         ];
     }
