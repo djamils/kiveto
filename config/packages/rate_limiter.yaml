@@ -1,0 +1,11 @@
+framework:
+    rate_limiter:
+        api_clinic_search:
+            policy: 'fixed_window'
+            limit: 15
+            interval: '1 second'
+
+        api_clinic_ip:
+            policy: 'fixed_window'
+            limit: 60
+            interval: '1 minute'

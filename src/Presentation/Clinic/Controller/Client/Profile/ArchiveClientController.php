@@ -44,6 +44,6 @@ final class ArchiveClientController extends AbstractController
 
         $this->addFlash('success', 'Client archivé avec succès.');
 
-        return $this->redirectToRoute('clinic_clients_list');
+        return $this->redirectToRoute('clinic_clients_list', ['tab' => 'clients']);
     }
 }

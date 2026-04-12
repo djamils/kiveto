@@ -18,4 +18,6 @@ interface AnimalReadRepositoryInterface
      * @return array{items: list<AnimalListItemView>, total: int}
      */
     public function search(ClinicId $clinicId, SearchAnimalsCriteria $criteria): array;
+
+    public function countBy(ClinicId $clinicId, SearchAnimalsCriteria $criteria): int;
 }

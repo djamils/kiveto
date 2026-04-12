@@ -1,89 +1,35 @@
-{# Clients tab — data card with table, filters, hover actions, pagination #}
+{# Clients tab — server-rendered table wired to SearchClients query results. #}
+
+{# Avatar palette — matched to the historical mock data. Picked deterministically
+   from the client id so a given client always keeps the same colour. #}
+{% set avatarPalette = [
+  {bg: '#eef2ff', color: '#4338ca'},
+  {bg: '#ecfeff', color: '#0891b2'},
+  {bg: '#ecfdf5', color: '#059669'},
+  {bg: '#f5f3ff', color: '#7c3aed'},
+  {bg: '#fdf2f8', color: '#db2777'},
+  {bg: '#fef3c7', color: '#b45309'},
+] %}
 
 <div class="data-card">
 
-  {# ── Card header: search + filters + view settings ── #}
+  {# ── Card header: search + filters (filters left non-functional in this iteration) ── #}
   <div class="data-card-head">
     <div class="data-card-head-left">
-      <div class="data-search">
-        <i data-lucide="search" class="data-search-icon"></i>
-        <input
-          type="search"
-          id="clients-search"
-          class="data-search-input"
-          placeholder="Rechercher un client…"
-          oninput="onClientSearch(this.value)"
-          autocomplete="off"
-        />
-      </div>
-
-      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-status" data-popover-align="left">
-        <i data-lucide="circle-dot"></i>
-        <span>Statut</span>
-      </button>
-
-      <button type="button" class="data-filter-btn" data-popover-anchor="clients-filter-species" data-popover-align="left">
-        <i data-lucide="paw-print"></i>
-        <span>Espèce</span>
-      </button>
-
-      <div class="popover hidden" id="clients-filter-status" style="width:180px;">
-        <p class="popover-head">Filtrer par statut</p>
-        <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
-          <i data-lucide="layers"></i>
-          <span>Tous</span>
-        </button>
-        <button type="button" class="nav-item" onclick="setClientFilter('alert',this)">
-          <i data-lucide="alert-triangle"></i>
-          <span>Avec alertes</span>
-        </button>
-        <button type="button" class="nav-item" onclick="setClientFilter('recent',this)">
-          <i data-lucide="clock"></i>
-          <span>Récents (30j)</span>
-        </button>
-      </div>
-
-      <div class="popover hidden" id="clients-filter-species" style="width:180px;">
-        <p class="popover-head">Filtrer par espèce</p>
-        <button type="button" class="nav-item" onclick="setClientFilter('all',this)">
-          <span>Toutes espèces</span>
-        </button>
-        <button type="button" class="nav-item" onclick="setClientFilter('cat',this)">
-          <span>🐱 Chats</span>
-        </button>
-        <button type="button" class="nav-item" onclick="setClientFilter('dog',this)">
-          <span>🐶 Chiens</span>
-        </button>
-        <button type="button" class="nav-item" onclick="setClientFilter('other',this)">
-          <span>🐾 Autres</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="data-card-head-right">
-      <button type="button" class="data-filter-btn" data-popover-anchor="clients-cols-popover">
-        <i data-lucide="settings-2"></i>
-        <span>Colonnes</span>
-      </button>
-      <div class="popover hidden" id="clients-cols-popover" style="width:200px;">
-        <p class="popover-head">Afficher</p>
-        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'email')">
-          <span class="col-picker-check"><i data-lucide="check"></i></span>
-          <span>Email</span>
-        </button>
-        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'phone')">
-          <span class="col-picker-check"><i data-lucide="check"></i></span>
-          <span>Téléphone</span>
-        </button>
-        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'animals')">
-          <span class="col-picker-check"><i data-lucide="check"></i></span>
-          <span>Animaux</span>
-        </button>
-        <button type="button" class="col-picker-item is-checked" onclick="toggleColCheck(this,'lastrdv')">
-          <span class="col-picker-check"><i data-lucide="check"></i></span>
-          <span>Dernier RDV</span>
-        </button>
-      </div>
+      <form method="GET" action="{{ path('clinic_clients_list') }}" class="data-search-form">
+        <input type="hidden" name="tab" value="clients">
+        <div class="data-search">
+          <i data-lucide="search" class="data-search-icon"></i>
+          <input
+            type="search"
+            name="search"
+            value="{{ search ?? '' }}"
+            class="data-search-input"
+            placeholder="Rechercher un client…"
+            autocomplete="off"
+          />
+        </div>
+      </form>
     </div>
   </div>
 
@@ -95,65 +41,97 @@
           <th class="dg-th-checkbox">
             <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Tout sélectionner"/>
           </th>
-          <th class="dg-th-sortable" onclick="setClientSort('name')">
-            <span>Nom</span>
-            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
-          </th>
-          <th class="dg-th-sortable col-email">
-            <span>Email</span>
-            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
-          </th>
-          <th class="dg-th-sortable col-phone">
-            <span>Téléphone</span>
-          </th>
-          <th class="dg-th-sortable col-animals">
-            <span>Animaux</span>
-          </th>
-          <th class="dg-th-sortable col-lastrdv" onclick="setClientSort('recent')">
-            <span>Dernier RDV</span>
-            <i data-lucide="chevrons-up-down" class="dg-sort-icon"></i>
-          </th>
-          <th class="dg-th-sortable">
-            <span>Statut</span>
-          </th>
+          <th>Nom</th>
+          <th class="col-email">Email</th>
+          <th class="col-phone">Téléphone</th>
+          <th class="col-animals">Animaux</th>
+          <th class="col-lastrdv">Dernier RDV</th>
+          <th>Statut</th>
           <th class="dg-th-actions"></th>
         </tr>
       </thead>
-      <tbody id="clients-tbody" data-turbo-temporary>
-        {# Rendered by JS — see assets/js/pages/clients/list.js #}
+      <tbody>
+        {% if clients is null or clients.items is empty %}
+          <tr>
+            <td colspan="8" class="data-grid-empty">
+              {% if search %}
+                Aucun client ne correspond à « {{ search }} ».
+              {% else %}
+                Aucun client enregistré pour cette clinique.
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          {% for client in clients.items %}
+            {% set initials = (client.firstName|first ~ client.lastName|first)|upper %}
+            {# Stable hash from the uuid so the same client always gets the same colour. #}
+            {% set _hexMap = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'a':10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15} %}
+            {% set _hashSum = 0 %}
+            {% for _ch in (client.id|replace({'-': ''})|slice(0, 8))|split('') %}
+              {% set _hashSum = _hashSum + (_hexMap[_ch|lower] ?? 0) %}
+            {% endfor %}
+            {% set avatar = avatarPalette[_hashSum % (avatarPalette|length)] %}
+            <tr>
+              <td class="dg-td-checkbox">
+                <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Sélectionner ce client"/>
+              </td>
+              <td>
+                <div class="dg-name-cell">
+                  <span class="dg-avatar" style="background:{{ avatar.bg }};color:{{ avatar.color }};">{{ initials }}</span>
+                  <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="dg-name-link">{{ client.fullName }}</a>
+                </div>
+              </td>
+              <td class="col-email">{{ client.primaryEmail|default('—') }}</td>
+              <td class="col-phone">{{ client.primaryPhone|default('—') }}</td>
+              {# Cross-BC fallback — pending follow-up enrichment spec. #}
+              <td class="col-animals">—</td>
+              <td class="col-lastrdv">—</td>
+              <td>
+                <span class="badge {{ client.status == 'active' ? 'b-ok' : 'b-grey' }}">
+                  {{ client.status == 'active' ? 'Actif' : 'Archivé' }}
+                </span>
+              </td>
+              <td class="dg-td-actions">
+                <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir">
+                  <i data-lucide="eye"></i>
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>
 
   {# ── Pagination footer ── #}
-  <div class="data-card-foot">
-    <div class="data-pagination-left">
-      <span class="data-pagination-label">Lignes par page</span>
-      {{ include('components/ui/select.html.twig', {
-        name: 'clients-page-size',
-        id: 'clients-page-size',
-        value: '10',
-        direction: 'up',
-        extra_class: 'data-pagination-select',
-        options: [
-          { value: '10', label: '10' },
-          { value: '25', label: '25' },
-          { value: '50', label: '50' },
-          { value: '100', label: '100' },
-        ]
-      }) }}
-    </div>
-    <div class="data-pagination-right">
-      <span class="data-pagination-info" id="clients-pagination-info">1 - 10 sur 12</span>
-      <div class="data-pagination-buttons">
-        <button type="button" class="data-pagination-btn" id="clients-prev" onclick="goClientPage(-1)" aria-label="Précédent">
-          <i data-lucide="chevron-left"></i>
-        </button>
-        <button type="button" class="data-pagination-btn" id="clients-next" onclick="goClientPage(1)" aria-label="Suivant">
-          <i data-lucide="chevron-right"></i>
-        </button>
+  {% if clients is not null and clients.totalPages > 1 %}
+    <div class="data-card-foot">
+      <div class="data-pagination-right">
+        <span class="data-pagination-info">
+          Page {{ clients.currentPage }} sur {{ clients.totalPages }} ({{ clients.totalItems }} clients)
+        </span>
+        <div class="data-pagination-buttons">
+          {% if clients.hasPreviousPage %}
+            <a href="{{ path('clinic_clients_list', {tab: 'clients', search: search, page: clients.previousPage}) }}" class="data-pagination-btn" aria-label="Précédent">
+              <i data-lucide="chevron-left"></i>
+            </a>
+          {% else %}
+            <button type="button" class="data-pagination-btn" disabled aria-label="Précédent">
+              <i data-lucide="chevron-left"></i>
+            </button>
+          {% endif %}
+          {% if clients.hasNextPage %}
+            <a href="{{ path('clinic_clients_list', {tab: 'clients', search: search, page: clients.nextPage}) }}" class="data-pagination-btn" aria-label="Suivant">
+              <i data-lucide="chevron-right"></i>
+            </a>
+          {% else %}
+            <button type="button" class="data-pagination-btn" disabled aria-label="Suivant">
+              <i data-lucide="chevron-right"></i>
+            </button>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
+  {% endif %}
 
 </div>

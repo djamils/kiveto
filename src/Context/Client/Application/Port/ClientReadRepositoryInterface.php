@@ -18,4 +18,12 @@ interface ClientReadRepositoryInterface
      * @return array{items: list<ClientListItemView>, total: int}
      */
     public function search(ClinicId $clinicId, SearchClientsCriteria $criteria): array;
+
+    public function countBy(ClinicId $clinicId, SearchClientsCriteria $criteria): int;
+
+    /**
+     * Returns true if any client in the given clinic already uses this email
+     * in one of their contact methods.
+     */
+    public function emailExistsInClinic(ClinicId $clinicId, string $email): bool;
 }

@@ -1,0 +1,43 @@
+{# Path B (Turbo Streams) — plain wrapper div. #}
+<div id="new-animal-form-body">
+  {{ form_start(form, {
+    'attr':   {'id': 'form-new-animal'},
+    'action': path('clinic_animals_create'),
+    'method': 'POST',
+  }) }}
+    {{ form_errors(form) }}
+
+    <div class="form-grid">
+      <div class="field">
+        {{ form_label(form.name, "Nom de l'animal") }}
+        {{ form_widget(form.name, {'attr': {'class': 'form-input', 'placeholder': 'Milo'}}) }}
+        {{ form_errors(form.name) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.species, 'Espèce') }}
+        {{ form_widget(form.species, {'attr': {'class': 'form-input'}}) }}
+        {{ form_errors(form.species) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.sex, 'Sexe') }}
+        {{ form_widget(form.sex, {'attr': {'class': 'form-input'}}) }}
+        {{ form_errors(form.sex) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.breedName, 'Race') }}
+        {{ form_widget(form.breedName, {'attr': {'class': 'form-input', 'placeholder': 'Berger Australien'}}) }}
+        {{ form_errors(form.breedName) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.birthDate, 'Date de naissance') }}
+        {{ form_widget(form.birthDate, {'attr': {'class': 'form-input'}}) }}
+        {{ form_errors(form.birthDate) }}
+      </div>
+    </div>
+
+    {{ form_widget(form.primaryOwnerClientId) }}
+    {{ form_errors(form.primaryOwnerClientId) }}
+
+    {{ form_widget(form._returnTo) }}
+  {{ form_end(form) }}
+</div>

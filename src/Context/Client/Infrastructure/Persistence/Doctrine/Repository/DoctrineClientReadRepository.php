@@ -71,21 +71,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
     {
         $conn = $this->em->getConnection();
 
-        // Build WHERE clause
-        $where  = ['c.clinic_id = :clinicId'];
-        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
-
-        if (null !== $criteria->status) {
-            $where[]          = 'c.status = :status';
-            $params['status'] = $criteria->status;
-        }
-
-        if (null !== $criteria->searchTerm && '' !== trim($criteria->searchTerm)) {
-            $where[]          = '(c.first_name LIKE :search OR c.last_name LIKE :search)';
-            $params['search'] = '%' . $criteria->searchTerm . '%';
-        }
-
-        $whereClause = implode(' AND ', $where);
+        [$whereClause, $params] = $this->buildSearchWhereClause($clinicId, $criteria);
 
         // Count total results
         $countSql = "SELECT COUNT(*) FROM client__clients c WHERE {$whereClause}";
@@ -152,6 +138,63 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             'items' => $items,
             'total' => $total,
         ];
+    }
+
+    public function emailExistsInClinic(ClinicId $clinicId, string $email): bool
+    {
+        $sql = <<<'SQL'
+            SELECT 1
+            FROM client__clients c
+            INNER JOIN client__contact_methods cm ON cm.client_id = c.id
+            WHERE c.clinic_id = :clinicId
+              AND cm.type = 'email'
+              AND LOWER(cm.value) = LOWER(:email)
+            LIMIT 1
+        SQL;
+
+        $result = $this->em->getConnection()->fetchOne($sql, [
+            'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+            'email'    => $email,
+        ]);
+
+        return false !== $result;
+    }
+
+    public function countBy(ClinicId $clinicId, SearchClientsCriteria $criteria): int
+    {
+        $conn = $this->em->getConnection();
+
+        [$whereClause, $params] = $this->buildSearchWhereClause($clinicId, $criteria);
+
+        $sql   = "SELECT COUNT(*) FROM client__clients c WHERE {$whereClause}";
+        $count = $conn->fetchOne($sql, $params);
+        \assert(is_numeric($count));
+
+        return (int) $count;
+    }
+
+    /**
+     * Shared WHERE clause builder used by both `search()` and `countBy()`
+     * so that badge counts never drift from the filtered list.
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function buildSearchWhereClause(ClinicId $clinicId, SearchClientsCriteria $criteria): array
+    {
+        $where  = ['c.clinic_id = :clinicId'];
+        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+
+        if (null !== $criteria->status) {
+            $where[]          = 'c.status = :status';
+            $params['status'] = $criteria->status;
+        }
+
+        if (null !== $criteria->searchTerm && '' !== trim($criteria->searchTerm)) {
+            $where[]          = '(c.first_name LIKE :search OR c.last_name LIKE :search)';
+            $params['search'] = '%' . $criteria->searchTerm . '%';
+        }
+
+        return [implode(' AND ', $where), $params];
     }
 
     private function buildPostalAddressDto(ClientEntity $entity): ?PostalAddressDto

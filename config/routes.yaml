@@ -9,6 +9,8 @@
 
 clinic:
     resource: routes/clinic.yaml
+api:
+    resource: routes/api.yaml
 portal:
     resource: routes/portal.yaml
 backoffice:

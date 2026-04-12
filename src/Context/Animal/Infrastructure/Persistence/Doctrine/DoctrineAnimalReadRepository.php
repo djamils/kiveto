@@ -82,6 +82,21 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         ];
     }
 
+    public function countBy(ClinicId $clinicId, SearchAnimalsCriteria $criteria): int
+    {
+        $clinicUuid = Uuid::fromString($clinicId->toString());
+        $qb         = $this->entityManager->createQueryBuilder();
+        $qb->select('COUNT(DISTINCT a.id)')
+            ->from(AnimalEntity::class, 'a')
+            ->where('a.clinicId = :clinicId')
+            ->setParameter('clinicId', $clinicUuid, UuidType::NAME)
+        ;
+
+        $this->applySearchCriteria($qb, $criteria);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     private function applySearchCriteria(QueryBuilder $qb, SearchAnimalsCriteria $criteria): void
     {
         if (null !== $criteria->searchTerm && '' !== $criteria->searchTerm) {

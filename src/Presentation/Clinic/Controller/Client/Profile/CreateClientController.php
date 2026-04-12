@@ -6,109 +6,124 @@ namespace App\Presentation\Clinic\Controller\Client\Profile;
 
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
+use App\Presentation\Clinic\Form\Client\ClientFormType;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Infrastructure\Http\ReturnToResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[Route('/clients/create', name: 'clinic_clients_create', methods: ['POST'])]
 final class CreateClientController extends AbstractController
 {
-    private const string CSRF_ID = 'clinic_client_form';
-
     public function __construct(
         private readonly CommandBusInterface $commandBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ReturnToResolver $returnToResolver,
+        private readonly ClientReadRepositoryInterface $clientReadRepository,
     ) {
     }
 
     public function __invoke(Request $request): Response
     {
-        $this->assertCsrf($request);
-
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $firstName = trim((string) $request->request->get('first_name'));
-        $lastName  = trim((string) $request->request->get('last_name'));
+        $form = $this->createForm(ClientFormType::class);
+        $form->handleRequest($request);
 
-        $contactMethods = $this->extractContactMethods($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $data = $form->getData();
+            \assert(\is_array($data));
 
-        if ('' === $firstName || '' === $lastName) {
-            throw new \InvalidArgumentException('Le prénom et le nom sont obligatoires.');
-        }
+            $firstName = \is_string($data['firstName'] ?? null) ? $data['firstName'] : '';
+            $lastName  = \is_string($data['lastName'] ?? null) ? $data['lastName'] : '';
+            $email     = trim(\is_string($data['email'] ?? null) ? $data['email'] : '');
+            $phone     = trim(\is_string($data['phone'] ?? null) ? $data['phone'] : '');
 
-        if (0 === \count($contactMethods)) {
-            throw new \InvalidArgumentException('Au moins un moyen de contact est obligatoire.');
-        }
+            $emailIsDuplicate = '' !== $email
+                && $this->clientReadRepository->emailExistsInClinic($currentClinicId, $email);
 
-        $clientId = $this->commandBus->dispatch(new CreateClient(
-            clinicId: $currentClinicId->toString(),
-            firstName: $firstName,
-            lastName: $lastName,
-            contactMethods: $contactMethods,
-        ));
-
-        $this->addFlash('success', \sprintf('Client "%s %s" créé avec succès.', $firstName, $lastName));
-
-        return $this->redirectToRoute('clinic_clients_view', ['id' => $clientId]);
-    }
-
-    /**
-     * @return list<ContactMethodDto>
-     */
-    private function extractContactMethods(Request $request): array
-    {
-        $contactMethods = [];
-
-        /** @var array<int|string, mixed> $types */
-        $types = $request->request->all('contact_type');
-        /** @var array<int|string, mixed> $labels */
-        $labels = $request->request->all('contact_label');
-        /** @var array<int|string, mixed> $values */
-        $values = $request->request->all('contact_value');
-        /** @var array<int|string, mixed> $primary */
-        $primary = $request->request->all('contact_primary');
-
-        foreach ($types as $index => $type) {
-            $labelValue = $labels[$index] ?? '';
-            $valueValue = $values[$index] ?? '';
-
-            \assert(\is_scalar($type));
-            \assert(\is_scalar($labelValue));
-            \assert(\is_scalar($valueValue));
-
-            $type      = trim((string) $type);
-            $label     = trim((string) $labelValue);
-            $value     = trim((string) $valueValue);
-            $isPrimary = isset($primary[$index]);
-
-            if ('' === $type || '' === $label || '' === $value) {
-                continue;
+            if ($emailIsDuplicate) {
+                $form->get('email')->addError(
+                    new FormError('Un client avec cet email existe déjà dans cette clinique.'),
+                );
             }
 
-            $contactMethods[] = new ContactMethodDto(
-                type: $type,
-                label: $label,
-                value: $value,
-                isPrimary: $isPrimary,
+            if (!$emailIsDuplicate) {
+                $contactMethods = [];
+                if ('' !== $email) {
+                    $contactMethods[] = new ContactMethodDto(
+                        type: 'email',
+                        label: 'home',
+                        value: $email,
+                        isPrimary: true,
+                    );
+                }
+                if ('' !== $phone) {
+                    $contactMethods[] = new ContactMethodDto(
+                        type: 'phone',
+                        label: 'mobile',
+                        value: $phone,
+                        isPrimary: '' === $email,
+                    );
+                }
+
+                try {
+                    $this->commandBus->dispatch(new CreateClient(
+                        clinicId: $currentClinicId->toString(),
+                        firstName: $firstName,
+                        lastName: $lastName,
+                        contactMethods: $contactMethods,
+                    ));
+                } catch (\InvalidArgumentException $e) {
+                    $form->addError(new FormError($e->getMessage()));
+
+                    return $this->renderError($request, $form);
+                }
+
+                $rawReturnToData = $form->has('_returnTo') ? $form->get('_returnTo')->getData() : null;
+                $rawReturnTo     = \is_string($rawReturnToData) ? $rawReturnToData : '';
+                $targetUrl       = $this->returnToResolver->resolve(
+                    '' !== $rawReturnTo ? $rawReturnTo : null,
+                    'clinic_clients_list',
+                );
+
+                $this->addFlash('success', \sprintf(
+                    'Client "%s %s" créé avec succès.',
+                    $firstName,
+                    $lastName,
+                ));
+
+                return $this->redirect($targetUrl, Response::HTTP_SEE_OTHER);
+            }
+        }
+
+        return $this->renderError($request, $form);
+    }
+
+    private function renderError(Request $request, \Symfony\Component\Form\FormInterface $form): Response
+    {
+        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+            $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
+
+            return $this->render(
+                'clinic/clients/list/_create_client_error.stream.html.twig',
+                ['form' => $form],
+                new Response('', Response::HTTP_UNPROCESSABLE_ENTITY, [
+                    'Content-Type' => TurboBundle::STREAM_MEDIA_TYPE,
+                ]),
             );
         }
 
-        return $contactMethods;
-    }
-
-    private function assertCsrf(Request $request): void
-    {
-        $token = new CsrfToken(self::CSRF_ID, (string) $request->request->get('_token'));
-
-        if (!$this->csrfTokenManager->isTokenValid($token)) {
-            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
-        }
+        return $this->render(
+            'clinic/clients/list/_form_client_body.html.twig',
+            ['form' => $form],
+        );
     }
 }

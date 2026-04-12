@@ -1,4 +1,4 @@
-{# Modal: Nouveau client #}
+{# Modal: Nouveau client — wires the Symfony form via Path B (Turbo Streams). #}
 
 <div
   class="modal-overlay hidden"
@@ -17,41 +17,12 @@
     </div>
 
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="field">
-          <label class="field-label" for="nc-first">Prénom</label>
-          <input type="text" id="nc-first" class="form-input" placeholder="Sophie"/>
-        </div>
-        <div class="field">
-          <label class="field-label" for="nc-last">Nom</label>
-          <input type="text" id="nc-last" class="form-input" placeholder="Dubois"/>
-        </div>
-        <div class="field form-col-2">
-          <label class="field-label" for="nc-email">Email</label>
-          <input type="email" id="nc-email" class="form-input" placeholder="sophie.dubois@email.fr"/>
-        </div>
-        <div class="field">
-          <label class="field-label" for="nc-phone">Téléphone</label>
-          <input type="tel" id="nc-phone" class="form-input" placeholder="+33 6 12 34 56 78"/>
-        </div>
-        <div class="field">
-          <label class="field-label" for="nc-since">Client depuis</label>
-          <input type="date" id="nc-since" class="form-input"/>
-        </div>
-        <div class="field form-col-2">
-          <label class="field-label" for="nc-address">Adresse</label>
-          <input type="text" id="nc-address" class="form-input" placeholder="12 rue de la Paix, 75001 Paris"/>
-        </div>
-        <div class="field form-col-2">
-          <label class="field-label" for="nc-notes">Notes</label>
-          <textarea id="nc-notes" class="form-input" placeholder="Préférences, infos particulières…"></textarea>
-        </div>
-      </div>
+      {{ include('clinic/clients/list/_form_client_body.html.twig', {form: createClientForm}) }}
     </div>
 
     <div class="modal-foot">
       <button type="button" class="btn btn-secondary btn-sm" data-modal-close>Annuler</button>
-      <button type="button" class="btn btn-primary btn-sm" onclick="showToast('Client créé','#16a34a');document.getElementById('modal-new-client').classList.add('hidden');">
+      <button type="submit" form="form-new-client" class="btn btn-primary btn-sm">
         <i data-lucide="check"></i>
         Créer le client
       </button>

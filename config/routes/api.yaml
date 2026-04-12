@@ -1,0 +1,5 @@
+api_clinic:
+    resource: ../../src/Presentation/Clinic/Controller/Api/Clinic/
+    type: attribute
+    prefix: /api/clinic
+    host: 'clinic.kiveto.local'

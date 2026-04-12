@@ -15,7 +15,7 @@
 {% block page_title %}{{ animal ? 'Modifier ' ~ animal.name : 'Nouvel animal' }}{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}"
+  <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_clients_list', {tab: 'animals'}) }}"
      class="btn btn-secondary btn-sm">Annuler</a>
   <button type="submit" form="animalForm" class="btn btn-primary btn-sm">
     {{ animal ? 'Sauvegarder' : 'Creer' }}
@@ -25,7 +25,7 @@
 {% block content %}
   {# Breadcrumb navigation #}
   <nav style="margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);">
-    <a href="{{ path('clinic_animals_list') }}" style="color:var(--brand-600);">Animaux</a>
+    <a href="{{ path('clinic_clients_list', {tab: 'animals'}) }}" style="color:var(--brand-600);">Animaux</a>
     <span style="margin:0 var(--space-1);">/</span>
     {% if animal %}
       <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" style="color:var(--brand-600);">{{ animal.name }}</a>
@@ -89,7 +89,7 @@
 
     {# Form actions #}
     <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-4);">
-      <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_animals_list') }}"
+      <a href="{{ animal ? path('clinic_animals_view', {id: animal.id}) : path('clinic_clients_list', {tab: 'animals'}) }}"
          class="btn btn-secondary">Annuler</a>
       <button type="submit" class="btn btn-primary">
         {{ animal ? 'Sauvegarder les modifications' : 'Creer l\'animal' }}

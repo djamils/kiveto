@@ -13,6 +13,9 @@ services:
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            $apiClinicIpLimiter: '@limiter.api_clinic_ip'
+            $apiClinicSearchLimiter: '@limiter.api_clinic_search'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -302,4 +305,26 @@ when@dev: &services_dev
             autowire: true
             autoconfigure: true
 
-when@test: *services_dev
+when@test:
+    services:
+        App\Fixtures\:
+            resource: '../fixtures/'
+            autowire: true
+            autoconfigure: true
+
+        # Deterministic rate limiter stubs (programmable, zero wall-clock dependency)
+        App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.search:
+            class: App\Tests\Fixtures\RateLimit\StubRateLimiterFactory
+            public: true
+
+        App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.ip:
+            class: App\Tests\Fixtures\RateLimit\StubRateLimiterFactory
+            public: true
+
+        limiter.api_clinic_search:
+            alias: 'App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.search'
+            public: true
+
+        limiter.api_clinic_ip:
+            alias: 'App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.ip'
+            public: true

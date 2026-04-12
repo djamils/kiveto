@@ -28,7 +28,7 @@
 {% block content %}
   {# Breadcrumb navigation #}
   <nav style="margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);">
-    <a href="{{ path('clinic_animals_list') }}" style="color:var(--brand-600);">Animaux</a>
+    <a href="{{ path('clinic_clients_list', {tab: 'animals'}) }}" style="color:var(--brand-600);">Animaux</a>
     <span style="margin:0 var(--space-1);">/</span>
     <span style="color:var(--text-primary);">{{ animal.name }}</span>
   </nav>

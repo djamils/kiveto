@@ -1,9 +1,9 @@
 {#
  # Kiveto -- templates/clinic/clients/list/index.html.twig
  # ──────────────────────────────────────────────────────
- # Clients & Animaux page — 2 tabs (Clients / Animaux) with data tables
- # and hover-revealed row actions. The overview/dashboard role belongs
- # to the main Tableau de bord page.
+ # Clients & Animaux page — 2 tabs (Clients / Animaux) backed by real
+ # SearchClients / SearchAnimals queries. Inactive tab badge shows the
+ # filtered count from CountClients / CountAnimals.
  #}
 {% extends 'clinic/base.html.twig' %}
 
@@ -27,29 +27,35 @@
 {% endblock %}
 
 {% block content %}
-<div class="ca-page" data-tabs>
+<div class="ca-page">
 
-  {# ── Tabs nav ── #}
+  {# ── Tabs nav (server-driven via ?tab=…) ── #}
   <div class="tab-bar-line ca-tabs">
-    <button type="button" class="tab-line active" data-tab-target="ca-clients">
+    <a
+      href="{{ path('clinic_clients_list', {tab: 'clients', search: search}) }}"
+      class="tab-line {{ activeTab == 'clients' ? 'is-active' : '' }}"
+    >
       <i data-lucide="users"></i>
       <span>Clients</span>
-      <span class="tab-count" id="ca-tab-count-clients">0</span>
-    </button>
-    <button type="button" class="tab-line" data-tab-target="ca-animals">
+      <span class="tab-count">{{ clientCount }}</span>
+    </a>
+    <a
+      href="{{ path('clinic_clients_list', {tab: 'animals', search: search}) }}"
+      class="tab-line {{ activeTab == 'animals' ? 'is-active' : '' }}"
+    >
       <i data-lucide="paw-print"></i>
       <span>Animaux</span>
-      <span class="tab-count" id="ca-tab-count-animals">0</span>
-    </button>
+      <span class="tab-count">{{ animalCount }}</span>
+    </a>
   </div>
 
-  {# ── Tab panels ── #}
-  <div id="ca-clients" class="ca-tab-panel">
-    {{ include('clinic/clients/list/_tab_clients.html.twig') }}
-  </div>
-
-  <div id="ca-animals" class="ca-tab-panel hidden">
-    {{ include('clinic/clients/list/_tab_animals.html.twig') }}
+  {# ── Active tab panel ── #}
+  <div class="ca-tab-panel">
+    {% if activeTab == 'clients' %}
+      {{ include('clinic/clients/list/_tab_clients.html.twig') }}
+    {% else %}
+      {{ include('clinic/clients/list/_tab_animals.html.twig') }}
+    {% endif %}
   </div>
 
 </div>
@@ -84,13 +90,9 @@
   </a>
 </div>
 
-{# New client / new animal modals #}
+{# Modals — passed the form objects from ListClientsController #}
 {{ include('clinic/clients/list/_modal_new_client.html.twig') }}
 {{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
 
 <div id="toast"></div>
-{% endblock %}
-
-{% block javascripts %}
-<script>window.ROUTES = { clientsNew: '{{ path("clinic_clients_new") }}', clientsList: '{{ path("clinic_clients_list") }}' };</script>
 {% endblock %}

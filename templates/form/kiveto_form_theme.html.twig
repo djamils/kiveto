@@ -72,7 +72,6 @@
     value="{{ value }}"
     {% if required %}required{% endif %}
     {% if disabled %}disabled{% endif %}
-    {% if read_only %}readonly{% endif %}
     {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
   />
 {% endblock %}
@@ -87,7 +86,6 @@
     name="{{ full_name }}"
     {% if required %}required{% endif %}
     {% if disabled %}disabled{% endif %}
-    {% if read_only %}readonly{% endif %}
     {% for attrname, attrvalue in attr %}{{ attrname }}="{{ attrvalue }}"{% endfor %}
   >{{ value }}</textarea>
 {% endblock %}
@@ -125,7 +123,15 @@
     </select>
   {% else %}
     {# Single select — custom animated Select component #}
-    {% set _sf_value = value|first is defined ? value|first : (value is iterable ? '' : value) %}
+    {% if value is iterable %}
+      {% set _sf_first = '' %}
+      {% for _sf_item in value %}
+        {% if loop.first %}{% set _sf_first = _sf_item %}{% endif %}
+      {% endfor %}
+      {% set _sf_value = _sf_first %}
+    {% else %}
+      {% set _sf_value = value|default('') %}
+    {% endif %}
     {% set _sf_selected_label = '' %}
     {% set _flat_options = [] %}
 

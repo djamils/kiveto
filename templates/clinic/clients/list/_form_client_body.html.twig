@@ -1,0 +1,35 @@
+{# Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>. #}
+<div id="new-client-form-body">
+  {{ form_start(form, {
+    'attr':   {'id': 'form-new-client'},
+    'action': path('clinic_clients_create'),
+    'method': 'POST',
+  }) }}
+    {{ form_errors(form) }}
+
+    <div class="form-grid">
+      <div class="field">
+        {{ form_label(form.firstName, 'Prénom') }}
+        {{ form_widget(form.firstName, {'attr': {'class': 'form-input', 'placeholder': 'Sophie'}}) }}
+        {{ form_errors(form.firstName) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.lastName, 'Nom') }}
+        {{ form_widget(form.lastName, {'attr': {'class': 'form-input', 'placeholder': 'Dubois'}}) }}
+        {{ form_errors(form.lastName) }}
+      </div>
+      <div class="field form-col-2">
+        {{ form_label(form.email, 'Email') }}
+        {{ form_widget(form.email, {'attr': {'class': 'form-input', 'placeholder': 'sophie.dubois@email.fr'}}) }}
+        {{ form_errors(form.email) }}
+      </div>
+      <div class="field">
+        {{ form_label(form.phone, 'Téléphone') }}
+        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '+33 6 12 34 56 78'}}) }}
+        {{ form_errors(form.phone) }}
+      </div>
+    </div>
+
+    {{ form_widget(form._returnTo) }}
+  {{ form_end(form) }}
+</div>

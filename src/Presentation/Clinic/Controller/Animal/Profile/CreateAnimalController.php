@@ -5,89 +5,139 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Animal\Profile;
 
 use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
+use App\Context\Client\Application\Query\GetClientById\ClientView;
+use App\Context\Client\Application\Query\GetClientById\GetClientById;
+use App\Presentation\Clinic\Form\Animal\AnimalFormType;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Infrastructure\Http\ReturnToResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[Route('/animals/create', name: 'clinic_animals_create', methods: ['POST'])]
 final class CreateAnimalController extends AbstractController
 {
-    private const string CSRF_ID = 'clinic_animal_form';
-
     public function __construct(
         private readonly CommandBusInterface $commandBus,
+        private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ReturnToResolver $returnToResolver,
     ) {
     }
 
     public function __invoke(Request $request): Response
     {
-        $token = new CsrfToken(self::CSRF_ID, (string) $request->request->get('_token'));
-
-        if (!$this->csrfTokenManager->isTokenValid($token)) {
-            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
-        }
-
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $name = trim((string) $request->request->get('name'));
+        $form = $this->createForm(AnimalFormType::class);
+        $form->handleRequest($request);
 
-        if ('' === $name) {
-            throw new \InvalidArgumentException('Le nom est obligatoire.');
+        if ($form->isSubmitted() && $form->isValid()) {
+            $data = $form->getData();
+            \assert(\is_array($data));
+
+            $rawOwnerId           = $data['primaryOwnerClientId'] ?? null;
+            $primaryOwnerClientId = \is_string($rawOwnerId) ? $rawOwnerId : '';
+
+            $owner = $this->queryBus->ask(new GetClientById(
+                clinicId: $currentClinicId->toString(),
+                clientId: $primaryOwnerClientId,
+            ));
+
+            if (!$owner instanceof ClientView) {
+                $form->get('primaryOwnerClientId')->addError(
+                    new FormError('Ce propriétaire est introuvable dans cette clinique.'),
+                );
+            } else {
+                $name      = \is_string($data['name'] ?? null) ? $data['name'] : '';
+                $species   = \is_string($data['species'] ?? null) ? $data['species'] : '';
+                $sex       = \is_string($data['sex'] ?? null) ? $data['sex'] : 'unknown';
+                $breedName = \is_string($data['breedName'] ?? null) && '' !== $data['breedName']
+                    ? $data['breedName']
+                    : null;
+                $birthDateRaw = $data['birthDate'] ?? null;
+                $birthDate    = $birthDateRaw instanceof \DateTimeInterface
+                    ? $birthDateRaw->format('Y-m-d')
+                    : (\is_string($birthDateRaw) && '' !== $birthDateRaw ? $birthDateRaw : null);
+
+                $this->commandBus->dispatch(new CreateAnimal(
+                    clinicId: $currentClinicId->toString(),
+                    name: $name,
+                    species: $species,
+                    sex: $sex,
+                    reproductiveStatus: 'unknown',
+                    isMixedBreed: false,
+                    breedName: $breedName,
+                    birthDate: $birthDate,
+                    color: null,
+                    photoUrl: null,
+                    microchipNumber: null,
+                    tattooNumber: null,
+                    passportNumber: null,
+                    registryType: 'none',
+                    registryNumber: null,
+                    sireNumber: null,
+                    lifeStatus: 'alive',
+                    deceasedAt: null,
+                    missingSince: null,
+                    transferStatus: 'none',
+                    soldAt: null,
+                    givenAt: null,
+                    auxiliaryContactFirstName: null,
+                    auxiliaryContactLastName: null,
+                    auxiliaryContactPhoneNumber: null,
+                    primaryOwnerClientId: $primaryOwnerClientId,
+                    secondaryOwnerClientIds: [],
+                ));
+
+                $rawReturnToData = $form->has('_returnTo') ? $form->get('_returnTo')->getData() : null;
+                $rawReturnTo     = \is_string($rawReturnToData) ? $rawReturnToData : '';
+                $targetUrl       = $this->returnToResolver->resolve(
+                    '' !== $rawReturnTo ? $rawReturnTo : null,
+                    'clinic_clients_list',
+                    ['tab' => 'animals'],
+                );
+
+                $this->addFlash('success', \sprintf('Animal "%s" créé avec succès.', $name));
+
+                if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                    $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
+
+                    return $this->render(
+                        'clinic/clients/list/_create_animal_success.stream.html.twig',
+                        ['targetUrl' => $targetUrl],
+                        new Response('', Response::HTTP_OK, [
+                            'Content-Type'   => TurboBundle::STREAM_MEDIA_TYPE,
+                            'Turbo-Location' => $targetUrl,
+                        ]),
+                    );
+                }
+
+                return $this->redirect($targetUrl, Response::HTTP_SEE_OTHER);
+            }
         }
 
-        $primaryOwnerClientId = trim((string) $request->request->get('primary_owner_client_id'));
+        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+            $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
 
-        if ('' === $primaryOwnerClientId) {
-            throw new \InvalidArgumentException('Un propriétaire principal est obligatoire.');
+            return $this->render(
+                'clinic/clients/list/_create_animal_error.stream.html.twig',
+                ['form' => $form],
+                new Response('', Response::HTTP_UNPROCESSABLE_ENTITY, [
+                    'Content-Type' => TurboBundle::STREAM_MEDIA_TYPE,
+                ]),
+            );
         }
 
-        $animalId = $this->commandBus->dispatch(new CreateAnimal(
-            clinicId: $currentClinicId->toString(),
-            name: $name,
-            species: trim((string) $request->request->get('species', 'dog')),
-            sex: trim((string) $request->request->get('sex', 'unknown')),
-            reproductiveStatus: trim((string) $request->request->get('reproductive_status', 'unknown')),
-            isMixedBreed: (bool) $request->request->get('is_mixed_breed', false),
-            breedName: $this->getOptionalString($request, 'breed_name'),
-            birthDate: $this->getOptionalString($request, 'birth_date'),
-            color: $this->getOptionalString($request, 'color'),
-            photoUrl: $this->getOptionalString($request, 'photo_url'),
-            microchipNumber: $this->getOptionalString($request, 'microchip_number'),
-            tattooNumber: $this->getOptionalString($request, 'tattoo_number'),
-            passportNumber: $this->getOptionalString($request, 'passport_number'),
-            registryType: trim((string) $request->request->get('registry_type', 'none')),
-            registryNumber: $this->getOptionalString($request, 'registry_number'),
-            sireNumber: $this->getOptionalString($request, 'sire_number'),
-            lifeStatus: trim((string) $request->request->get('life_status', 'alive')),
-            deceasedAt: $this->getOptionalString($request, 'deceased_at'),
-            missingSince: $this->getOptionalString($request, 'missing_since'),
-            transferStatus: trim((string) $request->request->get('transfer_status', 'none')),
-            soldAt: $this->getOptionalString($request, 'sold_at'),
-            givenAt: $this->getOptionalString($request, 'given_at'),
-            auxiliaryContactFirstName: $this->getOptionalString($request, 'auxiliary_contact_first_name'),
-            auxiliaryContactLastName: $this->getOptionalString($request, 'auxiliary_contact_last_name'),
-            auxiliaryContactPhoneNumber: $this->getOptionalString($request, 'auxiliary_contact_phone_number'),
-            primaryOwnerClientId: $primaryOwnerClientId,
-            secondaryOwnerClientIds: [],
-        ));
-
-        $this->addFlash('success', \sprintf('Animal "%s" créé avec succès.', $name));
-
-        return $this->redirectToRoute('clinic_animals_view', ['id' => $animalId]);
-    }
-
-    private function getOptionalString(Request $request, string $key): ?string
-    {
-        $value = trim((string) $request->request->get($key, ''));
-
-        return '' !== $value ? $value : null;
+        return $this->render(
+            'clinic/clients/list/_form_animal_body.html.twig',
+            ['form' => $form],
+        );
     }
 }

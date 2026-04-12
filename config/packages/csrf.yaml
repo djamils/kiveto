@@ -9,3 +9,5 @@ framework:
             - submit
             - authenticate
             - logout
+            - create_client
+            - create_animal

@@ -44,6 +44,6 @@ final class ArchiveAnimalController extends AbstractController
 
         $this->addFlash('success', 'Animal archivé avec succès.');
 
-        return $this->redirectToRoute('clinic_animals_list');
+        return $this->redirectToRoute('clinic_clients_list', ['tab' => 'animals']);
     }
 }

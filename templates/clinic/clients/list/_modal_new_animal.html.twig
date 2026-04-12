@@ -1,4 +1,4 @@
-{# Modal: Nouvel animal — wizard with 2 steps (owner + animal details) #}
+{# Modal: Nouvel animal — wizard step 1 = autocomplete (Stimulus), step 2 = animal form. #}
 
 <div
   class="modal-overlay hidden"
@@ -37,146 +37,50 @@
 
     <div class="modal-body wizard-body">
 
-      {# ── Step 1: Owner ── #}
-      <div class="wizard-pane" data-wizard-target="pane">
+      {# ── Step 1: Owner autocomplete only ── #}
+      <div
+        class="wizard-pane"
+        data-wizard-target="pane"
+        data-controller="client-search-autocomplete"
+        data-client-search-autocomplete-url-value="{{ path('api_clinic_clients_search') }}"
+      >
+        <p class="wizard-section-title">Propriétaire</p>
 
-        <p class="wizard-section-title">Le propriétaire est-il déjà enregistré ?</p>
-
-        <div class="wizard-choice-grid" data-controller="wizard-choice">
-          <button type="button" class="wizard-choice is-active" data-action="click->wizard-choice#pick" data-value="existing">
-            <span class="wizard-choice-icon" style="background:#dbeafe;color:#2563eb;">
-              <i data-lucide="user-search"></i>
-            </span>
-            <div class="wizard-choice-body">
-              <p class="wizard-choice-title">Propriétaire existant</p>
-              <p class="wizard-choice-sub">Sélectionner un client déjà enregistré</p>
-            </div>
-            <span class="wizard-choice-check"><i data-lucide="check"></i></span>
-          </button>
-
-          <button type="button" class="wizard-choice" data-action="click->wizard-choice#pick" data-value="new">
-            <span class="wizard-choice-icon" style="background:#dcfce7;color:#16a34a;">
-              <i data-lucide="user-plus"></i>
-            </span>
-            <div class="wizard-choice-body">
-              <p class="wizard-choice-title">Nouveau propriétaire</p>
-              <p class="wizard-choice-sub">Créer un client en même temps</p>
-            </div>
-            <span class="wizard-choice-check"><i data-lucide="check"></i></span>
-          </button>
-        </div>
-
-        {# Existing owner panel #}
-        <div class="wizard-owner-panel" data-wizard-choice-target="panel" data-panel="existing">
-          <div class="field">
-            <label class="field-label" for="na-existing-owner">Rechercher un client</label>
-            {{ include('components/ui/select.html.twig', {
-              name: 'existing_owner',
-              id: 'na-existing-owner',
-              placeholder: 'Tapez un nom…',
-              searchable: true,
-              clearable: true,
-              options: [
-                { value: '1',  label: 'Sophie Dubois' },
-                { value: '2',  label: 'Marc Bernard' },
-                { value: '3',  label: 'Claire Petit' },
-                { value: '4',  label: 'Antoine Dupuis' },
-                { value: '5',  label: 'Julie Leclerc' },
-                { value: '6',  label: 'Pierre Moreau' },
-                { value: '7',  label: 'Isabelle Girard' },
-                { value: '8',  label: 'Thomas Lefebvre' },
-                { value: '9',  label: 'Nathalie Fontaine' },
-                { value: '10', label: 'Camille Chevalier' },
-                { value: '11', label: 'François Garnier' },
-                { value: '12', label: 'Amélie Roux' },
-              ]
-            }) }}
+        <div class="field">
+          <label class="field-label" for="na-owner-search">Rechercher un client</label>
+          <div class="autocomplete">
+            <input
+              type="text"
+              id="na-owner-search"
+              class="form-input"
+              placeholder="Tapez au moins 2 caractères…"
+              role="combobox"
+              aria-expanded="false"
+              aria-autocomplete="list"
+              aria-controls="na-owner-listbox"
+              autocomplete="off"
+              data-client-search-autocomplete-target="input"
+              data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
+            />
+            <ul
+              id="na-owner-listbox"
+              class="autocomplete-listbox hidden"
+              role="listbox"
+              data-client-search-autocomplete-target="dropdown"
+            ></ul>
+            <div
+              class="visually-hidden"
+              aria-live="polite"
+              data-client-search-autocomplete-target="liveRegion"
+            ></div>
           </div>
         </div>
-
-        {# New owner panel (hidden by default) #}
-        <div class="wizard-owner-panel hidden" data-wizard-choice-target="panel" data-panel="new">
-          <div class="form-grid">
-            <div class="field">
-              <label class="field-label" for="na-no-first">Prénom</label>
-              <input type="text" id="na-no-first" class="form-input" placeholder="Sophie"/>
-            </div>
-            <div class="field">
-              <label class="field-label" for="na-no-last">Nom</label>
-              <input type="text" id="na-no-last" class="form-input" placeholder="Dubois"/>
-            </div>
-            <div class="field form-col-2">
-              <label class="field-label" for="na-no-email">Email</label>
-              <input type="email" id="na-no-email" class="form-input" placeholder="sophie.dubois@email.fr"/>
-            </div>
-            <div class="field">
-              <label class="field-label" for="na-no-phone">Téléphone</label>
-              <input type="tel" id="na-no-phone" class="form-input" placeholder="+33 6 12 34 56 78"/>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      {# ── Step 2: Animal details ── #}
+      {# ── Step 2: Animal form ── #}
       <div class="wizard-pane hidden" data-wizard-target="pane">
-
         <p class="wizard-section-title">Informations sur l'animal</p>
-
-        <div class="form-grid">
-          <div class="field">
-            <label class="field-label" for="na-name">Nom</label>
-            <input type="text" id="na-name" class="form-input" placeholder="Milo"/>
-          </div>
-          <div class="field">
-            <label class="field-label" for="na-species">Espèce</label>
-            {{ include('components/ui/select.html.twig', {
-              name: 'species',
-              id: 'na-species',
-              placeholder: 'Choisir…',
-              options: [
-                { value: 'Canin',  label: '🐶 Chien' },
-                { value: 'Félin',  label: '🐱 Chat' },
-                { value: 'Lapin',  label: '🐰 Lapin' },
-                { value: 'NAC',    label: '🦎 NAC' },
-                { value: 'Oiseau', label: '🦜 Oiseau' },
-              ]
-            }) }}
-          </div>
-          <div class="field">
-            <label class="field-label" for="na-breed">Race</label>
-            <input type="text" id="na-breed" class="form-input" placeholder="Berger Australien"/>
-          </div>
-          <div class="field">
-            <label class="field-label" for="na-sex">Sexe</label>
-            {{ include('components/ui/select.html.twig', {
-              name: 'sex',
-              id: 'na-sex',
-              placeholder: 'Choisir…',
-              options: [
-                { value: 'M', label: 'Mâle' },
-                { value: 'F', label: 'Femelle' },
-              ]
-            }) }}
-          </div>
-          <div class="field">
-            <label class="field-label" for="na-dob">Date de naissance</label>
-            <input type="date" id="na-dob" class="form-input"/>
-          </div>
-          <div class="field">
-            <label class="field-label" for="na-weight">Poids</label>
-            <input type="text" id="na-weight" class="form-input" placeholder="12 kg"/>
-          </div>
-          <div class="field form-col-2">
-            <label class="field-label" for="na-chip">N° d'identification</label>
-            <input type="text" id="na-chip" class="form-input" placeholder="250268500012345"/>
-          </div>
-          <div class="field form-col-2">
-            <label class="field-label" for="na-notes">Notes</label>
-            <textarea id="na-notes" class="form-input" placeholder="Allergies, comportement, antécédents…"></textarea>
-          </div>
-        </div>
-
+        {{ include('clinic/clients/list/_form_animal_body.html.twig', {form: createAnimalForm}) }}
       </div>
 
     </div>
@@ -204,10 +108,10 @@
           <i data-lucide="chevron-right"></i>
         </button>
         <button
-          type="button"
+          type="submit"
+          form="form-new-animal"
           class="btn btn-primary btn-sm hidden"
           data-wizard-target="finish"
-          data-action="click->wizard#finish"
         >
           <i data-lucide="check"></i>
           Créer l'animal

@@ -1,0 +1,6 @@
+{# Path B 422: replace just the form body with the re-rendered partial. #}
+<turbo-stream action="replace" target="new-animal-form-body">
+  <template>
+    {{ include('clinic/clients/list/_form_animal_body.html.twig', {form: form}) }}
+  </template>
+</turbo-stream>
