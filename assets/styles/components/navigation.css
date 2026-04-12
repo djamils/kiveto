@@ -133,7 +133,8 @@
   .tab-line:hover {
     @apply text-text-secondary;
   }
-  .tab-line.active {
+  .tab-line.active,
+  .tab-line.is-active {
     @apply text-brand-600;
     border-bottom-color: var(--brand-600);
   }

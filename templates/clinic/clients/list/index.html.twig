@@ -29,33 +29,63 @@
 {% block content %}
 <div class="ca-page">
 
-  {# ── Tabs nav (server-driven via ?tab=…) ── #}
-  <div class="tab-bar-line ca-tabs">
+  {# ── Tabs nav — lives outside the frame, never swapped ── #}
+  <div class="tab-bar-line ca-tabs" id="ca-tabs">
     <a
       href="{{ path('clinic_clients_list', {tab: 'clients', search: search}) }}"
       class="tab-line {{ activeTab == 'clients' ? 'is-active' : '' }}"
+      data-turbo-frame="clients-tab-content"
+      data-tab="clients"
     >
       <i data-lucide="users"></i>
       <span>Clients</span>
-      <span class="tab-count">{{ clientCount }}</span>
+      <span class="tab-count" data-tab-count="clients">{{ clientCount }}</span>
     </a>
     <a
       href="{{ path('clinic_clients_list', {tab: 'animals', search: search}) }}"
       class="tab-line {{ activeTab == 'animals' ? 'is-active' : '' }}"
+      data-turbo-frame="clients-tab-content"
+      data-tab="animals"
     >
       <i data-lucide="paw-print"></i>
       <span>Animaux</span>
-      <span class="tab-count">{{ animalCount }}</span>
+      <span class="tab-count" data-tab-count="animals">{{ animalCount }}</span>
     </a>
   </div>
 
-  {# ── Active tab panel ── #}
-  <div class="ca-tab-panel">
-    {% if activeTab == 'clients' %}
-      {{ include('clinic/clients/list/_tab_clients.html.twig') }}
-    {% else %}
-      {{ include('clinic/clients/list/_tab_animals.html.twig') }}
-    {% endif %}
+  {# ── Search bar — lives outside the frame, never swapped ── #}
+  <div class="data-card">
+    <div class="data-card-head">
+      <div class="data-card-head-left">
+        <form method="GET" action="{{ path('clinic_clients_list') }}" class="data-search-form" data-turbo-frame="clients-tab-content" id="ca-search-form">
+          <input type="hidden" name="tab" value="{{ activeTab }}" id="ca-search-tab">
+          <div class="data-search">
+            <i data-lucide="search" class="data-search-icon"></i>
+            <input
+              type="search"
+              name="search"
+              value="{{ search ?? '' }}"
+              class="data-search-input"
+              id="ca-search-input"
+              placeholder="{{ activeTab == 'clients' ? 'Rechercher un client…' : 'Rechercher un animal…' }}"
+              autocomplete="off"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ── Frame: only the table + pagination swap ── #}
+    <turbo-frame id="clients-tab-content" data-turbo-action="advance">
+      <script type="application/json" id="ca-tab-meta">
+        {{ {activeTab: activeTab, clientCount: clientCount, animalCount: animalCount}|json_encode|raw }}
+      </script>
+      {% if activeTab == 'clients' %}
+        {{ include('clinic/clients/list/_tab_clients.html.twig') }}
+      {% else %}
+        {{ include('clinic/clients/list/_tab_animals.html.twig') }}
+      {% endif %}
+    </turbo-frame>
   </div>
 
 </div>

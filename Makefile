@@ -190,6 +190,8 @@ tailwind-build:
 	@$(call ok,Tailwind CSS compiled)
 
 assets: tailwind-build
+	@$(call step,Cleaning previous assets...)
+	$(Q)rm -rf public/assets
 	@$(call step,Compiling AssetMapper...)
 	$(Q)$(SYMFONY) asset-map:compile
 	@$(call ok,Assets compiled)

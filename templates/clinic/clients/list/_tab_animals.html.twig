@@ -10,28 +10,8 @@
 ] %}
 {% set _hexMap = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'a':10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15} %}
 
-<div class="data-card">
-
-  <div class="data-card-head">
-    <div class="data-card-head-left">
-      <form method="GET" action="{{ path('clinic_clients_list') }}" class="data-search-form">
-        <input type="hidden" name="tab" value="animals">
-        <div class="data-search">
-          <i data-lucide="search" class="data-search-icon"></i>
-          <input
-            type="search"
-            name="search"
-            value="{{ search ?? '' }}"
-            class="data-search-input"
-            placeholder="Rechercher un animal…"
-            autocomplete="off"
-          />
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="data-card-table">
+{# ── Table ── #}
+<div class="data-card-table">
     <table class="data-grid">
       <thead>
         <tr>
@@ -131,5 +111,3 @@
       </div>
     </div>
   {% endif %}
-
-</div>

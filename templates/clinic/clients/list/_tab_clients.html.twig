@@ -11,30 +11,8 @@
   {bg: '#fef3c7', color: '#b45309'},
 ] %}
 
-<div class="data-card">
-
-  {# ── Card header: search + filters (filters left non-functional in this iteration) ── #}
-  <div class="data-card-head">
-    <div class="data-card-head-left">
-      <form method="GET" action="{{ path('clinic_clients_list') }}" class="data-search-form">
-        <input type="hidden" name="tab" value="clients">
-        <div class="data-search">
-          <i data-lucide="search" class="data-search-icon"></i>
-          <input
-            type="search"
-            name="search"
-            value="{{ search ?? '' }}"
-            class="data-search-input"
-            placeholder="Rechercher un client…"
-            autocomplete="off"
-          />
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ── Table ── #}
-  <div class="data-card-table">
+{# ── Table ── #}
+<div class="data-card-table">
     <table class="data-grid">
       <thead>
         <tr>
@@ -133,5 +111,3 @@
       </div>
     </div>
   {% endif %}
-
-</div>
