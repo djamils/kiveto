@@ -9,10 +9,15 @@
 
 // =============== CONSTANTS ===============
 const VET_COLORS = ['#4338ca', '#0891b2', '#059669', '#db2777', '#7c3aed', '#b45309', '#0369a1', '#9d174d'];
+// Paired pastel backgrounds (Tailwind-50 shades) for solid, opaque RDV tiles.
+// Aligned with docs/frontend-theme/vetsaas-layouts/vetos-agenda.html so the
+// :hover brightness filter reads consistently across blocks.
+const VET_BG_COLORS = ['#eef2ff', '#ecfeff', '#ecfdf5', '#fdf2f8', '#f5f3ff', '#fffbeb', '#f0f9ff', '#fdf2f8'];
+const ME_BG_COLOR   = '#f0fdfa'; // teal-50 paired with #0d9488
 // Reserved color for the current user's column — intentionally outside the
 // --brand palette so it doesn't blend with buttons/sidebar (tech-spec D8).
 const ME_COLOR = '#0d9488';
-const FALLBACK_VET = { userId: null, label: '?', color: '#64748b', isMe: false };
+const FALLBACK_VET = { userId: null, label: '?', color: '#64748b', bg: '#f1f5f9', isMe: false };
 
 const HOUR_START = 7;
 const HOUR_END = 20;
@@ -190,6 +195,7 @@ function buildVetIndex() {
       userId: v.userId,
       label: isMe ? 'Moi' : `Praticien ${i + 1}`,
       color: isMe ? ME_COLOR : VET_COLORS[i % VET_COLORS.length],
+      bg:    isMe ? ME_BG_COLOR : VET_BG_COLORS[i % VET_BG_COLORS.length],
       isMe,
     };
     vetById[v.userId] = entry;
@@ -430,7 +436,7 @@ function createRdvBlock(a) {
     borderColor = vet.color;
     opacity = '0.8';
   } else {
-    bg = `${vet.color}18`;
+    bg = vet.bg;
     borderColor = vet.color;
   }
 
@@ -676,7 +682,7 @@ function renderFreeSlotBlock(col, vet, dateStr, startMin, endMin) {
 
   const el = document.createElement('div');
   el.className = 'free-slot';
-  el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.color}18;border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
+  el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.bg};border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
 
   const hh = pad2(Math.floor(startMin / 60));
   const mm = pad2(startMin % 60);
