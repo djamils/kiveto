@@ -163,6 +163,23 @@
       box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
     }
 
+    /* Drag affordances: grab cursor on eligible blocks, grabbing + lifted
+       visuals while a drag is in progress. Disable hover while dragging so
+       the brightness filter doesn't fight the drag opacity. */
+    .rdv-block.is-draggable {
+      cursor: grab;
+    }
+    .rdv-block.is-dragging {
+      cursor: grabbing !important;
+      opacity: .75;
+      z-index: 30;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+      transition: none;
+    }
+    .rdv-block.is-dragging:hover {
+      filter: none;
+    }
+
     /* Motif chip */
     .motif-chip {
       @apply inline-flex items-center cursor-pointer;

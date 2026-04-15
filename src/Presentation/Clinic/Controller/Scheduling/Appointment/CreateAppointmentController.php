@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
+use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Domain\Localization\TimeZone;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -69,8 +72,17 @@ final class CreateAppointmentController extends AbstractController
             );
         }
 
+        $clinicDto = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
+        \assert($clinicDto instanceof ClinicDto);
+        $clinicTz = TimeZone::fromString($clinicDto->timeZone)->toNative();
+
         try {
-            $startsAt = new \DateTimeImmutable($startsAtRaw);
+            // The payload sends a bare "YYYY-MM-DDTHH:MM" local wall-clock time.
+            // Interpret it in the clinic's timezone, then normalize to UTC for
+            // storage and downstream domain comparisons.
+            $startsAt = (new \DateTimeImmutable($startsAtRaw, $clinicTz))
+                ->setTimezone(new \DateTimeZone('UTC'))
+            ;
         } catch (\Exception) {
             return new JsonResponse(
                 [

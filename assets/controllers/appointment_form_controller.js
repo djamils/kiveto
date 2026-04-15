@@ -1,5 +1,12 @@
 import { Controller } from '@hotwired/stimulus';
 
+// Friendly error messages keyed by backend errorCode. Keep in sync with the
+// codes returned by Create/Reschedule/Cancel appointment controllers.
+const FRIENDLY_ERRORS = {
+  APPOINTMENT_CONFLICT:        'Ce créneau est déjà occupé.',
+  APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous n\'est plus modifiable.',
+};
+
 /**
  * Kiveto — assets/controllers/appointment_form_controller.js
  * ──────────────────────────────────────────────────────────
@@ -157,11 +164,19 @@ export default class extends Controller {
     if (this.hasModalTitleTarget) this.modalTitleTarget.textContent = 'Modifier le rendez-vous';
     if (this.hasSubmitLabelTarget) this.submitLabelTarget.textContent = 'Enregistrer';
 
-    if (appointment.startsAtUtc) {
-      // Accepts 'YYYY-MM-DD HH:MM:SS' (MySQL) or 'YYYY-MM-DDTHH:MM:SSZ' (ISO 8601)
+    // Prefer the clinic-local date/time already computed by agenda.js
+    // (prepareAppointments() decorates appointments with _date / _startTime
+    // in the clinic's timezone). Fall back to slicing startsAtUtc only when
+    // those fields are missing — that path silently drops the timezone.
+    let date = appointment._date || '';
+    let time = appointment._startTime || '';
+    if ((!date || !time) && appointment.startsAtUtc) {
       const raw = appointment.startsAtUtc.replace(' ', 'T').replace('Z', '');
-      this._date = raw.slice(0, 10);
-      const time = raw.slice(11, 16);
+      date = date || raw.slice(0, 10);
+      time = time || raw.slice(11, 16);
+    }
+    if (date) {
+      this._date = date;
       if (this.hasTimeTarget) this.timeTarget.value = time;
       this._syncStartsAt(time);
       this._updateSlotLabel();
@@ -386,10 +401,15 @@ export default class extends Controller {
   }
 
   _showErrors(errors, errorCode) {
-    if (errors.global?.length) {
+    // Prefer a user-friendly message keyed by errorCode — the raw server
+    // message for conflicts currently exposes the practitioner UUID, which
+    // isn't presentable (will be swapped for a real name once IdentityAccess
+    // profiles are wired).
+    const friendly = FRIENDLY_ERRORS[errorCode];
+    if (friendly) {
+      this._showGlobalError(friendly);
+    } else if (errors.global?.length) {
       this._showGlobalError(errors.global.join(' '));
-    } else if (errorCode === 'APPOINTMENT_CONFLICT') {
-      this._showGlobalError('Ce créneau est déjà occupé.');
     }
 
     if (errors.startsAtUtc?.length && this.hasErrorStartsAtTarget) {

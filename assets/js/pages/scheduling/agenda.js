@@ -306,6 +306,7 @@ function renderWeek() {
     const isToday = iso === todayIso;
     const col = document.createElement('div');
     col.className = 'day-col';
+    col.dataset.date = iso;
     if (isToday) col.style.background = '#fdfcff';
     const totalH = HOUR_END - HOUR_START + 1;
     col.style.height = `${totalH * SLOT_H}px`;
@@ -337,12 +338,15 @@ function renderWeek() {
       col.appendChild(slotWrap);
     }
 
-    // Appointments for this day (filters: active vets, non-cancelled)
+    // Appointments for this day (filters: active vets, non-cancelled).
+    // The lane algorithm below requires chronological order — the source
+    // array can become unsorted after a reschedule (in-place replacement
+    // keeps the original index even when the new start is earlier/later).
     const dayAppts = appointments.filter((a) =>
       a._date === iso
       && activeVets.has(a.practitionerUserId)
       && a.status !== 'CANCELLED',
-    );
+    ).sort((a, b) => a._startMin - b._startMin);
 
     // Assign lanes to overlapping blocks
     const lanes = [];
@@ -474,8 +478,224 @@ function createRdvBlock(a) {
   }
   html += '</div>';
   block.innerHTML = html;
-  block.onclick = (e) => { e.stopPropagation(); showRdvPopup(a.id, e); };
+
+  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
+  if (!isPast && !isTerminal) {
+    block.classList.add('is-draggable');
+    block.addEventListener('pointerdown', (e) => startDrag(e, a, block));
+  }
+
+  block.onclick = (e) => {
+    if (block.dataset.dragJustEnded === '1') {
+      block.dataset.dragJustEnded = '';
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    showRdvPopup(a.id, e);
+  };
   return block;
+}
+
+// =============== DRAG & DROP ===============
+// Click-and-drag an rdv-block onto a different time (same practitioner, same
+// or different day in week view). On drop: POST to reschedule, re-render via
+// appointment:saved. On conflict/error: rollback visually + toast.
+const DRAG_THRESHOLD_PX = 6;
+const DRAG_SNAP_MIN = 15;
+
+let _drag = null;
+
+function startDrag(e, appointment, block) {
+  // Left button only; ignore right-clicks, middle-clicks, extra buttons.
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+
+  const blockRect = block.getBoundingClientRect();
+  const parentCol = block.parentElement;
+
+  _drag = {
+    appointment,
+    block,
+    startX:         e.clientX,
+    startY:         e.clientY,
+    offsetY:        e.clientY - blockRect.top,
+    origTop:        parseFloat(block.style.top) || 0,
+    origCol:        parentCol,
+    origDateIso:    appointment._date,
+    origStartMin:   appointment._startMin,
+    targetCol:      parentCol,
+    targetStartMin: appointment._startMin,
+    targetDateIso:  appointment._date,
+    hasMoved:       false,
+  };
+
+  const onMove = (ev) => onDragMove(ev);
+  const onUp   = (ev) => onDragEnd(ev);
+  const onKey  = (ev) => { if (ev.key === 'Escape') cancelDrag(); };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('keydown', onKey);
+  _drag.cleanup = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('keydown', onKey);
+  };
+}
+
+function onDragMove(e) {
+  if (!_drag) return;
+  const dx = e.clientX - _drag.startX;
+  const dy = e.clientY - _drag.startY;
+  if (!_drag.hasMoved && Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
+
+  if (!_drag.hasMoved) {
+    _drag.hasMoved = true;
+    _drag.block.classList.add('is-dragging');
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  }
+
+  const targetCol = findDayColUnder(e.clientX, e.clientY) || _drag.origCol;
+
+  // Reparent into the target column when the cursor crosses a column boundary.
+  if (targetCol !== _drag.targetCol) {
+    targetCol.appendChild(_drag.block);
+    _drag.targetCol = targetCol;
+    _drag.targetDateIso = targetCol.dataset.date || _drag.origDateIso;
+  }
+
+  const colRect = targetCol.getBoundingClientRect();
+  const yInCol = e.clientY - colRect.top - _drag.offsetY;
+  const rawMinutes = Math.max(0, yInCol) / SLOT_H * 60;
+  const snappedOffset = Math.round(rawMinutes / DRAG_SNAP_MIN) * DRAG_SNAP_MIN;
+  const duration = _drag.appointment.durationMinutes;
+  const minStart = HOUR_START * 60;
+  const maxStart = (HOUR_END + 1) * 60 - duration;
+  const newStartMin = Math.max(minStart, Math.min(minStart + snappedOffset, maxStart));
+
+  const newTop = ((newStartMin - HOUR_START * 60) / 60) * SLOT_H + 1;
+  _drag.block.style.top = `${newTop}px`;
+  _drag.targetStartMin = newStartMin;
+}
+
+function findDayColUnder(x, y) {
+  const hits = document.elementsFromPoint(x, y);
+  for (const el of hits) {
+    if (el.classList && el.classList.contains('day-col')) return el;
+  }
+  return null;
+}
+
+function cancelDrag() {
+  if (!_drag) return;
+  rollbackDragPosition();
+  endDragCleanup();
+}
+
+function rollbackDragPosition() {
+  if (!_drag) return;
+  if (_drag.origCol && _drag.block.parentElement !== _drag.origCol) {
+    _drag.origCol.appendChild(_drag.block);
+  }
+  _drag.block.style.top = `${_drag.origTop}px`;
+}
+
+function endDragCleanup() {
+  if (!_drag) return;
+  _drag.cleanup();
+  _drag.block.classList.remove('is-dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  _drag = null;
+}
+
+function swallowNextClickOnce() {
+  const handler = (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    document.removeEventListener('click', handler, true);
+  };
+  document.addEventListener('click', handler, true);
+}
+
+async function onDragEnd() {
+  if (!_drag) return;
+  const state = _drag;
+
+  if (!state.hasMoved) {
+    endDragCleanup();
+    return; // plain click — let the onclick handler open the popup
+  }
+
+  // Prevent the synthetic click that follows pointerup from opening a
+  // popup or hitting an hour-slot behind the block.
+  state.block.dataset.dragJustEnded = '1';
+  swallowNextClickOnce();
+  window.setTimeout(() => {
+    if (state.block) state.block.dataset.dragJustEnded = '';
+  }, 300);
+
+  const samePosition = state.targetStartMin === state.origStartMin
+                    && state.targetDateIso === state.origDateIso;
+  if (samePosition) {
+    rollbackDragPosition();
+    endDragCleanup();
+    return;
+  }
+
+  const hh = Math.floor(state.targetStartMin / 60);
+  const mm = state.targetStartMin % 60;
+  const newStartsAt = `${state.targetDateIso}T${pad2(hh)}:${pad2(mm)}`;
+
+  const csrfInput = document.querySelector('#modalAppointment input[name="_token"]');
+  if (!csrfInput) {
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast("Erreur: jeton CSRF introuvable", '#dc2626');
+    return;
+  }
+
+  const body = new URLSearchParams();
+  body.append('_token', csrfInput.value);
+  body.append('startsAtUtc', newStartsAt);
+  body.append('durationMinutes', String(state.appointment.durationMinutes));
+  body.append('practitionerUserId', state.appointment.practitionerUserId);
+
+  const url = `/scheduling/appointments/${state.appointment.id}/reschedule`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'same-origin',
+    });
+    const data = await response.json();
+    if (data.success) {
+      document.dispatchEvent(new CustomEvent('appointment:saved', {
+        detail: { appointment: data.appointment, action: 'rescheduled' },
+      }));
+      endDragCleanup();
+      return;
+    }
+    // Prefer a user-friendly message by errorCode; the raw server message
+    // for conflicts currently contains the practitioner UUID.
+    const friendly = {
+      APPOINTMENT_CONFLICT:        'Ce créneau est déjà occupé.',
+      APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous n\'est plus modifiable.',
+    }[data.errorCode];
+    const msg = friendly || data.errors?.global?.[0] || 'Erreur lors du déplacement.';
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast(msg, '#dc2626');
+  } catch (_err) {
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast('Erreur réseau.', '#dc2626');
+  }
 }
 
 function speciesEmoji(species) {
