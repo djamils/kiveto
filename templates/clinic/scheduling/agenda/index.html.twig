@@ -22,7 +22,7 @@
   {# ── CONTEXTUAL ASIDE ── #}
   {{ include('clinic/scheduling/_scheduling_aside.html.twig', {
     page: 'agenda',
-    selected_date: selectedDate|date('Y-m-d'),
+    selected_date: selectedDate|date('Y-m-d', clinicTimezone),
     week_highlight: true,
     veterinarians: veterinarians,
     currentUserId: currentUserId,
@@ -109,7 +109,7 @@
         appointments: appointments,
         veterinarians: veterinarians,
         view: view,
-        selectedDate: selectedDate|date('Y-m-d'),
+        selectedDate: selectedDate|date('Y-m-d', clinicTimezone),
         currentUserId: currentUserId,
         clinicTimezone: clinicTimezone,
         clientProfileUrlTemplate: clientProfileUrlTemplate,

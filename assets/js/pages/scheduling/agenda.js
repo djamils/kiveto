@@ -1095,7 +1095,31 @@ function onNavigationClick(e) {
   if (!target || typeof target.closest !== 'function') return;
   const a = target.closest('a[data-turbo-frame="agenda-frame"]');
   if (!a || !a.href) return;
+
+  // For the Day/Week view toggles, the sidebar calendar is the source of
+  // truth for the selected date. Read its current selection and rewrite the
+  // href just before Turbo navigates — this prevents a race where a recent
+  // calendar click hasn't finished reloading the frame yet, leaving the
+  // toggle's href pointing at the previous date.
+  const nav = a.getAttribute('data-nav');
+  if (nav === 'day-view' || nav === 'week-view') {
+    const calendarIso = getSidebarCalendarSelected();
+    if (calendarIso) {
+      const targetView = nav === 'day-view' ? 'day' : 'week';
+      a.href = `/scheduling/agenda?date=${encodeURIComponent(calendarIso)}&view=${targetView}`;
+    }
+  }
+
   _pendingNavDirection = directionFromHref(a.href);
+}
+
+function getSidebarCalendarSelected() {
+  const root = document.getElementById('scheduling-calendar');
+  if (!root || !window.Stimulus || typeof window.Stimulus.getControllerForElementAndIdentifier !== 'function') return null;
+  const ctrl = window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar');
+  if (!ctrl) return null;
+  const iso = ctrl.selectedValue;
+  return iso && typeof iso === 'string' ? iso : null;
 }
 
 function onBeforeFrameRender(e) {
