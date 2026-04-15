@@ -45,6 +45,14 @@ export default class extends Controller {
     this._openHandler = (e) => this._onOpenModal(e);
     document.addEventListener('appointment:open-modal', this._openHandler);
 
+    // Close on Escape when the modal is open.
+    this._keydownHandler = (e) => {
+      if (e.key === 'Escape' && !this.element.classList.contains('hidden')) {
+        this.close();
+      }
+    };
+    document.addEventListener('keydown', this._keydownHandler);
+
     // Propagate owner selection to animal autocomplete via 'owner:changed'.
     this._lastOwnerId = '';
     if (this.hasOwnerIdTarget) {
@@ -64,7 +72,18 @@ export default class extends Controller {
     if (this._openHandler) {
       document.removeEventListener('appointment:open-modal', this._openHandler);
     }
+    if (this._keydownHandler) {
+      document.removeEventListener('keydown', this._keydownHandler);
+    }
     if (this._ownerPollInterval) clearInterval(this._ownerPollInterval);
+  }
+
+  onOverlayClick(event) {
+    // Close only when the click actually lands on the overlay backdrop,
+    // not when it bubbles up from inside the .modal content.
+    if (event.target === this.element) {
+      this.close();
+    }
   }
 
   _onOpenModal(e) {

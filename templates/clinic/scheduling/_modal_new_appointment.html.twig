@@ -17,6 +17,7 @@
      aria-modal="true"
      aria-labelledby="modalAppointment-title"
      data-controller="appointment-form"
+     data-action="click->appointment-form#onOverlayClick"
      data-appointment-form-create-url-value="{{ path('clinic_scheduling_appointment_create') }}"
      data-appointment-form-reschedule-url-template-value="/scheduling/appointments/:id/reschedule"
      data-appointment-form-cancel-url-template-value="/scheduling/appointments/:id/cancel"
