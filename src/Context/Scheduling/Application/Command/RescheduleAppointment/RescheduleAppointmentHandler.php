@@ -40,11 +40,6 @@ final readonly class RescheduleAppointmentHandler
             throw new \DomainException('Rendez-vous introuvable.');
         }
 
-        // Guard: past appointments cannot be rescheduled
-        if ($appointment->timeSlot()->startsAtUtc() < $this->clock->now()) {
-            throw new \DomainException('Impossible de modifier un rendez-vous passé.');
-        }
-
         $practitionerUserId = UserId::fromString($command->practitionerUserId);
 
         // Validate practitioner eligibility

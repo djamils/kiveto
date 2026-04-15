@@ -127,7 +127,6 @@ final class RescheduleAppointmentController extends AbstractController
         } catch (\DomainException $e) {
             $errorCode = match (true) {
                 str_contains($e->getMessage(), 'overlapping') => 'APPOINTMENT_CONFLICT',
-                str_contains($e->getMessage(), 'passé')       => 'APPOINTMENT_TERMINAL_STATUS',
                 str_contains($e->getMessage(), 'terminated')  => 'APPOINTMENT_TERMINAL_STATUS',
                 default                                       => 'VALIDATION_FAILED',
             };

@@ -40,14 +40,21 @@ final readonly class CancelAppointmentHandler
             ));
         }
 
+        $now = $this->clock->now();
+
+        // Guard: appointments already ended cannot be cancelled
+        if ($appointment->timeSlot()->endsAtUtc() < $now) {
+            throw new \DomainException('Impossible d\'annuler un rendez-vous passé.');
+        }
+
         $appointment->cancel();
         $this->appointmentRepository->save($appointment);
 
         // Policy: Close active waiting room entry if exists
-        $this->closeActiveWaitingRoomEntry($appointmentId);
+        $this->closeActiveWaitingRoomEntry($appointmentId, $now);
     }
 
-    private function closeActiveWaitingRoomEntry(AppointmentId $appointmentId): void
+    private function closeActiveWaitingRoomEntry(AppointmentId $appointmentId, \DateTimeImmutable $now): void
     {
         $repository = $this->entityManager->getRepository(WaitingRoomEntryEntity::class);
 
@@ -62,7 +69,7 @@ final readonly class CancelAppointmentHandler
 
         if (null !== $entity) {
             $entry = $this->waitingRoomEntryMapper->toDomain($entity);
-            $entry->close($this->clock->now(), null);
+            $entry->close($now, null);
             $this->waitingRoomEntryRepository->save($entry);
         }
     }

@@ -74,26 +74,6 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
-    public function testRejectsPastAppointment(): void
-    {
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Impossible de modifier un rendez-vous passé.');
-
-        $appointment = $this->createFutureAppointment();
-        $this->repository->method('findById')->willReturn($appointment);
-        // Clock returns a time AFTER the appointment start
-        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-11 10:00:00'));
-
-        ($this->handler)(new RescheduleAppointment(
-            clinicId: self::CLINIC_ID,
-            appointmentId: self::APPOINTMENT_ID,
-            startsAtUtc: new \DateTimeImmutable('2026-04-12 14:00:00'),
-            durationMinutes: 30,
-            practitionerUserId: self::PRACTITIONER,
-        ));
-    }
-
-    #[AllowMockObjectsWithoutExpectations]
     public function testRejectsConflict(): void
     {
         $this->expectException(\DomainException::class);

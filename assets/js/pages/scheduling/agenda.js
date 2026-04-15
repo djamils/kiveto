@@ -37,7 +37,7 @@ let vetById = {};
 let activeVets = new Set();
 let view = 'week';
 let weekDays = [];
-let checkinUrlTemplate = '';
+let clientProfileUrlTemplate = '';
 let nowDate = new Date();
 
 // =============== UTILS ===============
@@ -488,13 +488,27 @@ function showRdvPopup(id, e) {
   // Reset cancel confirm state
   cancelCancelConfirm();
 
-  // Disable edit/cancel buttons for past or terminal appointments
-  const editBtn = document.getElementById('pp-edit-btn');
-  const cancelBtn = document.getElementById('pp-cancel-btn');
-  const isPast = a._endUtc < nowDate;
+  // Past RDV: cancel is forbidden → hide the button. Modifier remains enabled
+  // (editing past RDV is allowed). Profil visible only when an owner is linked.
+  // Buttons use flex:1 so visible ones share the row evenly.
+  const profileBtn = document.getElementById('pp-profile-btn');
+  const editBtn    = document.getElementById('pp-edit-btn');
+  const cancelBtn  = document.getElementById('pp-cancel-btn');
+  const isPast     = a._endUtc < nowDate;
   const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
-  if (editBtn) editBtn.disabled = isPast || isTerminal;
-  if (cancelBtn) cancelBtn.disabled = isTerminal;
+  if (profileBtn) {
+    if (a.ownerId && clientProfileUrlTemplate) {
+      profileBtn.href = clientProfileUrlTemplate.replace('__ID__', a.ownerId);
+      profileBtn.style.display = '';
+    } else {
+      profileBtn.style.display = 'none';
+    }
+  }
+  if (editBtn) editBtn.disabled = isTerminal;
+  if (cancelBtn) {
+    cancelBtn.style.display = isPast ? 'none' : '';
+    cancelBtn.disabled = isTerminal;
+  }
 
   const popup = document.getElementById('rdv-popup');
   popup.dataset.rdvId = id;
@@ -531,18 +545,6 @@ function closeAllPopups() {
 }
 
 // =============== ACTIONS ===============
-function placerSalleAttente() {
-  const popup = document.getElementById('rdv-popup');
-  if (!popup) return;
-  const appointmentId = popup.dataset.rdvId;
-  if (!appointmentId) return;
-
-  const form = document.getElementById('checkin-form');
-  if (!form) return;
-  form.action = checkinUrlTemplate.replace('__ID__', appointmentId);
-  form.submit();
-}
-
 function toggleVet(el, userId) {
   if (activeVets.has(userId)) activeVets.delete(userId);
   else activeVets.add(userId);
@@ -845,7 +847,6 @@ window.toggleVet = toggleVet;
 window.toggleAgendaSidebar = toggleAgendaSidebar;
 window.closeAgendaSidebar = closeAgendaSidebar;
 window.closeAllPopups = closeAllPopups;
-window.placerSalleAttente = placerSalleAttente;
 window.toggleFreeSlots = toggleFreeSlots;
 window.setFreeDur = setFreeDur;
 window.openNewRdvGlobal = openNewRdvGlobal;
@@ -864,7 +865,7 @@ function bootstrapFromPayload() {
 
   AGENDA_DATA = JSON.parse(dataNode.textContent);
   view = AGENDA_DATA.view === 'day' ? 'day' : 'week';
-  checkinUrlTemplate = AGENDA_DATA.checkinUrlTemplate || '';
+  clientProfileUrlTemplate = AGENDA_DATA.clientProfileUrlTemplate || '';
   nowDate = new Date();
 
   buildVetIndex();
@@ -1196,7 +1197,6 @@ export function cleanup() {
   delete window.toggleAgendaSidebar;
   delete window.closeAgendaSidebar;
   delete window.closeAllPopups;
-  delete window.placerSalleAttente;
   delete window.toggleFreeSlots;
   delete window.setFreeDur;
   delete window.openNewRdvGlobal;
