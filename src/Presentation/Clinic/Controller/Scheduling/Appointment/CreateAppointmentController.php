@@ -117,6 +117,7 @@ final class CreateAppointmentController extends AbstractController
                     'ownerId'            => $details->ownerId,
                     'animalId'           => $details->animalId,
                     'ownerLabel'         => $labels['ownerLabel'],
+                    'ownerPhone'         => $labels['ownerPhone'],
                     'animalLabel'        => $labels['animalLabel'],
                     'animalSpecies'      => $labels['animalSpecies'],
                     'practitionerLabel'  => null,
@@ -143,11 +144,12 @@ final class CreateAppointmentController extends AbstractController
     }
 
     /**
-     * @return array{ownerLabel: ?string, animalLabel: ?string, animalSpecies: ?string}
+     * @return array{ownerLabel: ?string, ownerPhone: ?string, animalLabel: ?string, animalSpecies: ?string}
      */
     private function fetchLabels(?string $ownerId, ?string $animalId): array
     {
         $ownerLabel    = null;
+        $ownerPhone    = null;
         $animalLabel   = null;
         $animalSpecies = null;
 
@@ -159,6 +161,15 @@ final class CreateAppointmentController extends AbstractController
             );
             if (false !== $row) {
                 $ownerLabel = $row['label'];
+            }
+
+            /** @var false|array{value: string} $phoneRow */
+            $phoneRow = $this->connection->fetchAssociative(
+                "SELECT value FROM client__contact_methods WHERE client_id = UUID_TO_BIN(:id) AND type = 'phone' ORDER BY is_primary DESC LIMIT 1",
+                ['id' => $ownerId],
+            );
+            if (false !== $phoneRow) {
+                $ownerPhone = $phoneRow['value'];
             }
         }
 
@@ -176,6 +187,7 @@ final class CreateAppointmentController extends AbstractController
 
         return [
             'ownerLabel'    => $ownerLabel,
+            'ownerPhone'    => $ownerPhone,
             'animalLabel'   => $animalLabel,
             'animalSpecies' => $animalSpecies,
         ];

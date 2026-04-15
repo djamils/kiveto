@@ -34,6 +34,13 @@ final readonly class GetAgendaForClinicDateRangeHandler
                 a.reason,
                 a.notes,
                 CONCAT(c.last_name, ' ', c.first_name) as owner_label,
+                (
+                    SELECT cm.value
+                    FROM client__contact_methods cm
+                    WHERE cm.client_id = a.owner_id AND cm.type = 'phone'
+                    ORDER BY cm.is_primary DESC
+                    LIMIT 1
+                ) as owner_phone,
                 an.name as animal_label,
                 an.species as animal_species,
                 u.email as practitioner_label
@@ -81,6 +88,7 @@ final readonly class GetAgendaForClinicDateRangeHandler
             reason: RowAccessor::nullableString($row, 'reason'),
             notes: RowAccessor::nullableString($row, 'notes'),
             ownerLabel: RowAccessor::nullableString($row, 'owner_label'),
+            ownerPhone: RowAccessor::nullableString($row, 'owner_phone'),
             animalLabel: RowAccessor::nullableString($row, 'animal_label'),
             animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
             practitionerLabel: RowAccessor::nullableString($row, 'practitioner_label'),

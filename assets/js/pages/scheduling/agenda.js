@@ -47,6 +47,39 @@ function parseUtcDateTime(utcString) {
   return new Date(utcString.replace(' ', 'T') + 'Z');
 }
 
+// Mirrors src/Shared/Presentation/Twig/PhoneFormatRuntime.php (international mode).
+// Kept in sync manually; if a new country is added server-side, add it here too.
+const PHONE_COUNTRIES = [
+  { dialCode: '+352', trunkPrefix: '',  maskIntl: '### ### ###',    keepTrunk: false },
+  { dialCode: '+212', trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
+  { dialCode: '+216', trunkPrefix: '',  maskIntl: '## ### ###',     keepTrunk: false },
+  { dialCode: '+213', trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
+  { dialCode: '+33',  trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
+  { dialCode: '+32',  trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
+  { dialCode: '+41',  trunkPrefix: '0', maskIntl: '# ### ## ##',    keepTrunk: false },
+  { dialCode: '+34',  trunkPrefix: '',  maskIntl: '### ## ## ##',   keepTrunk: false },
+  { dialCode: '+39',  trunkPrefix: '',  maskIntl: '### ### ####',   keepTrunk: true },
+  { dialCode: '+49',  trunkPrefix: '0', maskIntl: '## #######',     keepTrunk: false },
+  { dialCode: '+44',  trunkPrefix: '0', maskIntl: '#### ### ###',   keepTrunk: false },
+  { dialCode: '+1',   trunkPrefix: '',  maskIntl: '(###) ###-####', keepTrunk: false },
+];
+
+function formatPhoneIntl(e164) {
+  if (!e164 || typeof e164 !== 'string' || !e164.startsWith('+')) return e164 || '';
+  const country = PHONE_COUNTRIES.find((c) => e164.startsWith(c.dialCode));
+  if (!country) return e164;
+  const national = e164.slice(country.dialCode.length);
+  const digits = country.keepTrunk && country.trunkPrefix ? country.trunkPrefix + national : national;
+  let result = '';
+  let di = 0;
+  for (let i = 0; i < country.maskIntl.length && di < digits.length; i++) {
+    if (country.maskIntl[i] === '#') result += digits[di++];
+    else result += country.maskIntl[i];
+  }
+  if (di < digits.length) result += digits.slice(di);
+  return `${country.dialCode} ${result}`;
+}
+
 function toClinicLocalParts(utcDate, timezone) {
   const opts = {
     timeZone: timezone,
@@ -469,10 +502,20 @@ function showRdvPopup(id, e) {
     ? `${speciesEmoji(a.animalSpecies)} ${a.animalLabel}`
     : (a.reason || 'Consultation');
   document.getElementById('pp-animal').textContent = animalText;
-  document.getElementById('pp-proprio').textContent = a.ownerLabel || '';
+  const ownerParts = [];
+  if (a.ownerLabel) ownerParts.push(a.ownerLabel);
+  if (a.ownerPhone) ownerParts.push(formatPhoneIntl(a.ownerPhone));
+  document.getElementById('pp-proprio').textContent = ownerParts.join(' · ');
   const badge = document.getElementById('pp-badge');
-  badge.textContent = a.status;
-  badge.className = 'badge';
+  // Hide default PLANNED status — only show badge for non-trivial states.
+  if ('PLANNED' === a.status) {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  } else {
+    badge.textContent = a.status;
+    badge.style.display = '';
+    badge.className = 'badge';
+  }
   document.getElementById('pp-time').textContent = `${a._startTime.replace(':', ' h ')} — ${endTime.replace(':', ' h ')}`;
   document.getElementById('pp-duration').textContent = `${a.durationMinutes} min`;
   document.getElementById('pp-vet').textContent = vet.label;
