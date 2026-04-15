@@ -8,7 +8,6 @@ use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
-use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeUnassigned;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
@@ -71,7 +70,7 @@ final class SchedulingEventsTest extends TestCase
             self::CLINIC_ID,
             null,
             null,
-            null,
+            self::USER_ID,
             '2026-04-10T09:00:00+00:00',
             15,
             null,
@@ -81,7 +80,7 @@ final class SchedulingEventsTest extends TestCase
         $payload = $event->payload();
         self::assertNull($payload['ownerId']);
         self::assertNull($payload['animalId']);
-        self::assertNull($payload['practitionerUserId']);
+        self::assertSame(self::USER_ID, $payload['practitionerUserId']);
         self::assertNull($payload['reason']);
         self::assertNull($payload['notes']);
     }
@@ -150,22 +149,6 @@ final class SchedulingEventsTest extends TestCase
         );
 
         self::assertNull($event->payload()['oldPractitionerUserId']);
-    }
-
-    public function testAppointmentPractitionerAssigneeUnassigned(): void
-    {
-        $event = new AppointmentPractitionerAssigneeUnassigned(
-            self::APPOINTMENT_ID,
-            self::CLINIC_ID,
-            self::USER_ID,
-        );
-
-        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
-        self::assertSame([
-            'appointmentId'              => self::APPOINTMENT_ID,
-            'clinicId'                   => self::CLINIC_ID,
-            'previousPractitionerUserId' => self::USER_ID,
-        ], $event->payload());
     }
 
     public function testAppointmentRescheduled(): void

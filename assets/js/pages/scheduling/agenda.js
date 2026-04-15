@@ -41,9 +41,10 @@ let checkinUrlTemplate = '';
 let nowDate = new Date();
 
 // =============== UTILS ===============
-function parseUtcDateTime(mysqlUtcString) {
-  // MySQL "Y-m-d H:i:s" (UTC) → JS Date interpreted as UTC.
-  return new Date(mysqlUtcString.replace(' ', 'T') + 'Z');
+function parseUtcDateTime(utcString) {
+  // Accepts MySQL "Y-m-d H:i:s" or ISO 8601 "Y-m-dTH:i:sZ" → JS Date (UTC).
+  if (utcString.includes('T')) return new Date(utcString);
+  return new Date(utcString.replace(' ', 'T') + 'Z');
 }
 
 function toClinicLocalParts(utcDate, timezone) {
@@ -149,16 +150,21 @@ function mondayOf(d) {
 function buildVetIndex() {
   vetById = {};
   activeVets = new Set();
+  const vetList = [];
   (AGENDA_DATA.veterinarians || []).forEach((v, i) => {
     const isMe = v.userId === AGENDA_DATA.currentUserId;
-    vetById[v.userId] = {
+    const entry = {
       userId: v.userId,
       label: isMe ? 'Moi' : `Praticien ${i + 1}`,
       color: isMe ? ME_COLOR : VET_COLORS[i % VET_COLORS.length],
       isMe,
     };
+    vetById[v.userId] = entry;
+    vetList.push(entry);
     activeVets.add(v.userId);
   });
+  // Expose vet list for the appointment form Stimulus controller
+  window.__agendaVets = vetList;
 }
 
 /**
@@ -278,14 +284,14 @@ function renderWeek() {
       top.dataset.time = `${pad2(h)}:00`;
       top.onmouseenter = () => { top.style.background = '#f5f3ff'; };
       top.onmouseleave = () => { top.style.background = ''; };
-      top.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, top.dataset.time); };
+      top.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, top.dataset.time, null); };
 
       const bot = document.createElement('div');
       bot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;border-top:1px dashed #dde2e7;';
       bot.dataset.time = `${pad2(h)}:30`;
       bot.onmouseenter = () => { bot.style.background = '#f5f3ff'; };
       bot.onmouseleave = () => { bot.style.background = ''; };
-      bot.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, bot.dataset.time); };
+      bot.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, bot.dataset.time, null); };
 
       slotWrap.appendChild(top);
       slotWrap.appendChild(bot);
@@ -406,20 +412,40 @@ function createRdvBlock(a) {
   const lines = Math.floor((heightPx - 2) / 15);
   let html = `<div style="display:flex;flex-direction:column;overflow:hidden;width:100%;height:${heightPx - 2}px;justify-content:center;">`;
   const reasonText = escapeHtml(a.reason || 'Consultation');
+  const animalEmoji = speciesEmoji(a.animalSpecies);
+  const animalName = a.animalLabel ? `${animalEmoji} ${escapeHtml(a.animalLabel)}` : '';
+  const ownerName = a.ownerLabel ? escapeHtml(a.ownerLabel) : '';
   const vetLabel = escapeHtml(vet.label);
   if (lines === 1) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span><span style="font-size:var(--text-xs);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${reasonText}</span></div>`;
-  } else if (lines >= 2) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span>${animalName ? `<span style="font-size:11px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${animalName}</span>` : `<span style="font-size:var(--text-xs);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${reasonText}</span>`}</div>`;
+  } else if (lines === 2) {
     html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
-    html += `<div style="${R}"><span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${reasonText}</span></div>`;
-    if (lines >= 3) {
-      html += `<div style="${R}"><span style="font-size:var(--text-xs);color:${subColor};overflow:hidden;text-overflow:ellipsis;">${vetLabel}</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+  } else if (lines === 3) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+    html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName || vetLabel}</span></div>`;
+  } else if (lines >= 4) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+    if (ownerName) {
+      html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName}</span></div>`;
     }
+    html += `<div style="${R}"><span style="font-size:10.5px;color:${timeColor};font-weight:500;overflow:hidden;text-overflow:ellipsis;">${reasonText}${lines >= 5 ? ` · ${vetLabel}` : ''}</span></div>`;
   }
   html += '</div>';
   block.innerHTML = html;
   block.onclick = (e) => { e.stopPropagation(); showRdvPopup(a.id, e); };
   return block;
+}
+
+function speciesEmoji(species) {
+  switch (species) {
+    case 'dog': return '🐶';
+    case 'cat': return '🐱';
+    case 'nac': return '🐾';
+    default:    return '🐾';
+  }
 }
 
 function escapeHtml(s) {
@@ -439,8 +465,11 @@ function showRdvPopup(id, e) {
   const endMin = a._endMin;
   const endTime = `${pad2(Math.floor(endMin / 60))}:${pad2(endMin % 60)}`;
 
-  document.getElementById('pp-animal').textContent = a.reason || 'Consultation';
-  document.getElementById('pp-proprio').textContent = '';
+  const animalText = a.animalLabel
+    ? `${speciesEmoji(a.animalSpecies)} ${a.animalLabel}`
+    : (a.reason || 'Consultation');
+  document.getElementById('pp-animal').textContent = animalText;
+  document.getElementById('pp-proprio').textContent = a.ownerLabel || '';
   const badge = document.getElementById('pp-badge');
   badge.textContent = a.status;
   badge.className = 'badge';
@@ -455,6 +484,17 @@ function showRdvPopup(id, e) {
   } else {
     noteRow.style.display = 'none';
   }
+
+  // Reset cancel confirm state
+  cancelCancelConfirm();
+
+  // Disable edit/cancel buttons for past or terminal appointments
+  const editBtn = document.getElementById('pp-edit-btn');
+  const cancelBtn = document.getElementById('pp-cancel-btn');
+  const isPast = a._endUtc < nowDate;
+  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
+  if (editBtn) editBtn.disabled = isPast || isTerminal;
+  if (cancelBtn) cancelBtn.disabled = isTerminal;
 
   const popup = document.getElementById('rdv-popup');
   popup.dataset.rdvId = id;
@@ -597,21 +637,171 @@ function renderFreeSlotBlock(col, vet, dateStr, startMin, endMin) {
   const mm = pad2(startMin % 60);
   const timeLabel = fmtTime(`${hh}:${mm}`);
   el.innerHTML = `<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${vet.color};">${timeLabel}</span>`;
-  el.onclick = (e) => { e.stopPropagation(); openNewRdv(dateStr, `${hh}:${mm}`); };
+  el.dataset.startTime = `${hh}:${mm}`;
+  el.dataset.practitionerId = vet.userId;
+  el.onclick = (e) => {
+    e.stopPropagation();
+    openNewRdv(dateStr, el.dataset.startTime, el.dataset.practitionerId);
+  };
 
   col.appendChild(el);
 }
 
-// =============== NEW-RDV STUBS ===============
-// The create-appointment workflow (patient search, conflict check, popup form)
-// is out of scope for this iteration. These stubs keep the UX discoverable —
-// a click shows a clear "coming soon" toast instead of a silent no-op.
-function openNewRdv(_dateStr, _time) {
-  showToast('Création de RDV bientôt disponible', '#4338ca');
+// =============== NEW-RDV ===============
+function openNewRdv(dateStr, time, practitionerUserId) {
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'create',
+      prefill: { date: dateStr, time, practitionerUserId: practitionerUserId || null },
+    },
+  }));
 }
 
 function openNewRdvGlobal() {
-  showToast('Création de RDV bientôt disponible', '#4338ca');
+  const selectedDate = AGENDA_DATA ? AGENDA_DATA.selectedDate : new Date().toISOString().slice(0, 10);
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'create',
+      prefill: { date: selectedDate },
+    },
+  }));
+}
+
+// =============== EDIT / CANCEL ACTIONS ===============
+function editAppointment() {
+  const popup = document.getElementById('rdv-popup');
+  if (!popup) return;
+  const id = popup.dataset.rdvId;
+  const a = appointments.find((x) => x.id === id);
+  if (!a) return;
+
+  closeAllPopups();
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'edit',
+      appointment: a,
+    },
+  }));
+}
+
+function cancelAppointment() {
+  const actions = document.querySelector('.pp-actions');
+  const confirm = document.getElementById('pp-cancel-confirm');
+  if (actions) actions.style.display = 'none';
+  if (confirm) confirm.style.display = 'block';
+}
+
+function cancelCancelConfirm() {
+  const actions = document.querySelector('.pp-actions');
+  const confirm = document.getElementById('pp-cancel-confirm');
+  if (actions) actions.style.display = 'flex';
+  if (confirm) confirm.style.display = 'none';
+}
+
+function confirmCancel() {
+  const popup = document.getElementById('rdv-popup');
+  if (!popup) return;
+  const appointmentId = popup.dataset.rdvId;
+  if (!appointmentId) return;
+
+  const btn = document.getElementById('pp-confirm-cancel-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Annulation...';
+  }
+
+  // Read CSRF from the modal form
+  const csrfToken = document.querySelector('#modalAppointment input[name="_token"]')?.value || '';
+
+  fetch(`/scheduling/appointments/${appointmentId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ _token: csrfToken }),
+    credentials: 'same-origin',
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.success) {
+        closeAllPopups();
+        cancelCancelConfirm();
+        document.dispatchEvent(new CustomEvent('appointment:saved', {
+          detail: { appointment: { id: appointmentId, appointmentId }, action: 'cancelled' },
+        }));
+      } else {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Confirmer';
+        }
+        showToast(data.errors?.global?.[0] || 'Erreur lors de l\'annulation', '#dc2626');
+      }
+    })
+    .catch(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Confirmer';
+      }
+      showToast('Erreur réseau', '#dc2626');
+    });
+}
+
+// =============== APPOINTMENT SAVED HANDLER ===============
+function onAppointmentSaved(e) {
+  const { appointment, action } = e.detail || {};
+  if (!appointment) return;
+
+  if (action === 'created') {
+    // Push into the source array so prepareAppointments() picks it up
+    AGENDA_DATA.appointments.push(appointment);
+    prepareAppointments();
+    renderWeek();
+
+    // Flash animation on the new block
+    requestAnimationFrame(() => {
+      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
+      if (block) {
+        block.classList.add('is-new');
+        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
+      }
+    });
+
+    showToast('Rendez-vous créé avec succès');
+  } else if (action === 'rescheduled') {
+    // Replace in the source array so prepareAppointments() picks it up
+    const srcIdx = AGENDA_DATA.appointments.findIndex((a) => a.id === appointment.id);
+    if (srcIdx !== -1) AGENDA_DATA.appointments[srcIdx] = appointment;
+    else AGENDA_DATA.appointments.push(appointment);
+    prepareAppointments();
+    renderWeek();
+
+    requestAnimationFrame(() => {
+      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
+      if (block) {
+        block.classList.add('is-new');
+        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
+      }
+    });
+
+    showToast('Rendez-vous modifié avec succès');
+  } else if (action === 'cancelled') {
+    const appointmentId = appointment.id || appointment.appointmentId;
+    // Mark as cancelled in the source array
+    const srcI = AGENDA_DATA.appointments.findIndex((a) => a.id === appointmentId);
+    if (srcI !== -1) AGENDA_DATA.appointments[srcI].status = 'CANCELLED';
+
+    const block = document.querySelector(`.rdv-block[data-id="${appointmentId}"]`);
+    if (block) {
+      block.classList.add('is-removing');
+      block.addEventListener('animationend', () => {
+        prepareAppointments();
+        renderWeek();
+      }, { once: true });
+    } else {
+      prepareAppointments();
+      renderWeek();
+    }
+
+    showToast('Rendez-vous annulé');
+  }
 }
 
 // =============== TOAST ===============
@@ -659,6 +849,10 @@ window.placerSalleAttente = placerSalleAttente;
 window.toggleFreeSlots = toggleFreeSlots;
 window.setFreeDur = setFreeDur;
 window.openNewRdvGlobal = openNewRdvGlobal;
+window.editAppointment = editAppointment;
+window.cancelAppointment = cancelAppointment;
+window.cancelCancelConfirm = cancelCancelConfirm;
+window.confirmCancel = confirmCancel;
 
 // =============== PAYLOAD + RENDER BOOTSTRAP ===============
 // Reads #agenda-data (fresh after each frame swap), rebuilds state and
@@ -800,6 +994,7 @@ let _popstateHandler = null;
 let _navClickHandler = null;
 let _beforeFrameRenderHandler = null;
 let _frameRenderHandler = null;
+let _appointmentSavedHandler = null;
 let _bootstrappedOnce = false;
 
 // Direction of the upcoming frame swap — 'prev', 'next' or null (fade only).
@@ -990,6 +1185,10 @@ export function init() {
     _frameRenderHandler = onFrameRender;
     document.addEventListener('turbo:frame-render', _frameRenderHandler);
   }
+  if (!_appointmentSavedHandler) {
+    _appointmentSavedHandler = onAppointmentSaved;
+    document.addEventListener('appointment:saved', _appointmentSavedHandler);
+  }
 }
 
 export function cleanup() {
@@ -1001,6 +1200,11 @@ export function cleanup() {
   delete window.toggleFreeSlots;
   delete window.setFreeDur;
   delete window.openNewRdvGlobal;
+  delete window.editAppointment;
+  delete window.cancelAppointment;
+  delete window.cancelCancelConfirm;
+  delete window.confirmCancel;
+  delete window.__agendaVets;
 
   if (_calendarSelectHandler) {
     document.removeEventListener('calendar:select', _calendarSelectHandler);
@@ -1025,6 +1229,10 @@ export function cleanup() {
   if (_frameRenderHandler) {
     document.removeEventListener('turbo:frame-render', _frameRenderHandler);
     _frameRenderHandler = null;
+  }
+  if (_appointmentSavedHandler) {
+    document.removeEventListener('appointment:saved', _appointmentSavedHandler);
+    _appointmentSavedHandler = null;
   }
   _bootstrappedOnce = false;
   _pendingNavDirection = null;

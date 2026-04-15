@@ -1,123 +1,165 @@
 {#
  # Kiveto — templates/clinic/scheduling/_modal_new_appointment.html.twig
  # ─────────────────────────────────────────────────────────────────────
- # Modal for creating a new appointment. Uses the Kiveto modal component.
+ # Modal for creating / editing an appointment. Driven by the
+ # appointment_form Stimulus controller.
  #
- # Variables (inherited from dashboard):
- #   selectedDate  DateTimeImmutable   Pre-filled date for the new appointment
+ # In create mode: all fields editable, submit dispatches POST to create URL.
+ # In edit mode: owner/animal read-only, submit dispatches POST to reschedule URL.
  #}
 
-{% embed 'components/layout/modal.html.twig' with {
-    id: 'modalNewAppointment',
-    title: 'Nouveau rendez-vous',
-    size: 'md',
-    show_footer: true,
-    cancel_label: 'Annuler',
-    submit_label: 'Créer le RDV',
-    submit_variant: 'primary',
-    form_id: 'formNewAppointment',
-} %}
-    {% block modal_body %}
-        <form
-            id="formNewAppointment"
-            method="post"
-            action="{{ path('clinic_scheduling_appointment_create') }}"
-        >
-            {# Date & time #}
-            <div class="form-row">
-                <label class="form-label">Date et heure <span style="color: var(--color-danger-text);">*</span></label>
-                <input
-                    type="datetime-local"
-                    name="startsAtUtc"
-                    class="form-input"
-                    value="{{ selectedDate|date('Y-m-d\\TH:i') }}"
-                    required
-                >
-            </div>
+<div id="modalAppointment"
+     class="modal-overlay hidden"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="modalAppointment-title"
+     data-controller="appointment-form"
+     data-appointment-form-create-url-value="{{ path('clinic_scheduling_appointment_create') }}"
+     data-appointment-form-reschedule-url-template-value="/scheduling/appointments/:id/reschedule"
+     data-appointment-form-cancel-url-template-value="/scheduling/appointments/:id/cancel"
+>
+  <div class="modal">
 
-            {# Duration #}
-            <div class="form-row">
-                <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
-                {# Duration selector (custom select component) #}
-                {{ include('components/ui/select.html.twig', {
-                  name: 'durationMinutes',
-                  value: '30',
-                  options: [
-                    { value: '15', label: '15 min' },
-                    { value: '30', label: '30 min' },
-                    { value: '45', label: '45 min' },
-                    { value: '60', label: '1 heure' },
-                    { value: '90', label: '1h30' },
-                    { value: '120', label: '2 heures' },
-                  ]
-                }) }}
-            </div>
+    {# Header #}
+    <div class="modal-head">
+      <span class="modal-title" id="modalAppointment-title" data-appointment-form-target="modalTitle">Nouveau rendez-vous</span>
+      <button
+        class="btn btn-ghost btn-icon btn-sm"
+        type="button"
+        aria-label="Fermer"
+        data-action="appointment-form#close"
+      >
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
 
-            {# Practitioner #}
-            <div class="form-row">
-                <label class="form-label">Praticien (optionnel)</label>
-                <input
-                    type="text"
-                    name="practitionerUserId"
-                    class="form-input"
-                    placeholder="UUID du praticien"
-                >
-                <span style="font-size: var(--text-xs); color: var(--text-subtle); margin-top: 2px; display: block;">
-                    Laissez vide pour un RDV non assigné
-                </span>
-            </div>
+    {# Body #}
+    <div class="modal-body">
+      {# Global error banner #}
+      <div class="form-error-banner hidden" data-appointment-form-target="errorBanner"></div>
 
-            {# Owner #}
-            <div class="form-row">
-                <label class="form-label">Propriétaire (optionnel)</label>
-                <input
-                    type="text"
-                    name="ownerId"
-                    class="form-input"
-                    placeholder="UUID du propriétaire"
-                >
-            </div>
+      <form id="formAppointment" data-appointment-form-target="form" data-action="submit->appointment-form#submit">
+        <input type="hidden" name="_token" value="{{ csrf_token('appointment') }}">
 
-            {# Animal #}
-            <div class="form-row">
-                <label class="form-label">Animal (optionnel)</label>
-                <input
-                    type="text"
-                    name="animalId"
-                    class="form-input"
-                    placeholder="UUID de l'animal"
-                >
-            </div>
+        {# Date & time #}
+        <div class="form-row">
+          <label class="form-label">Date et heure <span style="color: var(--color-danger-text);">*</span></label>
+          <input
+            type="datetime-local"
+            name="startsAtUtc"
+            class="form-input"
+            data-appointment-form-target="startsAt"
+            required
+          >
+          <div class="form-field-error hidden" data-appointment-form-target="errorStartsAt"></div>
+        </div>
 
-            {# Reason #}
-            <div class="form-row">
-                <label class="form-label">Motif</label>
-                {# Reason selector (custom select component) #}
-                {{ include('components/ui/select.html.twig', {
-                  name: 'reason',
-                  placeholder: '-- Sélectionner --',
-                  clearable: true,
-                  options: [
-                    { value: 'Consultation', label: 'Consultation' },
-                    { value: 'Vaccination', label: 'Vaccination' },
-                    { value: 'Chirurgie', label: 'Chirurgie' },
-                    { value: 'Contrôle', label: 'Contrôle' },
-                    { value: 'Urgence', label: 'Urgence' },
-                    { value: 'Autre', label: 'Autre' },
-                  ]
-                }) }}
-            </div>
+        {# Duration #}
+        <div class="form-row">
+          <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
+          {{ include('components/ui/select.html.twig', {
+            name: 'durationMinutes',
+            value: '30',
+            options: [
+              { value: '15', label: '15 min' },
+              { value: '30', label: '30 min' },
+              { value: '45', label: '45 min' },
+              { value: '60', label: '1 heure' },
+              { value: '90', label: '1h30' },
+              { value: '120', label: '2 heures' },
+            ],
+          }) }}
+        </div>
 
-            {# Notes #}
-            <div class="form-row">
-                <label class="form-label">Notes</label>
-                <textarea
-                    name="notes"
-                    class="form-input"
-                    rows="3"
-                    placeholder="Notes additionnelles..."
-                ></textarea>
-            </div>
-        </form>
-    {% endblock %}
-{% endembed %}
+        {# Practitioner #}
+        <div class="form-row">
+          <label class="form-label">Praticien <span style="color: var(--color-danger-text);">*</span></label>
+          <select name="practitionerUserId" class="form-input" data-appointment-form-target="practitioner" required>
+            <option value="">-- Sélectionner --</option>
+          </select>
+          <div class="form-field-error hidden" data-appointment-form-target="errorPractitioner"></div>
+        </div>
+
+        {# Owner autocomplete #}
+        <div class="form-row" data-controller="client-search-autocomplete">
+          <label class="form-label">Propriétaire</label>
+          <div class="autocomplete-wrapper">
+            <input
+              type="text"
+              class="form-input"
+              placeholder="Rechercher un client..."
+              data-client-search-autocomplete-target="input"
+              data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
+              data-appointment-form-target="ownerInput"
+            >
+            <input type="hidden" name="ownerId" data-client-search-autocomplete-target="hiddenInput" data-appointment-form-target="ownerId">
+            <ul role="listbox" class="autocomplete-dropdown hidden" data-client-search-autocomplete-target="dropdown"></ul>
+            <div aria-live="polite" class="sr-only" data-client-search-autocomplete-target="liveRegion"></div>
+          </div>
+        </div>
+
+        {# Animal autocomplete #}
+        <div class="form-row" data-controller="animal-search-autocomplete" data-animal-search-autocomplete-owner-id-value="">
+          <label class="form-label">Animal</label>
+          <div class="autocomplete-wrapper">
+            <input
+              type="text"
+              class="form-input"
+              placeholder="Rechercher un animal..."
+              data-animal-search-autocomplete-target="input"
+              data-action="input->animal-search-autocomplete#onInput keydown->animal-search-autocomplete#onKeydown"
+              data-appointment-form-target="animalInput"
+            >
+            <input type="hidden" name="animalId" data-animal-search-autocomplete-target="hiddenInput" data-appointment-form-target="animalId">
+            <ul role="listbox" class="autocomplete-dropdown hidden" data-animal-search-autocomplete-target="dropdown"></ul>
+            <div aria-live="polite" class="sr-only" data-animal-search-autocomplete-target="liveRegion"></div>
+          </div>
+        </div>
+
+        {# Reason #}
+        <div class="form-row">
+          <label class="form-label">Motif</label>
+          {{ include('components/ui/select.html.twig', {
+            name: 'reason',
+            placeholder: '-- Sélectionner --',
+            clearable: true,
+            options: [
+              { value: 'Consultation', label: 'Consultation' },
+              { value: 'Vaccination', label: 'Vaccination' },
+              { value: 'Chirurgie', label: 'Chirurgie' },
+              { value: 'Contrôle', label: 'Contrôle' },
+              { value: 'Urgence', label: 'Urgence' },
+              { value: 'Autre', label: 'Autre' },
+            ],
+          }) }}
+        </div>
+
+        {# Notes #}
+        <div class="form-row">
+          <label class="form-label">Notes</label>
+          <textarea
+            name="notes"
+            class="form-input"
+            rows="3"
+            placeholder="Notes additionnelles..."
+            data-appointment-form-target="notes"
+          ></textarea>
+        </div>
+      </form>
+    </div>
+
+    {# Footer #}
+    <div class="modal-foot">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="appointment-form#close">Annuler</button>
+      <button type="submit" form="formAppointment" class="btn btn-primary btn-sm" data-appointment-form-target="submitBtn">
+        <span data-appointment-form-target="submitLabel">Créer le RDV</span>
+        <svg class="spinner hidden" data-appointment-form-target="submitSpinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+</div>

@@ -8,7 +8,6 @@ use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
-use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeUnassigned;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
@@ -27,7 +26,7 @@ final class Appointment extends AggregateRoot
     private ClinicId $clinicId;
     private ?OwnerId $ownerId;
     private ?AnimalId $animalId;
-    private ?PractitionerAssignee $practitionerAssignee;
+    private PractitionerAssignee $practitionerAssignee;
     private TimeSlot $timeSlot;
     private AppointmentStatus $status;
     private ?string $reason;
@@ -44,7 +43,7 @@ final class Appointment extends AggregateRoot
         ClinicId $clinicId,
         ?OwnerId $ownerId,
         ?AnimalId $animalId,
-        ?PractitionerAssignee $practitionerAssignee,
+        PractitionerAssignee $practitionerAssignee,
         TimeSlot $timeSlot,
         ?string $reason,
         ?string $notes,
@@ -68,7 +67,7 @@ final class Appointment extends AggregateRoot
             clinicId: $clinicId->toString(),
             ownerId: $ownerId?->toString(),
             animalId: $animalId?->toString(),
-            practitionerUserId: $practitionerAssignee?->userId()->toString(),
+            practitionerUserId: $practitionerAssignee->userId()->toString(),
             startsAtUtc: $timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
             durationMinutes: $timeSlot->durationMinutes(),
             reason: $reason,
@@ -83,7 +82,7 @@ final class Appointment extends AggregateRoot
         ClinicId $clinicId,
         ?OwnerId $ownerId,
         ?AnimalId $animalId,
-        ?PractitionerAssignee $practitionerAssignee,
+        PractitionerAssignee $practitionerAssignee,
         TimeSlot $timeSlot,
         AppointmentStatus $status,
         ?string $reason,
@@ -136,11 +135,11 @@ final class Appointment extends AggregateRoot
             throw new \DomainException('Cannot change practitioner for a terminated appointment.');
         }
 
-        if (null !== $this->practitionerAssignee && $this->practitionerAssignee->equals($newAssignee)) {
+        if ($this->practitionerAssignee->equals($newAssignee)) {
             return;
         }
 
-        $oldPractitionerId          = $this->practitionerAssignee?->userId()->toString();
+        $oldPractitionerId          = $this->practitionerAssignee->userId()->toString();
         $this->practitionerAssignee = $newAssignee;
 
         $this->recordDomainEvent(new AppointmentPractitionerAssigneeChanged(
@@ -148,26 +147,6 @@ final class Appointment extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             oldPractitionerUserId: $oldPractitionerId,
             newPractitionerUserId: $newAssignee->userId()->toString(),
-        ));
-    }
-
-    public function unassignPractitioner(): void
-    {
-        if ($this->status->isTerminal()) {
-            throw new \DomainException('Cannot unassign practitioner from a terminated appointment.');
-        }
-
-        if (null === $this->practitionerAssignee) {
-            return;
-        }
-
-        $previousPractitionerId     = $this->practitionerAssignee->userId()->toString();
-        $this->practitionerAssignee = null;
-
-        $this->recordDomainEvent(new AppointmentPractitionerAssigneeUnassigned(
-            appointmentId: $this->id->toString(),
-            clinicId: $this->clinicId->toString(),
-            previousPractitionerUserId: $previousPractitionerId,
         ));
     }
 
@@ -264,7 +243,7 @@ final class Appointment extends AggregateRoot
         return $this->animalId;
     }
 
-    public function practitionerAssignee(): ?PractitionerAssignee
+    public function practitionerAssignee(): PractitionerAssignee
     {
         return $this->practitionerAssignee;
     }

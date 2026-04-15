@@ -11,7 +11,9 @@ use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
+use App\Context\Scheduling\Domain\ValueObject\UserId;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -66,7 +68,7 @@ final class CompleteAppointmentHandlerTest extends TestCase
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
             ownerId: null,
             animalId: null,
-            practitionerAssignee: null,
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
             reason: null,
             notes: null,

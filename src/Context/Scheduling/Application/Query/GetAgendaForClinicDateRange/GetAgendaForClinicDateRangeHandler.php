@@ -23,20 +23,27 @@ final readonly class GetAgendaForClinicDateRangeHandler
     {
         $sql = <<<'SQL'
             SELECT
-                BIN_TO_UUID(id) as id,
-                BIN_TO_UUID(clinic_id) as clinic_id,
-                BIN_TO_UUID(owner_id) as owner_id,
-                BIN_TO_UUID(animal_id) as animal_id,
-                BIN_TO_UUID(practitioner_user_id) as practitioner_user_id,
-                starts_at_utc,
-                duration_minutes,
-                status,
-                reason,
-                notes
-            FROM scheduling__appointments
-            WHERE clinic_id = UUID_TO_BIN(:clinicId)
-              AND starts_at_utc >= :fromUtc
-              AND starts_at_utc <= :toUtc
+                BIN_TO_UUID(a.id) as id,
+                BIN_TO_UUID(a.clinic_id) as clinic_id,
+                BIN_TO_UUID(a.owner_id) as owner_id,
+                BIN_TO_UUID(a.animal_id) as animal_id,
+                BIN_TO_UUID(a.practitioner_user_id) as practitioner_user_id,
+                a.starts_at_utc,
+                a.duration_minutes,
+                a.status,
+                a.reason,
+                a.notes,
+                CONCAT(c.last_name, ' ', c.first_name) as owner_label,
+                an.name as animal_label,
+                an.species as animal_species,
+                u.email as practitioner_label
+            FROM scheduling__appointments a
+            LEFT JOIN client__clients c ON c.id = a.owner_id
+            LEFT JOIN animal__animals an ON an.id = a.animal_id
+            LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
+            WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
+              AND a.starts_at_utc >= :fromUtc
+              AND a.starts_at_utc <= :toUtc
         SQL;
 
         $params = [
@@ -46,11 +53,11 @@ final readonly class GetAgendaForClinicDateRangeHandler
         ];
 
         if (null !== $query->practitionerUserId) {
-            $sql .= ' AND practitioner_user_id = UUID_TO_BIN(:practitionerUserId)';
+            $sql .= ' AND a.practitioner_user_id = UUID_TO_BIN(:practitionerUserId)';
             $params['practitionerUserId'] = $query->practitionerUserId;
         }
 
-        $sql .= ' ORDER BY starts_at_utc ASC';
+        $sql .= ' ORDER BY a.starts_at_utc ASC';
 
         $results = $this->connection->fetchAllAssociative($sql, $params);
 
@@ -67,12 +74,16 @@ final readonly class GetAgendaForClinicDateRangeHandler
             clinicId: RowAccessor::string($row, 'clinic_id'),
             ownerId: RowAccessor::nullableString($row, 'owner_id'),
             animalId: RowAccessor::nullableString($row, 'animal_id'),
-            practitionerUserId: RowAccessor::nullableString($row, 'practitioner_user_id'),
+            practitionerUserId: RowAccessor::string($row, 'practitioner_user_id'),
             startsAtUtc: RowAccessor::string($row, 'starts_at_utc'),
             durationMinutes: RowAccessor::int($row, 'duration_minutes'),
             status: RowAccessor::string($row, 'status'),
             reason: RowAccessor::nullableString($row, 'reason'),
             notes: RowAccessor::nullableString($row, 'notes'),
+            ownerLabel: RowAccessor::nullableString($row, 'owner_label'),
+            animalLabel: RowAccessor::nullableString($row, 'animal_label'),
+            animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
+            practitionerLabel: RowAccessor::nullableString($row, 'practitioner_label'),
         );
     }
 }

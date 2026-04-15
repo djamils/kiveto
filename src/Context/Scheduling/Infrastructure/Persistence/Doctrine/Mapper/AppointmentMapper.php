@@ -19,12 +19,9 @@ final class AppointmentMapper
 {
     public function toDomain(AppointmentEntity $entity): Appointment
     {
-        $practitionerAssignee = null;
-        if (null !== $entity->getPractitionerUserId()) {
-            $practitionerAssignee = new PractitionerAssignee(
-                UserId::fromString($entity->getPractitionerUserId()->toRfc4122())
-            );
-        }
+        $practitionerAssignee = new PractitionerAssignee(
+            UserId::fromString($entity->getPractitionerUserId()->toRfc4122())
+        );
 
         return Appointment::reconstitute(
             id: AppointmentId::fromString($entity->getId()->toRfc4122()),
@@ -48,11 +45,7 @@ final class AppointmentMapper
         $entity->setClinicId(Uuid::fromString($appointment->clinicId()->toString()));
         $entity->setOwnerId($appointment->ownerId() ? Uuid::fromString($appointment->ownerId()->toString()) : null);
         $entity->setAnimalId($appointment->animalId() ? Uuid::fromString($appointment->animalId()->toString()) : null);
-        $entity->setPractitionerUserId(
-            $appointment->practitionerAssignee()
-                ? Uuid::fromString($appointment->practitionerAssignee()->userId()->toString())
-                : null
-        );
+        $entity->setPractitionerUserId(Uuid::fromString($appointment->practitionerAssignee()->userId()->toString()));
         $entity->setStartsAtUtc($appointment->timeSlot()->startsAtUtc());
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());
         $entity->setStatus($appointment->status());
@@ -67,11 +60,7 @@ final class AppointmentMapper
 
     public function updateEntity(Appointment $appointment, AppointmentEntity $entity): void
     {
-        $entity->setPractitionerUserId(
-            $appointment->practitionerAssignee()
-                ? Uuid::fromString($appointment->practitionerAssignee()->userId()->toString())
-                : null
-        );
+        $entity->setPractitionerUserId(Uuid::fromString($appointment->practitionerAssignee()->userId()->toString()));
         $entity->setStartsAtUtc($appointment->timeSlot()->startsAtUtc());
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());
         $entity->setStatus($appointment->status());

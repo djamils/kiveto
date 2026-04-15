@@ -25,9 +25,9 @@ final class AppointmentFactory
 
     public function create(
         string $clinicId,
+        string $practitionerUserId,
         ?string $ownerId = null,
         ?string $animalId = null,
-        ?string $practitionerUserId = null,
         ?\DateTimeImmutable $startsAtUtc = null,
         int $durationMinutes = 30,
         ?string $reason = null,
@@ -35,10 +35,7 @@ final class AppointmentFactory
     ): Appointment {
         $startsAtUtc = $startsAtUtc ?? new \DateTimeImmutable('+1 day 09:00:00');
 
-        $practitionerAssignee = null;
-        if (null !== $practitionerUserId) {
-            $practitionerAssignee = new PractitionerAssignee(UserId::fromString($practitionerUserId));
-        }
+        $practitionerAssignee = new PractitionerAssignee(UserId::fromString($practitionerUserId));
 
         $appointment = Appointment::schedule(
             id: AppointmentId::fromString($this->uuidGenerator->generate()),

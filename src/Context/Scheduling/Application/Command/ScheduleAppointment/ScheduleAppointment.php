@@ -12,7 +12,7 @@ final readonly class ScheduleAppointment implements CommandInterface
         public string $clinicId,
         public ?string $ownerId,
         public ?string $animalId,
-        public ?string $practitionerUserId,
+        public string $practitionerUserId,
         public \DateTimeImmutable $startsAtUtc,
         public int $durationMinutes,
         public ?string $reason = null,

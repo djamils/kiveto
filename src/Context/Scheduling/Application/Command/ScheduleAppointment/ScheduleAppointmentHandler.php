@@ -54,40 +54,35 @@ final readonly class ScheduleAppointmentHandler
             throw new \InvalidArgumentException(\sprintf('Animal with ID "%s" does not exist.', $command->animalId));
         }
 
-        $practitionerAssignee = null;
-        if (null !== $command->practitionerUserId) {
-            $practitionerUserId = UserId::fromString($command->practitionerUserId);
+        $practitionerUserId = UserId::fromString($command->practitionerUserId);
 
-            // Validate practitioner is eligible
-            $isEligible = $this->membershipEligibilityChecker->isUserEligibleForClinicAt(
-                userId: $practitionerUserId,
-                clinicId: $clinicId,
-                at: $now,
-                allowedRoles: ['VETERINARY', 'VETERINARY_ASSISTANT'],
-            );
-            if (!$isEligible) {
-                throw new \DomainException(\sprintf(
-                    'User "%s" is not eligible as practitioner for clinic "%s".',
-                    $command->practitionerUserId,
-                    $command->clinicId
-                ));
-            }
-
-            $timeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
-
-            // Check for overlaps
-            if ($this->conflictChecker->hasOverlap($clinicId, $practitionerUserId, $timeSlot, null)) {
-                throw new \DomainException(\sprintf(
-                    'Practitioner "%s" has an overlapping appointment at %s.',
-                    $command->practitionerUserId,
-                    $command->startsAtUtc->format('Y-m-d H:i')
-                ));
-            }
-
-            $practitionerAssignee = new PractitionerAssignee($practitionerUserId);
-        } else {
-            $timeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
+        // Validate practitioner is eligible
+        $isEligible = $this->membershipEligibilityChecker->isUserEligibleForClinicAt(
+            userId: $practitionerUserId,
+            clinicId: $clinicId,
+            at: $now,
+            allowedRoles: ['VETERINARY', 'VETERINARY_ASSISTANT'],
+        );
+        if (!$isEligible) {
+            throw new \DomainException(\sprintf(
+                'User "%s" is not eligible as practitioner for clinic "%s".',
+                $command->practitionerUserId,
+                $command->clinicId
+            ));
         }
+
+        $timeSlot = new TimeSlot($command->startsAtUtc, $command->durationMinutes);
+
+        // Check for overlaps
+        if ($this->conflictChecker->hasOverlap($clinicId, $practitionerUserId, $timeSlot, null)) {
+            throw new \DomainException(\sprintf(
+                'Practitioner "%s" has an overlapping appointment at %s.',
+                $command->practitionerUserId,
+                $command->startsAtUtc->format('Y-m-d H:i')
+            ));
+        }
+
+        $practitionerAssignee = new PractitionerAssignee($practitionerUserId);
 
         $appointmentId = AppointmentId::fromString($this->uuidGenerator->generate());
 
