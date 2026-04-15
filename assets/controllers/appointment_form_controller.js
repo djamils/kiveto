@@ -8,14 +8,26 @@ import { Controller } from '@hotwired/stimulus';
  * Communication with agenda.js via CustomEvents:
  *   IN:  'appointment:open-modal'  { mode, prefill?, appointment? }
  *   OUT: 'appointment:saved'       { appointment, action }
+ *
+ * Form model:
+ *   - startsAtUtc (hidden): combined 'YYYY-MM-DDTHH:MM' — set from prefill
+ *     date + visible time input (or from appointment in edit mode).
+ *   - durationMinutes (hidden): driven by chip buttons (15/20/30/60).
+ *   - reason (hidden): driven by motif chip buttons.
+ *   - ownerId, animalId (hidden): filled by autocomplete controllers.
+ *   - practitionerUserId (select): populated from window.__agendaVets.
+ *   - notes (textarea).
  */
 export default class extends Controller {
   static targets = [
-    'modalTitle', 'form', 'submitBtn', 'submitLabel', 'submitSpinner',
-    'errorBanner', 'startsAt', 'duration', 'practitioner',
+    'modalTitle', 'slotLabel',
+    'form', 'submitBtn', 'submitLabel', 'submitSpinner',
+    'errorBanner', 'errorStartsAt', 'errorPractitioner',
+    'startsAt', 'time', 'endTime', 'duration', 'durationChips',
+    'practitioner',
     'ownerInput', 'ownerId', 'animalInput', 'animalId',
-    'reason', 'notes',
-    'errorStartsAt', 'errorPractitioner',
+    'reason', 'motifChips',
+    'notes',
   ];
 
   static values = {
@@ -24,28 +36,19 @@ export default class extends Controller {
     cancelUrlTemplate:       { type: String, default: '' },
   };
 
-  _mode = 'create'; // 'create' or 'edit'
+  _mode = 'create';
   _appointmentId = null;
   _submitting = false;
+  _date = ''; // 'YYYY-MM-DD' held separately from the visible time input
 
   connect() {
     this._openHandler = (e) => this._onOpenModal(e);
     document.addEventListener('appointment:open-modal', this._openHandler);
 
-    // Listen for owner selection to dispatch owner:changed for animal autocomplete
-    this._ownerObserver = new MutationObserver(() => {
-      if (!this.hasOwnerIdTarget) return;
-      const ownerId = this.ownerIdTarget.value;
-      document.dispatchEvent(new CustomEvent('owner:changed', {
-        detail: { ownerId },
-      }));
-    });
-
+    // Propagate owner selection to animal autocomplete via 'owner:changed'.
+    this._lastOwnerId = '';
     if (this.hasOwnerIdTarget) {
-      this._ownerObserver.observe(this.ownerIdTarget, { attributes: true, attributeFilter: ['value'] });
-      // Also poll on input changes since MutationObserver doesn't catch .value changes from JS
       this._ownerPollInterval = setInterval(() => {
-        if (!this.hasOwnerIdTarget) return;
         const current = this.ownerIdTarget.value;
         if (current !== this._lastOwnerId) {
           this._lastOwnerId = current;
@@ -55,14 +58,12 @@ export default class extends Controller {
         }
       }, 200);
     }
-    this._lastOwnerId = '';
   }
 
   disconnect() {
     if (this._openHandler) {
       document.removeEventListener('appointment:open-modal', this._openHandler);
     }
-    if (this._ownerObserver) this._ownerObserver.disconnect();
     if (this._ownerPollInterval) clearInterval(this._ownerPollInterval);
   }
 
@@ -80,6 +81,7 @@ export default class extends Controller {
       this._fillCreateMode(prefill || {});
     }
 
+    this._updateEndTime();
     this._open();
   }
 
@@ -88,7 +90,6 @@ export default class extends Controller {
 
     const vets = window.__agendaVets ?? [];
     const select = this.practitionerTarget;
-    // Keep the placeholder option, clear the rest
     while (select.options.length > 1) select.remove(1);
 
     if (vets.length === 0) {
@@ -109,23 +110,27 @@ export default class extends Controller {
 
   _fillCreateMode(prefill) {
     if (this.hasModalTitleTarget) this.modalTitleTarget.textContent = 'Nouveau rendez-vous';
-    if (this.hasSubmitLabelTarget) this.submitLabelTarget.textContent = 'Créer le RDV';
+    if (this.hasSubmitLabelTarget) this.submitLabelTarget.textContent = 'Confirmer le rendez-vous';
 
-    // Reset form
     if (this.hasFormTarget) this.formTarget.reset();
 
-    // Pre-fill date/time
-    if (prefill.date && this.hasStartsAtTarget) {
-      const time = prefill.time || '';
-      this.startsAtTarget.value = time ? `${prefill.date}T${time}` : `${prefill.date}T09:00`;
-    }
+    const today = new Date().toISOString().slice(0, 10);
+    this._date = prefill.date || today;
+    const time = prefill.time || '09:00';
 
-    // Pre-fill practitioner
+    if (this.hasTimeTarget) this.timeTarget.value = time;
+    this._syncStartsAt(time);
+    this._updateSlotLabel();
+
+    // Default duration: 30 min (first active chip)
+    this._setDuration(30);
+    // Reset motif chips (no default selection)
+    this._setReason('');
+
     if (prefill.practitionerUserId && this.hasPractitionerTarget) {
       this.practitionerTarget.value = prefill.practitionerUserId;
     }
 
-    // Enable owner/animal fields
     this._setOwnerAnimalReadonly(false);
   }
 
@@ -133,31 +138,37 @@ export default class extends Controller {
     if (this.hasModalTitleTarget) this.modalTitleTarget.textContent = 'Modifier le rendez-vous';
     if (this.hasSubmitLabelTarget) this.submitLabelTarget.textContent = 'Enregistrer';
 
-    // Fill fields
-    if (this.hasStartsAtTarget && appointment.startsAtUtc) {
-      // Convert UTC string to datetime-local value
-      const dt = appointment.startsAtUtc.replace(' ', 'T').replace('Z', '');
-      this.startsAtTarget.value = dt.substring(0, 16);
+    if (appointment.startsAtUtc) {
+      // Accepts 'YYYY-MM-DD HH:MM:SS' (MySQL) or 'YYYY-MM-DDTHH:MM:SSZ' (ISO 8601)
+      const raw = appointment.startsAtUtc.replace(' ', 'T').replace('Z', '');
+      this._date = raw.slice(0, 10);
+      const time = raw.slice(11, 16);
+      if (this.hasTimeTarget) this.timeTarget.value = time;
+      this._syncStartsAt(time);
+      this._updateSlotLabel();
     }
+
+    this._setDuration(appointment.durationMinutes || 30);
+    this._setReason(appointment.reason || '');
 
     if (this.hasPractitionerTarget) {
       this.practitionerTarget.value = appointment.practitionerUserId || '';
     }
 
-    // Owner/animal in read-only mode
     if (this.hasOwnerInputTarget) {
       this.ownerInputTarget.value = appointment.ownerLabel || appointment.ownerId || '';
-      this.ownerInputTarget.readOnly = true;
     }
     if (this.hasOwnerIdTarget) {
       this.ownerIdTarget.value = appointment.ownerId || '';
     }
     if (this.hasAnimalInputTarget) {
       this.animalInputTarget.value = appointment.animalLabel || appointment.animalId || '';
-      this.animalInputTarget.readOnly = true;
     }
     if (this.hasAnimalIdTarget) {
       this.animalIdTarget.value = appointment.animalId || '';
+    }
+    if (this.hasNotesTarget) {
+      this.notesTarget.value = appointment.notes || '';
     }
 
     this._setOwnerAnimalReadonly(true);
@@ -171,6 +182,101 @@ export default class extends Controller {
     if (this.hasAnimalInputTarget) {
       this.animalInputTarget.readOnly = readonly;
       this.animalInputTarget.style.opacity = readonly ? '0.6' : '';
+    }
+  }
+
+  _syncStartsAt(time) {
+    if (!this.hasStartsAtTarget) return;
+    this.startsAtTarget.value = `${this._date}T${time || '09:00'}`;
+  }
+
+  _updateSlotLabel() {
+    if (!this.hasSlotLabelTarget) return;
+    if (!this._date) {
+      this.slotLabelTarget.textContent = '';
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const time = this.hasTimeTarget ? this.timeTarget.value : '';
+    let datePart;
+    if (this._date === today) {
+      datePart = "Aujourd'hui";
+    } else {
+      const d = new Date(`${this._date}T00:00:00`);
+      datePart = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+    const timePart = time ? ` · ${time.replace(':', ' h ')}` : '';
+    this.slotLabelTarget.textContent = datePart + timePart;
+  }
+
+  _updateEndTime() {
+    if (!this.hasEndTimeTarget) return;
+    const time = this.hasTimeTarget ? this.timeTarget.value : '';
+    const duration = parseInt(this._readDuration(), 10) || 0;
+    if (!time || !duration) {
+      this.endTimeTarget.textContent = '—';
+      return;
+    }
+    const [h, m] = time.split(':').map((n) => parseInt(n, 10));
+    const endMinutes = h * 60 + m + duration;
+    const eh = Math.floor(endMinutes / 60) % 24;
+    const em = endMinutes % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    this.endTimeTarget.textContent = `${pad(eh)} h ${pad(em)}`;
+  }
+
+  _readDuration() {
+    return this.hasDurationTarget ? this.durationTarget.value : '30';
+  }
+
+  // ── Action handlers ──
+
+  onTimeChange() {
+    const time = this.hasTimeTarget ? this.timeTarget.value : '';
+    this._syncStartsAt(time);
+    this._updateSlotLabel();
+    this._updateEndTime();
+  }
+
+  onDurationClick(event) {
+    const duration = parseInt(event.currentTarget.dataset.duration, 10);
+    if (!duration) return;
+    this._setDuration(duration);
+    this._updateEndTime();
+  }
+
+  _setDuration(minutes) {
+    if (this.hasDurationTarget) this.durationTarget.value = String(minutes);
+    if (this.hasDurationChipsTarget) {
+      this.durationChipsTarget.querySelectorAll('.appt-chip').forEach((chip) => {
+        chip.classList.toggle('is-active', parseInt(chip.dataset.duration, 10) === minutes);
+      });
+    }
+  }
+
+  onMotifClick(event) {
+    const chip = event.currentTarget;
+    const reason = chip.dataset.reason || '';
+    // Toggle off if clicking the already-active chip
+    if (chip.classList.contains('is-active')) {
+      this._setReason('');
+    } else {
+      this._setReason(reason);
+    }
+  }
+
+  _setReason(reason) {
+    if (this.hasReasonTarget) this.reasonTarget.value = reason;
+    if (this.hasMotifChipsTarget) {
+      this.motifChipsTarget.querySelectorAll('.appt-motif-chip').forEach((chip) => {
+        const active = chip.dataset.reason === reason && '' !== reason;
+        chip.classList.toggle('is-active', active);
+        if (active) {
+          chip.style.setProperty('--motif-active-color', chip.dataset.color || '');
+        } else {
+          chip.style.removeProperty('--motif-active-color');
+        }
+      });
     }
   }
 
@@ -189,6 +295,10 @@ export default class extends Controller {
     if (this._submitting) return;
 
     this._clearErrors();
+
+    // Make sure the hidden startsAtUtc is up-to-date with the visible time.
+    if (this.hasTimeTarget) this._syncStartsAt(this.timeTarget.value);
+
     this._setSubmitting(true);
 
     const formData = new FormData(this.formTarget);

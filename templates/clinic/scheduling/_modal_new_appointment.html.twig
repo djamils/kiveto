@@ -5,7 +5,10 @@
  # appointment_form Stimulus controller.
  #
  # In create mode: all fields editable, submit dispatches POST to create URL.
- # In edit mode: owner/animal read-only, submit dispatches POST to reschedule URL.
+ # In edit mode: client/animal read-only, submit dispatches POST to reschedule URL.
+ #
+ # Notifications & Récurrence blocks are visually present but disabled
+ # (not yet wired to the backend — tagged .is-disabled for styling).
  #}
 
 <div id="modalAppointment"
@@ -18,11 +21,14 @@
      data-appointment-form-reschedule-url-template-value="/scheduling/appointments/:id/reschedule"
      data-appointment-form-cancel-url-template-value="/scheduling/appointments/:id/cancel"
 >
-  <div class="modal">
+  <div class="modal modal-wide appt-modal">
 
     {# Header #}
-    <div class="modal-head">
-      <span class="modal-title" id="modalAppointment-title" data-appointment-form-target="modalTitle">Nouveau rendez-vous</span>
+    <div class="modal-head appt-head">
+      <div>
+        <span class="modal-title" id="modalAppointment-title" data-appointment-form-target="modalTitle">Nouveau rendez-vous</span>
+        <div class="appt-slot-label" data-appointment-form-target="slotLabel">&nbsp;</div>
+      </div>
       <button
         class="btn btn-ghost btn-icon btn-sm"
         type="button"
@@ -36,125 +42,208 @@
     </div>
 
     {# Body #}
-    <div class="modal-body">
-      {# Global error banner #}
+    <div class="modal-body appt-body">
       <div class="form-error-banner hidden" data-appointment-form-target="errorBanner"></div>
 
-      <form id="formAppointment" data-appointment-form-target="form" data-action="submit->appointment-form#submit">
+      <form id="formAppointment" data-appointment-form-target="form" data-action="submit->appointment-form#submit" class="appt-grid">
         <input type="hidden" name="_token" value="{{ csrf_token('appointment') }}">
+        <input type="hidden" name="startsAtUtc" data-appointment-form-target="startsAt">
+        <input type="hidden" name="durationMinutes" value="30" data-appointment-form-target="duration">
+        <input type="hidden" name="reason" data-appointment-form-target="reason">
 
-        {# Date & time #}
-        <div class="form-row">
-          <label class="form-label">Date et heure <span style="color: var(--color-danger-text);">*</span></label>
-          <input
-            type="datetime-local"
-            name="startsAtUtc"
-            class="form-input"
-            data-appointment-form-target="startsAt"
-            required
-          >
-          <div class="form-field-error hidden" data-appointment-form-target="errorStartsAt"></div>
-        </div>
+        {# ================ LEFT COLUMN ================ #}
+        <div class="appt-col">
 
-        {# Duration #}
-        <div class="form-row">
-          <label class="form-label">Durée (minutes) <span style="color: var(--color-danger-text);">*</span></label>
-          {{ include('components/ui/select.html.twig', {
-            name: 'durationMinutes',
-            value: '30',
-            options: [
-              { value: '15', label: '15 min' },
-              { value: '30', label: '30 min' },
-              { value: '45', label: '45 min' },
-              { value: '60', label: '1 heure' },
-              { value: '90', label: '1h30' },
-              { value: '120', label: '2 heures' },
-            ],
-          }) }}
-        </div>
+          {# Horaire card (time input + end time + duration chips) #}
+          <div class="appt-box">
+            <p class="appt-box-title">Horaire</p>
+            <div class="appt-horaire-row">
+              <svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="color:var(--brand-700);flex-shrink:0;">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              <input
+                type="time"
+                class="form-input form-input-sm appt-time-input"
+                data-appointment-form-target="time"
+                data-action="input->appointment-form#onTimeChange"
+                required
+              >
+              <svg width="11" height="11" fill="none" viewBox="0 0 12 12" style="color:#94a3b8;flex-shrink:0;">
+                <path d="M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              <span class="appt-endtime" data-appointment-form-target="endTime">—</span>
+            </div>
+            <div class="appt-duration-chips" data-appointment-form-target="durationChips">
+              <button type="button" class="appt-chip" data-duration="15" data-action="click->appointment-form#onDurationClick">15 min</button>
+              <button type="button" class="appt-chip" data-duration="20" data-action="click->appointment-form#onDurationClick">20 min</button>
+              <button type="button" class="appt-chip is-active" data-duration="30" data-action="click->appointment-form#onDurationClick">30 min</button>
+              <button type="button" class="appt-chip" data-duration="60" data-action="click->appointment-form#onDurationClick">1 h</button>
+            </div>
+            <div class="form-field-error hidden" data-appointment-form-target="errorStartsAt"></div>
+          </div>
 
-        {# Practitioner #}
-        <div class="form-row">
-          <label class="form-label">Praticien <span style="color: var(--color-danger-text);">*</span></label>
-          <select name="practitionerUserId" class="form-input" data-appointment-form-target="practitioner" required>
-            <option value="">-- Sélectionner --</option>
-          </select>
-          <div class="form-field-error hidden" data-appointment-form-target="errorPractitioner"></div>
-        </div>
+          {# Client (owner) #}
+          <div class="form-row appt-row" data-controller="client-search-autocomplete">
+            <label class="appt-label">Client</label>
+            <div class="autocomplete-wrapper">
+              <input
+                type="text"
+                class="form-input"
+                placeholder="Rechercher un client…"
+                data-client-search-autocomplete-target="input"
+                data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
+                data-appointment-form-target="ownerInput"
+                autocomplete="off"
+              >
+              <input type="hidden" name="ownerId" data-client-search-autocomplete-target="hiddenInput" data-appointment-form-target="ownerId">
+              <ul role="listbox" class="autocomplete-dropdown hidden" data-client-search-autocomplete-target="dropdown"></ul>
+              <div aria-live="polite" class="sr-only" data-client-search-autocomplete-target="liveRegion"></div>
+            </div>
+          </div>
 
-        {# Owner autocomplete #}
-        <div class="form-row" data-controller="client-search-autocomplete">
-          <label class="form-label">Propriétaire</label>
-          <div class="autocomplete-wrapper">
-            <input
-              type="text"
+          {# Animal + Vétérinaire (2-col) #}
+          <div class="appt-row-split">
+            <div class="form-row appt-row" data-controller="animal-search-autocomplete" data-animal-search-autocomplete-owner-id-value="">
+              <label class="appt-label">Animal</label>
+              <div class="autocomplete-wrapper">
+                <input
+                  type="text"
+                  class="form-input"
+                  placeholder="Rechercher…"
+                  data-animal-search-autocomplete-target="input"
+                  data-action="input->animal-search-autocomplete#onInput keydown->animal-search-autocomplete#onKeydown"
+                  data-appointment-form-target="animalInput"
+                  autocomplete="off"
+                >
+                <input type="hidden" name="animalId" data-animal-search-autocomplete-target="hiddenInput" data-appointment-form-target="animalId">
+                <ul role="listbox" class="autocomplete-dropdown hidden" data-animal-search-autocomplete-target="dropdown"></ul>
+                <div aria-live="polite" class="sr-only" data-animal-search-autocomplete-target="liveRegion"></div>
+              </div>
+            </div>
+            <div class="form-row appt-row">
+              <label class="appt-label">Vétérinaire</label>
+              <select name="practitionerUserId" class="form-input" data-appointment-form-target="practitioner" required>
+                <option value="">-- Sélectionner --</option>
+              </select>
+              <div class="form-field-error hidden" data-appointment-form-target="errorPractitioner"></div>
+            </div>
+          </div>
+
+          {# Note #}
+          <div class="form-row appt-row">
+            <label class="appt-label">Note / contexte</label>
+            <textarea
+              name="notes"
               class="form-input"
-              placeholder="Rechercher un client..."
-              data-client-search-autocomplete-target="input"
-              data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
-              data-appointment-form-target="ownerInput"
-            >
-            <input type="hidden" name="ownerId" data-client-search-autocomplete-target="hiddenInput" data-appointment-form-target="ownerId">
-            <ul role="listbox" class="autocomplete-dropdown hidden" data-client-search-autocomplete-target="dropdown"></ul>
-            <div aria-live="polite" class="sr-only" data-client-search-autocomplete-target="liveRegion"></div>
+              rows="3"
+              placeholder="Précision, symptômes, contexte…"
+              data-appointment-form-target="notes"
+              style="resize:none;"
+            ></textarea>
           </div>
         </div>
 
-        {# Animal autocomplete #}
-        <div class="form-row" data-controller="animal-search-autocomplete" data-animal-search-autocomplete-owner-id-value="">
-          <label class="form-label">Animal</label>
-          <div class="autocomplete-wrapper">
-            <input
-              type="text"
-              class="form-input"
-              placeholder="Rechercher un animal..."
-              data-animal-search-autocomplete-target="input"
-              data-action="input->animal-search-autocomplete#onInput keydown->animal-search-autocomplete#onKeydown"
-              data-appointment-form-target="animalInput"
-            >
-            <input type="hidden" name="animalId" data-animal-search-autocomplete-target="hiddenInput" data-appointment-form-target="animalId">
-            <ul role="listbox" class="autocomplete-dropdown hidden" data-animal-search-autocomplete-target="dropdown"></ul>
-            <div aria-live="polite" class="sr-only" data-animal-search-autocomplete-target="liveRegion"></div>
+        {# ================ RIGHT COLUMN ================ #}
+        <div class="appt-col">
+
+          {# Motif chips #}
+          <div class="form-row appt-row">
+            <label class="appt-label">Motif</label>
+            <div class="appt-motif-chips" data-appointment-form-target="motifChips">
+              <button type="button" class="appt-motif-chip" data-reason="Consultation" data-color="#4338ca" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#4338ca;"></span>Consultation
+              </button>
+              <button type="button" class="appt-motif-chip" data-reason="Vaccin" data-color="#0891b2" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#0891b2;"></span>Vaccin
+              </button>
+              <button type="button" class="appt-motif-chip" data-reason="Suivi" data-color="#7c3aed" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#7c3aed;"></span>Suivi
+              </button>
+              <button type="button" class="appt-motif-chip" data-reason="Chirurgie" data-color="#b45309" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#b45309;"></span>Chirurgie
+              </button>
+              <button type="button" class="appt-motif-chip" data-reason="Bilan" data-color="#059669" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#059669;"></span>Bilan
+              </button>
+              <button type="button" class="appt-motif-chip" data-reason="Urgence" data-color="#dc2626" data-action="click->appointment-form#onMotifClick">
+                <span class="appt-motif-dot" style="background:#dc2626;"></span>🚨 Urgence
+              </button>
+            </div>
           </div>
-        </div>
 
-        {# Reason #}
-        <div class="form-row">
-          <label class="form-label">Motif</label>
-          {{ include('components/ui/select.html.twig', {
-            name: 'reason',
-            placeholder: '-- Sélectionner --',
-            clearable: true,
-            options: [
-              { value: 'Consultation', label: 'Consultation' },
-              { value: 'Vaccination', label: 'Vaccination' },
-              { value: 'Chirurgie', label: 'Chirurgie' },
-              { value: 'Contrôle', label: 'Contrôle' },
-              { value: 'Urgence', label: 'Urgence' },
-              { value: 'Autre', label: 'Autre' },
-            ],
-          }) }}
-        </div>
+          {# Notifications (not wired — visually present, disabled) #}
+          <div class="appt-box is-disabled" aria-disabled="true" title="Bientôt disponible">
+            <p class="appt-box-title">Notifications &amp; Rappels</p>
+            <div class="appt-notif-list">
+              <div class="appt-notif-row">
+                <div class="appt-notif-label">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#4338ca;">
+                    <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                    <path d="M2 6l6 4 6-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  </svg>
+                  <span>Email de confirmation</span>
+                </div>
+                <input type="checkbox" checked disabled>
+              </div>
+              <div class="appt-notif-row">
+                <div class="appt-notif-label">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#0891b2;">
+                    <rect x="2" y="2" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                    <path d="M5 13l3 2 3-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>SMS de rappel</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <select class="appt-mini-select" disabled>
+                    <option>24h avant</option>
+                    <option>48h avant</option>
+                    <option>1h avant</option>
+                  </select>
+                  <input type="checkbox" checked disabled>
+                </div>
+              </div>
+              <div class="appt-notif-row">
+                <div class="appt-notif-label">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#7c3aed;">
+                    <path d="M8 2a4 4 0 100 8A4 4 0 008 2z" stroke="currentColor" stroke-width="1.3"/>
+                    <path d="M2 14c0-2.5 2.5-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  </svg>
+                  <span>Notif. équipe</span>
+                </div>
+                <input type="checkbox" disabled>
+              </div>
+            </div>
+          </div>
 
-        {# Notes #}
-        <div class="form-row">
-          <label class="form-label">Notes</label>
-          <textarea
-            name="notes"
-            class="form-input"
-            rows="3"
-            placeholder="Notes additionnelles..."
-            data-appointment-form-target="notes"
-          ></textarea>
+          {# Récurrence (not wired — visually present, disabled) #}
+          <div class="appt-row-inline is-disabled" aria-disabled="true" title="Bientôt disponible">
+            <div class="appt-notif-label">
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" style="color:#94a3b8;">
+                <path d="M14 8a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M14 4v4h-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Récurrence</span>
+            </div>
+            <select class="appt-mini-select" disabled>
+              <option>Aucune</option>
+              <option>Hebdomadaire</option>
+              <option>Bimensuelle</option>
+              <option>Mensuelle</option>
+            </select>
+          </div>
         </div>
       </form>
     </div>
 
     {# Footer #}
-    <div class="modal-foot">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="appointment-form#close">Annuler</button>
-      <button type="submit" form="formAppointment" class="btn btn-primary btn-sm" data-appointment-form-target="submitBtn">
-        <span data-appointment-form-target="submitLabel">Créer le RDV</span>
+    <div class="modal-foot appt-foot">
+      <button type="button" class="btn btn-secondary" data-action="appointment-form#close" style="flex:1;justify-content:center;">Annuler</button>
+      <button type="submit" form="formAppointment" class="btn btn-primary" data-appointment-form-target="submitBtn" style="flex:2;justify-content:center;">
+        <svg width="11" height="11" fill="none" viewBox="0 0 12 12" data-appointment-form-target="submitIcon">
+          <path d="M2 6l3.5 3.5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-appointment-form-target="submitLabel">Confirmer le rendez-vous</span>
         <svg class="spinner hidden" data-appointment-form-target="submitSpinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
         </svg>
