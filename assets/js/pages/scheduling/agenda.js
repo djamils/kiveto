@@ -1056,9 +1056,19 @@ const NAV_MIN_OPACITY = '0.55';
 
 function computeDirection(newIso) {
   if (!newIso || !AGENDA_DATA || !AGENDA_DATA.selectedDate) return null;
-  if (newIso < AGENDA_DATA.selectedDate) return 'prev';
-  if (newIso > AGENDA_DATA.selectedDate) return 'next';
+  // In week view, a navigation that stays within the same Monday-Sunday
+  // window shouldn't slide — the grid content is identical, only the
+  // selected-day state changes. Compare week anchors in that case.
+  const compareA = view === 'week' ? weekAnchor(AGENDA_DATA.selectedDate) : AGENDA_DATA.selectedDate;
+  const compareB = view === 'week' ? weekAnchor(newIso) : newIso;
+  if (compareB < compareA) return 'prev';
+  if (compareB > compareA) return 'next';
   return null;
+}
+
+function weekAnchor(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return isoDate(mondayOf(new Date(y, m - 1, d)));
 }
 
 function directionFromHref(href) {
@@ -1080,6 +1090,19 @@ function onCalendarSelect(e) {
   const iso = e && e.detail && e.detail.date;
   if (!iso || typeof iso !== 'string') return;
   if (iso === AGENDA_DATA.selectedDate) return; // no-op re-click
+
+  // In week view, staying within the same Monday-Sunday window means the
+  // grid content is identical — skip the server roundtrip entirely and
+  // just patch local state + URL so the Day/Week toggles and history
+  // still reflect the newly picked day.
+  if (view === 'week' && weekAnchor(iso) === weekAnchor(AGENDA_DATA.selectedDate)) {
+    AGENDA_DATA.selectedDate = iso;
+    patchHeaderNav();
+    const nextUrl = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=week`;
+    const current = window.location.pathname + window.location.search;
+    if (current !== nextUrl) window.history.pushState({}, '', nextUrl);
+    return;
+  }
 
   const frame = document.getElementById('agenda-frame');
   if (!frame) return;
@@ -1132,12 +1155,16 @@ function onBeforeFrameRender(e) {
   const wrap = frame.querySelector('.agenda-wrap');
   if (!wrap) return;
 
+  // No direction = same view anchor (e.g. another day within the same week
+  // in week view). Skip the transition entirely so the grid stays stable.
+  if (!_pendingNavDirection) return;
+
   // Defer Turbo's DOM swap so the "slide-out + fade-out" transition can run
   // to completion first, then resume() below hands control back to Turbo.
   e.preventDefault();
 
   const dir = _pendingNavDirection;
-  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : dir === 'prev' ? `${NAV_SHIFT_PX}px` : '0px';
+  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : `${NAV_SHIFT_PX}px`;
 
   wrap.style.willChange = 'opacity, transform';
   wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
@@ -1157,8 +1184,12 @@ function onFrameRender(e) {
   const wrap = frame.querySelector('.agenda-wrap');
   if (!wrap) return;
 
+  // No direction = no animation on the way out either; bail out without
+  // touching styles so the mounted DOM stays put.
+  if (!_pendingNavDirection) return;
+
   const dir = _pendingNavDirection;
-  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : dir === 'prev' ? `-${NAV_SHIFT_PX}px` : '0px';
+  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : `-${NAV_SHIFT_PX}px`;
 
   // Jump to the "entering" position without transition, then animate back
   // to the resting state after a forced reflow so the transition actually
