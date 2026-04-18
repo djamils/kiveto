@@ -158,9 +158,26 @@
       border-left: 3px solid transparent;
     }
     .rdv-block:hover {
-      filter: brightness(.94);
+      filter: brightness(.9);
       z-index: 20;
-      box-shadow: 0 4px 12px rgba(0,0,0,.14);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+    }
+
+    /* Drag affordances: grab cursor on eligible blocks, grabbing + lifted
+       visuals while a drag is in progress. Disable hover while dragging so
+       the brightness filter doesn't fight the drag opacity. */
+    .rdv-block.is-draggable {
+      cursor: grab;
+    }
+    .rdv-block.is-dragging {
+      cursor: grabbing !important;
+      opacity: .75;
+      z-index: 30;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+      transition: none;
+    }
+    .rdv-block.is-dragging:hover {
+      filter: none;
     }
 
     /* Motif chip */
@@ -343,4 +360,255 @@
     .topbar-new-rdv { display: none !important; }
   }
   .fab-rdv { display: flex; }
+}
+
+/* Appointment CRUD animations */
+@keyframes ki-appointment-flash {
+  0%   { background-color: var(--brand-100, #e0e7ff); }
+  100% { background-color: transparent; }
+}
+
+@keyframes ki-appointment-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ki-appointment-fade-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.95); }
+}
+
+.rdv-block.is-new {
+  animation: ki-appointment-fade-in 300ms ease-out, ki-appointment-flash 1s ease-out 300ms;
+}
+
+.rdv-block.is-removing {
+  animation: ki-appointment-fade-out 400ms ease-out forwards;
+}
+
+/* Modal appointment form styles */
+.form-error-banner {
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: var(--text-sm);
+}
+
+.form-field-error {
+  font-size: var(--text-xs);
+  color: var(--color-danger-text);
+  margin-top: 2px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Scheduling — Appointment Modal (new / edit) ── */
+
+@layer components {
+
+  /* Overall modal sizing: slightly wider than the default .modal-wide (680px),
+     targeting ~640px from the design spec. */
+  .appt-modal { max-width: 640px; }
+
+  .appt-head > div:first-child { flex: 1; }
+  .appt-slot-label {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+
+  .appt-body { padding: 16px 20px; }
+  .appt-foot { padding: 14px 20px; }
+
+  /* 2-column grid */
+  .appt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .appt-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  /* Generic labeled rows override (tighter than global .form-row) */
+  .appt-row { margin-bottom: 0; }
+  .appt-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .appt-row-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Boxed cards (Horaire, Notifications) */
+  .appt-box {
+    background: #f8fafc;
+    border: 1px solid #e8edf2;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .appt-box-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 9px;
+  }
+
+  /* Horaire row: clock icon + time input + arrow + end time */
+  .appt-horaire-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .appt-time-input {
+    flex: 1;
+    padding: 5px 9px;
+    font-size: 12.5px;
+  }
+  .appt-endtime {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+  }
+
+  /* Duration chips row */
+  .appt-duration-chips {
+    display: flex;
+    gap: 5px;
+  }
+  .appt-chip {
+    flex: 1 1 0;
+    padding: 5px 0;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .1s;
+  }
+  .appt-chip:hover:not(.is-active) {
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+  .appt-chip.is-active {
+    border-color: var(--brand-700, #4338ca);
+    background: var(--brand-50, #eef2ff);
+    color: var(--brand-700, #4338ca);
+  }
+
+  /* Motif chips (2-col grid) */
+  .appt-motif-chips {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .appt-motif-chip {
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    font-family: inherit;
+    transition: .1s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .appt-motif-chip:hover:not(.is-active) {
+    border-color: #cbd5e1;
+    background: #fff;
+  }
+  .appt-motif-chip.is-active {
+    background: #fff;
+    color: #0f172a;
+    /* Active border color is injected via inline style --active-color
+       set from data-color by the Stimulus controller. */
+    border-color: var(--motif-active-color, var(--brand-700, #4338ca));
+  }
+  .appt-motif-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  /* Notifications list */
+  .appt-notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .appt-notif-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .appt-notif-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #334155;
+  }
+
+  /* Récurrence inline row */
+  .appt-row-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e8edf2;
+    border-radius: 10px;
+  }
+
+  /* Mini selects (inside notifications + recurrence) */
+  .appt-mini-select {
+    font-size: 11.5px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 3px 8px;
+    background: #fff;
+    color: #475569;
+    font-family: inherit;
+    outline: none;
+  }
+
+  /* Disabled block — visually present but not interactive */
+  .is-disabled {
+    opacity: .55;
+    pointer-events: none;
+  }
 }

@@ -9,10 +9,15 @@
 
 // =============== CONSTANTS ===============
 const VET_COLORS = ['#4338ca', '#0891b2', '#059669', '#db2777', '#7c3aed', '#b45309', '#0369a1', '#9d174d'];
+// Paired pastel backgrounds (Tailwind-50 shades) for solid, opaque RDV tiles.
+// Aligned with docs/frontend-theme/vetsaas-layouts/vetos-agenda.html so the
+// :hover brightness filter reads consistently across blocks.
+const VET_BG_COLORS = ['#eef2ff', '#ecfeff', '#ecfdf5', '#fdf2f8', '#f5f3ff', '#fffbeb', '#f0f9ff', '#fdf2f8'];
+const ME_BG_COLOR   = '#f0fdfa'; // teal-50 paired with #0d9488
 // Reserved color for the current user's column — intentionally outside the
 // --brand palette so it doesn't blend with buttons/sidebar (tech-spec D8).
 const ME_COLOR = '#0d9488';
-const FALLBACK_VET = { userId: null, label: '?', color: '#64748b', isMe: false };
+const FALLBACK_VET = { userId: null, label: '?', color: '#64748b', bg: '#f1f5f9', isMe: false };
 
 const HOUR_START = 7;
 const HOUR_END = 20;
@@ -37,13 +42,47 @@ let vetById = {};
 let activeVets = new Set();
 let view = 'week';
 let weekDays = [];
-let checkinUrlTemplate = '';
+let clientProfileUrlTemplate = '';
 let nowDate = new Date();
 
 // =============== UTILS ===============
-function parseUtcDateTime(mysqlUtcString) {
-  // MySQL "Y-m-d H:i:s" (UTC) → JS Date interpreted as UTC.
-  return new Date(mysqlUtcString.replace(' ', 'T') + 'Z');
+function parseUtcDateTime(utcString) {
+  // Accepts MySQL "Y-m-d H:i:s" or ISO 8601 "Y-m-dTH:i:sZ" → JS Date (UTC).
+  if (utcString.includes('T')) return new Date(utcString);
+  return new Date(utcString.replace(' ', 'T') + 'Z');
+}
+
+// Mirrors src/Shared/Presentation/Twig/PhoneFormatRuntime.php (international mode).
+// Kept in sync manually; if a new country is added server-side, add it here too.
+const PHONE_COUNTRIES = [
+  { dialCode: '+352', trunkPrefix: '',  maskIntl: '### ### ###',    keepTrunk: false },
+  { dialCode: '+212', trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
+  { dialCode: '+216', trunkPrefix: '',  maskIntl: '## ### ###',     keepTrunk: false },
+  { dialCode: '+213', trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
+  { dialCode: '+33',  trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
+  { dialCode: '+32',  trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
+  { dialCode: '+41',  trunkPrefix: '0', maskIntl: '# ### ## ##',    keepTrunk: false },
+  { dialCode: '+34',  trunkPrefix: '',  maskIntl: '### ## ## ##',   keepTrunk: false },
+  { dialCode: '+39',  trunkPrefix: '',  maskIntl: '### ### ####',   keepTrunk: true },
+  { dialCode: '+49',  trunkPrefix: '0', maskIntl: '## #######',     keepTrunk: false },
+  { dialCode: '+44',  trunkPrefix: '0', maskIntl: '#### ### ###',   keepTrunk: false },
+  { dialCode: '+1',   trunkPrefix: '',  maskIntl: '(###) ###-####', keepTrunk: false },
+];
+
+function formatPhoneIntl(e164) {
+  if (!e164 || typeof e164 !== 'string' || !e164.startsWith('+')) return e164 || '';
+  const country = PHONE_COUNTRIES.find((c) => e164.startsWith(c.dialCode));
+  if (!country) return e164;
+  const national = e164.slice(country.dialCode.length);
+  const digits = country.keepTrunk && country.trunkPrefix ? country.trunkPrefix + national : national;
+  let result = '';
+  let di = 0;
+  for (let i = 0; i < country.maskIntl.length && di < digits.length; i++) {
+    if (country.maskIntl[i] === '#') result += digits[di++];
+    else result += country.maskIntl[i];
+  }
+  if (di < digits.length) result += digits.slice(di);
+  return `${country.dialCode} ${result}`;
 }
 
 function toClinicLocalParts(utcDate, timezone) {
@@ -149,16 +188,22 @@ function mondayOf(d) {
 function buildVetIndex() {
   vetById = {};
   activeVets = new Set();
+  const vetList = [];
   (AGENDA_DATA.veterinarians || []).forEach((v, i) => {
     const isMe = v.userId === AGENDA_DATA.currentUserId;
-    vetById[v.userId] = {
+    const entry = {
       userId: v.userId,
       label: isMe ? 'Moi' : `Praticien ${i + 1}`,
       color: isMe ? ME_COLOR : VET_COLORS[i % VET_COLORS.length],
+      bg:    isMe ? ME_BG_COLOR : VET_BG_COLORS[i % VET_BG_COLORS.length],
       isMe,
     };
+    vetById[v.userId] = entry;
+    vetList.push(entry);
     activeVets.add(v.userId);
   });
+  // Expose vet list for the appointment form Stimulus controller
+  window.__agendaVets = vetList;
 }
 
 /**
@@ -261,6 +306,7 @@ function renderWeek() {
     const isToday = iso === todayIso;
     const col = document.createElement('div');
     col.className = 'day-col';
+    col.dataset.date = iso;
     if (isToday) col.style.background = '#fdfcff';
     const totalH = HOUR_END - HOUR_START + 1;
     col.style.height = `${totalH * SLOT_H}px`;
@@ -278,26 +324,29 @@ function renderWeek() {
       top.dataset.time = `${pad2(h)}:00`;
       top.onmouseenter = () => { top.style.background = '#f5f3ff'; };
       top.onmouseleave = () => { top.style.background = ''; };
-      top.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, top.dataset.time); };
+      top.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, top.dataset.time, null); };
 
       const bot = document.createElement('div');
       bot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;border-top:1px dashed #dde2e7;';
       bot.dataset.time = `${pad2(h)}:30`;
       bot.onmouseenter = () => { bot.style.background = '#f5f3ff'; };
       bot.onmouseleave = () => { bot.style.background = ''; };
-      bot.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, bot.dataset.time); };
+      bot.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, bot.dataset.time, null); };
 
       slotWrap.appendChild(top);
       slotWrap.appendChild(bot);
       col.appendChild(slotWrap);
     }
 
-    // Appointments for this day (filters: active vets, non-cancelled)
+    // Appointments for this day (filters: active vets, non-cancelled).
+    // The lane algorithm below requires chronological order — the source
+    // array can become unsorted after a reschedule (in-place replacement
+    // keeps the original index even when the new start is earlier/later).
     const dayAppts = appointments.filter((a) =>
       a._date === iso
       && activeVets.has(a.practitionerUserId)
       && a.status !== 'CANCELLED',
-    );
+    ).sort((a, b) => a._startMin - b._startMin);
 
     // Assign lanes to overlapping blocks
     const lanes = [];
@@ -391,7 +440,7 @@ function createRdvBlock(a) {
     borderColor = vet.color;
     opacity = '0.8';
   } else {
-    bg = `${vet.color}18`;
+    bg = vet.bg;
     borderColor = vet.color;
   }
 
@@ -406,20 +455,256 @@ function createRdvBlock(a) {
   const lines = Math.floor((heightPx - 2) / 15);
   let html = `<div style="display:flex;flex-direction:column;overflow:hidden;width:100%;height:${heightPx - 2}px;justify-content:center;">`;
   const reasonText = escapeHtml(a.reason || 'Consultation');
+  const animalEmoji = speciesEmoji(a.animalSpecies);
+  const animalName = a.animalLabel ? `${animalEmoji} ${escapeHtml(a.animalLabel)}` : '';
+  const ownerName = a.ownerLabel ? escapeHtml(a.ownerLabel) : '';
   const vetLabel = escapeHtml(vet.label);
   if (lines === 1) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span><span style="font-size:var(--text-xs);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${reasonText}</span></div>`;
-  } else if (lines >= 2) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span>${animalName ? `<span style="font-size:11px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${animalName}</span>` : `<span style="font-size:var(--text-xs);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${reasonText}</span>`}</div>`;
+  } else if (lines === 2) {
     html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
-    html += `<div style="${R}"><span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${reasonText}</span></div>`;
-    if (lines >= 3) {
-      html += `<div style="${R}"><span style="font-size:var(--text-xs);color:${subColor};overflow:hidden;text-overflow:ellipsis;">${vetLabel}</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+  } else if (lines === 3) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+    html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName || vetLabel}</span></div>`;
+  } else if (lines >= 4) {
+    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
+    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
+    if (ownerName) {
+      html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName}</span></div>`;
     }
+    html += `<div style="${R}"><span style="font-size:10.5px;color:${timeColor};font-weight:500;overflow:hidden;text-overflow:ellipsis;">${reasonText}${lines >= 5 ? ` · ${vetLabel}` : ''}</span></div>`;
   }
   html += '</div>';
   block.innerHTML = html;
-  block.onclick = (e) => { e.stopPropagation(); showRdvPopup(a.id, e); };
+
+  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
+  if (!isPast && !isTerminal) {
+    block.classList.add('is-draggable');
+    block.addEventListener('pointerdown', (e) => startDrag(e, a, block));
+  }
+
+  block.onclick = (e) => {
+    if (block.dataset.dragJustEnded === '1') {
+      block.dataset.dragJustEnded = '';
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    showRdvPopup(a.id, e);
+  };
   return block;
+}
+
+// =============== DRAG & DROP ===============
+// Click-and-drag an rdv-block onto a different time (same practitioner, same
+// or different day in week view). On drop: POST to reschedule, re-render via
+// appointment:saved. On conflict/error: rollback visually + toast.
+const DRAG_THRESHOLD_PX = 6;
+const DRAG_SNAP_MIN = 15;
+
+let _drag = null;
+
+function startDrag(e, appointment, block) {
+  // Left button only; ignore right-clicks, middle-clicks, extra buttons.
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+
+  const blockRect = block.getBoundingClientRect();
+  const parentCol = block.parentElement;
+
+  _drag = {
+    appointment,
+    block,
+    startX:         e.clientX,
+    startY:         e.clientY,
+    offsetY:        e.clientY - blockRect.top,
+    origTop:        parseFloat(block.style.top) || 0,
+    origCol:        parentCol,
+    origDateIso:    appointment._date,
+    origStartMin:   appointment._startMin,
+    targetCol:      parentCol,
+    targetStartMin: appointment._startMin,
+    targetDateIso:  appointment._date,
+    hasMoved:       false,
+  };
+
+  const onMove = (ev) => onDragMove(ev);
+  const onUp   = (ev) => onDragEnd(ev);
+  const onKey  = (ev) => { if (ev.key === 'Escape') cancelDrag(); };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('keydown', onKey);
+  _drag.cleanup = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('keydown', onKey);
+  };
+}
+
+function onDragMove(e) {
+  if (!_drag) return;
+  const dx = e.clientX - _drag.startX;
+  const dy = e.clientY - _drag.startY;
+  if (!_drag.hasMoved && Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
+
+  if (!_drag.hasMoved) {
+    _drag.hasMoved = true;
+    _drag.block.classList.add('is-dragging');
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  }
+
+  const targetCol = findDayColUnder(e.clientX, e.clientY) || _drag.origCol;
+
+  // Reparent into the target column when the cursor crosses a column boundary.
+  if (targetCol !== _drag.targetCol) {
+    targetCol.appendChild(_drag.block);
+    _drag.targetCol = targetCol;
+    _drag.targetDateIso = targetCol.dataset.date || _drag.origDateIso;
+  }
+
+  const colRect = targetCol.getBoundingClientRect();
+  const yInCol = e.clientY - colRect.top - _drag.offsetY;
+  const rawMinutes = Math.max(0, yInCol) / SLOT_H * 60;
+  const snappedOffset = Math.round(rawMinutes / DRAG_SNAP_MIN) * DRAG_SNAP_MIN;
+  const duration = _drag.appointment.durationMinutes;
+  const minStart = HOUR_START * 60;
+  const maxStart = (HOUR_END + 1) * 60 - duration;
+  const newStartMin = Math.max(minStart, Math.min(minStart + snappedOffset, maxStart));
+
+  const newTop = ((newStartMin - HOUR_START * 60) / 60) * SLOT_H + 1;
+  _drag.block.style.top = `${newTop}px`;
+  _drag.targetStartMin = newStartMin;
+}
+
+function findDayColUnder(x, y) {
+  const hits = document.elementsFromPoint(x, y);
+  for (const el of hits) {
+    if (el.classList && el.classList.contains('day-col')) return el;
+  }
+  return null;
+}
+
+function cancelDrag() {
+  if (!_drag) return;
+  rollbackDragPosition();
+  endDragCleanup();
+}
+
+function rollbackDragPosition() {
+  if (!_drag) return;
+  if (_drag.origCol && _drag.block.parentElement !== _drag.origCol) {
+    _drag.origCol.appendChild(_drag.block);
+  }
+  _drag.block.style.top = `${_drag.origTop}px`;
+}
+
+function endDragCleanup() {
+  if (!_drag) return;
+  _drag.cleanup();
+  _drag.block.classList.remove('is-dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  _drag = null;
+}
+
+function swallowNextClickOnce() {
+  const handler = (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    document.removeEventListener('click', handler, true);
+  };
+  document.addEventListener('click', handler, true);
+}
+
+async function onDragEnd() {
+  if (!_drag) return;
+  const state = _drag;
+
+  if (!state.hasMoved) {
+    endDragCleanup();
+    return; // plain click — let the onclick handler open the popup
+  }
+
+  // Prevent the synthetic click that follows pointerup from opening a
+  // popup or hitting an hour-slot behind the block.
+  state.block.dataset.dragJustEnded = '1';
+  swallowNextClickOnce();
+  window.setTimeout(() => {
+    if (state.block) state.block.dataset.dragJustEnded = '';
+  }, 300);
+
+  const samePosition = state.targetStartMin === state.origStartMin
+                    && state.targetDateIso === state.origDateIso;
+  if (samePosition) {
+    rollbackDragPosition();
+    endDragCleanup();
+    return;
+  }
+
+  const hh = Math.floor(state.targetStartMin / 60);
+  const mm = state.targetStartMin % 60;
+  const newStartsAt = `${state.targetDateIso}T${pad2(hh)}:${pad2(mm)}`;
+
+  const csrfInput = document.querySelector('#modalAppointment input[name="_token"]');
+  if (!csrfInput) {
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast("Erreur: jeton CSRF introuvable", '#dc2626');
+    return;
+  }
+
+  const body = new URLSearchParams();
+  body.append('_token', csrfInput.value);
+  body.append('startsAtUtc', newStartsAt);
+  body.append('durationMinutes', String(state.appointment.durationMinutes));
+  body.append('practitionerUserId', state.appointment.practitionerUserId);
+
+  const url = `/scheduling/appointments/${state.appointment.id}/reschedule`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'same-origin',
+    });
+    const data = await response.json();
+    if (data.success) {
+      document.dispatchEvent(new CustomEvent('appointment:saved', {
+        detail: { appointment: data.appointment, action: 'rescheduled' },
+      }));
+      endDragCleanup();
+      return;
+    }
+    // Prefer a user-friendly message by errorCode; the raw server message
+    // for conflicts currently contains the practitioner UUID.
+    const friendly = {
+      APPOINTMENT_CONFLICT:        'Ce créneau est déjà occupé.',
+      APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous n\'est plus modifiable.',
+    }[data.errorCode];
+    const msg = friendly || data.errors?.global?.[0] || 'Erreur lors du déplacement.';
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast(msg, '#dc2626');
+  } catch (_err) {
+    rollbackDragPosition();
+    endDragCleanup();
+    showToast('Erreur réseau.', '#dc2626');
+  }
+}
+
+function speciesEmoji(species) {
+  switch (species) {
+    case 'dog': return '🐶';
+    case 'cat': return '🐱';
+    case 'nac': return '🐾';
+    default:    return '🐾';
+  }
 }
 
 function escapeHtml(s) {
@@ -439,11 +724,24 @@ function showRdvPopup(id, e) {
   const endMin = a._endMin;
   const endTime = `${pad2(Math.floor(endMin / 60))}:${pad2(endMin % 60)}`;
 
-  document.getElementById('pp-animal').textContent = a.reason || 'Consultation';
-  document.getElementById('pp-proprio').textContent = '';
+  const animalText = a.animalLabel
+    ? `${speciesEmoji(a.animalSpecies)} ${a.animalLabel}`
+    : (a.reason || 'Consultation');
+  document.getElementById('pp-animal').textContent = animalText;
+  const ownerParts = [];
+  if (a.ownerLabel) ownerParts.push(a.ownerLabel);
+  if (a.ownerPhone) ownerParts.push(formatPhoneIntl(a.ownerPhone));
+  document.getElementById('pp-proprio').textContent = ownerParts.join(' · ');
   const badge = document.getElementById('pp-badge');
-  badge.textContent = a.status;
-  badge.className = 'badge';
+  // Hide default PLANNED status — only show badge for non-trivial states.
+  if ('PLANNED' === a.status) {
+    badge.textContent = '';
+    badge.style.display = 'none';
+  } else {
+    badge.textContent = a.status;
+    badge.style.display = '';
+    badge.className = 'badge';
+  }
   document.getElementById('pp-time').textContent = `${a._startTime.replace(':', ' h ')} — ${endTime.replace(':', ' h ')}`;
   document.getElementById('pp-duration').textContent = `${a.durationMinutes} min`;
   document.getElementById('pp-vet').textContent = vet.label;
@@ -454,6 +752,31 @@ function showRdvPopup(id, e) {
     document.getElementById('pp-note').textContent = a.notes;
   } else {
     noteRow.style.display = 'none';
+  }
+
+  // Reset cancel confirm state
+  cancelCancelConfirm();
+
+  // Past RDV: cancel is forbidden → hide the button. Modifier remains enabled
+  // (editing past RDV is allowed). Profil visible only when an owner is linked.
+  // Buttons use flex:1 so visible ones share the row evenly.
+  const profileBtn = document.getElementById('pp-profile-btn');
+  const editBtn    = document.getElementById('pp-edit-btn');
+  const cancelBtn  = document.getElementById('pp-cancel-btn');
+  const isPast     = a._endUtc < nowDate;
+  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
+  if (profileBtn) {
+    if (a.ownerId && clientProfileUrlTemplate) {
+      profileBtn.href = clientProfileUrlTemplate.replace('__ID__', a.ownerId);
+      profileBtn.style.display = '';
+    } else {
+      profileBtn.style.display = 'none';
+    }
+  }
+  if (editBtn) editBtn.disabled = isTerminal;
+  if (cancelBtn) {
+    cancelBtn.style.display = isPast ? 'none' : '';
+    cancelBtn.disabled = isTerminal;
   }
 
   const popup = document.getElementById('rdv-popup');
@@ -491,18 +814,6 @@ function closeAllPopups() {
 }
 
 // =============== ACTIONS ===============
-function placerSalleAttente() {
-  const popup = document.getElementById('rdv-popup');
-  if (!popup) return;
-  const appointmentId = popup.dataset.rdvId;
-  if (!appointmentId) return;
-
-  const form = document.getElementById('checkin-form');
-  if (!form) return;
-  form.action = checkinUrlTemplate.replace('__ID__', appointmentId);
-  form.submit();
-}
-
 function toggleVet(el, userId) {
   if (activeVets.has(userId)) activeVets.delete(userId);
   else activeVets.add(userId);
@@ -591,27 +902,177 @@ function renderFreeSlotBlock(col, vet, dateStr, startMin, endMin) {
 
   const el = document.createElement('div');
   el.className = 'free-slot';
-  el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.color}18;border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
+  el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.bg};border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
 
   const hh = pad2(Math.floor(startMin / 60));
   const mm = pad2(startMin % 60);
   const timeLabel = fmtTime(`${hh}:${mm}`);
   el.innerHTML = `<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${vet.color};">${timeLabel}</span>`;
-  el.onclick = (e) => { e.stopPropagation(); openNewRdv(dateStr, `${hh}:${mm}`); };
+  el.dataset.startTime = `${hh}:${mm}`;
+  el.dataset.practitionerId = vet.userId;
+  el.onclick = (e) => {
+    e.stopPropagation();
+    openNewRdv(dateStr, el.dataset.startTime, el.dataset.practitionerId);
+  };
 
   col.appendChild(el);
 }
 
-// =============== NEW-RDV STUBS ===============
-// The create-appointment workflow (patient search, conflict check, popup form)
-// is out of scope for this iteration. These stubs keep the UX discoverable —
-// a click shows a clear "coming soon" toast instead of a silent no-op.
-function openNewRdv(_dateStr, _time) {
-  showToast('Création de RDV bientôt disponible', '#4338ca');
+// =============== NEW-RDV ===============
+function openNewRdv(dateStr, time, practitionerUserId) {
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'create',
+      prefill: { date: dateStr, time, practitionerUserId: practitionerUserId || null },
+    },
+  }));
 }
 
 function openNewRdvGlobal() {
-  showToast('Création de RDV bientôt disponible', '#4338ca');
+  const selectedDate = AGENDA_DATA ? AGENDA_DATA.selectedDate : new Date().toISOString().slice(0, 10);
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'create',
+      prefill: { date: selectedDate },
+    },
+  }));
+}
+
+// =============== EDIT / CANCEL ACTIONS ===============
+function editAppointment() {
+  const popup = document.getElementById('rdv-popup');
+  if (!popup) return;
+  const id = popup.dataset.rdvId;
+  const a = appointments.find((x) => x.id === id);
+  if (!a) return;
+
+  closeAllPopups();
+  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
+    detail: {
+      mode: 'edit',
+      appointment: a,
+    },
+  }));
+}
+
+function cancelAppointment() {
+  const actions = document.querySelector('.pp-actions');
+  const confirm = document.getElementById('pp-cancel-confirm');
+  if (actions) actions.style.display = 'none';
+  if (confirm) confirm.style.display = 'block';
+}
+
+function cancelCancelConfirm() {
+  const actions = document.querySelector('.pp-actions');
+  const confirm = document.getElementById('pp-cancel-confirm');
+  if (actions) actions.style.display = 'flex';
+  if (confirm) confirm.style.display = 'none';
+}
+
+function confirmCancel() {
+  const popup = document.getElementById('rdv-popup');
+  if (!popup) return;
+  const appointmentId = popup.dataset.rdvId;
+  if (!appointmentId) return;
+
+  const btn = document.getElementById('pp-confirm-cancel-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Annulation...';
+  }
+
+  // Read CSRF from the modal form
+  const csrfToken = document.querySelector('#modalAppointment input[name="_token"]')?.value || '';
+
+  fetch(`/scheduling/appointments/${appointmentId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ _token: csrfToken }),
+    credentials: 'same-origin',
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.success) {
+        closeAllPopups();
+        cancelCancelConfirm();
+        document.dispatchEvent(new CustomEvent('appointment:saved', {
+          detail: { appointment: { id: appointmentId, appointmentId }, action: 'cancelled' },
+        }));
+      } else {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Confirmer';
+        }
+        showToast(data.errors?.global?.[0] || 'Erreur lors de l\'annulation', '#dc2626');
+      }
+    })
+    .catch(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Confirmer';
+      }
+      showToast('Erreur réseau', '#dc2626');
+    });
+}
+
+// =============== APPOINTMENT SAVED HANDLER ===============
+function onAppointmentSaved(e) {
+  const { appointment, action } = e.detail || {};
+  if (!appointment) return;
+
+  if (action === 'created') {
+    // Push into the source array so prepareAppointments() picks it up
+    AGENDA_DATA.appointments.push(appointment);
+    prepareAppointments();
+    renderWeek();
+
+    // Flash animation on the new block
+    requestAnimationFrame(() => {
+      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
+      if (block) {
+        block.classList.add('is-new');
+        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
+      }
+    });
+
+    showToast('Rendez-vous créé avec succès');
+  } else if (action === 'rescheduled') {
+    // Replace in the source array so prepareAppointments() picks it up
+    const srcIdx = AGENDA_DATA.appointments.findIndex((a) => a.id === appointment.id);
+    if (srcIdx !== -1) AGENDA_DATA.appointments[srcIdx] = appointment;
+    else AGENDA_DATA.appointments.push(appointment);
+    prepareAppointments();
+    renderWeek();
+
+    requestAnimationFrame(() => {
+      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
+      if (block) {
+        block.classList.add('is-new');
+        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
+      }
+    });
+
+    showToast('Rendez-vous modifié avec succès');
+  } else if (action === 'cancelled') {
+    const appointmentId = appointment.id || appointment.appointmentId;
+    // Mark as cancelled in the source array
+    const srcI = AGENDA_DATA.appointments.findIndex((a) => a.id === appointmentId);
+    if (srcI !== -1) AGENDA_DATA.appointments[srcI].status = 'CANCELLED';
+
+    const block = document.querySelector(`.rdv-block[data-id="${appointmentId}"]`);
+    if (block) {
+      block.classList.add('is-removing');
+      block.addEventListener('animationend', () => {
+        prepareAppointments();
+        renderWeek();
+      }, { once: true });
+    } else {
+      prepareAppointments();
+      renderWeek();
+    }
+
+    showToast('Rendez-vous annulé');
+  }
 }
 
 // =============== TOAST ===============
@@ -655,10 +1116,13 @@ window.toggleVet = toggleVet;
 window.toggleAgendaSidebar = toggleAgendaSidebar;
 window.closeAgendaSidebar = closeAgendaSidebar;
 window.closeAllPopups = closeAllPopups;
-window.placerSalleAttente = placerSalleAttente;
 window.toggleFreeSlots = toggleFreeSlots;
 window.setFreeDur = setFreeDur;
 window.openNewRdvGlobal = openNewRdvGlobal;
+window.editAppointment = editAppointment;
+window.cancelAppointment = cancelAppointment;
+window.cancelCancelConfirm = cancelCancelConfirm;
+window.confirmCancel = confirmCancel;
 
 // =============== PAYLOAD + RENDER BOOTSTRAP ===============
 // Reads #agenda-data (fresh after each frame swap), rebuilds state and
@@ -670,7 +1134,7 @@ function bootstrapFromPayload() {
 
   AGENDA_DATA = JSON.parse(dataNode.textContent);
   view = AGENDA_DATA.view === 'day' ? 'day' : 'week';
-  checkinUrlTemplate = AGENDA_DATA.checkinUrlTemplate || '';
+  clientProfileUrlTemplate = AGENDA_DATA.clientProfileUrlTemplate || '';
   nowDate = new Date();
 
   buildVetIndex();
@@ -800,6 +1264,7 @@ let _popstateHandler = null;
 let _navClickHandler = null;
 let _beforeFrameRenderHandler = null;
 let _frameRenderHandler = null;
+let _appointmentSavedHandler = null;
 let _bootstrappedOnce = false;
 
 // Direction of the upcoming frame swap — 'prev', 'next' or null (fade only).
@@ -817,9 +1282,19 @@ const NAV_MIN_OPACITY = '0.55';
 
 function computeDirection(newIso) {
   if (!newIso || !AGENDA_DATA || !AGENDA_DATA.selectedDate) return null;
-  if (newIso < AGENDA_DATA.selectedDate) return 'prev';
-  if (newIso > AGENDA_DATA.selectedDate) return 'next';
+  // In week view, a navigation that stays within the same Monday-Sunday
+  // window shouldn't slide — the grid content is identical, only the
+  // selected-day state changes. Compare week anchors in that case.
+  const compareA = view === 'week' ? weekAnchor(AGENDA_DATA.selectedDate) : AGENDA_DATA.selectedDate;
+  const compareB = view === 'week' ? weekAnchor(newIso) : newIso;
+  if (compareB < compareA) return 'prev';
+  if (compareB > compareA) return 'next';
   return null;
+}
+
+function weekAnchor(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return isoDate(mondayOf(new Date(y, m - 1, d)));
 }
 
 function directionFromHref(href) {
@@ -842,6 +1317,19 @@ function onCalendarSelect(e) {
   if (!iso || typeof iso !== 'string') return;
   if (iso === AGENDA_DATA.selectedDate) return; // no-op re-click
 
+  // In week view, staying within the same Monday-Sunday window means the
+  // grid content is identical — skip the server roundtrip entirely and
+  // just patch local state + URL so the Day/Week toggles and history
+  // still reflect the newly picked day.
+  if (view === 'week' && weekAnchor(iso) === weekAnchor(AGENDA_DATA.selectedDate)) {
+    AGENDA_DATA.selectedDate = iso;
+    patchHeaderNav();
+    const nextUrl = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=week`;
+    const current = window.location.pathname + window.location.search;
+    if (current !== nextUrl) window.history.pushState({}, '', nextUrl);
+    return;
+  }
+
   const frame = document.getElementById('agenda-frame');
   if (!frame) return;
   _pendingNavDirection = computeDirection(iso);
@@ -856,7 +1344,31 @@ function onNavigationClick(e) {
   if (!target || typeof target.closest !== 'function') return;
   const a = target.closest('a[data-turbo-frame="agenda-frame"]');
   if (!a || !a.href) return;
+
+  // For the Day/Week view toggles, the sidebar calendar is the source of
+  // truth for the selected date. Read its current selection and rewrite the
+  // href just before Turbo navigates — this prevents a race where a recent
+  // calendar click hasn't finished reloading the frame yet, leaving the
+  // toggle's href pointing at the previous date.
+  const nav = a.getAttribute('data-nav');
+  if (nav === 'day-view' || nav === 'week-view') {
+    const calendarIso = getSidebarCalendarSelected();
+    if (calendarIso) {
+      const targetView = nav === 'day-view' ? 'day' : 'week';
+      a.href = `/scheduling/agenda?date=${encodeURIComponent(calendarIso)}&view=${targetView}`;
+    }
+  }
+
   _pendingNavDirection = directionFromHref(a.href);
+}
+
+function getSidebarCalendarSelected() {
+  const root = document.getElementById('scheduling-calendar');
+  if (!root || !window.Stimulus || typeof window.Stimulus.getControllerForElementAndIdentifier !== 'function') return null;
+  const ctrl = window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar');
+  if (!ctrl) return null;
+  const iso = ctrl.selectedValue;
+  return iso && typeof iso === 'string' ? iso : null;
 }
 
 function onBeforeFrameRender(e) {
@@ -869,12 +1381,16 @@ function onBeforeFrameRender(e) {
   const wrap = frame.querySelector('.agenda-wrap');
   if (!wrap) return;
 
+  // No direction = same view anchor (e.g. another day within the same week
+  // in week view). Skip the transition entirely so the grid stays stable.
+  if (!_pendingNavDirection) return;
+
   // Defer Turbo's DOM swap so the "slide-out + fade-out" transition can run
   // to completion first, then resume() below hands control back to Turbo.
   e.preventDefault();
 
   const dir = _pendingNavDirection;
-  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : dir === 'prev' ? `${NAV_SHIFT_PX}px` : '0px';
+  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : `${NAV_SHIFT_PX}px`;
 
   wrap.style.willChange = 'opacity, transform';
   wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
@@ -894,8 +1410,12 @@ function onFrameRender(e) {
   const wrap = frame.querySelector('.agenda-wrap');
   if (!wrap) return;
 
+  // No direction = no animation on the way out either; bail out without
+  // touching styles so the mounted DOM stays put.
+  if (!_pendingNavDirection) return;
+
   const dir = _pendingNavDirection;
-  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : dir === 'prev' ? `-${NAV_SHIFT_PX}px` : '0px';
+  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : `-${NAV_SHIFT_PX}px`;
 
   // Jump to the "entering" position without transition, then animate back
   // to the resting state after a forced reflow so the transition actually
@@ -990,6 +1510,10 @@ export function init() {
     _frameRenderHandler = onFrameRender;
     document.addEventListener('turbo:frame-render', _frameRenderHandler);
   }
+  if (!_appointmentSavedHandler) {
+    _appointmentSavedHandler = onAppointmentSaved;
+    document.addEventListener('appointment:saved', _appointmentSavedHandler);
+  }
 }
 
 export function cleanup() {
@@ -997,10 +1521,14 @@ export function cleanup() {
   delete window.toggleAgendaSidebar;
   delete window.closeAgendaSidebar;
   delete window.closeAllPopups;
-  delete window.placerSalleAttente;
   delete window.toggleFreeSlots;
   delete window.setFreeDur;
   delete window.openNewRdvGlobal;
+  delete window.editAppointment;
+  delete window.cancelAppointment;
+  delete window.cancelCancelConfirm;
+  delete window.confirmCancel;
+  delete window.__agendaVets;
 
   if (_calendarSelectHandler) {
     document.removeEventListener('calendar:select', _calendarSelectHandler);
@@ -1025,6 +1553,10 @@ export function cleanup() {
   if (_frameRenderHandler) {
     document.removeEventListener('turbo:frame-render', _frameRenderHandler);
     _frameRenderHandler = null;
+  }
+  if (_appointmentSavedHandler) {
+    document.removeEventListener('appointment:saved', _appointmentSavedHandler);
+    _appointmentSavedHandler = null;
   }
   _bootstrappedOnce = false;
   _pendingNavDirection = null;

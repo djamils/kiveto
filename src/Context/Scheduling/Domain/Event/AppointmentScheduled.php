@@ -16,7 +16,7 @@ readonly class AppointmentScheduled extends AbstractDomainEvent
         private string $clinicId,
         private ?string $ownerId,
         private ?string $animalId,
-        private ?string $practitionerUserId,
+        private string $practitionerUserId,
         private string $startsAtUtc,
         private int $durationMinutes,
         private ?string $reason,

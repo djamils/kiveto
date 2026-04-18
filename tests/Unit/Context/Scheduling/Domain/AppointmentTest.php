@@ -9,7 +9,6 @@ use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
-use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeUnassigned;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
@@ -108,50 +107,11 @@ final class AppointmentTest extends TestCase
         $newPractitioner = new PractitionerAssignee(UserId::fromString('55555555-5555-5555-5555-555555555555'));
         $appointment->changePractitionerAssignee($newPractitioner);
 
-        $assignee = $appointment->practitionerAssignee();
-        self::assertNotNull($assignee);
-        self::assertTrue($assignee->equals($newPractitioner));
+        self::assertTrue($appointment->practitionerAssignee()->equals($newPractitioner));
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(AppointmentPractitionerAssigneeChanged::class, $events[0]);
-    }
-
-    public function testUnassignPractitioner(): void
-    {
-        $appointment  = $this->createSampleAppointment();
-        $pulledEvents = $appointment->pullDomainEvents();
-        unset($pulledEvents);
-
-        $appointment->unassignPractitioner();
-
-        self::assertNull($appointment->practitionerAssignee());
-
-        $events = $appointment->recordedDomainEvents();
-        self::assertCount(1, $events);
-        self::assertInstanceOf(AppointmentPractitionerAssigneeUnassigned::class, $events[0]);
-    }
-
-    public function testUnassignPractitionerWhenNoneAssignedDoesNothing(): void
-    {
-        $appointment = Appointment::schedule(
-            id: AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
-            clinicId: ClinicId::fromString('11111111-1111-1111-1111-111111111111'),
-            ownerId: null,
-            animalId: null,
-            practitionerAssignee: null,
-            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30),
-            reason: null,
-            notes: null,
-            createdAt: new \DateTimeImmutable('2026-01-30 12:00:00'),
-        );
-        $pulledEvents = $appointment->pullDomainEvents();
-        unset($pulledEvents);
-
-        $appointment->unassignPractitioner();
-
-        $events = $appointment->recordedDomainEvents();
-        self::assertCount(0, $events);
     }
 
     public function testCancelAppointment(): void
@@ -240,17 +200,6 @@ final class AppointmentTest extends TestCase
         $appointment->changePractitionerAssignee(
             new PractitionerAssignee(UserId::fromString('99999999-9999-9999-9999-999999999999')),
         );
-    }
-
-    public function testCannotUnassignPractitionerOnTerminatedAppointment(): void
-    {
-        $appointment = $this->createSampleAppointment();
-        $appointment->cancel();
-
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Cannot unassign practitioner from a terminated appointment.');
-
-        $appointment->unassignPractitioner();
     }
 
     public function testCannotStartServiceOnTerminatedAppointment(): void
@@ -361,6 +310,7 @@ final class AppointmentTest extends TestCase
     {
         $appointmentId = AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef');
         $clinicId      = ClinicId::fromString('11111111-1111-1111-1111-111111111111');
+        $practitioner  = new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444'));
         $timeSlot      = new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30);
         $createdAt     = new \DateTimeImmutable('2026-01-30 12:00:00');
 
@@ -369,7 +319,7 @@ final class AppointmentTest extends TestCase
             clinicId: $clinicId,
             ownerId: null,
             animalId: null,
-            practitionerAssignee: null,
+            practitionerAssignee: $practitioner,
             timeSlot: $timeSlot,
             status: AppointmentStatus::COMPLETED,
             reason: null,

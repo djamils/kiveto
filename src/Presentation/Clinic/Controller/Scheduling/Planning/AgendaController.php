@@ -105,26 +105,26 @@ final class AgendaController extends AbstractController
             'view' => 'day',
         ]);
 
-        $checkinUrlTemplate = $this->generateUrl('clinic_scheduling_appointment_checkin', [
-            'appointmentId' => '__ID__',
+        $clientProfileUrlTemplate = $this->generateUrl('clinic_clients_view', [
+            'id' => '__ID__',
         ]);
 
         return $this->render('clinic/scheduling/agenda/index.html.twig', [
-            'appointments'       => $appointments,
-            'veterinarians'      => $veterinarians,
-            'waitingRoomEntries' => $waitingRoomEntries,
-            'selectedDate'       => $selectedDate,
-            'view'               => $viewParam,
-            'clinicTimezone'     => $clinic->timeZone,
-            'currentUserId'      => $user->id(),
-            'currentClinicId'    => $currentClinicId->toString(),
-            'currentClinicName'  => $clinic->name,
-            'prevLink'           => $prevLink,
-            'nextLink'           => $nextLink,
-            'todayLink'          => $todayLink,
-            'weekViewLink'       => $weekViewLink,
-            'dayViewLink'        => $dayViewLink,
-            'checkinUrlTemplate' => $checkinUrlTemplate,
+            'appointments'             => $appointments,
+            'veterinarians'            => $veterinarians,
+            'waitingRoomEntries'       => $waitingRoomEntries,
+            'selectedDate'             => $selectedDate,
+            'view'                     => $viewParam,
+            'clinicTimezone'           => $clinic->timeZone,
+            'currentUserId'            => $user->id(),
+            'currentClinicId'          => $currentClinicId->toString(),
+            'currentClinicName'        => $clinic->name,
+            'prevLink'                 => $prevLink,
+            'nextLink'                 => $nextLink,
+            'todayLink'                => $todayLink,
+            'weekViewLink'             => $weekViewLink,
+            'dayViewLink'              => $dayViewLink,
+            'clientProfileUrlTemplate' => $clientProfileUrlTemplate,
         ]);
     }
 }

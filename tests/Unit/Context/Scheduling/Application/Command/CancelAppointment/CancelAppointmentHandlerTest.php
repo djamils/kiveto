@@ -12,7 +12,9 @@ use App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
+use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomArrivalMode;
 use App\Context\Scheduling\Domain\ValueObject\WaitingRoomEntryId;
 use App\Context\Scheduling\Domain\WaitingRoomEntry;
@@ -74,7 +76,7 @@ final class CancelAppointmentHandlerTest extends TestCase
         ;
 
         $this->mapper->expects(self::once())->method('toDomain')->with($entryEntity)->willReturn($entry);
-        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:30:00'));
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
         $this->entryRepository->expects(self::once())->method('save');
 
         ($this->handler)(new CancelAppointment($appointmentId->toString()));
@@ -88,6 +90,7 @@ final class CancelAppointmentHandlerTest extends TestCase
 
         $this->appointmentRepository->expects(self::once())->method('findById')->willReturn($appointment);
         $this->appointmentRepository->expects(self::once())->method('save');
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
 
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::once())->method('findOneBy')->willReturn(null);
@@ -110,6 +113,22 @@ final class CancelAppointmentHandlerTest extends TestCase
         ($this->handler)(new CancelAppointment('11111111-1111-1111-1111-111111111111'));
     }
 
+    #[AllowMockObjectsWithoutExpectations]
+    public function testFailsWhenAppointmentIsPast(): void
+    {
+        $appointmentId = AppointmentId::fromString('11111111-1111-1111-1111-111111111111');
+        $appointment   = $this->makeAppointment($appointmentId);
+
+        $this->appointmentRepository->expects(self::once())->method('findById')->willReturn($appointment);
+        $this->appointmentRepository->expects(self::never())->method('save');
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 10:00:00'));
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Impossible d\'annuler un rendez-vous passé.');
+
+        ($this->handler)(new CancelAppointment($appointmentId->toString()));
+    }
+
     private function makeAppointment(AppointmentId $id): Appointment
     {
         return Appointment::schedule(
@@ -117,7 +136,7 @@ final class CancelAppointmentHandlerTest extends TestCase
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
             ownerId: null,
             animalId: null,
-            practitionerAssignee: null,
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
             reason: null,
             notes: null,

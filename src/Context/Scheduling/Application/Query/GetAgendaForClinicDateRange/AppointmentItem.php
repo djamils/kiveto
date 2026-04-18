@@ -11,12 +11,17 @@ final readonly class AppointmentItem
         public string $clinicId,
         public ?string $ownerId,
         public ?string $animalId,
-        public ?string $practitionerUserId,
+        public string $practitionerUserId,
         public string $startsAtUtc,
         public int $durationMinutes,
         public string $status,
         public ?string $reason,
         public ?string $notes,
+        public ?string $ownerLabel,
+        public ?string $ownerPhone,
+        public ?string $animalLabel,
+        public ?string $animalSpecies,
+        public ?string $practitionerLabel,
     ) {
     }
 }

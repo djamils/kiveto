@@ -11,7 +11,7 @@ final readonly class AppointmentDetails
         public string $clinicId,
         public ?string $ownerId,
         public ?string $animalId,
-        public ?string $practitionerUserId,
+        public string $practitionerUserId,
         public string $startsAtUtc,
         public int $durationMinutes,
         public string $status,

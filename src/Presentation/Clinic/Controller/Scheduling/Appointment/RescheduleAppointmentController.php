@@ -6,7 +6,8 @@ namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
-use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
+use App\Context\Scheduling\Application\Command\RescheduleAppointment\RescheduleAppointment;
+use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointmentClinicId;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\AppointmentDetails;
 use App\Context\Scheduling\Application\Query\GetAppointmentDetails\GetAppointmentDetails;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -22,8 +23,12 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route('/scheduling/appointments/create', name: 'clinic_scheduling_appointment_create', methods: ['POST'])]
-final class CreateAppointmentController extends AbstractController
+#[Route(
+    '/scheduling/appointments/{appointmentId}/reschedule',
+    name: 'clinic_scheduling_appointment_reschedule',
+    methods: ['POST'],
+)]
+final class RescheduleAppointmentController extends AbstractController
 {
     public function __construct(
         private readonly CommandBusInterface $commandBus,
@@ -34,7 +39,7 @@ final class CreateAppointmentController extends AbstractController
     ) {
     }
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, string $appointmentId): JsonResponse
     {
         $token = $request->request->getString('_token');
         if (!$this->csrfTokenManager->isTokenValid(new CsrfToken('appointment', $token))) {
@@ -47,7 +52,12 @@ final class CreateAppointmentController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        // Validate required fields
+        // Multi-tenant guard (defense-in-depth; handler also verifies)
+        $appointmentClinicId = $this->queryBus->ask(new GetAppointmentClinicId($appointmentId));
+        if (null === $appointmentClinicId || $appointmentClinicId !== $currentClinicId->toString()) {
+            throw $this->createNotFoundException();
+        }
+
         $practitionerUserId = $request->request->getString('practitionerUserId');
         if ('' === $practitionerUserId) {
             return new JsonResponse(
@@ -77,9 +87,8 @@ final class CreateAppointmentController extends AbstractController
         $clinicTz = TimeZone::fromString($clinicDto->timeZone)->toNative();
 
         try {
-            // The payload sends a bare "YYYY-MM-DDTHH:MM" local wall-clock time.
-            // Interpret it in the clinic's timezone, then normalize to UTC for
-            // storage and downstream domain comparisons.
+            // Bare "YYYY-MM-DDTHH:MM" is clinic-local wall-clock; interpret it
+            // in the clinic's timezone and normalize to UTC.
             $startsAt = (new \DateTimeImmutable($startsAtRaw, $clinicTz))
                 ->setTimezone(new \DateTimeZone('UTC'))
             ;
@@ -94,26 +103,15 @@ final class CreateAppointmentController extends AbstractController
             );
         }
 
-        $ownerId  = $request->request->getString('ownerId') ?: null;
-        $animalId = $request->request->getString('animalId') ?: null;
-        $reason   = $request->request->getString('reason') ?: null;
-        $notes    = $request->request->getString('notes') ?: null;
-
         try {
-            $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
+            $this->commandBus->dispatch(new RescheduleAppointment(
                 clinicId: $currentClinicId->toString(),
-                ownerId: $ownerId,
-                animalId: $animalId,
-                practitionerUserId: $practitionerUserId,
+                appointmentId: $appointmentId,
                 startsAtUtc: $startsAt,
                 durationMinutes: $request->request->getInt('durationMinutes', 30),
-                reason: $reason,
-                notes: $notes,
+                practitionerUserId: $practitionerUserId,
             ));
 
-            \assert(\is_string($appointmentId));
-
-            // Fetch the created appointment details for the JSON response
             $details = $this->queryBus->ask(new GetAppointmentDetails($appointmentId));
             \assert($details instanceof AppointmentDetails);
 
@@ -139,9 +137,11 @@ final class CreateAppointmentController extends AbstractController
                 ],
             ]);
         } catch (\DomainException $e) {
-            $errorCode = str_contains($e->getMessage(), 'overlapping')
-                ? 'APPOINTMENT_CONFLICT'
-                : 'VALIDATION_FAILED';
+            $errorCode = match (true) {
+                str_contains($e->getMessage(), 'overlapping') => 'APPOINTMENT_CONFLICT',
+                str_contains($e->getMessage(), 'terminated')  => 'APPOINTMENT_TERMINAL_STATUS',
+                default                                       => 'VALIDATION_FAILED',
+            };
 
             return new JsonResponse(
                 ['success' => false, 'errors' => ['global' => [$e->getMessage()]], 'errorCode' => $errorCode],

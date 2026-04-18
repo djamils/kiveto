@@ -50,7 +50,7 @@ final readonly class GetAppointmentDetailsHandler
             clinicId: RowAccessor::string($result, 'clinic_id'),
             ownerId: RowAccessor::nullableString($result, 'owner_id'),
             animalId: RowAccessor::nullableString($result, 'animal_id'),
-            practitionerUserId: RowAccessor::nullableString($result, 'practitioner_user_id'),
+            practitionerUserId: RowAccessor::string($result, 'practitioner_user_id'),
             startsAtUtc: RowAccessor::string($result, 'starts_at_utc'),
             durationMinutes: RowAccessor::int($result, 'duration_minutes'),
             status: RowAccessor::string($result, 'status'),

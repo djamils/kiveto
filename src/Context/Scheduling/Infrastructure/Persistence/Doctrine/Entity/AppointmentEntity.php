@@ -29,8 +29,8 @@ class AppointmentEntity
     #[ORM\Column(name: 'animal_id', type: UuidType::NAME, nullable: true)]
     private ?Uuid $animalId;
 
-    #[ORM\Column(name: 'practitioner_user_id', type: UuidType::NAME, nullable: true)]
-    private ?Uuid $practitionerUserId;
+    #[ORM\Column(name: 'practitioner_user_id', type: UuidType::NAME)]
+    private Uuid $practitionerUserId;
 
     #[ORM\Column(name: 'starts_at_utc', type: 'datetime_immutable')]
     private \DateTimeImmutable $startsAtUtc;
@@ -96,12 +96,12 @@ class AppointmentEntity
         $this->animalId = $animalId;
     }
 
-    public function getPractitionerUserId(): ?Uuid
+    public function getPractitionerUserId(): Uuid
     {
         return $this->practitionerUserId;
     }
 
-    public function setPractitionerUserId(?Uuid $practitionerUserId): void
+    public function setPractitionerUserId(Uuid $practitionerUserId): void
     {
         $this->practitionerUserId = $practitionerUserId;
     }

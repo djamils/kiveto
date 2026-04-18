@@ -76,11 +76,9 @@
                     {# Main info #}
                     <div style="flex: 1; min-width: 0;">
                         {# Practitioner #}
-                        {% if appointment.practitionerUserId %}
-                            <div style="font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 2px;">
-                                Dr. {{ appointment.practitionerUserId|slice(0, 8) }}...
-                            </div>
-                        {% endif %}
+                        <div style="font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 2px;">
+                            {{ appointment.practitionerLabel ?? appointment.practitionerUserId }}
+                        </div>
 
                         {# Owner #}
                         {% if appointment.ownerId %}
