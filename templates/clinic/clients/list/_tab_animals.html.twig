@@ -54,7 +54,7 @@
               <td>
                 <div class="dg-name-cell">
                   <span class="dg-avatar" style="background:{{ avatar.bg }};color:{{ avatar.color }};">{{ initials }}</span>
-                  <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="dg-name-link">{{ animal.name }}</a>
+                  <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="dg-name-link" data-turbo-frame="_top">{{ animal.name }}</a>
                 </div>
               </td>
               <td>{{ animal.species }}</td>
@@ -68,7 +68,7 @@
                 </span>
               </td>
               <td class="dg-td-actions">
-                <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir">
+                <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir" data-turbo-frame="_top">
                   <i data-lucide="eye"></i>
                 </a>
               </td>

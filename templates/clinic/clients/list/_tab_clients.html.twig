@@ -55,7 +55,7 @@
               <td>
                 <div class="dg-name-cell">
                   <span class="dg-avatar" style="background:{{ avatar.bg }};color:{{ avatar.color }};">{{ initials }}</span>
-                  <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="dg-name-link">{{ client.fullName }}</a>
+                  <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="dg-name-link" data-turbo-frame="_top">{{ client.fullName }}</a>
                 </div>
               </td>
               <td class="col-email">{{ client.primaryEmail|default('—') }}</td>
@@ -73,7 +73,7 @@
                     {% endfor %}
                     {% if summaries|length >= 5 %}
                       <a href="{{ path('clinic_clients_view', {id: client.id}) }}"
-                         class="badge b-grey">+</a>
+                         class="badge b-grey" data-turbo-frame="_top">+</a>
                     {% endif %}
                   </div>
                 {% endif %}
@@ -84,7 +84,7 @@
                 </span>
               </td>
               <td class="dg-td-actions">
-                <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir">
+                <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir" data-turbo-frame="_top">
                   <i data-lucide="eye"></i>
                 </a>
               </td>

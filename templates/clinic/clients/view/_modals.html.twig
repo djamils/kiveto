@@ -1,8 +1,8 @@
 {# Partial: modals — all client view modals #}
 
 {# ── MODAL: Edit owner ── #}
-<div class="modal-overlay" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title">Éditer le propriétaire</p><button onclick="closeModal('modal-owner')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <div class="cv-grid-2">
@@ -17,8 +17,8 @@
 </div>
 
 {# ── MODAL: Phones and contacts ── #}
-<div class="modal-overlay" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title">Contacts & Téléphones</p><button onclick="closeModal('modal-phones')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <p class="cv-modal-hint">Vous pouvez ajouter plusieurs numéros et leur donner un nom.</p>
@@ -47,8 +47,8 @@
 </div>
 
 {# ── MODAL: Communication preferences ── #}
-<div class="modal-overlay" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title">Préférences de communication</p><button onclick="closeModal('modal-prefs')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <div class="form-row"><label class="form-label">Canal préféré</label>
@@ -91,8 +91,8 @@
 </div>
 
 {# ── MODAL: Animal identification ── #}
-<div class="modal-overlay" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <div class="cv-grid-2">
@@ -109,8 +109,8 @@
 </div>
 
 {# ── MODAL: Auxiliary contact ── #}
-<div class="modal-overlay" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <p class="cv-modal-description">Personne à contacter en l'absence du propriétaire principal.</p>
@@ -126,8 +126,8 @@
 </div>
 
 {# ── MODAL: Animal status ── #}
-<div class="modal-overlay" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
-  <div class="modal-box">
+<div class="modal-overlay hidden" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
+  <div class="modal">
     <div class="modal-head"><p class="cv-modal-title">Statut de l'animal</p><button onclick="closeModal('modal-status')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
     <div class="modal-body">
       <div class="form-row"><label class="form-label">Statut</label>
