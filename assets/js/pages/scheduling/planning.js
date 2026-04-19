@@ -4,12 +4,13 @@
  */
 
 // =============== DATA ===============
-const VETS = {
-  rousseau: { name:'Dr. Rousseau', color:'#4338ca', bg:'#eef2ff' },
-  martin:   { name:'Dr. Martin',   color:'#0891b2', bg:'#ecfeff' },
-  dupont:   { name:'Dr. Dupont',   color:'#059669', bg:'#ecfdf5' },
-  lambert:  { name:'Dr. Lambert',  color:'#db2777', bg:'#fdf2f8' },
-};
+const _shell     = document.querySelector('.scheduling-shell');
+const VETS       = JSON.parse(_shell?.dataset.vets ?? '{}');
+const CLINIC_ID  = _shell?.dataset.clinicId ?? '';
+const CLINIC_TZ  = _shell?.dataset.clinicTz ?? 'UTC';
+const CREATE_URL = _shell?.dataset.createUrl ?? '';
+const UPDATE_URL_TPL = _shell?.dataset.updateUrlTemplate ?? '';
+const DELETE_URL_TPL = _shell?.dataset.deleteUrlTemplate ?? '';
 
 const ACTIVITY_TYPES = [
   { id:'consultation', label:'Consultation',  color:'#4338ca', bg:'#eef2ff',  icon:'🩺', cap:3 },
@@ -22,56 +23,20 @@ const ACTIVITY_TYPES = [
   { id:'urgence',      label:'Urgences',       color:'#ea580c', bg:'#fff7ed',  icon:'🚨', cap:5 },
 ];
 
-// Planning blocks — { id, vet, date, start, end, type, capacity, note, recurrence }
-let blocks = [
-  // Week 23-27 March — realistic example
-  // Rousseau
-  { id:1,  vet:'rousseau', date:'2026-03-23', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'Bloc opératoire salle 1', recurrence:'none' },
-  { id:2,  vet:'rousseau', date:'2026-03-23', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:3,  vet:'rousseau', date:'2026-03-24', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:4,  vet:'rousseau', date:'2026-03-25', start:'08:00', end:'12:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:5,  vet:'rousseau', date:'2026-03-25', start:'13:00', end:'17:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:6,  vet:'rousseau', date:'2026-03-26', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:7,  vet:'rousseau', date:'2026-03-27', start:'08:00', end:'14:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:8,  vet:'rousseau', date:'2026-03-28', start:'08:00', end:'12:00', type:'consultation', capacity:2, note:'Permanence samedi', recurrence:'none' },
-  // Martin
-  { id:9,  vet:'martin',   date:'2026-03-23', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:10, vet:'martin',   date:'2026-03-24', start:'08:00', end:'12:00', type:'bilan',        capacity:4, note:'Résultats labo', recurrence:'none' },
-  { id:11, vet:'martin',   date:'2026-03-24', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:12, vet:'martin',   date:'2026-03-25', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:13, vet:'martin',   date:'2026-03-26', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:14, vet:'martin',   date:'2026-03-26', start:'13:00', end:'19:00', type:'urgence',      capacity:5, note:'Astreinte urgences', recurrence:'none' },
-  { id:15, vet:'martin',   date:'2026-03-27', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:16, vet:'martin',   date:'2026-03-28', start:'08:00', end:'12:00', type:'consultation', capacity:2, note:'', recurrence:'none' },
-  // Dupont
-  { id:17, vet:'dupont',   date:'2026-03-23', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:18, vet:'dupont',   date:'2026-03-23', start:'14:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:19, vet:'dupont',   date:'2026-03-24', start:'09:00', end:'17:00', type:'formation',    capacity:0, note:'Formation échographie', recurrence:'none' },
-  { id:20, vet:'dupont',   date:'2026-03-25', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:21, vet:'dupont',   date:'2026-03-26', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:22, vet:'dupont',   date:'2026-03-27', start:'08:00', end:'12:00', type:'bilan',        capacity:4, note:'', recurrence:'none' },
-  { id:23, vet:'dupont',   date:'2026-03-27', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  // Lambert
-  { id:24, vet:'lambert',  date:'2026-03-23', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:25, vet:'lambert',  date:'2026-03-24', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:26, vet:'lambert',  date:'2026-03-25', start:'00:00', end:'23:59', type:'conge',        capacity:0, note:'Congé annuel', recurrence:'none' },
-  { id:27, vet:'lambert',  date:'2026-03-26', start:'00:00', end:'23:59', type:'conge',        capacity:0, note:'Congé annuel', recurrence:'none' },
-  { id:28, vet:'lambert',  date:'2026-03-27', start:'08:00', end:'14:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:29, vet:'lambert',  date:'2026-03-27', start:'14:00', end:'18:00', type:'admin',        capacity:0, note:'Réunion équipe', recurrence:'none' },
-  { id:30, vet:'lambert',  date:'2026-03-28', start:'08:00', end:'12:00', type:'garde',        capacity:2, note:'Garde weekend', recurrence:'none' },
-];
-
-let nextId = 31;
+// Keys already match JS internals: {id, vet, date, start, end, type, capacity, note, recurrence}
+let blocks   = JSON.parse(_shell?.dataset.planningBlocks ?? '[]');
+let nextId   = blocks.length ? Math.max(...blocks.map(b => typeof b.id === 'number' ? b.id : 0)) + 1 : 1;
 
 // =============== STATE ===============
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DOW_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-let today = new Date(2026, 2, 23);
-let currentDate = new Date(2026, 2, 23);
+const _todayStr = _shell?.dataset.today ?? new Date().toISOString().slice(0, 10);
+let today = new Date(_todayStr + 'T00:00:00');
+let currentDate = new Date(_todayStr + 'T00:00:00');
 let currentView = 'day';
-let miniCalDate = new Date(2026, 2, 1);
-let activeVets = new Set(['rousseau','martin','dupont','lambert']);
+let miniCalDate = new Date(today.getFullYear(), today.getMonth(), 1);
+let activeVets = new Set(Object.keys(VETS));
 let editingBlockId = null;
 let selectedActivityType = 'consultation';
 let dragState = null; // { vetKey, dateStr, startMin }
@@ -339,7 +304,7 @@ function renderVetRow(vetKey, vet, dateStr, dayBlocks, totalW){
         <div style="width:8px;height:8px;border-radius:50%;background:${vet.color};flex-shrink:0;"></div>
         <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${vet.name.replace('Dr. ','')}</span>
       </div>
-      <span style="font-size:var(--text-xs);color:var(--text-subtle);">${vet.name.split(' ')[0]} ${vet.name.split(' ')[1]}</span>
+      <span style="font-size:var(--text-xs);color:var(--text-subtle);">${vet.name}</span>
     </div>
     <div class="vet-row-grid" id="grid-${vetKey}-${dateStr}" style="position:relative;height:${ROW_H}px;width:${totalW}px;cursor:pointer;user-select:none;"
          onmousedown="dragStart(event,'${vetKey}','${dateStr}')"
@@ -555,7 +520,7 @@ function updateCapacityDisplay(el){
   el.style.background = `linear-gradient(to right,#4338ca 0%,#4338ca ${pct}%,#e2e8f0 ${pct}%,#e2e8f0 100%)`;
 }
 
-function saveBlock(){
+async function saveBlock(){
   const vet   = document.getElementById('popup-vet').value;
   const date  = document.getElementById('popup-date').value;
   const start = document.getElementById('popup-start').value;
@@ -568,47 +533,36 @@ function saveBlock(){
     showToast('Vérifiez les horaires', '#dc2626'); return;
   }
 
-  if(editingBlockId){
-    const b = blocks.find(x=>x.id===editingBlockId);
-    if(b){ Object.assign(b, {vet,date,start,end,type:selectedActivityType,capacity:cap,recurrence:rec,note}); }
-    showToast('Bloc modifié', '#4338ca');
-  } else {
-    // Handle recurrence
-    const datesToAdd = [date];
-    if(rec==='weekdays'){
-      // Add for all weekdays of the month
-      const d0=new Date(date);
-      for(let i=1;i<28;i++){
-        const nd=addDays(d0,i);
-        const dow=nd.getDay();
-        if(dow>=1&&dow<=5) datesToAdd.push(fmtDate(nd));
-      }
-    } else if(rec==='weekly'){
-      const d0=new Date(date);
-      for(let i=1;i<8;i++) datesToAdd.push(fmtDate(addDays(d0,i*7)));
-    } else if(rec==='daily'){
-      const d0=new Date(date);
-      for(let i=1;i<7;i++) datesToAdd.push(fmtDate(addDays(d0,i)));
-    }
-    datesToAdd.forEach(dt=>{
-      blocks.push({id:nextId++,vet,date:dt,start,end,type:selectedActivityType,capacity:cap,recurrence:rec,note});
-    });
-    showToast(datesToAdd.length>1?`${datesToAdd.length} blocs créés`:'Bloc créé', '#059669');
-  }
+  const payload = { vet, date, start, end, type: selectedActivityType, capacity: cap, recurrence: rec, note };
+  const url     = editingBlockId ? UPDATE_URL_TPL.replace('__ID__', editingBlockId) : CREATE_URL;
+  const method  = editingBlockId ? 'PUT' : 'POST';
 
-  closePopup();
-  document.querySelectorAll('[id^="drag-preview-"]').forEach(function(el){ el.style.display='none'; });
-  renderPlanning();
-  renderMiniCal();
+  try {
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
+      return;
+    }
+    location.reload();
+  } catch (err) {
+    showToast('Erreur réseau', '#dc2626');
+  }
 }
 
-function deleteBlock(){
+async function deleteBlock(){
   if(!editingBlockId) return;
-  blocks = blocks.filter(b=>b.id!==editingBlockId);
-  closePopup();
-  renderPlanning();
-  renderMiniCal();
-  showToast('Bloc supprimé', '#64748b');
+  try {
+    const res = await fetch(DELETE_URL_TPL.replace('__ID__', editingBlockId), { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
+      return;
+    }
+    location.reload();
+  } catch (err) {
+    showToast('Erreur réseau', '#dc2626');
+  }
 }
 
 // ---- Sidebar drawer ----

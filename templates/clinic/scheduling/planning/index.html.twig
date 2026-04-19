@@ -24,15 +24,24 @@
   <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
 </button>
 
-<div class="scheduling-shell">
+<div class="scheduling-shell"
+  data-planning-blocks="{{ planningBlocksJs|json_encode }}"
+  data-vets="{{ vetsJs|json_encode }}"
+  data-clinic-id="{{ currentClinicId }}"
+  data-clinic-tz="{{ clinicTimezone }}"
+  data-today="{{ selectedDate|date('Y-m-d') }}"
+  data-create-url="{{ path('clinic_planning_block_create') }}"
+  data-update-url-template="{{ path('clinic_planning_block_update', {id: '__ID__'}) }}"
+  data-delete-url-template="{{ path('clinic_planning_block_delete', {id: '__ID__'}) }}"
+>
 
   {# ── CONTEXTUAL ASIDE ── #}
   {{ include('clinic/scheduling/_scheduling_aside.html.twig', {
     page: 'planning',
-    selected_date: '2026-03-23',
+    selected_date: selectedDate|date('Y-m-d'),
     week_highlight: false,
-    veterinarians: [],
-    currentUserId: null,
+    veterinarians: veterinarians,
+    currentUserId: currentUserId,
   }) }}
 
   {# ── MAIN CONTENT ── #}
@@ -256,13 +265,7 @@
         {{ include('components/ui/select.html.twig', {
           name: 'vet',
           id: 'popup-vet',
-          value: 'rousseau',
-          options: [
-            { value: 'rousseau', label: 'Dr. Rousseau' },
-            { value: 'martin', label: 'Dr. Martin' },
-            { value: 'dupont', label: 'Dr. Dupont' },
-            { value: 'lambert', label: 'Dr. Lambert' },
-          ]
+          options: veterinarians|map(v => {value: v.userId, label: v.displayName ?? v.userId}),
         }) }}
       </div>
 

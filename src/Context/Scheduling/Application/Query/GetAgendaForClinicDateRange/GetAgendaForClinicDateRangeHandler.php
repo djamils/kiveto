@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange;
 
+use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
+use App\Context\Scheduling\Domain\Service\RecurrenceExpander;
+use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
+use App\Context\Scheduling\Domain\ValueObject\RecurrenceRule;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 #[AsMessageHandler]
 final readonly class GetAgendaForClinicDateRangeHandler
 {
     public function __construct(
         private Connection $connection,
+        private ClinicTimezoneResolverInterface $timezoneResolver,
+        private RecurrenceExpander $expander,
     ) {
     }
 
@@ -68,7 +76,84 @@ final readonly class GetAgendaForClinicDateRangeHandler
 
         $results = $this->connection->fetchAllAssociative($sql, $params);
 
-        return array_map(fn (array $row): AppointmentItem => $this->hydrateRow($row), $results);
+        $appointments = array_map(fn (array $row): AppointmentItem => $this->hydrateRow($row), $results);
+
+        // Enrich appointments with isOrphaned
+        $clinicId = ClinicId::fromString($query->clinicId);
+        try {
+            $clinicTz = $this->timezoneResolver->resolveTimezone($clinicId);
+        } catch (\RuntimeException) {
+            $clinicTz = new \DateTimeZone('UTC');
+        }
+
+        $blockRows = $this->connection->fetchAllAssociative(
+            <<<'SQL'
+                SELECT *,
+                       LOWER(BIN_TO_UUID(id)) as id_str,
+                       LOWER(BIN_TO_UUID(practitioner_user_id)) as pract_str
+                FROM scheduling__planning_blocks
+                WHERE clinic_id = :clinicId
+                  AND date <= :toDate
+                  AND (
+                      JSON_UNQUOTE(JSON_EXTRACT(recurrence_rule, '$.until')) IS NULL
+                      OR JSON_UNQUOTE(JSON_EXTRACT(recurrence_rule, '$.until')) >= :fromDate
+                  )
+            SQL,
+            [
+                'clinicId' => Uuid::fromString($query->clinicId)->toBinary(),
+                'toDate'   => $query->toUtc->setTimezone($clinicTz)->format('Y-m-d'),
+                'fromDate' => $query->fromUtc->setTimezone($clinicTz)->format('Y-m-d'),
+            ],
+        );
+
+        $blockWindows = [];
+        foreach ($blockRows as $row) {
+            $rule        = RecurrenceRule::fromJson(RowAccessor::string($row, 'recurrence_rule'));
+            $rangeStart  = $query->fromUtc->setTimezone($clinicTz);
+            $rangeEnd    = $query->toUtc->setTimezone($clinicTz);
+            $occurrences = $this->expander->expand($rule, RowAccessor::string($row, 'date'), $rangeStart, $rangeEnd);
+            $type        = PlanningBlockType::from(RowAccessor::string($row, 'type'));
+            $startTime   = RowAccessor::string($row, 'start_time');
+            $endTime     = RowAccessor::string($row, 'end_time');
+            $practStr    = RowAccessor::string($row, 'pract_str');
+
+            foreach ($occurrences as $occDate) {
+                $blockUtcStart = (new \DateTimeImmutable($occDate . ' ' . $startTime, $clinicTz))
+                    ->setTimezone(new \DateTimeZone('UTC'))
+                ;
+                $blockUtcEnd = (new \DateTimeImmutable($occDate . ' ' . $endTime, $clinicTz))
+                    ->setTimezone(new \DateTimeZone('UTC'))
+                ;
+                $blockWindows[] = [
+                    'vet'   => $practStr,
+                    'start' => $blockUtcStart,
+                    'end'   => $blockUtcEnd,
+                    'type'  => $type,
+                ];
+            }
+        }
+
+        $enriched = [];
+        foreach ($appointments as $item) {
+            $apptStart = new \DateTimeImmutable($item->startsAtUtc);
+            $apptEnd   = $apptStart->modify('+' . $item->durationMinutes . ' minutes');
+
+            $isOrphaned = true;
+            foreach ($blockWindows as $w) {
+                /** @var array{vet: string, start: \DateTimeImmutable, end: \DateTimeImmutable, type: PlanningBlockType} $w */
+                $vetMatches  = $w['vet'] === $item->practitionerUserId;
+                $typeMatches = $w['type']->acceptsAppointments();
+                $inWindow    = $w['start'] <= $apptStart && $w['end'] >= $apptEnd;
+                if ($vetMatches && $typeMatches && $inWindow) {
+                    $isOrphaned = false;
+                    break;
+                }
+            }
+
+            $enriched[] = $item->withIsOrphaned($isOrphaned);
+        }
+
+        return $enriched;
     }
 
     /**

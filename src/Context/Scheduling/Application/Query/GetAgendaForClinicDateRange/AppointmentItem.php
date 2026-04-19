@@ -22,6 +22,29 @@ final readonly class AppointmentItem
         public ?string $animalLabel,
         public ?string $animalSpecies,
         public ?string $practitionerLabel,
+        public bool $isOrphaned = false,
     ) {
+    }
+
+    public function withIsOrphaned(bool $isOrphaned): self
+    {
+        return new self(
+            id: $this->id,
+            clinicId: $this->clinicId,
+            ownerId: $this->ownerId,
+            animalId: $this->animalId,
+            practitionerUserId: $this->practitionerUserId,
+            startsAtUtc: $this->startsAtUtc,
+            durationMinutes: $this->durationMinutes,
+            status: $this->status,
+            reason: $this->reason,
+            notes: $this->notes,
+            ownerLabel: $this->ownerLabel,
+            ownerPhone: $this->ownerPhone,
+            animalLabel: $this->animalLabel,
+            animalSpecies: $this->animalSpecies,
+            practitionerLabel: $this->practitionerLabel,
+            isOrphaned: $isOrphaned,
+        );
     }
 }

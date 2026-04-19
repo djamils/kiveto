@@ -279,6 +279,22 @@ services:
 
     App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
     App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
+    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\PlanningBlockMapper: ~
+
+    App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrinePlanningBlockRepository
+
+    App\Context\Scheduling\Application\Port\PlanningBlockOverlapCheckerInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockOverlapChecker
+
+    App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockFinder
+
+    App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalClinicTimezoneResolver
+
+    App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter
 
     # ============================================================================
     # BOUNDED CONTEXT: CONSULTATION

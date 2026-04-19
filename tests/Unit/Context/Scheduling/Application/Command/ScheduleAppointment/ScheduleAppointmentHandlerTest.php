@@ -8,13 +8,17 @@ use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppoi
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointmentHandler;
 use App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
+use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
+use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
+use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\OwnerId;
+use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
@@ -32,6 +36,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     private AnimalExistenceCheckerInterface&MockObject $animalExistenceChecker;
     private UuidGeneratorInterface&MockObject $uuidGenerator;
     private ClockInterface&MockObject $clock;
+    private PlanningBlockFinderInterface&MockObject $planningBlockFinder;
+    private ClinicTimezoneResolverInterface&MockObject $timezoneResolver;
     private ScheduleAppointmentHandler $handler;
 
     protected function setUp(): void
@@ -43,6 +49,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         $this->animalExistenceChecker       = $this->createMock(AnimalExistenceCheckerInterface::class);
         $this->uuidGenerator                = $this->createMock(UuidGeneratorInterface::class);
         $this->clock                        = $this->createMock(ClockInterface::class);
+        $this->planningBlockFinder          = $this->createMock(PlanningBlockFinderInterface::class);
+        $this->timezoneResolver             = $this->createMock(ClinicTimezoneResolverInterface::class);
 
         $this->handler = new ScheduleAppointmentHandler(
             appointmentRepository: $this->appointmentRepository,
@@ -52,6 +60,8 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             animalExistenceChecker: $this->animalExistenceChecker,
             uuidGenerator: $this->uuidGenerator,
             clock: $this->clock,
+            planningBlockFinder: $this->planningBlockFinder,
+            timezoneResolver: $this->timezoneResolver,
         );
     }
 
@@ -105,6 +115,16 @@ final class ScheduleAppointmentHandlerTest extends TestCase
                 null
             )
             ->willReturn(false)
+        ;
+
+        $this->timezoneResolver->expects(self::once())
+            ->method('resolveTimezone')
+            ->willReturn(new \DateTimeZone('Europe/Paris'))
+        ;
+
+        $this->planningBlockFinder->expects(self::once())
+            ->method('findActiveBlockFor')
+            ->willReturn(null)
         ;
 
         $this->uuidGenerator->expects(self::once())
@@ -229,5 +249,125 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         ;
 
         ($this->handler)($command);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testBlockNotAcceptingAppointmentsThrows(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('conge');
+
+        $command = new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            ownerId: null,
+            animalId: null,
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-03-25 07:00:00'),
+            durationMinutes: 30,
+        );
+
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
+            new PlanningBlockReadModel(
+                id: 'aabbccdd-0000-0000-0000-000000000001',
+                type: PlanningBlockType::CONGE,
+                capacityPerHour: 0,
+                currentAppointmentCount: 0,
+                acceptsAppointments: false,
+            )
+        );
+
+        ($this->handler)($command);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testBlockAtCapacityThrows(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('capacity reached');
+
+        $command = new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            ownerId: null,
+            animalId: null,
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
+            durationMinutes: 60,
+        );
+
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
+            new PlanningBlockReadModel(
+                id: 'aabbccdd-0000-0000-0000-000000000002',
+                type: PlanningBlockType::CONSULTATION,
+                capacityPerHour: 1,
+                currentAppointmentCount: 1,
+                acceptsAppointments: true,
+            )
+        );
+
+        ($this->handler)($command);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testBlockWithCapacityAvailableSucceeds(): void
+    {
+        $command = new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            ownerId: null,
+            animalId: null,
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
+            durationMinutes: 30,
+        );
+
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
+            new PlanningBlockReadModel(
+                id: 'aabbccdd-0000-0000-0000-000000000003',
+                type: PlanningBlockType::CONSULTATION,
+                capacityPerHour: 3,
+                currentAppointmentCount: 0,
+                acceptsAppointments: true,
+            )
+        );
+        $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+        $this->appointmentRepository->expects(self::once())->method('save');
+
+        $id = ($this->handler)($command);
+        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $id);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testNoBlockAllowsAppointment(): void
+    {
+        $command = new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            ownerId: null,
+            animalId: null,
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-05-01 09:00:00'),
+            durationMinutes: 30,
+        );
+
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(null);
+        $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+        $this->appointmentRepository->expects(self::once())->method('save');
+
+        $id = ($this->handler)($command);
+        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $id);
     }
 }
