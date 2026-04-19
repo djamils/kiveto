@@ -871,16 +871,13 @@ function renderPlanningOverlays(col, iso) {
   // Sort by start time — required by the lane algorithm
   items.sort((a, b) => a.startMin - b.startMin);
 
-  // Lane assignment (mirrors the appointment lane algorithm)
-  const lanes = [];
-  items.forEach((item) => {
-    let lane = 0;
-    while (lanes[lane] && lanes[lane] > item.startMin) lane += 1;
-    lanes[lane] = item.endMin;
-    item.lane = lane;
-  });
-  const totalLanes = lanes.length || 1;
+  // One fixed lane per vet (sidebar order) — all blocks from the same vet
+  // always occupy the same column, regardless of time overlap.
+  const vetsWithBlocks = [...activeVets].filter((id) => items.some((item) => item.b.vet === id));
+  const vetLane = Object.fromEntries(vetsWithBlocks.map((id, i) => [id, i]));
+  const totalLanes = vetsWithBlocks.length || 1;
   const laneW = 100 / totalLanes;
+  items.forEach((item) => { item.lane = vetLane[item.b.vet] ?? 0; });
 
   items.forEach((item) => {
     const { b, topPx, heightPx, lane } = item;
