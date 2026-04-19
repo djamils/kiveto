@@ -91,6 +91,15 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.08);
     }
 
+    /* Turbo frame wraps the grid — must relay flex growth to planning-wrap */
+    turbo-frame#planning-frame {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
     /* Planning grid */
     .planning-wrap {
       @apply flex-1 relative overflow-hidden;

@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Fixtures\Dataset;
+
+final class PlanningBlockDataset
+{
+    public const string BLOCK_ROUSSEAU_CONSULT_WEEKLY_ID = '01000000-0000-0000-0000-000000000001';
+    public const string BLOCK_ROUSSEAU_CONGE_MARCH_25_ID = '01000000-0000-0000-0000-000000000002';
+    public const string BLOCK_MARTIN_CONSULT_WEEKDAYS_ID = '01000000-0000-0000-0000-000000000003';
+    public const string BLOCK_DUPONT_CHIRURGIE_MONDAY_ID = '01000000-0000-0000-0000-000000000004';
+    public const string BLOCK_DUPONT_AT_CAPACITY_ID      = '01000000-0000-0000-0000-000000000005';
+}

@@ -6,8 +6,10 @@ namespace App\Context\Scheduling\Application\Command\ScheduleAppointment;
 
 use App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
+use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
 use App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
+use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AnimalId;
@@ -32,6 +34,8 @@ final readonly class ScheduleAppointmentHandler
         private AnimalExistenceCheckerInterface $animalExistenceChecker,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private PlanningBlockFinderInterface $planningBlockFinder,
+        private ClinicTimezoneResolverInterface $timezoneResolver,
     ) {
     }
 
@@ -80,6 +84,33 @@ final readonly class ScheduleAppointmentHandler
                 $command->practitionerUserId,
                 $command->startsAtUtc->format('Y-m-d H:i')
             ));
+        }
+
+        // Check planning block constraints (SOFT: no block = allowed; HARD: type/capacity)
+        $clinicTz    = $this->timezoneResolver->resolveTimezone($clinicId);
+        $startsLocal = $timeSlot->startsAtUtc()->setTimezone($clinicTz);
+        $endsLocal   = $timeSlot->endsAtUtc()->setTimezone($clinicTz);
+
+        $block = $this->planningBlockFinder->findActiveBlockFor(
+            $clinicId,
+            $practitionerUserId,
+            $startsLocal->format('Y-m-d'),
+            $startsLocal->format('H:i'),
+            $endsLocal->format('H:i'),
+        );
+
+        if (null !== $block) {
+            if (!$block->acceptsAppointments) {
+                throw new \DomainException(
+                    'Cannot schedule appointment in a ' . $block->type->value . ' block.'
+                );
+            }
+
+            $slotDurationHours = $timeSlot->durationMinutes() / 60;
+            $capacityForSlot   = (int) floor($block->capacityPerHour * $slotDurationHours);
+            if ($capacityForSlot > 0 && $block->currentAppointmentCount >= $capacityForSlot) {
+                throw new \DomainException('Planning block capacity reached.');
+            }
         }
 
         $practitionerAssignee = new PractitionerAssignee($practitionerUserId);

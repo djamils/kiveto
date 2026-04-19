@@ -3,13 +3,16 @@
  * Loaded by app.js dispatcher on turbo:load.
  */
 
-// =============== DATA ===============
-const VETS = {
-  rousseau: { name:'Dr. Rousseau', color:'#4338ca', bg:'#eef2ff' },
-  martin:   { name:'Dr. Martin',   color:'#0891b2', bg:'#ecfeff' },
-  dupont:   { name:'Dr. Dupont',   color:'#059669', bg:'#ecfdf5' },
-  lambert:  { name:'Dr. Lambert',  color:'#db2777', bg:'#fdf2f8' },
-};
+// =============== DATA (re-read from DOM on every init) ===============
+// Shell-derived values are mutable so init() can refresh them after Turbo navigation.
+let VETS         = {};
+let CLINIC_ID    = '';
+let CLINIC_TZ    = 'UTC';
+let CREATE_URL   = '';
+let UPDATE_URL_TPL = '';
+let DELETE_URL_TPL = '';
+let blocks       = [];
+let nextId       = 1;
 
 const ACTIVITY_TYPES = [
   { id:'consultation', label:'Consultation',  color:'#4338ca', bg:'#eef2ff',  icon:'🩺', cap:3 },
@@ -22,59 +25,53 @@ const ACTIVITY_TYPES = [
   { id:'urgence',      label:'Urgences',       color:'#ea580c', bg:'#fff7ed',  icon:'🚨', cap:5 },
 ];
 
-// Planning blocks — { id, vet, date, start, end, type, capacity, note, recurrence }
-let blocks = [
-  // Week 23-27 March — realistic example
-  // Rousseau
-  { id:1,  vet:'rousseau', date:'2026-03-23', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'Bloc opératoire salle 1', recurrence:'none' },
-  { id:2,  vet:'rousseau', date:'2026-03-23', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:3,  vet:'rousseau', date:'2026-03-24', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:4,  vet:'rousseau', date:'2026-03-25', start:'08:00', end:'12:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:5,  vet:'rousseau', date:'2026-03-25', start:'13:00', end:'17:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:6,  vet:'rousseau', date:'2026-03-26', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:7,  vet:'rousseau', date:'2026-03-27', start:'08:00', end:'14:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:8,  vet:'rousseau', date:'2026-03-28', start:'08:00', end:'12:00', type:'consultation', capacity:2, note:'Permanence samedi', recurrence:'none' },
-  // Martin
-  { id:9,  vet:'martin',   date:'2026-03-23', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:10, vet:'martin',   date:'2026-03-24', start:'08:00', end:'12:00', type:'bilan',        capacity:4, note:'Résultats labo', recurrence:'none' },
-  { id:11, vet:'martin',   date:'2026-03-24', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:12, vet:'martin',   date:'2026-03-25', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:13, vet:'martin',   date:'2026-03-26', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:14, vet:'martin',   date:'2026-03-26', start:'13:00', end:'19:00', type:'urgence',      capacity:5, note:'Astreinte urgences', recurrence:'none' },
-  { id:15, vet:'martin',   date:'2026-03-27', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:16, vet:'martin',   date:'2026-03-28', start:'08:00', end:'12:00', type:'consultation', capacity:2, note:'', recurrence:'none' },
-  // Dupont
-  { id:17, vet:'dupont',   date:'2026-03-23', start:'08:00', end:'12:00', type:'chirurgie',    capacity:1, note:'', recurrence:'none' },
-  { id:18, vet:'dupont',   date:'2026-03-23', start:'14:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:19, vet:'dupont',   date:'2026-03-24', start:'09:00', end:'17:00', type:'formation',    capacity:0, note:'Formation échographie', recurrence:'none' },
-  { id:20, vet:'dupont',   date:'2026-03-25', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:21, vet:'dupont',   date:'2026-03-26', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:22, vet:'dupont',   date:'2026-03-27', start:'08:00', end:'12:00', type:'bilan',        capacity:4, note:'', recurrence:'none' },
-  { id:23, vet:'dupont',   date:'2026-03-27', start:'13:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  // Lambert
-  { id:24, vet:'lambert',  date:'2026-03-23', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:25, vet:'lambert',  date:'2026-03-24', start:'08:00', end:'19:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:26, vet:'lambert',  date:'2026-03-25', start:'00:00', end:'23:59', type:'conge',        capacity:0, note:'Congé annuel', recurrence:'none' },
-  { id:27, vet:'lambert',  date:'2026-03-26', start:'00:00', end:'23:59', type:'conge',        capacity:0, note:'Congé annuel', recurrence:'none' },
-  { id:28, vet:'lambert',  date:'2026-03-27', start:'08:00', end:'14:00', type:'consultation', capacity:3, note:'', recurrence:'none' },
-  { id:29, vet:'lambert',  date:'2026-03-27', start:'14:00', end:'18:00', type:'admin',        capacity:0, note:'Réunion équipe', recurrence:'none' },
-  { id:30, vet:'lambert',  date:'2026-03-28', start:'08:00', end:'12:00', type:'garde',        capacity:2, note:'Garde weekend', recurrence:'none' },
-];
-
-let nextId = 31;
-
 // =============== STATE ===============
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DOW_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-let today = new Date(2026, 2, 23);
-let currentDate = new Date(2026, 2, 23);
-let currentView = 'day';
-let miniCalDate = new Date(2026, 2, 1);
-let activeVets = new Set(['rousseau','martin','dupont','lambert']);
+let today    = new Date();
+let currentDate = new Date();
+let currentView = 'week';
+let miniCalDate = new Date();
+let activeVets = new Set();
 let editingBlockId = null;
 let selectedActivityType = 'consultation';
 let dragState = null; // { vetKey, dateStr, startMin }
+
+// =============== NAV TRANSITION ===============
+const NAV_OUT_MS      = 80;
+const NAV_IN_MS       = 140;
+const NAV_SHIFT_PX    = 24;
+const NAV_MIN_OPACITY = '0.55';
+
+// Set before every frame navigation; consumed and cleared by frame render handlers.
+let _pendingNavDirection = null;
+
+function _animateOut(wrap, direction, cb) {
+  const outX = direction === 'next' ? `-${NAV_SHIFT_PX}px` : `${NAV_SHIFT_PX}px`;
+  wrap.style.willChange = 'opacity, transform';
+  wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${outX})`;
+  setTimeout(cb, NAV_OUT_MS + 10);
+}
+
+function _animateIn(wrap, direction) {
+  const inX = direction === 'next' ? `${NAV_SHIFT_PX}px` : `-${NAV_SHIFT_PX}px`;
+  wrap.style.transition = 'none';
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${inX})`;
+  wrap.offsetHeight;
+  wrap.style.transition = `opacity ${NAV_IN_MS}ms ease-out, transform ${NAV_IN_MS}ms ease-out`;
+  wrap.style.opacity = '1';
+  wrap.style.transform = 'translateX(0)';
+  const onEnd = () => {
+    wrap.removeEventListener('transitionend', onEnd);
+    wrap.style.willChange = '';
+    wrap.style.transition = '';
+  };
+  wrap.addEventListener('transitionend', onEnd);
+}
 
 // =============== UTILS ===============
 function fmtDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -130,17 +127,47 @@ function toggleVet(el, vet){
 }
 
 // =============== VIEW ===============
+function _planningUrl(dateStr, view){
+  return window.location.pathname + '?date=' + dateStr + '&view=' + view;
+}
+
+function _navigate(url, direction) {
+  _pendingNavDirection = direction || null;
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    history.pushState({}, '', url);
+    frame.src = url;
+    return;
+  }
+  window.location.href = url;
+}
+
+function _reloadFrame() {
+  const frame = document.getElementById('planning-frame');
+  if (!frame) { location.reload(); return; }
+  const url = frame.src || window.location.href;
+  frame.removeAttribute('src');
+  frame.src = url;
+}
+
 function setView(v){
   currentView = v;
-  ['day','week','month'].forEach(x=>{
-    document.getElementById('view-'+x+'-btn').classList.toggle('is-active', x===v);
-  });
-  renderPlanning();
-  renderMiniCal();
+  _navigate(_planningUrl(fmtDate(currentDate), v));
 }
-function prevPeriod(){ currentDate = addDays(currentDate, currentView==='week'?-7:currentView==='month'?-30:-1); renderPlanning(); renderMiniCal(); }
-function nextPeriod(){ currentDate = addDays(currentDate, currentView==='week'?7:currentView==='month'?30:1); renderPlanning(); renderMiniCal(); }
-function goToday(){ currentDate=new Date(today); renderPlanning(); renderMiniCal(); }
+function prevPeriod(){
+  const delta = currentView==='week' ? -7 : currentView==='month' ? -30 : -1;
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView), 'prev');
+}
+function nextPeriod(){
+  const delta = currentView==='week' ? 7 : currentView==='month' ? 30 : 1;
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView), 'next');
+}
+function goToday(){
+  const realToday = fmtDate(new Date());
+  const curStr    = fmtDate(currentDate);
+  const direction = curStr < realToday ? 'next' : curStr > realToday ? 'prev' : null;
+  _navigate(window.location.pathname + '?view=' + currentView, direction);
+}
 
 // =============== RENDER ===============
 function renderPlanning(){
@@ -339,7 +366,7 @@ function renderVetRow(vetKey, vet, dateStr, dayBlocks, totalW){
         <div style="width:8px;height:8px;border-radius:50%;background:${vet.color};flex-shrink:0;"></div>
         <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:var(--text-primary);">${vet.name.replace('Dr. ','')}</span>
       </div>
-      <span style="font-size:var(--text-xs);color:var(--text-subtle);">${vet.name.split(' ')[0]} ${vet.name.split(' ')[1]}</span>
+      <span style="font-size:var(--text-xs);color:var(--text-subtle);">${vet.name}</span>
     </div>
     <div class="vet-row-grid" id="grid-${vetKey}-${dateStr}" style="position:relative;height:${ROW_H}px;width:${totalW}px;cursor:pointer;user-select:none;"
          onmousedown="dragStart(event,'${vetKey}','${dateStr}')"
@@ -555,7 +582,7 @@ function updateCapacityDisplay(el){
   el.style.background = `linear-gradient(to right,#4338ca 0%,#4338ca ${pct}%,#e2e8f0 ${pct}%,#e2e8f0 100%)`;
 }
 
-function saveBlock(){
+async function saveBlock(){
   const vet   = document.getElementById('popup-vet').value;
   const date  = document.getElementById('popup-date').value;
   const start = document.getElementById('popup-start').value;
@@ -568,47 +595,36 @@ function saveBlock(){
     showToast('Vérifiez les horaires', '#dc2626'); return;
   }
 
-  if(editingBlockId){
-    const b = blocks.find(x=>x.id===editingBlockId);
-    if(b){ Object.assign(b, {vet,date,start,end,type:selectedActivityType,capacity:cap,recurrence:rec,note}); }
-    showToast('Bloc modifié', '#4338ca');
-  } else {
-    // Handle recurrence
-    const datesToAdd = [date];
-    if(rec==='weekdays'){
-      // Add for all weekdays of the month
-      const d0=new Date(date);
-      for(let i=1;i<28;i++){
-        const nd=addDays(d0,i);
-        const dow=nd.getDay();
-        if(dow>=1&&dow<=5) datesToAdd.push(fmtDate(nd));
-      }
-    } else if(rec==='weekly'){
-      const d0=new Date(date);
-      for(let i=1;i<8;i++) datesToAdd.push(fmtDate(addDays(d0,i*7)));
-    } else if(rec==='daily'){
-      const d0=new Date(date);
-      for(let i=1;i<7;i++) datesToAdd.push(fmtDate(addDays(d0,i)));
-    }
-    datesToAdd.forEach(dt=>{
-      blocks.push({id:nextId++,vet,date:dt,start,end,type:selectedActivityType,capacity:cap,recurrence:rec,note});
-    });
-    showToast(datesToAdd.length>1?`${datesToAdd.length} blocs créés`:'Bloc créé', '#059669');
-  }
+  const payload = { vet, date, start, end, type: selectedActivityType, capacity: cap, recurrence: rec, note };
+  const url     = editingBlockId ? UPDATE_URL_TPL.replace('__ID__', editingBlockId) : CREATE_URL;
+  const method  = editingBlockId ? 'PUT' : 'POST';
 
-  closePopup();
-  document.querySelectorAll('[id^="drag-preview-"]').forEach(function(el){ el.style.display='none'; });
-  renderPlanning();
-  renderMiniCal();
+  try {
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
+      return;
+    }
+    closePopup(); _reloadFrame();
+  } catch (err) {
+    showToast('Erreur réseau', '#dc2626');
+  }
 }
 
-function deleteBlock(){
+async function deleteBlock(){
   if(!editingBlockId) return;
-  blocks = blocks.filter(b=>b.id!==editingBlockId);
-  closePopup();
-  renderPlanning();
-  renderMiniCal();
-  showToast('Bloc supprimé', '#64748b');
+  try {
+    const res = await fetch(DELETE_URL_TPL.replace('__ID__', editingBlockId), { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
+      return;
+    }
+    closePopup(); _reloadFrame();
+  } catch (err) {
+    showToast('Erreur réseau', '#dc2626');
+  }
 }
 
 // ---- Sidebar drawer ----
@@ -625,8 +641,10 @@ function closeSidebar(){
 }
 
 // =============== EVENT LISTENERS (stored for cleanup) ===============
-let _mousedownHandler = null;
-let _calendarSelectHandler = null;
+let _mousedownHandler        = null;
+let _calendarSelectHandler   = null;
+let _frameBeforeRenderHandler = null;
+let _frameRenderHandler      = null;
 
 // =============== EXPOSE TO WINDOW (for onclick attributes in HTML) ===============
 window.closeSidebar = closeSidebar;
@@ -651,16 +669,39 @@ window.dragCancel = dragCancel;
 
 // =============== INIT / CLEANUP ===============
 export function init() {
-  // Default to week view on tablet, day on mobile
-  if(window.innerWidth <= 640){ currentView='day'; }
-  else if(window.innerWidth <= 1024){ currentView='week'; }
-  // Only render if the planning grid is empty (skip when restored from Turbo cache)
-  var planningGrid = document.getElementById('planning-wrap');
-  if (!planningGrid || !planningGrid.children.length) {
-    renderLegend();
-    renderPlanning();
-    setTimeout(syncCalendarFromState, 0);
+  // Re-read all shell data on every init (Turbo replaces DOM but not module state)
+  var shell = document.querySelector('.scheduling-shell');
+  if (shell) {
+    VETS           = JSON.parse(shell.dataset.vets ?? '{}');
+    CLINIC_ID      = shell.dataset.clinicId ?? '';
+    CLINIC_TZ      = shell.dataset.clinicTz ?? 'UTC';
+    CREATE_URL     = shell.dataset.createUrl ?? '';
+    UPDATE_URL_TPL = shell.dataset.updateUrlTemplate ?? '';
+    DELETE_URL_TPL = shell.dataset.deleteUrlTemplate ?? '';
+    blocks         = JSON.parse(shell.dataset.planningBlocks ?? '[]');
+    nextId         = blocks.length ? Math.max(...blocks.map(function(b){ return typeof b.id === 'number' ? b.id : 0; })) + 1 : 1;
+    var todayStr   = shell.dataset.today ?? new Date().toISOString().slice(0, 10);
+    today          = new Date(todayStr + 'T00:00:00');
+    currentDate    = new Date(todayStr + 'T00:00:00');
+    miniCalDate    = new Date(today.getFullYear(), today.getMonth(), 1);
+    activeVets     = new Set(Object.keys(VETS));
   }
+
+  // Restore view from URL (?view=day|week|month), fall back to screen-size default
+  var _urlView = new URLSearchParams(window.location.search).get('view');
+  if(_urlView === 'day' || _urlView === 'week' || _urlView === 'month'){
+    currentView = _urlView;
+  } else {
+    currentView = 'day';
+  }
+  // Sync view toggle buttons
+  ['day','week','month'].forEach(function(x){
+    var btn = document.getElementById('view-'+x+'-btn');
+    if(btn) btn.classList.toggle('is-active', x===currentView);
+  });
+  renderLegend();
+  renderPlanning();
+  setTimeout(syncCalendarFromState, 0);
 
   // Click outside preview — clear all previews
   _mousedownHandler = function(e){
@@ -676,19 +717,51 @@ export function init() {
   // Wire UI kit calendar → planning navigation
   _calendarSelectHandler = function(e){
     var iso = e && e.detail && e.detail.date;
-    if(!iso) return;
-    var parts = iso.split('-').map(Number);
-    currentDate = new Date(parts[0], parts[1]-1, parts[2]);
-    if(currentView === 'month') setView('day');
-    else renderPlanning();
+    if(!iso || typeof iso !== 'string') return;
+    const selected  = new Date(iso + 'T00:00:00');
+    const compareA  = currentView === 'week' ? getWeekStart(currentDate) : currentDate;
+    const compareB  = currentView === 'week' ? getWeekStart(selected)    : selected;
+    const direction = compareB > compareA ? 'next' : compareB < compareA ? 'prev' : null;
+    _navigate(_planningUrl(iso, currentView), direction);
   };
   document.addEventListener('calendar:select', _calendarSelectHandler);
 
-  // Sync view buttons
-  ['day','week','month'].forEach(function(x){
-    var btn=document.getElementById('view-'+x+'-btn');
-    if(btn) btn.classList.toggle('is-active', x===currentView);
-  });
+  // Turbo Frame slide transition
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    _frameBeforeRenderHandler = function(e) {
+      const wrap = document.getElementById('planning-wrap');
+      if (!_pendingNavDirection || !wrap) return;
+      e.preventDefault();
+      _animateOut(wrap, _pendingNavDirection, function() {
+        if (e.detail && typeof e.detail.resume === 'function') e.detail.resume();
+      });
+    };
+    _frameRenderHandler = function() {
+      const dataEl = document.getElementById('planning-frame-data');
+      if (dataEl) {
+        if (dataEl.dataset.vets) VETS = JSON.parse(dataEl.dataset.vets);
+        blocks  = JSON.parse(dataEl.dataset.planningBlocks ?? '[]');
+        nextId  = blocks.length ? Math.max(...blocks.map(function(b){ return typeof b.id === 'number' ? b.id : 0; })) + 1 : 1;
+        var sel = dataEl.dataset.selectedDate;
+        if (sel) currentDate = new Date(sel + 'T00:00:00');
+      }
+      var urlView = new URLSearchParams(window.location.search).get('view');
+      if (urlView === 'day' || urlView === 'week' || urlView === 'month') currentView = urlView;
+      ['day','week','month'].forEach(function(x){
+        var btn = document.getElementById('view-'+x+'-btn');
+        if (btn) btn.classList.toggle('is-active', x===currentView);
+      });
+      renderLegend();
+      renderPlanning();
+      setTimeout(syncCalendarFromState, 0);
+      const wrap = document.getElementById('planning-wrap');
+      if (wrap && _pendingNavDirection) _animateIn(wrap, _pendingNavDirection);
+      _pendingNavDirection = null;
+    };
+    frame.addEventListener('turbo:before-frame-render', _frameBeforeRenderHandler);
+    frame.addEventListener('turbo:frame-render', _frameRenderHandler);
+  }
 }
 
 export function cleanup() {
@@ -700,6 +773,14 @@ export function cleanup() {
     document.removeEventListener('calendar:select', _calendarSelectHandler);
     _calendarSelectHandler = null;
   }
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    if (_frameBeforeRenderHandler) frame.removeEventListener('turbo:before-frame-render', _frameBeforeRenderHandler);
+    if (_frameRenderHandler) frame.removeEventListener('turbo:frame-render', _frameRenderHandler);
+  }
+  _frameBeforeRenderHandler = null;
+  _frameRenderHandler = null;
+  _pendingNavDirection = null;
 
   // Clean up window references
   delete window.closeSidebar;
