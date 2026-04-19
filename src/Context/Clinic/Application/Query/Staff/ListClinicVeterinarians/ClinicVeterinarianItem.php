@@ -10,6 +10,12 @@ final readonly class ClinicVeterinarianItem
         public string $userId,
         public string $role,
         public string $engagement,
+        public string $membershipId,
+        public ?string $displayName = null,
+        public ?string $professionalTitle = null,
+        public ?string $agendaColor = null,
+        public ?int $sortOrder = null,
+        public ?bool $isVisibleInAgenda = null,
     ) {
     }
 }

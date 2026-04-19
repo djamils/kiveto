@@ -10,4 +10,28 @@ enum ClinicMemberRole: string
     case VETERINARY           = 'VETERINARY';
     case VETERINARY_ASSISTANT = 'VETERINARY_ASSISTANT';
     case RECEPTIONIST         = 'RECEPTIONIST';
+
+    public function canHoldVeterinaryCredentials(): bool
+    {
+        return match ($this) {
+            self::VETERINARY => true,
+            default          => false,
+        };
+    }
+
+    public function canBePractitionerOfRecord(): bool
+    {
+        return match ($this) {
+            self::VETERINARY => true,
+            default          => false,
+        };
+    }
+
+    public function appearsInMedicalAgendaByDefault(): bool
+    {
+        return match ($this) {
+            self::VETERINARY => true,
+            default          => false,
+        };
+    }
 }

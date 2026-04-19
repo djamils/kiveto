@@ -8,6 +8,7 @@ use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
+use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
@@ -31,8 +32,11 @@ final class ClinicDataset extends Story
         // Seed RBAC role_permissions (static reference data)
         RolePermissionSeedStory::load();
 
-        // Create memberships (assign users to clinics — triggers RBAC sync via events)
+        // Create non-practitioner memberships (MANAGER, RECEPTIONIST)
         ClinicMembershipDataStory::load();
+
+        // Onboard VET/ASV practitioners with StaffProfiles
+        ClinicStaffProfileDataStory::load();
 
         // Create Client BC data
         ClientDataStory::load();

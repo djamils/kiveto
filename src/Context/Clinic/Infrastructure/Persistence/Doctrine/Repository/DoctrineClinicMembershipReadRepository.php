@@ -107,6 +107,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
         $sql = \sprintf(
             <<<'SQL'
             SELECT
+                BIN_TO_UUID(m.id) AS membership_id,
                 BIN_TO_UUID(m.user_id) AS user_id,
                 m.role,
                 m.engagement
@@ -130,6 +131,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
 
         return array_map(
             function (array $row): ClinicVeterinarianItem {
+                \assert(\is_string($row['membership_id']));
                 \assert(\is_string($row['user_id']));
                 \assert(\is_string($row['role']) || \is_int($row['role']));
                 \assert(\is_string($row['engagement']) || \is_int($row['engagement']));
@@ -138,6 +140,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                     userId: $row['user_id'],
                     role: (string) $row['role'],
                     engagement: (string) $row['engagement'],
+                    membershipId: $row['membership_id'],
                 );
             },
             $results

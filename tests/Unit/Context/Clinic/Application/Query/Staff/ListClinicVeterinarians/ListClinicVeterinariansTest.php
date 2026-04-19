@@ -23,10 +23,13 @@ final class ListClinicVeterinariansTest extends TestCase
             userId: '01912345-6789-7abc-8def-0000000000a1',
             role: 'VETERINARY',
             engagement: 'EMPLOYEE',
+            membershipId: 'aaaaaaaa-bbbb-7ccc-8ddd-eeeeeeeeee01',
         );
 
         self::assertSame('01912345-6789-7abc-8def-0000000000a1', $item->userId);
         self::assertSame('VETERINARY', $item->role);
         self::assertSame('EMPLOYEE', $item->engagement);
+        self::assertSame('aaaaaaaa-bbbb-7ccc-8ddd-eeeeeeeeee01', $item->membershipId);
+        self::assertNull($item->displayName);
     }
 }

@@ -48,12 +48,36 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
 
     public function asVeterinary(): self
     {
-        return $this->with(['role' => ClinicMemberRole::VETERINARY]);
+        return $this->with(['role' => ClinicMemberRole::VETERINARY])
+            ->afterPersist(static function (ClinicMembershipEntity $membership): void {
+                StaffProfileEntityFactory::new()
+                    ->asDoctor()
+                    ->with([
+                        'membershipId' => $membership->getId(),
+                        'createdAt'    => $membership->getCreatedAt(),
+                        'updatedAt'    => $membership->getCreatedAt(),
+                    ])
+                    ->create()
+                ;
+            })
+        ;
     }
 
     public function asVeterinaryAssistant(): self
     {
-        return $this->with(['role' => ClinicMemberRole::VETERINARY_ASSISTANT]);
+        return $this->with(['role' => ClinicMemberRole::VETERINARY_ASSISTANT])
+            ->afterPersist(static function (ClinicMembershipEntity $membership): void {
+                StaffProfileEntityFactory::new()
+                    ->withoutCredentials()
+                    ->with([
+                        'membershipId' => $membership->getId(),
+                        'createdAt'    => $membership->getCreatedAt(),
+                        'updatedAt'    => $membership->getCreatedAt(),
+                    ])
+                    ->create()
+                ;
+            })
+        ;
     }
 
     public function asReceptionist(): self
@@ -90,7 +114,7 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
             'id'         => Uuid::v7(),
             'clinicId'   => Uuid::v7(),
             'userId'     => Uuid::v7(),
-            'role'       => self::faker()->randomElement(ClinicMemberRole::cases()),
+            'role'       => ClinicMemberRole::RECEPTIONIST,
             'engagement' => self::faker()->randomElement(ClinicMembershipEngagement::cases()),
             'status'     => ClinicMembershipStatus::ACTIVE,
             'validFrom'  => $validFrom,

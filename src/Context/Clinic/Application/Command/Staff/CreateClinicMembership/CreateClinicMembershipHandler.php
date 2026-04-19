@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Command\Staff\CreateClinicMembership;
 
+use App\Context\Clinic\Application\Exception\CannotCreatePractitionerMembershipWithoutProfile;
 use App\Context\Clinic\Application\Exception\ClinicMembershipAlreadyExistsException;
 use App\Context\Clinic\Application\Port\UserExistenceCheckerInterface;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
@@ -32,6 +34,10 @@ final readonly class CreateClinicMembershipHandler
 
     public function __invoke(CreateClinicMembership $command): void
     {
+        if (\in_array($command->role, [ClinicMemberRole::VETERINARY, ClinicMemberRole::VETERINARY_ASSISTANT], true)) {
+            throw new CannotCreatePractitionerMembershipWithoutProfile($command->role->value);
+        }
+
         $clinicId = ClinicId::fromString($command->clinicId);
 
         // Verify clinic exists (local — same BC)

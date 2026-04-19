@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\CreateClinicMe
 
 use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembershipHandler;
+use App\Context\Clinic\Application\Exception\CannotCreatePractitionerMembershipWithoutProfile;
 use App\Context\Clinic\Application\Exception\ClinicMembershipAlreadyExistsException;
 use App\Context\Clinic\Application\Port\UserExistenceCheckerInterface;
 use App\Context\Clinic\Domain\Clinic;
@@ -64,7 +65,49 @@ final class CreateClinicMembershipHandlerTest extends TestCase
         $handler(new CreateClinicMembership(
             clinicId: self::CLINIC_ID,
             userId: self::USER_ID,
+            role: ClinicMemberRole::MANAGER,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+    }
+
+    public function testRejectsPractitionerRolesWithAntiBypassGuard(): void
+    {
+        $handler = new CreateClinicMembershipHandler(
+            $this->createStub(ClinicMembershipRepositoryInterface::class),
+            $this->createStub(ClinicRepositoryInterface::class),
+            $this->createStub(UserExistenceCheckerInterface::class),
+            $this->createStub(UuidGeneratorInterface::class),
+            $this->createStub(ClockInterface::class),
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+
+        $this->expectException(CannotCreatePractitionerMembershipWithoutProfile::class);
+
+        $handler(new CreateClinicMembership(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
             role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+    }
+
+    public function testRejectsVeterinaryAssistantRoleWithAntiBypassGuard(): void
+    {
+        $handler = new CreateClinicMembershipHandler(
+            $this->createStub(ClinicMembershipRepositoryInterface::class),
+            $this->createStub(ClinicRepositoryInterface::class),
+            $this->createStub(UserExistenceCheckerInterface::class),
+            $this->createStub(UuidGeneratorInterface::class),
+            $this->createStub(ClockInterface::class),
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+
+        $this->expectException(CannotCreatePractitionerMembershipWithoutProfile::class);
+
+        $handler(new CreateClinicMembership(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::VETERINARY_ASSISTANT,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
     }
@@ -89,7 +132,7 @@ final class CreateClinicMembershipHandlerTest extends TestCase
         $handler(new CreateClinicMembership(
             clinicId: self::CLINIC_ID,
             userId: self::USER_ID,
-            role: ClinicMemberRole::VETERINARY,
+            role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
     }
@@ -117,7 +160,7 @@ final class CreateClinicMembershipHandlerTest extends TestCase
         $handler(new CreateClinicMembership(
             clinicId: self::CLINIC_ID,
             userId: self::USER_ID,
-            role: ClinicMemberRole::VETERINARY,
+            role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
     }
@@ -147,7 +190,7 @@ final class CreateClinicMembershipHandlerTest extends TestCase
         $handler(new CreateClinicMembership(
             clinicId: self::CLINIC_ID,
             userId: self::USER_ID,
-            role: ClinicMemberRole::VETERINARY,
+            role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
     }

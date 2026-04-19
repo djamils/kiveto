@@ -38,8 +38,9 @@
     {% if _veterinarians|length > 0 %}
       {% for index, vet in _veterinarians %}
         {% set _is_me = _current_user_id is not null and vet.userId == _current_user_id %}
-        {% set _label = _is_me ? 'Moi' : ('Praticien ' ~ (index + 1)) %}
-        {% set _color = _is_me ? '#0d9488' : _vet_palette[index % _vet_palette|length] %}
+        {% set _title_prefix = vet.professionalTitle == 'DR' ? 'Dr. ' : (vet.professionalTitle == 'PR' ? 'Pr. ' : '') %}
+        {% set _label = _is_me ? 'Moi' : (vet.displayName ? (_title_prefix ~ vet.displayName) : ('Praticien ' ~ (index + 1))) %}
+        {% set _color = _is_me ? '#0d9488' : (vet.agendaColor ?? _vet_palette[index % _vet_palette|length]) %}
         <div class="vet-chip" data-vet-id="{{ vet.userId }}" onclick="toggleVet(this, '{{ vet.userId }}')">
           <div class="vet-dot" style="background:{{ _color }};"></div>
           <span>{{ _label }}</span>

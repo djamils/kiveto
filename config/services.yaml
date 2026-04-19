@@ -195,7 +195,18 @@ services:
     App\Context\Clinic\Application\Port\UserExistenceCheckerInterface:
         class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\DbalUserExistenceChecker
 
+    App\Context\Clinic\Application\Port\UserSearchForOnboardingInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\IdentityAccessUserSearchAdapter
+
+    App\Context\Clinic\Domain\Staff\Repository\StaffProfileRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineStaffProfileRepository
+
+    App\Context\Clinic\Application\Port\StaffProfileReadRepositoryInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineStaffProfileReadRepository
+
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
+
+    App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\StaffProfileMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: ACCESS CONTROL (RBAC)

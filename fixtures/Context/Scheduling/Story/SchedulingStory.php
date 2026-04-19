@@ -44,11 +44,14 @@ final class SchedulingStory extends Story
         $parisTz = new \DateTimeZone('Europe/Paris');
         $utcTz   = new \DateTimeZone('UTC');
 
-        $monday = $this->clock->now()
-            ->setTimezone($parisTz)
-            ->modify('monday this week')
-            ->setTime(0, 0, 0)
-        ;
+        $now    = $this->clock->now()->setTimezone($parisTz);
+        $monday = $now->modify('monday this week')->setTime(0, 0, 0);
+
+        // If "this week" monday is already 6+ days behind us (i.e. today is Sunday),
+        // shift the anchor to next week so all fixture appointments remain in the future.
+        if ($monday->diff($now)->days >= 6) {
+            $monday = $monday->modify('+7 days');
+        }
 
         $plan = [
             // [dayOffset, hour, minute, clinicId, practitionerId, duration, reason, cancelled]

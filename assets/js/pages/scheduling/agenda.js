@@ -191,10 +191,12 @@ function buildVetIndex() {
   const vetList = [];
   (AGENDA_DATA.veterinarians || []).forEach((v, i) => {
     const isMe = v.userId === AGENDA_DATA.currentUserId;
+    const titlePrefix = v.professionalTitle === 'DR' ? 'Dr. ' : (v.professionalTitle === 'PR' ? 'Pr. ' : '');
+    const profileLabel = v.displayName ? `${titlePrefix}${v.displayName}` : null;
     const entry = {
       userId: v.userId,
-      label: isMe ? 'Moi' : `Praticien ${i + 1}`,
-      color: isMe ? ME_COLOR : VET_COLORS[i % VET_COLORS.length],
+      label: isMe ? 'Moi' : (profileLabel || `Praticien ${i + 1}`),
+      color: isMe ? ME_COLOR : (v.agendaColor || VET_COLORS[i % VET_COLORS.length]),
       bg:    isMe ? ME_BG_COLOR : VET_BG_COLORS[i % VET_BG_COLORS.length],
       isMe,
     };

@@ -21,6 +21,7 @@ interface ClinicMembershipReadRepositoryInterface
     /**
      * Returns the list of ACTIVE veterinarians for a clinic, ordered deterministically
      * so UI labels and colors remain stable across reloads.
+     * Each item carries membershipId for profile enrichment via batch lookup.
      *
      * @return list<ClinicVeterinarianItem>
      */

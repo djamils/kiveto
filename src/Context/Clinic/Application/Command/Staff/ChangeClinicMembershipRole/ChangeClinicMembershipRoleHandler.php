@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipRole;
 
+use App\Context\Clinic\Application\Exception\CannotChangeRoleWhileVeterinaryCredentialsExist;
+use App\Context\Clinic\Application\Port\StaffProfileReadRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -14,6 +16,7 @@ final readonly class ChangeClinicMembershipRoleHandler
 {
     public function __construct(
         private ClinicMembershipRepositoryInterface $membershipRepository,
+        private StaffProfileReadRepositoryInterface $profileReadRepository,
         private DomainEventPublisher $domainEventPublisher,
     ) {
     }
@@ -25,6 +28,15 @@ final readonly class ChangeClinicMembershipRoleHandler
         $membership = $this->membershipRepository->findById($membershipId);
         if (null === $membership) {
             throw new \InvalidArgumentException(\sprintf('Membership "%s" not found.', $command->membershipId));
+        }
+
+        $hasCredentials = $this->profileReadRepository->hasVeterinaryCredentialsFor($membershipId);
+
+        if ($hasCredentials && !$command->role->canHoldVeterinaryCredentials()) {
+            throw new CannotChangeRoleWhileVeterinaryCredentialsExist(
+                $command->membershipId,
+                $command->role->value,
+            );
         }
 
         $membership->changeRole($command->role);

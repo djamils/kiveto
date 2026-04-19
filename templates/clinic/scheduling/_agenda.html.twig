@@ -77,7 +77,12 @@
                     <div style="flex: 1; min-width: 0;">
                         {# Practitioner #}
                         <div style="font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 2px;">
-                            {{ appointment.practitionerLabel ?? appointment.practitionerUserId }}
+                            {% set practitioner = practitionersByUserId[appointment.practitionerUserId] ?? null %}
+                            {% if practitioner and practitioner.displayName %}
+                                {{ practitioner.professionalTitle == 'DR' ? 'Dr. ' : (practitioner.professionalTitle == 'PR' ? 'Pr. ' : '') }}{{ practitioner.displayName }}
+                            {% else %}
+                                {{ appointment.practitionerLabel ?? appointment.practitionerUserId }}
+                            {% endif %}
                         </div>
 
                         {# Owner #}
