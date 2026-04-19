@@ -899,6 +899,7 @@ function renderPlanningOverlays(col, iso) {
       `background:${type.bg}`,
       `border-left:3px solid ${type.color}`,
       'opacity:0.5',
+      'z-index:1',
       'pointer-events:none',
       'overflow:hidden',
     ].join(';');

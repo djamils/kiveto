@@ -151,7 +151,7 @@
       @apply absolute flex items-center cursor-pointer overflow-hidden;
       left: 2px;
       right: 2px;
-      border-radius: 5px;
+      border-radius: 2px;
       padding: 0 5px;
       transition: all .15s;
       z-index: 10;
