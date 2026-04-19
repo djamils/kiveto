@@ -295,5 +295,49 @@ final class AnimalDataStory extends Story
             ->active()
             ->create()
         ;
+
+        // ==========================================
+        // UI EDGE-CASE FIXTURES — PARIS (7 animaux)
+        // ==========================================
+        // Aurélie Chevalier owns 7 active animals.
+        // This ensures the "+N" overflow badge is always visible in the clients list
+        // (threshold: more than 4 active primary-owned animals).
+
+        // Seven active animals for Aurélie — mix of dogs and cats covering the "+N" badge threshold.
+        $aurelieAnimals = [
+            ['Pépère', 'dog', null, 'Beige'],
+            ['Filou', 'cat', null, 'Roux'],
+            ['Caramel', 'dog', 'Teckel', 'Marron'],
+            ['Noisette', 'cat', 'Européen', 'Tigré'],
+            ['Cannelle', 'dog', null, 'Fauve'],
+            ['Doudou', 'cat', 'Angora', 'Blanc'],
+            ['Bisou', 'cat', 'Ragdoll', 'Bicolore'],
+        ];
+
+        foreach ($aurelieAnimals as [$animalName, $species, $breed, $color]) {
+            $factory = AnimalEntityFactory::new()
+                ->withClinicId($parisClinicId)
+                ->withName($animalName)
+                ->withColor($color)
+                ->male()
+                ->neutered()
+                ->active()
+                ->alive()
+            ;
+
+            $factory = null !== $breed
+                ? $factory->withBreed($breed, \App\Context\Animal\Domain\ValueObject\Species::from($species))
+                : ('dog' === $species ? $factory->dog() : $factory->cat());
+
+            $aurelie = $factory->create();
+
+            OwnershipEntityFactory::new()
+                ->withAnimalId($aurelie->getId()->toString())
+                ->withClientId(ClientDataStory::CLIENT_AURELIE_ID)
+                ->primary()
+                ->active()
+                ->create()
+            ;
+        }
     }
 }

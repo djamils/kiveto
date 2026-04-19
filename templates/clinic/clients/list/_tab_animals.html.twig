@@ -22,10 +22,8 @@
           <th>Espèce</th>
           <th>Race</th>
           <th>Sexe</th>
-          {# Cross-BC columns rendered with "—" — pending enrichment spec. #}
           <th>Âge</th>
           <th>Propriétaire</th>
-          <th>Dernier RDV</th>
           <th>Statut</th>
           <th class="dg-th-actions"></th>
         </tr>
@@ -33,7 +31,7 @@
       <tbody>
         {% if animals is null or animals.items is empty %}
           <tr>
-            <td colspan="10" class="data-grid-empty">
+            <td colspan="9" class="data-grid-empty">
               {% if search %}
                 Aucun animal ne correspond à « {{ search }} ».
               {% else %}
@@ -62,9 +60,8 @@
               <td>{{ animal.species }}</td>
               <td>{{ animal.breedName|default('—') }}</td>
               <td>{{ animal.sex }}</td>
-              <td>—</td>
-              <td>—</td>
-              <td>—</td>
+              <td>{{ animal.ageLabel() ?? '—' }}</td>
+              <td>{{ animal.primaryOwnerClientId and ownerNamesByClientId[animal.primaryOwnerClientId] is defined ? ownerNamesByClientId[animal.primaryOwnerClientId] : '—' }}</td>
               <td>
                 <span class="badge {{ animal.status == 'active' ? 'b-ok' : 'b-grey' }}">
                   {{ animal.status == 'active' ? 'Actif' : 'Archivé' }}

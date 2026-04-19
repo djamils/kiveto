@@ -11,6 +11,7 @@ use App\Context\Animal\Application\Query\GetAnimalById\IdentificationDto;
 use App\Context\Animal\Application\Query\GetAnimalById\LifeCycleDto;
 use App\Context\Animal\Application\Query\GetAnimalById\OwnershipDto;
 use App\Context\Animal\Application\Query\GetAnimalById\TransferDto;
+use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
@@ -18,6 +19,7 @@ use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -95,6 +97,76 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         $this->applySearchCriteria($qb, $criteria);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function listAnimalSummariesByPrimaryOwnerClientIds(
+        ClinicId $clinicId,
+        array $clientIds,
+        int $limit,
+    ): array {
+        if ([] === $clientIds) {
+            return [];
+        }
+
+        $conn         = $this->entityManager->getConnection();
+        $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
+        $binaryIds    = array_map(
+            static fn (string $id) => Uuid::fromString($id)->toBinary(),
+            $clientIds,
+        );
+
+        $sql = '
+            SELECT BIN_TO_UUID(o.client_id) AS clientId,
+                   BIN_TO_UUID(a.id) AS animalId,
+                   a.name,
+                   a.species
+            FROM animal__ownerships o
+            JOIN animal__animals a ON a.id = o.animal_id
+            WHERE a.clinic_id = :clinicId
+              AND o.client_id IN (:clientIds)
+              AND o.role = :role
+              AND o.status = :ownershipStatus
+              AND a.status = :animalStatus
+            ORDER BY o.client_id, a.name ASC
+        ';
+
+        $rows = $conn->fetchAllAssociative(
+            $sql,
+            [
+                'clinicId'        => $clinicBinary,
+                'clientIds'       => $binaryIds,
+                'role'            => 'primary',
+                'ownershipStatus' => 'active',
+                'animalStatus'    => 'active',
+            ],
+            [
+                'clientIds' => ArrayParameterType::STRING,
+            ],
+        );
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            \assert(\is_string($row['clientId']));
+            \assert(\is_string($row['animalId']));
+            \assert(\is_string($row['name']));
+            \assert(\is_string($row['species']));
+
+            $clientId = $row['clientId'];
+
+            if (!isset($grouped[$clientId])) {
+                $grouped[$clientId] = [];
+            }
+
+            if (\count($grouped[$clientId]) < $limit) {
+                $grouped[$clientId][] = new AnimalSummary(
+                    id: $row['animalId'],
+                    name: $row['name'],
+                    species: $row['species'],
+                );
+            }
+        }
+
+        return $grouped;
     }
 
     private function applySearchCriteria(QueryBuilder $qb, SearchAnimalsCriteria $criteria): void

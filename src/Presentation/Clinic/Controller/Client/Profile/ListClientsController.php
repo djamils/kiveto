@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Client\Profile;
 
 use App\Context\Animal\Application\Query\CountAnimals\CountAnimals;
+use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\ListAnimalSummariesPerClientIds;
+use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimals;
 use App\Context\Client\Application\Query\CountClients\CountClients;
+use App\Context\Client\Application\Query\GetClientNamesByIds\GetClientNamesByIds;
+use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
@@ -50,10 +54,12 @@ final class ListClientsController extends AbstractController
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
-        $clientsView = null;
-        $animalsView = null;
-        $clientCount = 0;
-        $animalCount = 0;
+        $clientsView               = null;
+        $animalsView               = null;
+        $clientCount               = 0;
+        $animalCount               = 0;
+        $animalSummariesByClientId = [];
+        $ownerNamesByClientId      = [];
 
         if (self::TAB_CLIENTS === $tab) {
             $result = $this->queryBus->ask(new SearchClients(
@@ -71,6 +77,19 @@ final class ListClientsController extends AbstractController
                 searchTerm: $searchTerm,
             ));
             $animalCount = \is_int($rawAnimalCount) ? $rawAnimalCount : 0;
+
+            $clientPageIds = [];
+            foreach ($clientsView['items'] as $item) {
+                if ($item instanceof ClientListItemView) {
+                    $clientPageIds[] = $item->id;
+                }
+            }
+
+            $rawSummaries = $this->queryBus->ask(new ListAnimalSummariesPerClientIds(
+                clinicId: $currentClinicId->toString(),
+                clientIds: $clientPageIds,
+            ));
+            $animalSummariesByClientId = \is_array($rawSummaries) ? $rawSummaries : [];
         } else {
             $result = $this->queryBus->ask(new SearchAnimals(
                 clinicId: $currentClinicId->toString(),
@@ -87,22 +106,39 @@ final class ListClientsController extends AbstractController
                 searchTerm: $searchTerm,
             ));
             $clientCount = \is_int($rawClientCount) ? $rawClientCount : 0;
+
+            $ownerIds = [];
+            foreach ($animalsView['items'] as $item) {
+                if ($item instanceof AnimalListItemView && null !== $item->primaryOwnerClientId) {
+                    $ownerIds[] = $item->primaryOwnerClientId;
+                }
+            }
+
+            $ownerIds = array_values(array_unique($ownerIds));
+
+            $rawNames = $this->queryBus->ask(new GetClientNamesByIds(
+                clinicId: $currentClinicId->toString(),
+                clientIds: $ownerIds,
+            ));
+            $ownerNamesByClientId = \is_array($rawNames) ? $rawNames : [];
         }
 
         $createClientForm = $this->createForm(ClientFormType::class);
         $createAnimalForm = $this->createForm(AnimalFormType::class);
 
         return $this->render('clinic/clients/list/index.html.twig', [
-            'activeTab'         => $tab,
-            'search'            => $search,
-            'clients'           => $clientsView,
-            'animals'           => $animalsView,
-            'clientCount'       => $clientCount,
-            'animalCount'       => $animalCount,
-            'createClientForm'  => $createClientForm,
-            'createAnimalForm'  => $createAnimalForm,
-            'currentClinicId'   => $currentClinicId->toString(),
-            'currentClinicName' => $clinic->name,
+            'activeTab'                 => $tab,
+            'search'                    => $search,
+            'clients'                   => $clientsView,
+            'animals'                   => $animalsView,
+            'clientCount'               => $clientCount,
+            'animalCount'               => $animalCount,
+            'animalSummariesByClientId' => $animalSummariesByClientId,
+            'ownerNamesByClientId'      => $ownerNamesByClientId,
+            'createClientForm'          => $createClientForm,
+            'createAnimalForm'          => $createAnimalForm,
+            'currentClinicId'           => $currentClinicId->toString(),
+            'currentClinicName'         => $clinic->name,
         ]);
     }
 

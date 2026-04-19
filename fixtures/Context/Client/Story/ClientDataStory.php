@@ -23,6 +23,9 @@ final class ClientDataStory extends Story
     public const CLIENT_LAURENT_ID  = '01936e19-9999-7000-8000-000000000009';
     public const CLIENT_ISABELLE_ID = '01936e19-aaaa-7000-8000-00000000000a';
 
+    // UI edge-case fixture: client with many animals (triggers "+N" badge in the clients list)
+    public const CLIENT_AURELIE_ID = '01936e19-bbbb-7000-8000-00000000000b';
+
     public function build(): void
     {
         $parisClinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
@@ -171,6 +174,39 @@ final class ClientDataStory extends Story
             ->forClient($client5->getId()->toRfc4122())
             ->email('julien.bernard@protonmail.com')
             ->work()
+            ->primary()
+            ->create()
+        ;
+
+        // 6 (Paris). UI edge-case: client with many animals — triggers the "+N" overflow badge in the clients list.
+        //    Covers the "more than 4 animals" threshold for the animal-badge column.
+        $client6Paris = ClientEntityFactory::new()
+            ->withId(self::CLIENT_AURELIE_ID)
+            ->withClinicId($parisClinicId)
+            ->withName('Aurélie', 'Chevalier')
+            ->active()
+            ->withPostalAddress(
+                streetLine1: '3 Impasse du Moulin',
+                city: 'Versailles',
+                countryCode: 'FR',
+                postalCode: '78000',
+                region: 'Île-de-France',
+            )
+            ->create()
+        ;
+
+        ContactMethodEntityFactory::new()
+            ->forClient($client6Paris->getId()->toRfc4122())
+            ->mobile()
+            ->phone('+33 6 01 02 03 04')
+            ->primary()
+            ->create()
+        ;
+
+        ContactMethodEntityFactory::new()
+            ->forClient($client6Paris->getId()->toRfc4122())
+            ->email('aurelie.chevalier@example.com')
+            ->home()
             ->primary()
             ->create()
         ;

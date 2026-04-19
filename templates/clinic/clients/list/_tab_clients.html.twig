@@ -23,7 +23,6 @@
           <th class="col-email">Email</th>
           <th class="col-phone">Téléphone</th>
           <th class="col-animals">Animaux</th>
-          <th class="col-lastrdv">Dernier RDV</th>
           <th>Statut</th>
           <th class="dg-th-actions"></th>
         </tr>
@@ -31,7 +30,7 @@
       <tbody>
         {% if clients is null or clients.items is empty %}
           <tr>
-            <td colspan="8" class="data-grid-empty">
+            <td colspan="7" class="data-grid-empty">
               {% if search %}
                 Aucun client ne correspond à « {{ search }} ».
               {% else %}
@@ -61,9 +60,24 @@
               </td>
               <td class="col-email">{{ client.primaryEmail|default('—') }}</td>
               <td class="col-phone">{{ client.primaryPhone ? client.primaryPhone|phone_display(true) : '—' }}</td>
-              {# Cross-BC fallback — pending follow-up enrichment spec. #}
-              <td class="col-animals">—</td>
-              <td class="col-lastrdv">—</td>
+              <td class="col-animals">
+                {% set summaries = animalSummariesByClientId[client.id] ?? [] %}
+                {% if summaries is empty %}
+                  <span class="text-muted">—</span>
+                {% else %}
+                  {% set speciesClass = {'dog': 'b-dog', 'cat': 'b-cat', 'nac': 'b-feline', 'other': 'b-other'} %}
+                  <div class="dg-animal-badges">
+                    {% for animal in summaries|slice(0, 4) %}
+                      <a href="{{ path('clinic_animals_view', {id: animal.id}) }}"
+                         class="badge {{ speciesClass[animal.species] ?? 'b-grey' }}">{{ animal.name }}</a>
+                    {% endfor %}
+                    {% if summaries|length >= 5 %}
+                      <a href="{{ path('clinic_clients_view', {id: client.id}) }}"
+                         class="badge b-grey">+</a>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </td>
               <td>
                 <span class="badge {{ client.status == 'active' ? 'b-ok' : 'b-grey' }}">
                   {{ client.status == 'active' ? 'Actif' : 'Archivé' }}

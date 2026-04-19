@@ -96,7 +96,7 @@
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-md);
     line-height: 1.4;
   }
 

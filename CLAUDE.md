@@ -53,6 +53,8 @@ that drops a BC's coverage below 100% is rejected.
 
 ### 4. Git flow — GitHub Flow with no `staging` branch
 
+- **Never work directly on `master`.** Every change — however small — must
+  be on a dedicated branch. Direct commits to `master` are forbidden.
 - Branch off `master`. Branch names use `<type>/<slug>` where `<type>` is
   one of `feature`, `fix`, `hotfix`, `chore`. See `CONTRIBUTING.md` §2.
 - One branch = one logical change. No multi-purpose branches.
@@ -86,7 +88,21 @@ Cross-BC communication happens **only** through:
 Never `use` another BC's Domain or Infrastructure entities directly. If
 you need data from another BC, route it through a port.
 
-### 7. BMAD for planning
+### 7. Demo fixtures cover UI variations
+
+Fixture data must exercise the UI thresholds and states a user will encounter
+in production. Specifically:
+
+- **Thresholds**: empty lists, short lists, long lists that trigger truncation
+  or overflow badges (e.g. "+N").
+- **States**: active, archived/soft-deleted, pending — at least one example
+  of each state per major entity type.
+- **Diversity**: at least 2–3 realistic examples per main entity type.
+
+Edge cases driven by validation, race conditions, or error paths belong in
+unit/integration tests, **not** in fixtures.
+
+### 8. BMAD for planning
 
 For non-trivial work, use BMAD skills (`/bmad-*`) to plan before coding.
 Quick reference is in `CONTRIBUTING.md` §7. Typical chain:
@@ -115,7 +131,7 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 - Don't run `php bin/console asset-map:compile` — use `make assets`.
 - Don't bypass `make ci` "just for this one commit".
 - Don't commit a change that drops a BC's coverage below 100%.
-- Don't push directly to `master`.
+- Don't push directly to `master`. Don't work directly on `master`.
 - Don't create a `staging` branch.
 - Don't `use` another BC's internals — route through Application ports.
 - Don't write code comments in French.

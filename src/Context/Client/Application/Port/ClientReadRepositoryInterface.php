@@ -26,4 +26,11 @@ interface ClientReadRepositoryInterface
      * in one of their contact methods.
      */
     public function emailExistsInClinic(ClinicId $clinicId, string $email): bool;
+
+    /**
+     * @param list<string> $clientIds UUID strings
+     *
+     * @return array<string, string> clientId => fullName
+     */
+    public function findFullNamesByIds(ClinicId $clinicId, array $clientIds): array;
 }

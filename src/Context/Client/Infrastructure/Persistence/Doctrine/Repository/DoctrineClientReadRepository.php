@@ -14,6 +14,7 @@ use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -171,6 +172,48 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         \assert(is_numeric($count));
 
         return (int) $count;
+    }
+
+    public function findFullNamesByIds(ClinicId $clinicId, array $clientIds): array
+    {
+        if ([] === $clientIds) {
+            return [];
+        }
+
+        $conn         = $this->em->getConnection();
+        $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
+        $binaryIds    = array_map(
+            static fn (string $id) => Uuid::fromString($id)->toBinary(),
+            $clientIds,
+        );
+
+        $sql = '
+            SELECT BIN_TO_UUID(c.id) AS id, c.first_name AS firstName, c.last_name AS lastName
+            FROM client__clients c
+            WHERE c.clinic_id = :clinicId
+              AND c.id IN (:clientIds)
+        ';
+
+        $rows = $conn->fetchAllAssociative(
+            $sql,
+            [
+                'clinicId'  => $clinicBinary,
+                'clientIds' => $binaryIds,
+            ],
+            [
+                'clientIds' => ArrayParameterType::STRING,
+            ],
+        );
+
+        $result = [];
+        foreach ($rows as $row) {
+            \assert(\is_string($row['id']));
+            \assert(\is_string($row['firstName']));
+            \assert(\is_string($row['lastName']));
+            $result[$row['id']] = trim($row['firstName'] . ' ' . $row['lastName']);
+        }
+
+        return $result;
     }
 
     /**

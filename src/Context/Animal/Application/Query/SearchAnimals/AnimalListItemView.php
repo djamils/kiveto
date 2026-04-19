@@ -21,4 +21,30 @@ final readonly class AnimalListItemView
         public string $createdAt,
     ) {
     }
+
+    public function ageLabel(?\DateTimeImmutable $now = null): ?string
+    {
+        if (null === $this->birthDate) {
+            return null;
+        }
+
+        $birth = new \DateTimeImmutable($this->birthDate);
+        $now   = $now ?? new \DateTimeImmutable();
+        $diff  = $now->diff($birth);
+
+        if (0 === $diff->days) {
+            return '< 1 j';
+        }
+
+        if ($diff->y >= 2) {
+            return $diff->y . ' ans';
+        }
+
+        $months = $diff->y * 12 + $diff->m;
+        if ($months >= 1) {
+            return $months . ' mois';
+        }
+
+        return $diff->days . ' j';
+    }
 }
