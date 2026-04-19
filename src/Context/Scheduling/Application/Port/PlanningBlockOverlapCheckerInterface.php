@@ -12,7 +12,7 @@ interface PlanningBlockOverlapCheckerInterface
 {
     public function hasOverlap(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         string $date,
         string $startTime,
         string $endTime,

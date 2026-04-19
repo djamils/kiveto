@@ -38,7 +38,7 @@ final class CreatePlanningBlockController extends AbstractController
         try {
             $id = $this->commandBus->dispatch(new CreatePlanningBlock(
                 clinicId: $currentClinicId->toString(),
-                practitionerUserId: isset($data['vet']) && \is_string($data['vet']) ? $data['vet'] : '',
+                staffUserId: isset($data['vet']) && \is_string($data['vet']) ? $data['vet'] : '',
                 type: isset($data['type']) && \is_string($data['type']) ? $data['type'] : '',
                 date: isset($data['date']) && \is_string($data['date']) ? $data['date'] : '',
                 startTime: isset($data['start']) && \is_string($data['start']) ? $data['start'] : '',

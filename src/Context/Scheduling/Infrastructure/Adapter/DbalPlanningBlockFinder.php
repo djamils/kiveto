@@ -29,7 +29,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
 
     public function findActiveBlockFor(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         string $localDate,
         string $localStartTime,
         string $localEndTime,
@@ -38,7 +38,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
             SELECT *
             FROM scheduling__planning_blocks
             WHERE clinic_id = :clinicId
-              AND practitioner_user_id = :practitionerUserId
+              AND staff_user_id = :staffUserId
               AND date <= :localDate
               AND (
                   JSON_UNQUOTE(JSON_EXTRACT(recurrence_rule, '$.until')) IS NULL
@@ -47,9 +47,9 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
         SQL;
 
         $rows = $this->connection->fetchAllAssociative($sql, [
-            'clinicId'           => Uuid::fromString($clinicId->toString())->toBinary(),
-            'practitionerUserId' => Uuid::fromString($practitionerId->toString())->toBinary(),
-            'localDate'          => $localDate,
+            'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+            'staffUserId' => Uuid::fromString($staffUserId->toString())->toBinary(),
+            'localDate'   => $localDate,
         ]);
 
         foreach ($rows as $row) {
@@ -77,7 +77,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
                     ->setTimezone(new \DateTimeZone('UTC'))
                 ;
 
-                $count = $this->counter->countActiveInWindow($clinicId, $practitionerId, $startUtc, $endUtc);
+                $count = $this->counter->countActiveInWindow($clinicId, $staffUserId, $startUtc, $endUtc);
                 $type  = PlanningBlockType::from(RowAccessor::string($row, 'type'));
 
                 return new PlanningBlockReadModel(

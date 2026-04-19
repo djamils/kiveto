@@ -19,7 +19,7 @@ final class PlanningBlock extends AggregateRoot
 {
     private PlanningBlockId $id;
     private ClinicId $clinicId;
-    private UserId $practitionerId;
+    private UserId $staffUserId;
     private PlanningBlockType $type;
     private TimeRange $timeRange;
     private int $capacityPerHour;
@@ -33,7 +33,7 @@ final class PlanningBlock extends AggregateRoot
     public static function create(
         PlanningBlockId $id,
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         PlanningBlockType $type,
         TimeRange $timeRange,
         int $capacityPerHour,
@@ -43,7 +43,7 @@ final class PlanningBlock extends AggregateRoot
         $block                  = new self();
         $block->id              = $id;
         $block->clinicId        = $clinicId;
-        $block->practitionerId  = $practitionerId;
+        $block->staffUserId     = $staffUserId;
         $block->type            = $type;
         $block->timeRange       = $timeRange;
         $block->capacityPerHour = $capacityPerHour;
@@ -53,7 +53,7 @@ final class PlanningBlock extends AggregateRoot
         $block->recordDomainEvent(new PlanningBlockCreated(
             planningBlockId: $id->toString(),
             clinicId: $clinicId->toString(),
-            practitionerUserId: $practitionerId->toString(),
+            staffUserId: $staffUserId->toString(),
             type: $type->value,
             date: $timeRange->date(),
             startTime: $timeRange->startTime(),
@@ -70,7 +70,7 @@ final class PlanningBlock extends AggregateRoot
     public static function reconstitute(
         PlanningBlockId $id,
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         PlanningBlockType $type,
         TimeRange $timeRange,
         int $capacityPerHour,
@@ -80,7 +80,7 @@ final class PlanningBlock extends AggregateRoot
         $block                  = new self();
         $block->id              = $id;
         $block->clinicId        = $clinicId;
-        $block->practitionerId  = $practitionerId;
+        $block->staffUserId     = $staffUserId;
         $block->type            = $type;
         $block->timeRange       = $timeRange;
         $block->capacityPerHour = $capacityPerHour;
@@ -106,7 +106,7 @@ final class PlanningBlock extends AggregateRoot
         $this->recordDomainEvent(new PlanningBlockUpdated(
             planningBlockId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
-            practitionerUserId: $this->practitionerId->toString(),
+            staffUserId: $this->staffUserId->toString(),
             type: $newType->value,
             date: $newRange->date(),
             startTime: $newRange->startTime(),
@@ -136,9 +136,9 @@ final class PlanningBlock extends AggregateRoot
         return $this->clinicId;
     }
 
-    public function practitionerId(): UserId
+    public function staffUserId(): UserId
     {
-        return $this->practitionerId;
+        return $this->staffUserId;
     }
 
     public function type(): PlanningBlockType

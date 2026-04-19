@@ -20,7 +20,7 @@ final class PlanningBlockMapper
         return PlanningBlock::reconstitute(
             id: PlanningBlockId::fromString($entity->getId()->toRfc4122()),
             clinicId: ClinicId::fromString($entity->getClinicId()->toRfc4122()),
-            practitionerId: UserId::fromString($entity->getPractitionerUserId()->toRfc4122()),
+            staffUserId: UserId::fromString($entity->getStaffUserId()->toRfc4122()),
             type: $entity->getType(),
             timeRange: new TimeRange($entity->getDate(), $entity->getStartTime(), $entity->getEndTime()),
             capacityPerHour: $entity->getCapacityPerHour(),
@@ -35,7 +35,7 @@ final class PlanningBlockMapper
         $entity = new PlanningBlockEntity();
         $entity->setId(Uuid::fromString($block->id()->toString()));
         $entity->setClinicId(Uuid::fromString($block->clinicId()->toString()));
-        $entity->setPractitionerUserId(Uuid::fromString($block->practitionerId()->toString()));
+        $entity->setStaffUserId(Uuid::fromString($block->staffUserId()->toString()));
         $entity->setType($block->type());
         $entity->setDate($block->timeRange()->date());
         $entity->setStartTime($block->timeRange()->startTime());

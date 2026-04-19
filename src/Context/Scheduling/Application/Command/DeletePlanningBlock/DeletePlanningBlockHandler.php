@@ -37,7 +37,7 @@ final readonly class DeletePlanningBlockHandler
         $startUtc = $block->timeRange()->toUtcStart($tz);
         $endUtc   = $block->timeRange()->toUtcEnd($tz);
 
-        $count = $this->appointmentCounter->countActiveInWindow($clinicId, $block->practitionerId(), $startUtc, $endUtc);
+        $count = $this->appointmentCounter->countActiveInWindow($clinicId, $block->staffUserId(), $startUtc, $endUtc);
 
         if ($count > 0) {
             throw new CannotDeletePlanningBlockWithAppointments(

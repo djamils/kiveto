@@ -121,7 +121,7 @@ final class SchedulingPlanningBlockStory extends Story
     private function createBlock(
         string $id,
         string $clinicId,
-        string $practitionerUserId,
+        string $staffUserId,
         PlanningBlockType $type,
         string $date,
         string $startTime,
@@ -133,7 +133,7 @@ final class SchedulingPlanningBlockStory extends Story
         $block = PlanningBlock::create(
             id: PlanningBlockId::fromString($id),
             clinicId: ClinicId::fromString($clinicId),
-            practitionerId: UserId::fromString($practitionerUserId),
+            staffUserId: UserId::fromString($staffUserId),
             type: $type,
             timeRange: new TimeRange($date, $startTime, $endTime),
             capacityPerHour: $capacityPerHour,

@@ -20,7 +20,7 @@ final readonly class DbalPlanningBlockOverlapChecker implements PlanningBlockOve
 
     public function hasOverlap(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         string $date,
         string $startTime,
         string $endTime,
@@ -30,18 +30,18 @@ final readonly class DbalPlanningBlockOverlapChecker implements PlanningBlockOve
             SELECT COUNT(*) as cnt
             FROM scheduling__planning_blocks
             WHERE clinic_id = :clinicId
-              AND practitioner_user_id = :practitionerUserId
+              AND staff_user_id = :staffUserId
               AND date = :date
               AND start_time < :endTime
               AND end_time > :startTime
         SQL;
 
         $params = [
-            'clinicId'           => Uuid::fromString($clinicId->toString())->toBinary(),
-            'practitionerUserId' => Uuid::fromString($practitionerId->toString())->toBinary(),
-            'date'               => $date,
-            'startTime'          => $startTime,
-            'endTime'            => $endTime,
+            'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+            'staffUserId' => Uuid::fromString($staffUserId->toString())->toBinary(),
+            'date'        => $date,
+            'startTime'   => $startTime,
+            'endTime'     => $endTime,
         ];
 
         if (null !== $excludeId) {

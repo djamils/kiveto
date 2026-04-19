@@ -11,7 +11,7 @@ final readonly class UpdatePlanningBlock implements CommandInterface
     public function __construct(
         public string $blockId,
         public string $clinicId,
-        public string $practitionerUserId,
+        public string $staffUserId,
         public string $type,
         public string $date,
         public string $startTime,

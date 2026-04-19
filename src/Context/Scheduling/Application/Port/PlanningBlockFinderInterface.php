@@ -11,7 +11,7 @@ interface PlanningBlockFinderInterface
 {
     public function findActiveBlockFor(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         string $localDate,
         string $localStartTime,
         string $localEndTime,

@@ -90,7 +90,7 @@ final readonly class GetAgendaForClinicDateRangeHandler
             <<<'SQL'
                 SELECT *,
                        LOWER(BIN_TO_UUID(id)) as id_str,
-                       LOWER(BIN_TO_UUID(practitioner_user_id)) as pract_str
+                       LOWER(BIN_TO_UUID(staff_user_id)) as staff_str
                 FROM scheduling__planning_blocks
                 WHERE clinic_id = :clinicId
                   AND date <= :toDate
@@ -115,7 +115,7 @@ final readonly class GetAgendaForClinicDateRangeHandler
             $type        = PlanningBlockType::from(RowAccessor::string($row, 'type'));
             $startTime   = RowAccessor::string($row, 'start_time');
             $endTime     = RowAccessor::string($row, 'end_time');
-            $practStr    = RowAccessor::string($row, 'pract_str');
+            $staffStr    = RowAccessor::string($row, 'staff_str');
 
             foreach ($occurrences as $occDate) {
                 $blockUtcStart = (new \DateTimeImmutable($occDate . ' ' . $startTime, $clinicTz))
@@ -125,7 +125,7 @@ final readonly class GetAgendaForClinicDateRangeHandler
                     ->setTimezone(new \DateTimeZone('UTC'))
                 ;
                 $blockWindows[] = [
-                    'vet'   => $practStr,
+                    'vet'   => $staffStr,
                     'start' => $blockUtcStart,
                     'end'   => $blockUtcEnd,
                     'type'  => $type,

@@ -12,7 +12,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity]
 #[ORM\Table(name: 'scheduling__planning_blocks')]
 #[ORM\Index(name: 'idx_pb_clinic_date', columns: ['clinic_id', 'date'])]
-#[ORM\Index(name: 'idx_pb_clinic_pract', columns: ['clinic_id', 'practitioner_user_id', 'date'])]
+#[ORM\Index(name: 'idx_pb_clinic_staff', columns: ['clinic_id', 'staff_user_id', 'date'])]
 class PlanningBlockEntity
 {
     #[ORM\Id]
@@ -22,8 +22,8 @@ class PlanningBlockEntity
     #[ORM\Column(name: 'clinic_id', type: UuidType::NAME)]
     private Uuid $clinicId;
 
-    #[ORM\Column(name: 'practitioner_user_id', type: UuidType::NAME)]
-    private Uuid $practitionerUserId;
+    #[ORM\Column(name: 'staff_user_id', type: UuidType::NAME)]
+    private Uuid $staffUserId;
 
     #[ORM\Column(type: 'string', length: 50, enumType: PlanningBlockType::class)]
     private PlanningBlockType $type;
@@ -75,14 +75,14 @@ class PlanningBlockEntity
         $this->clinicId = $clinicId;
     }
 
-    public function getPractitionerUserId(): Uuid
+    public function getStaffUserId(): Uuid
     {
-        return $this->practitionerUserId;
+        return $this->staffUserId;
     }
 
-    public function setPractitionerUserId(Uuid $practitionerUserId): void
+    public function setStaffUserId(Uuid $staffUserId): void
     {
-        $this->practitionerUserId = $practitionerUserId;
+        $this->staffUserId = $staffUserId;
     }
 
     public function getType(): PlanningBlockType

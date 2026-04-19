@@ -33,7 +33,7 @@ final class PlanningBlockTest extends TestCase
         $block = PlanningBlock::reconstitute(
             id: PlanningBlockId::fromString('11111111-1111-1111-1111-111111111111'),
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
-            practitionerId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
+            staffUserId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
             type: PlanningBlockType::CONSULTATION,
             timeRange: new TimeRange('2026-04-21', '08:00', '12:00'),
             capacityPerHour: 3,
@@ -80,7 +80,7 @@ final class PlanningBlockTest extends TestCase
 
         self::assertSame('11111111-1111-1111-1111-111111111111', $block->id()->toString());
         self::assertSame('22222222-2222-2222-2222-222222222222', $block->clinicId()->toString());
-        self::assertSame('33333333-3333-3333-3333-333333333333', $block->practitionerId()->toString());
+        self::assertSame('33333333-3333-3333-3333-333333333333', $block->staffUserId()->toString());
         self::assertSame(PlanningBlockType::CONSULTATION, $block->type());
         self::assertSame(3, $block->capacityPerHour());
         self::assertSame('Test note', $block->note());
@@ -91,7 +91,7 @@ final class PlanningBlockTest extends TestCase
         return PlanningBlock::create(
             id: PlanningBlockId::fromString('11111111-1111-1111-1111-111111111111'),
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
-            practitionerId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
+            staffUserId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
             type: PlanningBlockType::CONSULTATION,
             timeRange: new TimeRange('2026-04-21', '08:00', '12:00'),
             capacityPerHour: 3,

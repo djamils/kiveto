@@ -29,15 +29,15 @@ final readonly class CreatePlanningBlockHandler
 
     public function __invoke(CreatePlanningBlock $command): string
     {
-        $clinicId       = ClinicId::fromString($command->clinicId);
-        $practitionerId = UserId::fromString($command->practitionerUserId);
-        $type           = PlanningBlockType::from($command->type);
-        $timeRange      = new TimeRange($command->date, $command->startTime, $command->endTime);
-        $rule           = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
+        $clinicId    = ClinicId::fromString($command->clinicId);
+        $staffUserId = UserId::fromString($command->staffUserId);
+        $type        = PlanningBlockType::from($command->type);
+        $timeRange   = new TimeRange($command->date, $command->startTime, $command->endTime);
+        $rule        = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
 
         $hasOverlap = $this->overlapChecker->hasOverlap(
             $clinicId,
-            $practitionerId,
+            $staffUserId,
             $command->date,
             $command->startTime,
             $command->endTime,
@@ -45,8 +45,8 @@ final readonly class CreatePlanningBlockHandler
 
         if ($hasOverlap) {
             throw new CannotCreateOverlappingPlanningBlock(\sprintf(
-                'Planning block overlaps with an existing block for practitioner "%s" on %s.',
-                $command->practitionerUserId,
+                'Planning block overlaps with an existing block for staff member "%s" on %s.',
+                $command->staffUserId,
                 $command->date,
             ));
         }
@@ -55,7 +55,7 @@ final readonly class CreatePlanningBlockHandler
         $block = PlanningBlock::create(
             id: $id,
             clinicId: $clinicId,
-            practitionerId: $practitionerId,
+            staffUserId: $staffUserId,
             type: $type,
             timeRange: $timeRange,
             capacityPerHour: $command->capacityPerHour,

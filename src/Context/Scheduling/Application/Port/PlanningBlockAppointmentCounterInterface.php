@@ -11,7 +11,7 @@ interface PlanningBlockAppointmentCounterInterface
 {
     public function countActiveInWindow(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         \DateTimeImmutable $windowStartUtc,
         \DateTimeImmutable $windowEndUtc,
     ): int;

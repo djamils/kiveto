@@ -41,15 +41,15 @@ final readonly class UpdatePlanningBlockHandler
             throw new PlanningBlockNotFoundException(\sprintf('PlanningBlock "%s" not found.', $command->blockId));
         }
 
-        $clinicId       = ClinicId::fromString($command->clinicId);
-        $practitionerId = UserId::fromString($command->practitionerUserId);
-        $newType        = PlanningBlockType::from($command->type);
-        $newRange       = new TimeRange($command->date, $command->startTime, $command->endTime);
-        $newRule        = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
+        $clinicId    = ClinicId::fromString($command->clinicId);
+        $staffUserId = UserId::fromString($command->staffUserId);
+        $newType     = PlanningBlockType::from($command->type);
+        $newRange    = new TimeRange($command->date, $command->startTime, $command->endTime);
+        $newRule     = $this->buildRecurrenceRule($command->recurrenceFreq, $command->recurrenceUntil);
 
         $this->overlapChecker->hasOverlap(
             $clinicId,
-            $practitionerId,
+            $staffUserId,
             $command->date,
             $command->startTime,
             $command->endTime,
@@ -60,7 +60,7 @@ final readonly class UpdatePlanningBlockHandler
         $startUtc = $newRange->toUtcStart($tz);
         $endUtc   = $newRange->toUtcEnd($tz);
 
-        $count = $this->appointmentCounter->countActiveInWindow($clinicId, $practitionerId, $startUtc, $endUtc);
+        $count = $this->appointmentCounter->countActiveInWindow($clinicId, $staffUserId, $startUtc, $endUtc);
 
         // D.4 — recurrence rule immutable once set
         if ($newRule->freq() !== $block->recurrenceRule()->freq() || $newRule->until() !== $block->recurrenceRule()->until()) {
@@ -76,12 +76,12 @@ final readonly class UpdatePlanningBlockHandler
             );
         }
 
-        // D.2/D.5 — window shrunk or practitioner changed with active appointments
-        $rangeChanged        = !$newRange->equals($block->timeRange());
-        $practitionerChanged = !$practitionerId->equals($block->practitionerId());
-        if (($rangeChanged || $practitionerChanged) && $count > 0) {
+        // D.2/D.5 — window shrunk or staff member changed with active appointments
+        $rangeChanged = !$newRange->equals($block->timeRange());
+        $staffChanged = !$staffUserId->equals($block->staffUserId());
+        if (($rangeChanged || $staffChanged) && $count > 0) {
             throw new CannotShrinkPlanningBlockBelowExistingAppointments(
-                'Cannot shrink block window or change practitioner while appointments exist in this window.'
+                'Cannot shrink block window or change staff member while appointments exist in this window.'
             );
         }
 

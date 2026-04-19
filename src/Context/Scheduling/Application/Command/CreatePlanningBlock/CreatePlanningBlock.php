@@ -10,7 +10,7 @@ final readonly class CreatePlanningBlock implements CommandInterface
 {
     public function __construct(
         public string $clinicId,
-        public string $practitionerUserId,
+        public string $staffUserId,
         public string $type,
         public string $date,
         public string $startTime,

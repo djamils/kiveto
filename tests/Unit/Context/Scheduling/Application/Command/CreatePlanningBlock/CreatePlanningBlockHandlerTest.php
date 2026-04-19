@@ -48,7 +48,7 @@ final class CreatePlanningBlockHandlerTest extends TestCase
 
         $id = ($this->handler)(new CreatePlanningBlock(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            practitionerUserId: '22222222-2222-2222-2222-222222222222',
+            staffUserId: '22222222-2222-2222-2222-222222222222',
             type: 'consultation',
             date: '2026-04-21',
             startTime: '08:00',
@@ -71,7 +71,7 @@ final class CreatePlanningBlockHandlerTest extends TestCase
 
         ($this->handler)(new CreatePlanningBlock(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            practitionerUserId: '22222222-2222-2222-2222-222222222222',
+            staffUserId: '22222222-2222-2222-2222-222222222222',
             type: 'consultation',
             date: '2026-04-21',
             startTime: '08:00',
@@ -90,7 +90,7 @@ final class CreatePlanningBlockHandlerTest extends TestCase
 
         ($this->handler)(new CreatePlanningBlock(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            practitionerUserId: '22222222-2222-2222-2222-222222222222',
+            staffUserId: '22222222-2222-2222-2222-222222222222',
             type: 'consultation',
             date: '2026-04-21',
             startTime: '12:00',

@@ -19,7 +19,7 @@ final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBloc
 
     public function countActiveInWindow(
         ClinicId $clinicId,
-        UserId $practitionerId,
+        UserId $staffUserId,
         \DateTimeImmutable $windowStartUtc,
         \DateTimeImmutable $windowEndUtc,
     ): int {
@@ -27,17 +27,17 @@ final readonly class DbalPlanningBlockAppointmentCounter implements PlanningBloc
             SELECT COUNT(*) as cnt
             FROM scheduling__appointments
             WHERE clinic_id = :clinicId
-              AND practitioner_user_id = :practitionerUserId
+              AND practitioner_user_id = :staffUserId
               AND status = 'PLANNED'
               AND starts_at_utc < :windowEndUtc
               AND DATE_ADD(starts_at_utc, INTERVAL duration_minutes MINUTE) > :windowStartUtc
         SQL;
 
         $result = $this->connection->fetchAssociative($sql, [
-            'clinicId'           => Uuid::fromString($clinicId->toString())->toBinary(),
-            'practitionerUserId' => Uuid::fromString($practitionerId->toString())->toBinary(),
-            'windowStartUtc'     => $windowStartUtc->format('Y-m-d H:i:s'),
-            'windowEndUtc'       => $windowEndUtc->format('Y-m-d H:i:s'),
+            'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+            'staffUserId'    => Uuid::fromString($staffUserId->toString())->toBinary(),
+            'windowStartUtc' => $windowStartUtc->format('Y-m-d H:i:s'),
+            'windowEndUtc'   => $windowEndUtc->format('Y-m-d H:i:s'),
         ]);
 
         if (false === $result) {

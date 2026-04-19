@@ -109,7 +109,7 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         return PlanningBlock::reconstitute(
             id: PlanningBlockId::fromString('11111111-1111-1111-1111-111111111111'),
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
-            practitionerId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
+            staffUserId: UserId::fromString('33333333-3333-3333-3333-333333333333'),
             type: PlanningBlockType::CONSULTATION,
             timeRange: new TimeRange('2026-04-21', '08:00', '12:00'),
             capacityPerHour: 3,
@@ -126,7 +126,7 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         return new UpdatePlanningBlock(
             blockId: '11111111-1111-1111-1111-111111111111',
             clinicId: '22222222-2222-2222-2222-222222222222',
-            practitionerUserId: '33333333-3333-3333-3333-333333333333',
+            staffUserId: '33333333-3333-3333-3333-333333333333',
             type: \is_string($overrides['type'] ?? null) ? $overrides['type'] : 'consultation',
             date: \is_string($overrides['date'] ?? null) ? $overrides['date'] : '2026-04-21',
             startTime: \is_string($overrides['startTime'] ?? null) ? $overrides['startTime'] : '08:00',

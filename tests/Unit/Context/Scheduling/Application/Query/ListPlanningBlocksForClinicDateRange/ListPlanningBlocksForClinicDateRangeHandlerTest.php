@@ -96,7 +96,7 @@ final class ListPlanningBlocksForClinicDateRangeHandlerTest extends TestCase
     {
         $row1              = $this->row('2026-04-22');
         $row2              = $this->row('2026-04-21');
-        $row2['pract_str'] = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+        $row2['staff_str'] = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
         $this->connection->method('fetchAllAssociative')->willReturn([$row1, $row2]);
 
@@ -119,7 +119,7 @@ final class ListPlanningBlocksForClinicDateRangeHandlerTest extends TestCase
         return [
             'id_str'            => '11111111-1111-1111-1111-111111111111',
             'clinic_str'        => '22222222-2222-2222-2222-222222222222',
-            'pract_str'         => '33333333-3333-3333-3333-333333333333',
+            'staff_str'         => '33333333-3333-3333-3333-333333333333',
             'type'              => $type,
             'date'              => $date,
             'start_time'        => '08:00',

@@ -30,7 +30,7 @@ final readonly class ListPlanningBlocksForClinicDateRangeHandler
             SELECT *,
                    LOWER(BIN_TO_UUID(id)) AS id_str,
                    LOWER(BIN_TO_UUID(clinic_id)) AS clinic_str,
-                   LOWER(BIN_TO_UUID(practitioner_user_id)) AS pract_str
+                   LOWER(BIN_TO_UUID(staff_user_id)) AS staff_str
             FROM scheduling__planning_blocks
             WHERE clinic_id = :clinicId
               AND date <= :toDate
@@ -59,7 +59,7 @@ final readonly class ListPlanningBlocksForClinicDateRangeHandler
                 $views[] = new PlanningBlockView(
                     id: RowAccessor::string($row, 'id_str'),
                     clinicId: RowAccessor::string($row, 'clinic_str'),
-                    practitionerUserId: RowAccessor::string($row, 'pract_str'),
+                    staffUserId: RowAccessor::string($row, 'staff_str'),
                     type: $type->value,
                     date: $occDate,
                     startTime: RowAccessor::string($row, 'start_time'),
@@ -77,7 +77,7 @@ final readonly class ListPlanningBlocksForClinicDateRangeHandler
         usort($views, static function (PlanningBlockView $a, PlanningBlockView $b): int {
             return $a->date <=> $b->date
                 ?: $a->startTime <=> $b->startTime
-                ?: $a->practitionerUserId <=> $b->practitionerUserId;
+                ?: $a->staffUserId <=> $b->staffUserId;
         });
 
         return $views;

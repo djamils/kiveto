@@ -68,7 +68,7 @@ final class PlanningController extends AbstractController
 
             return [
                 'id'         => $b->id,
-                'vet'        => $b->practitionerUserId,
+                'vet'        => $b->staffUserId,
                 'date'       => $b->date,
                 'start'      => $b->startTime,
                 'end'        => $b->endTime,
