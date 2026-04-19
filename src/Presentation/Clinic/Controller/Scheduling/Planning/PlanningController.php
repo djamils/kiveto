@@ -89,9 +89,10 @@ final class PlanningController extends AbstractController
         foreach ($veterinarians as $vet) {
             \assert($vet instanceof ClinicVeterinarianItem);
             if (null !== $vet->displayName) {
-                $practitionersByUserId[$vet->userId] = $vet;
+                $lowerUserId                         = strtolower($vet->userId);
+                $practitionersByUserId[$lowerUserId] = $vet;
                 $color                               = $vet->agendaColor ?? '#64748b';
-                $vetsJs[$vet->userId]                = [
+                $vetsJs[$lowerUserId]                = [
                     'name'  => $vet->displayName,
                     'color' => $color,
                     'bg'    => $color . '1a',

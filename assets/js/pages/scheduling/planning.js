@@ -3,14 +3,16 @@
  * Loaded by app.js dispatcher on turbo:load.
  */
 
-// =============== DATA ===============
-const _shell     = document.querySelector('.scheduling-shell');
-const VETS       = JSON.parse(_shell?.dataset.vets ?? '{}');
-const CLINIC_ID  = _shell?.dataset.clinicId ?? '';
-const CLINIC_TZ  = _shell?.dataset.clinicTz ?? 'UTC';
-const CREATE_URL = _shell?.dataset.createUrl ?? '';
-const UPDATE_URL_TPL = _shell?.dataset.updateUrlTemplate ?? '';
-const DELETE_URL_TPL = _shell?.dataset.deleteUrlTemplate ?? '';
+// =============== DATA (re-read from DOM on every init) ===============
+// Shell-derived values are mutable so init() can refresh them after Turbo navigation.
+let VETS         = {};
+let CLINIC_ID    = '';
+let CLINIC_TZ    = 'UTC';
+let CREATE_URL   = '';
+let UPDATE_URL_TPL = '';
+let DELETE_URL_TPL = '';
+let blocks       = [];
+let nextId       = 1;
 
 const ACTIVITY_TYPES = [
   { id:'consultation', label:'Consultation',  color:'#4338ca', bg:'#eef2ff',  icon:'🩺', cap:3 },
@@ -23,20 +25,15 @@ const ACTIVITY_TYPES = [
   { id:'urgence',      label:'Urgences',       color:'#ea580c', bg:'#fff7ed',  icon:'🚨', cap:5 },
 ];
 
-// Keys already match JS internals: {id, vet, date, start, end, type, capacity, note, recurrence}
-let blocks   = JSON.parse(_shell?.dataset.planningBlocks ?? '[]');
-let nextId   = blocks.length ? Math.max(...blocks.map(b => typeof b.id === 'number' ? b.id : 0)) + 1 : 1;
-
 // =============== STATE ===============
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DOW_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-const _todayStr = _shell?.dataset.today ?? new Date().toISOString().slice(0, 10);
-let today = new Date(_todayStr + 'T00:00:00');
-let currentDate = new Date(_todayStr + 'T00:00:00');
-let currentView = 'day';
-let miniCalDate = new Date(today.getFullYear(), today.getMonth(), 1);
-let activeVets = new Set(Object.keys(VETS));
+let today    = new Date();
+let currentDate = new Date();
+let currentView = 'week';
+let miniCalDate = new Date();
+let activeVets = new Set();
 let editingBlockId = null;
 let selectedActivityType = 'consultation';
 let dragState = null; // { vetKey, dateStr, startMin }
@@ -95,17 +92,26 @@ function toggleVet(el, vet){
 }
 
 // =============== VIEW ===============
-function setView(v){
-  currentView = v;
-  ['day','week','month'].forEach(x=>{
-    document.getElementById('view-'+x+'-btn').classList.toggle('is-active', x===v);
-  });
-  renderPlanning();
-  renderMiniCal();
+function _planningUrl(dateStr, view){
+  return window.location.pathname + '?date=' + dateStr + '&view=' + view;
 }
-function prevPeriod(){ currentDate = addDays(currentDate, currentView==='week'?-7:currentView==='month'?-30:-1); renderPlanning(); renderMiniCal(); }
-function nextPeriod(){ currentDate = addDays(currentDate, currentView==='week'?7:currentView==='month'?30:1); renderPlanning(); renderMiniCal(); }
-function goToday(){ currentDate=new Date(today); renderPlanning(); renderMiniCal(); }
+function _navigate(url){
+  window.location.href = url;
+}
+function setView(v){
+  _navigate(_planningUrl(fmtDate(currentDate), v));
+}
+function prevPeriod(){
+  const delta = currentView==='week' ? -7 : currentView==='month' ? -30 : -1;
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView));
+}
+function nextPeriod(){
+  const delta = currentView==='week' ? 7 : currentView==='month' ? 30 : 1;
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView));
+}
+function goToday(){
+  _navigate(window.location.pathname + '?view=' + currentView);
+}
 
 // =============== RENDER ===============
 function renderPlanning(){
@@ -605,16 +611,39 @@ window.dragCancel = dragCancel;
 
 // =============== INIT / CLEANUP ===============
 export function init() {
-  // Default to week view on tablet, day on mobile
-  if(window.innerWidth <= 640){ currentView='day'; }
-  else if(window.innerWidth <= 1024){ currentView='week'; }
-  // Only render if the planning grid is empty (skip when restored from Turbo cache)
-  var planningGrid = document.getElementById('planning-wrap');
-  if (!planningGrid || !planningGrid.children.length) {
-    renderLegend();
-    renderPlanning();
-    setTimeout(syncCalendarFromState, 0);
+  // Re-read all shell data on every init (Turbo replaces DOM but not module state)
+  var shell = document.querySelector('.scheduling-shell');
+  if (shell) {
+    VETS           = JSON.parse(shell.dataset.vets ?? '{}');
+    CLINIC_ID      = shell.dataset.clinicId ?? '';
+    CLINIC_TZ      = shell.dataset.clinicTz ?? 'UTC';
+    CREATE_URL     = shell.dataset.createUrl ?? '';
+    UPDATE_URL_TPL = shell.dataset.updateUrlTemplate ?? '';
+    DELETE_URL_TPL = shell.dataset.deleteUrlTemplate ?? '';
+    blocks         = JSON.parse(shell.dataset.planningBlocks ?? '[]');
+    nextId         = blocks.length ? Math.max(...blocks.map(function(b){ return typeof b.id === 'number' ? b.id : 0; })) + 1 : 1;
+    var todayStr   = shell.dataset.today ?? new Date().toISOString().slice(0, 10);
+    today          = new Date(todayStr + 'T00:00:00');
+    currentDate    = new Date(todayStr + 'T00:00:00');
+    miniCalDate    = new Date(today.getFullYear(), today.getMonth(), 1);
+    activeVets     = new Set(Object.keys(VETS));
   }
+
+  // Restore view from URL (?view=day|week|month), fall back to screen-size default
+  var _urlView = new URLSearchParams(window.location.search).get('view');
+  if(_urlView === 'day' || _urlView === 'week' || _urlView === 'month'){
+    currentView = _urlView;
+  } else {
+    currentView = 'day';
+  }
+  // Sync view toggle buttons
+  ['day','week','month'].forEach(function(x){
+    var btn = document.getElementById('view-'+x+'-btn');
+    if(btn) btn.classList.toggle('is-active', x===currentView);
+  });
+  renderLegend();
+  renderPlanning();
+  setTimeout(syncCalendarFromState, 0);
 
   // Click outside preview — clear all previews
   _mousedownHandler = function(e){
@@ -630,11 +659,8 @@ export function init() {
   // Wire UI kit calendar → planning navigation
   _calendarSelectHandler = function(e){
     var iso = e && e.detail && e.detail.date;
-    if(!iso) return;
-    var parts = iso.split('-').map(Number);
-    currentDate = new Date(parts[0], parts[1]-1, parts[2]);
-    if(currentView === 'month') setView('day');
-    else renderPlanning();
+    if(!iso || typeof iso !== 'string') return;
+    _navigate(_planningUrl(iso, currentView));
   };
   document.addEventListener('calendar:select', _calendarSelectHandler);
 

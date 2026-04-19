@@ -29,7 +29,7 @@
   data-vets="{{ vetsJs|json_encode }}"
   data-clinic-id="{{ currentClinicId }}"
   data-clinic-tz="{{ clinicTimezone }}"
-  data-today="{{ selectedDate|date('Y-m-d') }}"
+  data-today="{{ selectedDate|date('Y-m-d', clinicTimezone) }}"
   data-create-url="{{ path('clinic_planning_block_create') }}"
   data-update-url-template="{{ path('clinic_planning_block_update', {id: '__ID__'}) }}"
   data-delete-url-template="{{ path('clinic_planning_block_delete', {id: '__ID__'}) }}"
@@ -38,7 +38,7 @@
   {# ── CONTEXTUAL ASIDE ── #}
   {{ include('clinic/scheduling/_scheduling_aside.html.twig', {
     page: 'planning',
-    selected_date: selectedDate|date('Y-m-d'),
+    selected_date: selectedDate|date('Y-m-d', clinicTimezone),
     week_highlight: false,
     veterinarians: veterinarians,
     currentUserId: currentUserId,
