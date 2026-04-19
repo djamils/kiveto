@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Scheduling\Planning;
 
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
@@ -77,6 +78,14 @@ final class AgendaController extends AbstractController
         );
         \assert(\is_array($veterinarians));
 
+        $practitionersByUserId = [];
+        foreach ($veterinarians as $vet) {
+            \assert($vet instanceof ClinicVeterinarianItem);
+            if (null !== $vet->displayName) {
+                $practitionersByUserId[$vet->userId] = $vet;
+            }
+        }
+
         $waitingRoomEntries = $this->queryBus->ask(new ListWaitingRoom(
             clinicId: $currentClinicId->toString(),
         ));
@@ -112,6 +121,7 @@ final class AgendaController extends AbstractController
         return $this->render('clinic/scheduling/agenda/index.html.twig', [
             'appointments'             => $appointments,
             'veterinarians'            => $veterinarians,
+            'practitionersByUserId'    => $practitionersByUserId,
             'waitingRoomEntries'       => $waitingRoomEntries,
             'selectedDate'             => $selectedDate,
             'view'                     => $viewParam,
