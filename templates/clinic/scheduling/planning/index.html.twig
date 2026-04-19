@@ -54,13 +54,17 @@
       </button>
 
       <div class="scheduling-page-header-nav">
-        <button class="btn btn-secondary btn-xs" onclick="prevPeriod()" aria-label="Précédent">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M7.5 2l-4 4 4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>
-        </button>
-        <button class="btn btn-secondary btn-xs" onclick="goToday()">Aujourd'hui</button>
-        <button class="btn btn-secondary btn-xs" onclick="nextPeriod()" aria-label="Suivant">
-          <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 2l4 4-4 4" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>
-        </button>
+        <button onclick="goToday()" class="data-filter-btn data-filter-btn--sm">Aujourd'hui</button>
+
+        <div class="scheduling-page-header-chevrons">
+          <button onclick="prevPeriod()" class="data-filter-btn data-filter-btn--sm" aria-label="Précédent">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button onclick="nextPeriod()" class="data-filter-btn data-filter-btn--sm" aria-label="Suivant">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
         <span class="scheduling-page-header-label" id="period-label"></span>
       </div>
 
