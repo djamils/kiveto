@@ -82,8 +82,16 @@
       </button>
     </div>
 
-    {# PLANNING GRID #}
-    <div class="planning-wrap" id="planning-wrap" data-turbo-temporary></div>
+    {# PLANNING GRID — frame swapped on every nav, advances browser history #}
+    <turbo-frame id="planning-frame">
+      <div id="planning-frame-data"
+        data-planning-blocks="{{ planningBlocksJs|json_encode }}"
+        data-vets="{{ vetsJs|json_encode }}"
+        data-selected-date="{{ selectedDate|date('Y-m-d', clinicTimezone) }}"
+        hidden
+      ></div>
+      <div class="planning-wrap" id="planning-wrap"></div>
+    </turbo-frame>
 
   </div>
 </div>

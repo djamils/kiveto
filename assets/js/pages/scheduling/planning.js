@@ -38,6 +38,41 @@ let editingBlockId = null;
 let selectedActivityType = 'consultation';
 let dragState = null; // { vetKey, dateStr, startMin }
 
+// =============== NAV TRANSITION ===============
+const NAV_OUT_MS      = 80;
+const NAV_IN_MS       = 140;
+const NAV_SHIFT_PX    = 24;
+const NAV_MIN_OPACITY = '0.55';
+
+// Set before every frame navigation; consumed and cleared by frame render handlers.
+let _pendingNavDirection = null;
+
+function _animateOut(wrap, direction, cb) {
+  const outX = direction === 'next' ? `-${NAV_SHIFT_PX}px` : `${NAV_SHIFT_PX}px`;
+  wrap.style.willChange = 'opacity, transform';
+  wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${outX})`;
+  setTimeout(cb, NAV_OUT_MS + 10);
+}
+
+function _animateIn(wrap, direction) {
+  const inX = direction === 'next' ? `${NAV_SHIFT_PX}px` : `-${NAV_SHIFT_PX}px`;
+  wrap.style.transition = 'none';
+  wrap.style.opacity = NAV_MIN_OPACITY;
+  wrap.style.transform = `translateX(${inX})`;
+  wrap.offsetHeight;
+  wrap.style.transition = `opacity ${NAV_IN_MS}ms ease-out, transform ${NAV_IN_MS}ms ease-out`;
+  wrap.style.opacity = '1';
+  wrap.style.transform = 'translateX(0)';
+  const onEnd = () => {
+    wrap.removeEventListener('transitionend', onEnd);
+    wrap.style.willChange = '';
+    wrap.style.transition = '';
+  };
+  wrap.addEventListener('transitionend', onEnd);
+}
+
 // =============== UTILS ===============
 function fmtDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function addDays(d, n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
@@ -95,22 +130,43 @@ function toggleVet(el, vet){
 function _planningUrl(dateStr, view){
   return window.location.pathname + '?date=' + dateStr + '&view=' + view;
 }
-function _navigate(url){
+
+function _navigate(url, direction) {
+  _pendingNavDirection = direction || null;
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    history.pushState({}, '', url);
+    frame.src = url;
+    return;
+  }
   window.location.href = url;
 }
+
+function _reloadFrame() {
+  const frame = document.getElementById('planning-frame');
+  if (!frame) { location.reload(); return; }
+  const url = frame.src || window.location.href;
+  frame.removeAttribute('src');
+  frame.src = url;
+}
+
 function setView(v){
+  currentView = v;
   _navigate(_planningUrl(fmtDate(currentDate), v));
 }
 function prevPeriod(){
   const delta = currentView==='week' ? -7 : currentView==='month' ? -30 : -1;
-  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView));
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView), 'prev');
 }
 function nextPeriod(){
   const delta = currentView==='week' ? 7 : currentView==='month' ? 30 : 1;
-  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView));
+  _navigate(_planningUrl(fmtDate(addDays(currentDate, delta)), currentView), 'next');
 }
 function goToday(){
-  _navigate(window.location.pathname + '?view=' + currentView);
+  const realToday = fmtDate(new Date());
+  const curStr    = fmtDate(currentDate);
+  const direction = curStr < realToday ? 'next' : curStr > realToday ? 'prev' : null;
+  _navigate(window.location.pathname + '?view=' + currentView, direction);
 }
 
 // =============== RENDER ===============
@@ -550,7 +606,7 @@ async function saveBlock(){
       showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
       return;
     }
-    location.reload();
+    closePopup(); _reloadFrame();
   } catch (err) {
     showToast('Erreur réseau', '#dc2626');
   }
@@ -565,7 +621,7 @@ async function deleteBlock(){
       showToast('Erreur : ' + (json.error ?? res.status), '#dc2626');
       return;
     }
-    location.reload();
+    closePopup(); _reloadFrame();
   } catch (err) {
     showToast('Erreur réseau', '#dc2626');
   }
@@ -585,8 +641,10 @@ function closeSidebar(){
 }
 
 // =============== EVENT LISTENERS (stored for cleanup) ===============
-let _mousedownHandler = null;
-let _calendarSelectHandler = null;
+let _mousedownHandler        = null;
+let _calendarSelectHandler   = null;
+let _frameBeforeRenderHandler = null;
+let _frameRenderHandler      = null;
 
 // =============== EXPOSE TO WINDOW (for onclick attributes in HTML) ===============
 window.closeSidebar = closeSidebar;
@@ -660,15 +718,50 @@ export function init() {
   _calendarSelectHandler = function(e){
     var iso = e && e.detail && e.detail.date;
     if(!iso || typeof iso !== 'string') return;
-    _navigate(_planningUrl(iso, currentView));
+    const selected  = new Date(iso + 'T00:00:00');
+    const compareA  = currentView === 'week' ? getWeekStart(currentDate) : currentDate;
+    const compareB  = currentView === 'week' ? getWeekStart(selected)    : selected;
+    const direction = compareB > compareA ? 'next' : compareB < compareA ? 'prev' : null;
+    _navigate(_planningUrl(iso, currentView), direction);
   };
   document.addEventListener('calendar:select', _calendarSelectHandler);
 
-  // Sync view buttons
-  ['day','week','month'].forEach(function(x){
-    var btn=document.getElementById('view-'+x+'-btn');
-    if(btn) btn.classList.toggle('is-active', x===currentView);
-  });
+  // Turbo Frame slide transition
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    _frameBeforeRenderHandler = function(e) {
+      const wrap = document.getElementById('planning-wrap');
+      if (!_pendingNavDirection || !wrap) return;
+      e.preventDefault();
+      _animateOut(wrap, _pendingNavDirection, function() {
+        if (e.detail && typeof e.detail.resume === 'function') e.detail.resume();
+      });
+    };
+    _frameRenderHandler = function() {
+      const dataEl = document.getElementById('planning-frame-data');
+      if (dataEl) {
+        if (dataEl.dataset.vets) VETS = JSON.parse(dataEl.dataset.vets);
+        blocks  = JSON.parse(dataEl.dataset.planningBlocks ?? '[]');
+        nextId  = blocks.length ? Math.max(...blocks.map(function(b){ return typeof b.id === 'number' ? b.id : 0; })) + 1 : 1;
+        var sel = dataEl.dataset.selectedDate;
+        if (sel) currentDate = new Date(sel + 'T00:00:00');
+      }
+      var urlView = new URLSearchParams(window.location.search).get('view');
+      if (urlView === 'day' || urlView === 'week' || urlView === 'month') currentView = urlView;
+      ['day','week','month'].forEach(function(x){
+        var btn = document.getElementById('view-'+x+'-btn');
+        if (btn) btn.classList.toggle('is-active', x===currentView);
+      });
+      renderLegend();
+      renderPlanning();
+      setTimeout(syncCalendarFromState, 0);
+      const wrap = document.getElementById('planning-wrap');
+      if (wrap && _pendingNavDirection) _animateIn(wrap, _pendingNavDirection);
+      _pendingNavDirection = null;
+    };
+    frame.addEventListener('turbo:before-frame-render', _frameBeforeRenderHandler);
+    frame.addEventListener('turbo:frame-render', _frameRenderHandler);
+  }
 }
 
 export function cleanup() {
@@ -680,6 +773,14 @@ export function cleanup() {
     document.removeEventListener('calendar:select', _calendarSelectHandler);
     _calendarSelectHandler = null;
   }
+  const frame = document.getElementById('planning-frame');
+  if (frame) {
+    if (_frameBeforeRenderHandler) frame.removeEventListener('turbo:before-frame-render', _frameBeforeRenderHandler);
+    if (_frameRenderHandler) frame.removeEventListener('turbo:frame-render', _frameRenderHandler);
+  }
+  _frameBeforeRenderHandler = null;
+  _frameRenderHandler = null;
+  _pendingNavDirection = null;
 
   // Clean up window references
   delete window.closeSidebar;
