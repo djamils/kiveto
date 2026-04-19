@@ -32,6 +32,20 @@ const FREE_END = 19 * 60;
 let freeSlotsActive = false;
 let freeDuration = 20;
 
+// Sync with ACTIVITY_TYPES in planning.js and PlanningBlockType.php when adding new types.
+const PLANNING_BLOCK_TYPES = {
+  consultation: { color: '#4338ca', bg: '#eef2ff', label: 'Consultation' },
+  chirurgie:    { color: '#b45309', bg: '#fef3c7', label: 'Chirurgie'    },
+  garde:        { color: '#7c3aed', bg: '#f5f3ff', label: 'Garde'        },
+  bilan:        { color: '#059669', bg: '#ecfdf5', label: 'Bilans/Labo'  },
+  formation:    { color: '#0891b2', bg: '#ecfeff', label: 'Formation'    },
+  conge:        { color: '#dc2626', bg: '#fef2f2', label: 'Congé'        },
+  admin:        { color: '#64748b', bg: '#f8fafc', label: 'Admin'        },
+  urgence:      { color: '#ea580c', bg: '#fff7ed', label: 'Urgences'     },
+};
+const PLANNING_OVERLAY_LS_KEY = 'kiveto.agenda.planning-overlay';
+let planningBlocksVisible = false;
+
 const DOW_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
@@ -313,6 +327,8 @@ function renderWeek() {
     const totalH = HOUR_END - HOUR_START + 1;
     col.style.height = `${totalH * SLOT_H}px`;
     col.style.position = 'relative';
+
+    renderPlanningOverlays(col, iso); // must be first — prepend order determines stacking
 
     // Hour slots — two clickable half-zones (on the hour / half past) with
     // hover highlight. Click shows a "not wired yet" toast — the full create
@@ -824,6 +840,81 @@ function toggleVet(el, userId) {
   renderWeek();
 }
 
+// =============== PLANNING OVERLAYS ===============
+function togglePlanningOverlay() {
+  planningBlocksVisible = !planningBlocksVisible;
+  localStorage.setItem(PLANNING_OVERLAY_LS_KEY, planningBlocksVisible ? '1' : '0');
+  const btn = document.getElementById('planning-overlay-btn');
+  if (btn) btn.classList.toggle('is-active', planningBlocksVisible);
+  renderWeek(); // renderWeek() handles both day and week views — no renderDay() exists
+}
+
+function renderPlanningOverlays(col, iso) {
+  if (!planningBlocksVisible) return;
+
+  // Parse, clamp, and filter blocks for this column
+  const items = [];
+  (AGENDA_DATA.planningBlocks || []).forEach((b) => {
+    if (b.date !== iso || !activeVets.has(b.vet)) return;
+    const [sh, sm] = b.start.split(':').map(Number);
+    const [eh, em] = b.end.split(':').map(Number);
+    const startMin = Math.max(sh * 60 + sm, HOUR_START * 60);
+    const endMin   = Math.min(eh * 60 + em, HOUR_END   * 60);
+    if (endMin <= startMin) return;
+    const topPx    = ((startMin - HOUR_START * 60) / 60) * SLOT_H + 1;
+    const heightPx = ((endMin - startMin)          / 60) * SLOT_H - 2;
+    if (heightPx < 6) return;
+    items.push({ b, startMin, endMin, topPx, heightPx, lane: 0 });
+  });
+  if (items.length === 0) return;
+
+  // Sort by start time — required by the lane algorithm
+  items.sort((a, b) => a.startMin - b.startMin);
+
+  // Lane assignment (mirrors the appointment lane algorithm)
+  const lanes = [];
+  items.forEach((item) => {
+    let lane = 0;
+    while (lanes[lane] && lanes[lane] > item.startMin) lane += 1;
+    lanes[lane] = item.endMin;
+    item.lane = lane;
+  });
+  const totalLanes = lanes.length || 1;
+  const laneW = 100 / totalLanes;
+
+  items.forEach((item) => {
+    const { b, topPx, heightPx, lane } = item;
+    const type    = PLANNING_BLOCK_TYPES[b.type] ?? PLANNING_BLOCK_TYPES.consultation;
+    const vet     = vetById[b.vet];
+    const vetName = vet ? vet.label : '';
+    const label   = vetName ? `${vetName} — ${type.label}` : type.label;
+
+    const leftPct  = lane * laneW;
+    const rightPct = 100 - leftPct - laneW;
+
+    const el = document.createElement('div');
+    el.style.cssText = [
+      'position:absolute',
+      `top:${topPx}px`,
+      `height:${heightPx}px`,
+      `left:${leftPct}%`,
+      `right:${rightPct}%`,
+      `background:${type.bg}`,
+      `border-left:3px solid ${type.color}`,
+      'opacity:0.5',
+      'pointer-events:none',
+      'overflow:hidden',
+    ].join(';');
+    const nameHtml = vetName
+      ? `<span style="display:block;padding:2px 5px 0;font-size:var(--text-xs);font-weight:var(--weight-medium);color:${type.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vetName}</span>`
+      : '';
+    const typeHtml = `<span style="display:block;padding:0 5px 2px;font-size:var(--text-xs);color:${type.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${type.label}</span>`;
+    el.innerHTML = nameHtml + typeHtml;
+
+    col.prepend(el); // prepend = behind all later-appended children (slots, appointments)
+  });
+}
+
 // =============== FREE SLOTS ===============
 function toggleFreeSlots() {
   freeSlotsActive = !freeSlotsActive;
@@ -1118,6 +1209,7 @@ window.toggleVet = toggleVet;
 window.toggleAgendaSidebar = toggleAgendaSidebar;
 window.closeAgendaSidebar = closeAgendaSidebar;
 window.closeAllPopups = closeAllPopups;
+window.togglePlanningOverlay = togglePlanningOverlay;
 window.toggleFreeSlots = toggleFreeSlots;
 window.setFreeDur = setFreeDur;
 window.openNewRdvGlobal = openNewRdvGlobal;
@@ -1138,6 +1230,10 @@ function bootstrapFromPayload() {
   view = AGENDA_DATA.view === 'day' ? 'day' : 'week';
   clientProfileUrlTemplate = AGENDA_DATA.clientProfileUrlTemplate || '';
   nowDate = new Date();
+
+  planningBlocksVisible = localStorage.getItem(PLANNING_OVERLAY_LS_KEY) === '1';
+  const overlayBtn = document.getElementById('planning-overlay-btn');
+  if (overlayBtn) overlayBtn.classList.toggle('is-active', planningBlocksVisible);
 
   buildVetIndex();
   prepareAppointments();
@@ -1519,6 +1615,7 @@ export function init() {
 }
 
 export function cleanup() {
+  delete window.togglePlanningOverlay;
   delete window.toggleVet;
   delete window.toggleAgendaSidebar;
   delete window.closeAgendaSidebar;

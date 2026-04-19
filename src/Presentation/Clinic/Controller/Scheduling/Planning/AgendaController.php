@@ -9,6 +9,8 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
+use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
 use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -73,6 +75,38 @@ final class AgendaController extends AbstractController
         $appointments = $this->queryBus->ask($query);
         \assert(\is_array($appointments));
 
+        if ('day' === $viewParam) {
+            $fromDate = $selectedDate->format('Y-m-d');
+            $toDate   = $fromDate;
+        } else {
+            // Replicate mondayOf() from agenda.js: ISO week (Mon=1…Sun=7).
+            // PHP's 'monday this week' on Sunday gives the NEXT Monday (US convention),
+            // while JS always returns the PREVIOUS Monday. Use explicit arithmetic instead.
+            $dow       = (int) $selectedDate->format('N'); // ISO: 1=Mon … 7=Sun
+            $weekStart = $selectedDate->modify(\sprintf('-%d days', 7 === $dow ? 6 : $dow - 1))->setTime(0, 0, 0);
+            $fromDate  = $weekStart->format('Y-m-d');
+            $toDate    = $weekStart->modify('+6 days')->format('Y-m-d');
+        }
+
+        $planningBlocks = $this->queryBus->ask(new ListPlanningBlocksForClinicDateRange(
+            clinicId: $currentClinicId->toString(),
+            fromDate: $fromDate,
+            toDate: $toDate,
+        ));
+        \assert(\is_array($planningBlocks));
+        // PlanningBlockView property names differ from the JS payload keys (staffUserId→vet, startTime→start, endTime→end).
+        $planningBlocksJs = array_map(static function (mixed $b): array {
+            \assert($b instanceof PlanningBlockView);
+
+            return [
+                'vet'   => $b->staffUserId,
+                'date'  => $b->date,
+                'start' => $b->startTime,
+                'end'   => $b->endTime,
+                'type'  => $b->type,
+            ];
+        }, $planningBlocks);
+
         $veterinarians = $this->queryBus->ask(
             new ListClinicVeterinarians($currentClinicId->toString()),
         );
@@ -119,6 +153,7 @@ final class AgendaController extends AbstractController
         ]);
 
         return $this->render('clinic/scheduling/agenda/index.html.twig', [
+            'planningBlocks'           => $planningBlocksJs,
             'appointments'             => $appointments,
             'veterinarians'            => $veterinarians,
             'practitionersByUserId'    => $practitionersByUserId,

@@ -63,6 +63,11 @@
         <a href="{{ dayViewLink }}" data-nav="day-view" data-turbo-frame="agenda-frame" id="view-day" class="{{ view == 'day' ? 'is-active' : '' }}">Jour</a>
       </div>
 
+      <button id="planning-overlay-btn" type="button" onclick="togglePlanningOverlay()" class="data-filter-btn data-filter-btn--sm" aria-label="Afficher les blocs de planning">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Blocs planning</span>
+      </button>
+
       <button id="free-slots-btn" type="button" onclick="toggleFreeSlots()" class="data-filter-btn data-filter-btn--sm">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Créneaux libres</span>
@@ -113,6 +118,7 @@
         currentUserId: currentUserId,
         clinicTimezone: clinicTimezone,
         clientProfileUrlTemplate: clientProfileUrlTemplate,
+        planningBlocks: planningBlocks,
       }|json_encode|raw }}
       </script>
     </turbo-frame>
