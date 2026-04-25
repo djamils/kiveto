@@ -49,6 +49,8 @@ final class GetWaitingRoomEntryDetailsHandlerTest extends KernelTestCase
         self::assertSame('EMERGENCY', $result->arrivalMode);
         self::assertSame('22222222-2222-2222-2222-222222222222', $result->ownerId);
         self::assertSame('33333333-3333-3333-3333-333333333333', $result->animalId);
+        self::assertNull($result->foundAnimalDescription);
+        self::assertSame(0, $result->priority);
         self::assertSame('Severe pain', $result->triageNotes);
     }
 

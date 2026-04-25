@@ -1,19 +1,11 @@
-{# Right control panel: urgence banner, patient detail, vets, timeline #}
+{# Right control panel: patient detail panel #}
 
 <div class="control-panel" id="control-panel">
   <div class="control-scroll">
-    <div class="urgence-banner"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon-noshrink"></i><span>URGENCE &mdash; Gaia (Labrador) &middot; Convulsions &middot; Arriv&eacute;e 10h02</span><button class="btn-wr btn-xs wr-urgence-action-btn" onclick="toast('Prise en charge lanc\u00e9e','#dc2626')">Prendre en charge</button></div>
-    <div id="patient-detail-wrap"></div>
-    <div class="widget"><div class="wh"><span class="wt">V&eacute;t&eacute;rinaires de garde</span></div><div class="wr-vets-grid" id="vets-list"></div></div>
-    <div class="widget"><div class="wh"><span class="wt">Flux de la journ&eacute;e</span><span class="wr-widget-subtitle">9h&ndash;18h</span></div><div class="wb" id="timeline-list"></div></div>
+    <div id="patient-detail-panel"
+         class="patient-detail-panel is-hidden"
+         data-waiting-room-target="detailPanel">
+      <turbo-frame id="patient-detail" src=""></turbo-frame>
+    </div>
   </div>
-</div>
-
-<!-- Slide detail tablet -->
-<div class="detail-slide" id="detail-slide">
-  <div class="detail-slide-head">
-    <p class="wr-slide-title" id="slide-title">D&eacute;tail patient</p>
-    <button class="btn-modal-close" onclick="closeDetailSlide()"><i data-lucide="x" class="wr-icon-xs"></i></button>
-  </div>
-  <div class="detail-slide-scroll" id="slide-content"></div>
 </div>

@@ -1,17 +1,25 @@
-{# Waiting room topbar with clock, stats, and action buttons #}
+{# Waiting room topbar with clock and action buttons #}
 
 <!-- Topbar -->
 <div class="wr-topbar">
   <div>
     <p class="wr-topbar-title">Salle d'attente</p>
-    <p class="wr-topbar-subtitle">Samedi 22 mars 2026</p>
+    <p class="wr-topbar-subtitle">{{ currentDate }}</p>
   </div>
   <div class="wr-topbar-clock">
-    <span class="clock-num" id="clock-h"></span><span class="clock-sep">:</span><span class="clock-num" id="clock-m"></span><span class="clock-sep wr-clock-sep-light">:</span><span class="clock-sec" id="clock-s"></span>
+    <span class="clock-num" data-waiting-room-target="clockH"></span><span class="clock-sep">:</span><span class="clock-num" data-waiting-room-target="clockM"></span><span class="clock-sep wr-clock-sep-light">:</span><span class="clock-sec" data-waiting-room-target="clockS"></span>
   </div>
   <div class="wr-topbar-right">
-    <button class="btn-wr btn-danger btn-xs" onclick="openModal('modal-urgence')"><i data-lucide="alert-triangle" class="wr-icon-xs"></i> Urgence</button>
-    <button class="btn-wr btn-primary btn-xs" onclick="openModal('modal-checkin')"><i data-lucide="plus" class="wr-icon-xs"></i> Check-in patient</button>
+    <button class="btn btn-danger btn-xs"
+            data-action="waiting-room#openModal"
+            data-waiting-room-modal-id-param="modal-urgence">
+      <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Urgence
+    </button>
+    <button class="btn btn-primary btn-xs"
+            data-action="waiting-room#openModal"
+            data-waiting-room-modal-id-param="modal-checkin">
+      <i data-lucide="plus" class="wr-icon-xs"></i> Check-in patient
+    </button>
   </div>
 </div>
 
@@ -19,19 +27,19 @@
 <div class="status-bar">
   <div class="stat-block">
     <div class="stat-icon wr-stat-icon--waiting"><i data-lucide="clock" class="wr-icon-sm wr-icon--amber"></i></div>
-    <div><p class="stat-num wr-stat-num--amber">4</p><p class="stat-label">En attente</p></div>
+    <div><p class="stat-num wr-stat-num--amber">{{ countWaiting }}</p><p class="stat-label">En attente</p></div>
   </div>
   <div class="stat-block">
     <div class="stat-icon wr-stat-icon--consult"><i data-lucide="stethoscope" class="wr-icon-sm wr-icon--blue"></i></div>
-    <div><p class="stat-num wr-stat-num--blue">2</p><p class="stat-label">En consultation</p></div>
+    <div><p class="stat-num wr-stat-num--blue">{{ countService }}</p><p class="stat-label">En consultation</p></div>
   </div>
   <div class="stat-block">
     <div class="stat-icon wr-stat-icon--urgence"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--red"></i></div>
-    <div><p class="stat-num wr-stat-num--red">1</p><p class="stat-label">Urgences</p></div>
+    <div><p class="stat-num wr-stat-num--red">{{ countEmergency }}</p><p class="stat-label">Urgences</p></div>
   </div>
   <div class="stat-block">
     <div class="stat-icon wr-stat-icon--done"><i data-lucide="check-circle" class="wr-icon-sm wr-icon--green"></i></div>
-    <div><p class="stat-num wr-stat-num--green">7</p><p class="stat-label">Trait&eacute;s</p></div>
+    <div><p class="stat-num wr-stat-num--green">&mdash;</p><p class="stat-label">Trait&eacute;s</p></div>
   </div>
   <div class="wr-realtime-indicator">
     <span class="wr-realtime-dot"></span>

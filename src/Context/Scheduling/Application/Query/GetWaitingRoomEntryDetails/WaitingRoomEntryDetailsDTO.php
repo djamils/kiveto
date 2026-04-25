@@ -18,6 +18,8 @@ final readonly class WaitingRoomEntryDetailsDTO
         public ?string $linkedAppointmentId,
         public ?string $ownerId,
         public ?string $animalId,
+        public ?string $foundAnimalDescription,
+        public int $priority,
         public ?string $triageNotes,
         public string $arrivedAtUtc,
         public ?string $calledAtUtc,

@@ -54,9 +54,6 @@ return [
     'pages/scheduling/planning' => [
         'path' => './assets/js/pages/scheduling/planning.js',
     ],
-    'pages/scheduling/waiting-room' => [
-        'path' => './assets/js/pages/scheduling/waiting-room.js',
-    ],
     'pages/hospitalisations' => [
         'path' => './assets/js/pages/hospitalisations.js',
     ],

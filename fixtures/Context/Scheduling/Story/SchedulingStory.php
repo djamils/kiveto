@@ -98,8 +98,15 @@ final class SchedulingStory extends Story
                 notes: null,
             ));
 
+            \assert(\is_string($appointmentId));
+
+            // Expose stable refs by clinic+day+time for WaitingRoomStory.
+            if ($paris === $clinicId && !$cancelled) {
+                $key = \sprintf('appointment:paris:day%d:%02dh%02d', $dayOffset, $hour, $minute);
+                $this->addState($key, $appointmentId);
+            }
+
             if ($cancelled) {
-                \assert(\is_string($appointmentId));
                 $this->commandBus->dispatch(new CancelAppointment(
                     appointmentId: $appointmentId,
                 ));

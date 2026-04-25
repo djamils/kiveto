@@ -1,135 +1,93 @@
-{# All modals: check-in, urgence, appel #}
+{# Waiting room modals: check-in and urgence #}
 
 <!-- Modal Check-in -->
-<div class="wr-modal-overlay" id="modal-checkin" onclick="if(event.target===this)closeModal('modal-checkin')">
+<div class="modal-overlay hidden" id="modal-checkin"
+     data-action="click->waiting-room#closeOnOverlayClick">
   <div class="wr-modal-box">
-    <div class="wr-modal-head"><p class="wr-modal-title">Check-in patient</p><button class="btn-modal-close" onclick="closeModal('modal-checkin')"><i data-lucide="x" class="wr-icon-xs"></i></button></div>
-    <div class="wr-modal-body">
-      <div class="form-row"><label class="form-label-wr">Rechercher un RDV ou propri&eacute;taire</label><div class="wr-search-field"><i data-lucide="search" class="wr-search-icon"></i><input class="form-input-wr wr-search-input" placeholder="Nom, propri&eacute;taire ou t&eacute;l&eacute;phone..."></div></div>
-      <div class="wr-checkin-results">
-        <div class="wr-checkin-row" onclick="selectCheckinRdv(this)" onmouseenter="this.style.background='var(--brand-50,#eef2ff)'" onmouseleave="this.style.background=''">
-          <div class="wr-checkin-avatar wr-checkin-avatar--brand">ML</div>
-          <div class="wr-checkin-info"><p class="wr-checkin-name">Milo &mdash; British Shorthair</p><p class="wr-checkin-meta">James Park &middot; 10h15 &middot; Dr. Rousseau</p></div>
-          <span class="badge-wr b-wait">RDV 10h15</span>
-        </div>
-        <div class="wr-checkin-row wr-checkin-row--last" onclick="selectCheckinRdv(this)" onmouseenter="this.style.background='var(--brand-50,#eef2ff)'" onmouseleave="this.style.background=''">
-          <div class="wr-checkin-avatar wr-checkin-avatar--pink">NL</div>
-          <div class="wr-checkin-info"><p class="wr-checkin-name">Nala &mdash; Berger Malinois</p><p class="wr-checkin-meta">Claire Moreau &middot; 10h30 &middot; Dr. Martin</p></div>
-          <span class="badge-wr b-wait">RDV 10h30</span>
-        </div>
-      </div>
-      <div class="wr-form-grid-2">
-        <div class="form-row"><label class="form-label-wr">Motif de visite</label><input class="form-input-wr" placeholder="D&eacute;crivez bri&egrave;vement..."></div>
-        {# Priority selector (custom select component) #}
-        <div class="form-row"><label class="form-label-wr">Priorit&eacute;</label>{{ include('components/ui/select.html.twig', {
-          name: 'checkinPriority',
-          extra_class: 'form-input-wr',
-          value: 'Normal',
-          options: [
-            { value: 'Normal', label: 'Normal' },
-            { value: 'Prioritaire', label: 'Prioritaire' },
-            { value: 'Urgence', label: 'Urgence' },
-          ]
-        }) }}</div>
-        {# Veterinarian selector (custom select component) #}
-        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label>{{ include('components/ui/select.html.twig', {
-          name: 'checkinVet',
-          extra_class: 'form-input-wr',
-          value: 'Dr. Rousseau',
-          options: [
-            { value: 'Dr. Rousseau', label: 'Dr. Rousseau' },
-            { value: 'Dr. Martin', label: 'Dr. Martin' },
-            { value: 'Dr. Dupont', label: 'Dr. Dupont' },
-            { value: 'Dr. Lambert', label: 'Dr. Lambert' },
-            { value: 'none', label: '— Non assigné —' },
-          ]
-        }) }}</div>
-        <div class="form-row"><label class="form-label-wr">Note d'accueil</label><input class="form-input-wr" placeholder="Optionnel..."></div>
-      </div>
+    <div class="wr-modal-head">
+      <p class="wr-modal-title">Check-in patient</p>
+      <button class="btn-modal-close"
+              data-action="waiting-room#closeModal"
+              data-waiting-room-modal-id-param="modal-checkin">
+        <i data-lucide="x" class="wr-icon-xs"></i>
+      </button>
     </div>
-    <div class="wr-modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-checkin')">Annuler</button><button class="btn-wr btn-primary" onclick="doCheckin()"><i data-lucide="check" class="wr-icon-xs"></i> Valider l'arriv&eacute;e</button></div>
+    <form method="post" action="{{ path('clinic_scheduling_waitingroom_walkin') }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+      <input type="hidden" name="arrivalMode" value="STANDARD">
+      <div class="wr-modal-body">
+        <div class="form-row">
+          <label class="form-label-wr">Animal / Propri&eacute;taire</label>
+          <input class="form-input-wr" name="foundAnimalDescription" placeholder="Ex : Milo (Canin) &mdash; Mme Dupont">
+        </div>
+        <div class="wr-form-grid-2">
+          <div class="form-row">
+            <label class="form-label-wr">Motif de visite</label>
+            <input class="form-input-wr" name="triageNotes" placeholder="D&eacute;crivez bri&egrave;vement...">
+          </div>
+          <div class="form-row">
+            <label class="form-label-wr">Priorit&eacute;</label>
+            <select name="priority" class="form-input-wr">
+              <option value="0">Normal</option>
+              <option value="1">Prioritaire</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="wr-modal-foot">
+        <button type="button" class="btn-wr btn-secondary"
+                data-action="waiting-room#closeModal"
+                data-waiting-room-modal-id-param="modal-checkin">Annuler</button>
+        <button type="submit" class="btn-wr btn-primary">
+          <i data-lucide="check" class="wr-icon-xs"></i> Valider l'arriv&eacute;e
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
 <!-- Modal Urgence -->
-<div class="wr-modal-overlay" id="modal-urgence" onclick="if(event.target===this)closeModal('modal-urgence')">
+<div class="modal-overlay hidden" id="modal-urgence"
+     data-action="click->waiting-room#closeOnOverlayClick">
   <div class="wr-modal-box">
     <div class="wr-modal-head wr-modal-head--urgence">
-      <div class="wr-modal-urgence-title"><div class="wr-modal-urgence-icon"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i></div><p class="wr-modal-urgence-text">Enregistrement urgence</p></div>
-      <button class="btn-modal-close wr-modal-close--urgence" onclick="closeModal('modal-urgence')"><i data-lucide="x" class="wr-icon-xs wr-icon--red"></i></button>
-    </div>
-    <div class="wr-modal-body">
-      <div class="wr-urgence-alert"><i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera plac&eacute; imm&eacute;diatement en t&ecirc;te de file.</div>
-      <div class="wr-form-grid-2">
-        <div class="form-row"><label class="form-label-wr">Animal *</label><input class="form-input-wr" placeholder="Nom de l'animal"></div>
-        {# Species selector (custom select component) #}
-        <div class="form-row"><label class="form-label-wr">Esp&egrave;ce</label>{{ include('components/ui/select.html.twig', {
-          name: 'urgenceEspece',
-          extra_class: 'form-input-wr',
-          value: 'Canin',
-          options: [
-            { value: 'Canin', label: 'Canin' },
-            { value: 'Félin', label: 'Félin' },
-            { value: 'Lapin', label: 'Lapin' },
-            { value: 'NAC', label: 'NAC' },
-            { value: 'Oiseau', label: 'Oiseau' },
-          ]
-        }) }}</div>
-        <div class="form-row"><label class="form-label-wr">Propri&eacute;taire *</label><input class="form-input-wr" placeholder="Nom du propri&eacute;taire"></div>
-        <div class="form-row"><label class="form-label-wr">T&eacute;l&eacute;phone</label><input class="form-input-wr" placeholder="+33 6 ..."></div>
+      <div class="wr-modal-urgence-title">
+        <div class="wr-modal-urgence-icon"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i></div>
+        <p class="wr-modal-urgence-text">Enregistrement urgence</p>
       </div>
-      <div class="form-row"><label class="form-label-wr">Motif d'urgence *</label><input class="form-input-wr" placeholder="D&eacute;crivez les sympt&ocirc;mes..."></div>
-      {# Veterinarian to alert selector (custom select component) #}
-      <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire &agrave; alerter</label>{{ include('components/ui/select.html.twig', {
-        name: 'urgenceVet',
-        extra_class: 'form-input-wr',
-        value: 'Dr. Rousseau (disponible)',
-        options: [
-          { value: 'Dr. Rousseau (disponible)', label: 'Dr. Rousseau (disponible)' },
-          { value: 'Dr. Martin (en consultation)', label: 'Dr. Martin (en consultation)' },
-          { value: 'Dr. Dupont (disponible)', label: 'Dr. Dupont (disponible)' },
-          { value: 'Dr. Lambert (en consultation)', label: 'Dr. Lambert (en consultation)' },
-        ]
-      }) }}</div>
+      <button class="btn-modal-close wr-modal-close--urgence"
+              data-action="waiting-room#closeModal"
+              data-waiting-room-modal-id-param="modal-urgence">
+        <i data-lucide="x" class="wr-icon-xs wr-icon--red"></i>
+      </button>
     </div>
-    <div class="wr-modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-urgence')">Annuler</button><button class="btn-wr btn-danger" onclick="doUrgence()"><i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence</button></div>
-  </div>
-</div>
-
-<!-- Modal Appel -->
-<div class="wr-modal-overlay" id="modal-appel" onclick="if(event.target===this)closeModal('modal-appel')">
-  <div class="wr-modal-box wr-modal-box--sm">
-    <div class="wr-modal-head"><p class="wr-modal-title" id="modal-appel-title">Appeler le patient</p><button class="btn-modal-close" onclick="closeModal('modal-appel')"><i data-lucide="x" class="wr-icon-xs"></i></button></div>
-    <div class="wr-modal-body">
-      <div class="wr-form-grid-2 wr-mb-3">
-        {# Room selector (custom select component) #}
-        <div class="form-row"><label class="form-label-wr">Salle</label>{{ include('components/ui/select.html.twig', {
-          name: 'appelSalle',
-          id: 'appel-salle',
-          extra_class: 'form-input-wr',
-          value: 'Salle 1 — Dr. Rousseau',
-          options: [
-            { value: 'Salle 1 — Dr. Rousseau', label: 'Salle 1 — Dr. Rousseau' },
-            { value: 'Salle 2 — Dr. Martin', label: 'Salle 2 — Dr. Martin' },
-            { value: 'Salle 3 — Dr. Dupont', label: 'Salle 3 — Dr. Dupont' },
-            { value: 'Chirurgie — Dr. Lambert', label: 'Chirurgie — Dr. Lambert' },
-          ]
-        }) }}</div>
-        {# Veterinarian selector (custom select component) #}
-        <div class="form-row"><label class="form-label-wr">V&eacute;t&eacute;rinaire</label>{{ include('components/ui/select.html.twig', {
-          name: 'appelVet',
-          extra_class: 'form-input-wr',
-          value: 'Dr. Rousseau',
-          options: [
-            { value: 'Dr. Rousseau', label: 'Dr. Rousseau' },
-            { value: 'Dr. Martin', label: 'Dr. Martin' },
-            { value: 'Dr. Dupont', label: 'Dr. Dupont' },
-            { value: 'Dr. Lambert', label: 'Dr. Lambert' },
-          ]
-        }) }}</div>
+    <form method="post" action="{{ path('clinic_scheduling_waitingroom_walkin') }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+      <input type="hidden" name="arrivalMode" value="EMERGENCY">
+      <input type="hidden" name="priority" value="2">
+      <div class="wr-modal-body">
+        <div class="wr-urgence-alert">
+          <i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera plac&eacute; imm&eacute;diatement en t&ecirc;te de file.
+        </div>
+        <div class="wr-form-grid-2">
+          <div class="form-row">
+            <label class="form-label-wr">Animal *</label>
+            <input class="form-input-wr" name="foundAnimalDescription" placeholder="Ex : Gaia (Labrador) &mdash; Mme Fauchard">
+          </div>
+          <div class="form-row">
+            <label class="form-label-wr">Motif d'urgence *</label>
+            <input class="form-input-wr" name="triageNotes" placeholder="D&eacute;crivez les sympt&ocirc;mes...">
+          </div>
+        </div>
       </div>
-      <div class="wr-appel-notice"><i data-lucide="megaphone" class="wr-appel-notice-icon"></i>Un affichage appara&icirc;tra sur l'&eacute;cran de la salle d'attente.</div>
-    </div>
-    <div class="wr-modal-foot"><button class="btn-wr btn-secondary" onclick="closeModal('modal-appel')">Annuler</button><button class="btn-wr btn-green" onclick="doAppel()"><i data-lucide="send" class="wr-icon-xs"></i> Appeler</button></div>
+      <div class="wr-modal-foot">
+        <button type="button" class="btn-wr btn-secondary"
+                data-action="waiting-room#closeModal"
+                data-waiting-room-modal-id-param="modal-urgence">Annuler</button>
+        <button type="submit" class="btn-wr btn-danger">
+          <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+        </button>
+      </div>
+    </form>
   </div>
 </div>

@@ -84,6 +84,8 @@ final readonly class DoctrineWaitingRoomReadRepository implements WaitingRoomRea
             linkedAppointmentId: $entity->getLinkedAppointmentId()?->toString(),
             ownerId: $entity->getOwnerId()?->toString(),
             animalId: $entity->getAnimalId()?->toString(),
+            foundAnimalDescription: $entity->getFoundAnimalDescription(),
+            priority: $entity->getPriority(),
             triageNotes: $entity->getTriageNotes(),
             arrivedAtUtc: $entity->getArrivedAtUtc()->format('c'),
             calledAtUtc: $entity->getCalledAtUtc()?->format('c'),
