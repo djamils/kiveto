@@ -1,0 +1,137 @@
+{#
+ # Kiveto — templates/clinic/admission/queue.html.twig
+ # ─────────────────────────────────────────────────────
+ # Admission waiting queue — lists active admissions in the waiting room.
+ #
+ # Variables:
+ #   entries  WaitingRoomItemDto[]  Active admissions in waiting room
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}File d'attente — Admissions{% endblock %}
+{% block page_title %}File d'attente{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ path('clinic_admission_emergency') }}"
+     class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
+    <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+    Nouvelle urgence
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="p-6">
+
+  {% for message in app.flashes('success') %}
+    <div class="mb-4 p-3 rounded bg-green-50 border border-green-200 text-green-700 text-sm">
+      {{ message }}
+    </div>
+  {% endfor %}
+
+  {% for message in app.flashes('error') %}
+    <div class="mb-4 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
+      {{ message }}
+    </div>
+  {% endfor %}
+
+  {% if entries is empty %}
+    <div class="flex flex-col items-center justify-center gap-3 py-16 text-gray-400">
+      <i data-lucide="inbox" class="w-10 h-10 opacity-40"></i>
+      <p class="text-sm">Aucun patient en salle d'attente</p>
+      <a href="{{ path('clinic_admission_emergency') }}"
+         class="mt-2 text-sm text-blue-600 hover:underline">
+        Créer une admission urgente
+      </a>
+    </div>
+  {% else %}
+    <div class="space-y-3 max-w-3xl">
+
+      {% set triagePalette = {
+        'vital_emergency': {bg: '#fef2f2', color: '#dc2626', label: 'Urgence vitale'},
+        'emergency':       {bg: '#fff7ed', color: '#ea580c', label: 'Urgence'},
+        'priority':        {bg: '#fffbeb', color: '#d97706', label: 'Prioritaire'},
+        'standard':        {bg: '#f8fafc', color: '#64748b', label: 'Standard'},
+      } %}
+
+      {% for entry in entries %}
+        {% set palette = triagePalette[entry.triageLevel] ?? {bg: '#f8fafc', color: '#64748b', label: entry.triageLevel} %}
+
+        {% set openedTs = entry.openedAt|date('U') %}
+        {% set nowTs    = 'now'|date('U') %}
+        {% set waitMin  = (((nowTs - openedTs) / 60)|round)|abs %}
+        {% set waitH    = (waitMin / 60)|round(0, 'floor') %}
+        {% set waitM    = waitMin % 60 %}
+
+        <div class="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+
+          {# Triage badge strip #}
+          <div style="width: 4px; align-self: stretch; border-radius: 2px; background: {{ palette.color }};"></div>
+
+          {# Main info #}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-sm text-gray-900 truncate">
+                {{ entry.displayLabel }}
+              </span>
+              <span style="font-size: 11px; font-weight: 500; color: {{ palette.color }}; background: {{ palette.bg }}; padding: 2px 8px; border-radius: 9999px;">
+                {{ palette.label }}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+              <span>{{ entry.locationStatus|replace({'_': ' '})|capitalize }}</span>
+              <span>&bull;</span>
+              <span>{{ entry.intakeChannel|replace({'_': ' '})|capitalize }}</span>
+              {% if entry.triageNotes %}
+                <span>&bull;</span>
+                <span class="truncate max-w-xs italic">{{ entry.triageNotes }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Wait time #}
+          <div class="text-right flex-shrink-0">
+            <div class="text-sm font-semibold text-gray-700">
+              {%- if waitH > 0 -%}
+                {{ waitH }}h{{ waitM < 10 ? '0' : '' }}{{ waitM }}
+              {%- else -%}
+                {{ waitM }}min
+              {%- endif -%}
+            </div>
+            <div class="text-xs text-gray-400">d'attente</div>
+          </div>
+
+          {# Actions #}
+          <div class="flex items-center gap-2 flex-shrink-0">
+
+            {# Update triage form #}
+            <form method="POST" action="{{ path('clinic_admission_update_triage', {admissionId: entry.admissionId}) }}">
+              <input type="hidden" name="_token" value="{{ csrf_token('admission_triage_' ~ entry.admissionId) }}">
+              <select name="triage_level" onchange="this.form.submit()"
+                      class="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700">
+                <option value="standard" {{ entry.triageLevel == 'standard' ? 'selected' : '' }}>Standard</option>
+                <option value="priority" {{ entry.triageLevel == 'priority' ? 'selected' : '' }}>Prioritaire</option>
+                <option value="emergency" {{ entry.triageLevel == 'emergency' ? 'selected' : '' }}>Urgence</option>
+                <option value="vital_emergency" {{ entry.triageLevel == 'vital_emergency' ? 'selected' : '' }}>Urgence vitale</option>
+              </select>
+            </form>
+
+            {# Close admission form #}
+            <form method="POST" action="{{ path('clinic_admission_close', {admissionId: entry.admissionId}) }}"
+                  onsubmit="return confirm('Confirmer la clôture de cette admission ?')">
+              <input type="hidden" name="_token" value="{{ csrf_token('admission_close_' ~ entry.admissionId) }}">
+              <input type="hidden" name="closure_reason" value="consultation_completed">
+              <button type="submit"
+                      class="text-xs px-2 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50">
+                Clôturer
+              </button>
+            </form>
+
+          </div>
+        </div>
+      {% endfor %}
+
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

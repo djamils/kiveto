@@ -259,26 +259,13 @@ services:
     App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface:
         class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineAppointmentRepository
 
-    App\Context\Scheduling\Domain\Repository\WaitingRoomEntryRepositoryInterface:
-        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomEntryRepository
-
-    App\Context\Scheduling\Application\Port\WaitingRoomReadRepositoryInterface:
-        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DoctrineWaitingRoomReadRepository
-
     App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\DbalMembershipEligibilityChecker
 
     App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalAppointmentConflictChecker
 
-    App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface:
-        class: App\Context\Scheduling\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
-
-    App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface:
-        class: App\Context\Scheduling\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
-
     App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\AppointmentMapper: ~
-    App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\WaitingRoomEntryMapper: ~
     App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper\PlanningBlockMapper: ~
 
     App\Context\Scheduling\Domain\Repository\PlanningBlockRepositoryInterface:
@@ -295,6 +282,21 @@ services:
 
     App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter
+
+    # ============================================================================
+    # BOUNDED CONTEXT: PATIENT
+    # ============================================================================
+
+    App\Context\Patient\Domain\Repository\PatientRepositoryInterface:
+        class: App\Context\Patient\Infrastructure\Persistence\Doctrine\DoctrinePatientRepository
+
+    App\Context\Patient\Application\Port\PatientReadRepositoryInterface:
+        class: App\Context\Patient\Infrastructure\Persistence\Doctrine\DoctrinePatientReadRepository
+
+    App\Context\Patient\Application\Port\AnimalNameProviderInterface:
+        class: App\Context\Patient\Infrastructure\Adapter\Animal\DoctrineAnimalNameProvider
+
+    App\Context\Patient\Infrastructure\Persistence\Doctrine\PatientMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: CONSULTATION
@@ -315,15 +317,61 @@ services:
     App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator
 
-    App\Context\Consultation\Application\Port\OwnerExistenceCheckerInterface:
-        class: App\Context\Consultation\Infrastructure\Adapter\Client\DbalOwnerExistenceChecker
+    App\Context\Consultation\Application\Port\AdmissionContextProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Admission\DbalAdmissionContextProvider
 
-    App\Context\Consultation\Application\Port\AnimalExistenceCheckerInterface:
-        class: App\Context\Consultation\Infrastructure\Adapter\Animal\DbalAnimalExistenceChecker
+    App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Admission\MessengerAdmissionServiceCoordinator
 
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
+
+    # ============================================================================
+    # BOUNDED CONTEXT: ADMISSION
+    # ============================================================================
+
+    App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface:
+        class: App\Context\Admission\Infrastructure\Persistence\Doctrine\DoctrineAdmissionRepository
+
+    App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface:
+        class: App\Context\Admission\Infrastructure\Persistence\Doctrine\DoctrineAdmissionReadRepository
+
+    App\Context\Admission\Application\Port\PatientCreationPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Patient\CommandBusPatientCreationAdapter
+
+    App\Context\Admission\Application\Port\AnimalReadRepositoryPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Animal\DbalAnimalReadRepositoryAdapter
+
+    App\Context\Admission\Application\Port\PatientReadRepositoryPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Patient\DbalPatientReadRepositoryAdapter
+
+    App\Context\Admission\Application\Port\ICADLookupPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Regulatory\ICADLookupAdapter
+
+    App\Context\Admission\Infrastructure\Persistence\Doctrine\AdmissionMapper: ~
+
+    # ============================================================================
+    # BOUNDED CONTEXT: REGULATORY
+    # ============================================================================
+
+    App\Context\Regulatory\Domain\Repository\MairieNotificationRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineMairieNotificationRepository
+
+    App\Context\Regulatory\Domain\Repository\StrayCustodyRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineStrayCustodyRepository
+
+    App\Context\Regulatory\Domain\Repository\ICADLookupRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineICADLookupRepository
+
+    App\Context\Regulatory\Application\Port\RegulatoryTasksReadRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineRegulatoryTasksReadRepository
+
+    App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator: ~
+
+    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\MairieNotificationMapper: ~
+    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\StrayCustodyMapper: ~
+    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\ICADLookupMapper: ~
 
 when@dev: &services_dev
     services:
@@ -338,6 +386,21 @@ when@test:
             resource: '../fixtures/'
             autowire: true
             autoconfigure: true
+
+        App\Context\Patient\Domain\Repository\PatientRepositoryInterface:
+            class: App\Context\Patient\Infrastructure\Persistence\Doctrine\DoctrinePatientRepository
+            public: true
+            autowire: true
+
+        App\Context\Patient\Application\Port\PatientReadRepositoryInterface:
+            class: App\Context\Patient\Infrastructure\Persistence\Doctrine\DoctrinePatientReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Patient\Application\Port\AnimalNameProviderInterface:
+            class: App\Context\Patient\Infrastructure\Adapter\Animal\DoctrineAnimalNameProvider
+            public: true
+            autowire: true
 
         # Deterministic rate limiter stubs (programmable, zero wall-clock dependency)
         App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.search:

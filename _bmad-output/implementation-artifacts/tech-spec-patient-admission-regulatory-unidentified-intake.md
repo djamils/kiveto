@@ -2,8 +2,8 @@
 title: 'Patient, Admission & Regulatory — Unidentified Animal Intake Domain Model'
 slug: 'patient-admission-regulatory-unidentified-intake'
 created: '2026-04-26'
-status: 'ready-for-dev'
-stepsCompleted: [1, 2, 3, 4]
+status: 'implementation-complete'
+stepsCompleted: [1, 2, 3, 4, 5]
 tech_stack:
   - 'PHP 8.5 / Symfony 7.4'
   - 'Doctrine ORM ^3.5 (BINARY(16) UUIDv7, @Version optimistic lock)'

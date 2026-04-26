@@ -233,6 +233,7 @@ final class AnimalEntityFactory extends PersistentProxyObjectFactory
             'auxiliaryContactLastName'    => null,
             'auxiliaryContactPhoneNumber' => null,
             'status'                      => $animalStatus,
+            'version'                     => 1,
             'createdAt'                   => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween(
                 '-2 years',
                 '-1 month'

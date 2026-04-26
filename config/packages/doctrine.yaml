@@ -69,6 +69,24 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Consultation/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Consultation
+            Patient:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Patient/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Patient\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Patient
+            Admission:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Admission/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Admission
+            Regulatory:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Regulatory/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Regulatory\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Regulatory
         controller_resolver:
             auto_mapping: false
 

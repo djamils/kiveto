@@ -40,24 +40,17 @@ final class ConsultationEntityFactory extends PersistentProxyObjectFactory
         });
     }
 
-    public function withWaitingRoomEntryId(?string $entryId): self
+    public function withAdmissionId(string $admissionId): self
     {
-        return $this->afterInstantiate(static function (ConsultationEntity $entity) use ($entryId): void {
-            $entity->setWaitingRoomEntryId(null !== $entryId ? Uuid::fromString($entryId)->toBinary() : null);
+        return $this->afterInstantiate(static function (ConsultationEntity $entity) use ($admissionId): void {
+            $entity->setAdmissionId(Uuid::fromString($admissionId)->toBinary());
         });
     }
 
-    public function withOwnerId(?string $ownerId): self
+    public function withPatientId(string $patientId): self
     {
-        return $this->afterInstantiate(static function (ConsultationEntity $entity) use ($ownerId): void {
-            $entity->setOwnerId(null !== $ownerId ? Uuid::fromString($ownerId)->toBinary() : null);
-        });
-    }
-
-    public function withAnimalId(?string $animalId): self
-    {
-        return $this->afterInstantiate(static function (ConsultationEntity $entity) use ($animalId): void {
-            $entity->setAnimalId(null !== $animalId ? Uuid::fromString($animalId)->toBinary() : null);
+        return $this->afterInstantiate(static function (ConsultationEntity $entity) use ($patientId): void {
+            $entity->setPatientId(Uuid::fromString($patientId)->toBinary());
         });
     }
 
@@ -81,9 +74,8 @@ final class ConsultationEntityFactory extends PersistentProxyObjectFactory
             'id'                 => Uuid::v7()->toBinary(),
             'clinicId'           => Uuid::v7()->toBinary(),
             'appointmentId'      => null,
-            'waitingRoomEntryId' => null,
-            'ownerId'            => null,
-            'animalId'           => null,
+            'admissionId'        => Uuid::v7()->toBinary(),
+            'patientId'          => Uuid::v7()->toBinary(),
             'practitionerUserId' => Uuid::v7()->toBinary(),
             'status'             => ConsultationStatus::OPEN->value,
             'chiefComplaint'     => null,
