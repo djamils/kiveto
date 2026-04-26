@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Command\ScheduleAppointment;
 
-use App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
-use App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -30,8 +26,6 @@ final readonly class ScheduleAppointmentHandler
         private AppointmentRepositoryInterface $appointmentRepository,
         private MembershipEligibilityCheckerInterface $membershipEligibilityChecker,
         private AppointmentConflictCheckerInterface $conflictChecker,
-        private OwnerExistenceCheckerInterface $ownerExistenceChecker,
-        private AnimalExistenceCheckerInterface $animalExistenceChecker,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
         private PlanningBlockFinderInterface $planningBlockFinder,
@@ -44,20 +38,7 @@ final readonly class ScheduleAppointmentHandler
         // Capture "now" once so eligibility check and createdAt are consistent.
         $now = $this->clock->now();
 
-        $clinicId = ClinicId::fromString($command->clinicId);
-        $ownerId  = $command->ownerId ? OwnerId::fromString($command->ownerId) : null;
-        $animalId = $command->animalId ? AnimalId::fromString($command->animalId) : null;
-
-        // Validate owner exists if provided
-        if (null !== $ownerId && !$this->ownerExistenceChecker->exists($ownerId)) {
-            throw new \InvalidArgumentException(\sprintf('Owner with ID "%s" does not exist.', $command->ownerId));
-        }
-
-        // Validate animal exists if provided
-        if (null !== $animalId && !$this->animalExistenceChecker->exists($animalId)) {
-            throw new \InvalidArgumentException(\sprintf('Animal with ID "%s" does not exist.', $command->animalId));
-        }
-
+        $clinicId           = ClinicId::fromString($command->clinicId);
         $practitionerUserId = UserId::fromString($command->practitionerUserId);
 
         // Validate practitioner is eligible
@@ -120,13 +101,12 @@ final readonly class ScheduleAppointmentHandler
         $appointment = Appointment::schedule(
             id: $appointmentId,
             clinicId: $clinicId,
-            ownerId: $ownerId,
-            animalId: $animalId,
             practitionerAssignee: $practitionerAssignee,
             timeSlot: $timeSlot,
             reason: $command->reason,
             notes: $command->notes,
             createdAt: $now,
+            linkedAdmissionId: $command->linkedAdmissionId,
         );
 
         $this->appointmentRepository->save($appointment);

@@ -6,18 +6,14 @@ namespace App\Tests\Unit\Context\Scheduling\Application\Command\ScheduleAppointm
 
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointmentHandler;
-use App\Context\Scheduling\Application\Port\AnimalExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\AppointmentConflictCheckerInterface;
 use App\Context\Scheduling\Application\Port\ClinicTimezoneResolverInterface;
 use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterface;
-use App\Context\Scheduling\Application\Port\OwnerExistenceCheckerInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -32,8 +28,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     private AppointmentRepositoryInterface&MockObject $appointmentRepository;
     private MembershipEligibilityCheckerInterface&MockObject $membershipEligibilityChecker;
     private AppointmentConflictCheckerInterface&MockObject $conflictChecker;
-    private OwnerExistenceCheckerInterface&MockObject $ownerExistenceChecker;
-    private AnimalExistenceCheckerInterface&MockObject $animalExistenceChecker;
     private UuidGeneratorInterface&MockObject $uuidGenerator;
     private ClockInterface&MockObject $clock;
     private PlanningBlockFinderInterface&MockObject $planningBlockFinder;
@@ -45,8 +39,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         $this->appointmentRepository        = $this->createMock(AppointmentRepositoryInterface::class);
         $this->membershipEligibilityChecker = $this->createMock(MembershipEligibilityCheckerInterface::class);
         $this->conflictChecker              = $this->createMock(AppointmentConflictCheckerInterface::class);
-        $this->ownerExistenceChecker        = $this->createMock(OwnerExistenceCheckerInterface::class);
-        $this->animalExistenceChecker       = $this->createMock(AnimalExistenceCheckerInterface::class);
         $this->uuidGenerator                = $this->createMock(UuidGeneratorInterface::class);
         $this->clock                        = $this->createMock(ClockInterface::class);
         $this->planningBlockFinder          = $this->createMock(PlanningBlockFinderInterface::class);
@@ -56,8 +48,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             appointmentRepository: $this->appointmentRepository,
             membershipEligibilityChecker: $this->membershipEligibilityChecker,
             conflictChecker: $this->conflictChecker,
-            ownerExistenceChecker: $this->ownerExistenceChecker,
-            animalExistenceChecker: $this->animalExistenceChecker,
             uuidGenerator: $this->uuidGenerator,
             clock: $this->clock,
             planningBlockFinder: $this->planningBlockFinder,
@@ -65,30 +55,16 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         );
     }
 
-    public function testScheduleAppointmentWithPractitionerSuccess(): void
+    public function testScheduleAppointmentSuccess(): void
     {
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: '22222222-2222-2222-2222-222222222222',
-            animalId: '33333333-3333-3333-3333-333333333333',
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 30,
             reason: 'Consultation',
             notes: null,
         );
-
-        $this->ownerExistenceChecker->expects(self::once())
-            ->method('exists')
-            ->with(self::callback(fn ($id) => $id instanceof OwnerId))
-            ->willReturn(true)
-        ;
-
-        $this->animalExistenceChecker->expects(self::once())
-            ->method('exists')
-            ->with(self::callback(fn ($id) => $id instanceof AnimalId))
-            ->willReturn(true)
-        ;
 
         $this->clock->expects(self::once())
             ->method('now')
@@ -143,49 +119,39 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
-    public function testScheduleAppointmentFailsWhenOwnerDoesNotExist(): void
+    public function testScheduleAppointmentWithLinkedAdmissionId(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Owner with ID "22222222-2222-2222-2222-222222222222" does not exist.');
-
-        $command = new ScheduleAppointment(
+        $admissionId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+        $command     = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: '22222222-2222-2222-2222-222222222222',
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 30,
+            linkedAdmissionId: $admissionId,
         );
 
-        $this->ownerExistenceChecker->expects(self::once())
-            ->method('exists')
-            ->willReturn(false)
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(null);
+        $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+
+        $savedAppointment = null;
+        $this->appointmentRepository->expects(self::once())
+            ->method('save')
+            ->with(self::callback(static function (Appointment $apt) use (&$savedAppointment): bool {
+                $savedAppointment = $apt;
+
+                return true;
+            }))
         ;
 
         ($this->handler)($command);
-    }
 
-    #[AllowMockObjectsWithoutExpectations]
-    public function testScheduleAppointmentFailsWhenAnimalDoesNotExist(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Animal with ID "33333333-3333-3333-3333-333333333333" does not exist.');
-
-        $command = new ScheduleAppointment(
-            clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: '33333333-3333-3333-3333-333333333333',
-            practitionerUserId: '44444444-4444-4444-4444-444444444444',
-            startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
-            durationMinutes: 30,
-        );
-
-        $this->animalExistenceChecker->expects(self::once())
-            ->method('exists')
-            ->willReturn(false)
-        ;
-
-        ($this->handler)($command);
+        self::assertNotNull($savedAppointment);
+        self::assertInstanceOf(Appointment::class, $savedAppointment);
+        self::assertSame($admissionId, $savedAppointment->linkedAdmissionId());
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -196,8 +162,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 30,
@@ -226,8 +190,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 30,
@@ -259,8 +221,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-03-25 07:00:00'),
             durationMinutes: 30,
@@ -291,8 +251,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 60,
@@ -320,8 +278,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     {
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-02-01 09:00:00'),
             durationMinutes: 30,
@@ -352,8 +308,6 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     {
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
-            ownerId: null,
-            animalId: null,
             practitionerUserId: '44444444-4444-4444-4444-444444444444',
             startsAtUtc: new \DateTimeImmutable('2026-05-01 09:00:00'),
             durationMinutes: 30,

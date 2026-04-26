@@ -33,18 +33,15 @@ final class AppointmentEntityFactory extends PersistentProxyObjectFactory
         });
     }
 
-    public function withOwnerId(?string $ownerId): self
+    public function withLinkedAdmissionId(?string $linkedAdmissionId): self
     {
-        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($ownerId): void {
-            $entity->setOwnerId(null !== $ownerId ? Uuid::fromString($ownerId) : null);
-        });
-    }
-
-    public function withAnimalId(?string $animalId): self
-    {
-        return $this->afterInstantiate(static function (AppointmentEntity $entity) use ($animalId): void {
-            $entity->setAnimalId(null !== $animalId ? Uuid::fromString($animalId) : null);
-        });
+        return $this->afterInstantiate(
+            static function (AppointmentEntity $entity) use ($linkedAdmissionId): void {
+                $entity->setLinkedAdmissionId(
+                    null !== $linkedAdmissionId ? Uuid::fromString($linkedAdmissionId) : null
+                );
+            },
+        );
     }
 
     public function withPractitionerUserId(string $practitionerUserId): self
@@ -76,8 +73,7 @@ final class AppointmentEntityFactory extends PersistentProxyObjectFactory
         return [
             'id'                 => Uuid::v7(),
             'clinicId'           => Uuid::v7(),
-            'ownerId'            => null,
-            'animalId'           => null,
+            'linkedAdmissionId'  => null,
             'practitionerUserId' => Uuid::v7(),
             'startsAtUtc'        => new \DateTimeImmutable('+1 day 09:00:00'),
             'durationMinutes'    => 30,

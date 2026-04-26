@@ -9,8 +9,7 @@ final readonly class AppointmentDetails
     public function __construct(
         public string $id,
         public string $clinicId,
-        public ?string $ownerId,
-        public ?string $animalId,
+        public ?string $linkedAdmissionId,
         public string $practitionerUserId,
         public string $startsAtUtc,
         public int $durationMinutes,

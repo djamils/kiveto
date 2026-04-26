@@ -33,28 +33,15 @@ final readonly class GetAgendaForClinicDateRangeHandler
             SELECT
                 BIN_TO_UUID(a.id) as id,
                 BIN_TO_UUID(a.clinic_id) as clinic_id,
-                BIN_TO_UUID(a.owner_id) as owner_id,
-                BIN_TO_UUID(a.animal_id) as animal_id,
+                BIN_TO_UUID(a.linked_admission_id) as linked_admission_id,
                 BIN_TO_UUID(a.practitioner_user_id) as practitioner_user_id,
                 a.starts_at_utc,
                 a.duration_minutes,
                 a.status,
                 a.reason,
                 a.notes,
-                CONCAT(c.last_name, ' ', c.first_name) as owner_label,
-                (
-                    SELECT cm.value
-                    FROM client__contact_methods cm
-                    WHERE cm.client_id = a.owner_id AND cm.type = 'phone'
-                    ORDER BY cm.is_primary DESC
-                    LIMIT 1
-                ) as owner_phone,
-                an.name as animal_label,
-                an.species as animal_species,
                 u.email as practitioner_label
             FROM scheduling__appointments a
-            LEFT JOIN client__clients c ON c.id = a.owner_id
-            LEFT JOIN animal__animals an ON an.id = a.animal_id
             LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.starts_at_utc >= :fromUtc
@@ -164,18 +151,13 @@ final readonly class GetAgendaForClinicDateRangeHandler
         return new AppointmentItem(
             id: RowAccessor::string($row, 'id'),
             clinicId: RowAccessor::string($row, 'clinic_id'),
-            ownerId: RowAccessor::nullableString($row, 'owner_id'),
-            animalId: RowAccessor::nullableString($row, 'animal_id'),
+            linkedAdmissionId: RowAccessor::nullableString($row, 'linked_admission_id'),
             practitionerUserId: RowAccessor::string($row, 'practitioner_user_id'),
             startsAtUtc: RowAccessor::string($row, 'starts_at_utc'),
             durationMinutes: RowAccessor::int($row, 'duration_minutes'),
             status: RowAccessor::string($row, 'status'),
             reason: RowAccessor::nullableString($row, 'reason'),
             notes: RowAccessor::nullableString($row, 'notes'),
-            ownerLabel: RowAccessor::nullableString($row, 'owner_label'),
-            ownerPhone: RowAccessor::nullableString($row, 'owner_phone'),
-            animalLabel: RowAccessor::nullableString($row, 'animal_label'),
-            animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
             practitionerLabel: RowAccessor::nullableString($row, 'practitioner_label'),
         );
     }

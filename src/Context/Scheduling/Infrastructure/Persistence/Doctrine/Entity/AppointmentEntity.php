@@ -23,11 +23,8 @@ class AppointmentEntity
     #[ORM\Column(name: 'clinic_id', type: UuidType::NAME)]
     private Uuid $clinicId;
 
-    #[ORM\Column(name: 'owner_id', type: UuidType::NAME, nullable: true)]
-    private ?Uuid $ownerId;
-
-    #[ORM\Column(name: 'animal_id', type: UuidType::NAME, nullable: true)]
-    private ?Uuid $animalId;
+    #[ORM\Column(name: 'linked_admission_id', type: UuidType::NAME, nullable: true)]
+    private ?Uuid $linkedAdmissionId;
 
     #[ORM\Column(name: 'practitioner_user_id', type: UuidType::NAME)]
     private Uuid $practitionerUserId;
@@ -76,24 +73,14 @@ class AppointmentEntity
         $this->clinicId = $clinicId;
     }
 
-    public function getOwnerId(): ?Uuid
+    public function getLinkedAdmissionId(): ?Uuid
     {
-        return $this->ownerId;
+        return $this->linkedAdmissionId;
     }
 
-    public function setOwnerId(?Uuid $ownerId): void
+    public function setLinkedAdmissionId(?Uuid $linkedAdmissionId): void
     {
-        $this->ownerId = $ownerId;
-    }
-
-    public function getAnimalId(): ?Uuid
-    {
-        return $this->animalId;
-    }
-
-    public function setAnimalId(?Uuid $animalId): void
-    {
-        $this->animalId = $animalId;
+        $this->linkedAdmissionId = $linkedAdmissionId;
     }
 
     public function getPractitionerUserId(): Uuid

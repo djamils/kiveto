@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Scheduling\Domain\Appointment;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -26,8 +24,6 @@ final class AppointmentMapper
         return Appointment::reconstitute(
             id: AppointmentId::fromString($entity->getId()->toRfc4122()),
             clinicId: ClinicId::fromString($entity->getClinicId()->toRfc4122()),
-            ownerId: $entity->getOwnerId() ? OwnerId::fromString($entity->getOwnerId()->toRfc4122()) : null,
-            animalId: $entity->getAnimalId() ? AnimalId::fromString($entity->getAnimalId()->toRfc4122()) : null,
             practitionerAssignee: $practitionerAssignee,
             timeSlot: new TimeSlot($entity->getStartsAtUtc(), $entity->getDurationMinutes()),
             status: $entity->getStatus(),
@@ -35,6 +31,7 @@ final class AppointmentMapper
             notes: $entity->getNotes(),
             createdAt: $entity->getCreatedAt(),
             serviceStartedAt: $entity->getServiceStartedAt(),
+            linkedAdmissionId: $entity->getLinkedAdmissionId()?->toRfc4122(),
         );
     }
 
@@ -43,8 +40,11 @@ final class AppointmentMapper
         $entity = new AppointmentEntity();
         $entity->setId(Uuid::fromString($appointment->id()->toString()));
         $entity->setClinicId(Uuid::fromString($appointment->clinicId()->toString()));
-        $entity->setOwnerId($appointment->ownerId() ? Uuid::fromString($appointment->ownerId()->toString()) : null);
-        $entity->setAnimalId($appointment->animalId() ? Uuid::fromString($appointment->animalId()->toString()) : null);
+        $entity->setLinkedAdmissionId(
+            null !== $appointment->linkedAdmissionId()
+                ? Uuid::fromString($appointment->linkedAdmissionId())
+                : null
+        );
         $entity->setPractitionerUserId(Uuid::fromString($appointment->practitionerAssignee()->userId()->toString()));
         $entity->setStartsAtUtc($appointment->timeSlot()->startsAtUtc());
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());

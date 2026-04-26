@@ -14,7 +14,6 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Localization\TimeZone;
-use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,7 +34,6 @@ final class RescheduleAppointmentController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
-        private readonly Connection $connection,
     ) {
     }
 
@@ -52,7 +50,6 @@ final class RescheduleAppointmentController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        // Multi-tenant guard (defense-in-depth; handler also verifies)
         $appointmentClinicId = $this->queryBus->ask(new GetAppointmentClinicId($appointmentId));
         if (null === $appointmentClinicId || $appointmentClinicId !== $currentClinicId->toString()) {
             throw $this->createNotFoundException();
@@ -87,8 +84,6 @@ final class RescheduleAppointmentController extends AbstractController
         $clinicTz = TimeZone::fromString($clinicDto->timeZone)->toNative();
 
         try {
-            // Bare "YYYY-MM-DDTHH:MM" is clinic-local wall-clock; interpret it
-            // in the clinic's timezone and normalize to UTC.
             $startsAt = (new \DateTimeImmutable($startsAtRaw, $clinicTz))
                 ->setTimezone(new \DateTimeZone('UTC'))
             ;
@@ -115,8 +110,6 @@ final class RescheduleAppointmentController extends AbstractController
             $details = $this->queryBus->ask(new GetAppointmentDetails($appointmentId));
             \assert($details instanceof AppointmentDetails);
 
-            $labels = $this->fetchLabels($details->ownerId, $details->animalId);
-
             return new JsonResponse([
                 'success'     => true,
                 'appointment' => [
@@ -124,12 +117,7 @@ final class RescheduleAppointmentController extends AbstractController
                     'startsAtUtc'        => $details->startsAtUtc,
                     'durationMinutes'    => $details->durationMinutes,
                     'practitionerUserId' => $details->practitionerUserId,
-                    'ownerId'            => $details->ownerId,
-                    'animalId'           => $details->animalId,
-                    'ownerLabel'         => $labels['ownerLabel'],
-                    'ownerPhone'         => $labels['ownerPhone'],
-                    'animalLabel'        => $labels['animalLabel'],
-                    'animalSpecies'      => $labels['animalSpecies'],
+                    'linkedAdmissionId'  => $details->linkedAdmissionId,
                     'practitionerLabel'  => null,
                     'status'             => $details->status,
                     'reason'             => $details->reason,
@@ -153,55 +141,5 @@ final class RescheduleAppointmentController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
-    }
-
-    /**
-     * @return array{ownerLabel: ?string, ownerPhone: ?string, animalLabel: ?string, animalSpecies: ?string}
-     */
-    private function fetchLabels(?string $ownerId, ?string $animalId): array
-    {
-        $ownerLabel    = null;
-        $ownerPhone    = null;
-        $animalLabel   = null;
-        $animalSpecies = null;
-
-        if (null !== $ownerId) {
-            /** @var false|array{label: string} $row */
-            $row = $this->connection->fetchAssociative(
-                "SELECT CONCAT(last_name, ' ', first_name) as label FROM client__clients WHERE id = UUID_TO_BIN(:id)",
-                ['id' => $ownerId],
-            );
-            if (false !== $row) {
-                $ownerLabel = $row['label'];
-            }
-
-            /** @var false|array{value: string} $phoneRow */
-            $phoneRow = $this->connection->fetchAssociative(
-                "SELECT value FROM client__contact_methods WHERE client_id = UUID_TO_BIN(:id) AND type = 'phone' ORDER BY is_primary DESC LIMIT 1",
-                ['id' => $ownerId],
-            );
-            if (false !== $phoneRow) {
-                $ownerPhone = $phoneRow['value'];
-            }
-        }
-
-        if (null !== $animalId) {
-            /** @var false|array{name: string, species: string} $row */
-            $row = $this->connection->fetchAssociative(
-                'SELECT name, species FROM animal__animals WHERE id = UUID_TO_BIN(:id)',
-                ['id' => $animalId],
-            );
-            if (false !== $row) {
-                $animalLabel   = $row['name'];
-                $animalSpecies = $row['species'];
-            }
-        }
-
-        return [
-            'ownerLabel'    => $ownerLabel,
-            'ownerPhone'    => $ownerPhone,
-            'animalLabel'   => $animalLabel,
-            'animalSpecies' => $animalSpecies,
-        ];
     }
 }

@@ -11,11 +11,9 @@ use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Shared\Domain\Aggregate\AggregateRoot;
@@ -24,8 +22,7 @@ final class Appointment extends AggregateRoot
 {
     private AppointmentId $id;
     private ClinicId $clinicId;
-    private ?OwnerId $ownerId;
-    private ?AnimalId $animalId;
+    private ?string $linkedAdmissionId;
     private PractitionerAssignee $practitionerAssignee;
     private TimeSlot $timeSlot;
     private AppointmentStatus $status;
@@ -41,19 +38,17 @@ final class Appointment extends AggregateRoot
     public static function schedule(
         AppointmentId $id,
         ClinicId $clinicId,
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
         PractitionerAssignee $practitionerAssignee,
         TimeSlot $timeSlot,
         ?string $reason,
         ?string $notes,
         \DateTimeImmutable $createdAt,
+        ?string $linkedAdmissionId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
         $appointment->clinicId             = $clinicId;
-        $appointment->ownerId              = $ownerId;
-        $appointment->animalId             = $animalId;
+        $appointment->linkedAdmissionId    = $linkedAdmissionId;
         $appointment->practitionerAssignee = $practitionerAssignee;
         $appointment->timeSlot             = $timeSlot;
         $appointment->status               = AppointmentStatus::PLANNED;
@@ -65,8 +60,7 @@ final class Appointment extends AggregateRoot
         $appointment->recordDomainEvent(new AppointmentScheduled(
             appointmentId: $id->toString(),
             clinicId: $clinicId->toString(),
-            ownerId: $ownerId?->toString(),
-            animalId: $animalId?->toString(),
+            linkedAdmissionId: $linkedAdmissionId,
             practitionerUserId: $practitionerAssignee->userId()->toString(),
             startsAtUtc: $timeSlot->startsAtUtc()->format(\DateTimeInterface::ATOM),
             durationMinutes: $timeSlot->durationMinutes(),
@@ -80,8 +74,6 @@ final class Appointment extends AggregateRoot
     public static function reconstitute(
         AppointmentId $id,
         ClinicId $clinicId,
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
         PractitionerAssignee $practitionerAssignee,
         TimeSlot $timeSlot,
         AppointmentStatus $status,
@@ -89,12 +81,12 @@ final class Appointment extends AggregateRoot
         ?string $notes,
         \DateTimeImmutable $createdAt,
         ?\DateTimeImmutable $serviceStartedAt,
+        ?string $linkedAdmissionId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
         $appointment->clinicId             = $clinicId;
-        $appointment->ownerId              = $ownerId;
-        $appointment->animalId             = $animalId;
+        $appointment->linkedAdmissionId    = $linkedAdmissionId;
         $appointment->practitionerAssignee = $practitionerAssignee;
         $appointment->timeSlot             = $timeSlot;
         $appointment->status               = $status;
@@ -233,14 +225,9 @@ final class Appointment extends AggregateRoot
         return $this->clinicId;
     }
 
-    public function ownerId(): ?OwnerId
+    public function linkedAdmissionId(): ?string
     {
-        return $this->ownerId;
-    }
-
-    public function animalId(): ?AnimalId
-    {
-        return $this->animalId;
+        return $this->linkedAdmissionId;
     }
 
     public function practitionerAssignee(): PractitionerAssignee

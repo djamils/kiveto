@@ -22,8 +22,7 @@ final readonly class GetAppointmentDetailsHandler
             SELECT
                 BIN_TO_UUID(id) as id,
                 BIN_TO_UUID(clinic_id) as clinic_id,
-                BIN_TO_UUID(owner_id) as owner_id,
-                BIN_TO_UUID(animal_id) as animal_id,
+                BIN_TO_UUID(linked_admission_id) as linked_admission_id,
                 BIN_TO_UUID(practitioner_user_id) as practitioner_user_id,
                 starts_at_utc,
                 duration_minutes,
@@ -48,8 +47,7 @@ final readonly class GetAppointmentDetailsHandler
         return new AppointmentDetails(
             id: RowAccessor::string($result, 'id'),
             clinicId: RowAccessor::string($result, 'clinic_id'),
-            ownerId: RowAccessor::nullableString($result, 'owner_id'),
-            animalId: RowAccessor::nullableString($result, 'animal_id'),
+            linkedAdmissionId: RowAccessor::nullableString($result, 'linked_admission_id'),
             practitionerUserId: RowAccessor::string($result, 'practitioner_user_id'),
             startsAtUtc: RowAccessor::string($result, 'starts_at_utc'),
             durationMinutes: RowAccessor::int($result, 'duration_minutes'),

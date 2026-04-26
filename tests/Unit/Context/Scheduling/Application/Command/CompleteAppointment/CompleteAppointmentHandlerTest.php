@@ -66,8 +66,6 @@ final class CompleteAppointmentHandlerTest extends TestCase
         return Appointment::schedule(
             id: $id,
             clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
-            ownerId: null,
-            animalId: null,
             practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
             reason: null,

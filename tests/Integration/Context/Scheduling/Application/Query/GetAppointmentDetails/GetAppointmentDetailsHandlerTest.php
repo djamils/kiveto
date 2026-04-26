@@ -24,8 +24,6 @@ final class GetAppointmentDetailsHandlerTest extends KernelTestCase
         AppointmentEntityFactory::new()
             ->withId($appointmentId)
             ->withClinicId($clinicId)
-            ->withOwnerId('22222222-2222-2222-2222-222222222222')
-            ->withAnimalId('33333333-3333-3333-3333-333333333333')
             ->withPractitionerUserId('44444444-4444-4444-4444-444444444444')
             ->startingAt(new \DateTimeImmutable('2026-04-10 09:00:00'), 45)
             ->withStatus(AppointmentStatus::PLANNED)
@@ -43,8 +41,7 @@ final class GetAppointmentDetailsHandlerTest extends KernelTestCase
         self::assertInstanceOf(AppointmentDetails::class, $result);
         self::assertSame($appointmentId, $result->id);
         self::assertSame($clinicId, $result->clinicId);
-        self::assertSame('22222222-2222-2222-2222-222222222222', $result->ownerId);
-        self::assertSame('33333333-3333-3333-3333-333333333333', $result->animalId);
+        self::assertNull($result->linkedAdmissionId);
         self::assertSame('44444444-4444-4444-4444-444444444444', $result->practitionerUserId);
         self::assertSame(45, $result->durationMinutes);
         self::assertSame('PLANNED', $result->status);
