@@ -16,6 +16,7 @@ final readonly class WaitingRoomItemDto
         public string $intakeChannel,
         public string $openedAt,
         public ?string $triageNotes,
+        public bool $isPatientIdentifiedAtOpening = true,
     ) {
     }
 }

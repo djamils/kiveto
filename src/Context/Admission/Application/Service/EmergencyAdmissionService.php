@@ -54,10 +54,16 @@ final class EmergencyAdmissionService
                 $animalName,
             );
         } else {
-            \assert(null !== $provisionalLabel);
+            // Generate a provisional label from available data if not provided
+            $label = $provisionalLabel
+                ?? \sprintf(
+                    '%s · %s',
+                    $observedSpecies ?? 'Animal',
+                    $now->format('d/m H\\hi'),
+                );
             $patientId = $this->patientCreationPort->createUnidentifiedPatient(
                 $clinicId->toString(),
-                $provisionalLabel,
+                $label,
                 $observedSpecies,
                 $observedColor,
             );

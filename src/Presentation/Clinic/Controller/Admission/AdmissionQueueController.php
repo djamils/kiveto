@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Admission;
 
+use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Admission\Application\Query\ListAdmissionsInWaitingRoom\ListAdmissionsInWaitingRoom;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -32,8 +33,17 @@ final class AdmissionQueueController extends AbstractController
 
         \assert(\is_array($entries));
 
+        $countUnidentified = 0;
+        foreach ($entries as $entry) {
+            \assert($entry instanceof WaitingRoomItemDto);
+            if (!$entry->isPatientIdentifiedAtOpening) {
+                ++$countUnidentified;
+            }
+        }
+
         return $this->render('clinic/admission/queue.html.twig', [
-            'entries' => $entries,
+            'entries'           => $entries,
+            'countUnidentified' => $countUnidentified,
         ]);
     }
 }

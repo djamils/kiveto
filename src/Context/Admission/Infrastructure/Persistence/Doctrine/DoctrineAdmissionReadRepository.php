@@ -10,6 +10,7 @@ use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
 use App\Context\Admission\Domain\ValueObject\LocationStatusValue;
 use App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity\AdmissionEntity;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -43,18 +44,45 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         /** @var list<AdmissionEntity> $entities */
         $entities = $qb->getQuery()->getResult();
 
+        if ([] === $entities) {
+            return [];
+        }
+
+        // Fetch display_label_value from Patient BC in a single DBAL query
+        $patientBinIds = array_map(
+            static fn (AdmissionEntity $e): string => $e->getPatientId()->toBinary(),
+            $entities,
+        );
+
+        $conn  = $this->entityManager->getConnection();
+        $rows  = $conn->fetchAllKeyValue(
+            'SELECT id, display_label_value FROM patient__patients WHERE id IN (?)',
+            [$patientBinIds],
+            [ArrayParameterType::STRING],
+        );
+
+        // Re-key by RFC 4122 UUID string for O(1) lookup
+        /** @var array<string, string> $labels */
+        $labels = [];
+        foreach ($rows as $binId => $label) {
+            \assert(\is_string($label));
+            $labels[Uuid::fromBinary((string) $binId)->toRfc4122()] = $label;
+        }
+
         $items = [];
         foreach ($entities as $entity) {
-            $items[] = new WaitingRoomItemDto(
+            $patientUuid = $entity->getPatientId()->toString();
+            $items[]     = new WaitingRoomItemDto(
                 admissionId: $entity->getId()->toString(),
                 clinicId: $entity->getClinicId()->toString(),
-                patientId: $entity->getPatientId()->toString(),
-                displayLabel: $entity->getPatientId()->toString(),
+                patientId: $patientUuid,
+                displayLabel: $labels[$patientUuid] ?? $patientUuid,
                 triageLevel: $entity->getTriageLevel()->value,
                 locationStatus: $entity->getLocationStatusValue()->value,
                 intakeChannel: $entity->getIntakeChannel()->value,
                 openedAt: $entity->getOpenedAt()->format(\DateTimeInterface::ATOM),
                 triageNotes: $entity->getTriageNotes(),
+                isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
             );
         }
 

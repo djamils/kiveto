@@ -2,10 +2,10 @@
  # Kiveto — templates/clinic/admission/queue.html.twig
  # ─────────────────────────────────────────────────────
  # Waiting room — all active admissions (RDV, walk-in, urgence, transfert…).
- # Uses the same layout and CSS as the old WaitingRoom page.
  #
  # Variables:
- #   entries  WaitingRoomItemDto[]   Active admissions in waiting room
+ #   entries           WaitingRoomItemDto[]   Active admissions in waiting room
+ #   countUnidentified int                    Admissions with unidentified patient
  #}
 {% extends 'clinic/base.html.twig' %}
 
@@ -16,9 +16,6 @@
   <link rel="stylesheet" href="{{ asset('styles/pages/scheduling/waiting-room.css') }}"/>
 {% endblock %}
 
-{#
-  Label maps for display
-#}
 {% set channelLabels = {
   'appointment_booked':        'RDV',
   'walk_in':                   'Sans RDV',
@@ -31,14 +28,14 @@
 } %}
 
 {% set channelBadgeStyle = {
-  'appointment_booked':        'background: var(--color-info-bg); color: var(--color-info-text);',
-  'walk_in':                   'background: var(--color-warning-bg); color: var(--color-warning-text);',
-  'emergency':                 'background: var(--color-danger-bg); color: var(--color-danger-text);',
-  'emergency_by_third_party':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
-  'emergency_by_authority':    'background: var(--color-danger-bg); color: var(--color-danger-text);',
-  'emergency_by_association':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
-  'emergency_by_municipality': 'background: var(--color-danger-bg); color: var(--color-danger-text);',
-  'transfer_from_other_clinic':'background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);',
+  'appointment_booked':        'background:var(--color-info-bg);color:var(--color-info-text);',
+  'walk_in':                   'background:var(--color-warning-bg);color:var(--color-warning-text);',
+  'emergency':                 'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_third_party':  'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_authority':    'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_association':  'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_municipality': 'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'transfer_from_other_clinic':'background:var(--surface-subtle);color:var(--text-muted);border:1px solid var(--border-medium);',
 } %}
 
 {% set triageStripe = {
@@ -111,6 +108,20 @@
         <p class="stat-label">Urgences</p>
       </div>
     </div>
+
+    {# [UI-3] Non identifiés — visible uniquement si > 0 #}
+    {% if countUnidentified > 0 %}
+      <div class="stat-block">
+        <div class="stat-icon" style="background:#fff7ed;">
+          <i data-lucide="help-circle" class="wr-icon-sm" style="color:#d97706;"></i>
+        </div>
+        <div>
+          <p class="stat-num" style="color:#d97706;">{{ countUnidentified }}</p>
+          <p class="stat-label">Non identifiés</p>
+        </div>
+      </div>
+    {% endif %}
+
     <div class="stat-block">
       <div class="stat-icon wr-stat-icon--done">
         <i data-lucide="users" class="wr-icon-sm wr-icon--green"></i>
@@ -126,21 +137,17 @@
     </div>
   </div>
 
-  {# ── Two-column layout: queue list + detail panel ── #}
+  {# ── Two-column layout ── #}
   <div class="page-body">
 
     {# Left: queue panel #}
     <div class="queue-panel">
-
-      {# Queue head: title + counter #}
       <div class="queue-head">
         <span class="wr-queue-title">File d'attente</span>
         <span class="wr-queue-count" id="queue-count">
           {{ entries|length }} patient{{ entries|length > 1 ? 's' : '' }}
         </span>
       </div>
-
-      {# Filter tabs #}
       <div class="queue-filter">
         <button class="qf-tab active" data-filter="all" onclick="filterQueue(this)">Tous</button>
         <button class="qf-tab urg" data-filter="urgence" onclick="filterQueue(this)">Urgences</button>
@@ -148,21 +155,18 @@
         <button class="qf-tab" data-filter="consultation" onclick="filterQueue(this)">Consultation</button>
       </div>
 
-      {# Queue list #}
       {% if entries is empty %}
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-3);padding:var(--space-10) var(--space-4);flex:1;">
           <i data-lucide="inbox" style="width:40px;height:40px;color:var(--text-subtle);opacity:.5;"></i>
           <p style="font-size:var(--text-md);color:var(--text-muted);">Aucun patient en salle d'attente</p>
-          <a href="{{ path('clinic_admission_emergency') }}" class="btn btn-primary btn-xs">
-            Créer une admission
-          </a>
         </div>
       {% else %}
       <div class="queue-list" id="queue-list">
 
         {% for entry in entries %}
           {% set stripe = triageStripe[entry.triageLevel] ?? 'attente' %}
-          {% set isEmergency = entry.triageLevel in ['emergency', 'vital_emergency'] %}
+          {% set isEmergency    = entry.triageLevel in ['emergency', 'vital_emergency'] %}
+          {% set isUnidentified = not entry.isPatientIdentifiedAtOpening %}
 
           {% set openedTs = entry.openedAt|date('U') %}
           {% set nowTs    = 'now'|date('U') %}
@@ -172,17 +176,38 @@
 
           <div class="qcard{{ isEmergency ? ' urgence' : '' }}"
                data-triage="{{ entry.triageLevel }}"
-               data-location="{{ entry.locationStatus }}">
+               data-location="{{ entry.locationStatus }}"
+               data-unidentified="{{ isUnidentified ? 'true' : 'false' }}"
+               data-admission-id="{{ entry.admissionId }}"
+               onclick="showDetail(this)"
+               style="cursor:pointer;">
             <div class="qcard-stripe {{ stripe }}"></div>
             <div class="qcard-body">
+
+              {# [UI-4] Avatar : help-circle si non identifié, triangle si urgence, initiales sinon #}
+              {% if isUnidentified %}
+                <div style="width:40px;height:40px;border-radius:var(--radius-md);background:#fff7ed;border:1px solid #fed7aa;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i data-lucide="help-circle" style="width:18px;height:18px;color:#d97706;"></i>
+                </div>
+              {% elseif isEmergency %}
+                <div style="width:40px;height:40px;border-radius:var(--radius-md);background:#fef2f2;border:1px solid #fecaca;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i data-lucide="alert-triangle" style="width:18px;height:18px;color:#dc2626;"></i>
+                </div>
+              {% else %}
+                <div style="width:40px;height:40px;border-radius:var(--radius-full);background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;font-size:var(--text-sm);font-weight:600;flex-shrink:0;">
+                  {{ entry.displayLabel|slice(0,2)|upper }}
+                </div>
+              {% endif %}
 
               <div style="flex:1;min-width:0;">
                 {# Badges row #}
                 <div style="display:flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-1);flex-wrap:wrap;">
                   {% if isEmergency %}
-                    <span class="badge" style="background:var(--color-danger-bg);color:var(--color-danger-text);">
-                      URGENCE
-                    </span>
+                    <span class="badge" style="background:var(--color-danger-bg);color:var(--color-danger-text);">URGENCE</span>
+                  {% endif %}
+                  {# [UI-4] Badge "À identifier" pour les non identifiés #}
+                  {% if isUnidentified %}
+                    <span class="badge" style="background:#fff7ed;color:#d97706;border:1px solid #fed7aa;">À identifier</span>
                   {% endif %}
                   <span class="badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">
                     {{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}
@@ -198,16 +223,14 @@
                   {% endif %}
                 </div>
 
-                {# Patient display label #}
+                {# Display label — texte provisoire pour les non identifiés #}
                 <div class="qcard-name">{{ entry.displayLabel }}</div>
 
-                {# Triage notes #}
                 {% if entry.triageNotes %}
                   <div class="qcard-motif">{{ entry.triageNotes }}</div>
                 {% endif %}
               </div>
 
-              {# Right: wait time + actions #}
               <div class="qcard-right">
                 {% if waitH > 0 %}
                   <span class="wait-big">{{ waitH }}h{{ waitM < 10 ? '0' }}{{ waitM }}</span>
@@ -216,13 +239,14 @@
                 {% endif %}
                 <span class="wait-label">d'attente</span>
 
-                {# Quick triage change #}
                 <form method="POST"
                       action="{{ path('clinic_admission_update_triage', {admissionId: entry.admissionId}) }}"
-                      style="margin-top:var(--space-1);">
+                      style="margin-top:var(--space-1);"
+                      onclick="event.stopPropagation()">
                   <input type="hidden" name="_token"
                          value="{{ csrf_token('admission_triage_' ~ entry.admissionId) }}">
-                  <select name="triage_level" onchange="this.form.submit()" class="form-input" style="font-size:var(--text-sm);padding:2px var(--space-2);">
+                  <select name="triage_level" onchange="this.form.submit()"
+                          class="form-input-wr" style="font-size:var(--text-sm);padding:2px var(--space-2);">
                     <option value="standard" {{ entry.triageLevel == 'standard' ? 'selected' }}>Standard</option>
                     <option value="priority" {{ entry.triageLevel == 'priority' ? 'selected' }}>Prioritaire</option>
                     <option value="emergency" {{ entry.triageLevel == 'emergency' ? 'selected' }}>Urgence</option>
@@ -230,7 +254,7 @@
                   </select>
                 </form>
 
-                <div style="display:flex;gap:var(--space-1);margin-top:var(--space-1);">
+                <div style="display:flex;gap:var(--space-1);margin-top:var(--space-1);" onclick="event.stopPropagation()">
                   <form method="POST"
                         action="{{ path('clinic_admission_close', {admissionId: entry.admissionId}) }}"
                         onsubmit="return confirm('Clôturer cette admission ?')">
@@ -250,19 +274,86 @@
       {% endif %}
     </div>
 
-    {# Right: detail panel — placeholder for now #}
+    {# Right: detail panel #}
     <div class="control-panel">
       <div class="control-scroll">
-        <div id="patient-detail-panel"
-             class="patient-detail-panel is-hidden"
-             data-waiting-room-target="detailPanel">
-          <turbo-frame id="patient-detail" src=""></turbo-frame>
-        </div>
-        {# Empty state when no patient selected #}
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3);color:var(--text-subtle);">
+
+        {# Empty state #}
+        <div id="detail-empty"
+             style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3);color:var(--text-subtle);">
           <i data-lucide="mouse-pointer-2" style="width:32px;height:32px;opacity:.4;"></i>
           <p style="font-size:var(--text-md);">Sélectionner un patient</p>
         </div>
+
+        {# [UI-5] Detail panel — populated by JS when a card is clicked #}
+        <div id="detail-content" style="display:none;">
+          {# Generic actions widget #}
+          <div class="widget">
+            <div style="padding:var(--space-4);border-bottom:1px solid var(--border-light);display:flex;align-items:flex-start;gap:var(--space-3);">
+              <div id="detail-avatar"
+                   style="width:44px;height:44px;border-radius:var(--radius-full);background:var(--brand-50);color:var(--brand-600);display:flex;align-items:center;justify-content:center;font-size:var(--text-base);font-weight:600;flex-shrink:0;">
+              </div>
+              <div style="flex:1;min-width:0;">
+                <p id="detail-name" style="font-size:var(--text-lg);font-weight:var(--weight-medium);color:var(--text-primary);"></p>
+                <p id="detail-meta" style="font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px;"></p>
+              </div>
+              <div style="display:flex;gap:var(--space-1);">
+                <button class="btn btn-green btn-xs">
+                  <i data-lucide="send" style="width:10px;height:10px;"></i> Appeler
+                </button>
+                <button class="btn btn-primary btn-xs">
+                  <i data-lucide="arrow-right" style="width:10px;height:10px;"></i> Prendre en charge
+                </button>
+              </div>
+            </div>
+            <div style="padding:var(--space-3) var(--space-4);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);margin-bottom:var(--space-3);">
+                <div style="background:var(--surface-subtle);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);text-align:center;">
+                  <p style="font-size:var(--text-xs);color:var(--text-subtle);margin-bottom:2px;">Attente</p>
+                  <p id="detail-wait" style="font-size:var(--text-xl);font-weight:var(--weight-medium);color:var(--text-primary);line-height:1;">—</p>
+                </div>
+                <div style="background:var(--surface-subtle);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);text-align:center;">
+                  <p style="font-size:var(--text-xs);color:var(--text-subtle);margin-bottom:2px;">Canal</p>
+                  <p id="detail-channel" style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);line-height:1;">—</p>
+                </div>
+              </div>
+              <div id="detail-notes" style="display:none;padding:var(--space-2) var(--space-3);background:var(--surface-subtle);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3);"></div>
+            </div>
+          </div>
+
+          {# [UI-5] Section identification — visible uniquement si non identifié #}
+          <div id="detail-identification" style="display:none;">
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-lg);padding:var(--space-3);margin-bottom:var(--space-3);">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-3);">
+                <i data-lucide="help-circle" style="width:14px;height:14px;color:#d97706;flex-shrink:0;"></i>
+                <span style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:#d97706;text-transform:uppercase;letter-spacing:.07em;">À identifier</span>
+              </div>
+              <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-3);">
+                <button class="btn btn-primary" style="flex:1;justify-content:center;font-size:var(--text-sm);"
+                        onclick="alert('Recherche propriétaire — à implémenter')">
+                  <i data-lucide="search" style="width:12px;height:12px;"></i>
+                  Rattacher à un propriétaire
+                </button>
+                <button class="btn btn-secondary" style="font-size:var(--text-sm);"
+                        onclick="alert('Lecteur puce — à implémenter')">
+                  <i data-lucide="cpu" style="width:12px;height:12px;"></i>
+                  Lire la puce
+                </button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) var(--space-3);background:var(--surface-card);border-radius:var(--radius-md);border:1px solid var(--border-light);">
+                  <span style="font-size:var(--text-sm);color:var(--text-muted);">📋 Signalement mairie</span>
+                  <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#d97706;">Obligations légales déclenchées</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) var(--space-3);background:var(--surface-card);border-radius:var(--radius-md);border:1px solid var(--border-light);">
+                  <span style="font-size:var(--text-sm);color:var(--text-muted);">⚖️ Garde légale</span>
+                  <span style="font-size:var(--text-sm);font-weight:var(--weight-medium);color:#d97706;">8 jours ouvrés (Code rural L211-25)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>{# /detail-content #}
       </div>
     </div>
 
@@ -282,104 +373,107 @@
     </button>
   </div>
 
-  {# ── Modals ── #}
+  {# ══════════════════════════════════════════════════════════════════ #}
+  {#  MODALS                                                           #}
+  {# ══════════════════════════════════════════════════════════════════ #}
 
-  <!-- Modal Check-in — full admission form -->
+  {# ── [UI-2] Modal Check-in ── #}
   <div class="modal-overlay hidden" id="modal-checkin"
        data-action="click->waiting-room#closeOnOverlayClick">
     <div class="wr-modal-box" style="width:600px;max-width:calc(100vw - 24px);">
       <div class="wr-modal-head">
-        <p class="wr-modal-title">Nouvelle admission</p>
+        <p class="wr-modal-title">Check-in patient</p>
         <button class="btn-modal-close"
                 data-action="waiting-room#closeModal"
                 data-waiting-room-modal-id-param="modal-checkin">
           <i data-lucide="x" class="wr-icon-xs"></i>
         </button>
       </div>
-      <form method="post" action="{{ path('clinic_admission_emergency') }}">
-        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-        <div class="wr-modal-body">
 
-          {# Canal + triage #}
+      {# Recherche live multi-critères #}
+      <div class="wr-modal-body" style="padding-bottom:0;">
+        <div class="form-row">
+          <label class="form-label-wr">Rechercher — puce, propriétaire, animal, téléphone</label>
+          <div style="position:relative;">
+            <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
+            <input class="form-input-wr" id="checkin-search" style="padding-left:32px;"
+                   placeholder="Nom animal, propriétaire, puce, tatouage…"
+                   oninput="checkinSearch(this.value)" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      {# Résultats hiérarchisés #}
+      <div id="checkin-results" style="border-top:1px solid var(--border-light);max-height:280px;overflow-y:auto;">
+        <div style="padding:6px var(--space-4);background:var(--surface-subtle);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">
+          RDVs du jour
+        </div>
+        <div class="wr-checkin-row" data-name="Milo" data-species="Félin"
+             onclick="selectCheckinEntry(this)">
+          <div style="width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">ML</div>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Milo — British Shorthair</p>
+            <p style="font-size:var(--text-sm);color:var(--text-subtle);">James Park · 10h15 · Dr. Rousseau</p>
+          </div>
+          <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h15</span>
+        </div>
+        <div class="wr-checkin-row" data-name="Nala" data-species="Canin"
+             onclick="selectCheckinEntry(this)">
+          <div style="width:32px;height:32px;border-radius:50%;background:#fdf2f8;color:#db2777;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">NL</div>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Nala — Berger Malinois</p>
+            <p style="font-size:var(--text-sm);color:var(--text-subtle);">Claire Moreau · 10h30 · Dr. Martin</p>
+          </div>
+          <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h30</span>
+        </div>
+
+        <div style="padding:6px var(--space-4);background:var(--surface-subtle);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">
+          Propositions walk-in
+        </div>
+        <div class="wr-checkin-row" data-name="Rocky" data-species="Canin"
+             onclick="selectCheckinEntry(this)">
+          <div style="width:32px;height:32px;border-radius:50%;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">RK</div>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Rocky — Boxer</p>
+            <p style="font-size:var(--text-sm);color:var(--text-subtle);">Sophie Dubois · Pas de RDV aujourd'hui</p>
+          </div>
+          <span class="badge" style="background:var(--surface-subtle);color:var(--text-muted);border:1px solid var(--border-medium);">Walk-in</span>
+        </div>
+
+        <div style="padding:var(--space-2) var(--space-4);border-top:1px solid var(--border-light);background:var(--surface-subtle);">
+          <button type="button" class="btn-wr btn-secondary" style="width:100%;justify-content:center;font-size:var(--text-sm);"
+                  onclick="alert('Création nouveau client — à implémenter')">
+            <i data-lucide="user-plus" class="wr-icon-xs"></i>
+            Aucun résultat — créer nouveau client
+          </button>
+        </div>
+      </div>
+
+      {# Form de confirmation après sélection #}
+      <form method="post" action="{{ path('clinic_admission_emergency') }}" id="checkin-form">
+        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+        <input type="hidden" name="triage_level" value="standard">
+        <input type="hidden" name="intake_channel" value="walk_in">
+        <div class="wr-modal-body">
           <div class="wr-form-grid-2">
             <div class="form-row">
-              <label class="form-label-wr">Canal d'admission *</label>
-              <select name="intake_channel" class="form-input-wr" required>
+              <label class="form-label-wr">Motif de visite</label>
+              <input class="form-input-wr" name="triage_notes" placeholder="Décrivez brièvement…">
+            </div>
+            <div class="form-row">
+              <label class="form-label-wr">Canal</label>
+              <select name="intake_channel" class="form-input-wr">
                 <option value="walk_in">Sans rendez-vous</option>
                 <option value="appointment_booked">Sur rendez-vous</option>
-                <option value="emergency">Urgence (propriétaire)</option>
-                <option value="emergency_by_third_party">Urgence (tiers)</option>
-                <option value="emergency_by_authority">Urgence (autorités)</option>
-                <option value="emergency_by_association">Urgence (association)</option>
-                <option value="emergency_by_municipality">Urgence (mairie)</option>
                 <option value="transfer_from_other_clinic">Transfert</option>
               </select>
             </div>
-            <div class="form-row">
-              <label class="form-label-wr">Niveau de triage *</label>
-              <select name="triage_level" class="form-input-wr" required>
-                <option value="standard">Standard</option>
-                <option value="priority">Prioritaire</option>
-                <option value="emergency">Urgence</option>
-                <option value="vital_emergency">Urgence vitale</option>
-              </select>
-            </div>
           </div>
-
-          {# Description provisoire #}
           <div class="form-row">
-            <label class="form-label-wr">Description de l'animal</label>
-            <input class="form-input-wr" name="provisional_label"
-                   placeholder="Ex : Chat roux blessé à la patte — Mme Dupont">
+            <label class="form-label-wr">Description / étiquette provisoire</label>
+            <input class="form-input-wr" name="provisional_label" id="checkin-label"
+                   placeholder="Ex : Milo (British Shorthair) — James Park">
           </div>
-
-          {# Espèce + couleur #}
-          <div class="wr-form-grid-2">
-            <div class="form-row">
-              <label class="form-label-wr">Espèce observée</label>
-              <input class="form-input-wr" name="observed_species" placeholder="Ex : Félin, Canin…">
-            </div>
-            <div class="form-row">
-              <label class="form-label-wr">Couleur / robe</label>
-              <input class="form-input-wr" name="observed_color" placeholder="Ex : Roux tigré">
-            </div>
-          </div>
-
-          {# Notes de triage #}
-          <div class="form-row">
-            <label class="form-label-wr">Motif / notes de triage</label>
-            <input class="form-input-wr" name="triage_notes"
-                   placeholder="Motif de venue, symptômes observés…">
-          </div>
-
-          {# Présentateur #}
-          <div style="border-top:1px solid var(--border-light);margin-top:var(--space-3);padding-top:var(--space-3);">
-            <p class="form-label-wr" style="margin-bottom:var(--space-2);">Présentateur <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optionnel)</span></p>
-            <div class="wr-form-grid-2">
-              <div class="form-row">
-                <label class="form-label-wr">Nom</label>
-                <input class="form-input-wr" name="presenter_name" placeholder="Prénom Nom">
-              </div>
-              <div class="form-row">
-                <label class="form-label-wr">Téléphone</label>
-                <input class="form-input-wr" type="tel" name="presenter_phone"
-                       placeholder="+33 6 12 34 56 78">
-              </div>
-            </div>
-            <div class="form-row">
-              <label class="form-label-wr">Rôle</label>
-              <select name="presenter_role" class="form-input-wr">
-                <option value="">— Sélectionner —</option>
-                <option value="owner">Propriétaire</option>
-                <option value="third_party">Tiers</option>
-                <option value="authority">Autorité</option>
-                <option value="association">Association</option>
-                <option value="municipality">Municipalité</option>
-                <option value="unknown">Inconnu</option>
-              </select>
-            </div>
-          </div>
-
         </div>
         <div class="wr-modal-foot">
           <button type="button" class="btn-wr btn-secondary"
@@ -393,63 +487,257 @@
     </div>
   </div>
 
-  <!-- Modal Urgence -->
+  {# ── [UI-1] Modal Urgence — wizard 2 étapes ── #}
   <div class="modal-overlay hidden" id="modal-urgence"
        data-action="click->waiting-room#closeOnOverlayClick">
-    <div class="wr-modal-box">
+    <div class="wr-modal-box" style="width:580px;max-width:calc(100vw - 24px);">
+
+      {# Head #}
       <div class="wr-modal-head wr-modal-head--urgence">
         <div class="wr-modal-urgence-title">
           <div class="wr-modal-urgence-icon">
             <i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i>
           </div>
-          <p class="wr-modal-urgence-text">Enregistrement urgence</p>
+          <p class="wr-modal-urgence-text" id="urg-title">Urgence — Identification</p>
         </div>
         <button class="btn-modal-close wr-modal-close--urgence"
-                data-action="waiting-room#closeModal"
-                data-waiting-room-modal-id-param="modal-urgence">
+                onclick="urgClose()">
           <i data-lucide="x" class="wr-icon-xs wr-icon--red"></i>
         </button>
       </div>
-      <form method="post" action="{{ path('clinic_admission_emergency') }}">
-        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-        <input type="hidden" name="triage_level" value="emergency">
+
+      {# Stepper #}
+      <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-light);background:var(--surface-subtle);">
+        <div id="urg-dot-1" style="width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">1</div>
+        <span style="font-size:var(--text-xs);color:var(--text-subtle);">Identification</span>
+        <div style="flex:1;height:1px;background:var(--border-medium);"></div>
+        <div id="urg-dot-2" style="width:20px;height:20px;border-radius:50%;background:var(--border-medium);color:var(--text-subtle);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">2</div>
+        <span style="font-size:var(--text-xs);color:var(--text-subtle);">Admission</span>
+      </div>
+
+      {# ── STEP 1 ── #}
+      <div id="urg-step-1">
         <div class="wr-modal-body">
           <div class="wr-urgence-alert">
             <i data-lucide="zap" class="wr-urgence-alert-icon"></i>
             Ce patient sera placé immédiatement en tête de file.
           </div>
-          <div class="wr-form-grid-2">
-            <div class="form-row">
-              <label class="form-label-wr">Description de l'animal *</label>
-              <input class="form-input-wr" name="provisional_label" required
-                     placeholder="Ex : Gaia (Labrador) — Mme Fauchard">
-            </div>
-            <div class="form-row">
-              <label class="form-label-wr">Motif d'urgence *</label>
-              <input class="form-input-wr" name="triage_notes" required
-                     placeholder="Décrivez les symptômes...">
+
+          {# Puce #}
+          <div class="form-row">
+            <label class="form-label-wr">Numéro de puce <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);">(priorité)</span></label>
+            <div style="display:flex;gap:var(--space-2);">
+              <div style="position:relative;flex:1;">
+                <i data-lucide="cpu" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
+                <input class="form-input-wr" id="urg-chip" style="padding-left:32px;"
+                       placeholder="250269…" oninput="urgChipInput(this.value)" autofocus>
+              </div>
+              <button type="button" class="btn-wr btn-secondary" style="white-space:nowrap;font-size:var(--text-sm);"
+                      onclick="alert('Lecteur USB — à connecter')">
+                <i data-lucide="scan-line" class="wr-icon-xs"></i> Scanner
+              </button>
             </div>
           </div>
-          <div class="form-row" style="margin-top:var(--space-2);">
-            <label class="form-label-wr">Type d'urgence</label>
-            <select name="intake_channel" class="form-input-wr">
-              <option value="emergency">Urgence (propriétaire)</option>
-              <option value="emergency_by_third_party">Urgence (tiers)</option>
-              <option value="emergency_by_authority">Urgence (autorités)</option>
-              <option value="emergency_by_association">Urgence (association)</option>
-              <option value="emergency_by_municipality">Urgence (mairie)</option>
-            </select>
+
+          {# Recherche libre #}
+          <div class="form-row">
+            <label class="form-label-wr">Recherche animal / propriétaire</label>
+            <div style="position:relative;">
+              <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
+              <input class="form-input-wr" id="urg-search" style="padding-left:32px;"
+                     placeholder="Nom animal, propriétaire, téléphone, tatouage…"
+                     oninput="urgFreeSearch(this.value)">
+            </div>
+          </div>
+
+          {# Résultats de recherche #}
+          <div style="border:1px solid var(--border-medium);border-radius:var(--radius-md);overflow:hidden;margin-bottom:var(--space-3);">
+            <div style="padding:6px var(--space-3);background:var(--surface-subtle);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">RDVs du jour</div>
+            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Milo (British Shorthair)','existant')">
+              <div style="width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">ML</div>
+              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Milo — British Shorthair</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">James Park · 10h15</p></div>
+              <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h15</span>
+            </div>
+            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Nala (Berger Malinois)','existant')">
+              <div style="width:32px;height:32px;border-radius:50%;background:#fdf2f8;color:#db2777;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">NL</div>
+              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Nala — Berger Malinois</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">Claire Moreau · 10h30</p></div>
+              <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h30</span>
+            </div>
+            <div style="padding:6px var(--space-3);background:var(--surface-subtle);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">Dossiers existants</div>
+            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Max (Berger Allemand)','existant')">
+              <div style="width:32px;height:32px;border-radius:50%;background:#f5f3ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">MX</div>
+              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Max — Berger Allemand</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">Lisa Wong · Pas de RDV</p></div>
+              <span class="badge" style="background:var(--surface-subtle);color:var(--text-muted);border:1px solid var(--border-medium);">Dossier existant</span>
+            </div>
+          </div>
+
+          {# Toggle non identifié #}
+          <div id="urg-toggle-nonid"
+               style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);cursor:pointer;border:2px solid var(--border-medium);transition:.15s;"
+               onclick="urgToggleNonId()">
+            <div id="urg-checkbox-box"
+                 style="width:18px;height:18px;border-radius:4px;border:2px solid #d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg id="urg-checkbox-check" width="10" height="10" fill="none" viewBox="0 0 10 10" style="display:none;">
+                <path d="M2 5l2.5 2.5L8 2.5" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);">Animal non identifié</p>
+              <p style="font-size:var(--text-sm);color:var(--text-muted);">Urgence vitale ou errant — régularisation après stabilisation</p>
+            </div>
           </div>
         </div>
         <div class="wr-modal-foot">
-          <button type="button" class="btn-wr btn-secondary"
-                  data-action="waiting-room#closeModal"
-                  data-waiting-room-modal-id-param="modal-urgence">Annuler</button>
-          <button type="submit" class="btn-wr btn-danger">
-            <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+          <button type="button" class="btn-wr btn-secondary" onclick="urgClose()">Annuler</button>
+          <button type="button" class="btn-wr btn-danger" id="urg-next-btn"
+                  onclick="urgGoStep2()" disabled style="opacity:.5;cursor:not-allowed;">
+            Continuer <i data-lucide="arrow-right" class="wr-icon-xs"></i>
           </button>
         </div>
-      </form>
+      </div>
+
+      {# ── STEP 2 ── #}
+      <div id="urg-step-2" style="display:none;">
+
+        {# Bandeau mode #}
+        <div id="urg-mode-banner"
+             style="margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:var(--weight-medium);display:flex;align-items:center;gap:var(--space-2);">
+        </div>
+
+        {# 2A — dossier existant #}
+        <div id="urg-2a" style="display:none;">
+          <form method="post" action="{{ path('clinic_admission_emergency') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+            <input type="hidden" name="triage_level" value="emergency">
+            <input type="hidden" name="intake_channel" value="emergency">
+            <div class="wr-modal-body">
+              <div class="wr-form-grid-2">
+                <div class="form-row">
+                  <label class="form-label-wr">Motif d'urgence *</label>
+                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes observés…">
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Notes complémentaires</label>
+                  <input class="form-input-wr" placeholder="Optionnel…">
+                </div>
+              </div>
+            </div>
+            <div class="wr-modal-foot">
+              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
+                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
+              </button>
+              <button type="submit" class="btn-wr btn-danger">
+                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {# 2B — nouveau dossier #}
+        <div id="urg-2b" style="display:none;">
+          <form method="post" action="{{ path('clinic_admission_emergency') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+            <input type="hidden" name="triage_level" value="emergency">
+            <div class="wr-modal-body">
+              <div class="wr-form-grid-2">
+                <div class="form-row">
+                  <label class="form-label-wr">Animal *</label>
+                  <input class="form-input-wr" name="provisional_label" required placeholder="Nom de l'animal">
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Espèce</label>
+                  <input class="form-input-wr" name="observed_species" placeholder="Canin, Félin…">
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Type d'urgence</label>
+                  <select name="intake_channel" class="form-input-wr">
+                    <option value="emergency">Urgence (propriétaire)</option>
+                    <option value="emergency_by_third_party">Urgence (tiers)</option>
+                    <option value="emergency_by_authority">Urgence (autorités)</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Motif d'urgence *</label>
+                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes…">
+                </div>
+              </div>
+            </div>
+            <div class="wr-modal-foot">
+              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
+                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
+              </button>
+              <button type="submit" class="btn-wr btn-danger">
+                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {# 2C — non identifié #}
+        <div id="urg-2c" style="display:none;">
+          <form method="post" action="{{ path('clinic_admission_emergency') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+            <input type="hidden" name="triage_level" value="emergency">
+            <div class="wr-modal-body">
+              <div class="wr-form-grid-2">
+                <div class="form-row">
+                  <label class="form-label-wr">Espèce présumée *</label>
+                  <select name="observed_species" class="form-input-wr" required>
+                    <option value="">— Sélectionner —</option>
+                    <option>Canin</option><option>Félin</option><option>Lapin</option>
+                    <option>NAC</option><option>Oiseau</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Canal d'entrée *</label>
+                  <select name="intake_channel" class="form-input-wr">
+                    <option value="emergency_by_third_party">Particulier tiers</option>
+                    <option value="emergency_by_authority">Police / Pompiers</option>
+                    <option value="emergency_by_association">Association</option>
+                    <option value="emergency_by_municipality">Mairie / Fourrière</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="form-label-wr">État clinique *</label>
+                <input class="form-input-wr" name="triage_notes" required
+                       placeholder="Ex : inconscient, plaie ouverte, dyspnée…">
+              </div>
+              <div class="wr-form-grid-2">
+                <div class="form-row">
+                  <label class="form-label-wr">Présentateur — Nom</label>
+                  <input class="form-input-wr" name="presenter_name" placeholder="Optionnel">
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Présentateur — Tél.</label>
+                  <input class="form-input-wr" name="presenter_phone" placeholder="+33 6 …">
+                </div>
+              </div>
+              <div class="wr-form-grid-2">
+                <div class="form-row">
+                  <label class="form-label-wr">Description physique</label>
+                  <input class="form-input-wr" name="provisional_label"
+                         placeholder="Ex : chat tigré, ~3 kg, yeux verts">
+                </div>
+                <div class="form-row">
+                  <label class="form-label-wr">Lieu de découverte</label>
+                  <input class="form-input-wr" name="observed_color"
+                         placeholder="Ex : rue St-Denis, Paris 1er">
+                </div>
+              </div>
+            </div>
+            <div class="wr-modal-foot">
+              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
+                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
+              </button>
+              <button type="submit" class="btn-wr btn-danger">
+                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>{# /urg-step-2 #}
     </div>
   </div>
 
@@ -459,9 +747,9 @@
 {% block javascripts %}
   {{ parent() }}
   <script>
+    /* ── Queue filter ── */
     function filterQueue(btn) {
       const filter = btn.dataset.filter;
-
       btn.closest('.queue-filter').querySelectorAll('.qf-tab')
         .forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
@@ -475,9 +763,9 @@
         const isConsult = location === 'in_consultation_room';
 
         let show = false;
-        if (filter === 'all')           show = true;
-        else if (filter === 'urgence')  show = isUrgent;
-        else if (filter === 'attente')  show = !isConsult;
+        if (filter === 'all')               show = true;
+        else if (filter === 'urgence')      show = isUrgent;
+        else if (filter === 'attente')      show = !isConsult;
         else if (filter === 'consultation') show = isConsult;
 
         card.style.display = show ? '' : 'none';
@@ -486,6 +774,174 @@
 
       const counter = document.getElementById('queue-count');
       if (counter) counter.textContent = visible + ' patient' + (visible > 1 ? 's' : '');
+    }
+
+    /* ── [UI-5] Detail panel ── */
+    const CHANNEL_LABELS = {
+      appointment_booked: 'RDV', walk_in: 'Sans RDV',
+      emergency: 'Urgence', emergency_by_third_party: 'Urgence tiers',
+      emergency_by_authority: 'Urgence autorités',
+      emergency_by_association: 'Urgence asso.',
+      emergency_by_municipality: 'Urgence mairie',
+      transfer_from_other_clinic: 'Transfert',
+    };
+
+    function showDetail(card) {
+      document.querySelectorAll('#queue-list .qcard').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+
+      const isUnidentified = card.dataset.unidentified === 'true';
+      const label    = card.querySelector('.qcard-name')?.textContent?.trim() ?? '—';
+      const waitEl   = card.querySelector('.wait-big');
+      const waitText = waitEl ? waitEl.textContent.trim() + ' ' + (card.querySelector('.wait-label')?.textContent?.trim() ?? '') : '—';
+      const channel  = card.dataset.triage ? '' : '';
+      const notesEl  = card.querySelector('.qcard-motif');
+
+      document.getElementById('detail-empty').style.display = 'none';
+      document.getElementById('detail-content').style.display = '';
+
+      const avatarEl = document.getElementById('detail-avatar');
+      if (isUnidentified) {
+        avatarEl.style.background = '#fff7ed';
+        avatarEl.style.color      = '#d97706';
+        avatarEl.style.borderRadius = 'var(--radius-md)';
+        avatarEl.innerHTML = '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4M12 8h.01"/></svg>';
+      } else {
+        avatarEl.style.background = 'var(--brand-50)';
+        avatarEl.style.color      = 'var(--brand-600)';
+        avatarEl.style.borderRadius = 'var(--radius-full)';
+        avatarEl.innerHTML = label.slice(0, 2).toUpperCase();
+      }
+
+      document.getElementById('detail-name').textContent = label;
+      document.getElementById('detail-wait').textContent = waitText;
+
+      const notesDiv = document.getElementById('detail-notes');
+      if (notesEl && notesEl.textContent.trim()) {
+        notesDiv.textContent = notesEl.textContent.trim();
+        notesDiv.style.display = '';
+      } else {
+        notesDiv.style.display = 'none';
+      }
+
+      document.getElementById('detail-identification').style.display = isUnidentified ? '' : 'none';
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    /* ── [UI-2] Check-in search ── */
+    function checkinSearch(val) {
+      const rows = document.querySelectorAll('#checkin-results .wr-checkin-row');
+      rows.forEach(function (row) {
+        const text = row.textContent.toLowerCase();
+        row.style.display = !val || text.includes(val.toLowerCase()) ? '' : 'none';
+      });
+    }
+    function selectCheckinEntry(el) {
+      document.querySelectorAll('#checkin-results .wr-checkin-row')
+        .forEach(r => r.style.outline = '');
+      el.style.outline = '2px solid var(--brand-400)';
+      const name = el.querySelector('p:first-child')?.textContent?.trim() ?? '';
+      const labelInput = document.getElementById('checkin-label');
+      if (labelInput) labelInput.value = name;
+    }
+
+    /* ── [UI-1] Urgence wizard ── */
+    var urgMode = null;
+    var urgNonIdChecked = false;
+
+    function urgClose() {
+      document.getElementById('modal-urgence').classList.add('hidden');
+      urgReset();
+    }
+    function urgReset() {
+      urgMode = null; urgNonIdChecked = false;
+      document.getElementById('urg-step-1').style.display = '';
+      document.getElementById('urg-step-2').style.display = 'none';
+      document.getElementById('urg-dot-1').style.background = '#dc2626';
+      document.getElementById('urg-dot-1').style.color = '#fff';
+      document.getElementById('urg-dot-2').style.background = 'var(--border-medium)';
+      document.getElementById('urg-dot-2').style.color = 'var(--text-subtle)';
+      document.getElementById('urg-chip').value = '';
+      document.getElementById('urg-search').value = '';
+      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
+      document.getElementById('urg-checkbox-check').style.display = 'none';
+      document.getElementById('urg-title').textContent = 'Urgence — Identification';
+      document.querySelectorAll('.wr-checkin-row').forEach(r => r.style.outline = '');
+      urgUpdateBtn();
+    }
+    function urgUpdateBtn() {
+      var btn = document.getElementById('urg-next-btn');
+      var ok  = urgMode !== null;
+      btn.disabled = !ok;
+      btn.style.opacity = ok ? '1' : '.5';
+      btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+    }
+    function urgSelectExisting(el, name, mode) {
+      document.querySelectorAll('#modal-urgence .wr-checkin-row').forEach(r => r.style.outline = '');
+      el.style.outline = '2px solid var(--brand-400)';
+      urgMode = mode; urgNonIdChecked = false;
+      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
+      document.getElementById('urg-toggle-nonid').style.background = '';
+      document.getElementById('urg-checkbox-check').style.display = 'none';
+      urgUpdateBtn();
+    }
+    function urgToggleNonId() {
+      urgNonIdChecked = !urgNonIdChecked;
+      var el = document.getElementById('urg-toggle-nonid');
+      el.style.borderColor  = urgNonIdChecked ? '#d97706' : 'var(--border-medium)';
+      el.style.background   = urgNonIdChecked ? '#fff7ed' : '';
+      document.getElementById('urg-checkbox-check').style.display = urgNonIdChecked ? '' : 'none';
+      if (urgNonIdChecked) {
+        urgMode = 'non-identifie';
+        document.querySelectorAll('#modal-urgence .wr-checkin-row').forEach(r => r.style.outline = '');
+      } else {
+        urgMode = null;
+      }
+      urgUpdateBtn();
+    }
+    function urgChipInput(v) {
+      if (v.length > 4) { urgMode = 'existant'; urgUpdateBtn(); }
+    }
+    function urgFreeSearch(v) { /* debounce AJAX — à brancher */ }
+
+    function urgGoStep2() {
+      if (!urgMode) return;
+      document.getElementById('urg-step-1').style.display = 'none';
+      document.getElementById('urg-step-2').style.display = '';
+      document.getElementById('urg-dot-1').style.background = '#16a34a';
+      document.getElementById('urg-dot-2').style.background = '#dc2626';
+      document.getElementById('urg-dot-2').style.color = '#fff';
+
+      ['urg-2a','urg-2b','urg-2c'].forEach(id => document.getElementById(id).style.display = 'none');
+      var subId = urgMode === 'existant' ? 'urg-2a' : urgMode === 'non-identifie' ? 'urg-2c' : 'urg-2b';
+      document.getElementById(subId).style.display = '';
+
+      var banner = document.getElementById('urg-mode-banner');
+      if (urgMode === 'existant') {
+        banner.style.cssText = 'background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
+        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Rattachement à dossier existant';
+        document.getElementById('urg-title').textContent = 'Urgence — Admission';
+      } else if (urgMode === 'non-identifie') {
+        banner.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;color:#d97706;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
+        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4M12 8h.01"/></svg> <strong>Animal non identifié</strong> — régularisation différée';
+        document.getElementById('urg-title').textContent = 'Urgence — Animal non identifié';
+      } else {
+        banner.style.cssText = 'background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
+        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> <strong>Création nouveau dossier</strong>';
+        document.getElementById('urg-title').textContent = 'Urgence — Nouveau dossier';
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function urgGoStep1() {
+      document.getElementById('urg-step-2').style.display = 'none';
+      document.getElementById('urg-step-1').style.display = '';
+      document.getElementById('urg-dot-1').style.background = '#dc2626';
+      document.getElementById('urg-dot-1').style.color = '#fff';
+      document.getElementById('urg-dot-2').style.background = 'var(--border-medium)';
+      document.getElementById('urg-dot-2').style.color = 'var(--text-subtle)';
+      document.getElementById('urg-title').textContent = 'Urgence — Identification';
     }
   </script>
 {% endblock %}
