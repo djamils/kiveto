@@ -6,8 +6,6 @@ namespace App\Fixtures\Context\Scheduling\Story;
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
-use App\Fixtures\Context\Animal\Story\AnimalDataStory;
-use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -65,32 +63,14 @@ final class SchedulingStory extends Story
             [6, 15, 0,  $lyon,  $vetUserId,        20, 'Contrôle poids',                    false],
         ];
 
-        // Paris clinic has a seeded owner+animal (Rex owned by Sophie);
-        // Lyon has Felix owned by Émilie. Stick with clinic-owned patients so
-        // the OwnerExistenceChecker validates in both clinics.
-        $patientByClinic = [
-            $paris => [
-                'owner'  => ClientDataStory::CLIENT_SOPHIE_ID,
-                'animal' => AnimalDataStory::ANIMAL_REX_ID,
-            ],
-            $lyon => [
-                'owner'  => ClientDataStory::CLIENT_EMILIE_ID,
-                'animal' => null,
-            ],
-        ];
-
         foreach ($plan as [$dayOffset, $hour, $minute, $clinicId, $practitionerId, $duration, $reason, $cancelled]) {
             $localStart = $monday
                 ->modify(\sprintf('+%d days', $dayOffset))
                 ->setTime($hour, $minute, 0)
             ;
 
-            $patient = $patientByClinic[$clinicId];
-
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: $clinicId,
-                ownerId: $patient['owner'],
-                animalId: $patient['animal'],
                 practitionerUserId: $practitionerId,
                 startsAtUtc: $localStart->setTimezone($utcTz),
                 durationMinutes: $duration,
@@ -99,12 +79,6 @@ final class SchedulingStory extends Story
             ));
 
             \assert(\is_string($appointmentId));
-
-            // Expose stable refs by clinic+day+time for WaitingRoomStory.
-            if ($paris === $clinicId && !$cancelled) {
-                $key = \sprintf('appointment:paris:day%d:%02dh%02d', $dayOffset, $hour, $minute);
-                $this->addState($key, $appointmentId);
-            }
 
             if ($cancelled) {
                 $this->commandBus->dispatch(new CancelAppointment(

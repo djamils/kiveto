@@ -23,15 +23,11 @@ final readonly class DbalSchedulingAppointmentContextProvider implements Schedul
         $appointmentBinary = Uuid::fromString($appointmentId->toString())->toBinary();
 
         $sql = '
-            SELECT 
+            SELECT
                 a.clinic_id,
-                a.owner_id,
-                a.animal_id,
                 a.status,
-                w.id as waiting_room_entry_id,
-                w.arrival_mode
+                a.linked_admission_id
             FROM scheduling__appointments a
-            LEFT JOIN scheduling__waiting_room_entries w ON w.linked_appointment_id = a.id
             WHERE a.id = :appointmentId
         ';
 
@@ -45,10 +41,7 @@ final readonly class DbalSchedulingAppointmentContextProvider implements Schedul
 
         return new AppointmentContextDTO(
             clinicId: RowAccessor::uuid($result, 'clinic_id'),
-            linkedWaitingRoomEntryId: RowAccessor::nullableUuid($result, 'waiting_room_entry_id'),
-            ownerId: RowAccessor::nullableUuid($result, 'owner_id'),
-            animalId: RowAccessor::nullableUuid($result, 'animal_id'),
-            arrivalMode: RowAccessor::nullableString($result, 'arrival_mode'),
+            admissionId: RowAccessor::nullableUuid($result, 'linked_admission_id'),
             status: RowAccessor::string($result, 'status'),
         );
     }

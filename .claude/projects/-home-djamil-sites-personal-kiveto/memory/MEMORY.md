@@ -1,0 +1,6 @@
+- [English comments](feedback_english_comments.md) — All code comments must be in English; user-facing strings stay French
+- [UI Kit roadmap](project_ui_kit_roadmap.md) — Existing + missing UI components for the Kiveto design system
+- [Don't commit untested fixes](feedback_no_blind_commits.md) — Never commit fixes without user validation first
+- [Build with make assets](feedback_build_command.md) — Use `make assets`, not `php bin/console asset-map:compile`
+- [make ci must pass](feedback_make_ci_must_pass.md) — `make ci` (cs-fixer + phpcs + phpstan + tests) must be green before any commit
+- [No auto-commit on fixes](feedback_no_auto_commit.md) — Never commit automatically when fixing bugs/UI — always wait for explicit "commit" from user

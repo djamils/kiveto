@@ -6,7 +6,6 @@ namespace App\Context\Consultation\Application\Port;
 
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 
 interface SchedulingServiceCoordinatorInterface
 {
@@ -16,15 +15,6 @@ interface SchedulingServiceCoordinatorInterface
      */
     public function ensureAppointmentInService(
         AppointmentId $appointmentId,
-        UserId $triggeredByUserId,
-    ): void;
-
-    /**
-     * Ensure waiting room entry is in service state
-     * (idempotent - no error if already in service).
-     */
-    public function ensureWaitingRoomEntryInService(
-        WaitingRoomEntryId $entryId,
         UserId $triggeredByUserId,
     ): void;
 

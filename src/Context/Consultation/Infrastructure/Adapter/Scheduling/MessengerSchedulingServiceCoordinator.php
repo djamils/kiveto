@@ -7,8 +7,6 @@ namespace App\Context\Consultation\Infrastructure\Adapter\Scheduling;
 use App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
-use App\Context\Scheduling\Application\Command\StartServiceForWaitingRoomEntry\StartServiceForWaitingRoomEntry;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 final readonly class MessengerSchedulingServiceCoordinator implements SchedulingServiceCoordinatorInterface
@@ -25,22 +23,6 @@ final readonly class MessengerSchedulingServiceCoordinator implements Scheduling
         // TODO: Scheduling BC does not yet expose a StartServiceForAppointment command;
         // when it does, dispatch it here. Until then this is a no-op so the calling
         // Consultation flow does not block.
-    }
-
-    public function ensureWaitingRoomEntryInService(
-        WaitingRoomEntryId $entryId,
-        UserId $triggeredByUserId,
-    ): void {
-        try {
-            $this->commandBus->dispatch(
-                new StartServiceForWaitingRoomEntry(
-                    waitingRoomEntryId: $entryId->toString(),
-                    serviceStartedByUserId: $triggeredByUserId->toString(),
-                )
-            );
-        } catch (\Exception) {
-            // Ignore
-        }
     }
 
     public function completeAppointment(

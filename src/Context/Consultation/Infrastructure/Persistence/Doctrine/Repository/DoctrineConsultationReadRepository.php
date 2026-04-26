@@ -37,9 +37,9 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         }
 
         // Fetch notes
-        $sqlNotes = 'SELECT note_type, content, created_at_utc 
-                     FROM consultation__clinical_notes 
-                     WHERE consultation_id = :consultationId 
+        $sqlNotes = 'SELECT note_type, content, created_at_utc
+                     FROM consultation__clinical_notes
+                     WHERE consultation_id = :consultationId
                      ORDER BY created_at_utc ASC';
         $notesResult = $this->connection->fetchAllAssociative($sqlNotes, [
             'consultationId' => $consultationIdBinary,
@@ -59,9 +59,9 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         );
 
         // Fetch acts
-        $sqlActs = 'SELECT label, quantity, performed_at_utc 
-                    FROM consultation__performed_acts 
-                    WHERE consultation_id = :consultationId 
+        $sqlActs = 'SELECT label, quantity, performed_at_utc
+                    FROM consultation__performed_acts
+                    WHERE consultation_id = :consultationId
                     ORDER BY performed_at_utc ASC';
         $actsResult = $this->connection->fetchAllAssociative($sqlActs, [
             'consultationId' => $consultationIdBinary,
@@ -97,9 +97,8 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
             practitionerUserId: RowAccessor::uuid($consultation, 'practitioner_user_id'),
             status: RowAccessor::string($consultation, 'status'),
             appointmentId: RowAccessor::nullableUuid($consultation, 'appointment_id'),
-            waitingRoomEntryId: RowAccessor::nullableUuid($consultation, 'waiting_room_entry_id'),
-            ownerId: RowAccessor::nullableUuid($consultation, 'owner_id'),
-            animalId: RowAccessor::nullableUuid($consultation, 'animal_id'),
+            admissionId: RowAccessor::uuid($consultation, 'admission_id'),
+            patientId: RowAccessor::uuid($consultation, 'patient_id'),
             chiefComplaint: RowAccessor::nullableString($consultation, 'chief_complaint'),
             vitals: $vitals,
             notes: $notes,

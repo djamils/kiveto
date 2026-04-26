@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Animal\Domain;
 use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\Event\AnimalArchived;
 use App\Context\Animal\Domain\Event\AnimalCreated;
+use App\Context\Animal\Domain\Event\AnimalNameChanged;
 use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
@@ -772,6 +773,64 @@ final class AnimalTest extends TestCase
         $primary          = array_values(array_filter($activeOwnerships, static fn ($o) => $o->isPrimary()))[0];
 
         self::assertSame('client-aaa', $primary->clientId);
+    }
+
+    public function testUpdateIdentityRecordsAnimalNameChangedEventWhenNameChanges(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $_      = $animal->pullDomainEvents(); // Clear AnimalCreated
+
+        $now = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->updateIdentity(
+            name: 'NewName',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            auxiliaryContact: null,
+            now: $now,
+        );
+
+        $events = $animal->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(AnimalNameChanged::class, $events[0]);
+
+        $event = $events[0];
+        self::assertInstanceOf(AnimalNameChanged::class, $event);
+        self::assertSame('NewName', $event->newName);
+        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $event->animalId);
+    }
+
+    public function testUpdateIdentityDoesNotRecordAnimalNameChangedEventWhenNameUnchanged(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $_      = $animal->pullDomainEvents(); // Clear AnimalCreated
+
+        $now = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->updateIdentity(
+            name: 'Rex', // Same name as in createMinimalAnimal
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            auxiliaryContact: null,
+            now: $now,
+        );
+
+        $events = $animal->pullDomainEvents();
+        self::assertCount(0, $events);
     }
 
     private function createMinimalAnimal(): Animal

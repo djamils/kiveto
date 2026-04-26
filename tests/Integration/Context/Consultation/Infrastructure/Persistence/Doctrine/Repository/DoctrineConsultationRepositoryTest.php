@@ -6,16 +6,15 @@ namespace App\Tests\Integration\Context\Consultation\Infrastructure\Persistence\
 
 use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -26,10 +25,9 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
     private const string CONSULTATION_ID = '11111111-1111-4111-8111-111111111111';
     private const string CLINIC_ID       = '22222222-2222-4222-8222-222222222222';
     private const string APPOINTMENT_ID  = '33333333-3333-4333-8333-333333333333';
-    private const string ENTRY_ID        = '44444444-4444-4444-8444-444444444444';
+    private const string ADMISSION_ID    = '44444444-4444-4444-8444-444444444444';
     private const string USER_ID         = '55555555-5555-4555-8555-555555555555';
-    private const string OWNER_ID        = '66666666-6666-4666-8666-666666666666';
-    private const string ANIMAL_ID       = '77777777-7777-4777-8777-777777777777';
+    private const string PATIENT_ID      = '66666666-6666-4666-8666-666666666666';
 
     private ConsultationRepositoryInterface $repository;
 
@@ -57,9 +55,9 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
             AppointmentId::fromString(self::APPOINTMENT_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            OwnerId::fromString(self::OWNER_ID),
-            AnimalId::fromString(self::ANIMAL_ID),
             new \DateTimeImmutable('2026-04-10 09:00:00'),
         );
 
@@ -69,21 +67,19 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
         self::assertNotNull($loaded);
         self::assertSame(self::CONSULTATION_ID, $loaded->getId()->toString());
         self::assertSame(self::APPOINTMENT_ID, $loaded->getAppointmentId()?->toString());
-        self::assertNull($loaded->getWaitingRoomEntryId());
-        self::assertSame(self::OWNER_ID, $loaded->getOwnerId()?->toString());
-        self::assertSame(self::ANIMAL_ID, $loaded->getAnimalId()?->toString());
+        self::assertSame(self::ADMISSION_ID, $loaded->getAdmissionId()->toString());
+        self::assertSame(self::PATIENT_ID, $loaded->getPatientId()->toString());
         self::assertSame(ConsultationStatus::OPEN, $loaded->getStatus());
     }
 
-    public function testSaveAndFindRoundTripFromWaitingRoomEntry(): void
+    public function testSaveAndFindRoundTripFromAdmission(): void
     {
-        $consultation = Consultation::startFromWaitingRoomEntry(
+        $consultation = Consultation::startFromAdmission(
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
-            WaitingRoomEntryId::fromString(self::ENTRY_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            null,
-            null,
             new \DateTimeImmutable('2026-04-10 09:00:00'),
         );
 
@@ -92,7 +88,8 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
         $loaded = $this->repository->findById($consultation->getId());
         self::assertNotNull($loaded);
         self::assertNull($loaded->getAppointmentId());
-        self::assertSame(self::ENTRY_ID, $loaded->getWaitingRoomEntryId()?->toString());
+        self::assertSame(self::ADMISSION_ID, $loaded->getAdmissionId()->toString());
+        self::assertSame(self::PATIENT_ID, $loaded->getPatientId()->toString());
     }
 
     public function testRoundTripWithFullLifecycle(): void
@@ -101,9 +98,9 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
             AppointmentId::fromString(self::APPOINTMENT_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            OwnerId::fromString(self::OWNER_ID),
-            AnimalId::fromString(self::ANIMAL_ID),
             new \DateTimeImmutable('2026-04-10 09:00:00'),
         );
         $this->repository->save($consultation);

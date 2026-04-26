@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Consultation\Domain\Consultation;
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ConsultationEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity;
@@ -35,15 +34,8 @@ final readonly class ConsultationMapper
         $entity->setAppointmentId($consultation->getAppointmentId()
             ? Uuid::fromString($consultation->getAppointmentId()->toString())->toBinary()
             : null);
-        $entity->setWaitingRoomEntryId($consultation->getWaitingRoomEntryId()
-            ? Uuid::fromString($consultation->getWaitingRoomEntryId()->toString())->toBinary()
-            : null);
-        $entity->setOwnerId($consultation->getOwnerId()
-            ? Uuid::fromString($consultation->getOwnerId()->toString())->toBinary()
-            : null);
-        $entity->setAnimalId($consultation->getAnimalId()
-            ? Uuid::fromString($consultation->getAnimalId()->toString())->toBinary()
-            : null);
+        $entity->setAdmissionId(Uuid::fromString($consultation->getAdmissionId()->toString())->toBinary());
+        $entity->setPatientId(Uuid::fromString($consultation->getPatientId()->toString())->toBinary());
         $entity->setPractitionerUserId(
             Uuid::fromString($consultation->getPractitionerUserId()->toString())->toBinary(),
         );
@@ -86,16 +78,9 @@ final readonly class ConsultationMapper
             appointmentId: $entity->getAppointmentId()
                 ? AppointmentId::fromString(Uuid::fromBinary($entity->getAppointmentId())->toRfc4122())
                 : null,
-            waitingRoomEntryId: $entity->getWaitingRoomEntryId()
-                ? WaitingRoomEntryId::fromString(Uuid::fromBinary($entity->getWaitingRoomEntryId())->toRfc4122())
-                : null,
+            admissionId: AdmissionId::fromString(Uuid::fromBinary($entity->getAdmissionId())->toRfc4122()),
+            patientId: PatientId::fromString(Uuid::fromBinary($entity->getPatientId())->toRfc4122()),
             practitionerUserId: UserId::fromString(Uuid::fromBinary($entity->getPractitionerUserId())->toRfc4122()),
-            ownerId: $entity->getOwnerId()
-                ? OwnerId::fromString(Uuid::fromBinary($entity->getOwnerId())->toRfc4122())
-                : null,
-            animalId: $entity->getAnimalId()
-                ? AnimalId::fromString(Uuid::fromBinary($entity->getAnimalId())->toRfc4122())
-                : null,
             status: ConsultationStatus::from($entity->getStatus()),
             chiefComplaint: $entity->getChiefComplaint(),
             vitals: $vitals,

@@ -6,6 +6,7 @@ namespace App\Context\Animal\Domain;
 
 use App\Context\Animal\Domain\Event\AnimalArchived;
 use App\Context\Animal\Domain\Event\AnimalCreated;
+use App\Context\Animal\Domain\Event\AnimalNameChanged;
 use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
 use App\Context\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
@@ -244,6 +245,14 @@ final class Animal extends AggregateRoot
         $this->ensureNotArchived();
 
         $identification->ensureConsistency();
+
+        if ($this->name !== $name) {
+            $this->recordDomainEvent(new AnimalNameChanged(
+                animalId: $this->id->toString(),
+                clinicId: $this->clinicId->toString(),
+                newName: $name,
+            ));
+        }
 
         $this->name               = $name;
         $this->species            = $species;

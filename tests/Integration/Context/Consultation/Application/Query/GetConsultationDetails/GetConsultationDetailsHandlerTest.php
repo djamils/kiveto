@@ -21,14 +21,16 @@ final class GetConsultationDetailsHandlerTest extends KernelTestCase
         $consultationId = '11111111-1111-4111-8111-111111111111';
         $clinicId       = '22222222-2222-4222-8222-222222222222';
         $userId         = '55555555-5555-4555-8555-555555555555';
+        $admissionId    = '44444444-4444-4444-8444-444444444444';
+        $patientId      = '66666666-6666-4666-8666-666666666666';
 
         ConsultationEntityFactory::new()
             ->withId($consultationId)
             ->withClinicId($clinicId)
             ->withPractitionerUserId($userId)
+            ->withAdmissionId($admissionId)
+            ->withPatientId($patientId)
             ->withStatus(ConsultationStatus::OPEN)
-            ->withOwnerId('66666666-6666-4666-8666-666666666666')
-            ->withAnimalId('77777777-7777-4777-8777-777777777777')
             ->create([
                 'chiefComplaint' => 'Limping',
                 'startedAtUtc'   => new \DateTimeImmutable('2026-04-10 09:00:00'),
@@ -49,8 +51,8 @@ final class GetConsultationDetailsHandlerTest extends KernelTestCase
         self::assertSame($clinicId, $result->clinicId);
         self::assertSame($userId, $result->practitionerUserId);
         self::assertSame('OPEN', $result->status);
-        self::assertSame('66666666-6666-4666-8666-666666666666', $result->ownerId);
-        self::assertSame('77777777-7777-4777-8777-777777777777', $result->animalId);
+        self::assertSame($admissionId, $result->admissionId);
+        self::assertSame($patientId, $result->patientId);
         self::assertSame('Limping', $result->chiefComplaint);
         self::assertSame(['weightKg' => '12.500', 'temperatureC' => '38.20'], $result->vitals);
         self::assertSame([], $result->notes);

@@ -3,7 +3,8 @@
 
 @layer components {
 
-  [data-page="clinic_scheduling_waiting_room"] {
+  [data-page="clinic_scheduling_waiting_room"],
+  [data-page="clinic_admission_queue"] {
     /* Icon size utilities */
     .wr-icon-xxs { width: 10px; height: 10px; }
     .wr-icon-xs { width: 11px; height: 11px; }
@@ -806,7 +807,8 @@
 
 /* iPad Pro landscape */
 @media (max-width: 1280px) {
-  [data-page="clinic_scheduling_waiting_room"] {
+  [data-page="clinic_scheduling_waiting_room"],
+  [data-page="clinic_admission_queue"] {
     .queue-panel { width: 100%; border-right: none; }
     .control-panel { display: none; }
   }
@@ -815,7 +817,8 @@
 
 /* iPad portrait */
 @media (max-width: 1024px) {
-  [data-page="clinic_scheduling_waiting_room"] {
+  [data-page="clinic_scheduling_waiting_room"],
+  [data-page="clinic_admission_queue"] {
     .bottom-tabs { display: flex; }
     .queue-panel { display: none; }
     .control-panel { display: none; }
@@ -833,7 +836,8 @@
 
 /* Mobile */
 @media (max-width: 640px) {
-  [data-page="clinic_scheduling_waiting_room"] {
+  [data-page="clinic_scheduling_waiting_room"],
+  [data-page="clinic_admission_queue"] {
     .wr-topbar-clock { display: none; }
     .stat-label { display: none; }
     .stat-block { padding: 0 var(--space-2, 8px); gap: var(--space-1, 4px); }

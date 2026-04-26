@@ -12,7 +12,6 @@ use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -207,8 +206,6 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         return Appointment::schedule(
             id: AppointmentId::fromString(self::APPOINTMENT_ID),
             clinicId: ClinicId::fromString(self::CLINIC_ID),
-            ownerId: OwnerId::fromString('55555555-5555-5555-5555-555555555555'),
-            animalId: null,
             practitionerAssignee: new PractitionerAssignee(UserId::fromString(self::PRACTITIONER)),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-11 09:00:00'), 30),
             reason: 'Consultation',

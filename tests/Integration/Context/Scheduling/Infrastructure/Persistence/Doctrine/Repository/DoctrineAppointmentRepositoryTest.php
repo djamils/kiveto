@@ -6,11 +6,9 @@ namespace App\Tests\Integration\Context\Scheduling\Infrastructure\Persistence\Do
 
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -100,8 +98,6 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         AppointmentEntityFactory::new()
             ->withId($id)
             ->withClinicId($clinicId)
-            ->withOwnerId('22222222-2222-2222-2222-222222222222')
-            ->withAnimalId('33333333-3333-3333-3333-333333333333')
             ->withPractitionerUserId('44444444-4444-4444-4444-444444444444')
             ->startingAt(new \DateTimeImmutable('2026-04-10 09:00:00'), 30)
             ->withStatus(AppointmentStatus::PLANNED)
@@ -113,9 +109,30 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         self::assertNotNull($loaded);
         self::assertSame($id, $loaded->id()->toString());
         self::assertSame($clinicId, $loaded->clinicId()->toString());
-        $owner = $loaded->ownerId();
-        self::assertNotNull($owner);
-        self::assertSame('22222222-2222-2222-2222-222222222222', $owner->toString());
+        self::assertNull($loaded->linkedAdmissionId());
+    }
+
+    public function testLinkedAdmissionIdRoundTrip(): void
+    {
+        $admissionId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+        $appointment = Appointment::schedule(
+            id: AppointmentId::fromString('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'),
+            clinicId: ClinicId::fromString('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+            practitionerAssignee: new PractitionerAssignee(
+                UserId::fromString('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
+            ),
+            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
+            reason: 'Linked to admission',
+            notes: null,
+            createdAt: new \DateTimeImmutable('2026-04-09 12:00:00'),
+            linkedAdmissionId: $admissionId,
+        );
+
+        $this->repository->save($appointment);
+
+        $loaded = $this->repository->findById($appointment->id());
+        self::assertNotNull($loaded);
+        self::assertSame($admissionId, $loaded->linkedAdmissionId());
     }
 
     private function makeAppointment(): Appointment
@@ -123,8 +140,6 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         return Appointment::schedule(
             id: AppointmentId::fromString('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
             clinicId: ClinicId::fromString('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-            ownerId: OwnerId::fromString('cccccccc-cccc-cccc-cccc-cccccccccccc'),
-            animalId: AnimalId::fromString('dddddddd-dddd-dddd-dddd-dddddddddddd'),
             practitionerAssignee: new PractitionerAssignee(
                 UserId::fromString('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),
             ),

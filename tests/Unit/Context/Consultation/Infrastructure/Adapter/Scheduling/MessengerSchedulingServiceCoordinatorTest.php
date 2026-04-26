@@ -6,10 +6,8 @@ namespace App\Tests\Unit\Context\Consultation\Infrastructure\Adapter\Scheduling;
 
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use App\Context\Consultation\Infrastructure\Adapter\Scheduling\MessengerSchedulingServiceCoordinator;
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
-use App\Context\Scheduling\Application\Command\StartServiceForWaitingRoomEntry\StartServiceForWaitingRoomEntry;
 use App\Shared\Application\Bus\CommandBusInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -17,7 +15,6 @@ use PHPUnit\Framework\TestCase;
 final class MessengerSchedulingServiceCoordinatorTest extends TestCase
 {
     private const string APPOINTMENT_ID = '11111111-1111-4111-8111-111111111111';
-    private const string ENTRY_ID       = '22222222-2222-4222-8222-222222222222';
     private const string USER_ID        = '33333333-3333-4333-8333-333333333333';
 
     private CommandBusInterface&MockObject $commandBus;
@@ -39,39 +36,6 @@ final class MessengerSchedulingServiceCoordinatorTest extends TestCase
             AppointmentId::fromString(self::APPOINTMENT_ID),
             UserId::fromString(self::USER_ID),
         );
-    }
-
-    public function testEnsureWaitingRoomEntryInServiceDispatchesCommand(): void
-    {
-        $this->commandBus->expects(self::once())
-            ->method('dispatch')
-            ->with(self::callback(static function (StartServiceForWaitingRoomEntry $cmd): bool {
-                return self::ENTRY_ID === $cmd->waitingRoomEntryId
-                    && self::USER_ID === $cmd->serviceStartedByUserId;
-            }))
-            ->willReturn(new \stdClass())
-        ;
-
-        $this->coordinator->ensureWaitingRoomEntryInService(
-            WaitingRoomEntryId::fromString(self::ENTRY_ID),
-            UserId::fromString(self::USER_ID),
-        );
-    }
-
-    public function testEnsureWaitingRoomEntryInServiceSwallowsBusFailures(): void
-    {
-        // The contract is "best effort" — exceptions from the bus must not bubble up.
-        $this->commandBus->expects(self::once())
-            ->method('dispatch')
-            ->willThrowException(new \RuntimeException('downstream failure'))
-        ;
-
-        $this->coordinator->ensureWaitingRoomEntryInService(
-            WaitingRoomEntryId::fromString(self::ENTRY_ID),
-            UserId::fromString(self::USER_ID),
-        );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testCompleteAppointmentDispatchesCommand(): void

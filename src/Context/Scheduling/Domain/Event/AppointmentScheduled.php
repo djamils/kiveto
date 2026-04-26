@@ -14,8 +14,7 @@ readonly class AppointmentScheduled extends AbstractDomainEvent
     public function __construct(
         private string $appointmentId,
         private string $clinicId,
-        private ?string $ownerId,
-        private ?string $animalId,
+        private ?string $linkedAdmissionId,
         private string $practitionerUserId,
         private string $startsAtUtc,
         private int $durationMinutes,
@@ -34,8 +33,7 @@ readonly class AppointmentScheduled extends AbstractDomainEvent
         return [
             'appointmentId'      => $this->appointmentId,
             'clinicId'           => $this->clinicId,
-            'ownerId'            => $this->ownerId,
-            'animalId'           => $this->animalId,
+            'linkedAdmissionId'  => $this->linkedAdmissionId,
             'practitionerUserId' => $this->practitionerUserId,
             'startsAtUtc'        => $this->startsAtUtc,
             'durationMinutes'    => $this->durationMinutes,

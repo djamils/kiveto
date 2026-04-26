@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling\Planning;
 
+use App\Context\Admission\Application\Query\ListAdmissionsInWaitingRoom\ListAdmissionsInWaitingRoom;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
@@ -11,7 +12,6 @@ use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClini
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
-use App\Context\Scheduling\Application\Query\ListWaitingRoom\ListWaitingRoom;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Localization\TimeZone;
@@ -120,7 +120,7 @@ final class AgendaController extends AbstractController
             }
         }
 
-        $waitingRoomEntries = $this->queryBus->ask(new ListWaitingRoom(
+        $waitingRoomEntries = $this->queryBus->ask(new ListAdmissionsInWaitingRoom(
             clinicId: $currentClinicId->toString(),
         ));
 

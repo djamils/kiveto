@@ -12,11 +12,9 @@ use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentServiceStarted;
-use App\Context\Scheduling\Domain\ValueObject\AnimalId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
-use App\Context\Scheduling\Domain\ValueObject\OwnerId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
@@ -26,24 +24,22 @@ final class AppointmentTest extends TestCase
 {
     public function testScheduleAppointmentWithValidData(): void
     {
-        $appointmentId = AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef');
-        $clinicId      = ClinicId::fromString('11111111-1111-1111-1111-111111111111');
-        $ownerId       = OwnerId::fromString('22222222-2222-2222-2222-222222222222');
-        $animalId      = AnimalId::fromString('33333333-3333-3333-3333-333333333333');
-        $practitioner  = new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444'));
-        $timeSlot      = new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30);
-        $createdAt     = new \DateTimeImmutable('2026-01-30 12:00:00');
+        $appointmentId     = AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef');
+        $clinicId          = ClinicId::fromString('11111111-1111-1111-1111-111111111111');
+        $linkedAdmissionId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+        $practitioner      = new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444'));
+        $timeSlot          = new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30);
+        $createdAt         = new \DateTimeImmutable('2026-01-30 12:00:00');
 
         $appointment = Appointment::schedule(
             id: $appointmentId,
             clinicId: $clinicId,
-            ownerId: $ownerId,
-            animalId: $animalId,
             practitionerAssignee: $practitioner,
             timeSlot: $timeSlot,
             reason: 'Consultation',
             notes: 'First visit',
             createdAt: $createdAt,
+            linkedAdmissionId: $linkedAdmissionId,
         );
 
         self::assertTrue($appointment->id()->equals($appointmentId));
@@ -51,10 +47,18 @@ final class AppointmentTest extends TestCase
         self::assertSame(AppointmentStatus::PLANNED, $appointment->status());
         self::assertSame('Consultation', $appointment->reason());
         self::assertSame('First visit', $appointment->notes());
+        self::assertSame($linkedAdmissionId, $appointment->linkedAdmissionId());
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(AppointmentScheduled::class, $events[0]);
+    }
+
+    public function testScheduleAppointmentWithoutLinkedAdmission(): void
+    {
+        $appointment = $this->createSampleAppointment();
+
+        self::assertNull($appointment->linkedAdmissionId());
     }
 
     public function testRescheduleAppointment(): void
@@ -297,12 +301,7 @@ final class AppointmentTest extends TestCase
     {
         $appointment = $this->createSampleAppointment();
 
-        $owner  = $appointment->ownerId();
-        $animal = $appointment->animalId();
-        self::assertNotNull($owner);
-        self::assertNotNull($animal);
-        self::assertTrue($owner->equals(OwnerId::fromString('22222222-2222-2222-2222-222222222222')));
-        self::assertTrue($animal->equals(AnimalId::fromString('33333333-3333-3333-3333-333333333333')));
+        self::assertNull($appointment->linkedAdmissionId());
         self::assertSame('2026-01-30 12:00:00', $appointment->createdAt()->format('Y-m-d H:i:s'));
     }
 
@@ -317,8 +316,6 @@ final class AppointmentTest extends TestCase
         $appointment = Appointment::reconstitute(
             id: $appointmentId,
             clinicId: $clinicId,
-            ownerId: null,
-            animalId: null,
             practitionerAssignee: $practitioner,
             timeSlot: $timeSlot,
             status: AppointmentStatus::COMPLETED,
@@ -326,13 +323,35 @@ final class AppointmentTest extends TestCase
             notes: null,
             createdAt: $createdAt,
             serviceStartedAt: null,
+            linkedAdmissionId: null,
         );
 
         self::assertTrue($appointment->id()->equals($appointmentId));
         self::assertSame(AppointmentStatus::COMPLETED, $appointment->status());
+        self::assertNull($appointment->linkedAdmissionId());
 
         $events = $appointment->recordedDomainEvents();
         self::assertCount(0, $events);
+    }
+
+    public function testReconstituteWithLinkedAdmissionId(): void
+    {
+        $admissionId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+        $appointment = Appointment::reconstitute(
+            id: AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
+            clinicId: ClinicId::fromString('11111111-1111-1111-1111-111111111111'),
+            practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
+            timeSlot: new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30),
+            status: AppointmentStatus::PLANNED,
+            reason: null,
+            notes: null,
+            createdAt: new \DateTimeImmutable('2026-01-30 12:00:00'),
+            serviceStartedAt: null,
+            linkedAdmissionId: $admissionId,
+        );
+
+        self::assertSame($admissionId, $appointment->linkedAdmissionId());
     }
 
     private function createSampleAppointment(): Appointment
@@ -340,8 +359,6 @@ final class AppointmentTest extends TestCase
         return Appointment::schedule(
             id: AppointmentId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
             clinicId: ClinicId::fromString('11111111-1111-1111-1111-111111111111'),
-            ownerId: OwnerId::fromString('22222222-2222-2222-2222-222222222222'),
-            animalId: AnimalId::fromString('33333333-3333-3333-3333-333333333333'),
             practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-02-01 09:00:00'), 30),
             reason: 'Consultation',
