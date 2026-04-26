@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Consultation\Domain\ValueObject;
 
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -24,15 +23,26 @@ final class IdValueObjectsTest extends TestCase
     private const string SAMPLE = '11111111-1111-4111-8111-111111111111';
     private const string OTHER  = '22222222-2222-4222-8222-222222222222';
 
-    public function testAnimalId(): void
+    public function testAdmissionId(): void
     {
-        $id = AnimalId::fromString(self::SAMPLE);
+        $id = AdmissionId::fromString(self::SAMPLE);
         self::assertSame(self::SAMPLE, $id->toString());
-        self::assertTrue($id->equals(AnimalId::fromString(self::SAMPLE)));
-        self::assertFalse($id->equals(AnimalId::fromString(self::OTHER)));
+        self::assertTrue($id->equals(AdmissionId::fromString(self::SAMPLE)));
+        self::assertFalse($id->equals(AdmissionId::fromString(self::OTHER)));
 
         $this->expectException(\InvalidArgumentException::class);
-        AnimalId::fromString('not-a-uuid');
+        AdmissionId::fromString('not-a-uuid');
+    }
+
+    public function testPatientId(): void
+    {
+        $id = PatientId::fromString(self::SAMPLE);
+        self::assertSame(self::SAMPLE, $id->toString());
+        self::assertTrue($id->equals(PatientId::fromString(self::SAMPLE)));
+        self::assertFalse($id->equals(PatientId::fromString(self::OTHER)));
+
+        $this->expectException(\InvalidArgumentException::class);
+        PatientId::fromString('not-a-uuid');
     }
 
     public function testAppointmentId(): void
@@ -75,17 +85,6 @@ final class IdValueObjectsTest extends TestCase
         self::assertTrue(Uuid::isValid($id->toString()));
     }
 
-    public function testOwnerId(): void
-    {
-        $id = OwnerId::fromString(self::SAMPLE);
-        self::assertSame(self::SAMPLE, $id->toString());
-        self::assertTrue($id->equals(OwnerId::fromString(self::SAMPLE)));
-        self::assertFalse($id->equals(OwnerId::fromString(self::OTHER)));
-
-        $this->expectException(\InvalidArgumentException::class);
-        OwnerId::fromString('not-a-uuid');
-    }
-
     public function testUserId(): void
     {
         $id = UserId::fromString(self::SAMPLE);
@@ -95,16 +94,5 @@ final class IdValueObjectsTest extends TestCase
 
         $this->expectException(\InvalidArgumentException::class);
         UserId::fromString('not-a-uuid');
-    }
-
-    public function testWaitingRoomEntryId(): void
-    {
-        $id = WaitingRoomEntryId::fromString(self::SAMPLE);
-        self::assertSame(self::SAMPLE, $id->toString());
-        self::assertTrue($id->equals(WaitingRoomEntryId::fromString(self::SAMPLE)));
-        self::assertFalse($id->equals(WaitingRoomEntryId::fromString(self::OTHER)));
-
-        $this->expectException(\InvalidArgumentException::class);
-        WaitingRoomEntryId::fromString('not-a-uuid');
     }
 }

@@ -6,7 +6,7 @@ namespace App\Context\Consultation\Domain\ValueObject;
 
 use Symfony\Component\Uid\Uuid;
 
-final readonly class AnimalId
+final readonly class AdmissionId
 {
     private function __construct(
         private string $value,
@@ -16,7 +16,7 @@ final readonly class AnimalId
     public static function fromString(string $value): self
     {
         if (!Uuid::isValid($value)) {
-            throw new \InvalidArgumentException('Invalid AnimalId UUID format');
+            throw new \InvalidArgumentException('Invalid AdmissionId UUID format');
         }
 
         return new self($value);

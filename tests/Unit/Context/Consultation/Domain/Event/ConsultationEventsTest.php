@@ -7,22 +7,20 @@ namespace App\Tests\Unit\Context\Consultation\Domain\Event;
 use App\Context\Consultation\Domain\Event\ConsultationChiefComplaintRecorded;
 use App\Context\Consultation\Domain\Event\ConsultationClinicalNoteAdded;
 use App\Context\Consultation\Domain\Event\ConsultationClosed;
-use App\Context\Consultation\Domain\Event\ConsultationPatientIdentityAttached;
 use App\Context\Consultation\Domain\Event\ConsultationPerformedActAdded;
+use App\Context\Consultation\Domain\Event\ConsultationStartedFromAdmission;
 use App\Context\Consultation\Domain\Event\ConsultationStartedFromAppointment;
-use App\Context\Consultation\Domain\Event\ConsultationStartedFromWaitingRoomEntry;
 use App\Context\Consultation\Domain\Event\ConsultationVitalsRecorded;
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicalNoteRecord;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PerformedActRecord;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use PHPUnit\Framework\TestCase;
 
 final class ConsultationEventsTest extends TestCase
@@ -30,10 +28,9 @@ final class ConsultationEventsTest extends TestCase
     private const string CONSULTATION_ID = '11111111-1111-4111-8111-111111111111';
     private const string CLINIC_ID       = '22222222-2222-4222-8222-222222222222';
     private const string APPOINTMENT_ID  = '33333333-3333-4333-8333-333333333333';
-    private const string ENTRY_ID        = '44444444-4444-4444-8444-444444444444';
+    private const string ADMISSION_ID    = '44444444-4444-4444-8444-444444444444';
     private const string USER_ID         = '55555555-5555-4555-8555-555555555555';
-    private const string OWNER_ID        = '66666666-6666-4666-8666-666666666666';
-    private const string ANIMAL_ID       = '77777777-7777-4777-8777-777777777777';
+    private const string PATIENT_ID      = '66666666-6666-4666-8666-666666666666';
 
     public function testConsultationStartedFromAppointment(): void
     {
@@ -41,6 +38,8 @@ final class ConsultationEventsTest extends TestCase
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
             AppointmentId::fromString(self::APPOINTMENT_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10T09:00:00+00:00'),
         );
@@ -50,17 +49,20 @@ final class ConsultationEventsTest extends TestCase
             'consultationId'     => self::CONSULTATION_ID,
             'clinicId'           => self::CLINIC_ID,
             'appointmentId'      => self::APPOINTMENT_ID,
+            'admissionId'        => self::ADMISSION_ID,
+            'patientId'          => self::PATIENT_ID,
             'practitionerUserId' => self::USER_ID,
             'occurredOn'         => '2026-04-10T09:00:00+00:00',
         ], $event->payload());
     }
 
-    public function testConsultationStartedFromWaitingRoomEntry(): void
+    public function testConsultationStartedFromAdmission(): void
     {
-        $event = new ConsultationStartedFromWaitingRoomEntry(
+        $event = new ConsultationStartedFromAdmission(
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
-            WaitingRoomEntryId::fromString(self::ENTRY_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10T09:00:00+00:00'),
         );
@@ -69,7 +71,8 @@ final class ConsultationEventsTest extends TestCase
         self::assertSame([
             'consultationId'     => self::CONSULTATION_ID,
             'clinicId'           => self::CLINIC_ID,
-            'waitingRoomEntryId' => self::ENTRY_ID,
+            'admissionId'        => self::ADMISSION_ID,
+            'patientId'          => self::PATIENT_ID,
             'practitionerUserId' => self::USER_ID,
             'occurredOn'         => '2026-04-10T09:00:00+00:00',
         ], $event->payload());
@@ -89,38 +92,6 @@ final class ConsultationEventsTest extends TestCase
             'chiefComplaint' => 'Limping for 3 days',
             'occurredOn'     => '2026-04-10T09:05:00+00:00',
         ], $event->payload());
-    }
-
-    public function testConsultationPatientIdentityAttached(): void
-    {
-        $event = new ConsultationPatientIdentityAttached(
-            ConsultationId::fromString(self::CONSULTATION_ID),
-            OwnerId::fromString(self::OWNER_ID),
-            AnimalId::fromString(self::ANIMAL_ID),
-            new \DateTimeImmutable('2026-04-10T09:10:00+00:00'),
-        );
-
-        self::assertSame(self::CONSULTATION_ID, $event->aggregateId());
-        self::assertSame([
-            'consultationId' => self::CONSULTATION_ID,
-            'ownerId'        => self::OWNER_ID,
-            'animalId'       => self::ANIMAL_ID,
-            'occurredOn'     => '2026-04-10T09:10:00+00:00',
-        ], $event->payload());
-    }
-
-    public function testConsultationPatientIdentityAttachedAcceptsNullPair(): void
-    {
-        $event = new ConsultationPatientIdentityAttached(
-            ConsultationId::fromString(self::CONSULTATION_ID),
-            null,
-            null,
-            new \DateTimeImmutable('2026-04-10T09:10:00+00:00'),
-        );
-
-        $payload = $event->payload();
-        self::assertNull($payload['ownerId']);
-        self::assertNull($payload['animalId']);
     }
 
     public function testConsultationVitalsRecorded(): void

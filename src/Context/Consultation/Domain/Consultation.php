@@ -7,23 +7,21 @@ namespace App\Context\Consultation\Domain;
 use App\Context\Consultation\Domain\Event\ConsultationChiefComplaintRecorded;
 use App\Context\Consultation\Domain\Event\ConsultationClinicalNoteAdded;
 use App\Context\Consultation\Domain\Event\ConsultationClosed;
-use App\Context\Consultation\Domain\Event\ConsultationPatientIdentityAttached;
 use App\Context\Consultation\Domain\Event\ConsultationPerformedActAdded;
+use App\Context\Consultation\Domain\Event\ConsultationStartedFromAdmission;
 use App\Context\Consultation\Domain\Event\ConsultationStartedFromAppointment;
-use App\Context\Consultation\Domain\Event\ConsultationStartedFromWaitingRoomEntry;
 use App\Context\Consultation\Domain\Event\ConsultationVitalsRecorded;
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicalNoteRecord;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PerformedActRecord;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class Consultation extends AggregateRoot
@@ -38,10 +36,9 @@ final class Consultation extends AggregateRoot
         private readonly ConsultationId $id,
         private readonly ClinicId $clinicId,
         private readonly ?AppointmentId $appointmentId,
-        private readonly ?WaitingRoomEntryId $waitingRoomEntryId,
+        private readonly AdmissionId $admissionId,
+        private readonly PatientId $patientId,
         private UserId $practitionerUserId,
-        private ?OwnerId $ownerId,
-        private ?AnimalId $animalId,
         private ConsultationStatus $status,
         private ?string $chiefComplaint,
         private ?Vitals $vitals,
@@ -57,19 +54,18 @@ final class Consultation extends AggregateRoot
         ConsultationId $id,
         ClinicId $clinicId,
         AppointmentId $appointmentId,
+        AdmissionId $admissionId,
+        PatientId $patientId,
         UserId $practitionerUserId,
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
         \DateTimeImmutable $startedAtUtc,
     ): self {
         $consultation = new self(
             id: $id,
             clinicId: $clinicId,
             appointmentId: $appointmentId,
-            waitingRoomEntryId: null,
+            admissionId: $admissionId,
+            patientId: $patientId,
             practitionerUserId: $practitionerUserId,
-            ownerId: $ownerId,
-            animalId: $animalId,
             status: ConsultationStatus::OPEN,
             chiefComplaint: null,
             vitals: null,
@@ -84,6 +80,8 @@ final class Consultation extends AggregateRoot
             $id,
             $clinicId,
             $appointmentId,
+            $admissionId,
+            $patientId,
             $practitionerUserId,
             $startedAtUtc,
         ));
@@ -91,23 +89,21 @@ final class Consultation extends AggregateRoot
         return $consultation;
     }
 
-    public static function startFromWaitingRoomEntry(
+    public static function startFromAdmission(
         ConsultationId $id,
         ClinicId $clinicId,
-        WaitingRoomEntryId $waitingRoomEntryId,
+        AdmissionId $admissionId,
+        PatientId $patientId,
         UserId $practitionerUserId,
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
         \DateTimeImmutable $startedAtUtc,
     ): self {
         $consultation = new self(
             id: $id,
             clinicId: $clinicId,
             appointmentId: null,
-            waitingRoomEntryId: $waitingRoomEntryId,
+            admissionId: $admissionId,
+            patientId: $patientId,
             practitionerUserId: $practitionerUserId,
-            ownerId: $ownerId,
-            animalId: $animalId,
             status: ConsultationStatus::OPEN,
             chiefComplaint: null,
             vitals: null,
@@ -118,38 +114,16 @@ final class Consultation extends AggregateRoot
             updatedAtUtc: $startedAtUtc,
         );
 
-        $consultation->recordDomainEvent(new ConsultationStartedFromWaitingRoomEntry(
+        $consultation->recordDomainEvent(new ConsultationStartedFromAdmission(
             $id,
             $clinicId,
-            $waitingRoomEntryId,
+            $admissionId,
+            $patientId,
             $practitionerUserId,
             $startedAtUtc,
         ));
 
         return $consultation;
-    }
-
-    public function attachPatientIdentity(
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
-        \DateTimeImmutable $occurredAt,
-    ): void {
-        $this->ensureOpen();
-
-        if (null === $ownerId && null === $animalId) {
-            throw new \DomainException('At least one of owner or animal must be provided');
-        }
-
-        $this->ownerId      = $ownerId;
-        $this->animalId     = $animalId;
-        $this->updatedAtUtc = $occurredAt;
-
-        $this->recordDomainEvent(new ConsultationPatientIdentityAttached(
-            $this->id,
-            $ownerId,
-            $animalId,
-            $occurredAt,
-        ));
     }
 
     public function recordChiefComplaint(
@@ -263,24 +237,19 @@ final class Consultation extends AggregateRoot
         return $this->appointmentId;
     }
 
-    public function getWaitingRoomEntryId(): ?WaitingRoomEntryId
+    public function getAdmissionId(): AdmissionId
     {
-        return $this->waitingRoomEntryId;
+        return $this->admissionId;
+    }
+
+    public function getPatientId(): PatientId
+    {
+        return $this->patientId;
     }
 
     public function getPractitionerUserId(): UserId
     {
         return $this->practitionerUserId;
-    }
-
-    public function getOwnerId(): ?OwnerId
-    {
-        return $this->ownerId;
-    }
-
-    public function getAnimalId(): ?AnimalId
-    {
-        return $this->animalId;
     }
 
     public function getStatus(): ConsultationStatus
@@ -345,10 +314,9 @@ final class Consultation extends AggregateRoot
         ConsultationId $id,
         ClinicId $clinicId,
         ?AppointmentId $appointmentId,
-        ?WaitingRoomEntryId $waitingRoomEntryId,
+        AdmissionId $admissionId,
+        PatientId $patientId,
         UserId $practitionerUserId,
-        ?OwnerId $ownerId,
-        ?AnimalId $animalId,
         ConsultationStatus $status,
         ?string $chiefComplaint,
         ?Vitals $vitals,
@@ -364,10 +332,9 @@ final class Consultation extends AggregateRoot
             $id,
             $clinicId,
             $appointmentId,
-            $waitingRoomEntryId,
+            $admissionId,
+            $patientId,
             $practitionerUserId,
-            $ownerId,
-            $animalId,
             $status,
             $chiefComplaint,
             $vitals,

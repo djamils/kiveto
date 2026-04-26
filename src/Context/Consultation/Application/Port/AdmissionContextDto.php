@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Application\Port;
 
-final readonly class AppointmentContextDTO
+final readonly class AdmissionContextDto
 {
     public function __construct(
+        public string $patientId,
         public string $clinicId,
-        public ?string $admissionId,
-        public string $status, // PLANNED, etc.
     ) {
     }
 }

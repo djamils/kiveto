@@ -9,9 +9,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table]
 #[ORM\Index(name: 'idx_clinic_started', columns: ['clinic_id', 'started_at_utc'])]
-#[ORM\Index(name: 'idx_animal', columns: ['animal_id'])]
+#[ORM\Index(name: 'idx_patient', columns: ['patient_id'])]
+#[ORM\Index(name: 'idx_admission', columns: ['admission_id'])]
 #[ORM\Index(name: 'idx_appointment', columns: ['appointment_id'])]
-#[ORM\Index(name: 'idx_waiting_entry', columns: ['waiting_room_entry_id'])]
 #[ORM\Index(name: 'idx_status', columns: ['status'])]
 #[ORM\UniqueConstraint(name: 'unique_appointment', columns: ['appointment_id'])]
 class ConsultationEntity
@@ -26,14 +26,11 @@ class ConsultationEntity
     #[ORM\Column(type: 'binary', length: 16, nullable: true)]
     private ?string $appointmentId = null;
 
-    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
-    private ?string $waitingRoomEntryId = null;
+    #[ORM\Column(type: 'binary', length: 16)]
+    private string $admissionId;
 
-    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
-    private ?string $ownerId = null;
-
-    #[ORM\Column(type: 'binary', length: 16, nullable: true)]
-    private ?string $animalId = null;
+    #[ORM\Column(type: 'binary', length: 16)]
+    private string $patientId;
 
     #[ORM\Column(type: 'binary', length: 16)]
     private string $practitionerUserId;
@@ -95,34 +92,24 @@ class ConsultationEntity
         $this->appointmentId = $appointmentId;
     }
 
-    public function getWaitingRoomEntryId(): ?string
+    public function getAdmissionId(): string
     {
-        return $this->waitingRoomEntryId;
+        return $this->admissionId;
     }
 
-    public function setWaitingRoomEntryId(?string $waitingRoomEntryId): void
+    public function setAdmissionId(string $admissionId): void
     {
-        $this->waitingRoomEntryId = $waitingRoomEntryId;
+        $this->admissionId = $admissionId;
     }
 
-    public function getOwnerId(): ?string
+    public function getPatientId(): string
     {
-        return $this->ownerId;
+        return $this->patientId;
     }
 
-    public function setOwnerId(?string $ownerId): void
+    public function setPatientId(string $patientId): void
     {
-        $this->ownerId = $ownerId;
-    }
-
-    public function getAnimalId(): ?string
-    {
-        return $this->animalId;
-    }
-
-    public function setAnimalId(?string $animalId): void
-    {
-        $this->animalId = $animalId;
+        $this->patientId = $patientId;
     }
 
     public function getPractitionerUserId(): string

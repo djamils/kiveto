@@ -8,21 +8,19 @@ use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Event\ConsultationChiefComplaintRecorded;
 use App\Context\Consultation\Domain\Event\ConsultationClinicalNoteAdded;
 use App\Context\Consultation\Domain\Event\ConsultationClosed;
-use App\Context\Consultation\Domain\Event\ConsultationPatientIdentityAttached;
 use App\Context\Consultation\Domain\Event\ConsultationPerformedActAdded;
+use App\Context\Consultation\Domain\Event\ConsultationStartedFromAdmission;
 use App\Context\Consultation\Domain\Event\ConsultationStartedFromAppointment;
-use App\Context\Consultation\Domain\Event\ConsultationStartedFromWaitingRoomEntry;
 use App\Context\Consultation\Domain\Event\ConsultationVitalsRecorded;
-use App\Context\Consultation\Domain\ValueObject\AnimalId;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\AppointmentId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
-use App\Context\Consultation\Domain\ValueObject\OwnerId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use PHPUnit\Framework\TestCase;
 
 final class ConsultationTest extends TestCase
@@ -30,10 +28,9 @@ final class ConsultationTest extends TestCase
     private const string CONSULTATION_ID = '11111111-1111-4111-8111-111111111111';
     private const string CLINIC_ID       = '22222222-2222-4222-8222-222222222222';
     private const string APPOINTMENT_ID  = '33333333-3333-4333-8333-333333333333';
-    private const string ENTRY_ID        = '44444444-4444-4444-8444-444444444444';
+    private const string ADMISSION_ID    = '44444444-4444-4444-8444-444444444444';
     private const string USER_ID         = '55555555-5555-4555-8555-555555555555';
-    private const string OWNER_ID        = '66666666-6666-4666-8666-666666666666';
-    private const string ANIMAL_ID       = '77777777-7777-4777-8777-777777777777';
+    private const string PATIENT_ID      = '66666666-6666-4666-8666-666666666666';
 
     public function testStartFromAppointment(): void
     {
@@ -43,19 +40,18 @@ final class ConsultationTest extends TestCase
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
             AppointmentId::fromString(self::APPOINTMENT_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            OwnerId::fromString(self::OWNER_ID),
-            AnimalId::fromString(self::ANIMAL_ID),
             $startedAt,
         );
 
         self::assertSame(self::CONSULTATION_ID, $consultation->getId()->toString());
         self::assertSame(self::CLINIC_ID, $consultation->getClinicId()->toString());
         self::assertSame(self::APPOINTMENT_ID, $consultation->getAppointmentId()?->toString());
-        self::assertNull($consultation->getWaitingRoomEntryId());
+        self::assertSame(self::ADMISSION_ID, $consultation->getAdmissionId()->toString());
+        self::assertSame(self::PATIENT_ID, $consultation->getPatientId()->toString());
         self::assertSame(self::USER_ID, $consultation->getPractitionerUserId()->toString());
-        self::assertSame(self::OWNER_ID, $consultation->getOwnerId()?->toString());
-        self::assertSame(self::ANIMAL_ID, $consultation->getAnimalId()?->toString());
         self::assertSame(ConsultationStatus::OPEN, $consultation->getStatus());
         self::assertNull($consultation->getChiefComplaint());
         self::assertNull($consultation->getVitals());
@@ -72,78 +68,29 @@ final class ConsultationTest extends TestCase
         self::assertInstanceOf(ConsultationStartedFromAppointment::class, $events[0]);
     }
 
-    public function testStartFromWaitingRoomEntry(): void
+    public function testStartFromAdmission(): void
     {
-        $consultation = Consultation::startFromWaitingRoomEntry(
+        $consultation = Consultation::startFromAdmission(
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
-            WaitingRoomEntryId::fromString(self::ENTRY_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            null,
-            null,
             new \DateTimeImmutable('2026-04-10 09:00:00'),
         );
 
-        self::assertSame(self::ENTRY_ID, $consultation->getWaitingRoomEntryId()?->toString());
+        self::assertSame(self::ADMISSION_ID, $consultation->getAdmissionId()->toString());
+        self::assertSame(self::PATIENT_ID, $consultation->getPatientId()->toString());
         self::assertNull($consultation->getAppointmentId());
 
         $events = $consultation->recordedDomainEvents();
         self::assertCount(1, $events);
-        self::assertInstanceOf(ConsultationStartedFromWaitingRoomEntry::class, $events[0]);
-    }
-
-    public function testAttachPatientIdentity(): void
-    {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
-        $pulled       = $consultation->pullDomainEvents();
-        unset($pulled);
-
-        $consultation->attachPatientIdentity(
-            OwnerId::fromString(self::OWNER_ID),
-            AnimalId::fromString(self::ANIMAL_ID),
-            new \DateTimeImmutable('2026-04-10 09:05:00'),
-        );
-
-        self::assertSame(self::OWNER_ID, $consultation->getOwnerId()?->toString());
-        self::assertSame(self::ANIMAL_ID, $consultation->getAnimalId()?->toString());
-
-        $events = $consultation->recordedDomainEvents();
-        self::assertCount(1, $events);
-        self::assertInstanceOf(ConsultationPatientIdentityAttached::class, $events[0]);
-    }
-
-    public function testAttachPatientIdentityRequiresAtLeastOneOfOwnerOrAnimal(): void
-    {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
-
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('At least one of owner or animal must be provided');
-
-        $consultation->attachPatientIdentity(null, null, new \DateTimeImmutable('2026-04-10 09:05:00'));
-    }
-
-    public function testAttachPatientIdentityFailsOnClosedConsultation(): void
-    {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
-        $consultation->close(
-            UserId::fromString(self::USER_ID),
-            null,
-            new \DateTimeImmutable('2026-04-10 10:00:00'),
-        );
-
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Cannot modify a closed consultation');
-
-        $consultation->attachPatientIdentity(
-            OwnerId::fromString(self::OWNER_ID),
-            null,
-            new \DateTimeImmutable('2026-04-10 10:05:00'),
-        );
+        self::assertInstanceOf(ConsultationStartedFromAdmission::class, $events[0]);
     }
 
     public function testRecordChiefComplaint(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $pulled       = $consultation->pullDomainEvents();
         unset($pulled);
 
@@ -161,7 +108,7 @@ final class ConsultationTest extends TestCase
 
     public function testRecordChiefComplaintRejectsEmptyContent(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Chief complaint cannot be empty');
@@ -171,7 +118,7 @@ final class ConsultationTest extends TestCase
 
     public function testRecordVitals(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $pulled       = $consultation->pullDomainEvents();
         unset($pulled);
 
@@ -187,7 +134,7 @@ final class ConsultationTest extends TestCase
 
     public function testAddClinicalNote(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $pulled       = $consultation->pullDomainEvents();
         unset($pulled);
 
@@ -206,7 +153,7 @@ final class ConsultationTest extends TestCase
 
     public function testAddPerformedAct(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $pulled       = $consultation->pullDomainEvents();
         unset($pulled);
 
@@ -226,7 +173,7 @@ final class ConsultationTest extends TestCase
 
     public function testCloseConsultation(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $pulled       = $consultation->pullDomainEvents();
         unset($pulled);
 
@@ -247,7 +194,7 @@ final class ConsultationTest extends TestCase
 
     public function testCannotCloseTwice(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $consultation->close(
             UserId::fromString(self::USER_ID),
             null,
@@ -266,7 +213,7 @@ final class ConsultationTest extends TestCase
 
     public function testCannotRecordVitalsOnClosedConsultation(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $consultation->close(
             UserId::fromString(self::USER_ID),
             null,
@@ -282,7 +229,7 @@ final class ConsultationTest extends TestCase
 
     public function testCannotRecordChiefComplaintOnClosedConsultation(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $consultation->close(
             UserId::fromString(self::USER_ID),
             null,
@@ -295,7 +242,7 @@ final class ConsultationTest extends TestCase
 
     public function testCannotAddNoteOnClosedConsultation(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $consultation->close(
             UserId::fromString(self::USER_ID),
             null,
@@ -313,7 +260,7 @@ final class ConsultationTest extends TestCase
 
     public function testCannotAddPerformedActOnClosedConsultation(): void
     {
-        $consultation = $this->makeOpenConsultationWithoutPatient();
+        $consultation = $this->makeOpenConsultation();
         $consultation->close(
             UserId::fromString(self::USER_ID),
             null,
@@ -336,10 +283,9 @@ final class ConsultationTest extends TestCase
             id: ConsultationId::fromString(self::CONSULTATION_ID),
             clinicId: ClinicId::fromString(self::CLINIC_ID),
             appointmentId: null,
-            waitingRoomEntryId: WaitingRoomEntryId::fromString(self::ENTRY_ID),
+            admissionId: AdmissionId::fromString(self::ADMISSION_ID),
+            patientId: PatientId::fromString(self::PATIENT_ID),
             practitionerUserId: UserId::fromString(self::USER_ID),
-            ownerId: OwnerId::fromString(self::OWNER_ID),
-            animalId: AnimalId::fromString(self::ANIMAL_ID),
             status: ConsultationStatus::CLOSED,
             chiefComplaint: 'Pre-existing',
             vitals: Vitals::create(10.0, 38.0),
@@ -356,15 +302,15 @@ final class ConsultationTest extends TestCase
         self::assertCount(0, $consultation->recordedDomainEvents());
     }
 
-    private function makeOpenConsultationWithoutPatient(): Consultation
+    private function makeOpenConsultation(): Consultation
     {
         return Consultation::startFromAppointment(
             ConsultationId::fromString(self::CONSULTATION_ID),
             ClinicId::fromString(self::CLINIC_ID),
             AppointmentId::fromString(self::APPOINTMENT_ID),
+            AdmissionId::fromString(self::ADMISSION_ID),
+            PatientId::fromString(self::PATIENT_ID),
             UserId::fromString(self::USER_ID),
-            null,
-            null,
             new \DateTimeImmutable('2026-04-10 09:00:00'),
         );
     }

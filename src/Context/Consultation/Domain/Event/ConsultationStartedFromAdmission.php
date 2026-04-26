@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Domain\Event;
 
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
-use App\Context\Consultation\Domain\ValueObject\WaitingRoomEntryId;
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
-final readonly class ConsultationStartedFromWaitingRoomEntry extends AbstractDomainEvent
+final readonly class ConsultationStartedFromAdmission extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'consultation';
     protected const int VERSION            = 1;
@@ -18,7 +19,8 @@ final readonly class ConsultationStartedFromWaitingRoomEntry extends AbstractDom
     public function __construct(
         public ConsultationId $consultationId,
         public ClinicId $clinicId,
-        public WaitingRoomEntryId $waitingRoomEntryId,
+        public AdmissionId $admissionId,
+        public PatientId $patientId,
         public UserId $practitionerUserId,
         public \DateTimeImmutable $occurredOn,
     ) {
@@ -34,7 +36,8 @@ final readonly class ConsultationStartedFromWaitingRoomEntry extends AbstractDom
         return [
             'consultationId'     => $this->consultationId->toString(),
             'clinicId'           => $this->clinicId->toString(),
-            'waitingRoomEntryId' => $this->waitingRoomEntryId->toString(),
+            'admissionId'        => $this->admissionId->toString(),
+            'patientId'          => $this->patientId->toString(),
             'practitionerUserId' => $this->practitionerUserId->toString(),
             'occurredOn'         => $this->occurredOn->format(\DateTimeInterface::ATOM),
         ];
