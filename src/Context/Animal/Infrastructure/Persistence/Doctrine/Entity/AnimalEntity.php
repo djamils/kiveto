@@ -107,6 +107,10 @@ class AnimalEntity
     #[ORM\Column(type: 'string', length: 20, enumType: AnimalStatus::class)]
     private AnimalStatus $status;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -395,6 +399,16 @@ class AnimalEntity
     public function setStatus(AnimalStatus $status): void
     {
         $this->status = $status;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
+    }
+
+    public function setVersion(int $version): void
+    {
+        $this->version = $version;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

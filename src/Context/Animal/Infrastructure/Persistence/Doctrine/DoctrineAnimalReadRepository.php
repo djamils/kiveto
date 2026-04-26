@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Animal\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
+use App\Context\Animal\Application\Query\FindByMicrochip\AnimalMicrochipView;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\GetAnimalById\AuxiliaryContactDto;
 use App\Context\Animal\Application\Query\GetAnimalById\IdentificationDto;
@@ -167,6 +168,27 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         }
 
         return $grouped;
+    }
+
+    public function findByMicrochip(string $microchipNumber, string $clinicId): ?AnimalMicrochipView
+    {
+        $clinicUuid = Uuid::fromString($clinicId);
+        $repository = $this->entityManager->getRepository(AnimalEntity::class);
+
+        $entity = $repository->findOneBy([
+            'microchipNumber' => $microchipNumber,
+            'clinicId'        => $clinicUuid,
+        ]);
+
+        if (null === $entity) {
+            return null;
+        }
+
+        return new AnimalMicrochipView(
+            animalId: $entity->getId()->toString(),
+            clinicId: $entity->getClinicId()->toString(),
+            name: $entity->getName(),
+        );
     }
 
     private function applySearchCriteria(QueryBuilder $qb, SearchAnimalsCriteria $criteria): void

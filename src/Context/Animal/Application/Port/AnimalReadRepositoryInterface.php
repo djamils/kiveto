@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Animal\Application\Port;
 
+use App\Context\Animal\Application\Query\FindByMicrochip\AnimalMicrochipView;
 use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
@@ -32,4 +33,6 @@ interface AnimalReadRepositoryInterface
         array $clientIds,
         int $limit,
     ): array;
+
+    public function findByMicrochip(string $microchipNumber, string $clinicId): ?AnimalMicrochipView;
 }
