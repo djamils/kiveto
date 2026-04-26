@@ -1,243 +1,491 @@
 {#
  # Kiveto — templates/clinic/admission/queue.html.twig
  # ─────────────────────────────────────────────────────
- # Waiting room — all active admissions (rdv, walk-in, emergency).
+ # Waiting room — all active admissions (RDV, walk-in, urgence, transfert…).
+ # Uses the same layout and CSS as the old WaitingRoom page.
  #
  # Variables:
- #   entries  WaitingRoomItemDto[]  Active admissions in waiting room
+ #   entries  WaitingRoomItemDto[]   Active admissions in waiting room
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}Salle d'attente{% endblock %}
 {% block show_topbar %}false{% endblock %}
+{% block page_title %}Salle d'attente{% endblock %}
 
 {% block stylesheets %}
-<link rel="stylesheet" href="{{ asset('styles/pages/scheduling/waiting-room.css') }}"/>
+  <link rel="stylesheet" href="{{ asset('styles/pages/scheduling/waiting-room.css') }}"/>
 {% endblock %}
 
-{% block content %}
+{#
+  Label maps for display
+#}
+{% set channelLabels = {
+  'appointment_booked':        'RDV',
+  'walk_in':                   'Sans RDV',
+  'emergency':                 'Urgence',
+  'emergency_by_third_party':  'Urgence tiers',
+  'emergency_by_authority':    'Urgence autorités',
+  'emergency_by_association':  'Urgence asso.',
+  'emergency_by_municipality': 'Urgence mairie',
+  'transfer_from_other_clinic':'Transfert',
+} %}
 
-{# ── Topbar ── #}
-<div class="wr-topbar">
-  <div>
-    <p class="wr-topbar-title">Salle d'attente</p>
-    <p class="wr-topbar-subtitle">{{ 'now'|date('l d F Y')|capitalize }}</p>
-  </div>
-  <div class="wr-topbar-clock">
-    <span id="wr-clock-h" class="clock-num">--</span><span class="clock-sep">:</span><span id="wr-clock-m" class="clock-num">--</span><span class="clock-sep wr-clock-sep-light">:</span><span id="wr-clock-s" class="clock-sec">--</span>
-  </div>
-  <div class="wr-topbar-right">
-    <a href="{{ path('clinic_admission_emergency') }}?intake=emergency"
-       class="btn btn-danger btn-xs">
-      <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Urgence
-    </a>
-    <a href="{{ path('clinic_admission_emergency') }}?intake=walk_in"
-       class="btn btn-secondary btn-xs">
-      <i data-lucide="plus" class="wr-icon-xs"></i> Walk-in
-    </a>
-    <a href="{{ path('clinic_admission_emergency') }}"
-       class="btn btn-primary btn-xs">
-      <i data-lucide="calendar-check" class="wr-icon-xs"></i> Nouvelle admission
-    </a>
-  </div>
-</div>
+{% set channelBadgeStyle = {
+  'appointment_booked':        'background: var(--color-info-bg); color: var(--color-info-text);',
+  'walk_in':                   'background: var(--color-warning-bg); color: var(--color-warning-text);',
+  'emergency':                 'background: var(--color-danger-bg); color: var(--color-danger-text);',
+  'emergency_by_third_party':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
+  'emergency_by_authority':    'background: var(--color-danger-bg); color: var(--color-danger-text);',
+  'emergency_by_association':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
+  'emergency_by_municipality': 'background: var(--color-danger-bg); color: var(--color-danger-text);',
+  'transfer_from_other_clinic':'background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);',
+} %}
 
-{# ── Status bar ── #}
+{% set triageStripe = {
+  'vital_emergency': 'urgence',
+  'emergency':       'urgence',
+  'priority':        'prio',
+  'standard':        'attente',
+} %}
+
 {% set countWaiting   = entries|filter(e => e.locationStatus == 'in_waiting_room')|length %}
 {% set countConsult   = entries|filter(e => e.locationStatus == 'in_consultation_room')|length %}
 {% set countEmergency = entries|filter(e => e.triageLevel in ['emergency', 'vital_emergency'])|length %}
 
-<div class="status-bar">
-  <div class="stat-block">
-    <div class="stat-icon wr-stat-icon--waiting"><i data-lucide="clock" class="wr-icon-sm wr-icon--amber"></i></div>
-    <div><p class="stat-num wr-stat-num--amber">{{ countWaiting }}</p><p class="stat-label">En attente</p></div>
-  </div>
-  <div class="stat-block">
-    <div class="stat-icon wr-stat-icon--consult"><i data-lucide="stethoscope" class="wr-icon-sm wr-icon--blue"></i></div>
-    <div><p class="stat-num wr-stat-num--blue">{{ countConsult }}</p><p class="stat-label">En consultation</p></div>
-  </div>
-  <div class="stat-block">
-    <div class="stat-icon wr-stat-icon--urgence"><i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--red"></i></div>
-    <div><p class="stat-num wr-stat-num--red">{{ countEmergency }}</p><p class="stat-label">Urgences</p></div>
-  </div>
-  <div class="stat-block">
-    <div class="stat-icon wr-stat-icon--done"><i data-lucide="check-circle" class="wr-icon-sm wr-icon--green"></i></div>
-    <div><p class="stat-num wr-stat-num--green">{{ entries|length }}</p><p class="stat-label">Total</p></div>
-  </div>
-</div>
+{% block content %}
+<div data-controller="waiting-room" style="display:contents">
 
-{# ── Queue list ── #}
-<div class="page-body" style="padding: var(--space-4);">
-  <div style="max-width: 900px;">
+  {# ── Topbar ── #}
+  <div class="wr-topbar">
+    <div>
+      <p class="wr-topbar-title">Salle d'attente</p>
+      <p class="wr-topbar-subtitle">{{ 'now'|date('l d F Y') }}</p>
+    </div>
+    <div class="wr-topbar-clock">
+      <span class="clock-num" data-waiting-room-target="clockH"></span>
+      <span class="clock-sep">:</span>
+      <span class="clock-num" data-waiting-room-target="clockM"></span>
+      <span class="clock-sep wr-clock-sep-light">:</span>
+      <span class="clock-sec" data-waiting-room-target="clockS"></span>
+    </div>
+    <div class="wr-topbar-right">
+      <button class="btn btn-danger btn-xs"
+              data-action="waiting-room#openModal"
+              data-waiting-room-modal-id-param="modal-urgence">
+        <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Urgence
+      </button>
+      <button class="btn btn-primary btn-xs"
+              data-action="waiting-room#openModal"
+              data-waiting-room-modal-id-param="modal-checkin">
+        <i data-lucide="plus" class="wr-icon-xs"></i> Check-in patient
+      </button>
+    </div>
+  </div>
 
-    {% if entries is empty %}
-      <div class="widget" style="text-align: center; padding: var(--space-8);">
-        <i data-lucide="check-circle" style="width: 40px; height: 40px; color: var(--color-success-text); margin: 0 auto var(--space-3);"></i>
-        <p style="color: var(--text-muted); font-size: var(--text-md);">Aucun patient en salle d'attente</p>
+  {# ── Status bar ── #}
+  <div class="status-bar">
+    <div class="stat-block">
+      <div class="stat-icon wr-stat-icon--waiting">
+        <i data-lucide="clock" class="wr-icon-sm wr-icon--amber"></i>
       </div>
-    {% else %}
+      <div>
+        <p class="stat-num wr-stat-num--amber">{{ countWaiting }}</p>
+        <p class="stat-label">En attente</p>
+      </div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-icon wr-stat-icon--consult">
+        <i data-lucide="stethoscope" class="wr-icon-sm wr-icon--blue"></i>
+      </div>
+      <div>
+        <p class="stat-num wr-stat-num--blue">{{ countConsult }}</p>
+        <p class="stat-label">En consultation</p>
+      </div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-icon wr-stat-icon--urgence">
+        <i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--red"></i>
+      </div>
+      <div>
+        <p class="stat-num wr-stat-num--red">{{ countEmergency }}</p>
+        <p class="stat-label">Urgences</p>
+      </div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-icon wr-stat-icon--done">
+        <i data-lucide="users" class="wr-icon-sm wr-icon--green"></i>
+      </div>
+      <div>
+        <p class="stat-num wr-stat-num--green">{{ entries|length }}</p>
+        <p class="stat-label">Total</p>
+      </div>
+    </div>
+    <div class="wr-realtime-indicator">
+      <span class="wr-realtime-dot"></span>
+      <span class="wr-realtime-label">Temps réel</span>
+    </div>
+  </div>
 
-      {#
-        Stripe colour by triage level:
-          vital_emergency → red (urgence)
-          emergency       → red (urgence)
-          priority        → amber (prio)
-          standard        → slate (attente)
-      #}
-      {% set triageStripe = {
-        'vital_emergency': 'urgence',
-        'emergency':       'urgence',
-        'priority':        'prio',
-        'standard':        'attente',
-      } %}
+  {# ── Two-column layout: queue list + detail panel ── #}
+  <div class="page-body">
 
-      {# Channel labels #}
-      {% set channelLabel = {
-        'appointment_booked':        'RDV',
-        'walk_in':                   'Sans RDV',
-        'emergency':                 'Urgence',
-        'emergency_by_third_party':  'Urgence (tiers)',
-        'emergency_by_authority':    'Urgence (autorités)',
-        'emergency_by_association':  'Urgence (asso.)',
-        'emergency_by_municipality': 'Urgence (mairie)',
-        'transfer_from_other_clinic':'Transfert',
-      } %}
+    {# Left: queue panel #}
+    <div class="queue-panel">
 
-      {# Channel badge style #}
-      {% set channelStyle = {
-        'appointment_booked':        'background: var(--color-info-bg); color: var(--color-info-text);',
-        'walk_in':                   'background: var(--color-warning-bg); color: var(--color-warning-text);',
-        'emergency':                 'background: var(--color-danger-bg); color: var(--color-danger-text);',
-        'emergency_by_third_party':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
-        'emergency_by_authority':    'background: var(--color-danger-bg); color: var(--color-danger-text);',
-        'emergency_by_association':  'background: var(--color-danger-bg); color: var(--color-danger-text);',
-        'emergency_by_municipality': 'background: var(--color-danger-bg); color: var(--color-danger-text);',
-        'transfer_from_other_clinic':'background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-medium);',
-      } %}
+      {# Queue head: title + counter #}
+      <div class="queue-head">
+        <span class="wr-queue-title">File d'attente</span>
+        <span class="wr-queue-count" id="queue-count">
+          {{ entries|length }} patient{{ entries|length > 1 ? 's' : '' }}
+        </span>
+      </div>
 
-      {# Triage labels #}
-      {% set triageLabel = {
-        'vital_emergency': 'Urgence vitale',
-        'emergency':       'Urgence',
-        'priority':        'Prioritaire',
-        'standard':        'Standard',
-      } %}
+      {# Filter tabs #}
+      <div class="queue-filter">
+        <button class="qf-tab active" data-filter="all" onclick="filterQueue(this)">Tous</button>
+        <button class="qf-tab urg" data-filter="urgence" onclick="filterQueue(this)">Urgences</button>
+        <button class="qf-tab" data-filter="attente" onclick="filterQueue(this)">En attente</button>
+        <button class="qf-tab" data-filter="consultation" onclick="filterQueue(this)">Consultation</button>
+      </div>
 
-      {# Triage badge style #}
-      {% set triageStyle = {
-        'vital_emergency': 'background: #fef2f2; color: #dc2626;',
-        'emergency':       'background: #fff7ed; color: #ea580c;',
-        'priority':        'background: #fffbeb; color: #d97706;',
-        'standard':        'background: var(--surface-subtle); color: var(--text-muted); border: 1px solid var(--border-light);',
-      } %}
+      {# Queue list #}
+      {% if entries is empty %}
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-3);padding:var(--space-10) var(--space-4);flex:1;">
+          <i data-lucide="inbox" style="width:40px;height:40px;color:var(--text-subtle);opacity:.5;"></i>
+          <p style="font-size:var(--text-md);color:var(--text-muted);">Aucun patient en salle d'attente</p>
+          <a href="{{ path('clinic_admission_emergency') }}" class="btn btn-primary btn-xs">
+            Créer une admission
+          </a>
+        </div>
+      {% else %}
+      <div class="queue-list" id="queue-list">
 
-      {% for entry in entries %}
-        {% set stripe = triageStripe[entry.triageLevel] ?? 'attente' %}
-        {% set isEmergency = entry.triageLevel in ['emergency', 'vital_emergency'] %}
+        {% for entry in entries %}
+          {% set stripe = triageStripe[entry.triageLevel] ?? 'attente' %}
+          {% set isEmergency = entry.triageLevel in ['emergency', 'vital_emergency'] %}
 
-        {# Wait time #}
-        {% set openedTs = entry.openedAt|date('U') %}
-        {% set nowTs    = 'now'|date('U') %}
-        {% set waitMin  = (((nowTs - openedTs) / 60)|round)|abs %}
-        {% set waitH    = (waitMin / 60)|round(0, 'floor') %}
-        {% set waitM    = waitMin % 60 %}
+          {% set openedTs = entry.openedAt|date('U') %}
+          {% set nowTs    = 'now'|date('U') %}
+          {% set waitMin  = (((nowTs - openedTs) / 60)|round)|abs %}
+          {% set waitH    = (waitMin / 60)|round(0, 'floor') %}
+          {% set waitM    = waitMin % 60 %}
 
-        <div class="qcard{{ isEmergency ? ' urgence' : '' }}">
-          <div class="qcard-stripe {{ stripe }}"></div>
+          <div class="qcard{{ isEmergency ? ' urgence' : '' }}"
+               data-triage="{{ entry.triageLevel }}"
+               data-location="{{ entry.locationStatus }}">
+            <div class="qcard-stripe {{ stripe }}"></div>
+            <div class="qcard-body">
 
-          <div class="qcard-body">
-            <div style="flex: 1; min-width: 0;">
-
-              {# Badges row #}
-              <div style="display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-1); flex-wrap: wrap;">
-                {# Intake channel badge #}
-                <span class="badge" style="{{ channelStyle[entry.intakeChannel] ?? '' }}">
-                  {{ channelLabel[entry.intakeChannel] ?? entry.intakeChannel }}
-                </span>
-
-                {# Triage badge (only if not standard) #}
-                {% if entry.triageLevel != 'standard' %}
-                  <span class="badge" style="{{ triageStyle[entry.triageLevel] ?? '' }}">
-                    {{ triageLabel[entry.triageLevel] ?? entry.triageLevel }}
+              <div style="flex:1;min-width:0;">
+                {# Badges row #}
+                <div style="display:flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-1);flex-wrap:wrap;">
+                  {% if isEmergency %}
+                    <span class="badge" style="background:var(--color-danger-bg);color:var(--color-danger-text);">
+                      URGENCE
+                    </span>
+                  {% endif %}
+                  <span class="badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">
+                    {{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}
                   </span>
-                {% endif %}
+                  {% if entry.locationStatus != 'in_waiting_room' %}
+                    <span class="badge" style="background:var(--color-info-bg);color:var(--color-info-text);">
+                      {% if entry.locationStatus == 'in_consultation_room' %}En consultation
+                      {% elseif entry.locationStatus == 'in_hospitalization' %}Hospitalisé
+                      {% elseif entry.locationStatus == 'in_surgery' %}En chirurgie
+                      {% elseif entry.locationStatus == 'at_reception' %}Réception
+                      {% else %}{{ entry.locationStatus }}{% endif %}
+                    </span>
+                  {% endif %}
+                </div>
 
-                {# Location badge if not in waiting room #}
-                {% if entry.locationStatus != 'in_waiting_room' %}
-                  <span class="badge" style="background: var(--color-info-bg); color: var(--color-info-text);">
-                    {% if entry.locationStatus == 'in_consultation_room' %}En consultation
-                    {% elseif entry.locationStatus == 'in_hospitalization' %}Hospitalisé
-                    {% elseif entry.locationStatus == 'in_surgery' %}En chirurgie
-                    {% elseif entry.locationStatus == 'at_reception' %}Réception
-                    {% else %}{{ entry.locationStatus }}
-                    {% endif %}
-                  </span>
+                {# Patient display label #}
+                <div class="qcard-name">{{ entry.displayLabel }}</div>
+
+                {# Triage notes #}
+                {% if entry.triageNotes %}
+                  <div class="qcard-motif">{{ entry.triageNotes }}</div>
                 {% endif %}
               </div>
 
-              {# Patient display label #}
-              <div class="qcard-name">{{ entry.displayLabel }}</div>
+              {# Right: wait time + actions #}
+              <div class="qcard-right">
+                {% if waitH > 0 %}
+                  <span class="wait-big">{{ waitH }}h{{ waitM < 10 ? '0' }}{{ waitM }}</span>
+                {% else %}
+                  <span class="wait-big">{{ waitM }}min</span>
+                {% endif %}
+                <span class="wait-label">d'attente</span>
 
-              {# Triage notes #}
-              {% if entry.triageNotes %}
-                <div class="qcard-motif">{{ entry.triageNotes }}</div>
-              {% endif %}
-            </div>
-
-            {# Right: wait time + actions #}
-            <div class="qcard-right">
-              <span class="wait-big">
-                {%- if waitH > 0 -%}{{ waitH }}h{{ waitM < 10 ? '0' }}{{ waitM }}{%- else -%}{{ waitM }}min{%- endif -%}
-              </span>
-              <span class="wait-label">d'attente</span>
-
-              {# Triage update #}
-              <div style="margin-top: var(--space-2);">
-                <form method="POST" action="{{ path('clinic_admission_update_triage', {admissionId: entry.admissionId}) }}">
-                  <input type="hidden" name="_token" value="{{ csrf_token('admission_triage_' ~ entry.admissionId) }}">
-                  <select name="triage_level" onchange="this.form.submit()"
-                          class="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
-                          style="font-size: 11px; padding: 2px 4px; border: 1px solid var(--border-medium); border-radius: var(--radius-sm); background: var(--surface-base); color: var(--text-secondary);">
-                    <option value="standard" {{ entry.triageLevel == 'standard' ? 'selected' : '' }}>Standard</option>
-                    <option value="priority" {{ entry.triageLevel == 'priority' ? 'selected' : '' }}>Prioritaire</option>
-                    <option value="emergency" {{ entry.triageLevel == 'emergency' ? 'selected' : '' }}>Urgence</option>
-                    <option value="vital_emergency" {{ entry.triageLevel == 'vital_emergency' ? 'selected' : '' }}>Urgence vitale</option>
+                {# Quick triage change #}
+                <form method="POST"
+                      action="{{ path('clinic_admission_update_triage', {admissionId: entry.admissionId}) }}"
+                      style="margin-top:var(--space-1);">
+                  <input type="hidden" name="_token"
+                         value="{{ csrf_token('admission_triage_' ~ entry.admissionId) }}">
+                  <select name="triage_level" onchange="this.form.submit()" class="form-input" style="font-size:var(--text-sm);padding:2px var(--space-2);">
+                    <option value="standard" {{ entry.triageLevel == 'standard' ? 'selected' }}>Standard</option>
+                    <option value="priority" {{ entry.triageLevel == 'priority' ? 'selected' }}>Prioritaire</option>
+                    <option value="emergency" {{ entry.triageLevel == 'emergency' ? 'selected' }}>Urgence</option>
+                    <option value="vital_emergency" {{ entry.triageLevel == 'vital_emergency' ? 'selected' }}>Urgence vitale</option>
                   </select>
                 </form>
+
+                <div style="display:flex;gap:var(--space-1);margin-top:var(--space-1);">
+                  <form method="POST"
+                        action="{{ path('clinic_admission_close', {admissionId: entry.admissionId}) }}"
+                        onsubmit="return confirm('Clôturer cette admission ?')">
+                    <input type="hidden" name="_token"
+                           value="{{ csrf_token('admission_close_' ~ entry.admissionId) }}">
+                    <input type="hidden" name="closure_reason" value="consultation_completed">
+                    <button type="submit" class="btn btn-secondary btn-xs">Terminer</button>
+                  </form>
+                </div>
               </div>
 
-              {# Actions #}
-              <div style="display: flex; gap: var(--space-1); margin-top: var(--space-1);">
-                <form method="POST"
-                      action="{{ path('clinic_admission_close', {admissionId: entry.admissionId}) }}"
-                      onsubmit="return confirm('Clôturer cette admission ?')">
-                  <input type="hidden" name="_token" value="{{ csrf_token('admission_close_' ~ entry.admissionId) }}">
-                  <input type="hidden" name="closure_reason" value="consultation_completed">
-                  <button type="submit" class="btn btn-secondary btn-xs">Terminer</button>
-                </form>
-              </div>
             </div>
           </div>
+        {% endfor %}
+
+      </div>{# /queue-list #}
+      {% endif %}
+    </div>
+
+    {# Right: detail panel — placeholder for now #}
+    <div class="control-panel">
+      <div class="control-scroll">
+        <div id="patient-detail-panel"
+             class="patient-detail-panel is-hidden"
+             data-waiting-room-target="detailPanel">
+          <turbo-frame id="patient-detail" src=""></turbo-frame>
         </div>
+        {# Empty state when no patient selected #}
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3);color:var(--text-subtle);">
+          <i data-lucide="mouse-pointer-2" style="width:32px;height:32px;opacity:.4;"></i>
+          <p style="font-size:var(--text-md);">Sélectionner un patient</p>
+        </div>
+      </div>
+    </div>
 
-      {% endfor %}
-    {% endif %}
+  </div>{# /page-body #}
 
+  {# FABs (mobile) #}
+  <div class="fab-group">
+    <button class="fab fab-danger"
+            data-action="waiting-room#openModal"
+            data-waiting-room-modal-id-param="modal-urgence">
+      <i data-lucide="alert-triangle" class="wr-icon-md"></i> Urgence
+    </button>
+    <button class="fab fab-primary"
+            data-action="waiting-room#openModal"
+            data-waiting-room-modal-id-param="modal-checkin">
+      <i data-lucide="plus" class="wr-icon-md"></i> Check-in patient
+    </button>
   </div>
-</div>
 
-<script>
-  (function () {
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
-    function tick() {
-      var d = new Date();
-      document.getElementById('wr-clock-h').textContent = pad(d.getHours());
-      document.getElementById('wr-clock-m').textContent = pad(d.getMinutes());
-      document.getElementById('wr-clock-s').textContent = pad(d.getSeconds());
+  {# ── Modals ── #}
+
+  <!-- Modal Check-in — full admission form -->
+  <div class="modal-overlay hidden" id="modal-checkin"
+       data-action="click->waiting-room#closeOnOverlayClick">
+    <div class="wr-modal-box" style="width:600px;max-width:calc(100vw - 24px);">
+      <div class="wr-modal-head">
+        <p class="wr-modal-title">Nouvelle admission</p>
+        <button class="btn-modal-close"
+                data-action="waiting-room#closeModal"
+                data-waiting-room-modal-id-param="modal-checkin">
+          <i data-lucide="x" class="wr-icon-xs"></i>
+        </button>
+      </div>
+      <form method="post" action="{{ path('clinic_admission_emergency') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+        <div class="wr-modal-body">
+
+          {# Canal + triage #}
+          <div class="wr-form-grid-2">
+            <div class="form-row">
+              <label class="form-label-wr">Canal d'admission *</label>
+              <select name="intake_channel" class="form-input-wr" required>
+                <option value="walk_in">Sans rendez-vous</option>
+                <option value="appointment_booked">Sur rendez-vous</option>
+                <option value="emergency">Urgence (propriétaire)</option>
+                <option value="emergency_by_third_party">Urgence (tiers)</option>
+                <option value="emergency_by_authority">Urgence (autorités)</option>
+                <option value="emergency_by_association">Urgence (association)</option>
+                <option value="emergency_by_municipality">Urgence (mairie)</option>
+                <option value="transfer_from_other_clinic">Transfert</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label class="form-label-wr">Niveau de triage *</label>
+              <select name="triage_level" class="form-input-wr" required>
+                <option value="standard">Standard</option>
+                <option value="priority">Prioritaire</option>
+                <option value="emergency">Urgence</option>
+                <option value="vital_emergency">Urgence vitale</option>
+              </select>
+            </div>
+          </div>
+
+          {# Description provisoire #}
+          <div class="form-row">
+            <label class="form-label-wr">Description de l'animal</label>
+            <input class="form-input-wr" name="provisional_label"
+                   placeholder="Ex : Chat roux blessé à la patte — Mme Dupont">
+          </div>
+
+          {# Espèce + couleur #}
+          <div class="wr-form-grid-2">
+            <div class="form-row">
+              <label class="form-label-wr">Espèce observée</label>
+              <input class="form-input-wr" name="observed_species" placeholder="Ex : Félin, Canin…">
+            </div>
+            <div class="form-row">
+              <label class="form-label-wr">Couleur / robe</label>
+              <input class="form-input-wr" name="observed_color" placeholder="Ex : Roux tigré">
+            </div>
+          </div>
+
+          {# Notes de triage #}
+          <div class="form-row">
+            <label class="form-label-wr">Motif / notes de triage</label>
+            <input class="form-input-wr" name="triage_notes"
+                   placeholder="Motif de venue, symptômes observés…">
+          </div>
+
+          {# Présentateur #}
+          <div style="border-top:1px solid var(--border-light);margin-top:var(--space-3);padding-top:var(--space-3);">
+            <p class="form-label-wr" style="margin-bottom:var(--space-2);">Présentateur <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optionnel)</span></p>
+            <div class="wr-form-grid-2">
+              <div class="form-row">
+                <label class="form-label-wr">Nom</label>
+                <input class="form-input-wr" name="presenter_name" placeholder="Prénom Nom">
+              </div>
+              <div class="form-row">
+                <label class="form-label-wr">Téléphone</label>
+                <input class="form-input-wr" type="tel" name="presenter_phone"
+                       placeholder="+33 6 12 34 56 78">
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-label-wr">Rôle</label>
+              <select name="presenter_role" class="form-input-wr">
+                <option value="">— Sélectionner —</option>
+                <option value="owner">Propriétaire</option>
+                <option value="third_party">Tiers</option>
+                <option value="authority">Autorité</option>
+                <option value="association">Association</option>
+                <option value="municipality">Municipalité</option>
+                <option value="unknown">Inconnu</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+        <div class="wr-modal-foot">
+          <button type="button" class="btn-wr btn-secondary"
+                  data-action="waiting-room#closeModal"
+                  data-waiting-room-modal-id-param="modal-checkin">Annuler</button>
+          <button type="submit" class="btn-wr btn-primary">
+            <i data-lucide="check" class="wr-icon-xs"></i> Valider l'arrivée
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Urgence -->
+  <div class="modal-overlay hidden" id="modal-urgence"
+       data-action="click->waiting-room#closeOnOverlayClick">
+    <div class="wr-modal-box">
+      <div class="wr-modal-head wr-modal-head--urgence">
+        <div class="wr-modal-urgence-title">
+          <div class="wr-modal-urgence-icon">
+            <i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i>
+          </div>
+          <p class="wr-modal-urgence-text">Enregistrement urgence</p>
+        </div>
+        <button class="btn-modal-close wr-modal-close--urgence"
+                data-action="waiting-room#closeModal"
+                data-waiting-room-modal-id-param="modal-urgence">
+          <i data-lucide="x" class="wr-icon-xs wr-icon--red"></i>
+        </button>
+      </div>
+      <form method="post" action="{{ path('clinic_admission_emergency') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+        <input type="hidden" name="triage_level" value="emergency">
+        <div class="wr-modal-body">
+          <div class="wr-urgence-alert">
+            <i data-lucide="zap" class="wr-urgence-alert-icon"></i>
+            Ce patient sera placé immédiatement en tête de file.
+          </div>
+          <div class="wr-form-grid-2">
+            <div class="form-row">
+              <label class="form-label-wr">Description de l'animal *</label>
+              <input class="form-input-wr" name="provisional_label" required
+                     placeholder="Ex : Gaia (Labrador) — Mme Fauchard">
+            </div>
+            <div class="form-row">
+              <label class="form-label-wr">Motif d'urgence *</label>
+              <input class="form-input-wr" name="triage_notes" required
+                     placeholder="Décrivez les symptômes...">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:var(--space-2);">
+            <label class="form-label-wr">Type d'urgence</label>
+            <select name="intake_channel" class="form-input-wr">
+              <option value="emergency">Urgence (propriétaire)</option>
+              <option value="emergency_by_third_party">Urgence (tiers)</option>
+              <option value="emergency_by_authority">Urgence (autorités)</option>
+              <option value="emergency_by_association">Urgence (association)</option>
+              <option value="emergency_by_municipality">Urgence (mairie)</option>
+            </select>
+          </div>
+        </div>
+        <div class="wr-modal-foot">
+          <button type="button" class="btn-wr btn-secondary"
+                  data-action="waiting-room#closeModal"
+                  data-waiting-room-modal-id-param="modal-urgence">Annuler</button>
+          <button type="submit" class="btn-wr btn-danger">
+            <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>{# /waiting-room controller #}
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    function filterQueue(btn) {
+      const filter = btn.dataset.filter;
+
+      btn.closest('.queue-filter').querySelectorAll('.qf-tab')
+        .forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+
+      const cards = document.querySelectorAll('#queue-list .qcard');
+      let visible = 0;
+      cards.forEach(function (card) {
+        const triage   = card.dataset.triage ?? '';
+        const location = card.dataset.location ?? '';
+        const isUrgent  = triage === 'emergency' || triage === 'vital_emergency';
+        const isConsult = location === 'in_consultation_room';
+
+        let show = false;
+        if (filter === 'all')           show = true;
+        else if (filter === 'urgence')  show = isUrgent;
+        else if (filter === 'attente')  show = !isConsult;
+        else if (filter === 'consultation') show = isConsult;
+
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      const counter = document.getElementById('queue-count');
+      if (counter) counter.textContent = visible + ' patient' + (visible > 1 ? 's' : '');
     }
-    tick();
-    setInterval(tick, 1000);
-  })();
-</script>
-
+  </script>
 {% endblock %}
