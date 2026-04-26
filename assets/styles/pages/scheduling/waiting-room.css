@@ -710,6 +710,111 @@
     .wr-icon-fab { width: 18px; height: 18px; }
   }
 
+    /* ── View tabs (Liste / Kanban) ── */
+    .wr-view-tabs {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border-medium, #e2e8f0);
+      padding: 0 var(--space-4, 16px);
+      background: var(--surface-card, #fff);
+      flex-shrink: 0;
+    }
+    .wr-tab {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1, 4px);
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      font-size: var(--text-sm, 13px);
+      font-weight: var(--weight-medium, 500);
+      color: var(--text-subtle, #94a3b8);
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+    }
+    .wr-tab svg { width: 14px; height: 14px; }
+    .wr-tab:hover { color: var(--text-primary, #0f172a); }
+    .wr-tab.active {
+      color: var(--brand-600, #4f46e5);
+      border-bottom-color: var(--brand-600, #4f46e5);
+    }
+
+    /* ── Kanban view ── */
+    .wr-kanban {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: var(--space-4, 16px);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-3, 12px);
+      align-items: start;
+    }
+    .kol {
+      background: var(--surface-subtle, #f8fafc);
+      border-radius: var(--radius-md, 8px);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .kol-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+    }
+    .kol-title { font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); }
+    .kol-count {
+      font-size: var(--text-xs, 11px);
+      font-weight: var(--weight-semibold, 600);
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    .kol-body {
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-2, 8px);
+      gap: var(--space-2, 8px);
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+    /* Column themes */
+    .kol-reception .kol-head   { background: #fff; border-bottom: 1px solid var(--border-light, #f1f5f9); }
+    .kol-reception .kol-title  { color: var(--text-muted, #64748b); }
+    .kol-reception .kol-count  { background: var(--surface-subtle, #f8fafc); color: var(--text-muted, #64748b); border: 1px solid var(--border-medium, #e2e8f0); }
+    .kol-waiting .kol-head     { background: #fff7ed; }
+    .kol-waiting .kol-title    { color: #c2410c; }
+    .kol-waiting .kol-count    { background: #fed7aa; color: #c2410c; }
+    .kol-consult .kol-head     { background: #eff6ff; }
+    .kol-consult .kol-title    { color: #1d4ed8; }
+    .kol-consult .kol-count    { background: #bfdbfe; color: #1d4ed8; }
+    .kol-care .kol-head        { background: #faf5ff; }
+    .kol-care .kol-title       { color: #7e22ce; }
+    .kol-care .kol-count       { background: #e9d5ff; color: #7e22ce; }
+    /* Cards */
+    .kcard {
+      background: var(--surface-card, #fff);
+      border-radius: var(--radius-md, 8px);
+      border: 1px solid var(--border-light, #f1f5f9);
+      padding: var(--space-3, 12px);
+      cursor: pointer;
+      transition: box-shadow .15s, transform .1s;
+    }
+    .kcard:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+    .kcard-accent-red    { border-left: 3px solid #ef4444; }
+    .kcard-accent-orange { border-left: 3px solid #fb923c; }
+    .kcard-accent-amber  { border-left: 3px solid #f59e0b; }
+    .kcard-accent-blue   { border-left: 3px solid #60a5fa; }
+    .kcard-accent-purple { border-left: 3px solid #a855f7; }
+    .kcard-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
+    .kcard-name { font-size: var(--text-base, 14px); font-weight: var(--weight-medium, 500); color: var(--text-primary, #0f172a); }
+    .kcard-reason { font-size: var(--text-sm, 13px); color: var(--text-muted, #64748b); margin-bottom: var(--space-2, 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kcard-foot { display: flex; align-items: center; gap: 4px; font-size: var(--text-xs, 11px); color: var(--text-subtle, #94a3b8); }
+    .kcard-foot svg { width: 10px; height: 10px; flex-shrink: 0; }
+    .kcard-empty { padding: var(--space-3, 12px) var(--space-2, 8px); text-align: center; font-size: var(--text-sm, 13px); color: var(--text-subtle, #94a3b8); }
+
   /* FABs — fixed positioned, outside data-page scope */
   .fab-group {
     @apply fixed flex-col items-end;

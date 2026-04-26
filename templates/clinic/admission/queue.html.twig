@@ -137,8 +137,22 @@
     </div>
   </div>
 
-  {# ── Two-column layout ── #}
-  <div class="page-body">
+  {# ── Vue tabs ── #}
+  <div class="wr-view-tabs">
+    <button class="wr-tab active"
+            data-action="click->waiting-room#switchTab"
+            data-waiting-room-tab-param="liste">
+      <i data-lucide="list" style="width:14px;height:14px;"></i> Liste
+    </button>
+    <button class="wr-tab"
+            data-action="click->waiting-room#switchTab"
+            data-waiting-room-tab-param="kanban">
+      <i data-lucide="layout-dashboard" style="width:14px;height:14px;"></i> Kanban
+    </button>
+  </div>
+
+  {# ── Vue Liste ── #}
+  <div id="view-liste" class="page-body">
 
     {# Left: queue panel #}
     <div class="queue-panel">
@@ -357,7 +371,77 @@
       </div>
     </div>
 
-  </div>{# /page-body #}
+  </div>{# /view-liste #}
+
+  {# ── Vue Kanban ── #}
+  <div id="view-kanban" class="wr-kanban hidden">
+
+    {% set kanbanCols = [
+      { key: 'at_reception',        label: 'Accueil',         cls: 'kol-reception', accent: '' },
+      { key: 'in_waiting_room',     label: 'En attente',      cls: 'kol-waiting',   accent: 'kcard-accent-orange' },
+      { key: 'in_consultation_room',label: 'En consultation', cls: 'kol-consult',   accent: 'kcard-accent-blue' },
+      { key: 'in_care',             label: 'Soins / Hospit.', cls: 'kol-care',      accent: 'kcard-accent-purple' },
+    ] %}
+
+    {% set triageAccents = {
+      'vital_emergency': 'kcard-accent-red',
+      'emergency':       'kcard-accent-orange',
+      'priority':        'kcard-accent-amber',
+    } %}
+
+    {% set triageBadges = {
+      'vital_emergency': { label: 'Vital', style: 'background:#fee2e2;color:#dc2626;' },
+      'emergency':       { label: 'Urgence', style: 'background:#ffedd5;color:#c2410c;' },
+      'priority':        { label: 'Prioritaire', style: 'background:#fef9c3;color:#92400e;' },
+    } %}
+
+    {% for col in kanbanCols %}
+      {% set colEntries = [] %}
+      {% for entry in entries %}
+        {% set loc = entry.locationStatus %}
+        {% if loc in ['in_hospitalization', 'in_surgery'] %}{% set loc = 'in_care' %}{% endif %}
+        {% if loc == col.key %}{% set colEntries = colEntries|merge([entry]) %}{% endif %}
+      {% endfor %}
+
+      <div class="kol {{ col.cls }}">
+        <div class="kol-head">
+          <span class="kol-title">{{ col.label }}</span>
+          <span class="kol-count">{{ colEntries|length }}</span>
+        </div>
+        <div class="kol-body">
+          {% for entry in colEntries %}
+            {% set accent = triageAccents[entry.triageLevel] ?? col.accent %}
+            <div class="kcard {{ accent }}">
+              <div class="kcard-head">
+                <p class="kcard-name">
+                  {% if not entry.isPatientIdentifiedAtOpening %}
+                    <i data-lucide="help-circle" style="width:11px;height:11px;color:#d97706;vertical-align:middle;margin-right:2px;"></i>
+                  {% endif %}
+                  {{ entry.displayLabel }}
+                </p>
+                {% if triageBadges[entry.triageLevel] is defined %}
+                  <span class="badge" style="{{ triageBadges[entry.triageLevel].style }}">
+                    {{ triageBadges[entry.triageLevel].label }}
+                  </span>
+                {% endif %}
+              </div>
+              {% if entry.triageNotes %}
+                <p class="kcard-reason">{{ entry.triageNotes }}</p>
+              {% endif %}
+              <div class="kcard-foot">
+                <i data-lucide="clock" style="width:10px;height:10px;"></i>
+                {{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}
+                &middot; {{ entry.openedAt | date('H\\hi') }}
+              </div>
+            </div>
+          {% else %}
+            <p class="kcard-empty">Aucun patient</p>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+
+  </div>{# /view-kanban #}
 
   {# FABs (mobile) #}
   <div class="fab-group">

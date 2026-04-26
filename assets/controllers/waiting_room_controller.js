@@ -35,6 +35,20 @@ export default class extends Controller {
     }
   }
 
+  switchTab(event) {
+    const tab = event.params.tab;
+
+    this.element.querySelectorAll('.wr-tab').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.waitingRoomTabParam === tab);
+    });
+
+    const liste  = document.getElementById('view-liste');
+    const kanban = document.getElementById('view-kanban');
+
+    if (liste)  liste.classList.toggle('hidden', tab !== 'liste');
+    if (kanban) kanban.classList.toggle('hidden', tab !== 'kanban');
+  }
+
   openModal(event) {
     const modalId = event.params.modalId;
     document.getElementById(modalId)?.classList.remove('hidden');
