@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Animal\Domain\ValueObject;
 use App\Context\Animal\Domain\Exception\InvalidIdentificationException;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\RegistryType;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class IdentificationTest extends TestCase
@@ -90,5 +91,38 @@ final class IdentificationTest extends TestCase
         $identification->ensureConsistency();
 
         $this->addToAssertionCount(1); // No exception thrown
+    }
+
+    #[Test]
+    public function testEmptyStringChipNormalizedToNull(): void
+    {
+        $identification = new Identification(
+            microchipNumber: '',
+            tattooNumber: null,
+            passportNumber: null,
+            registryType: RegistryType::NONE,
+            registryNumber: null,
+            sireNumber: null,
+        );
+
+        self::assertNull($identification->microchipNumber);
+    }
+
+    #[Test]
+    public function testAllOptionalStringsNormalizedToNull(): void
+    {
+        $identification = new Identification(
+            microchipNumber: '',
+            tattooNumber: '',
+            passportNumber: '',
+            registryType: RegistryType::NONE,
+            registryNumber: null,
+            sireNumber: '',
+        );
+
+        self::assertNull($identification->microchipNumber);
+        self::assertNull($identification->tattooNumber);
+        self::assertNull($identification->passportNumber);
+        self::assertNull($identification->sireNumber);
     }
 }

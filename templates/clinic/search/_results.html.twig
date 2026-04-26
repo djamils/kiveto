@@ -1,0 +1,49 @@
+<turbo-frame id="search-results">
+{% if buckets is empty %}
+    <div class="search-empty">
+        <p>{{ 'search.no_results'|trans }}</p>
+    </div>
+{% else %}
+    {% for bucket in buckets %}
+        <div class="search-result-section" data-bucket-type="{{ bucket.type }}">
+            <div class="search-result-section-head">
+                <i data-lucide="{{ bucketIcons[bucket.type] ?? 'search' }}"></i>
+                <span>{{ ('search.bucket.' ~ bucket.type)|trans }}</span>
+            </div>
+            {% for hit in bucket.hits %}
+                {% if mode == 'pick' %}
+                    <button type="button" class="search-result"
+                            data-action="click->global-search#pick"
+                            data-hit="{{ hit|json_encode|e('html_attr') }}"
+                            data-picker-id="{{ pickerId }}">
+                        <div class="search-result-body">
+                            <p class="search-result-title">{{ hit.title }}</p>
+                            {% if hit.subtitle %}
+                                <p class="search-result-sub">{{ hit.subtitle }}</p>
+                            {% endif %}
+                            {% if hit.context %}
+                                <p class="search-result-sub">{{ hit.context }}</p>
+                            {% endif %}
+                        </div>
+                    </button>
+                {% else %}
+                    <a href="{{ path(routeMap[bucket.type], {id: hit.resourceId}) }}" class="search-result">
+                        <div class="search-result-body">
+                            <p class="search-result-title">{{ hit.title }}</p>
+                            {% if hit.subtitle %}
+                                <p class="search-result-sub">{{ hit.subtitle }}</p>
+                            {% endif %}
+                            {% if hit.context %}
+                                <p class="search-result-sub">{{ hit.context }}</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endif %}
+            {% endfor %}
+            {% if bucket.hasMore %}
+                <div class="search-result-more">+ d'autres résultats</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endif %}
+</turbo-frame>

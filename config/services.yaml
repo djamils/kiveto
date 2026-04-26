@@ -7,6 +7,15 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    vetsaas.search.bucket_order:
+        - 'animal'
+        - 'client'
+    vetsaas.search.bucket_icons:
+        animal: 'paw-print'
+        client: 'user'
+    vetsaas.search.route_map:
+        animal: 'clinic_animals_view'
+        client: 'clinic_clients_view'
 
 services:
     # default configuration for services in *this* file
@@ -352,6 +361,33 @@ services:
     App\Context\Admission\Infrastructure\Persistence\Doctrine\AdmissionMapper: ~
 
     # ============================================================================
+    # GLOBAL SEARCH
+    # ============================================================================
+
+    App\Shared\Search\SearchEngine:
+        arguments:
+            $providers: !tagged_iterator vetsaas.search_provider
+            $bucketOrder: '%vetsaas.search.bucket_order%'
+
+    App\Context\Animal\Application\Search\AnimalSearchProvider:
+        tags: ['vetsaas.search_provider']
+
+    App\Context\Client\Application\Search\ClientSearchProvider:
+        tags: ['vetsaas.search_provider']
+
+    App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Search\DoctrineAnimalSearchRepository
+
+    App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface:
+        class: App\Context\Animal\Infrastructure\Search\AnimalSearchIndexWriter
+
+    App\Context\Client\Application\Search\ClientSearchRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Search\DoctrineClientSearchRepository
+
+    App\Context\Client\Application\Search\ClientSearchIndexWriterInterface:
+        class: App\Context\Client\Infrastructure\Search\ClientSearchIndexWriter
+
+    # ============================================================================
     # BOUNDED CONTEXT: REGULATORY
     # ============================================================================
 
@@ -382,6 +418,16 @@ when@dev: &services_dev
 
 when@test:
     services:
+        App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:
+            class: App\Context\Animal\Infrastructure\Search\DoctrineAnimalSearchRepository
+            public: true
+            autowire: true
+
+        App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface:
+            class: App\Context\Animal\Infrastructure\Search\AnimalSearchIndexWriter
+            public: true
+            autowire: true
+
         App\Fixtures\:
             resource: '../fixtures/'
             autowire: true

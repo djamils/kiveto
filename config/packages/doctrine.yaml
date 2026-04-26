@@ -87,6 +87,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Regulatory/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Regulatory\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Regulatory
+            AnimalSearch:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Animal/Infrastructure/Search/Index'
+                prefix: 'App\Context\Animal\Infrastructure\Search\Index'
+                alias: AnimalSearch
+            ClientSearch:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Client/Infrastructure/Search/Index'
+                prefix: 'App\Context\Client\Infrastructure\Search\Index'
+                alias: ClientSearch
         controller_resolver:
             auto_mapping: false
 

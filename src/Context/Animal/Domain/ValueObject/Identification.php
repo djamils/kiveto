@@ -8,14 +8,25 @@ use App\Context\Animal\Domain\Exception\InvalidIdentificationException;
 
 final readonly class Identification
 {
+    public ?string $microchipNumber;
+    public ?string $tattooNumber;
+    public ?string $passportNumber;
+    public ?string $registryNumber;
+    public ?string $sireNumber;
+
     public function __construct(
-        public ?string $microchipNumber,
-        public ?string $tattooNumber,
-        public ?string $passportNumber,
+        ?string $microchipNumber,
+        ?string $tattooNumber,
+        ?string $passportNumber,
         public RegistryType $registryType,
-        public ?string $registryNumber,
-        public ?string $sireNumber,
+        ?string $registryNumber,
+        ?string $sireNumber,
     ) {
+        $this->microchipNumber = '' === $microchipNumber ? null : $microchipNumber;
+        $this->tattooNumber    = '' === $tattooNumber ? null : $tattooNumber;
+        $this->passportNumber  = '' === $passportNumber ? null : $passportNumber;
+        $this->registryNumber  = '' === $registryNumber ? null : $registryNumber;
+        $this->sireNumber      = '' === $sireNumber ? null : $sireNumber;
     }
 
     public static function createEmpty(): self
