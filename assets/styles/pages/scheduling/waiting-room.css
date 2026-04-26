@@ -502,6 +502,21 @@
       box-shadow: 0 0 0 3px rgba(99,102,241,.15);
     }
     select.form-input-wr { @apply cursor-pointer; }
+
+    /* Search results panel inside waiting room modals */
+    .wr-search-results:not(:empty) {
+      margin-top: var(--space-1, 4px);
+      border: 1px solid var(--border-medium, #e2e8f0);
+      border-radius: var(--radius-md, 8px);
+      max-height: 220px;
+      overflow-y: auto;
+      background: var(--surface-card, #fff);
+    }
+    .wr-search-results .search-result-section { border-radius: 0; border-bottom: none; }
+    .wr-search-results .search-result-section-head { padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-1, 4px); }
+    .wr-search-results .search-result { border-radius: 0; padding: var(--space-2, 8px) var(--space-3, 12px); }
+    .wr-search-results .search-result:last-child { border-radius: 0 0 var(--radius-md, 8px) var(--radius-md, 8px); }
+
     .wr-form-grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;

@@ -15,6 +15,9 @@ export default class extends Controller {
     };
     document.addEventListener('keydown', this._keydownHandler);
 
+    this._pickHandler = this._handleSearchPick.bind(this);
+    document.addEventListener('vetsaas:search:pick', this._pickHandler);
+
     const detailFrame = document.getElementById('patient-detail');
     if (detailFrame) {
       this._frameLoadHandler = () => this.showDetailPanel();
@@ -25,6 +28,7 @@ export default class extends Controller {
   disconnect() {
     clearInterval(this._clockTimer);
     document.removeEventListener('keydown', this._keydownHandler);
+    document.removeEventListener('vetsaas:search:pick', this._pickHandler);
     const detailFrame = document.getElementById('patient-detail');
     if (detailFrame && this._frameLoadHandler) {
       detailFrame.removeEventListener('turbo:frame-load', this._frameLoadHandler);
@@ -60,6 +64,47 @@ export default class extends Controller {
   closeDetailPanel() {
     if (this.hasDetailPanelTarget) {
       this.detailPanelTarget.classList.add('is-hidden');
+    }
+  }
+
+  _handleSearchPick(event) {
+    const { hit, pickerId } = event.detail;
+
+    const parts = [hit.title];
+    if (hit.subtitle) parts.push(`(${hit.subtitle})`);
+    if (hit.context && hit.context !== 'Sans propriétaire') parts.push(`— ${hit.context}`);
+    const description = parts.join(' ');
+
+    const clearSearch = (modal) => {
+      const resultsEl = modal.querySelector('[data-global-search-target="results"]');
+      if (resultsEl) resultsEl.innerHTML = '';
+      const searchInput = modal.querySelector('[data-global-search-target="input"]');
+      if (searchInput) searchInput.value = '';
+    };
+
+    if ('walkin-checkin' === pickerId) {
+      const modal = document.getElementById('modal-checkin');
+      if (!modal) return;
+      const descInput = modal.querySelector('input[name="foundAnimalDescription"]');
+      if (descInput) descInput.value = description;
+      const animalIdInput = document.getElementById('checkin-animal-id');
+      if (animalIdInput) animalIdInput.value = hit.resourceId;
+      const animalNameInput = document.getElementById('checkin-animal-name');
+      if (animalNameInput) animalNameInput.value = hit.title;
+      clearSearch(modal);
+    } else if ('walkin-urgence' === pickerId) {
+      const modal = document.getElementById('modal-urgence');
+      if (!modal) return;
+      clearSearch(modal);
+      const aid2a = document.getElementById('urg-2a-animal-id');
+      if (aid2a) aid2a.value = hit.resourceId;
+      const aname2a = document.getElementById('urg-2a-animal-name');
+      if (aname2a) aname2a.value = hit.title;
+      const lbl2a = document.getElementById('urg-2a-label');
+      if (lbl2a) lbl2a.value = description;
+      if (typeof window.urgSetFromPick === 'function') {
+        window.urgSetFromPick(hit.resourceId, description);
+      }
     }
   }
 

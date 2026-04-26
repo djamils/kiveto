@@ -251,6 +251,8 @@ reset-test-db: drop-test-db create-test-db migrate-test-db
 load-fixtures:
 	@$(call step,Loading fixtures (dev) with Foundry...)
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
+	@$(call step,Backfilling search index from fixtures...)
+	$(Q)$(call run_live,$(SYMFONY) app:search:reindex --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
 migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations regulatory-migrations shared-migrations

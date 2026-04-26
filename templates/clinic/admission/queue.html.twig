@@ -390,89 +390,39 @@
         </button>
       </div>
 
-      {# Recherche live multi-critères #}
-      <div class="wr-modal-body" style="padding-bottom:0;">
-        <div class="form-row">
-          <label class="form-label-wr">Rechercher — puce, propriétaire, animal, téléphone</label>
-          <div style="position:relative;">
-            <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
-            <input class="form-input-wr" id="checkin-search" style="padding-left:32px;"
-                   placeholder="Nom animal, propriétaire, puce, tatouage…"
-                   oninput="checkinSearch(this.value)" autocomplete="off">
-          </div>
-        </div>
-      </div>
-
-      {# Résultats hiérarchisés #}
-      <div id="checkin-results" style="border-top:1px solid var(--border-light);max-height:280px;overflow-y:auto;">
-        <div style="padding:6px var(--space-4);background:var(--surface-subtle);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">
-          RDVs du jour
-        </div>
-        <div class="wr-checkin-row" data-name="Milo" data-species="Félin"
-             onclick="selectCheckinEntry(this)">
-          <div style="width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">ML</div>
-          <div style="flex:1;min-width:0;">
-            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Milo — British Shorthair</p>
-            <p style="font-size:var(--text-sm);color:var(--text-subtle);">James Park · 10h15 · Dr. Rousseau</p>
-          </div>
-          <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h15</span>
-        </div>
-        <div class="wr-checkin-row" data-name="Nala" data-species="Canin"
-             onclick="selectCheckinEntry(this)">
-          <div style="width:32px;height:32px;border-radius:50%;background:#fdf2f8;color:#db2777;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">NL</div>
-          <div style="flex:1;min-width:0;">
-            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Nala — Berger Malinois</p>
-            <p style="font-size:var(--text-sm);color:var(--text-subtle);">Claire Moreau · 10h30 · Dr. Martin</p>
-          </div>
-          <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h30</span>
-        </div>
-
-        <div style="padding:6px var(--space-4);background:var(--surface-subtle);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">
-          Propositions walk-in
-        </div>
-        <div class="wr-checkin-row" data-name="Rocky" data-species="Canin"
-             onclick="selectCheckinEntry(this)">
-          <div style="width:32px;height:32px;border-radius:50%;background:#ecfdf5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">RK</div>
-          <div style="flex:1;min-width:0;">
-            <p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Rocky — Boxer</p>
-            <p style="font-size:var(--text-sm);color:var(--text-subtle);">Sophie Dubois · Pas de RDV aujourd'hui</p>
-          </div>
-          <span class="badge" style="background:var(--surface-subtle);color:var(--text-muted);border:1px solid var(--border-medium);">Walk-in</span>
-        </div>
-
-        <div style="padding:var(--space-2) var(--space-4);border-top:1px solid var(--border-light);background:var(--surface-subtle);">
-          <button type="button" class="btn-wr btn-secondary" style="width:100%;justify-content:center;font-size:var(--text-sm);"
-                  onclick="alert('Création nouveau client — à implémenter')">
-            <i data-lucide="user-plus" class="wr-icon-xs"></i>
-            Aucun résultat — créer nouveau client
-          </button>
-        </div>
-      </div>
-
-      {# Form de confirmation après sélection #}
-      <form method="post" action="{{ path('clinic_admission_emergency') }}" id="checkin-form">
-        <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-        <input type="hidden" name="triage_level" value="standard">
-        <input type="hidden" name="intake_channel" value="walk_in">
+      <form method="post" action="{{ path('clinic_admission_walkin') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+        <input type="hidden" name="arrivalMode" value="STANDARD">
+        <input type="hidden" name="animalId" id="checkin-animal-id">
+        <input type="hidden" name="animalName" id="checkin-animal-name">
         <div class="wr-modal-body">
+          {# Recherche live — global-search controller en mode pick #}
+          <div class="form-row"
+               data-controller="global-search"
+               data-global-search-url-value="{{ path('clinic_search') }}"
+               data-global-search-mode-value="pick"
+               data-global-search-picker-id-value="walkin-checkin"
+               data-global-search-type-value="animal">
+            <label class="form-label-wr">Rechercher — nom, puce, téléphone propriétaire</label>
+            <input type="search"
+                   class="form-input-wr"
+                   placeholder="Nom animal, propriétaire, puce, téléphone…"
+                   autocomplete="off"
+                   data-global-search-target="input"
+                   data-action="input->global-search#search">
+            <div class="wr-search-results" data-global-search-target="results"></div>
+            <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
+          </div>
           <div class="wr-form-grid-2">
             <div class="form-row">
-              <label class="form-label-wr">Motif de visite</label>
-              <input class="form-input-wr" name="triage_notes" placeholder="Décrivez brièvement…">
+              <label class="form-label-wr">Animal / Propriétaire</label>
+              <input class="form-input-wr" name="foundAnimalDescription" id="checkin-label"
+                     placeholder="Ex : Milo (Félin) — James Park">
             </div>
             <div class="form-row">
-              <label class="form-label-wr">Canal</label>
-              <select name="intake_channel" class="form-input-wr">
-                <option value="walk_in">Sans rendez-vous</option>
-                <option value="appointment_booked">Sur rendez-vous</option>
-                <option value="transfer_from_other_clinic">Transfert</option>
-              </select>
+              <label class="form-label-wr">Motif de visite</label>
+              <input class="form-input-wr" name="triageNotes" placeholder="Décrivez brièvement…">
             </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label-wr">Description / étiquette provisoire</label>
-            <input class="form-input-wr" name="provisional_label" id="checkin-label"
-                   placeholder="Ex : Milo (British Shorthair) — James Park">
           </div>
         </div>
         <div class="wr-modal-foot">
@@ -516,6 +466,9 @@
       </div>
 
       {# ── STEP 1 ── #}
+      {# Champ caché partagé pour transporter l'animalId vers les formulaires step 2 #}
+      <input type="hidden" id="urg-animal-id">
+
       <div id="urg-step-1">
         <div class="wr-modal-body">
           <div class="wr-urgence-alert">
@@ -523,52 +476,30 @@
             Ce patient sera placé immédiatement en tête de file.
           </div>
 
-          {# Puce #}
-          <div class="form-row">
-            <label class="form-label-wr">Numéro de puce <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted);">(priorité)</span></label>
-            <div style="display:flex;gap:var(--space-2);">
-              <div style="position:relative;flex:1;">
-                <i data-lucide="cpu" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
-                <input class="form-input-wr" id="urg-chip" style="padding-left:32px;"
-                       placeholder="250269…" oninput="urgChipInput(this.value)" autofocus>
-              </div>
-              <button type="button" class="btn-wr btn-secondary" style="white-space:nowrap;font-size:var(--text-sm);"
-                      onclick="alert('Lecteur USB — à connecter')">
-                <i data-lucide="scan-line" class="wr-icon-xs"></i> Scanner
-              </button>
-            </div>
+          {# Recherche live unifiée (puce ou nom/propriétaire) #}
+          <div class="form-row"
+               data-controller="global-search"
+               data-global-search-url-value="{{ path('clinic_search') }}"
+               data-global-search-mode-value="pick"
+               data-global-search-picker-id-value="walkin-urgence"
+               data-global-search-type-value="animal">
+            <label class="form-label-wr">Rechercher — puce, nom animal, propriétaire, téléphone</label>
+            <input type="search"
+                   class="form-input-wr"
+                   id="urg-search"
+                   placeholder="250269… ou nom animal, propriétaire, téléphone…"
+                   autocomplete="off"
+                   autofocus
+                   data-global-search-target="input"
+                   data-action="input->global-search#search input->global-search#onTyped">
+            <div class="wr-search-results" data-global-search-target="results"></div>
+            <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
           </div>
 
-          {# Recherche libre #}
-          <div class="form-row">
-            <label class="form-label-wr">Recherche animal / propriétaire</label>
-            <div style="position:relative;">
-              <i data-lucide="search" style="width:13px;height:13px;position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);"></i>
-              <input class="form-input-wr" id="urg-search" style="padding-left:32px;"
-                     placeholder="Nom animal, propriétaire, téléphone, tatouage…"
-                     oninput="urgFreeSearch(this.value)">
-            </div>
-          </div>
-
-          {# Résultats de recherche #}
-          <div style="border:1px solid var(--border-medium);border-radius:var(--radius-md);overflow:hidden;margin-bottom:var(--space-3);">
-            <div style="padding:6px var(--space-3);background:var(--surface-subtle);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">RDVs du jour</div>
-            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Milo (British Shorthair)','existant')">
-              <div style="width:32px;height:32px;border-radius:50%;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">ML</div>
-              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Milo — British Shorthair</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">James Park · 10h15</p></div>
-              <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h15</span>
-            </div>
-            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Nala (Berger Malinois)','existant')">
-              <div style="width:32px;height:32px;border-radius:50%;background:#fdf2f8;color:#db2777;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">NL</div>
-              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Nala — Berger Malinois</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">Claire Moreau · 10h30</p></div>
-              <span class="badge" style="background:var(--color-warning-bg);color:var(--color-warning-text);">RDV 10h30</span>
-            </div>
-            <div style="padding:6px var(--space-3);background:var(--surface-subtle);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light);font-size:var(--text-xs);font-weight:var(--weight-medium);color:var(--text-subtle);text-transform:uppercase;letter-spacing:.07em;">Dossiers existants</div>
-            <div class="wr-checkin-row" onclick="urgSelectExisting(this,'Max (Berger Allemand)','existant')">
-              <div style="width:32px;height:32px;border-radius:50%;background:#f5f3ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:600;flex-shrink:0;">MX</div>
-              <div style="flex:1;min-width:0;"><p style="font-size:var(--text-base);font-weight:var(--weight-medium);">Max — Berger Allemand</p><p style="font-size:var(--text-sm);color:var(--text-subtle);">Lisa Wong · Pas de RDV</p></div>
-              <span class="badge" style="background:var(--surface-subtle);color:var(--text-muted);border:1px solid var(--border-medium);">Dossier existant</span>
-            </div>
+          {# Animal sélectionné — affiché après pick #}
+          <div id="urg-selected-animal" style="display:none;padding:var(--space-2) var(--space-3);background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);font-size:var(--text-sm);color:#1d4ed8;margin-bottom:var(--space-3);">
+            <i data-lucide="check-circle" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+            <span id="urg-selected-label"></span>
           </div>
 
           {# Toggle non identifié #}
@@ -604,22 +535,19 @@
              style="margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:var(--weight-medium);display:flex;align-items:center;gap:var(--space-2);">
         </div>
 
-        {# 2A — dossier existant #}
+        {# 2A — dossier existant (animal identifié via live search) #}
         <div id="urg-2a" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_emergency') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-            <input type="hidden" name="triage_level" value="emergency">
-            <input type="hidden" name="intake_channel" value="emergency">
+          <form method="post" action="{{ path('clinic_admission_walkin') }}" id="urg-2a-form">
+            <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+            <input type="hidden" name="arrivalMode" value="EMERGENCY">
+            <input type="hidden" name="priority" value="2">
+            <input type="hidden" name="animalId" id="urg-2a-animal-id">
+            <input type="hidden" name="animalName" id="urg-2a-animal-name">
+            <input type="hidden" name="foundAnimalDescription" id="urg-2a-label">
             <div class="wr-modal-body">
-              <div class="wr-form-grid-2">
-                <div class="form-row">
-                  <label class="form-label-wr">Motif d'urgence *</label>
-                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes observés…">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Notes complémentaires</label>
-                  <input class="form-input-wr" placeholder="Optionnel…">
-                </div>
+              <div class="form-row">
+                <label class="form-label-wr">Motif d'urgence *</label>
+                <input class="form-input-wr" name="triageNotes" required placeholder="Symptômes observés…">
               </div>
             </div>
             <div class="wr-modal-foot">
@@ -633,32 +561,21 @@
           </form>
         </div>
 
-        {# 2B — nouveau dossier #}
+        {# 2B — nouveau dossier (non trouvé en base) #}
         <div id="urg-2b" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_emergency') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-            <input type="hidden" name="triage_level" value="emergency">
+          <form method="post" action="{{ path('clinic_admission_walkin') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+            <input type="hidden" name="arrivalMode" value="EMERGENCY">
+            <input type="hidden" name="priority" value="2">
             <div class="wr-modal-body">
               <div class="wr-form-grid-2">
                 <div class="form-row">
                   <label class="form-label-wr">Animal *</label>
-                  <input class="form-input-wr" name="provisional_label" required placeholder="Nom de l'animal">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Espèce</label>
-                  <input class="form-input-wr" name="observed_species" placeholder="Canin, Félin…">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Type d'urgence</label>
-                  <select name="intake_channel" class="form-input-wr">
-                    <option value="emergency">Urgence (propriétaire)</option>
-                    <option value="emergency_by_third_party">Urgence (tiers)</option>
-                    <option value="emergency_by_authority">Urgence (autorités)</option>
-                  </select>
+                  <input class="form-input-wr" name="foundAnimalDescription" required placeholder="Nom de l'animal">
                 </div>
                 <div class="form-row">
                   <label class="form-label-wr">Motif d'urgence *</label>
-                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes…">
+                  <input class="form-input-wr" name="triageNotes" required placeholder="Symptômes…">
                 </div>
               </div>
             </div>
@@ -829,23 +746,6 @@
       if (window.lucide) window.lucide.createIcons();
     }
 
-    /* ── [UI-2] Check-in search ── */
-    function checkinSearch(val) {
-      const rows = document.querySelectorAll('#checkin-results .wr-checkin-row');
-      rows.forEach(function (row) {
-        const text = row.textContent.toLowerCase();
-        row.style.display = !val || text.includes(val.toLowerCase()) ? '' : 'none';
-      });
-    }
-    function selectCheckinEntry(el) {
-      document.querySelectorAll('#checkin-results .wr-checkin-row')
-        .forEach(r => r.style.outline = '');
-      el.style.outline = '2px solid var(--brand-400)';
-      const name = el.querySelector('p:first-child')?.textContent?.trim() ?? '';
-      const labelInput = document.getElementById('checkin-label');
-      if (labelInput) labelInput.value = name;
-    }
-
     /* ── [UI-1] Urgence wizard ── */
     var urgMode = null;
     var urgNonIdChecked = false;
@@ -862,12 +762,14 @@
       document.getElementById('urg-dot-1').style.color = '#fff';
       document.getElementById('urg-dot-2').style.background = 'var(--border-medium)';
       document.getElementById('urg-dot-2').style.color = 'var(--text-subtle)';
-      document.getElementById('urg-chip').value = '';
-      document.getElementById('urg-search').value = '';
+      var s = document.getElementById('urg-search'); if (s) s.value = '';
+      var results = document.querySelector('[data-global-search-picker-id-value="walkin-urgence"] [data-global-search-target="results"]');
+      if (results) results.innerHTML = '';
       document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
       document.getElementById('urg-checkbox-check').style.display = 'none';
       document.getElementById('urg-title').textContent = 'Urgence — Identification';
-      document.querySelectorAll('.wr-checkin-row').forEach(r => r.style.outline = '');
+      var sel = document.getElementById('urg-selected-animal'); if (sel) sel.style.display = 'none';
+      var aid = document.getElementById('urg-animal-id'); if (aid) aid.value = '';
       urgUpdateBtn();
     }
     function urgUpdateBtn() {
@@ -877,33 +779,34 @@
       btn.style.opacity = ok ? '1' : '.5';
       btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
     }
-    function urgSelectExisting(el, name, mode) {
-      document.querySelectorAll('#modal-urgence .wr-checkin-row').forEach(r => r.style.outline = '');
-      el.style.outline = '2px solid var(--brand-400)';
-      urgMode = mode; urgNonIdChecked = false;
-      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
-      document.getElementById('urg-toggle-nonid').style.background = '';
-      document.getElementById('urg-checkbox-check').style.display = 'none';
-      urgUpdateBtn();
-    }
     function urgToggleNonId() {
       urgNonIdChecked = !urgNonIdChecked;
       var el = document.getElementById('urg-toggle-nonid');
       el.style.borderColor  = urgNonIdChecked ? '#d97706' : 'var(--border-medium)';
       el.style.background   = urgNonIdChecked ? '#fff7ed' : '';
       document.getElementById('urg-checkbox-check').style.display = urgNonIdChecked ? '' : 'none';
-      if (urgNonIdChecked) {
-        urgMode = 'non-identifie';
-        document.querySelectorAll('#modal-urgence .wr-checkin-row').forEach(r => r.style.outline = '');
-      } else {
-        urgMode = null;
-      }
+      urgMode = urgNonIdChecked ? 'non-identifie' : null;
       urgUpdateBtn();
     }
-    function urgChipInput(v) {
-      if (v.length > 4) { urgMode = 'existant'; urgUpdateBtn(); }
+    /* Called by waiting_room_controller when a pick event arrives for walkin-urgence */
+    function urgSetFromPick(animalId, description) {
+      urgMode = 'existant'; urgNonIdChecked = false;
+      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
+      document.getElementById('urg-toggle-nonid').style.background = '';
+      document.getElementById('urg-checkbox-check').style.display = 'none';
+      var aid = document.getElementById('urg-animal-id'); if (aid) aid.value = animalId;
+      var label = document.getElementById('urg-selected-label'); if (label) label.textContent = description;
+      var sel = document.getElementById('urg-selected-animal'); if (sel) sel.style.display = '';
+      urgUpdateBtn();
     }
-    function urgFreeSearch(v) { /* debounce AJAX — à brancher */ }
+    /* Called by global-search onTyped action (any typing without pick = nouveau dossier) */
+    function urgOnTyped(val) {
+      if (val.length >= 2 && urgMode !== 'existant') {
+        urgMode = 'nouveau'; urgUpdateBtn();
+      } else if (val.length < 2 && urgMode === 'nouveau') {
+        urgMode = null; urgUpdateBtn();
+      }
+    }
 
     function urgGoStep2() {
       if (!urgMode) return;

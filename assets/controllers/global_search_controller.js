@@ -20,6 +20,7 @@ export default class extends Controller {
     url:      { type: String },
     mode:     { type: String, default: 'navigate' },
     pickerId: { type: String, default: '' },
+    type:     { type: String, default: '' },
     minChars: { type: Number, default: 2 },
     debounce: { type: Number, default: 250 },
   };
@@ -52,6 +53,13 @@ export default class extends Controller {
     this._debounceTimer = setTimeout(() => {
       this._fetch();
     }, this.debounceValue);
+  }
+
+  onTyped(event) {
+    const val = event.target.value ?? '';
+    if (typeof window.urgOnTyped === 'function') {
+      window.urgOnTyped(val);
+    }
   }
 
   pick(event) {
@@ -95,6 +103,10 @@ export default class extends Controller {
 
     if (this.pickerIdValue) {
       params.set('pickerId', this.pickerIdValue);
+    }
+
+    if (this.typeValue) {
+      params.set('type', this.typeValue);
     }
 
     const url = `${this.urlValue}?${params.toString()}`;
