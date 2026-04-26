@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Animal\Application\Search;
 
-final readonly class AnimalSearchIndexData
+final readonly class AnimalSearchEntryData
 {
     public function __construct(
         public string $animalId,

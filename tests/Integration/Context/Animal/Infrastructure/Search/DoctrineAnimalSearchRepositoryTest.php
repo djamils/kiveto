@@ -119,7 +119,7 @@ final class DoctrineAnimalSearchRepositoryTest extends KernelTestCase
             . ' NULL, NULL, NULL, :status, NOW()';
 
         $this->conn->executeStatement(
-            "INSERT INTO animal_search_index ({$cols}) VALUES ({$vals})",
+            "INSERT INTO animal__search_entries ({$cols}) VALUES ({$vals})",
             [
                 'id'          => Uuid::fromString($id)->toBinary(),
                 'clinicId'    => Uuid::fromString($clinicId)->toBinary(),

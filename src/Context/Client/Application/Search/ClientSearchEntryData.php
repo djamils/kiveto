@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Client\Application\Search;
 
-final readonly class ClientSearchIndexData
+final readonly class ClientSearchEntryData
 {
     public function __construct(
         public string $clientId,

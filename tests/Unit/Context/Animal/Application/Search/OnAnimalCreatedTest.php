@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Animal\Application\Search;
 
-use App\Context\Animal\Application\Search\AnimalSearchIndexData;
-use App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface;
+use App\Context\Animal\Application\Search\AnimalSearchEntryData;
+use App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface;
 use App\Context\Animal\Application\Search\OnAnimalCreated;
 use App\Context\Animal\Domain\Event\AnimalCreated;
 use Doctrine\DBAL\Connection;
@@ -32,10 +32,10 @@ final class OnAnimalCreatedTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $writer = $this->createMock(AnimalSearchIndexWriterInterface::class);
+        $writer = $this->createMock(AnimalSearchEntryWriterInterface::class);
         $writer->expects(self::once())
             ->method('upsert')
-            ->with(self::callback(static function (AnimalSearchIndexData $data) use ($animalId, $clinicId): bool {
+            ->with(self::callback(static function (AnimalSearchEntryData $data) use ($animalId, $clinicId): bool {
                 return $data->animalId === $animalId
                     && $data->clinicId === $clinicId
                     && 'Rex' === $data->animalName

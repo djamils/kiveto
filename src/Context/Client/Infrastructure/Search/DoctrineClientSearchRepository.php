@@ -16,7 +16,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DoctrineClientSearchRepository implements ClientSearchRepositoryInterface
 {
     private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name, search_phone, primary_email, status'
-        . ' FROM client_search_index';
+        . ' FROM client__search_entries';
 
     public function __construct(
         private EntityManagerInterface $entityManager,

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Animal\Infrastructure\Search;
 
-use App\Context\Animal\Application\Search\AnimalSearchIndexData;
-use App\Context\Animal\Infrastructure\Search\AnimalSearchIndexWriter;
-use App\Context\Animal\Infrastructure\Search\Index\AnimalSearchIndex;
+use App\Context\Animal\Application\Search\AnimalSearchEntryData;
+use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\SearchEntryEntity;
+use App\Context\Animal\Infrastructure\Search\AnimalSearchEntryWriter;
 use App\Shared\Search\Normalization\SearchTermNormalizer;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,13 +22,13 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $em->expects(self::once())->method('persist');
         $em->expects(self::once())->method('flush');
 
-        $writer = new AnimalSearchIndexWriter($em, new SearchTermNormalizer());
+        $writer = new AnimalSearchEntryWriter($em, new SearchTermNormalizer());
         $writer->upsert($this->makeData());
     }
 
     public function testUpsertUpdatesWhenExists(): void
     {
-        $entity = $this->createMock(AnimalSearchIndex::class);
+        $entity = $this->createMock(SearchEntryEntity::class);
         $entity->method('getClinicId')
             ->willReturn(Uuid::fromString('01912345-6789-7abc-8def-000000000002'))
         ;
@@ -40,8 +40,8 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $em->expects(self::never())->method('persist');
         $em->expects(self::once())->method('flush');
 
-        $writer = new AnimalSearchIndexWriter($em, new SearchTermNormalizer());
-        $writer->upsert(new AnimalSearchIndexData(
+        $writer = new AnimalSearchEntryWriter($em, new SearchTermNormalizer());
+        $writer->upsert(new AnimalSearchEntryData(
             animalId: '01912345-6789-7abc-8def-000000000001',
             clinicId: '01912345-6789-7abc-8def-000000000002',
             animalName: 'Rex Updated',
@@ -60,7 +60,7 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $animalId = '01912345-6789-7abc-8def-000000000001';
         $clinicId = '01912345-6789-7abc-8def-000000000002';
 
-        $entity = $this->createMock(AnimalSearchIndex::class);
+        $entity = $this->createMock(SearchEntryEntity::class);
         $entity->method('getClinicId')->willReturn(Uuid::fromString($clinicId));
         $entity->expects(self::once())->method('setStatus')->with('archived');
 
@@ -68,7 +68,7 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $em->method('find')->willReturn($entity);
         $em->expects(self::once())->method('flush');
 
-        $writer = new AnimalSearchIndexWriter($em, new SearchTermNormalizer());
+        $writer = new AnimalSearchEntryWriter($em, new SearchTermNormalizer());
         $writer->markArchived($animalId, $clinicId);
     }
 
@@ -77,14 +77,14 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $animalId = '01912345-6789-7abc-8def-000000000001';
         $clinicId = '01912345-6789-7abc-8def-000000000002';
 
-        $entity = $this->createStub(AnimalSearchIndex::class);
+        $entity = $this->createStub(SearchEntryEntity::class);
         $entity->method('getClinicId')->willReturn(Uuid::fromString($clinicId));
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('find')->willReturn($entity);
         $em->expects(self::exactly(4))->method('flush');
 
-        $writer = new AnimalSearchIndexWriter($em, new SearchTermNormalizer());
+        $writer = new AnimalSearchEntryWriter($em, new SearchTermNormalizer());
         $writer->updateName($animalId, $clinicId, 'New Name');
         $writer->updateChip($animalId, $clinicId, '250269802120045');
         $writer->updateOwner($animalId, $clinicId, null, null);
@@ -99,7 +99,7 @@ final class AnimalSearchIndexWriterTest extends TestCase
         $em->method('getConnection')->willReturn($conn);
         $em->expects(self::never())->method('flush');
 
-        $writer = new AnimalSearchIndexWriter($em, new SearchTermNormalizer());
+        $writer = new AnimalSearchEntryWriter($em, new SearchTermNormalizer());
         $writer->updateOwnerName(
             '01912345-6789-7abc-8def-000000000003',
             '01912345-6789-7abc-8def-000000000002',
@@ -107,9 +107,9 @@ final class AnimalSearchIndexWriterTest extends TestCase
         );
     }
 
-    private function makeData(string $animalId = '01912345-6789-7abc-8def-000000000001'): AnimalSearchIndexData
+    private function makeData(string $animalId = '01912345-6789-7abc-8def-000000000001'): AnimalSearchEntryData
     {
-        return new AnimalSearchIndexData(
+        return new AnimalSearchEntryData(
             animalId: $animalId,
             clinicId: '01912345-6789-7abc-8def-000000000002',
             animalName: 'Rex',

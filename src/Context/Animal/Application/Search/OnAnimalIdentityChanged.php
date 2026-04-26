@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class OnAnimalIdentityChanged
 {
     public function __construct(
-        private AnimalSearchIndexWriterInterface $writer,
+        private AnimalSearchEntryWriterInterface $writer,
     ) {
     }
 

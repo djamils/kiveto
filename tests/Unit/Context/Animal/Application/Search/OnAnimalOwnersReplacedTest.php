@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Animal\Application\Search;
 
-use App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface;
+use App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface;
 use App\Context\Animal\Application\Search\OnAnimalOwnersReplaced;
 use App\Context\Animal\Domain\Event\AnimalOwnersReplaced;
 use Doctrine\DBAL\Connection;
@@ -30,7 +30,7 @@ final class OnAnimalOwnersReplacedTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($conn);
 
-        $writer = $this->createMock(AnimalSearchIndexWriterInterface::class);
+        $writer = $this->createMock(AnimalSearchEntryWriterInterface::class);
         $writer->expects(self::once())
             ->method('updateOwner')
             ->with($animalId, $clinicId, $ownerId, 'Jean Dupont', '0612345678')

@@ -11,13 +11,13 @@ final class Version20260426200001 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create animal_search_index table for live global search read model';
+        return 'Create animal__search_entries table for live global search read model';
     }
 
     public function up(Schema $schema): void
     {
         $this->addSql(<<<'SQL'
-            CREATE TABLE animal_search_index (
+            CREATE TABLE animal__search_entries (
               id BINARY(16) NOT NULL,
               clinic_id BINARY(16) NOT NULL,
               animal_name VARCHAR(255) NOT NULL,
@@ -30,8 +30,8 @@ final class Version20260426200001 extends AbstractMigration
               primary_owner_client_id BINARY(16) DEFAULT NULL,
               status VARCHAR(20) NOT NULL,
               updated_at DATETIME NOT NULL,
-              INDEX idx_animal_srch_name (clinic_id, search_name),
-              INDEX idx_animal_srch_chip (clinic_id, search_chip),
+              INDEX idx_animal_search_entry_name (clinic_id, search_name),
+              INDEX idx_animal_search_entry_chip (clinic_id, search_chip),
               PRIMARY KEY (id)
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_0900_ai_ci`
         SQL);
@@ -39,6 +39,6 @@ final class Version20260426200001 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE animal_search_index');
+        $this->addSql('DROP TABLE animal__search_entries');
     }
 }

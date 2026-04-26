@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class OnAnimalOwnersReplaced
 {
     public function __construct(
-        private AnimalSearchIndexWriterInterface $writer,
+        private AnimalSearchEntryWriterInterface $writer,
         private EntityManagerInterface $entityManager,
     ) {
     }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Animal\Infrastructure\Search;
 
-use App\Context\Animal\Application\Search\AnimalSearchIndexData;
-use App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface;
+use App\Context\Animal\Application\Search\AnimalSearchEntryData;
+use App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -14,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 final class AnimalSearchIndexWriterTransactionTest extends KernelTestCase
 {
     private Connection $conn;
-    private AnimalSearchIndexWriterInterface $writer;
+    private AnimalSearchEntryWriterInterface $writer;
 
     protected function setUp(): void
     {
@@ -23,8 +23,8 @@ final class AnimalSearchIndexWriterTransactionTest extends KernelTestCase
         $em = static::getContainer()->get('doctrine.orm.entity_manager');
         \assert($em instanceof EntityManagerInterface);
 
-        $writer = static::getContainer()->get(AnimalSearchIndexWriterInterface::class);
-        \assert($writer instanceof AnimalSearchIndexWriterInterface);
+        $writer = static::getContainer()->get(AnimalSearchEntryWriterInterface::class);
+        \assert($writer instanceof AnimalSearchEntryWriterInterface);
 
         $this->conn   = $em->getConnection();
         $this->writer = $writer;
@@ -35,7 +35,7 @@ final class AnimalSearchIndexWriterTransactionTest extends KernelTestCase
         $animalId = Uuid::v7()->toString();
         $clinicId = '01912345-6789-7abc-8def-000000000001';
 
-        $data = new AnimalSearchIndexData(
+        $data = new AnimalSearchEntryData(
             animalId: $animalId,
             clinicId: $clinicId,
             animalName: 'Rollback Test Animal',
@@ -54,7 +54,7 @@ final class AnimalSearchIndexWriterTransactionTest extends KernelTestCase
         $this->conn->rollBack();
 
         $row = $this->conn->fetchAssociative(
-            'SELECT id FROM animal_search_index WHERE id = :id',
+            'SELECT id FROM animal__search_entries WHERE id = :id',
             ['id' => Uuid::fromString($animalId)->toBinary()],
         );
 

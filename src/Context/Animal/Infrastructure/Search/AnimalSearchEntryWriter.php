@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Context\Animal\Infrastructure\Search;
 
-use App\Context\Animal\Application\Search\AnimalSearchIndexData;
-use App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface;
-use App\Context\Animal\Infrastructure\Search\Index\AnimalSearchIndex;
+use App\Context\Animal\Application\Search\AnimalSearchEntryData;
+use App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface;
+use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\SearchEntryEntity;
 use App\Shared\Search\Normalization\SearchTermNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final readonly class AnimalSearchIndexWriter implements AnimalSearchIndexWriterInterface
+final readonly class AnimalSearchEntryWriter implements AnimalSearchEntryWriterInterface
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -19,10 +19,10 @@ final readonly class AnimalSearchIndexWriter implements AnimalSearchIndexWriterI
     ) {
     }
 
-    public function upsert(AnimalSearchIndexData $data): void
+    public function upsert(AnimalSearchEntryData $data): void
     {
         $id     = Uuid::fromString($data->animalId);
-        $entity = $this->entityManager->find(AnimalSearchIndex::class, $id);
+        $entity = $this->entityManager->find(SearchEntryEntity::class, $id);
 
         $chip  = '' !== (string) $data->chipNumber ? $data->chipNumber : null;
         $phone = null !== $data->ownerPhone
@@ -30,7 +30,7 @@ final readonly class AnimalSearchIndexWriter implements AnimalSearchIndexWriterI
             : null;
 
         if (null === $entity) {
-            $entity = new AnimalSearchIndex(
+            $entity = new SearchEntryEntity(
                 id: $id,
                 clinicId: Uuid::fromString($data->clinicId),
                 animalName: $data->animalName,
@@ -127,7 +127,7 @@ final readonly class AnimalSearchIndexWriter implements AnimalSearchIndexWriterI
         $clinicBinary = Uuid::fromString($clinicId)->toBinary();
 
         $conn->executeStatement(
-            'UPDATE animal_search_index SET search_owner_name = :name WHERE primary_owner_client_id = :clientId AND clinic_id = :clinicId',
+            'UPDATE animal__search_entries SET search_owner_name = :name WHERE primary_owner_client_id = :clientId AND clinic_id = :clinicId',
             ['name' => $newOwnerName, 'clientId' => $clientBinary, 'clinicId' => $clinicBinary],
         );
     }
@@ -158,10 +158,10 @@ final readonly class AnimalSearchIndexWriter implements AnimalSearchIndexWriterI
         $this->entityManager->flush();
     }
 
-    private function loadOrNull(string $animalId, string $clinicId): ?AnimalSearchIndex
+    private function loadOrNull(string $animalId, string $clinicId): ?SearchEntryEntity
     {
         $id     = Uuid::fromString($animalId);
-        $entity = $this->entityManager->find(AnimalSearchIndex::class, $id);
+        $entity = $this->entityManager->find(SearchEntryEntity::class, $id);
 
         if (null === $entity) {
             return null;

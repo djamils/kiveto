@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Context\Client\Infrastructure\Search;
 
-use App\Context\Client\Application\Search\ClientSearchIndexData;
-use App\Context\Client\Application\Search\ClientSearchIndexWriterInterface;
-use App\Context\Client\Infrastructure\Search\Index\ClientSearchIndex;
+use App\Context\Client\Application\Search\ClientSearchEntryData;
+use App\Context\Client\Application\Search\ClientSearchEntryWriterInterface;
+use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\SearchEntryEntity;
 use App\Shared\Search\Normalization\SearchTermNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final readonly class ClientSearchIndexWriter implements ClientSearchIndexWriterInterface
+final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterInterface
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -19,10 +19,10 @@ final readonly class ClientSearchIndexWriter implements ClientSearchIndexWriterI
     ) {
     }
 
-    public function upsert(ClientSearchIndexData $data): void
+    public function upsert(ClientSearchEntryData $data): void
     {
         $id     = Uuid::fromString($data->clientId);
-        $entity = $this->entityManager->find(ClientSearchIndex::class, $id);
+        $entity = $this->entityManager->find(SearchEntryEntity::class, $id);
         $name   = $data->firstName . ' ' . $data->lastName;
 
         $normalizedPhone = null !== $data->phone
@@ -30,7 +30,7 @@ final readonly class ClientSearchIndexWriter implements ClientSearchIndexWriterI
             : null;
 
         if (null === $entity) {
-            $entity = new ClientSearchIndex(
+            $entity = new SearchEntryEntity(
                 id: $id,
                 clinicId: Uuid::fromString($data->clinicId),
                 firstName: $data->firstName,
@@ -124,10 +124,10 @@ final readonly class ClientSearchIndexWriter implements ClientSearchIndexWriterI
         $this->entityManager->flush();
     }
 
-    private function loadOrNull(string $clientId, string $clinicId): ?ClientSearchIndex
+    private function loadOrNull(string $clientId, string $clinicId): ?SearchEntryEntity
     {
         $id     = Uuid::fromString($clientId);
-        $entity = $this->entityManager->find(ClientSearchIndex::class, $id);
+        $entity = $this->entityManager->find(SearchEntryEntity::class, $id);
 
         if (null === $entity) {
             return null;

@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Context\Client\Infrastructure\Search\Index;
+namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'client_search_index')]
-#[ORM\Index(name: 'idx_client_srch_name', columns: ['clinic_id', 'search_name'])]
-#[ORM\Index(name: 'idx_client_srch_phone', columns: ['clinic_id', 'search_phone'])]
-class ClientSearchIndex
+#[ORM\Index(name: 'idx_client_search_entry_name', columns: ['clinic_id', 'search_name'])]
+#[ORM\Index(name: 'idx_client_search_entry_phone', columns: ['clinic_id', 'search_phone'])]
+class SearchEntryEntity
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]

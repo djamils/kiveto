@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class OnClientCreated
 {
     public function __construct(
-        private ClientSearchIndexWriterInterface $writer,
+        private ClientSearchEntryWriterInterface $writer,
     ) {
     }
 
@@ -28,7 +28,7 @@ final readonly class OnClientCreated
         $contactMethods  = $payload['contactMethods'];
         [$phone, $email] = $this->extractContactMethods($contactMethods);
 
-        $this->writer->upsert(new ClientSearchIndexData(
+        $this->writer->upsert(new ClientSearchEntryData(
             clientId: $payload['clientId'],
             clinicId: $payload['clinicId'],
             firstName: $payload['firstName'],

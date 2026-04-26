@@ -11,7 +11,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class OnClientArchived
 {
     public function __construct(
-        private ClientSearchIndexWriterInterface $writer,
+        private ClientSearchEntryWriterInterface $writer,
     ) {
     }
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Context\Animal\Application\Search;
 
-interface AnimalSearchIndexWriterInterface
+interface AnimalSearchEntryWriterInterface
 {
-    public function upsert(AnimalSearchIndexData $data): void;
+    public function upsert(AnimalSearchEntryData $data): void;
 
     public function updateName(string $animalId, string $clinicId, string $newName): void;
 

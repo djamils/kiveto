@@ -378,14 +378,14 @@ services:
     App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:
         class: App\Context\Animal\Infrastructure\Search\DoctrineAnimalSearchRepository
 
-    App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface:
-        class: App\Context\Animal\Infrastructure\Search\AnimalSearchIndexWriter
+    App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface:
+        class: App\Context\Animal\Infrastructure\Search\AnimalSearchEntryWriter
 
     App\Context\Client\Application\Search\ClientSearchRepositoryInterface:
         class: App\Context\Client\Infrastructure\Search\DoctrineClientSearchRepository
 
-    App\Context\Client\Application\Search\ClientSearchIndexWriterInterface:
-        class: App\Context\Client\Infrastructure\Search\ClientSearchIndexWriter
+    App\Context\Client\Application\Search\ClientSearchEntryWriterInterface:
+        class: App\Context\Client\Infrastructure\Search\ClientSearchEntryWriter
 
     # ============================================================================
     # BOUNDED CONTEXT: REGULATORY
@@ -423,8 +423,8 @@ when@test:
             public: true
             autowire: true
 
-        App\Context\Animal\Application\Search\AnimalSearchIndexWriterInterface:
-            class: App\Context\Animal\Infrastructure\Search\AnimalSearchIndexWriter
+        App\Context\Animal\Application\Search\AnimalSearchEntryWriterInterface:
+            class: App\Context\Animal\Infrastructure\Search\AnimalSearchEntryWriter
             public: true
             autowire: true
 

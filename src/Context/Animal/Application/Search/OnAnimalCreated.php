@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class OnAnimalCreated
 {
     public function __construct(
-        private AnimalSearchIndexWriterInterface $writer,
+        private AnimalSearchEntryWriterInterface $writer,
         private EntityManagerInterface $entityManager,
     ) {
     }
@@ -69,7 +69,7 @@ final readonly class OnAnimalCreated
 
         \assert(\is_string($row['species']));
 
-        $this->writer->upsert(new AnimalSearchIndexData(
+        $this->writer->upsert(new AnimalSearchEntryData(
             animalId: $payload['animalId'],
             clinicId: $payload['clinicId'],
             animalName: $payload['name'],

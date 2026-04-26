@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Context\Animal\Infrastructure\Search\Index;
+namespace App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'animal_search_index')]
-#[ORM\Index(name: 'idx_animal_srch_name', columns: ['clinic_id', 'search_name'])]
-#[ORM\Index(name: 'idx_animal_srch_chip', columns: ['clinic_id', 'search_chip'])]
-class AnimalSearchIndex
+#[ORM\Index(name: 'idx_animal_search_entry_name', columns: ['clinic_id', 'search_name'])]
+#[ORM\Index(name: 'idx_animal_search_entry_chip', columns: ['clinic_id', 'search_chip'])]
+class SearchEntryEntity
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]

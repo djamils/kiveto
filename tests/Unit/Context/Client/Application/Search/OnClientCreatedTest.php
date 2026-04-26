@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Client\Application\Search;
 
-use App\Context\Client\Application\Search\ClientSearchIndexData;
-use App\Context\Client\Application\Search\ClientSearchIndexWriterInterface;
+use App\Context\Client\Application\Search\ClientSearchEntryData;
+use App\Context\Client\Application\Search\ClientSearchEntryWriterInterface;
 use App\Context\Client\Application\Search\OnClientCreated;
 use App\Context\Client\Domain\Event\ClientCreated;
 use PHPUnit\Framework\TestCase;
@@ -17,10 +17,10 @@ final class OnClientCreatedTest extends TestCase
         $clientId = '01912345-6789-7abc-8def-000000000001';
         $clinicId = '01912345-6789-7abc-8def-000000000002';
 
-        $writer = $this->createMock(ClientSearchIndexWriterInterface::class);
+        $writer = $this->createMock(ClientSearchEntryWriterInterface::class);
         $writer->expects(self::once())
             ->method('upsert')
-            ->with(self::callback(static function (ClientSearchIndexData $data) use ($clientId, $clinicId): bool {
+            ->with(self::callback(static function (ClientSearchEntryData $data) use ($clientId, $clinicId): bool {
                 return $data->clientId === $clientId
                     && $data->clinicId === $clinicId
                     && 'Marie' === $data->firstName

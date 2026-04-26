@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Context\Client\Application\Search;
 
-interface ClientSearchIndexWriterInterface
+interface ClientSearchEntryWriterInterface
 {
-    public function upsert(ClientSearchIndexData $data): void;
+    public function upsert(ClientSearchEntryData $data): void;
 
     public function updateName(
         string $clientId,

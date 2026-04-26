@@ -17,7 +17,7 @@ final readonly class DoctrineAnimalSearchRepository implements AnimalSearchRepos
 {
     private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, animal_name, species, breed_name,'
         . ' search_owner_name, BIN_TO_UUID(primary_owner_client_id) AS primary_owner_client_id, status'
-        . ' FROM animal_search_index';
+        . ' FROM animal__search_entries';
 
     public function __construct(
         private EntityManagerInterface $entityManager,
