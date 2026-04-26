@@ -1,19 +1,46 @@
 {#
  # Kiveto — templates/clinic/admission/emergency_form.html.twig
  # ─────────────────────────────────────────────────────────────
- # Emergency admission form.
+ # New admission form — handles all intake channels (RDV, walk-in, urgence…).
  #
  # Variables:
- #   intakeChannels  IntakeChannel[]  All possible intake channel cases
- #   triageLevels    TriageLevel[]    All possible triage level cases
+ #   intakeChannels  IntakeChannel[]  Enum cases
+ #   triageLevels    TriageLevel[]    Enum cases
+ #   presetIntake    ?string          Pre-selected intake channel value
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}Nouvelle admission urgente{% endblock %}
-{% block page_title %}Nouvelle admission urgente{% endblock %}
+{% set isEmergency = presetIntake in ['emergency', 'emergency_by_third_party', 'emergency_by_authority', 'emergency_by_association', 'emergency_by_municipality'] %}
+{% set isWalkIn    = presetIntake == 'walk_in' %}
+
+{% block title %}
+  {% if isEmergency %}Nouvelle urgence{% elseif isWalkIn %}Admission sans rendez-vous{% else %}Nouvelle admission{% endif %}
+{% endblock %}
+
+{% block page_title %}
+  {% if isEmergency %}Nouvelle urgence{% elseif isWalkIn %}Admission sans rendez-vous{% else %}Nouvelle admission{% endif %}
+{% endblock %}
+
+{% set channelLabels = {
+  'appointment_booked':        'Sur rendez-vous',
+  'walk_in':                   'Sans rendez-vous',
+  'emergency':                 'Urgence (propriétaire)',
+  'emergency_by_third_party':  'Urgence (tiers)',
+  'emergency_by_authority':    'Urgence (autorités)',
+  'emergency_by_association':  'Urgence (association)',
+  'emergency_by_municipality': 'Urgence (mairie / fourrière)',
+  'transfer_from_other_clinic':'Transfert (autre clinique)',
+} %}
+
+{% set triageLabels = {
+  'standard':       'Standard',
+  'priority':       'Prioritaire',
+  'emergency':      'Urgence',
+  'vital_emergency':'Urgence vitale',
+} %}
 
 {% block content %}
-<div class="p-6 max-w-2xl mx-auto">
+<div style="padding: var(--space-6); max-width: 700px;">
 
   {% for message in app.flashes('error') %}
     <div class="mb-4 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -21,116 +48,137 @@
     </div>
   {% endfor %}
 
-  <form method="POST" action="{{ path('clinic_admission_emergency') }}" class="space-y-6">
+  <form method="POST" action="{{ path('clinic_admission_emergency') }}" class="space-y-5">
     <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
 
-    {# Intake channel #}
-    <div>
-      <label for="intake_channel" class="block text-sm font-medium text-gray-700 mb-1">
-        Canal d'admission <span class="text-red-500">*</span>
-      </label>
-      <select id="intake_channel" name="intake_channel" required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <option value="">-- Sélectionner --</option>
-        {% for channel in intakeChannels %}
-          <option value="{{ channel.value }}">{{ channel.value|replace({'_': ' '})|capitalize }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    {# Triage level #}
-    <div>
-      <label for="triage_level" class="block text-sm font-medium text-gray-700 mb-1">
-        Niveau de triage <span class="text-red-500">*</span>
-      </label>
-      <select id="triage_level" name="triage_level" required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <option value="">-- Sélectionner --</option>
-        {% for level in triageLevels %}
-          <option value="{{ level.value }}">{{ level.value|replace({'_': ' '})|capitalize }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    {# Provisional label (for unidentified animal) #}
-    <div>
-      <label for="provisional_label" class="block text-sm font-medium text-gray-700 mb-1">
-        Étiquette provisoire (animal non identifié)
-      </label>
-      <input type="text" id="provisional_label" name="provisional_label"
-             placeholder="ex. Chat roux blessé"
-             class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <p class="mt-1 text-xs text-gray-500">Requis si l'animal n'est pas identifié dans le système.</p>
-    </div>
-
-    {# Observed species #}
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label for="observed_species" class="block text-sm font-medium text-gray-700 mb-1">
-          Espèce observée
-        </label>
-        <input type="text" id="observed_species" name="observed_species"
-               placeholder="ex. Félin"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <div class="widget">
+      <div class="w-head">
+        <span class="w-title">Informations d'admission</span>
       </div>
-      <div>
-        <label for="observed_color" class="block text-sm font-medium text-gray-700 mb-1">
-          Couleur / robe
-        </label>
-        <input type="text" id="observed_color" name="observed_color"
-               placeholder="ex. Roux tigré"
-               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      </div>
-    </div>
+      <div class="w-body" style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
 
-    {# Physical description #}
-    <div>
-      <label for="physical_description" class="block text-sm font-medium text-gray-700 mb-1">
-        Description physique
-      </label>
-      <textarea id="physical_description" name="physical_description" rows="2"
-                placeholder="Description sommaire de l'animal..."
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-    </div>
-
-    {# Triage notes #}
-    <div>
-      <label for="triage_notes" class="block text-sm font-medium text-gray-700 mb-1">
-        Notes de triage
-      </label>
-      <textarea id="triage_notes" name="triage_notes" rows="2"
-                placeholder="Motif de consultation, symptômes observés..."
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-    </div>
-
-    {# Presenter section #}
-    <fieldset class="border border-gray-200 rounded-md p-4">
-      <legend class="text-sm font-medium text-gray-700 px-2">Présentateur (optionnel)</legend>
-      <div class="space-y-4 mt-2">
+        {# Canal d'admission #}
         <div>
-          <label for="presenter_name" class="block text-sm font-medium text-gray-700 mb-1">
-            Nom
+          <label for="intake_channel" class="block text-sm font-medium text-gray-700 mb-1">
+            Canal d'admission <span style="color: var(--color-danger-text);">*</span>
+          </label>
+          <select id="intake_channel" name="intake_channel" required
+                  style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); background: var(--surface-base); color: var(--text-primary);">
+            <option value="">— Sélectionner —</option>
+            {% for channel in intakeChannels %}
+              <option value="{{ channel.value }}"
+                {{ (presetIntake == channel.value or (presetIntake is null and channel.value == 'walk_in')) ? 'selected' : '' }}>
+                {{ channelLabels[channel.value] ?? channel.value }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Niveau de triage #}
+        <div>
+          <label for="triage_level" class="block text-sm font-medium text-gray-700 mb-1">
+            Niveau de triage <span style="color: var(--color-danger-text);">*</span>
+          </label>
+          <select id="triage_level" name="triage_level" required
+                  style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); background: var(--surface-base); color: var(--text-primary);">
+            <option value="">— Sélectionner —</option>
+            {% for level in triageLevels %}
+              <option value="{{ level.value }}"
+                {{ (isEmergency and level.value == 'emergency') ? 'selected' : '' }}
+                {{ (not isEmergency and level.value == 'standard') ? 'selected' : '' }}>
+                {{ triageLabels[level.value] ?? level.value }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    {# Animal #}
+    <div class="widget">
+      <div class="w-head">
+        <span class="w-title">Animal</span>
+        <span style="font-size: var(--text-xs); color: var(--text-muted);">Laisser vide si non identifié</span>
+      </div>
+      <div class="w-body" style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
+
+        {# Étiquette provisoire #}
+        <div>
+          <label for="provisional_label" class="block text-sm font-medium text-gray-700 mb-1">
+            Description provisoire <span style="color: var(--text-muted); font-weight: 400;">(si animal non identifié)</span>
+          </label>
+          <input type="text" id="provisional_label" name="provisional_label"
+                 placeholder="ex. Chat roux blessé à la patte"
+                 style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);">
+        </div>
+
+        {# Espèce + couleur #}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+          <div>
+            <label for="observed_species" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
+              Espèce observée
+            </label>
+            <input type="text" id="observed_species" name="observed_species"
+                   placeholder="ex. Félin, Canin…"
+                   style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);">
+          </div>
+          <div>
+            <label for="observed_color" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
+              Couleur / robe
+            </label>
+            <input type="text" id="observed_color" name="observed_color"
+                   placeholder="ex. Roux tigré"
+                   style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);">
+          </div>
+        </div>
+
+        {# Notes de triage #}
+        <div>
+          <label for="triage_notes" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
+            Motif / notes de triage
+          </label>
+          <textarea id="triage_notes" name="triage_notes" rows="2"
+                    placeholder="Motif de venue, symptômes observés…"
+                    style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); resize: vertical;"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    {# Présentateur #}
+    <div class="widget">
+      <div class="w-head">
+        <span class="w-title">Présentateur</span>
+        <span style="font-size: var(--text-xs); color: var(--text-muted);">Optionnel</span>
+      </div>
+      <div class="w-body" style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
+
+        <div>
+          <label for="presenter_name" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
+            Nom et prénom
           </label>
           <input type="text" id="presenter_name" name="presenter_name"
                  placeholder="Prénom Nom"
-                 class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);">
         </div>
-        <div class="grid grid-cols-2 gap-4">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
           <div>
-            <label for="presenter_phone" class="block text-sm font-medium text-gray-700 mb-1">
-              Téléphone (format E.164)
+            <label for="presenter_phone" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
+              Téléphone
             </label>
             <input type="tel" id="presenter_phone" name="presenter_phone"
-                   placeholder="+33612345678"
-                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                   placeholder="+33 6 12 34 56 78"
+                   style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm);">
           </div>
           <div>
-            <label for="presenter_role" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="presenter_role" style="display: block; font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); margin-bottom: var(--space-1);">
               Rôle
             </label>
             <select id="presenter_role" name="presenter_role"
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">-- Sélectionner --</option>
+                    style="width: 100%; border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); background: var(--surface-base);">
+              <option value="">— Sélectionner —</option>
               <option value="owner">Propriétaire</option>
               <option value="third_party">Tiers</option>
               <option value="authority">Autorité</option>
@@ -140,21 +188,26 @@
             </select>
           </div>
         </div>
-      </div>
-    </fieldset>
 
-    {# Actions #}
-    <div class="flex items-center gap-3 pt-2">
+      </div>
+    </div>
+
+    {# Submit #}
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
       <button type="submit"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
-        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-        Créer l'admission urgente
+              class="btn {{ isEmergency ? 'btn-danger' : 'btn-primary' }}">
+        {% if isEmergency %}
+          <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+          Créer l'urgence
+        {% else %}
+          <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+          Créer l'admission
+        {% endif %}
       </button>
       <a href="{{ path('clinic_admission_queue') }}"
-         class="text-sm text-gray-600 hover:text-gray-900">
-        Annuler
-      </a>
+         style="font-size: var(--text-sm); color: var(--text-muted);">Annuler</a>
     </div>
+
   </form>
 </div>
 {% endblock %}

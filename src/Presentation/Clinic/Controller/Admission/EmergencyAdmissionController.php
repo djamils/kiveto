@@ -29,10 +29,12 @@ final class EmergencyAdmissionController extends AbstractController
     public function __invoke(Request $request): Response
     {
         if ($request->isMethod('GET')) {
+            $presetIntake = $request->query->getString('intake') ?: null;
+
             return $this->render('clinic/admission/emergency_form.html.twig', [
                 'intakeChannels' => IntakeChannel::cases(),
                 'triageLevels'   => TriageLevel::cases(),
-                'closureReasons' => [],
+                'presetIntake'   => $presetIntake,
             ]);
         }
 
