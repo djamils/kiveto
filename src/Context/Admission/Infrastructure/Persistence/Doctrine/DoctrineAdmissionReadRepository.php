@@ -54,8 +54,8 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             $entities,
         );
 
-        $conn  = $this->entityManager->getConnection();
-        $rows  = $conn->fetchAllKeyValue(
+        $conn = $this->entityManager->getConnection();
+        $rows = $conn->fetchAllKeyValue(
             'SELECT id, display_label_value FROM patient__patients WHERE id IN (?)',
             [$patientBinIds],
             [ArrayParameterType::STRING],
