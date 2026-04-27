@@ -118,7 +118,7 @@ final class AdmissionQueueController extends AbstractController
             'SELECT BIN_TO_UUID(id) AS animal_id, species, breed_name,
                     search_owner_name, BIN_TO_UUID(primary_owner_client_id) AS owner_client_id
              FROM animal__search_entries
-             WHERE clinic_id = :clinicId AND id IN (?)',
+             WHERE clinic_id = ? AND id IN (?)',
             [$clinicBinary, $binAnimalIds],
             [\Doctrine\DBAL\ParameterType::STRING, \Doctrine\DBAL\ArrayParameterType::STRING],
         );
