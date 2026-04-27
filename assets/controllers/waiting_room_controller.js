@@ -9,6 +9,7 @@ export default class extends Controller {
 
     this._keydownHandler = (e) => {
       if (e.key === 'Escape') {
+        this.closeDetailSlide();
         this.closeDetailPanel();
         this.closeAllModals();
       }
@@ -91,7 +92,13 @@ export default class extends Controller {
         </div>`;
     }
     if (slideEl) slideEl.classList.add('open');
+    document.getElementById('detail-backdrop')?.classList.add('open');
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  closeDetailSlide() {
+    document.getElementById('detail-slide')?.classList.remove('open');
+    document.getElementById('detail-backdrop')?.classList.remove('open');
   }
 
   openModal(event) {

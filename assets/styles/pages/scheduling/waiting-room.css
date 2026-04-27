@@ -215,8 +215,10 @@
     .hospi-soin-done { color: var(--color-success-text); }
 
     /* Detail slide */
-    .detail-slide { position: absolute; right: 0; top: 0; bottom: 0; width: 380px; background: var(--surface-card); border-left: 1px solid var(--border-light); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .25s ease; z-index: 30; overflow: hidden; box-shadow: var(--shadow-md); }
+    .detail-slide { position: fixed; right: 0; top: 0; bottom: 0; width: 380px; background: var(--surface-card); border-left: 1px solid var(--border-light); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .25s ease; z-index: 200; overflow: hidden; box-shadow: var(--shadow-md); }
     .detail-slide.open { transform: translateX(0); }
+    .detail-backdrop { display: none; position: fixed; inset: 0; z-index: 199; background: transparent; }
+    .detail-backdrop.open { display: block; }
     .detail-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .detail-head-title { font-size: var(--text-base); font-weight: var(--weight-medium); }
     .detail-scroll { flex: 1; overflow-y: auto; padding: var(--space-3) var(--space-4); }
