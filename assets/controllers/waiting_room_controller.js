@@ -65,18 +65,21 @@ export default class extends Controller {
     const d = card.dataset;
 
     const name       = card.querySelector('.card-pet-name')?.textContent.trim() ?? 'Détail patient';
+    const species    = d.species    || '';
     const motif      = d.motif      || '—';
     const channel    = d.channel    || '—';
     const openedAt   = d.openedAt   || '—';
     const triage     = d.triageLabel || (card.classList.contains('urgent') ? 'Urgence' : card.classList.contains('priority') ? 'Prioritaire' : 'Standard');
     const vet        = d.vet        || '— Non assigné';
     const ownerName  = d.ownerName  || '—';
-    const ownerPhone = d.ownerPhone || '';
-    const btnAction  = card.classList.contains('urgent')
-      ? '<button class="btn btn-danger btn-full">Affecter un vétérinaire</button>'
-      : '<button class="btn btn-primary btn-full">Appeler en consult</button>';
+    const ownerPhone = d.ownerPhone || '—';
+    const notes      = d.notes      || '';
+    const isUrgent   = card.classList.contains('urgent');
 
-    document.getElementById('slide-title').textContent = name;
+    const titleEl = document.getElementById('slide-title');
+    titleEl.innerHTML = name
+      + (species ? `<span style="display:block;font-size:var(--text-sm);font-weight:400;color:var(--text-subtle);margin-top:1px;">${species}</span>` : '');
+
     document.getElementById('slide-content').innerHTML = `
       <div class="pd-section">
         <div class="pd-kpis">
@@ -92,11 +95,20 @@ export default class extends Controller {
       <div class="pd-section">
         <div class="pd-section-l">Propriétaire</div>
         <div class="pd-row"><span class="pd-label">Nom</span><span class="pd-val">${ownerName}</span></div>
-        ${ownerPhone ? `<div class="pd-row"><span class="pd-label">Tél.</span><span class="pd-val" style="color:var(--brand-600);">${ownerPhone}</span></div>` : ''}
+        <div class="pd-row"><span class="pd-label">Tél.</span><span class="pd-val" style="color:var(--brand-600);">${ownerPhone}</span></div>
       </div>
+      ${notes ? `
+      <div class="pd-section">
+        <div class="pd-section-l">Note ASV · Check-in</div>
+        <div style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.5;background:var(--surface-subtle);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);">${notes}</div>
+      </div>` : ''}
       <div class="pd-actions">
-        ${btnAction}
-        <button class="btn btn-secondary">Ouvrir dossier</button>
+        ${isUrgent
+          ? '<button class="btn btn-danger btn-full">Affecter un vétérinaire</button>'
+          : '<button class="btn btn-primary btn-full">Démarrer la consultation</button>'}
+        <button class="btn btn-secondary">Profil animal</button>
+        <button class="btn btn-secondary">Profil client</button>
+        <button class="btn btn-secondary btn-full">Placer en chirurgie</button>
       </div>`;
 
     document.getElementById('detail-slide')?.classList.add('open');
