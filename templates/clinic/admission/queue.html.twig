@@ -229,7 +229,12 @@
             {% if urgentEntries|length > 0 %}
               <div class="col-section-l urg"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Urgences <span class="col-section-cnt">{{ urgentEntries|length }}</span></div>
               {% for entry in urgentEntries %}
-                <div class="pcard urgent" data-admission-id="{{ entry.admissionId }}" data-action="click->waiting-room#openDetailSlide">
+                <div class="pcard urgent" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
@@ -251,7 +256,12 @@
             {% if prioEntries|length > 0 %}
               <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">{{ prioEntries|length }}</span></div>
               {% for entry in prioEntries %}
-                <div class="pcard priority" data-admission-id="{{ entry.admissionId }}" data-action="click->waiting-room#openDetailSlide">
+                <div class="pcard priority" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">🐾</span>
@@ -271,7 +281,12 @@
             {% if stdEntries|length > 0 %}
               <div class="col-section-l">Standard <span class="col-section-cnt">{{ stdEntries|length }}</span></div>
               {% for entry in stdEntries %}
-                <div class="scard stripe-attente" data-admission-id="{{ entry.admissionId }}" data-action="click->waiting-room#openDetailSlide">
+                <div class="scard stripe-attente" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
@@ -294,7 +309,12 @@
 
             {# Mock — Prioritaire #}
             <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">1</span></div>
-            <div class="pcard priority" data-action="click->waiting-room#openDetailSlide">
+            <div class="pcard priority"
+                 data-motif="Vomissements répétés depuis ce matin"
+                 data-channel="Sans RDV" data-opened-at="09h52"
+                 data-triage-label="Prioritaire"
+                 data-vet="Dr. Lambert" data-owner-name="Claire Moreau" data-owner-phone="+33 6 12 34 56 78"
+                 data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Bijou</span></span>
               </div>
@@ -311,7 +331,12 @@
 
             {# Mock — Standard #}
             <div class="col-section-l">Standard <span class="col-section-cnt">2</span></div>
-            <div class="scard stripe-attente" data-action="click->waiting-room#openDetailSlide">
+            <div class="scard stripe-attente"
+                 data-motif="Contrôle annuel + bilan sanguin"
+                 data-channel="Sans RDV" data-opened-at="10h05"
+                 data-triage-label="Standard"
+                 data-vet="À orienter" data-owner-name="Sophie Dupont" data-owner-phone="+33 6 87 65 43 21"
+                 data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Max</span></span>
                 <span class="card-when">10h05</span>
@@ -322,7 +347,12 @@
                 <span class="card-wait">12 min</span>
               </div>
             </div>
-            <div class="scard stripe-attente" data-action="click->waiting-room#openDetailSlide">
+            <div class="scard stripe-attente"
+                 data-motif="Bilan de santé annuel + vaccination"
+                 data-channel="RDV" data-opened-at="10h20"
+                 data-triage-label="Standard"
+                 data-vet="À orienter" data-owner-name="Isabelle Garnier" data-owner-phone="+33 6 55 44 33 22"
+                 data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐇</span><span class="card-pet-name">Luna</span></span>
                 <span class="card-when">10h20</span>
@@ -342,7 +372,12 @@
             {% if consultEntries|length > 0 %}
               <div class="col-section-l">En consultation <span class="col-section-cnt">{{ consultEntries|length }}</span></div>
               {% for entry in consultEntries %}
-                <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}" data-action="click->waiting-room#openDetailSlide">
+                <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">🐾</span>
@@ -363,7 +398,12 @@
 
             {# Mock — Prioritaire en consultation #}
             <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">1</span></div>
-            <div class="pcard priority" data-action="click->waiting-room#openDetailSlide">
+            <div class="pcard priority"
+                 data-motif="Boiterie patte avant droite — radio prescrite"
+                 data-channel="RDV" data-opened-at="09h30"
+                 data-triage-label="Prioritaire"
+                 data-vet="Dr. Rousseau · Salle 2" data-owner-name="James Park" data-owner-phone="+33 6 11 22 33 44"
+                 data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Pixel</span></span>
                 <span class="card-when">09h30</span>
@@ -377,7 +417,12 @@
 
             {# Mock — Standard en consultation #}
             <div class="col-section-l">Standard <span class="col-section-cnt">1</span></div>
-            <div class="scard stripe-consult" data-action="click->waiting-room#openDetailSlide">
+            <div class="scard stripe-consult"
+                 data-motif="Bilan annuel + vaccination rappel"
+                 data-channel="RDV" data-opened-at="09h45"
+                 data-triage-label="Standard"
+                 data-vet="Dr. Dupont · Salle 1" data-owner-name="Amélie Dubois" data-owner-phone="+33 6 99 88 77 66"
+                 data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Mochi</span></span>
                 <span class="card-when">09h45</span>

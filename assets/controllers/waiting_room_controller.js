@@ -62,36 +62,44 @@ export default class extends Controller {
 
   openDetailSlide(event) {
     const card = event.currentTarget;
-    const nameEl = card.querySelector('.card-pet-name');
-    const title = nameEl ? nameEl.textContent.trim() : 'Détail patient';
-    const whenEl = card.querySelector('.card-when, .card-wait');
-    const whenText = whenEl ? whenEl.textContent.trim() : '—';
-    const triageClass = card.classList.contains('urgent') ? 'Urgence'
-      : card.classList.contains('priority') ? 'Prioritaire'
-      : 'Standard';
+    const d = card.dataset;
 
-    const slideTitleEl = document.getElementById('slide-title');
-    const slideContentEl = document.getElementById('slide-content');
-    const slideEl = document.getElementById('detail-slide');
+    const name       = card.querySelector('.card-pet-name')?.textContent.trim() ?? 'Détail patient';
+    const motif      = d.motif      || '—';
+    const channel    = d.channel    || '—';
+    const openedAt   = d.openedAt   || '—';
+    const triage     = d.triageLabel || (card.classList.contains('urgent') ? 'Urgence' : card.classList.contains('priority') ? 'Prioritaire' : 'Standard');
+    const vet        = d.vet        || '— Non assigné';
+    const ownerName  = d.ownerName  || '—';
+    const ownerPhone = d.ownerPhone || '';
+    const btnAction  = card.classList.contains('urgent')
+      ? '<button class="btn btn-danger btn-full">Affecter un vétérinaire</button>'
+      : '<button class="btn btn-primary btn-full">Appeler en consult</button>';
 
-    if (slideTitleEl) slideTitleEl.textContent = title;
-    if (slideContentEl) {
-      slideContentEl.innerHTML = `
-        <div style="padding:var(--space-4);">
-          <div class="pd-section">
-            <div class="pd-kpis">
-              <div class="pd-kpi"><div class="pd-kpi-label">Canal</div><div class="pd-kpi-val">Walk-in</div></div>
-              <div class="pd-kpi"><div class="pd-kpi-label">Triage</div><div class="pd-kpi-val">${triageClass}</div></div>
-              <div class="pd-kpi"><div class="pd-kpi-label">Arrivée</div><div class="pd-kpi-val">${whenText}</div></div>
-            </div>
-          </div>
-          <div class="pd-actions">
-            <button class="btn btn-primary btn-full">Appeler en consult</button>
-            <button class="btn btn-secondary">Ouvrir dossier</button>
-          </div>
-        </div>`;
-    }
-    if (slideEl) slideEl.classList.add('open');
+    document.getElementById('slide-title').textContent = name;
+    document.getElementById('slide-content').innerHTML = `
+      <div class="pd-section">
+        <div class="pd-kpis">
+          <div class="pd-kpi"><div class="pd-kpi-label">Canal</div><div class="pd-kpi-val">${channel}</div></div>
+          <div class="pd-kpi"><div class="pd-kpi-label">Triage</div><div class="pd-kpi-val">${triage}</div></div>
+          <div class="pd-kpi"><div class="pd-kpi-label">Arrivée</div><div class="pd-kpi-val">${openedAt}</div></div>
+        </div>
+      </div>
+      <div class="pd-section">
+        <div class="pd-row"><span class="pd-label">Motif</span><span class="pd-val">${motif}</span></div>
+        <div class="pd-row"><span class="pd-label">Vétérinaire</span><span class="pd-val">${vet}</span></div>
+      </div>
+      <div class="pd-section">
+        <div class="pd-section-l">Propriétaire</div>
+        <div class="pd-row"><span class="pd-label">Nom</span><span class="pd-val">${ownerName}</span></div>
+        ${ownerPhone ? `<div class="pd-row"><span class="pd-label">Tél.</span><span class="pd-val" style="color:var(--brand-600);">${ownerPhone}</span></div>` : ''}
+      </div>
+      <div class="pd-actions">
+        ${btnAction}
+        <button class="btn btn-secondary">Ouvrir dossier</button>
+      </div>`;
+
+    document.getElementById('detail-slide')?.classList.add('open');
     document.getElementById('detail-backdrop')?.classList.add('open');
     if (window.lucide) window.lucide.createIcons();
   }
