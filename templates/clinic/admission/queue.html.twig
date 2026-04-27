@@ -124,14 +124,22 @@
     </div>
   </div>
 
-  {# ── Section 4: Vet & Rooms Strip (MOCK) ── #}
+  {# ── Section 4: Vet & Rooms Strip (REAL) ── #}
   <div class="vstrip">
     <span class="vstrip-l">Équipe</span>
-    <div style="display:flex;gap:var(--space-2);align-items:center;">
-      <div class="vcard"><div class="vcard-av" style="background:var(--brand-100);color:var(--brand-700);">RO</div><span class="vcard-name">Rousseau</span><span class="vcard-status">· S2</span></div>
-      <div class="vcard"><div class="vcard-av" style="background:#fce7f3;color:#be185d;">MA</div><span class="vcard-name">Martin</span><span class="vcard-status free">· libre</span></div>
-      <div class="vcard"><div class="vcard-av" style="background:#f0fdf4;color:#15803d;">DU</div><span class="vcard-name">Dupont</span><span class="vcard-status">· S1</span></div>
-      <div class="vcard"><div class="vcard-av" style="background:#f5f3ff;color:#7c3aed;">LA</div><span class="vcard-name">Lambert</span><span class="vcard-status bloc">· au bloc</span></div>
+    <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:nowrap;">
+      {% for vet in practitioners %}
+        {% set name = vet.displayName ?? 'N/A' %}
+        {% set initials = (name|split(' ')|map(w => w[0:1])|join(''))|upper %}
+        {% set color = vet.agendaColor ?? '#4338ca' %}
+        <div class="vcard">
+          <div class="vcard-av" style="background:{{ color }}22;color:{{ color }};">{{ initials[0:2] }}</div>
+          <span class="vcard-name">{{ name|split(' ')|last }}</span>
+          <span class="vcard-status">· libre</span>
+        </div>
+      {% else %}
+        <span style="font-size:var(--text-sm);color:var(--text-subtle);">Aucun praticien configuré</span>
+      {% endfor %}
     </div>
     <div class="vstrip-rooms">
       <span class="vstrip-l" style="margin-right:4px;">Salles</span>
@@ -149,7 +157,7 @@
         <div class="col-title">
           <div>
             <div class="col-title-l">Planifié</div>
-            <div class="col-title-meta">6 RDV à venir</div>
+            <div class="col-title-meta">{{ appointments|length }} RDV à venir</div>
           </div>
           <button class="col-title-action"
                   data-action="waiting-room#openModal"
@@ -183,39 +191,29 @@
       </div>
       <div class="kanban-cols">
 
-        {# Planifié (MOCK) #}
+        {# Planifié (REAL via GetAgendaForClinicDateRange) #}
         <div class="kcol">
           <div class="kcol-scroll">
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Tako</span></span><span class="card-when late">09:45 · +11</span></div>
-              <div class="card-meta">Vaccin annuel · Lefebvre</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Mochi</span></span><span class="card-when">10:15</span></div>
-              <div class="card-meta">Contrôle post-op · Dubois</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Luna</span></span><span class="card-when">10:30</span></div>
-              <div class="card-meta">Bilan sanguin · Moreau</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐇</span><span class="card-pet-name">Pixel</span></span><span class="card-when">11:00</span></div>
-              <div class="card-meta">Vaccin annuel · Garnier</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Rocky</span></span><span class="card-when">11:30</span></div>
-              <div class="card-meta">Détartrage · Simon</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
-            <div class="scard stripe-planifie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Cleo</span></span><span class="card-when">12:00</span></div>
-              <div class="card-meta">Stérilisation · Blanc</div>
-              <button class="btn-checkin" data-action="waiting-room#openModal" data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
-            </div>
+            {% for appt in appointments %}
+              {% set apptTime = appt.startsAtUtc|date('H:i', 'Europe/Paris') %}
+              <div class="scard stripe-planifie"
+                   data-motif="{{ appt.reason ?? '' }}"
+                   data-channel="RDV" data-opened-at="{{ apptTime }}"
+                   data-triage-label="Standard"
+                   data-vet="{{ appt.practitionerLabel ?? 'À assigner' }}"
+                   data-action="click->waiting-room#openDetailSlide">
+                <div class="card-top">
+                  <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">RDV {{ apptTime }}</span></span>
+                  <span class="card-when">{{ apptTime }}</span>
+                </div>
+                {% if appt.reason %}<div class="card-meta">{{ appt.reason }}{% if appt.practitionerLabel %} · {{ appt.practitionerLabel }}{% endif %}</div>{% endif %}
+                <button class="btn-checkin"
+                        data-action="waiting-room#openModal"
+                        data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
+              </div>
+            {% else %}
+              <div class="col-empty">Aucun RDV planifié aujourd'hui</div>
+            {% endfor %}
           </div>
         </div>
 
@@ -229,11 +227,15 @@
             {% if urgentEntries|length > 0 %}
               <div class="col-section-l urg"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Urgences <span class="col-section-cnt">{{ urgentEntries|length }}</span></div>
               {% for entry in urgentEntries %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="pcard urgent" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
@@ -256,11 +258,15 @@
             {% if prioEntries|length > 0 %}
               <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">{{ prioEntries|length }}</span></div>
               {% for entry in prioEntries %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="pcard priority" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
@@ -281,11 +287,15 @@
             {% if stdEntries|length > 0 %}
               <div class="col-section-l">Standard <span class="col-section-cnt">{{ stdEntries|length }}</span></div>
               {% for entry in stdEntries %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="scard stripe-attente" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
@@ -374,11 +384,15 @@
             {% if consultEntries|length > 0 %}
               <div class="col-section-l">En consultation <span class="col-section-cnt">{{ consultEntries|length }}</span></div>
               {% for entry in consultEntries %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
