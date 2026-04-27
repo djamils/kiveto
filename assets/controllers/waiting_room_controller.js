@@ -100,7 +100,7 @@ export default class extends Controller {
       ${notes ? `
       <div class="pd-section">
         <div class="pd-section-l warn">Note ASV · Check-in</div>
-        <div class="pd-crit-note" style="border:1px dashed var(--color-warning-border);">${notes}</div>
+        <div class="pd-reassign dashed">${notes}</div>
       </div>` : ''}
       <div class="pd-actions">
         ${isUrgent
