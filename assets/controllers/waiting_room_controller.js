@@ -55,7 +55,7 @@ export default class extends Controller {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     });
     this.element.querySelectorAll('.tab-content').forEach((content) => {
-      content.style.display = content.id === `content-${tab}` ? '' : 'none';
+      content.classList.toggle('active', content.id === `content-${tab}`);
     });
   }
 
