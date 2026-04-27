@@ -89,6 +89,77 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         return $items;
     }
 
+    /**
+     * @return list<WaitingRoomItemDto>
+     */
+    public function findAllActiveForClinic(string $clinicId): array
+    {
+        $clinicUuid = Uuid::fromString($clinicId);
+
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('a')
+            ->from(AdmissionEntity::class, 'a')
+            ->where('a.clinicId = :clinicId')
+            ->andWhere('a.status = :status')
+            ->setParameter('clinicId', $clinicUuid, UuidType::NAME)
+            ->setParameter('status', AdmissionStatus::Active)
+            ->orderBy('a.openedAt', 'ASC')
+        ;
+
+        /** @var list<AdmissionEntity> $entities */
+        $entities = $qb->getQuery()->getResult();
+
+        if ([] === $entities) {
+            return [];
+        }
+
+        $patientBinIds = array_map(
+            static fn (AdmissionEntity $e): string => $e->getPatientId()->toBinary(),
+            $entities,
+        );
+
+        $conn = $this->entityManager->getConnection();
+
+        $labelRows = $conn->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(p.id) AS patient_id, p.display_label_value, BIN_TO_UUID(p.animal_link_id) AS animal_link_id
+             FROM patient__patients p WHERE p.id IN (?)',
+            [$patientBinIds],
+            [ArrayParameterType::STRING],
+        );
+
+        /** @var array<string, string> $labels */
+        $labels = [];
+        /** @var array<string, string|null> $animalIds */
+        $animalIds = [];
+
+        foreach ($labelRows as $row) {
+            \assert(\is_string($row['patient_id']));
+            \assert(\is_string($row['display_label_value']));
+            $labels[$row['patient_id']]    = $row['display_label_value'];
+            $animalIds[$row['patient_id']] = \is_string($row['animal_link_id']) ? $row['animal_link_id'] : null;
+        }
+
+        $items = [];
+        foreach ($entities as $entity) {
+            $patientUuid = $entity->getPatientId()->toString();
+            $items[]     = new WaitingRoomItemDto(
+                admissionId: $entity->getId()->toString(),
+                clinicId: $entity->getClinicId()->toString(),
+                patientId: $patientUuid,
+                displayLabel: $labels[$patientUuid] ?? $patientUuid,
+                triageLevel: $entity->getTriageLevel()->value,
+                locationStatus: $entity->getLocationStatusValue()->value,
+                intakeChannel: $entity->getIntakeChannel()->value,
+                openedAt: $entity->getOpenedAt()->format(\DateTimeInterface::ATOM),
+                triageNotes: $entity->getTriageNotes(),
+                isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
+                knownAnimalId: $animalIds[$patientUuid] ?? null,
+            );
+        }
+
+        return $items;
+    }
+
     public function getAdmissionContext(string $admissionId): AdmissionContextDto
     {
         $admissionUuid = Uuid::fromString($admissionId);
