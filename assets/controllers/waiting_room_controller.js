@@ -99,9 +99,9 @@ export default class extends Controller {
       </div>
       ${notes ? `
       <div class="pd-section">
-        <div class="pd-section-l">Note ASV · Check-in</div>
-        <div class="pd-reassign" style="border-style:dashed;">
-          <div style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.5;">${notes}</div>
+        <div class="pd-section-l info">Note ASV · Check-in</div>
+        <div class="pd-reassign dashed">
+          <div style="font-size:var(--text-sm);color:var(--color-info-text);line-height:1.5;">${notes}</div>
         </div>
       </div>` : ''}
       <div class="pd-actions">
