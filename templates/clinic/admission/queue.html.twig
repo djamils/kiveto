@@ -362,12 +362,13 @@
             {% endif %}
 
             {# Mock — Prioritaire en consultation #}
-            <div class="scard stripe-consult" data-action="click->waiting-room#openDetailSlide">
+            <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">1</span></div>
+            <div class="pcard priority" data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Pixel</span></span>
                 <span class="card-when">09h30</span>
               </div>
-              <div class="card-meta">Boiterie — radio patte avant · prioritaire</div>
+              <div class="card-meta">Boiterie — radio patte avant</div>
               <div class="card-foot">
                 <span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">RO</span>Rousseau <span class="card-room">S2</span></span>
                 <span class="card-wait warn">32 min</span>
@@ -375,6 +376,7 @@
             </div>
 
             {# Mock — Standard en consultation #}
+            <div class="col-section-l">Standard <span class="col-section-cnt">1</span></div>
             <div class="scard stripe-consult" data-action="click->waiting-room#openDetailSlide">
               <div class="card-top">
                 <span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Mochi</span></span>
