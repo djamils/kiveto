@@ -49,6 +49,51 @@ export default class extends Controller {
     if (kanban) kanban.classList.toggle('hidden', tab !== 'kanban');
   }
 
+  setTab(event) {
+    const tab = event.params.tab;
+    this.element.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    this.element.querySelectorAll('.tab-content').forEach((content) => {
+      content.style.display = content.id === `content-${tab}` ? '' : 'none';
+    });
+  }
+
+  openDetailSlide(event) {
+    const card = event.currentTarget;
+    const nameEl = card.querySelector('.card-pet-name');
+    const title = nameEl ? nameEl.textContent.trim() : 'Détail patient';
+    const whenEl = card.querySelector('.card-when, .card-wait');
+    const whenText = whenEl ? whenEl.textContent.trim() : '—';
+    const triageClass = card.classList.contains('urgent') ? 'Urgence'
+      : card.classList.contains('priority') ? 'Prioritaire'
+      : 'Standard';
+
+    const slideTitleEl = document.getElementById('slide-title');
+    const slideContentEl = document.getElementById('slide-content');
+    const slideEl = document.getElementById('detail-slide');
+
+    if (slideTitleEl) slideTitleEl.textContent = title;
+    if (slideContentEl) {
+      slideContentEl.innerHTML = `
+        <div style="padding:var(--space-4);">
+          <div class="pd-section">
+            <div class="pd-kpis">
+              <div class="pd-kpi"><div class="pd-kpi-label">Canal</div><div class="pd-kpi-val">Walk-in</div></div>
+              <div class="pd-kpi"><div class="pd-kpi-label">Triage</div><div class="pd-kpi-val">${triageClass}</div></div>
+              <div class="pd-kpi"><div class="pd-kpi-label">Arrivée</div><div class="pd-kpi-val">${whenText}</div></div>
+            </div>
+          </div>
+          <div class="pd-actions">
+            <button class="btn btn-primary btn-full">Appeler en consult</button>
+            <button class="btn btn-secondary">Ouvrir dossier</button>
+          </div>
+        </div>`;
+    }
+    if (slideEl) slideEl.classList.add('open');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   openModal(event) {
     const modalId = event.params.modalId;
     document.getElementById(modalId)?.classList.remove('hidden');
