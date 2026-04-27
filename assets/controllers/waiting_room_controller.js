@@ -99,10 +99,8 @@ export default class extends Controller {
       </div>
       ${notes ? `
       <div class="pd-section">
-        <div class="pd-section-l info">Note ASV · Check-in</div>
-        <div class="pd-reassign dashed">
-          <div style="font-size:var(--text-sm);color:var(--color-info-text);line-height:1.5;">${notes}</div>
-        </div>
+        <div class="pd-section-l warn">Note ASV · Check-in</div>
+        <div class="pd-crit-note" style="border:1px dashed var(--color-warning-border);">${notes}</div>
       </div>` : ''}
       <div class="pd-actions">
         ${isUrgent
