@@ -61,7 +61,7 @@ export default class extends Controller {
   }
 
   toggleCollapse(event) {
-    event.currentTarget.closest('.scard')?.classList.toggle('is-collapsed');
+    event.currentTarget.closest('.scard, .pcard')?.classList.toggle('is-collapsed');
   }
 
   // ── Walk-in modal ─ fidèle à openCheckinModal + ciRender du layout ──

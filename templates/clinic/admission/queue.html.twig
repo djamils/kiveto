@@ -173,7 +173,7 @@
         </div>
         <div class="col-title">
           <div>
-            <div class="col-title-l">En consultation</div>
+            <div class="col-title-l">Pris en charge</div>
             <div class="col-title-meta">
               {{ consultEntries|length }} patient{{ consultEntries|length > 1 ? 's' : '' }}
             </div>
@@ -295,33 +295,69 @@
             {% set prioEntries = waitEntries|filter(e => e.triageLevel == 'priority') %}
             {% set stdEntries = waitEntries|filter(e => e.triageLevel == 'standard') %}
 
+{# ─── macro wait-expanded (réutilisé pour les 3 types) ─── #}
+            {%- macro waitExpanded(entry, enr, primaryClass) -%}
+              {% set animalInfo = enr.species is defined ? (enr.species ~ (enr.breed is defined and enr.breed ? ' · ' ~ enr.breed : '')) : '' %}
+              {% set ownerName = enr.ownerName ?? '' %}
+              {% set ownerPhone = enr.ownerPhone ?? '' %}
+              {% set isUnknown = not entry.isPatientIdentifiedAtOpening %}
+              <div class="wait-expanded">
+                <div class="wait-expanded-grid">
+                  <div class="wait-expanded-col">
+                    <div class="wait-expanded-line">{{ animalInfo ?: '—' }}</div>
+                  </div>
+                  <div class="wait-expanded-col">
+                    <div class="wait-expanded-line">{{ ownerName ?: 'Non identifié' }}</div>
+                    {% if ownerPhone and not isUnknown %}
+                      <div class="wait-expanded-line tel">{{ ownerPhone|phone_display(false, false) }}</div>
+                    {% else %}
+                      <div class="wait-expanded-line muted">non renseigné</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="wait-actions">
+                  {% if isUnknown %}
+                    <button class="wait-act-warn" type="button">Identifier</button>
+                  {% else %}
+                    <button class="wait-act-secondary" type="button">Profil</button>
+                  {% endif %}
+                  <button class="wait-act-primary {{ primaryClass }}" type="button">→ Prendre en charge</button>
+                </div>
+              </div>
+            {%- endmacro -%}
+
+            {% import _self as cards %}
+
+            {# ── chevron SVG ── #}
+            {%- set chevronSvg -%}<span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>{%- endset -%}
+
+            {# ── vet pill ── #}
+            {%- macro vetPill(entry) -%}
+              {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
+            {%- endmacro -%}
+
             {% if urgentEntries|length > 0 %}
               <div class="col-section-l urg"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Urgences <span class="col-section-cnt">{{ urgentEntries|length }}</span></div>
               {% for entry in urgentEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="pcard urgent" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  data-action="click->waiting-room#openDetailSlide">
-                  <div class="card-top">
+                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}
+                <div class="pcard urgent is-collapsible is-collapsed">
+                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
-                    <span class="urg-tag{% if not entry.isPatientIdentifiedAtOpening %} nonid{% endif %}">
-                      {{ not entry.isPatientIdentifiedAtOpening ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}
+                    <span style="display:inline-flex;align-items:center;gap:4px;">
+                      <span class="urg-tag{% if not entry.isPatientIdentifiedAtOpening %} nonid{% endif %}">{{ not entry.isPatientIdentifiedAtOpening ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
+                      {{ chevronSvg }}
                     </span>
                   </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
+                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
                   <div class="card-foot">
-                    {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}<span class="card-wait warn">{{ waitDisplay }}</span>
+                    {{ cards.vetPill(entry) }}
+                    <span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
+                  {{ cards.waitExpanded(entry, enr, 'danger') }}
                 </div>
               {% endfor %}
             {% endif %}
@@ -330,27 +366,22 @@
               <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">{{ prioEntries|length }}</span></div>
               {% for entry in prioEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="pcard priority" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  data-action="click->waiting-room#openDetailSlide">
-                  <div class="card-top">
+                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}
+                <div class="pcard priority is-collapsible is-collapsed">
+                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
                       <span class="card-pet-icon">🐾</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
+                    {{ chevronSvg }}
                   </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
-                  <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span>{{ entry.openedAt|date('H\\hi') }}</span></div></div>
+                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
+                  <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span class="warn">{{ waitDisplay }}</span></div></div>
                   <div class="card-foot">
-                    {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}<span class="card-wait warn">{{ waitDisplay }}</span>
+                    {{ cards.vetPill(entry) }}
+                    <span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
+                  {{ cards.waitExpanded(entry, enr, '') }}
                 </div>
               {% endfor %}
             {% endif %}
@@ -359,28 +390,21 @@
               <div class="col-section-l">Standard <span class="col-section-cnt">{{ stdEntries|length }}</span></div>
               {% for entry in stdEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="scard stripe-attente" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  data-action="click->waiting-room#openDetailSlide">
-                  {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}
-                  <div class="card-top">
+                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}
+                <div class="scard stripe-attente is-collapsible is-collapsed">
+                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
-                    <span class="card-wait warn">{{ waitDisplay }}</span>
+                    <span style="display:inline-flex;gap:4px;align-items:center;"><span class="card-wait warn">{{ waitDisplay }}</span>{{ chevronSvg }}</span>
                   </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
+                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
                   <div class="card-foot">
-                    {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
+                    {{ cards.vetPill(entry) }}
                     <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
                   </div>
+                  {{ cards.waitExpanded(entry, enr, '') }}
                 </div>
               {% endfor %}
             {% endif %}
@@ -395,7 +419,7 @@
         <div class="kcol">
           <div class="kcol-scroll">
             {% if consultEntries|length > 0 %}
-              <div class="col-section-l">En consultation <span class="col-section-cnt">{{ consultEntries|length }}</span></div>
+              <div class="col-section-l">Pris en charge <span class="col-section-cnt">{{ consultEntries|length }}</span></div>
               {% for entry in consultEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}"
@@ -591,23 +615,6 @@
       </div>
     </div>
   </div>{# /content-soins #}
-
-  {# Backdrop — ferme le slide au clic extérieur #}
-  <div class="detail-backdrop" id="detail-backdrop"
-       data-action="click->waiting-room#closeDetailSlide"></div>
-
-  {# ── Section 7: Detail Slide ── #}
-  <div class="detail-slide" id="detail-slide">
-    <div class="detail-head">
-      <p class="detail-head-title" id="slide-title">Détail patient</p>
-      <button class="btn-modal-close"
-              data-action="click->waiting-room#closeDetailSlide">
-        <i data-lucide="x" style="width:12px;height:12px;"></i>
-      </button>
-    </div>
-    <div class="detail-scroll" id="slide-content">
-      <div style="padding:var(--space-4);color:var(--text-subtle);font-size:var(--text-sm);">Sélectionnez un patient pour voir son détail.</div>
-    </div>
   </div>
 
   {# FABs (mobile) #}
