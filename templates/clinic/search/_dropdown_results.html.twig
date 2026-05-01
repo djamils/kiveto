@@ -1,0 +1,26 @@
+{% if buckets is not empty %}
+  {% for bucket in buckets %}
+    {% if bucket.hits is not empty %}
+      <div class="ci-dd-section-h">{{ ('search.bucket.' ~ bucket.type)|trans }}</div>
+      {% for hit in bucket.hits %}
+        <button type="button" class="ci-dd-item"
+                data-action="click->global-search#pick"
+                data-hit="{{ hit|json_encode|e('html_attr') }}"
+                data-picker-id="{{ pickerId }}">
+          <div class="ci-dd-avatar rdv">{{ hit.title[0:2]|upper }}</div>
+          <div class="ci-dd-meta">
+            <div class="ci-dd-name">{{ hit.title }}</div>
+            {% if hit.subtitle or hit.context %}
+              <div class="ci-dd-sub">{% if hit.subtitle %}{{ hit.subtitle }}{% endif %}{% if hit.subtitle and hit.context %} · {% endif %}{% if hit.context and hit.context != 'Sans propriétaire' %}{{ hit.context }}{% endif %}</div>
+            {% endif %}
+          </div>
+        </button>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+  <button type="button" class="ci-dd-foot" id="ci-dd-create-btn"
+          data-action="click->waiting-room#ciShowToggle">
+    <i data-lucide="user-plus" style="width:13px;height:13px;"></i>
+    Aucun résultat — créer nouveau client
+  </button>
+{% endif %}

@@ -57,12 +57,17 @@ final class SearchController extends AbstractController
         $q        = trim((string) $request->query->get('q', ''));
         $type     = $request->query->has('type') ? (string) $request->query->get('type') : null;
         $pickerId = $request->query->has('pickerId') ? (string) $request->query->get('pickerId') : null;
+        $format   = 'dropdown' === $request->query->get('format') ? 'dropdown' : 'turboframe';
 
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
         if (!$this->normalizer->isExecutable($q)) {
-            return $this->render('clinic/search/_results.html.twig', [
+            $template = 'dropdown' === $format
+                ? 'clinic/search/_dropdown_results.html.twig'
+                : 'clinic/search/_results.html.twig';
+
+            return $this->render($template, [
                 'buckets'     => [],
                 'mode'        => $mode,
                 'pickerId'    => $pickerId,
@@ -84,7 +89,11 @@ final class SearchController extends AbstractController
             $buckets = $this->searchEngine->searchAll($query);
         }
 
-        return $this->render('clinic/search/_results.html.twig', [
+        $template = 'dropdown' === $format
+            ? 'clinic/search/_dropdown_results.html.twig'
+            : 'clinic/search/_results.html.twig';
+
+        return $this->render($template, [
             'buckets'     => $buckets,
             'mode'        => $mode,
             'pickerId'    => $pickerId,

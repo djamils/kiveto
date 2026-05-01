@@ -58,7 +58,7 @@
       <button class="btn btn-primary btn-sm"
               data-action="waiting-room#openModal"
               data-waiting-room-modal-id-param="modal-checkin">
-        <i data-lucide="plus" style="width:13px;height:13px;"></i> Check-in
+        <i data-lucide="user-plus" style="width:13px;height:13px;"></i> Walk-in
       </button>
     </div>
   </div>
@@ -162,13 +162,8 @@
         <div class="col-title">
           <div>
             <div class="col-title-l">Planifié</div>
-            <div class="col-title-meta">{{ appointments|length }} RDV à venir</div>
+            <div class="col-title-meta">{{ appointments|length }} rendez-vous à venir</div>
           </div>
-          <button class="col-title-action"
-                  data-action="waiting-room#openModal"
-                  data-waiting-room-modal-id-param="modal-checkin">
-            <i data-lucide="plus" style="width:11px;height:11px;"></i>Walk-in
-          </button>
         </div>
         <div class="col-title">
           <div>
@@ -276,8 +271,17 @@
                     <span class="sched-vet-empty">vétérinaire non assigné</span>
                   {% endif %}
                   <button class="sched-checkin-inline"
-                          data-action="waiting-room#openModal"
-                          data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
+                          data-action="click->waiting-room#openCheckinWithPatient"
+                          data-animal-id="{{ appt.animalId ?? '' }}"
+                          data-animal-name="{{ appt.animalLabel ?? '' }}"
+                          data-animal-species="{{ speciesIcon }}"
+                          data-animal-subtitle="{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}"
+                          data-owner-label="{{ appt.ownerLabel ?? '' }}"
+                          data-owner-phone="{{ appt.ownerPhone ?? '' }}"
+                          data-vet="{{ vetName }}"
+                          data-appt-time="{{ apptTime }}"
+                          data-appt-ts="{{ apptTs }}"
+                          data-motif="{{ appt.reason ?? '' }}">Check-in</button>
                 </div>
               </div>
             {% else %}
@@ -385,65 +389,6 @@
             {% if waitEntries|length == 0 %}
               <div class="col-empty">Aucun patient en attente</div>
             {% endif %}
-
-            {# Mock — Prioritaire #}
-            <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">1</span></div>
-            <div class="pcard priority"
-                 data-motif="Vomissements répétés depuis ce matin"
-                 data-channel="Sans RDV" data-opened-at="09h52"
-                 data-triage-label="Prioritaire" data-species="Félin · Européen"
-                 data-vet="Dr. Lambert" data-owner-name="Claire Moreau" data-owner-phone="+33 6 12 34 56 78"
-                 data-notes="Patient agité à l'accueil. A vomi une fois en salle d'attente."
-                 data-action="click->waiting-room#openDetailSlide">
-              <div class="card-top">
-                <span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Bijou</span></span>
-              </div>
-              <div class="card-meta">Vomissements répétés depuis ce matin</div>
-              <div class="sla">
-                <div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div>
-                <div class="sla-meta"><span>SLA 15 min</span><span class="warn">8 min</span></div>
-              </div>
-              <div class="card-foot">
-                <span class="card-vet"><span class="card-vet-dot" style="background:#f5f3ff;color:#7c3aed;">LA</span>Lambert</span>
-                <span class="card-wait warn">8 min</span>
-              </div>
-            </div>
-
-            {# Mock — Standard #}
-            <div class="col-section-l">Standard <span class="col-section-cnt">2</span></div>
-            <div class="scard stripe-attente"
-                 data-motif="Contrôle annuel + bilan sanguin"
-                 data-channel="Sans RDV" data-opened-at="10h05"
-                 data-triage-label="Standard" data-species="Canin · Boxer"
-                 data-vet="À orienter" data-owner-name="Sophie Dupont" data-owner-phone="+33 6 87 65 43 21"
-                 data-notes="Propriétaire a précisé que Max refuse de marcher depuis hier matin."
-                 data-action="click->waiting-room#openDetailSlide">
-              <div class="card-top">
-                <span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Max</span></span>
-                <span class="card-when">10h05</span>
-              </div>
-              <div class="card-meta">Contrôle annuel · Dupont</div>
-              <div class="card-foot">
-                <span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>
-                <span class="card-wait">12 min</span>
-              </div>
-            </div>
-            <div class="scard stripe-attente"
-                 data-motif="Bilan de santé annuel + vaccination"
-                 data-channel="RDV" data-opened-at="10h20"
-                 data-triage-label="Standard" data-species="Lapin · Bélier"
-                 data-vet="À orienter" data-owner-name="Isabelle Garnier" data-owner-phone="+33 6 55 44 33 22"
-                 data-action="click->waiting-room#openDetailSlide">
-              <div class="card-top">
-                <span class="card-pet"><span class="card-pet-icon">🐇</span><span class="card-pet-name">Luna</span></span>
-                <span class="card-when">10h20</span>
-              </div>
-              <div class="card-meta">Bilan de santé annuel · Garnier</div>
-              <div class="card-foot">
-                <span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>
-                <span class="card-wait">5 min</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -684,60 +629,126 @@
   {#  MODALS                                                           #}
   {# ══════════════════════════════════════════════════════════════════ #}
 
-  {# ── [UI-2] Modal Check-in ── #}
+  {# ── [UI-2] Modal Walk-in (fidèle au layout vetos-flux-du-jour) ── #}
   <div class="modal-overlay hidden" id="modal-checkin"
        data-action="click->waiting-room#closeOnOverlayClick">
-    <div class="wr-modal-box" style="width:600px;max-width:calc(100vw - 24px);">
-      <div class="wr-modal-head">
-        <p class="wr-modal-title">Check-in patient</p>
+    <div class="modal-box">
+      <div class="modal-head">
+        <p class="modal-title" id="ci-modal-title">Check-in patient</p>
         <button class="btn-modal-close"
                 data-action="waiting-room#closeModal"
                 data-waiting-room-modal-id-param="modal-checkin">
-          <i data-lucide="x" class="wr-icon-xs"></i>
+          <i data-lucide="x" style="width:12px;height:12px;"></i>
         </button>
       </div>
 
-      <form method="post" action="{{ path('clinic_admission_walkin') }}">
+      <form method="post" action="{{ path('clinic_admission_walkin') }}" id="ci-main-form">
         <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
         <input type="hidden" name="arrivalMode" value="STANDARD">
-        <input type="hidden" name="animalId" id="checkin-animal-id">
-        <input type="hidden" name="animalName" id="checkin-animal-name">
-        <div class="wr-modal-body">
-          {# Recherche live — global-search controller en mode pick #}
-          <div class="form-row"
-               data-controller="global-search"
-               data-global-search-url-value="{{ path('clinic_search') }}"
-               data-global-search-mode-value="pick"
-               data-global-search-picker-id-value="walkin-checkin"
-               data-global-search-type-value="animal">
-            <label class="form-label-wr">Rechercher — nom, puce, téléphone propriétaire</label>
-            <input type="search"
-                   class="form-input-wr"
-                   placeholder="Nom animal, propriétaire, puce, téléphone…"
-                   autocomplete="off"
-                   data-global-search-target="input"
-                   data-action="input->global-search#search">
-            <div class="wr-search-results" data-global-search-target="results"></div>
-            <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
-          </div>
-          <div class="wr-form-grid-2">
-            <div class="form-row">
-              <label class="form-label-wr">Animal / Propriétaire</label>
-              <input class="form-input-wr" name="foundAnimalDescription" id="checkin-label"
-                     placeholder="Ex : Milo (Félin) — James Park">
-            </div>
-            <div class="form-row">
-              <label class="form-label-wr">Motif de visite</label>
-              <input class="form-input-wr" name="triageNotes" placeholder="Décrivez brièvement…">
+        <input type="hidden" name="animalId" id="ci-animal-id">
+        <input type="hidden" name="animalName" id="ci-animal-name">
+        <input type="hidden" name="foundAnimalDescription" id="ci-description">
+
+        <div class="modal-body">
+
+          {# Toggle — caché par défaut, révélé depuis le footer dropdown #}
+          <div id="ci-toggle-row" style="display:none;">
+            <div class="ci-toggle">
+              <button type="button" id="ci-toggle-existing" class="active"
+                      data-action="click->waiting-room#ciSetMode"
+                      data-waiting-room-ci-mode-param="existing">Patient existant</button>
+              <button type="button" id="ci-toggle-new"
+                      data-action="click->waiting-room#ciSetMode"
+                      data-waiting-room-ci-mode-param="new">Nouveau client</button>
             </div>
           </div>
+
+          {# Zone recherche (toujours visible) #}
+          <div id="ci-search-zone">
+            <div class="form-row"
+                 data-controller="global-search"
+                 data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
+                 data-global-search-mode-value="pick"
+                 data-global-search-picker-id-value="walkin-checkin"
+                 data-global-search-type-value="animal">
+              <label class="form-label">Patient</label>
+              <div class="ci-dropdown">
+                <div class="ci-tag-input" id="ci-tag-input"
+                     data-action="click->waiting-room#ciFocusSearch">
+                  <span id="ci-tag-chip-slot"></span>
+                  <input type="text" class="ci-tag-search" id="ci-search"
+                         placeholder="Nom animal, propriétaire, puce, téléphone…"
+                         autocomplete="off"
+                         data-global-search-target="input"
+                         data-action="input->global-search#search focus->waiting-room#ciOnFocus blur->waiting-room#ciOnBlur">
+                </div>
+                <div class="ci-dropdown-menu" data-global-search-target="results" id="ci-dropdown-menu"></div>
+                <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
+              </div>
+            </div>
+            <div id="ci-patient-zone"></div>
+          </div>
+
+          {# Formulaire nouveau client (caché par défaut) #}
+          <div id="ci-create-form" style="display:none;">
+            <div class="ci-section-title">Animal</div>
+            <div class="ci-form-grid-2-1" style="margin-bottom:var(--space-2);">
+              <div>
+                <label class="form-label">Nom <span class="ci-required">*</span></label>
+                <input type="text" class="ci-input" id="ci-new-animal"
+                       placeholder="Ex : Pioupiou"
+                       data-action="input->waiting-room#ciNewValidate">
+              </div>
+              <div>
+                <label class="form-label">Espèce <span class="ci-required">*</span></label>
+                <select class="ci-input" id="ci-new-espece"
+                        data-action="change->waiting-room#ciNewValidate">
+                  <option value="Canin">Chien</option>
+                  <option value="Félin">Chat</option>
+                  <option value="Lapin">Lapin</option>
+                  <option value="NAC">NAC / autre</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:var(--space-2);">
+              <label class="form-label">Race (optionnel)</label>
+              <input type="text" class="ci-input" id="ci-new-race"
+                     placeholder="Ex : Berger australien, Européen…">
+            </div>
+            <div class="ci-section-title">Propriétaire</div>
+            <div class="ci-form-grid">
+              <div>
+                <label class="form-label">Nom <span class="ci-required">*</span></label>
+                <input type="text" class="ci-input" id="ci-new-proprio"
+                       placeholder="Ex : M. Dupont"
+                       data-action="input->waiting-room#ciNewValidate">
+              </div>
+              <div>
+                <label class="form-label">Téléphone <span class="ci-required">*</span></label>
+                <input type="tel" class="ci-input" id="ci-new-tel"
+                       placeholder="06 …"
+                       data-action="input->waiting-room#ciNewValidate">
+              </div>
+            </div>
+          </div>
+
+          {# Note — toujours visible, en dehors des deux zones #}
+          <div class="form-row" style="margin-bottom:0;margin-top:var(--space-3);">
+            <label class="form-label" id="ci-note-label">Note d'arrivée (optionnelle)</label>
+            <textarea class="ci-textarea" id="ci-note" name="triageNotes"
+                      placeholder="Ex : animal stressé, retard dû aux transports…"></textarea>
+          </div>
+
         </div>
-        <div class="wr-modal-foot">
-          <button type="button" class="btn-wr btn-secondary"
+
+        <div class="modal-foot">
+          <button type="button" class="btn btn-secondary"
                   data-action="waiting-room#closeModal"
                   data-waiting-room-modal-id-param="modal-checkin">Annuler</button>
-          <button type="submit" class="btn-wr btn-primary">
-            <i data-lucide="check" class="wr-icon-xs"></i> Valider l'arrivée
+          <button type="submit" class="btn btn-primary" id="ci-validate"
+                  data-action="click->waiting-room#ciPrepareNew" disabled>
+            <i data-lucide="check" style="width:11px;height:11px;"></i>
+            <span id="ci-validate-label">Valider l'arrivée</span>
           </button>
         </div>
       </form>
