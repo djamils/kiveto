@@ -114,6 +114,11 @@ final class Appointment extends AggregateRoot
         $this->animalId = $animalId;
     }
 
+    public function linkAdmission(string $admissionId): void
+    {
+        $this->linkedAdmissionId = $admissionId;
+    }
+
     public function reschedule(TimeSlot $newTimeSlot): void
     {
         if ($this->status->isTerminal()) {

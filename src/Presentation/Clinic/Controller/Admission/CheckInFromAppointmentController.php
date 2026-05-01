@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Admission;
 
-use App\Context\Admission\Application\Command\OpenAdmissionForWalkIn\OpenAdmissionForWalkIn;
+use App\Context\Admission\Application\Command\OpenAdmissionFromAppointment\OpenAdmissionFromAppointment;
+use App\Context\Scheduling\Application\Command\CheckInAppointment\CheckInAppointment;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -14,8 +15,8 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route('/admission/walkin', name: 'clinic_admission_walkin', methods: ['POST'])]
-final class WalkInAdmissionController extends AbstractController
+#[Route('/admission/checkin', name: 'clinic_admission_checkin', methods: ['POST'])]
+final class CheckInFromAppointmentController extends AbstractController
 {
     public function __construct(
         private readonly CommandBusInterface $commandBus,
@@ -37,22 +38,32 @@ final class WalkInAdmissionController extends AbstractController
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $priority    = (int) $request->request->getString('priority', '0');
-        $animalId    = $request->request->getString('animalId') ?: null;
-        $animalName  = $request->request->getString('animalName') ?: null;
-        $description = $request->request->getString('foundAnimalDescription') ?: null;
-        $triageNotes = $request->request->getString('triageNotes') ?: null;
+        $appointmentId = $request->request->getString('appointmentId') ?: null;
+        $animalId      = $request->request->getString('animalId') ?: null;
+        $animalName    = $request->request->getString('animalName') ?: null;
+        $triageNotes   = $request->request->getString('triageNotes') ?: null;
 
-        $triageLevel = 1 === $priority ? 'priority' : 'standard';
+        if (null === $appointmentId) {
+            $this->addFlash('error', 'Identifiant du rendez-vous manquant.');
+
+            return $this->redirectToRoute('clinic_admission_queue');
+        }
 
         try {
-            $this->commandBus->dispatch(new OpenAdmissionForWalkIn(
+            $admissionId = $this->commandBus->dispatch(new OpenAdmissionFromAppointment(
                 clinicId: $currentClinicId->toString(),
-                triageLevel: $triageLevel,
+                appointmentId: $appointmentId,
                 knownAnimalId: $animalId,
                 animalName: $animalName,
-                provisionalLabel: $description,
                 triageNotes: $triageNotes,
+            ));
+
+            \assert(\is_string($admissionId));
+
+            $this->commandBus->dispatch(new CheckInAppointment(
+                clinicId: $currentClinicId->toString(),
+                appointmentId: $appointmentId,
+                admissionId: $admissionId,
             ));
 
             $this->addFlash('success', 'Patient enregistré en salle d\'attente.');

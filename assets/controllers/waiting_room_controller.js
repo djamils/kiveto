@@ -71,6 +71,10 @@ export default class extends Controller {
     const d = event.currentTarget.dataset;
     this._ciOpenModal(false);
     if (d.animalName) {
+      // Store appointment ID in modal hidden field
+      const apptIdEl = document.getElementById('ci-appointment-id');
+      if (apptIdEl) apptIdEl.value = d.apptId || '';
+
       this._ciSelectPatient({
         animalId:  d.animalId  || '',
         name:      d.animalName || '',
@@ -286,6 +290,14 @@ export default class extends Controller {
   }
 
   ciPrepareNew(event) {
+    const form = document.getElementById('ci-main-form');
+    const apptId = document.getElementById('ci-appointment-id')?.value || '';
+    if (form) {
+      form.action = apptId
+        ? (form.dataset.checkinUrl || form.action)
+        : (form.dataset.walkinUrl  || form.action);
+    }
+
     const isNewMode = document.getElementById('ci-create-form')?.style.display !== 'none';
     if (!isNewMode) return;
     const animal  = (document.getElementById('ci-new-animal')?.value ?? '').trim();
@@ -307,9 +319,10 @@ export default class extends Controller {
 
   _ciClearPatient() {
     document.getElementById('ci-patient-zone').innerHTML = '';
-    const idEl = document.getElementById('ci-animal-id');     if (idEl)  idEl.value  = '';
-    const nmEl = document.getElementById('ci-animal-name');   if (nmEl)  nmEl.value  = '';
-    const dcEl = document.getElementById('ci-description');   if (dcEl)  dcEl.value  = '';
+    const idEl   = document.getElementById('ci-animal-id');       if (idEl)   idEl.value   = '';
+    const nmEl   = document.getElementById('ci-animal-name');     if (nmEl)   nmEl.value   = '';
+    const dcEl   = document.getElementById('ci-description');     if (dcEl)   dcEl.value   = '';
+    const apptEl = document.getElementById('ci-appointment-id'); if (apptEl) apptEl.value = '';
     const slot = document.getElementById('ci-tag-chip-slot'); if (slot)  slot.innerHTML = '';
     const srch = document.getElementById('ci-search');
     if (srch) { srch.placeholder = 'Nom animal, propriétaire, puce, téléphone…'; srch.style.minWidth = '100%'; srch.readOnly = false; }

@@ -139,11 +139,37 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             $animalIds[$row['patient_id']] = \is_string($row['animal_link_id']) ? $row['animal_link_id'] : null;
         }
 
+        // Fetch practitioner label from linked appointment (display-only enrichment)
+        $admissionBinIds = array_map(
+            static fn (AdmissionEntity $e): string => $e->getId()->toBinary(),
+            $entities,
+        );
+
+        $practitionerRows = $conn->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name
+             FROM scheduling__appointments sa
+             JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = UUID_TO_BIN(?)
+             JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
+             WHERE sa.linked_admission_id IN (?)',
+            [$clinicId, $admissionBinIds],
+            [\Doctrine\DBAL\ParameterType::STRING, ArrayParameterType::STRING],
+        );
+
+        /** @var array<string, string> $practitionerLabels */
+        $practitionerLabels = [];
+        foreach ($practitionerRows as $pr) {
+            \assert(\is_string($pr['admission_id']));
+            if (\is_string($pr['vet_name'])) {
+                $practitionerLabels[$pr['admission_id']] = $pr['vet_name'];
+            }
+        }
+
         $items = [];
         foreach ($entities as $entity) {
             $patientUuid = $entity->getPatientId()->toString();
+            $admissionId = $entity->getId()->toString();
             $items[]     = new WaitingRoomItemDto(
-                admissionId: $entity->getId()->toString(),
+                admissionId: $admissionId,
                 clinicId: $entity->getClinicId()->toString(),
                 patientId: $patientUuid,
                 displayLabel: $labels[$patientUuid] ?? $patientUuid,
@@ -154,6 +180,7 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 triageNotes: $entity->getTriageNotes(),
                 isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
                 knownAnimalId: $animalIds[$patientUuid] ?? null,
+                practitionerLabel: $practitionerLabels[$admissionId] ?? null,
             );
         }
 

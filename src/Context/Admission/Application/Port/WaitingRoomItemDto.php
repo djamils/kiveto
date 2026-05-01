@@ -18,6 +18,7 @@ final readonly class WaitingRoomItemDto
         public ?string $triageNotes,
         public bool $isPatientIdentifiedAtOpening = true,
         public ?string $knownAnimalId = null,
+        public ?string $practitionerLabel = null,
     ) {
     }
 }
