@@ -320,7 +320,7 @@
                   {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
                   <div class="card-foot">
                     {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}<span class="card-wait warn">{{ waitDisplay }}</span>
+                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}<span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
                 </div>
               {% endfor %}
@@ -349,7 +349,7 @@
                   <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span>{{ entry.openedAt|date('H\\hi') }}</span></div></div>
                   <div class="card-foot">
                     {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}<span class="card-wait warn">{{ waitDisplay }}</span>
+                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}<span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
                 </div>
               {% endfor %}
@@ -368,7 +368,7 @@
                   data-owner-name="{{ enr.ownerName ?? '' }}"
                   data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
-                  {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}
+                  {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
