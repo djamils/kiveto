@@ -152,6 +152,11 @@
 
   {# ── Section 5: Tab Content — Flux Ambulatoire ── #}
   <div class="tab-content active" id="content-amb">
+    {# Lookup map: userId → displayName for appointment cards #}
+    {% set vetByUserId = {} %}
+    {% for vet in practitioners %}
+      {% set vetByUserId = vetByUserId|merge({(vet.userId): vet.displayName ?? ''}) %}
+    {% endfor %}
     <div class="kanban-amb">
       <div class="kanban-titles">
         <div class="col-title">
@@ -196,17 +201,22 @@
           <div class="kcol-scroll">
             {% for appt in appointments %}
               {% set apptTime = appt.startsAtUtc|date('H:i', 'Europe/Paris') %}
+              {% set vetName = vetByUserId[appt.practitionerUserId] ?? '' %}
+              {% set vetShort = vetName ? vetName|split(' ')|last : '' %}
               <div class="scard stripe-planifie"
                    data-motif="{{ appt.reason ?? '' }}"
                    data-channel="RDV" data-opened-at="{{ apptTime }}"
                    data-triage-label="Standard"
-                   data-vet="{{ appt.practitionerLabel ?? 'À assigner' }}"
+                   data-vet="{{ vetName }}"
                    data-action="click->waiting-room#openDetailSlide">
                 <div class="card-top">
-                  <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">RDV {{ apptTime }}</span></span>
+                  <span class="card-pet">
+                    <span class="card-pet-icon">🐾</span>
+                    <span class="card-pet-name">—</span>
+                  </span>
                   <span class="card-when">{{ apptTime }}</span>
                 </div>
-                {% if appt.reason %}<div class="card-meta">{{ appt.reason }}{% if appt.practitionerLabel %} · {{ appt.practitionerLabel }}{% endif %}</div>{% endif %}
+                <div class="card-meta">{{ appt.reason ?? 'RDV' }}{% if vetShort %} · {{ vetShort }}{% endif %}</div>
                 <button class="btn-checkin"
                         data-action="waiting-room#openModal"
                         data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
