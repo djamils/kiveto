@@ -77,6 +77,11 @@ final class AppointmentMapper
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());
         $entity->setStatus($appointment->status());
         $entity->setServiceStartedAt($appointment->serviceStartedAt());
+        $entity->setLinkedAdmissionId(
+            null !== $appointment->linkedAdmissionId()
+                ? Uuid::fromString($appointment->linkedAdmissionId())
+                : null
+        );
         $entity->setOwnerId(
             null !== $appointment->ownerId()
                 ? Uuid::fromString($appointment->ownerId())

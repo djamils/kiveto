@@ -27,6 +27,17 @@
   'transfer_from_other_clinic':'Transfert',
 } %}
 
+{% set channelBadgeStyle = {
+  'appointment_booked':        'background:var(--color-info-bg);color:var(--color-info-text);',
+  'walk_in':                   'background:var(--surface-subtle);color:var(--text-secondary);border:1px solid var(--border-medium);',
+  'emergency':                 'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_third_party':  'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_authority':    'background:var(--color-danger-bg);color:var(--color-danger-text);',
+  'emergency_by_association':  'background:var(--color-warning-bg);color:var(--color-warning-text);',
+  'emergency_by_municipality': 'background:var(--color-warning-bg);color:var(--color-warning-text);',
+  'transfer_from_other_clinic':'background:var(--color-purple-bg);color:var(--color-purple-text);',
+} %}
+
 {% set urgCount = entries|filter(e => e.triageLevel in ['emergency','vital_emergency'])|length %}
 {% set waitEntries = entries|filter(e => e.locationStatus in ['in_waiting_room','at_reception']) %}
 {% set consultEntries = entries|filter(e => e.locationStatus == 'in_consultation_room') %}
@@ -109,20 +120,6 @@
     </div>
   </div>
 
-  {# ── Section 3: Urgence Alert Banner (MOCK) ── #}
-  <div class="urg-alert" id="urg-alert">
-    <span class="urg-alert-dot"></span>
-    <div class="urg-alert-body">
-      <span class="urg-alert-title">Urgence non prise en charge · Olive · Hémorragie post-chute</span>
-      <span class="urg-alert-meta">1 min écoulée · Dr. Martin libre · Salle 3 disponible</span>
-    </div>
-    <div class="urg-alert-actions">
-      <button class="btn btn-danger btn-sm" onclick="affecterUrgence()">
-        <i data-lucide="zap" style="width:11px;height:11px;"></i> Affecter Dr. Martin · S3
-      </button>
-      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('urg-alert').style.display='none'">Autre</button>
-    </div>
-  </div>
 
   {# ── Section 4: Vet & Rooms Strip (REAL) ── #}
   <div class="vstrip">
@@ -303,7 +300,7 @@
               {% for entry in urgentEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="pcard urgent" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
@@ -323,7 +320,7 @@
                   {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
                   <div class="card-foot">
                     {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    <span class="card-wait over">{{ entry.openedAt|date('H\\hi') }}</span>
+                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}<span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
                 </div>
               {% endfor %}
@@ -334,7 +331,7 @@
               {% for entry in prioEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="pcard priority" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
@@ -352,7 +349,7 @@
                   <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span>{{ entry.openedAt|date('H\\hi') }}</span></div></div>
                   <div class="card-foot">
                     {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    <span class="card-wait">{{ entry.openedAt|date('H\\hi') }}</span>
+                    {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}<span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
                 </div>
               {% endfor %}
@@ -363,7 +360,7 @@
               {% for entry in stdEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="scard stripe-attente" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
@@ -371,17 +368,18 @@
                   data-owner-name="{{ enr.ownerName ?? '' }}"
                   data-owner-phone="{{ enr.ownerPhone ?? '' }}"
                   data-action="click->waiting-room#openDetailSlide">
+                  {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : waitMin ~ ' min' %}
                   <div class="card-top">
                     <span class="card-pet">
                       <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
-                    <span class="card-when">{{ entry.openedAt|date('H\\hi') }}</span>
+                    <span class="card-wait warn">{{ waitDisplay }}</span>
                   </div>
                   {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
                   <div class="card-foot">
                     {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>à orienter</span>{% endif %}
-                    <span class="card-wait">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span>
+                    <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
                   </div>
                 </div>
               {% endfor %}
@@ -401,7 +399,7 @@
               {% for entry in consultEntries %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
                 <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.triageNotes ?? '' }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
                   data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
@@ -419,7 +417,7 @@
                   {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
                   <div class="card-foot">
                     <span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>en cours</span>
-                    <span class="card-wait">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span>
+                    <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
                   </div>
                 </div>
               {% endfor %}
@@ -859,17 +857,17 @@
 
         {# 2A — dossier existant (animal identifié via live search) #}
         <div id="urg-2a" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_walkin') }}" id="urg-2a-form">
-            <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
-            <input type="hidden" name="arrivalMode" value="EMERGENCY">
-            <input type="hidden" name="priority" value="2">
-            <input type="hidden" name="animalId" id="urg-2a-animal-id">
-            <input type="hidden" name="animalName" id="urg-2a-animal-name">
-            <input type="hidden" name="foundAnimalDescription" id="urg-2a-label">
+          <form method="post" action="{{ path('clinic_admission_emergency') }}" id="urg-2a-form">
+            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+            <input type="hidden" name="intake_channel" value="emergency">
+            <input type="hidden" name="triage_level" value="emergency">
+            <input type="hidden" name="known_animal_id" id="urg-2a-animal-id">
+            <input type="hidden" name="animal_name" id="urg-2a-animal-name">
+            <input type="hidden" name="provisional_label" id="urg-2a-label">
             <div class="wr-modal-body">
               <div class="form-row">
                 <label class="form-label-wr">Motif d'urgence *</label>
-                <input class="form-input-wr" name="triageNotes" required placeholder="Symptômes observés…">
+                <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes observés…">
               </div>
             </div>
             <div class="wr-modal-foot">
@@ -885,19 +883,19 @@
 
         {# 2B — nouveau dossier (non trouvé en base) #}
         <div id="urg-2b" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_walkin') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
-            <input type="hidden" name="arrivalMode" value="EMERGENCY">
-            <input type="hidden" name="priority" value="2">
+          <form method="post" action="{{ path('clinic_admission_emergency') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
+            <input type="hidden" name="intake_channel" value="emergency">
+            <input type="hidden" name="triage_level" value="emergency">
             <div class="wr-modal-body">
               <div class="wr-form-grid-2">
                 <div class="form-row">
                   <label class="form-label-wr">Animal *</label>
-                  <input class="form-input-wr" name="foundAnimalDescription" required placeholder="Nom de l'animal">
+                  <input class="form-input-wr" name="provisional_label" required placeholder="Nom de l'animal">
                 </div>
                 <div class="form-row">
                   <label class="form-label-wr">Motif d'urgence *</label>
-                  <input class="form-input-wr" name="triageNotes" required placeholder="Symptômes…">
+                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes…">
                 </div>
               </div>
             </div>

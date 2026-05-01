@@ -145,22 +145,29 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             $entities,
         );
 
+        $clinicBinary = Uuid::fromString($clinicId)->toBinary();
+
         $practitionerRows = $conn->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name
+            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name, sa.reason AS appt_reason
              FROM scheduling__appointments sa
-             JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = UUID_TO_BIN(?)
+             JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = ?
              JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
              WHERE sa.linked_admission_id IN (?)',
-            [$clinicId, $admissionBinIds],
+            [$clinicBinary, $admissionBinIds],
             [\Doctrine\DBAL\ParameterType::STRING, ArrayParameterType::STRING],
         );
 
         /** @var array<string, string> $practitionerLabels */
         $practitionerLabels = [];
+        /** @var array<string, string> $appointmentReasons */
+        $appointmentReasons = [];
         foreach ($practitionerRows as $pr) {
             \assert(\is_string($pr['admission_id']));
             if (\is_string($pr['vet_name'])) {
                 $practitionerLabels[$pr['admission_id']] = $pr['vet_name'];
+            }
+            if (\is_string($pr['appt_reason'])) {
+                $appointmentReasons[$pr['admission_id']] = $pr['appt_reason'];
             }
         }
 
@@ -181,6 +188,7 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
                 knownAnimalId: $animalIds[$patientUuid] ?? null,
                 practitionerLabel: $practitionerLabels[$admissionId] ?? null,
+                appointmentReason: $appointmentReasons[$admissionId] ?? null,
             );
         }
 
