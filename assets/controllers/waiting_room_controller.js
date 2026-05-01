@@ -60,6 +60,10 @@ export default class extends Controller {
     });
   }
 
+  toggleCollapse(event) {
+    event.currentTarget.closest('.scard')?.classList.toggle('is-collapsed');
+  }
+
   openDetailSlide(event) {
     const card = event.currentTarget;
     const d = card.dataset;

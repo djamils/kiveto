@@ -205,25 +205,80 @@
               {% set nowTs = 'now'|date('U') %}
               {% set isLate = nowTs > apptTs %}
               {% set minutesLate = isLate ? ((nowTs - apptTs) / 60)|round : 0 %}
-              {% set vetName = vetByUserId[appt.practitionerUserId] ?? '' %}
-              {% set vetShort = vetName ? vetName|split(' ')|last : '' %}
-              <div class="scard stripe-planifie"
+              {% if minutesLate >= 60 %}
+                {% set lateH = (minutesLate / 60)|round(0, 'floor') %}
+                {% set lateM = minutesLate % 60 %}
+                {% set lateDisplay = '+' ~ lateH ~ 'h' ~ (lateM > 0 ? lateM : '') %}
+              {% else %}
+                {% set lateDisplay = '+' ~ minutesLate %}
+              {% endif %}
+              {% set vetName = vetByUserId[appt.practitionerUserId] ?? (appt.practitionerLabel ?? '') %}
+              {% set vetShort = vetName ? vetName|replace({'Dr. ': '', 'Dr ': ''})|split(' ')|last : '' %}
+              {% set speciesKey = appt.animalSpecies ? appt.animalSpecies|lower : '' %}
+              {% set reasonLow = appt.reason ? appt.reason|lower : '' %}
+              {% if reasonLow matches '/(chirurgi|stérilis|castrat|opérat|bloc)/' %}
+                {% set rdvBadgeClass = 'surgery' %}
+              {% elseif reasonLow matches '/(vaccin|primo|rappel)/' %}
+                {% set rdvBadgeClass = 'vaccine' %}
+              {% elseif reasonLow matches '/(urgence|vital|hémorrag|convuls)/' %}
+                {% set rdvBadgeClass = 'urgent' %}
+              {% elseif reasonLow matches '/(consultation|suivi|post.op|bilan|contrôle|détartrage)/' %}
+                {% set rdvBadgeClass = 'consult' %}
+              {% else %}
+                {% set rdvBadgeClass = 'checkup' %}
+              {% endif %}
+              {% set speciesIcon = {'dog': '🐕', 'cat': '🐈', 'nac': '🐇', 'other': '🐾'}[speciesKey] ?? '🐾' %}
+              {% if appt.animalBirthDate %}
+                {% set birthYear = appt.animalBirthDate|date('Y') %}
+                {% set ageYears = 'now'|date('Y') - birthYear %}
+                {% set ageDisplay = ageYears > 0 ? ageYears ~ ' an' ~ (ageYears > 1 ? 's' : '') : '< 1 an' %}
+              {% else %}
+                {% set ageDisplay = '' %}
+              {% endif %}
+              <div class="scard stripe-planifie is-collapsed"
                    data-motif="{{ appt.reason ?? '' }}"
                    data-channel="RDV" data-opened-at="{{ apptTime }}"
                    data-triage-label="Standard"
                    data-vet="{{ vetName }}"
-                   data-action="click->waiting-room#openDetailSlide">
-                <div class="card-top">
+                   data-owner-name="{{ appt.ownerLabel ?? '' }}"
+                   data-species="{{ appt.animalSpecies ?? '' }}">
+                <div class="card-top"
+                     data-action="click->waiting-room#toggleCollapse">
                   <span class="card-pet">
-                    <span class="card-pet-icon">🐾</span>
-                    <span class="card-pet-name">—</span>
+                    <span class="card-pet-icon">{{ appt.animalLabel ? speciesIcon : '🐾' }}</span>
+                    <span class="card-pet-name">{{ appt.animalLabel ?? '—' }}</span>
                   </span>
-                  <span class="card-when{% if isLate %} late{% endif %}">{{ apptTime }}{% if isLate %} · +{{ minutesLate }}{% endif %}</span>
+                  <span class="card-top-right">
+                    {% if appt.reason %}<span class="rdv-badge {{ rdvBadgeClass }}">{{ appt.reason }}</span>{% endif %}
+                    <span class="card-when{% if isLate %} late{% endif %}">{{ apptTime }}{% if isLate %} · {{ lateDisplay }}{% endif %}</span>
+                    <span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </span>
                 </div>
-                <div class="card-meta">{{ appt.reason ?? 'RDV' }}{% if vetShort %} · {{ vetShort }}{% endif %}</div>
-                <button class="btn-checkin"
-                        data-action="waiting-room#openModal"
-                        data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
+                <div class="sched-split">
+                  <div class="sched-col">
+                    {% set speciesLabels = {'dog': 'Canin', 'cat': 'Félin', 'nac': 'NAC', 'other': 'Autre'} %}
+                    {% set speciesLabel = speciesLabels[speciesKey] ?? '' %}
+                    <div class="sched-col-line">{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}</div>
+                    <div class="sched-col-line muted">{{ ageDisplay }}{% if ageDisplay and appt.reason %} · {% endif %}{{ appt.reason ? appt.reason|lower : '' }}</div>
+                  </div>
+                  <div class="sched-col">
+                    <div class="sched-col-line">{{ appt.ownerLabel ?? '' }}</div>
+                    {% if appt.ownerPhone %}
+                      <div class="sched-col-line tel">{{ appt.ownerPhone|phone_display(false, false) }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="sched-vet-line">
+                  {% if vetShort %}
+                    <span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ vetShort[0:2]|upper }}</span>
+                    <span>{{ vetShort }}</span>
+                  {% else %}
+                    <span class="sched-vet-empty">vétérinaire non assigné</span>
+                  {% endif %}
+                  <button class="sched-checkin-inline"
+                          data-action="waiting-room#openModal"
+                          data-waiting-room-modal-id-param="modal-checkin">Check-in</button>
+                </div>
               </div>
             {% else %}
               <div class="col-empty">Aucun RDV planifié aujourd'hui</div>

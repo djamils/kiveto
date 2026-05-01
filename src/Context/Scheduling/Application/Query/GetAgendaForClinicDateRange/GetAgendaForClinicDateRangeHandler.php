@@ -44,11 +44,15 @@ final readonly class GetAgendaForClinicDateRangeHandler
                 BIN_TO_UUID(a.owner_id) as owner_id,
                 BIN_TO_UUID(a.animal_id) as animal_id,
                 CONCAT(c.first_name, ' ', c.last_name) as owner_label,
+                cm.value as owner_phone,
                 an.name as animal_label,
-                an.species as animal_species
+                an.species as animal_species,
+                an.birth_date as animal_birth_date,
+                an.breed_name as animal_breed
             FROM scheduling__appointments a
             LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
             LEFT JOIN client__clients c ON c.id = a.owner_id
+            LEFT JOIN client__contact_methods cm ON cm.client_id = a.owner_id AND cm.type = 'phone' AND cm.is_primary = 1
             LEFT JOIN animal__animals an ON an.id = a.animal_id
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.starts_at_utc >= :fromUtc
@@ -168,9 +172,12 @@ final readonly class GetAgendaForClinicDateRangeHandler
             practitionerLabel: RowAccessor::nullableString($row, 'practitioner_label'),
             ownerId: RowAccessor::nullableString($row, 'owner_id'),
             ownerLabel: RowAccessor::nullableString($row, 'owner_label'),
+            ownerPhone: RowAccessor::nullableString($row, 'owner_phone'),
             animalId: RowAccessor::nullableString($row, 'animal_id'),
             animalLabel: RowAccessor::nullableString($row, 'animal_label'),
             animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
+            animalBirthDate: RowAccessor::nullableString($row, 'animal_birth_date'),
+            animalBreed: RowAccessor::nullableString($row, 'animal_breed'),
         );
     }
 }

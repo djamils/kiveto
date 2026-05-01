@@ -140,6 +140,19 @@
     .urg-tag { font-size: var(--text-xs); padding: 1px var(--space-1); border-radius: var(--radius-sm); background: var(--color-danger-600); color: #fff; font-weight: var(--weight-medium); letter-spacing: .03em; flex-shrink: 0; }
     .urg-tag.nonid { background: var(--color-warning-600); }
     .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: var(--space-2); }
+    .card-top-right { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .rdv-badge { font-size: 10px; font-weight: var(--weight-medium); padding: 1px 6px; border-radius: var(--radius-sm); white-space: nowrap; flex-shrink: 0; }
+    .rdv-badge.surgery  { background: var(--color-purple-bg);  color: var(--color-purple-text); }
+    .rdv-badge.vaccine  { background: var(--color-success-bg); color: var(--color-success-text); }
+    .rdv-badge.consult  { background: var(--color-info-bg);    color: var(--color-info-text); }
+    .rdv-badge.urgent   { background: var(--color-danger-bg);  color: var(--color-danger-text); }
+    .rdv-badge.checkup  { background: var(--surface-subtle);   color: var(--text-secondary); border: 1px solid var(--border-medium); }
+    .card-collapse-chevron { color: var(--text-tertiary); transition: transform .15s; display: inline-flex; align-items: center; }
+    .scard.stripe-planifie .card-top { cursor: pointer; }
+    .scard.stripe-planifie .card-top:hover .card-collapse-chevron { color: var(--text-secondary); }
+    .scard.stripe-planifie.is-collapsed .card-collapse-chevron { transform: rotate(-90deg); }
+    .scard.stripe-planifie.is-collapsed .sched-split,
+    .scard.stripe-planifie.is-collapsed .sched-vet-line { display: none; }
     .card-vet { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--text-muted); min-width: 0; }
     .card-vet-dot { width: 18px; height: 18px; border-radius: var(--radius-full); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: var(--weight-medium); flex-shrink: 0; }
     .card-vet-unassigned { background: var(--color-danger-bg); color: var(--color-danger-text); border: 1px dashed var(--color-danger-600); }
@@ -155,6 +168,19 @@
     .sla-meta { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-subtle); margin-top: 2px; }
     .btn-checkin { width: 100%; margin-top: 6px; padding: 4px 8px; background: var(--brand-600); color: #fff; border: none; border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: var(--weight-medium); cursor: pointer; font-family: inherit; }
     .btn-checkin:hover { background: var(--brand-700); }
+
+    /* Planifié card — sched-split layout (Direction A) */
+    .sched-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: 6px; padding: var(--space-2) var(--space-3); background: var(--surface-subtle); border-radius: var(--radius-sm); }
+    .sched-col { min-width: 0; }
+    .sched-col:last-child { text-align: right; }
+    .sched-col-line { font-size: var(--text-sm); color: var(--text-primary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-col-line.muted { color: var(--text-muted); }
+    .sched-col-line.tel { color: var(--brand-600); font-variant-numeric: tabular-nums; font-weight: var(--weight-medium); cursor: pointer; }
+    .sched-col-line.tel:hover { text-decoration: underline; }
+    .sched-vet-line { display: flex; align-items: center; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-light); font-size: var(--text-xs); color: var(--text-muted); }
+    .sched-vet-empty { color: var(--text-subtle); font-style: italic; }
+    .sched-checkin-inline { margin-left: auto; height: 24px; background: var(--brand-600); color: #fff; border: none; border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: var(--weight-medium); padding: 0 var(--space-3); cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    .sched-checkin-inline:hover { background: var(--brand-700); }
 
     /* Soins cliniques */
     .soins-grid { flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--space-3); padding: var(--space-3); min-height: 0; }
