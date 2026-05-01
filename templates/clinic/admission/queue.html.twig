@@ -201,6 +201,10 @@
           <div class="kcol-scroll">
             {% for appt in appointments %}
               {% set apptTime = appt.startsAtUtc|date('H:i', 'Europe/Paris') %}
+              {% set apptTs = appt.startsAtUtc|date('U') %}
+              {% set nowTs = 'now'|date('U') %}
+              {% set isLate = nowTs > apptTs %}
+              {% set minutesLate = isLate ? ((nowTs - apptTs) / 60)|round : 0 %}
               {% set vetName = vetByUserId[appt.practitionerUserId] ?? '' %}
               {% set vetShort = vetName ? vetName|split(' ')|last : '' %}
               <div class="scard stripe-planifie"
@@ -214,7 +218,7 @@
                     <span class="card-pet-icon">🐾</span>
                     <span class="card-pet-name">—</span>
                   </span>
-                  <span class="card-when">{{ apptTime }}</span>
+                  <span class="card-when{% if isLate %} late{% endif %}">{{ apptTime }}{% if isLate %} · +{{ minutesLate }}{% endif %}</span>
                 </div>
                 <div class="card-meta">{{ appt.reason ?? 'RDV' }}{% if vetShort %} · {{ vetShort }}{% endif %}</div>
                 <button class="btn-checkin"

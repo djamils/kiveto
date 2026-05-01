@@ -88,8 +88,10 @@ final class CreateAppointmentController extends AbstractController
             );
         }
 
-        $reason = $request->request->getString('reason') ?: null;
-        $notes  = $request->request->getString('notes') ?: null;
+        $reason   = $request->request->getString('reason') ?: null;
+        $notes    = $request->request->getString('notes') ?: null;
+        $ownerId  = $request->request->getString('ownerId') ?: null;
+        $animalId = $request->request->getString('animalId') ?: null;
 
         try {
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
@@ -99,6 +101,8 @@ final class CreateAppointmentController extends AbstractController
                 durationMinutes: $request->request->getInt('durationMinutes', 30),
                 reason: $reason,
                 notes: $notes,
+                ownerId: $ownerId,
+                animalId: $animalId,
             ));
 
             \assert(\is_string($appointmentId));
@@ -118,6 +122,10 @@ final class CreateAppointmentController extends AbstractController
                     'status'             => $details->status,
                     'reason'             => $details->reason,
                     'notes'              => $details->notes,
+                    'ownerId'            => $details->ownerId,
+                    'animalId'           => $details->animalId,
+                    'ownerLabel'         => $details->ownerLabel,
+                    'animalLabel'        => $details->animalLabel,
                 ],
             ]);
         } catch (\DomainException $e) {

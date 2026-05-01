@@ -16,6 +16,8 @@ final readonly class ScheduleAppointment implements CommandInterface
         public ?string $reason = null,
         public ?string $notes = null,
         public ?string $linkedAdmissionId = null,
+        public ?string $ownerId = null,
+        public ?string $animalId = null,
     ) {
     }
 }

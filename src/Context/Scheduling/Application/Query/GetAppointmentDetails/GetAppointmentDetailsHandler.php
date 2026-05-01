@@ -20,20 +20,26 @@ final readonly class GetAppointmentDetailsHandler
     {
         $sql = <<<'SQL'
             SELECT
-                BIN_TO_UUID(id) as id,
-                BIN_TO_UUID(clinic_id) as clinic_id,
-                BIN_TO_UUID(linked_admission_id) as linked_admission_id,
-                BIN_TO_UUID(practitioner_user_id) as practitioner_user_id,
-                starts_at_utc,
-                duration_minutes,
-                status,
-                reason,
-                notes,
-                service_started_at_utc,
-                created_at_utc,
-                updated_at_utc
-            FROM scheduling__appointments
-            WHERE id = UUID_TO_BIN(:appointmentId)
+                BIN_TO_UUID(a.id) as id,
+                BIN_TO_UUID(a.clinic_id) as clinic_id,
+                BIN_TO_UUID(a.linked_admission_id) as linked_admission_id,
+                BIN_TO_UUID(a.practitioner_user_id) as practitioner_user_id,
+                a.starts_at_utc,
+                a.duration_minutes,
+                a.status,
+                a.reason,
+                a.notes,
+                a.service_started_at_utc,
+                a.created_at_utc,
+                a.updated_at_utc,
+                BIN_TO_UUID(a.owner_id) as owner_id,
+                BIN_TO_UUID(a.animal_id) as animal_id,
+                CONCAT(c.first_name, ' ', c.last_name) as owner_label,
+                an.name as animal_label
+            FROM scheduling__appointments a
+            LEFT JOIN client__clients c ON c.id = a.owner_id
+            LEFT JOIN animal__animals an ON an.id = a.animal_id
+            WHERE a.id = UUID_TO_BIN(:appointmentId)
         SQL;
 
         $result = $this->connection->fetchAssociative($sql, [
@@ -57,6 +63,10 @@ final readonly class GetAppointmentDetailsHandler
             serviceStartedAtUtc: RowAccessor::nullableString($result, 'service_started_at_utc'),
             createdAtUtc: RowAccessor::string($result, 'created_at_utc'),
             updatedAtUtc: RowAccessor::string($result, 'updated_at_utc'),
+            ownerId: RowAccessor::nullableString($result, 'owner_id'),
+            animalId: RowAccessor::nullableString($result, 'animal_id'),
+            ownerLabel: RowAccessor::nullableString($result, 'owner_label'),
+            animalLabel: RowAccessor::nullableString($result, 'animal_label'),
         );
     }
 }

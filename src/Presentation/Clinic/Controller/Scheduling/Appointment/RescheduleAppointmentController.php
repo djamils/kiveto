@@ -98,6 +98,9 @@ final class RescheduleAppointmentController extends AbstractController
             );
         }
 
+        $ownerId  = $request->request->getString('ownerId') ?: null;
+        $animalId = $request->request->getString('animalId') ?: null;
+
         try {
             $this->commandBus->dispatch(new RescheduleAppointment(
                 clinicId: $currentClinicId->toString(),
@@ -105,6 +108,8 @@ final class RescheduleAppointmentController extends AbstractController
                 startsAtUtc: $startsAt,
                 durationMinutes: $request->request->getInt('durationMinutes', 30),
                 practitionerUserId: $practitionerUserId,
+                ownerId: $ownerId,
+                animalId: $animalId,
             ));
 
             $details = $this->queryBus->ask(new GetAppointmentDetails($appointmentId));
@@ -122,6 +127,10 @@ final class RescheduleAppointmentController extends AbstractController
                     'status'             => $details->status,
                     'reason'             => $details->reason,
                     'notes'              => $details->notes,
+                    'ownerId'            => $details->ownerId,
+                    'animalId'           => $details->animalId,
+                    'ownerLabel'         => $details->ownerLabel,
+                    'animalLabel'        => $details->animalLabel,
                 ],
             ]);
         } catch (\DomainException $e) {

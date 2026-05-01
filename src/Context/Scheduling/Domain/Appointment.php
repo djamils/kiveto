@@ -23,6 +23,8 @@ final class Appointment extends AggregateRoot
     private AppointmentId $id;
     private ClinicId $clinicId;
     private ?string $linkedAdmissionId;
+    private ?string $ownerId;
+    private ?string $animalId;
     private PractitionerAssignee $practitionerAssignee;
     private TimeSlot $timeSlot;
     private AppointmentStatus $status;
@@ -44,11 +46,15 @@ final class Appointment extends AggregateRoot
         ?string $notes,
         \DateTimeImmutable $createdAt,
         ?string $linkedAdmissionId = null,
+        ?string $ownerId = null,
+        ?string $animalId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
         $appointment->clinicId             = $clinicId;
         $appointment->linkedAdmissionId    = $linkedAdmissionId;
+        $appointment->ownerId              = $ownerId;
+        $appointment->animalId             = $animalId;
         $appointment->practitionerAssignee = $practitionerAssignee;
         $appointment->timeSlot             = $timeSlot;
         $appointment->status               = AppointmentStatus::PLANNED;
@@ -82,11 +88,15 @@ final class Appointment extends AggregateRoot
         \DateTimeImmutable $createdAt,
         ?\DateTimeImmutable $serviceStartedAt,
         ?string $linkedAdmissionId = null,
+        ?string $ownerId = null,
+        ?string $animalId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
         $appointment->clinicId             = $clinicId;
         $appointment->linkedAdmissionId    = $linkedAdmissionId;
+        $appointment->ownerId              = $ownerId;
+        $appointment->animalId             = $animalId;
         $appointment->practitionerAssignee = $practitionerAssignee;
         $appointment->timeSlot             = $timeSlot;
         $appointment->status               = $status;
@@ -96,6 +106,12 @@ final class Appointment extends AggregateRoot
         $appointment->serviceStartedAt     = $serviceStartedAt;
 
         return $appointment;
+    }
+
+    public function changeOwnerAndAnimal(?string $ownerId, ?string $animalId): void
+    {
+        $this->ownerId  = $ownerId;
+        $this->animalId = $animalId;
     }
 
     public function reschedule(TimeSlot $newTimeSlot): void
@@ -228,6 +244,16 @@ final class Appointment extends AggregateRoot
     public function linkedAdmissionId(): ?string
     {
         return $this->linkedAdmissionId;
+    }
+
+    public function ownerId(): ?string
+    {
+        return $this->ownerId;
+    }
+
+    public function animalId(): ?string
+    {
+        return $this->animalId;
     }
 
     public function practitionerAssignee(): PractitionerAssignee

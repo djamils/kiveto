@@ -32,6 +32,8 @@ final class AppointmentMapper
             createdAt: $entity->getCreatedAt(),
             serviceStartedAt: $entity->getServiceStartedAt(),
             linkedAdmissionId: $entity->getLinkedAdmissionId()?->toRfc4122(),
+            ownerId: $entity->getOwnerId()?->toRfc4122(),
+            animalId: $entity->getAnimalId()?->toRfc4122(),
         );
     }
 
@@ -43,6 +45,16 @@ final class AppointmentMapper
         $entity->setLinkedAdmissionId(
             null !== $appointment->linkedAdmissionId()
                 ? Uuid::fromString($appointment->linkedAdmissionId())
+                : null
+        );
+        $entity->setOwnerId(
+            null !== $appointment->ownerId()
+                ? Uuid::fromString($appointment->ownerId())
+                : null
+        );
+        $entity->setAnimalId(
+            null !== $appointment->animalId()
+                ? Uuid::fromString($appointment->animalId())
                 : null
         );
         $entity->setPractitionerUserId(Uuid::fromString($appointment->practitionerAssignee()->userId()->toString()));
@@ -65,6 +77,16 @@ final class AppointmentMapper
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());
         $entity->setStatus($appointment->status());
         $entity->setServiceStartedAt($appointment->serviceStartedAt());
+        $entity->setOwnerId(
+            null !== $appointment->ownerId()
+                ? Uuid::fromString($appointment->ownerId())
+                : null
+        );
+        $entity->setAnimalId(
+            null !== $appointment->animalId()
+                ? Uuid::fromString($appointment->animalId())
+                : null
+        );
         $entity->setUpdatedAt(new \DateTimeImmutable());
     }
 }

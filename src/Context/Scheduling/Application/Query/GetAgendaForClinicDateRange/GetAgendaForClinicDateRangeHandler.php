@@ -40,9 +40,16 @@ final readonly class GetAgendaForClinicDateRangeHandler
                 a.status,
                 a.reason,
                 a.notes,
-                u.email as practitioner_label
+                u.email as practitioner_label,
+                BIN_TO_UUID(a.owner_id) as owner_id,
+                BIN_TO_UUID(a.animal_id) as animal_id,
+                CONCAT(c.first_name, ' ', c.last_name) as owner_label,
+                an.name as animal_label,
+                an.species as animal_species
             FROM scheduling__appointments a
             LEFT JOIN identity_access__users u ON u.id = a.practitioner_user_id
+            LEFT JOIN client__clients c ON c.id = a.owner_id
+            LEFT JOIN animal__animals an ON an.id = a.animal_id
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.starts_at_utc >= :fromUtc
               AND a.starts_at_utc <= :toUtc
@@ -159,6 +166,11 @@ final readonly class GetAgendaForClinicDateRangeHandler
             reason: RowAccessor::nullableString($row, 'reason'),
             notes: RowAccessor::nullableString($row, 'notes'),
             practitionerLabel: RowAccessor::nullableString($row, 'practitioner_label'),
+            ownerId: RowAccessor::nullableString($row, 'owner_id'),
+            ownerLabel: RowAccessor::nullableString($row, 'owner_label'),
+            animalId: RowAccessor::nullableString($row, 'animal_id'),
+            animalLabel: RowAccessor::nullableString($row, 'animal_label'),
+            animalSpecies: RowAccessor::nullableString($row, 'animal_species'),
         );
     }
 }

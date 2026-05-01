@@ -107,6 +107,8 @@ final readonly class ScheduleAppointmentHandler
             notes: $command->notes,
             createdAt: $now,
             linkedAdmissionId: $command->linkedAdmissionId,
+            ownerId: $command->ownerId,
+            animalId: $command->animalId,
         );
 
         $this->appointmentRepository->save($appointment);

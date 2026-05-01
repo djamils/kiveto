@@ -205,7 +205,7 @@ export default class extends Controller {
       this.notesTarget.value = appointment.notes || '';
     }
 
-    this._setOwnerAnimalReadonly(true);
+    this._setOwnerAnimalReadonly(false);
   }
 
   _setOwnerAnimalReadonly(readonly) {
