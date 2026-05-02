@@ -45,9 +45,9 @@ final class SchedulingStory extends Story
         $now    = $this->clock->now()->setTimezone($parisTz);
         $monday = $now->modify('monday this week')->setTime(0, 0, 0);
 
-        // If "this week" monday is already 6+ days behind us (i.e. today is Sunday),
+        // If "this week" monday is already 5+ days behind us (i.e. today is Saturday or Sunday),
         // shift the anchor to next week so all fixture appointments remain in the future.
-        if ($monday->diff($now)->days >= 6) {
+        if ($monday->diff($now)->days >= 5) {
             $monday = $monday->modify('+7 days');
         }
 
