@@ -10,7 +10,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'microchip_registry_lookups')]
+#[ORM\Table]
 class MicrochipRegistryLookupEntity
 {
     #[ORM\Id]

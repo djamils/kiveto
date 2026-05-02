@@ -10,7 +10,7 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'authority_notifications')]
+#[ORM\Table]
 class AuthorityNotificationEntity
 {
     #[ORM\Id]
