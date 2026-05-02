@@ -18,7 +18,7 @@ final readonly class MicrochipRegistryLookupMapper
             chipNumber: $entity->getChipNumber(),
             clinicId: $entity->getClinicId()->toString(),
             status: $entity->getStatus(),
-            icadAnimalData: $entity->getIcadAnimalData(),
+            registryAnimalData: $entity->getRegistryAnimalData(),
             errorMessage: $entity->getErrorMessage(),
             version: $entity->getVersion(),
             initiatedAt: $entity->getInitiatedAt(),
@@ -35,7 +35,7 @@ final readonly class MicrochipRegistryLookupMapper
         $entity->setChipNumber($lookup->chipNumber());
         $entity->setClinicId(Uuid::fromString($lookup->clinicId()));
         $entity->setStatus($lookup->status());
-        $entity->setIcadAnimalData($lookup->icadAnimalData());
+        $entity->setRegistryAnimalData($lookup->registryAnimalData());
         $entity->setErrorMessage($lookup->errorMessage());
         $entity->setVersion($lookup->version());
         $entity->setInitiatedAt($lookup->initiatedAt());

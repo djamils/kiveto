@@ -22,7 +22,7 @@ final class MicrochipRegistryLookup extends AggregateRoot
         private readonly string $chipNumber,
         private readonly string $clinicId,
         private MicrochipRegistryLookupStatus $status,
-        private ?string $icadAnimalData,
+        private ?string $registryAnimalData,
         private ?string $errorMessage,
         private int $version,
         private readonly \DateTimeImmutable $initiatedAt,
@@ -45,7 +45,7 @@ final class MicrochipRegistryLookup extends AggregateRoot
             chipNumber: $chipNumber,
             clinicId: $clinicId,
             status: MicrochipRegistryLookupStatus::Pending,
-            icadAnimalData: null,
+            registryAnimalData: null,
             errorMessage: null,
             version: 1,
             initiatedAt: $now,
@@ -66,16 +66,16 @@ final class MicrochipRegistryLookup extends AggregateRoot
     /**
      * Records that the chip was found in the microchip registry.
      */
-    public function recordFound(string $icadAnimalData, \DateTimeImmutable $now): void
+    public function recordFound(string $registryAnimalData, \DateTimeImmutable $now): void
     {
-        $this->status         = MicrochipRegistryLookupStatus::FoundInICad;
-        $this->icadAnimalData = $icadAnimalData;
-        $this->updatedAt      = $now;
+        $this->status             = MicrochipRegistryLookupStatus::FoundInRegistry;
+        $this->registryAnimalData = $registryAnimalData;
+        $this->updatedAt          = $now;
 
         $this->recordDomainEvent(new MicrochipRegistryLookupFound(
             lookupId: $this->id->value(),
             chipNumber: $this->chipNumber,
-            icadAnimalData: $icadAnimalData,
+            registryAnimalData: $registryAnimalData,
         ));
     }
 
@@ -84,7 +84,7 @@ final class MicrochipRegistryLookup extends AggregateRoot
      */
     public function recordNotFound(\DateTimeImmutable $now): void
     {
-        $this->status    = MicrochipRegistryLookupStatus::NotFoundInICad;
+        $this->status    = MicrochipRegistryLookupStatus::NotFoundInRegistry;
         $this->updatedAt = $now;
 
         $this->recordDomainEvent(new MicrochipRegistryLookupNotFound(
@@ -117,7 +117,7 @@ final class MicrochipRegistryLookup extends AggregateRoot
         string $chipNumber,
         string $clinicId,
         MicrochipRegistryLookupStatus $status,
-        ?string $icadAnimalData,
+        ?string $registryAnimalData,
         ?string $errorMessage,
         int $version,
         \DateTimeImmutable $initiatedAt,
@@ -129,7 +129,7 @@ final class MicrochipRegistryLookup extends AggregateRoot
             chipNumber: $chipNumber,
             clinicId: $clinicId,
             status: $status,
-            icadAnimalData: $icadAnimalData,
+            registryAnimalData: $registryAnimalData,
             errorMessage: $errorMessage,
             version: $version,
             initiatedAt: $initiatedAt,
@@ -158,9 +158,9 @@ final class MicrochipRegistryLookup extends AggregateRoot
         return $this->status;
     }
 
-    public function icadAnimalData(): ?string
+    public function registryAnimalData(): ?string
     {
-        return $this->icadAnimalData;
+        return $this->registryAnimalData;
     }
 
     public function errorMessage(): ?string

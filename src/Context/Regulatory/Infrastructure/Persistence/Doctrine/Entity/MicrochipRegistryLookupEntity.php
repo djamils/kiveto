@@ -26,8 +26,8 @@ class MicrochipRegistryLookupEntity
     #[ORM\Column(type: 'string', length: 16, enumType: MicrochipRegistryLookupStatus::class)]
     private MicrochipRegistryLookupStatus $status;
 
-    #[ORM\Column(name: 'icad_animal_data', type: 'text', nullable: true)]
-    private ?string $icadAnimalData = null;
+    #[ORM\Column(name: 'registry_animal_data', type: 'text', nullable: true)]
+    private ?string $registryAnimalData = null;
 
     #[ORM\Column(name: 'error_message', type: 'text', nullable: true)]
     private ?string $errorMessage = null;
@@ -85,14 +85,14 @@ class MicrochipRegistryLookupEntity
         $this->status = $status;
     }
 
-    public function getIcadAnimalData(): ?string
+    public function getRegistryAnimalData(): ?string
     {
-        return $this->icadAnimalData;
+        return $this->registryAnimalData;
     }
 
-    public function setIcadAnimalData(?string $icadAnimalData): void
+    public function setRegistryAnimalData(?string $registryAnimalData): void
     {
-        $this->icadAnimalData = $icadAnimalData;
+        $this->registryAnimalData = $registryAnimalData;
     }
 
     public function getErrorMessage(): ?string

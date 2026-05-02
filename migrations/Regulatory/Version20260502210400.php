@@ -36,7 +36,7 @@ final class Version20260502210400 extends AbstractMigration
               chip_number VARCHAR(64) NOT NULL,
               clinic_id BINARY(16) NOT NULL,
               status VARCHAR(16) NOT NULL,
-              icad_animal_data LONGTEXT DEFAULT NULL,
+              registry_animal_data LONGTEXT DEFAULT NULL,
               error_message LONGTEXT DEFAULT NULL,
               version INT DEFAULT 1 NOT NULL,
               initiated_at DATETIME NOT NULL,

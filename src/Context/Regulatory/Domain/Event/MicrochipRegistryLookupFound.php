@@ -14,7 +14,7 @@ final readonly class MicrochipRegistryLookupFound extends AbstractDomainEvent
     public function __construct(
         public string $lookupId,
         public string $chipNumber,
-        public string $icadAnimalData,
+        public string $registryAnimalData,
     ) {
     }
 
@@ -29,9 +29,9 @@ final readonly class MicrochipRegistryLookupFound extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'lookupId'       => $this->lookupId,
-            'chipNumber'     => $this->chipNumber,
-            'icadAnimalData' => $this->icadAnimalData,
+            'lookupId'           => $this->lookupId,
+            'chipNumber'         => $this->chipNumber,
+            'registryAnimalData' => $this->registryAnimalData,
         ];
     }
 }

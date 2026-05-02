@@ -30,7 +30,7 @@ final readonly class DoctrineMicrochipRegistryLookupRepository implements Microc
             $this->entityManager->persist($entity);
         } else {
             $entity->setStatus($lookup->status());
-            $entity->setIcadAnimalData($lookup->icadAnimalData());
+            $entity->setRegistryAnimalData($lookup->registryAnimalData());
             $entity->setErrorMessage($lookup->errorMessage());
             $entity->setUpdatedAt($lookup->updatedAt());
         }

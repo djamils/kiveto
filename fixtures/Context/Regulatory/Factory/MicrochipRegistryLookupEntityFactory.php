@@ -47,7 +47,7 @@ final class MicrochipRegistryLookupEntityFactory extends PersistentProxyObjectFa
             'chipNumber'     => self::faker()->numerify('###############'),
             'clinicId'       => Uuid::v7(),
             'status'         => MicrochipRegistryLookupStatus::Pending,
-            'icadAnimalData' => null,
+            'registryAnimalData' => null,
             'errorMessage'   => null,
             'version'        => 1,
             'initiatedAt'    => \DateTimeImmutable::createFromMutable(

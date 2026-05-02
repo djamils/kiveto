@@ -8,7 +8,7 @@ The BC is **jurisdiction-aware**: deadlines, working-day calendars, and registry
 
 - Create and track **AuthorityNotification** — the legal obligation to notify the competent local authority within a jurisdiction-defined deadline (FR: mairie within 48 calendar hours, Code Rural L211-25)
 - Create and track **StrayCustody** — the mandatory holding period before the animal can be handed to the authority (FR: 8 working days)
-- Record **MicrochipRegistryLookup** audit entries — chip number queries against a national registry (FR: I-CAD; V1: manual entry by ASV)
+- Record **MicrochipRegistryLookup** audit entries — chip number queries against a national microchip registry (FR: I-CAD ; DE: Tasso ; BE: DogID, etc.). V1: manual entry by ASV, no external API call.
 - Expose **RegulatoryTasksReadRepository** — returns overdue/upcoming legal tasks per clinic for the dashboard
 
 ## Ubiquitous Language
@@ -17,7 +17,7 @@ The BC is **jurisdiction-aware**: deadlines, working-day calendars, and registry
 |------|-----------|
 | **AuthorityNotification** | Legal obligation: inform the competent authority within a jurisdiction-defined deadline of an unidentified stray animal intake |
 | **StrayCustody** | Legal holding period during which the veterinarian holds the animal before possible handover to the authority |
-| **MicrochipRegistryLookup** | Audit record of a chip number query against the national registry (V1: manual entry by ASV) |
+| **MicrochipRegistryLookup** | Audit record of a chip number query against the national microchip registry of the clinic's jurisdiction (V1: manual entry by ASV) |
 | **RegulatoryPolicyInterface** | Jurisdiction policy: returns the authority-notification and stray-custody deadlines for an admission opened at a given time |
 | **WorkingDayCalculatorInterface** | Pure domain service: computes working days according to a jurisdiction's calendar |
 | **JurisdictionResolverInterface** | Resolves `clinicId → ISO 3166-1 alpha-2 country code` (read from `clinic__clinics.country_code`) |
@@ -69,7 +69,7 @@ src/Context/Regulatory/
 ├── Domain/
 │   ├── AuthorityNotification.php           (aggregate: Pending → Sent | Cancelled)
 │   ├── StrayCustody.php                    (aggregate: Active → CancelledOwnerFound | ClosedHandedToAuthority | Expired)
-│   ├── MicrochipRegistryLookup.php         (aggregate: Pending → FoundInICad | NotFoundInICad | LookupFailed)
+│   ├── MicrochipRegistryLookup.php         (aggregate: Pending → FoundInRegistry | NotFoundInRegistry | LookupFailed)
 │   ├── JurisdictionResolverInterface.php   (clinicId → country code)
 │   ├── Policy/RegulatoryPolicyInterface.php
 │   ├── Service/WorkingDayCalculatorInterface.php
@@ -108,7 +108,7 @@ src/Context/Regulatory/
 
 **Table: `regulatory__stray_custodies`** — same columns, status: `active` \| `cancelled_owner_found` \| `closed_handed_to_authority` \| `expired`
 
-**Table: `microchip_registry_lookups`** — id, chip_number, clinic_id, status, icad_animal_data (TEXT NULL), error_message (TEXT NULL), initiated_at, version, created_at, updated_at
+**Table: `regulatory__microchip_registry_lookups`** — id, chip_number, clinic_id, status, registry_animal_data (TEXT NULL), error_message (TEXT NULL), initiated_at, version, created_at, updated_at
 
 ## V1 Limitations (deliberate alpha scope)
 

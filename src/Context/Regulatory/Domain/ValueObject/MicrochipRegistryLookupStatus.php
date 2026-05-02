@@ -6,8 +6,8 @@ namespace App\Context\Regulatory\Domain\ValueObject;
 
 enum MicrochipRegistryLookupStatus: string
 {
-    case Pending        = 'pending';
-    case FoundInICad    = 'found_in_icad';
-    case NotFoundInICad = 'not_found_in_icad';
-    case LookupFailed   = 'lookup_failed';
+    case Pending            = 'pending';
+    case FoundInRegistry    = 'found_in_registry';
+    case NotFoundInRegistry = 'not_found_in_registry';
+    case LookupFailed       = 'lookup_failed';
 }

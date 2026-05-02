@@ -13,8 +13,9 @@ use App\Context\Regulatory\Domain\ValueObject\StrayCustodyStatus;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 /**
- * Tracks the mandatory stray animal custody period (code rural L211-25).
- * Deadline: admissionOpenedAt + 8 French working days.
+ * Tracks the mandatory holding period for an unidentified stray animal before
+ * possible handover to the competent authority. Deadline is delegated to the
+ * jurisdiction policy (`RegulatoryPolicyInterface::getStrayCustodyDeadline`).
  */
 final class StrayCustody extends AggregateRoot
 {

@@ -21,7 +21,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class AdmissionOpenedWithUnidentifiedPatientHandler
 {
     public function __construct(
-        private AuthorityNotificationRepositoryInterface $mairieRepo,
+        private AuthorityNotificationRepositoryInterface $authorityNotificationRepo,
         private StrayCustodyRepositoryInterface $strayCustodyRepo,
         private RegulatoryPolicyInterface $policy,
         private DomainEventPublisher $domainEventPublisher,
@@ -44,7 +44,7 @@ final readonly class AdmissionOpenedWithUnidentifiedPatientHandler
             policy: $this->policy,
             now: $now,
         );
-        $this->mairieRepo->save($notification);
+        $this->authorityNotificationRepo->save($notification);
         $this->domainEventPublisher->publish($notification);
 
         $custody = StrayCustody::begin(
