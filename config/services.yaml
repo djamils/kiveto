@@ -7,6 +7,12 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.default_locale: 'en-GB'
+    app.backoffice_locale: 'fr-FR'
+    app.short_locale_map:
+        fr: 'fr-FR'
+        en: 'en-GB'
+
     vetsaas.search.bucket_order:
         - 'animal'
         - 'client'
@@ -147,8 +153,13 @@ services:
     App\System\Translation\Application\Port\AppScopeResolverInterface:
         class: App\System\Translation\Infrastructure\Resolver\HostnameAppScopeResolver
 
-    App\System\Translation\Application\Port\LocaleResolverInterface:
-        class: App\System\Translation\Infrastructure\Resolver\DefaultLocaleResolver
+    App\System\Translation\Infrastructure\Resolver\DefaultLocaleResolver:
+        arguments:
+            $defaultLocale: '%app.default_locale%'
+            $backofficeLocale: '%app.backoffice_locale%'
+            $shortLocaleMap: '%app.short_locale_map%'
+
+    App\System\Translation\Application\Port\LocaleResolverInterface: '@App\System\Translation\Infrastructure\Resolver\DefaultLocaleResolver'
 
     App\System\Translation\Infrastructure\Provider\TranslationCatalogProvider:
         arguments:
@@ -355,8 +366,8 @@ services:
     App\Context\Admission\Application\Port\PatientReadRepositoryPort:
         class: App\Context\Admission\Infrastructure\Adapter\Patient\DbalPatientReadRepositoryAdapter
 
-    App\Context\Admission\Application\Port\ICADLookupPort:
-        class: App\Context\Admission\Infrastructure\Adapter\Regulatory\ICADLookupAdapter
+    App\Context\Admission\Application\Port\MicrochipRegistryLookupPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Regulatory\MicrochipRegistryLookupAdapter
 
     App\Context\Admission\Infrastructure\Persistence\Doctrine\AdmissionMapper: ~
 
@@ -391,23 +402,30 @@ services:
     # BOUNDED CONTEXT: REGULATORY
     # ============================================================================
 
-    App\Context\Regulatory\Domain\Repository\MairieNotificationRepositoryInterface:
-        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineMairieNotificationRepository
+    App\Context\Regulatory\Domain\Repository\AuthorityNotificationRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineAuthorityNotificationRepository
 
     App\Context\Regulatory\Domain\Repository\StrayCustodyRepositoryInterface:
         class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineStrayCustodyRepository
 
-    App\Context\Regulatory\Domain\Repository\ICADLookupRepositoryInterface:
-        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineICADLookupRepository
+    App\Context\Regulatory\Domain\Repository\MicrochipRegistryLookupRepositoryInterface:
+        class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineMicrochipRegistryLookupRepository
 
     App\Context\Regulatory\Application\Port\RegulatoryTasksReadRepositoryInterface:
         class: App\Context\Regulatory\Infrastructure\Persistence\Doctrine\DoctrineRegulatoryTasksReadRepository
 
-    App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator: ~
+    App\Context\Regulatory\Domain\Service\WorkingDayCalculatorInterface:
+        class: App\Context\Regulatory\Jurisdiction\France\FrenchWorkingDayCalculator
 
-    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\MairieNotificationMapper: ~
+    App\Context\Regulatory\Domain\Policy\RegulatoryPolicyInterface:
+        class: App\Context\Regulatory\Jurisdiction\France\FranceRegulatoryPolicy
+
+    App\Context\Regulatory\Domain\JurisdictionResolverInterface:
+        class: App\Context\Regulatory\Infrastructure\Resolver\ClinicJurisdictionResolver
+
+    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\AuthorityNotificationMapper: ~
     App\Context\Regulatory\Infrastructure\Persistence\Doctrine\StrayCustodyMapper: ~
-    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\ICADLookupMapper: ~
+    App\Context\Regulatory\Infrastructure\Persistence\Doctrine\MicrochipRegistryLookupMapper: ~
 
 when@dev: &services_dev
     services:

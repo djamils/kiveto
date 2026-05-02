@@ -61,7 +61,7 @@ final class UpdateAnimalController extends AbstractController
             passportNumber: $this->getOptionalString($request, 'passport_number'),
             registryType: trim((string) $request->request->get('registry_type', 'none')),
             registryNumber: $this->getOptionalString($request, 'registry_number'),
-            sireNumber: $this->getOptionalString($request, 'sire_number'),
+            registryReference: $this->getOptionalString($request, 'registry_reference'),
             auxiliaryContactFirstName: $this->getOptionalString($request, 'auxiliary_contact_first_name'),
             auxiliaryContactLastName: $this->getOptionalString($request, 'auxiliary_contact_last_name'),
             auxiliaryContactPhoneNumber: $this->getOptionalString($request, 'auxiliary_contact_phone_number'),

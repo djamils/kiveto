@@ -75,12 +75,12 @@ export default class extends Controller {
 
     const motif = (wrap.dataset.motif || '').toLowerCase();
     let suggested = 'consultation';
-    if (/chirurgie|opérat|surgery/.test(motif)) suggested = 'chirurgie';
-    else if (/hospi|hospitali/.test(motif))      suggested = 'hospi';
+    if (/opérat|surgery/.test(motif)) suggested = 'surgery';
+    else if (/hospi|hospitali/.test(motif))  suggested = 'hospi';
 
     const items = [
       { type: 'consultation', icon: '🩺', label: 'Consultation' },
-      { type: 'chirurgie',    icon: '🔪', label: 'Chirurgie' },
+      { type: 'surgery',      icon: '🔪', label: 'Chirurgie' },
       { type: 'hospi',        icon: '🏥', label: 'Hospitalisation' },
     ];
 

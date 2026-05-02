@@ -12,7 +12,7 @@ final readonly class IdentificationDto
         public ?string $passportNumber,
         public string $registryType,
         public ?string $registryNumber,
-        public ?string $sireNumber,
+        public ?string $registryReference,
     ) {
     }
 }

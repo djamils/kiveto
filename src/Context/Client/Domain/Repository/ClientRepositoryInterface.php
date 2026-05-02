@@ -7,7 +7,7 @@ namespace App\Context\Client\Domain\Repository;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Exception\ClientNotFoundException;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 
 interface ClientRepositoryInterface
 {

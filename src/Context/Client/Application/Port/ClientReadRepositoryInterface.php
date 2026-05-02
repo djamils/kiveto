@@ -8,7 +8,7 @@ use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 
 interface ClientReadRepositoryInterface
 {

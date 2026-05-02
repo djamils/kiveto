@@ -61,12 +61,12 @@ final class SchedulingPlanningBlockStory extends Story
             null,
         );
 
-        // Rousseau — congé 2026-03-25 (entire day)
+        // Rousseau — leave 2026-03-25 (entire day)
         $this->createBlock(
             PlanningBlockDataset::BLOCK_ROUSSEAU_CONGE_MARCH_25_ID,
             $clinicId,
             $vetUserId,
-            PlanningBlockType::CONGE,
+            PlanningBlockType::LEAVE,
             '2026-03-25',
             '00:00',
             '23:59',
@@ -89,12 +89,12 @@ final class SchedulingPlanningBlockStory extends Story
             null,
         );
 
-        // Dupont — weekly chirurgie Monday 13:00–17:00
+        // Dupont — weekly surgery Monday 13:00–17:00
         $this->createBlock(
             PlanningBlockDataset::BLOCK_DUPONT_CHIRURGIE_MONDAY_ID,
             $clinicId,
             $contractorUserId,
-            PlanningBlockType::CHIRURGIE,
+            PlanningBlockType::SURGERY,
             '2026-04-21',
             '13:00',
             '17:00',

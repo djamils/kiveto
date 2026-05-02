@@ -13,12 +13,14 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 final class DefaultLocaleResolverTest extends TestCase
 {
-    public function testBackofficeForcedFr(): void
+    private const array SHORT_MAP = ['fr' => 'fr-FR', 'en' => 'en-GB'];
+
+    public function testBackofficeReturnsBakcofficeLocale(): void
     {
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::BACKOFFICE);
 
-        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en-GB');
+        $resolver = $this->makeResolver(new RequestStack(), $scopeResolver, backofficeLocale: 'fr-FR');
 
         self::assertSame('fr-FR', $resolver->resolve()->toString());
     }
@@ -33,12 +35,12 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
+        $resolver = $this->makeResolver($stack, $scopeResolver);
 
         self::assertSame('en-GB', $resolver->resolve()->toString());
     }
 
-    public function testAcceptLanguageFallback(): void
+    public function testShortLocaleMapExpands(): void
     {
         $stack   = new RequestStack();
         $request = Request::create('/');
@@ -48,12 +50,12 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'en-GB');
+        $resolver = $this->makeResolver($stack, $scopeResolver);
 
         self::assertSame('fr-FR', $resolver->resolve()->toString());
     }
 
-    public function testAcceptLanguageFirstValueParsed(): void
+    public function testShortLocaleMapReadsFromConfig(): void
     {
         $stack   = new RequestStack();
         $request = Request::create('/');
@@ -63,7 +65,7 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
+        $resolver = $this->makeResolver($stack, $scopeResolver);
 
         self::assertSame('en-GB', $resolver->resolve()->toString());
     }
@@ -78,7 +80,7 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'fr-FR');
+        $resolver = $this->makeResolver($stack, $scopeResolver);
 
         self::assertSame('es-ES', $resolver->resolve()->toString());
     }
@@ -88,8 +90,32 @@ final class DefaultLocaleResolverTest extends TestCase
         $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
         $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
 
-        $resolver = new DefaultLocaleResolver(new RequestStack(), $scopeResolver, 'en-GB');
+        $resolver = $this->makeResolver(new RequestStack(), $scopeResolver, defaultLocale: 'en-GB');
 
         self::assertSame('en-GB', $resolver->resolve()->toString());
+    }
+
+    public function testChangingShortMapChangesOutput(): void
+    {
+        $stack   = new RequestStack();
+        $request = Request::create('/');
+        $request->attributes->set('_locale', 'en');
+        $stack->push($request);
+
+        $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
+        $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
+
+        $resolver = new DefaultLocaleResolver($stack, $scopeResolver, 'en-US', 'fr-FR', ['en' => 'en-US']);
+
+        self::assertSame('en-US', $resolver->resolve()->toString());
+    }
+
+    private function makeResolver(
+        RequestStack $stack,
+        AppScopeResolverInterface $scope,
+        string $defaultLocale = 'en-GB',
+        string $backofficeLocale = 'fr-FR',
+    ): DefaultLocaleResolver {
+        return new DefaultLocaleResolver($stack, $scope, $defaultLocale, $backofficeLocale, self::SHORT_MAP);
     }
 }

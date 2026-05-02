@@ -7,9 +7,9 @@ namespace App\Tests\Integration\Context\Animal\Infrastructure\Persistence\Doctri
 use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\LifeStatus;
 use App\Context\Animal\Domain\ValueObject\Species;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use App\Fixtures\Context\Animal\Factory\OwnershipEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

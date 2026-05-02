@@ -9,7 +9,7 @@ use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimals;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsHandler;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class SearchAnimalsHandlerTest extends TestCase

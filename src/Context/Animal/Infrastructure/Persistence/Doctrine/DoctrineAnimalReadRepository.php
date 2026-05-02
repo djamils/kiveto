@@ -16,10 +16,10 @@ use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalS
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -236,7 +236,7 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
             passportNumber: $entity->getPassportNumber(),
             registryType: $entity->getRegistryType()->value,
             registryNumber: $entity->getRegistryNumber(),
-            sireNumber: $entity->getSireNumber(),
+            registryReference: $entity->getRegistryReference(),
         );
 
         $lifeCycle = new LifeCycleDto(

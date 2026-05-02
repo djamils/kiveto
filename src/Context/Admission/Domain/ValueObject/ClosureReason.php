@@ -8,7 +8,7 @@ enum ClosureReason: string
 {
     case ConsultationCompleted    = 'consultation_completed';
     case ReleasedToOwner          = 'released_to_owner';
-    case HandedToMunicipality     = 'handed_to_municipality';
+    case HandedToAuthority        = 'handed_to_authority';
     case HandedToAssociation      = 'handed_to_association';
     case TransferredToOtherClinic = 'transferred_to_other_clinic';
     case AnimalDeceased           = 'animal_deceased';

@@ -10,7 +10,7 @@ use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
 use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalByIdHandler;
 use App\Context\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class GetAnimalByIdHandlerTest extends TestCase
@@ -38,7 +38,7 @@ final class GetAnimalByIdHandlerTest extends TestCase
                 passportNumber: null,
                 registryType: 'lof',
                 registryNumber: 'LOF123',
-                sireNumber: null
+                registryReference: null
             ),
             lifeCycle: new \App\Context\Animal\Application\Query\GetAnimalById\LifeCycleDto(
                 lifeStatus: 'alive',

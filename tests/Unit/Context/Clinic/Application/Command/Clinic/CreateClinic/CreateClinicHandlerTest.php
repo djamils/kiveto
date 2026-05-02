@@ -56,6 +56,8 @@ final class CreateClinicHandlerTest extends TestCase
             slug: 'test-clinic',
             timeZone: 'Europe/Paris',
             locale: 'fr-FR',
+            countryCode: 'FR',
+            currencyCode: 'EUR',
             clinicGroupId: null,
         ));
 
@@ -90,6 +92,8 @@ final class CreateClinicHandlerTest extends TestCase
             slug: 'test-clinic',
             timeZone: 'Europe/Paris',
             locale: 'fr-FR',
+            countryCode: 'FR',
+            currencyCode: 'EUR',
             clinicGroupId: null,
         ));
     }

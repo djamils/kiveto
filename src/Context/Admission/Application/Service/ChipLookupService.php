@@ -9,14 +9,14 @@ use App\Context\Admission\Application\Port\AnimalInClinicWithoutActivePatient;
 use App\Context\Admission\Application\Port\AnimalNotInClinic;
 use App\Context\Admission\Application\Port\AnimalReadRepositoryPort;
 use App\Context\Admission\Application\Port\ChipLookupResult;
-use App\Context\Admission\Application\Port\ICADLookupPort;
+use App\Context\Admission\Application\Port\MicrochipRegistryLookupPort;
 use App\Context\Admission\Application\Port\PatientReadRepositoryPort;
 
 final class ChipLookupService
 {
     public function __construct(
         private AnimalReadRepositoryPort $animalReadRepository,
-        private ICADLookupPort $icadLookupPort,
+        private MicrochipRegistryLookupPort $microchipRegistryLookupPort,
         private PatientReadRepositoryPort $patientReadRepository,
     ) {
     }
@@ -26,8 +26,8 @@ final class ChipLookupService
         $animalView = $this->animalReadRepository->findByMicrochip($chipNumber, $clinicId);
 
         if (null === $animalView) {
-            // Trigger audit-trailed ICAD lookup for unknown chips
-            $this->icadLookupPort->initiateChipLookup($chipNumber, $clinicId);
+            // Trigger audit-trailed microchip registry lookup for unknown chips
+            $this->microchipRegistryLookupPort->initiateChipLookup($chipNumber, $clinicId);
 
             return new AnimalNotInClinic();
         }

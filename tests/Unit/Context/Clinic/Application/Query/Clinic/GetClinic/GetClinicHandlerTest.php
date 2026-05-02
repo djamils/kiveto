@@ -14,6 +14,8 @@ use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 
 final class GetClinicHandlerTest extends TestCase
@@ -26,6 +28,8 @@ final class GetClinicHandlerTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable('2024-01-01T10:00:00+00:00'),
             clinicGroupId: ClinicGroupId::fromString('018f1b1e-9999-7890-abcd-0123456789ab'),
         );

@@ -6,8 +6,8 @@ namespace App\Context\Regulatory\Domain\ValueObject;
 
 enum StrayCustodyStatus: string
 {
-    case Active                     = 'active';
-    case CancelledOwnerFound        = 'cancelled_owner_found';
-    case ClosedHandedToMunicipality = 'closed_handed_to_municipality';
-    case Expired                    = 'expired';
+    case Active                  = 'active';
+    case CancelledOwnerFound     = 'cancelled_owner_found';
+    case ClosedHandedToAuthority = 'closed_handed_to_authority';
+    case Expired                 = 'expired';
 }

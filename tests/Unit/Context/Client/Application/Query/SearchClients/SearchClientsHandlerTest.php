@@ -7,7 +7,7 @@ namespace App\Tests\Unit\Context\Client\Application\Query\SearchClients;
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsHandler;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class SearchClientsHandlerTest extends TestCase

@@ -13,7 +13,10 @@ final readonly class CreateClinic implements CommandInterface
         public string $slug,
         public string $timeZone,
         public string $locale,
+        public string $countryCode,
+        public string $currencyCode,
         public ?string $clinicGroupId = null,
+        public ?string $jurisdictionCode = null,
     ) {
     }
 }

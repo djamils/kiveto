@@ -7,7 +7,7 @@ namespace App\Tests\Unit\Context\Client\Application\Query\GetClientNamesByIds;
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
 use App\Context\Client\Application\Query\GetClientNamesByIds\GetClientNamesByIds;
 use App\Context\Client\Application\Query\GetClientNamesByIds\GetClientNamesByIdsHandler;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class GetClientNamesByIdsHandlerTest extends TestCase

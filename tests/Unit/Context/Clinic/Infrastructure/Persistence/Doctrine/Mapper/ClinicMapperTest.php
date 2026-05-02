@@ -13,6 +13,8 @@ use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -33,6 +35,9 @@ final class ClinicMapperTest extends TestCase
         $entity->setSlug('test-clinic');
         $entity->setTimeZone('Europe/Paris');
         $entity->setLocale('fr-FR');
+        $entity->setCountryCode('FR');
+        $entity->setJurisdictionCode(null);
+        $entity->setCurrencyCode('EUR');
         $entity->setStatus(ClinicStatus::ACTIVE);
         $entity->setCreatedAt(new \DateTimeImmutable('2024-01-01T10:00:00Z'));
         $entity->setUpdatedAt(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
@@ -61,6 +66,9 @@ final class ClinicMapperTest extends TestCase
         $entity->setSlug('test-clinic');
         $entity->setTimeZone('Europe/Paris');
         $entity->setLocale('fr-FR');
+        $entity->setCountryCode('FR');
+        $entity->setJurisdictionCode(null);
+        $entity->setCurrencyCode('EUR');
         $entity->setStatus(ClinicStatus::ACTIVE);
         $entity->setCreatedAt(new \DateTimeImmutable('2024-01-01T10:00:00Z'));
         $entity->setUpdatedAt(new \DateTimeImmutable('2024-01-02T10:00:00Z'));
@@ -79,6 +87,8 @@ final class ClinicMapperTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             clinicGroupId: ClinicGroupId::fromString('018f1b1e-9999-7890-abcd-0123456789ab'),
         );
@@ -104,6 +114,8 @@ final class ClinicMapperTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             clinicGroupId: null,
         );
@@ -121,6 +133,9 @@ final class ClinicMapperTest extends TestCase
         $entity->setSlug('test-clinic');
         $entity->setTimeZone('America/New_York');
         $entity->setLocale('en-US');
+        $entity->setCountryCode('DE');
+        $entity->setJurisdictionCode('DE-BY');
+        $entity->setCurrencyCode('EUR');
         $entity->setStatus(ClinicStatus::SUSPENDED);
         $entity->setCreatedAt(new \DateTimeImmutable('2024-01-01T10:00:00Z'));
         $entity->setUpdatedAt(new \DateTimeImmutable('2024-01-02T10:00:00Z'));

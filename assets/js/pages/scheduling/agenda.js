@@ -35,13 +35,13 @@ let freeDuration = 20;
 // Sync with ACTIVITY_TYPES in planning.js and PlanningBlockType.php when adding new types.
 const PLANNING_BLOCK_TYPES = {
   consultation: { color: '#4338ca', bg: '#eef2ff', label: 'Consultation' },
-  chirurgie:    { color: '#b45309', bg: '#fef3c7', label: 'Chirurgie'    },
-  garde:        { color: '#7c3aed', bg: '#f5f3ff', label: 'Garde'        },
-  bilan:        { color: '#059669', bg: '#ecfdf5', label: 'Bilans/Labo'  },
-  formation:    { color: '#0891b2', bg: '#ecfeff', label: 'Formation'    },
-  conge:        { color: '#dc2626', bg: '#fef2f2', label: 'Congé'        },
+  surgery:      { color: '#b45309', bg: '#fef3c7', label: 'Chirurgie'    },
+  on_call:      { color: '#7c3aed', bg: '#f5f3ff', label: 'Garde'        },
+  health_check: { color: '#059669', bg: '#ecfdf5', label: 'Bilans/Labo'  },
+  training:     { color: '#0891b2', bg: '#ecfeff', label: 'Formation'    },
+  leave:        { color: '#dc2626', bg: '#fef2f2', label: 'Congé'        },
   admin:        { color: '#64748b', bg: '#f8fafc', label: 'Admin'        },
-  urgence:      { color: '#ea580c', bg: '#fff7ed', label: 'Urgences'     },
+  emergency:    { color: '#ea580c', bg: '#fff7ed', label: 'Urgences'     },
 };
 const PLANNING_OVERLAY_LS_KEY = 'kiveto.agenda.planning-overlay';
 let planningBlocksVisible = false;

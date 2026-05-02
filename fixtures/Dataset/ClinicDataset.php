@@ -15,6 +15,7 @@ use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\Translation\Story\RegulatoryTranslationStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 
@@ -54,5 +55,8 @@ final class ClinicDataset extends Story
 
         // Seed PlanningBlock fixtures
         SchedulingPlanningBlockStory::load();
+
+        // Seed Regulatory BC translation labels
+        RegulatoryTranslationStory::load();
     }
 }

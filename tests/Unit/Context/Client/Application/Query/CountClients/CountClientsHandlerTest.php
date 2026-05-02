@@ -8,7 +8,7 @@ use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
 use App\Context\Client\Application\Query\CountClients\CountClients;
 use App\Context\Client\Application\Query\CountClients\CountClientsHandler;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class CountClientsHandlerTest extends TestCase

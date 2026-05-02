@@ -28,7 +28,7 @@ final class CreateAnimalTest extends TestCase
             passportNumber: 'PASS123',
             registryType: 'lof',
             registryNumber: 'LOF123',
-            sireNumber: 'SIRE123',
+            registryReference: 'SIRE123',
             lifeStatus: 'alive',
             deceasedAt: null,
             missingSince: null,
@@ -58,7 +58,7 @@ final class CreateAnimalTest extends TestCase
         self::assertSame('PASS123', $command->passportNumber);
         self::assertSame('lof', $command->registryType);
         self::assertSame('LOF123', $command->registryNumber);
-        self::assertSame('SIRE123', $command->sireNumber);
+        self::assertSame('SIRE123', $command->registryReference);
         self::assertSame('alive', $command->lifeStatus);
         self::assertNull($command->deceasedAt);
         self::assertNull($command->missingSince);

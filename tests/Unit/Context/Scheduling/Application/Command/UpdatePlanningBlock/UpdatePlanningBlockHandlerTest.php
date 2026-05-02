@@ -73,7 +73,7 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         $this->expectException(CannotChangePlanningBlockTypeWithActiveAppointments::class);
         $this->setupHappyPath(appointmentCount: 1);
 
-        ($this->handler)($this->baseCommand(['type' => 'chirurgie']));
+        ($this->handler)($this->baseCommand(['type' => 'surgery']));
     }
 
     #[AllowMockObjectsWithoutExpectations]

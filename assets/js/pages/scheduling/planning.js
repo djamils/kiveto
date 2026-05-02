@@ -16,13 +16,13 @@ let nextId       = 1;
 
 const ACTIVITY_TYPES = [
   { id:'consultation', label:'Consultation',  color:'#4338ca', bg:'#eef2ff',  icon:'🩺', cap:3 },
-  { id:'chirurgie',    label:'Chirurgie',      color:'#b45309', bg:'#fef3c7',  icon:'🔪', cap:1 },
-  { id:'garde',        label:'Garde',          color:'#7c3aed', bg:'#f5f3ff',  icon:'🌙', cap:2 },
-  { id:'bilan',        label:'Bilans / Labo',  color:'#059669', bg:'#ecfdf5',  icon:'🔬', cap:4 },
-  { id:'formation',    label:'Formation',      color:'#0891b2', bg:'#ecfeff',  icon:'📚', cap:0 },
-  { id:'conge',        label:'Congé / Absent', color:'#dc2626', bg:'#fef2f2',  icon:'🏖️', cap:0 },
+  { id:'surgery',      label:'Chirurgie',      color:'#b45309', bg:'#fef3c7',  icon:'🔪', cap:1 },
+  { id:'on_call',      label:'Garde',          color:'#7c3aed', bg:'#f5f3ff',  icon:'🌙', cap:2 },
+  { id:'health_check', label:'Bilans / Labo',  color:'#059669', bg:'#ecfdf5',  icon:'🔬', cap:4 },
+  { id:'training',     label:'Formation',      color:'#0891b2', bg:'#ecfeff',  icon:'📚', cap:0 },
+  { id:'leave',        label:'Congé / Absent', color:'#dc2626', bg:'#fef2f2',  icon:'🏖️', cap:0 },
   { id:'admin',        label:'Administratif',  color:'#64748b', bg:'#f8fafc',  icon:'📋', cap:0 },
-  { id:'urgence',      label:'Urgences',       color:'#ea580c', bg:'#fff7ed',  icon:'🚨', cap:5 },
+  { id:'emergency',    label:'Urgences',       color:'#ea580c', bg:'#fff7ed',  icon:'🚨', cap:5 },
 ];
 
 // =============== STATE ===============

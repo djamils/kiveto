@@ -49,6 +49,10 @@ class PlanningBlockEntity
     #[ORM\Column(type: 'string', length: 500, nullable: true)]
     private ?string $note;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(name: 'created_at_utc', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -174,6 +178,11 @@ class PlanningBlockEntity
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): void

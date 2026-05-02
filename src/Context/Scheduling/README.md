@@ -1,49 +1,43 @@
 # Scheduling Bounded Context
 
-## Overview
-
-The **Scheduling** Bounded Context manages appointments and waiting room operations for veterinary clinics.
+The **Scheduling** Bounded Context manages planning blocks and appointments for veterinary clinics. It owns the practitioner agenda and enforces scheduling invariants.
 
 ## Ubiquitous Language
 
-- **Appointment**: A scheduled time slot for a client's animal with optional practitioner assignment
-- **PractitionerAssignee**: A veterinary professional assigned to an appointment
-- **TimeSlot**: Start time (UTC) and duration defining when an appointment occurs
-- **WaitingRoomEntry**: Real-time queue entry for patients arriving at the clinic
-- **Origin**: Whether an entry came from a scheduled appointment (SCHEDULED) or walk-in (WALK_IN)
-- **ArrivalMode**: STANDARD or EMERGENCY (emergency takes priority)
-- **Check-in**: The process of creating a waiting room entry from an appointment
+- **PlanningBlock** — a time window reserved on a practitioner's agenda for a specific activity type (e.g. surgery, consultation, leave).
+- **PlanningBlockType** — enum of activity types: `CONSULTATION | SURGERY | HEALTH_CHECK | EMERGENCY | ON_CALL | LEAVE | TRAINING | ADMIN`.
+- **RecurrenceRule** — describes how a planning block repeats: none, daily, weekdays, weekly.
+- **Appointment** — a scheduled visit for an animal with a practitioner within a clinic time slot.
+- **PractitionerAssignee** — the veterinary professional assigned to an appointment.
+- **TimeSlot** — start time (UTC) and duration in minutes defining when an appointment occurs.
+- **TimeRange** — a date + start time + end time defining a planning block's active window.
 
 ## Aggregates
 
-### Appointment
-- Manages scheduled visits with optional practitioner assignment
-- Status lifecycle: PLANNED → CANCELLED/NO_SHOW/COMPLETED
-- Supports rescheduling, practitioner assignment/reassignment/unassignment
-- Domain enforces valid time slots and status transitions
+### PlanningBlock
+Represents a reserved time window in a practitioner's agenda. Carries: clinic ID, staff user ID, type, time range, capacity per hour, recurrence rule, optional note. Capacity is enforced at appointment scheduling time. Blocks of type `LEAVE`, `TRAINING`, or `ADMIN` do not accept appointments and have no capacity limit.
 
-### WaitingRoomEntry
-- Manages real-time patient queue at the clinic
-- Origin: SCHEDULED (linked to appointment) or WALK_IN
-- Status lifecycle: WAITING → CALLED → IN_SERVICE → CLOSED
-- Supports triage updates (priority, notes, arrival mode)
-- Emergency entries have higher priority in queue
+### Appointment
+Represents a scheduled patient visit. Carries: clinic ID, practitioner assignee, time slot, reason, notes, linked admission ID (optional), owner ID (optional), animal ID (optional). Status lifecycle: `PLANNED → CANCELLED | NO_SHOW | COMPLETED`. Once in a terminal status, an appointment cannot be modified.
 
 ## Business Rules
 
-1. **No Overlaps**: A practitioner cannot have overlapping appointments (enforced at application layer)
-2. **Terminal Status**: Once an appointment reaches CANCELLED, NO_SHOW, or COMPLETED, it cannot be modified
-3. **Unique Check-in**: Only one active waiting room entry per appointment
-4. **Status Transitions**: Enforced by domain (e.g., WAITING can go to CALLED or IN_SERVICE)
-5. **Origin Constraint**: SCHEDULED entries must have linkedAppointmentId; WALK_IN entries must not
+1. A practitioner cannot have overlapping appointments (enforced by `AppointmentConflictCheckerInterface`).
+2. Appointments cannot be scheduled inside a block that does not accept appointments.
+3. Appointments cannot exceed the block's capacity for the time slot.
+4. Appointment status transitions are enforced by the domain (no arbitrary jumps).
+5. Rescheduling is only allowed on `PLANNED` appointments.
 
-## Integration Points
+## Application Ports
 
-- **AccessControl BC**: Validates practitioner membership and roles
-- **Client BC**: Validates owner existence
-- **Animal BC**: Validates animal existence
-- **Consultation BC** (future): Consultation start triggers service start in scheduling
+| Interface | Purpose |
+|-----------|---------|
+| `MembershipEligibilityCheckerInterface` | Verifies practitioner has an active membership at the clinic (Clinic BC) |
+| `ClinicTimezoneResolverInterface` | Resolves clinic timezone from clinic ID for local-time calculations (Clinic BC) |
+| `PlanningBlockFinderInterface` | Finds the active planning block covering a given time slot |
+| `AppointmentConflictCheckerInterface` | Checks for overlapping appointments |
+| `PlanningBlockAppointmentCounterInterface` | Counts appointments in a block for capacity enforcement |
 
-## Anti-Corruption Layer
+## Cross-BC Notes
 
-All external BC IDs (UserId, ClinicId, OwnerId, AnimalId) are encapsulated in local Value Objects. The domain is fully autonomous.
+All external BC IDs (`ClinicId`, `UserId`, `OwnerId`, `AnimalId`) are encapsulated in BC-local value objects. No Doctrine relations cross BC boundaries.

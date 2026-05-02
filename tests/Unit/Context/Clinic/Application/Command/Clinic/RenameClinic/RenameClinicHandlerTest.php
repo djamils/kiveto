@@ -16,6 +16,8 @@ use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 
 final class RenameClinicHandlerTest extends TestCase
@@ -29,6 +31,8 @@ final class RenameClinicHandlerTest extends TestCase
             ClinicSlug::fromString('old-name'),
             TimeZone::fromString('Europe/Paris'),
             Locale::fromString('fr-FR'),
+            CountryCode::fromString('FR'),
+            CurrencyCode::fromString('EUR'),
             new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             null,
         );

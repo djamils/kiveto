@@ -9,7 +9,7 @@ use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\GetClientById\GetClientByIdHandler;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class GetClientByIdHandlerTest extends TestCase

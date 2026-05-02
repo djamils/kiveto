@@ -10,7 +10,7 @@
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% set isEmergency = presetIntake in ['emergency', 'emergency_by_third_party', 'emergency_by_authority', 'emergency_by_association', 'emergency_by_municipality'] %}
+{% set isEmergency = presetIntake in ['emergency', 'emergency_by_third_party', 'emergency_by_authority', 'emergency_by_association'] %}
 {% set isWalkIn    = presetIntake == 'walk_in' %}
 
 {% block title %}
@@ -28,7 +28,6 @@
   'emergency_by_third_party':  'Urgence (tiers)',
   'emergency_by_authority':    'Urgence (autorités)',
   'emergency_by_association':  'Urgence (association)',
-  'emergency_by_municipality': 'Urgence (mairie / fourrière)',
   'transfer_from_other_clinic':'Transfert (autre clinique)',
 } %}
 
@@ -183,7 +182,6 @@
               <option value="third_party">Tiers</option>
               <option value="authority">Autorité</option>
               <option value="association">Association</option>
-              <option value="municipality">Municipalité</option>
               <option value="unknown">Inconnu</option>
             </select>
           </div>

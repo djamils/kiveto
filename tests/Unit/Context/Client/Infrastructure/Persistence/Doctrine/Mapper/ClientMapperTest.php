@@ -8,6 +8,7 @@ use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
@@ -15,7 +16,6 @@ use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddr
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\ValueObject\EmailAddress;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\Shared\Domain\ValueObject\PostalAddress;

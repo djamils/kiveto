@@ -61,10 +61,13 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
             'timeZone' => self::faker()->randomElement([
                 'Europe/Paris', 'Europe/London', 'America/New_York', 'UTC',
             ]),
-            'locale'        => self::faker()->randomElement(['fr-FR', 'en-US', 'en-GB', 'de-DE']),
-            'clinicGroupId' => null,
-            'createdAt'     => $now,
-            'updatedAt'     => $now,
+            'locale'           => self::faker()->randomElement(['fr-FR', 'en-US', 'en-GB', 'de-DE']),
+            'countryCode'      => 'FR',
+            'jurisdictionCode' => null,
+            'currencyCode'     => 'EUR',
+            'clinicGroupId'    => null,
+            'createdAt'        => $now,
+            'updatedAt'        => $now,
         ];
     }
 }

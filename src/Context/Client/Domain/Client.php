@@ -18,9 +18,9 @@ use App\Context\Client\Domain\Exception\PrimaryContactMethodConflictException;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\ValueObject\PostalAddress;
 

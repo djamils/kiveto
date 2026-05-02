@@ -8,8 +8,8 @@ use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 

@@ -27,7 +27,7 @@ final readonly class CreateAnimal implements CommandInterface
         public ?string $passportNumber,
         public string $registryType,
         public ?string $registryNumber,
-        public ?string $sireNumber,
+        public ?string $registryReference,
         public string $lifeStatus,
         public ?string $deceasedAt,
         public ?string $missingSince,

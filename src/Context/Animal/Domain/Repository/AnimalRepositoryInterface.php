@@ -7,7 +7,7 @@ namespace App\Context\Animal\Domain\Repository;
 use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 
 interface AnimalRepositoryInterface
 {

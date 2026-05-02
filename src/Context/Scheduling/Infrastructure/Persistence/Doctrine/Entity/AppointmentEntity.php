@@ -53,6 +53,10 @@ class AppointmentEntity
     #[ORM\Column(name: 'service_started_at_utc', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $serviceStartedAt;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(name: 'created_at_utc', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -192,6 +196,11 @@ class AppointmentEntity
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): void

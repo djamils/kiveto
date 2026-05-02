@@ -12,14 +12,14 @@ use App\Context\Admission\Domain\ValueObject\TriageLevel;
 use App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity\AdmissionEntity;
 use App\Context\Patient\Domain\ValueObject\DisplayLabelKind;
 use App\Context\Patient\Infrastructure\Persistence\Doctrine\Entity\PatientEntity;
-use App\Context\Regulatory\Domain\ValueObject\MairieNotificationStatus;
+use App\Context\Regulatory\Domain\ValueObject\AuthorityNotificationStatus;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyStatus;
 use App\Context\Regulatory\Infrastructure\Persistence\Doctrine\Entity\StrayCustodyEntity;
 use App\Fixtures\Context\Admission\Factory\AdmissionEntityFactory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Consultation\Factory\ConsultationEntityFactory;
 use App\Fixtures\Context\Patient\Factory\PatientEntityFactory;
-use App\Fixtures\Context\Regulatory\Factory\MairieNotificationEntityFactory;
+use App\Fixtures\Context\Regulatory\Factory\AuthorityNotificationEntityFactory;
 use App\Fixtures\Context\Regulatory\Factory\StrayCustodyEntityFactory;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Story;
@@ -116,15 +116,15 @@ final class PatientAdmissionScenariosStory extends Story
                 $entity->setLocationStatusEnteredAt(new \DateTimeImmutable('-2 days'));
                 $entity->setClosedAt(new \DateTimeImmutable('-1 day'));
             })
-            ->closed(ClosureReason::HandedToMunicipality)
+            ->closed(ClosureReason::HandedToAuthority)
             ->create()
         ;
 
-        MairieNotificationEntityFactory::new()
+        AuthorityNotificationEntityFactory::new()
             ->withClinicId($clinicId)
             ->withAdmissionId($admission->getId()->toString())
             ->withPatientId($patient->getId()->toString())
-            ->withStatus(MairieNotificationStatus::Sent)
+            ->withStatus(AuthorityNotificationStatus::Sent)
             ->create()
         ;
 
@@ -132,7 +132,7 @@ final class PatientAdmissionScenariosStory extends Story
             ->withClinicId($clinicId)
             ->withAdmissionId($admission->getId()->toString())
             ->withPatientId($patient->getId()->toString())
-            ->withStatus(StrayCustodyStatus::ClosedHandedToMunicipality)
+            ->withStatus(StrayCustodyStatus::ClosedHandedToAuthority)
             ->afterInstantiate(static function (StrayCustodyEntity $entity): void {
                 $entity->setDeadline(new \DateTimeImmutable('-1 day'));
             })
@@ -189,11 +189,11 @@ final class PatientAdmissionScenariosStory extends Story
             ->create()
         ;
 
-        MairieNotificationEntityFactory::new()
+        AuthorityNotificationEntityFactory::new()
             ->withClinicId($clinicId)
             ->withAdmissionId($admission->getId()->toString())
             ->withPatientId($patient->getId()->toString())
-            ->withStatus(MairieNotificationStatus::Sent)
+            ->withStatus(AuthorityNotificationStatus::Sent)
             ->create()
         ;
     }

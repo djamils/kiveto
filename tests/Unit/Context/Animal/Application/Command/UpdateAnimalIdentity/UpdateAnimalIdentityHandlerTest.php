@@ -12,13 +12,13 @@ use App\Context\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
 use App\Context\Animal\Domain\ValueObject\Sex;
 use App\Context\Animal\Domain\ValueObject\Species;
 use App\Context\Animal\Domain\ValueObject\Transfer;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
@@ -79,7 +79,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
             passportNumber: null,
             registryType: 'none',
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
             auxiliaryContactFirstName: null,
             auxiliaryContactLastName: null,
             auxiliaryContactPhoneNumber: null,
@@ -174,7 +174,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
             passportNumber: null,
             registryType: 'none',
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
             auxiliaryContactFirstName: null,
             auxiliaryContactLastName: null,
             auxiliaryContactPhoneNumber: null,
@@ -219,7 +219,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
                 passportNumber: null,
                 registryType: \App\Context\Animal\Domain\ValueObject\RegistryType::NONE,
                 registryNumber: null,
-                sireNumber: null,
+                registryReference: null,
             ),
             lifeCycle: LifeCycle::alive(),
             transfer: Transfer::none(),
@@ -255,7 +255,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
             passportNumber: null,
             registryType: 'none',
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
             auxiliaryContactFirstName: null,
             auxiliaryContactLastName: null,
             auxiliaryContactPhoneNumber: null,
@@ -340,7 +340,7 @@ final class UpdateAnimalIdentityHandlerTest extends TestCase
             passportNumber: null,
             registryType: 'none',
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
             auxiliaryContactFirstName: 'John',
             auxiliaryContactLastName: 'Doe',
             auxiliaryContactPhoneNumber: '+33612345678',

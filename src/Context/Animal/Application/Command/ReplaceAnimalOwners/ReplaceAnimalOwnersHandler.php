@@ -7,7 +7,7 @@ namespace App\Context\Animal\Application\Command\ReplaceAnimalOwners;
 use App\Context\Animal\Domain\Exception\AnimalClinicMismatchException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 // CommandHandlerInterface removed - Symfony handles it via AsMessageHandler
 use App\Shared\Domain\Time\ClockInterface;

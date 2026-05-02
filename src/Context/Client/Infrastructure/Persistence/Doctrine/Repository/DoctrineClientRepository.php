@@ -8,10 +8,10 @@ use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Exception\ClientNotFoundException;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\ClientId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 

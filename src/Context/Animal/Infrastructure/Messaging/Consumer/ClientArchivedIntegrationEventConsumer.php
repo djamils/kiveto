@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Animal\Infrastructure\Messaging\Consumer;
 
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\Event\ClientArchivedIntegrationEvent;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Psr\Log\LoggerInterface;

@@ -36,7 +36,7 @@ final class AnimalDtosTest extends TestCase
             passportNumber: 'PASS001',
             registryType: 'lof',
             registryNumber: 'LOF12345',
-            sireNumber: 'SIRE001'
+            registryReference: 'SIRE001'
         );
 
         self::assertSame('123456789', $dto->microchipNumber);
@@ -44,7 +44,7 @@ final class AnimalDtosTest extends TestCase
         self::assertSame('PASS001', $dto->passportNumber);
         self::assertSame('lof', $dto->registryType);
         self::assertSame('LOF12345', $dto->registryNumber);
-        self::assertSame('SIRE001', $dto->sireNumber);
+        self::assertSame('SIRE001', $dto->registryReference);
     }
 
     public function testLifeCycleDto(): void
@@ -152,7 +152,7 @@ final class AnimalDtosTest extends TestCase
                 passportNumber: null,
                 registryType: 'none',
                 registryNumber: null,
-                sireNumber: null
+                registryReference: null
             ),
             lifeCycle: new LifeCycleDto(
                 lifeStatus: 'alive',
@@ -209,7 +209,7 @@ final class AnimalDtosTest extends TestCase
                 passportNumber: null,
                 registryType: 'none',
                 registryNumber: null,
-                sireNumber: null
+                registryReference: null
             ),
             lifeCycle: new LifeCycleDto(
                 lifeStatus: 'alive',

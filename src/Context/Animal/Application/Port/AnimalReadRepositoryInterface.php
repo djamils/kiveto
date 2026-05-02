@@ -10,7 +10,7 @@ use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalS
 use App\Context\Animal\Application\Query\SearchAnimals\AnimalListItemView;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 
 interface AnimalReadRepositoryInterface
 {

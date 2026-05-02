@@ -6,8 +6,8 @@ namespace App\Tests\Unit\Context\Regulatory;
 
 use App\Context\Regulatory\Domain\Event\StrayCustodyBegun;
 use App\Context\Regulatory\Domain\Event\StrayCustodyCancelledOwnerFound;
-use App\Context\Regulatory\Domain\Event\StrayCustodyClosedHandedToMunicipality;
-use App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator;
+use App\Context\Regulatory\Domain\Event\StrayCustodyClosedHandedToAuthority;
+use App\Context\Regulatory\Domain\Policy\RegulatoryPolicyInterface;
 use App\Context\Regulatory\Domain\StrayCustody;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyId;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyStatus;
@@ -20,11 +20,17 @@ final class StrayCustodyTest extends TestCase
     private const string PATIENT_ID   = '33333333-3333-3333-3333-333333333333';
     private const string CLINIC_ID    = '44444444-4444-4444-4444-444444444444';
 
-    private FrenchWorkingDayCalculator $calculator;
+    private RegulatoryPolicyInterface $policy;
 
     protected function setUp(): void
     {
-        $this->calculator = new FrenchWorkingDayCalculator();
+        $this->policy = $this->createStub(RegulatoryPolicyInterface::class);
+        $this->policy->method('getStrayCustodyDeadline')
+            ->willReturnCallback(static fn (\DateTimeImmutable $date): \DateTimeImmutable => $date->modify('+15 days'))
+        ;
+        $this->policy->method('getAuthorityNotificationDeadline')
+            ->willReturnCallback(static fn (\DateTimeImmutable $date): \DateTimeImmutable => $date->modify('+2 days'))
+        ;
     }
 
     public function testBeginCreatesWithActiveStatus(): void
@@ -37,7 +43,7 @@ final class StrayCustodyTest extends TestCase
         self::assertSame(self::PATIENT_ID, $custody->patientId());
         self::assertSame(self::CLINIC_ID, $custody->clinicId());
         self::assertSame(1, $custody->version());
-        // Acceptance criterion: deadline = May 15, 2026
+        // Stub returns +15 days from admission: 2026-04-30 + 15 = 2026-05-15
         self::assertSame('2026-05-15', $custody->deadline()->format('Y-m-d'));
 
         $events = $custody->pullDomainEvents();
@@ -79,22 +85,22 @@ final class StrayCustodyTest extends TestCase
         self::assertSame(self::ADMISSION_ID, $event->admissionId);
     }
 
-    public function testCloseHandedToMunicipalityChangesStatus(): void
+    public function testCloseHandedToAuthorityChangesStatus(): void
     {
         $custody = $this->makeBegunCustody();
         $_       = $custody->pullDomainEvents(); // Clear begin event
 
         $now = $this->makeNow()->modify('+8 days');
-        $custody->closeHandedToMunicipality($now);
+        $custody->closeHandedToAuthority($now);
 
-        self::assertSame(StrayCustodyStatus::ClosedHandedToMunicipality, $custody->status());
+        self::assertSame(StrayCustodyStatus::ClosedHandedToAuthority, $custody->status());
 
         $events = $custody->pullDomainEvents();
         self::assertCount(1, $events);
-        self::assertInstanceOf(StrayCustodyClosedHandedToMunicipality::class, $events[0]);
+        self::assertInstanceOf(StrayCustodyClosedHandedToAuthority::class, $events[0]);
 
         $event = $events[0];
-        self::assertInstanceOf(StrayCustodyClosedHandedToMunicipality::class, $event);
+        self::assertInstanceOf(StrayCustodyClosedHandedToAuthority::class, $event);
         self::assertSame(self::CUSTODY_ID, $event->custodyId);
         self::assertSame(self::ADMISSION_ID, $event->admissionId);
     }
@@ -104,14 +110,14 @@ final class StrayCustodyTest extends TestCase
         $custody = $this->makeBegunCustody();
 
         $now = $this->makeNow()->modify('+8 days');
-        $custody->closeHandedToMunicipality($now);
+        $custody->closeHandedToAuthority($now);
 
         $this->expectException(\DomainException::class);
 
         $custody->cancelOwnerFound($now);
     }
 
-    public function testCloseHandedToMunicipalityThrowsIfAlreadyCancelled(): void
+    public function testCloseHandedToAuthorityThrowsIfAlreadyCancelled(): void
     {
         $custody = $this->makeBegunCustody();
 
@@ -120,7 +126,7 @@ final class StrayCustodyTest extends TestCase
 
         $this->expectException(\DomainException::class);
 
-        $custody->closeHandedToMunicipality($now);
+        $custody->closeHandedToAuthority($now);
     }
 
     public function testReconstituteFromPersistenceDoesNotRecordEvents(): void
@@ -156,7 +162,7 @@ final class StrayCustodyTest extends TestCase
             patientId: self::PATIENT_ID,
             clinicId: self::CLINIC_ID,
             admissionOpenedAt: $this->makeNow(),
-            calculator: $this->calculator,
+            policy: $this->policy,
             now: $this->makeNow(),
         );
     }

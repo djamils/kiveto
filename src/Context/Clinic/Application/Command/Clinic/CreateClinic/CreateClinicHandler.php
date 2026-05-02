@@ -15,6 +15,8 @@ use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -41,13 +43,16 @@ final class CreateClinicHandler
         $clinicGroupId = $command->clinicGroupId ? ClinicGroupId::fromString($command->clinicGroupId) : null;
 
         $clinic = Clinic::create(
-            $clinicId,
-            $command->name,
-            $slug,
-            TimeZone::fromString($command->timeZone),
-            Locale::fromString($command->locale),
-            $now,
-            $clinicGroupId,
+            id: $clinicId,
+            name: $command->name,
+            slug: $slug,
+            timeZone: TimeZone::fromString($command->timeZone),
+            locale: Locale::fromString($command->locale),
+            countryCode: CountryCode::fromString($command->countryCode),
+            currencyCode: CurrencyCode::fromString($command->currencyCode),
+            createdAt: $now,
+            clinicGroupId: $clinicGroupId,
+            jurisdictionCode: $command->jurisdictionCode,
         );
 
         $this->clinicRepository->save($clinic);

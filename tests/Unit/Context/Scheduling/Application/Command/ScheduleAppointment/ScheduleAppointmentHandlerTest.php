@@ -217,7 +217,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     public function testBlockNotAcceptingAppointmentsThrows(): void
     {
         $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('conge');
+        $this->expectExceptionMessage('leave');
 
         $command = new ScheduleAppointment(
             clinicId: '11111111-1111-1111-1111-111111111111',
@@ -233,7 +233,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
             new PlanningBlockReadModel(
                 id: 'aabbccdd-0000-0000-0000-000000000001',
-                type: PlanningBlockType::CONGE,
+                type: PlanningBlockType::LEAVE,
                 capacityPerHour: 0,
                 currentAppointmentCount: 0,
                 acceptsAppointments: false,

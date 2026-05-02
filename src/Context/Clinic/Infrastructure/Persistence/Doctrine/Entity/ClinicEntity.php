@@ -38,6 +38,19 @@ class ClinicEntity
     #[ORM\Column(type: 'string', length: 16)]
     private string $locale;
 
+    #[ORM\Column(name: 'country_code', type: 'string', length: 2)]
+    private string $countryCode;
+
+    #[ORM\Column(name: 'jurisdiction_code', type: 'string', length: 16, nullable: true)]
+    private ?string $jurisdictionCode = null;
+
+    #[ORM\Column(name: 'currency_code', type: 'string', length: 3)]
+    private string $currencyCode;
+
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -122,6 +135,41 @@ class ClinicEntity
     public function setCreatedAt(\DateTimeImmutable $createdAt): void
     {
         $this->createdAt = $createdAt;
+    }
+
+    public function getCountryCode(): string
+    {
+        return $this->countryCode;
+    }
+
+    public function setCountryCode(string $countryCode): void
+    {
+        $this->countryCode = $countryCode;
+    }
+
+    public function getJurisdictionCode(): ?string
+    {
+        return $this->jurisdictionCode;
+    }
+
+    public function setJurisdictionCode(?string $jurisdictionCode): void
+    {
+        $this->jurisdictionCode = $jurisdictionCode;
+    }
+
+    public function getCurrencyCode(): string
+    {
+        return $this->currencyCode;
+    }
+
+    public function setCurrencyCode(string $currencyCode): void
+    {
+        $this->currencyCode = $currencyCode;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function getUpdatedAt(): \DateTimeImmutable

@@ -36,6 +36,10 @@ class ClientEntity
     #[ORM\Column(type: 'string', length: 20, enumType: ClientStatus::class)]
     private ClientStatus $status;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -120,6 +124,11 @@ class ClientEntity
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): void

@@ -25,6 +25,8 @@ use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 
 final class OnboardStaffMemberHandlerTest extends TestCase
@@ -264,6 +266,8 @@ final class OnboardStaffMemberHandlerTest extends TestCase
             ClinicSlug::fromString('test-clinic'),
             TimeZone::fromString('Europe/Paris'),
             Locale::fromString('fr-FR'),
+            CountryCode::fromString('FR'),
+            CurrencyCode::fromString('EUR'),
             ClinicStatus::ACTIVE,
             new \DateTimeImmutable('2026-01-01'),
             new \DateTimeImmutable('2026-01-01'),

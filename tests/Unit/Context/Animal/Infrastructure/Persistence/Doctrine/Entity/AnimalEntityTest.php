@@ -43,7 +43,7 @@ final class AnimalEntityTest extends TestCase
         $entity->setPassportNumber('PASS001');
         $entity->setRegistryType(RegistryType::LOF);
         $entity->setRegistryNumber('LOF12345');
-        $entity->setSireNumber('SIRE001');
+        $entity->setRegistryReference('SIRE001');
         $entity->setLifeStatus(LifeStatus::ALIVE);
         $entity->setDeceasedAt(null);
         $entity->setMissingSince(null);
@@ -73,7 +73,7 @@ final class AnimalEntityTest extends TestCase
         self::assertSame('PASS001', $entity->getPassportNumber());
         self::assertSame(RegistryType::LOF, $entity->getRegistryType());
         self::assertSame('LOF12345', $entity->getRegistryNumber());
-        self::assertSame('SIRE001', $entity->getSireNumber());
+        self::assertSame('SIRE001', $entity->getRegistryReference());
         self::assertSame(LifeStatus::ALIVE, $entity->getLifeStatus());
         self::assertNull($entity->getDeceasedAt());
         self::assertNull($entity->getMissingSince());

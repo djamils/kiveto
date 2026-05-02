@@ -10,7 +10,7 @@ use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -40,7 +40,7 @@ final class CreateAnimalHandlerTest extends TestCase
             passportNumber: 'PASS123',
             registryType: 'lof',
             registryNumber: 'LOF123',
-            sireNumber: 'SIRE123',
+            registryReference: 'SIRE123',
             lifeStatus: 'alive',
             deceasedAt: null,
             missingSince: null,
@@ -106,7 +106,7 @@ final class CreateAnimalHandlerTest extends TestCase
             passportNumber: null,
             registryType: 'none',
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
             lifeStatus: 'alive',
             deceasedAt: null,
             missingSince: null,

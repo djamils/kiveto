@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Regulatory\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Regulatory\Application\Port\RegulatoryTasksReadRepositoryInterface;
-use App\Context\Regulatory\Domain\ValueObject\MairieNotificationStatus;
+use App\Context\Regulatory\Domain\ValueObject\AuthorityNotificationStatus;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyStatus;
 use Doctrine\DBAL\Connection;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -20,19 +20,19 @@ final readonly class DoctrineRegulatoryTasksReadRepository implements Regulatory
     /**
      * @return list<array<string, mixed>>
      */
-    public function findPendingMairieNotifications(string $clinicId): array
+    public function findPendingAuthorityNotifications(string $clinicId): array
     {
         $clinicUuid = Uuid::fromString($clinicId)->toBinary();
 
         return $this->connection->fetchAllAssociative(
             'SELECT id, admission_id, patient_id, deadline, created_at
-             FROM regulatory__mairie_notification_entity
+             FROM authority_notifications
              WHERE clinic_id = :clinicId
                AND status = :status
              ORDER BY deadline ASC',
             [
                 'clinicId' => $clinicUuid,
-                'status'   => MairieNotificationStatus::Pending->value,
+                'status'   => AuthorityNotificationStatus::Pending->value,
             ],
             ['clinicId' => UuidType::NAME],
         );
