@@ -54,8 +54,8 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             $entities,
         );
 
-        $conn  = $this->entityManager->getConnection();
-        $rows  = $conn->fetchAllKeyValue(
+        $conn = $this->entityManager->getConnection();
+        $rows = $conn->fetchAllKeyValue(
             'SELECT id, display_label_value FROM patient__patients WHERE id IN (?)',
             [$patientBinIds],
             [ArrayParameterType::STRING],
@@ -83,6 +83,112 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 openedAt: $entity->getOpenedAt()->format(\DateTimeInterface::ATOM),
                 triageNotes: $entity->getTriageNotes(),
                 isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
+            );
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return list<WaitingRoomItemDto>
+     */
+    public function findAllActiveForClinic(string $clinicId): array
+    {
+        $clinicUuid = Uuid::fromString($clinicId);
+
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('a')
+            ->from(AdmissionEntity::class, 'a')
+            ->where('a.clinicId = :clinicId')
+            ->andWhere('a.status = :status')
+            ->setParameter('clinicId', $clinicUuid, UuidType::NAME)
+            ->setParameter('status', AdmissionStatus::Active)
+            ->orderBy('a.openedAt', 'ASC')
+        ;
+
+        /** @var list<AdmissionEntity> $entities */
+        $entities = $qb->getQuery()->getResult();
+
+        if ([] === $entities) {
+            return [];
+        }
+
+        $patientBinIds = array_map(
+            static fn (AdmissionEntity $e): string => $e->getPatientId()->toBinary(),
+            $entities,
+        );
+
+        $conn = $this->entityManager->getConnection();
+
+        $labelRows = $conn->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(p.id) AS patient_id, p.display_label_value, BIN_TO_UUID(p.animal_link_id) AS animal_link_id
+             FROM patient__patients p WHERE p.id IN (?)',
+            [$patientBinIds],
+            [ArrayParameterType::STRING],
+        );
+
+        /** @var array<string, string> $labels */
+        $labels = [];
+        /** @var array<string, string|null> $animalIds */
+        $animalIds = [];
+
+        foreach ($labelRows as $row) {
+            \assert(\is_string($row['patient_id']));
+            \assert(\is_string($row['display_label_value']));
+            $labels[$row['patient_id']]    = $row['display_label_value'];
+            $animalIds[$row['patient_id']] = \is_string($row['animal_link_id']) ? $row['animal_link_id'] : null;
+        }
+
+        // Fetch practitioner label from linked appointment (display-only enrichment)
+        $admissionBinIds = array_map(
+            static fn (AdmissionEntity $e): string => $e->getId()->toBinary(),
+            $entities,
+        );
+
+        $clinicBinary = Uuid::fromString($clinicId)->toBinary();
+
+        $practitionerRows = $conn->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name, sa.reason AS appt_reason
+             FROM scheduling__appointments sa
+             JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = ?
+             JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
+             WHERE sa.linked_admission_id IN (?)',
+            [$clinicBinary, $admissionBinIds],
+            [\Doctrine\DBAL\ParameterType::STRING, ArrayParameterType::STRING],
+        );
+
+        /** @var array<string, string> $practitionerLabels */
+        $practitionerLabels = [];
+        /** @var array<string, string> $appointmentReasons */
+        $appointmentReasons = [];
+        foreach ($practitionerRows as $pr) {
+            \assert(\is_string($pr['admission_id']));
+            if (\is_string($pr['vet_name'])) {
+                $practitionerLabels[$pr['admission_id']] = $pr['vet_name'];
+            }
+            if (\is_string($pr['appt_reason'])) {
+                $appointmentReasons[$pr['admission_id']] = $pr['appt_reason'];
+            }
+        }
+
+        $items = [];
+        foreach ($entities as $entity) {
+            $patientUuid = $entity->getPatientId()->toString();
+            $admissionId = $entity->getId()->toString();
+            $items[]     = new WaitingRoomItemDto(
+                admissionId: $admissionId,
+                clinicId: $entity->getClinicId()->toString(),
+                patientId: $patientUuid,
+                displayLabel: $labels[$patientUuid] ?? $patientUuid,
+                triageLevel: $entity->getTriageLevel()->value,
+                locationStatus: $entity->getLocationStatusValue()->value,
+                intakeChannel: $entity->getIntakeChannel()->value,
+                openedAt: $entity->getOpenedAt()->format(\DateTimeInterface::ATOM),
+                triageNotes: $entity->getTriageNotes(),
+                isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
+                knownAnimalId: $animalIds[$patientUuid] ?? null,
+                practitionerLabel: $practitionerLabels[$admissionId] ?? null,
+                appointmentReason: $appointmentReasons[$admissionId] ?? null,
             );
         }
 

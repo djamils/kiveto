@@ -14,6 +14,8 @@ final readonly class RescheduleAppointment implements CommandInterface
         public \DateTimeImmutable $startsAtUtc,
         public int $durationMinutes,
         public string $practitionerUserId,
+        public ?string $ownerId = null,
+        public ?string $animalId = null,
     ) {
     }
 }

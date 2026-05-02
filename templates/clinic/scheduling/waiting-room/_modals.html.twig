@@ -12,21 +12,41 @@
         <i data-lucide="x" class="wr-icon-xs"></i>
       </button>
     </div>
-    <form method="post" action="{{ path('clinic_scheduling_waitingroom_walkin') }}">
+    <form method="post" action="{{ path('clinic_admission_walkin') }}">
       <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
       <input type="hidden" name="arrivalMode" value="STANDARD">
+      <input type="hidden" name="animalId" id="checkin-animal-id">
       <div class="wr-modal-body">
+        <div class="form-row"
+             data-controller="global-search"
+             data-global-search-url-value="{{ path('clinic_search') }}"
+             data-global-search-mode-value="pick"
+             data-global-search-picker-id-value="walkin-checkin"
+             data-global-search-type-value="animal">
+          <label class="form-label-wr">Rechercher un animal</label>
+          <input type="search"
+                 class="form-input-wr"
+                 placeholder="Nom, puce, téléphone du propriétaire…"
+                 autocomplete="off"
+                 data-global-search-target="input"
+                 data-action="input->global-search#search">
+          <div class="wr-search-results" data-global-search-target="results"></div>
+          <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
+        </div>
         <div class="form-row">
-          <label class="form-label-wr">Animal / Propri&eacute;taire</label>
-          <input class="form-input-wr" name="foundAnimalDescription" placeholder="Ex : Milo (Canin) &mdash; Mme Dupont">
+          <label class="form-label-wr">Animal / Propriétaire</label>
+          <input class="form-input-wr"
+                 name="foundAnimalDescription"
+                 id="checkin-description"
+                 placeholder="Ex : Milo (Canin) — Mme Dupont">
         </div>
         <div class="wr-form-grid-2">
           <div class="form-row">
             <label class="form-label-wr">Motif de visite</label>
-            <input class="form-input-wr" name="triageNotes" placeholder="D&eacute;crivez bri&egrave;vement...">
+            <input class="form-input-wr" name="triageNotes" placeholder="Décrivez brièvement…">
           </div>
           <div class="form-row">
-            <label class="form-label-wr">Priorit&eacute;</label>
+            <label class="form-label-wr">Priorité</label>
             <select name="priority" class="form-input-wr">
               <option value="0">Normal</option>
               <option value="1">Prioritaire</option>
@@ -39,7 +59,7 @@
                 data-action="waiting-room#closeModal"
                 data-waiting-room-modal-id-param="modal-checkin">Annuler</button>
         <button type="submit" class="btn-wr btn-primary">
-          <i data-lucide="check" class="wr-icon-xs"></i> Valider l'arriv&eacute;e
+          <i data-lucide="check" class="wr-icon-xs"></i> Valider l'arrivée
         </button>
       </div>
     </form>
@@ -61,22 +81,42 @@
         <i data-lucide="x" class="wr-icon-xs wr-icon--red"></i>
       </button>
     </div>
-    <form method="post" action="{{ path('clinic_scheduling_waitingroom_walkin') }}">
+    <form method="post" action="{{ path('clinic_admission_walkin') }}">
       <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
       <input type="hidden" name="arrivalMode" value="EMERGENCY">
       <input type="hidden" name="priority" value="2">
+      <input type="hidden" name="animalId" id="urgence-animal-id">
       <div class="wr-modal-body">
         <div class="wr-urgence-alert">
-          <i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera plac&eacute; imm&eacute;diatement en t&ecirc;te de file.
+          <i data-lucide="zap" class="wr-urgence-alert-icon"></i>Ce patient sera placé immédiatement en tête de file.
+        </div>
+        <div class="form-row"
+             data-controller="global-search"
+             data-global-search-url-value="{{ path('clinic_search') }}"
+             data-global-search-mode-value="pick"
+             data-global-search-picker-id-value="walkin-urgence"
+             data-global-search-type-value="animal">
+          <label class="form-label-wr">Rechercher un animal (optionnel)</label>
+          <input type="search"
+                 class="form-input-wr"
+                 placeholder="Nom, puce, téléphone du propriétaire…"
+                 autocomplete="off"
+                 data-global-search-target="input"
+                 data-action="input->global-search#search">
+          <div class="wr-search-results" data-global-search-target="results"></div>
+          <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
         </div>
         <div class="wr-form-grid-2">
           <div class="form-row">
             <label class="form-label-wr">Animal *</label>
-            <input class="form-input-wr" name="foundAnimalDescription" placeholder="Ex : Gaia (Labrador) &mdash; Mme Fauchard">
+            <input class="form-input-wr"
+                   name="foundAnimalDescription"
+                   id="urgence-description"
+                   placeholder="Ex : Gaia (Labrador) — Mme Fauchard">
           </div>
           <div class="form-row">
             <label class="form-label-wr">Motif d'urgence *</label>
-            <input class="form-input-wr" name="triageNotes" placeholder="D&eacute;crivez les sympt&ocirc;mes...">
+            <input class="form-input-wr" name="triageNotes" placeholder="Décrivez les symptômes…">
           </div>
         </div>
       </div>

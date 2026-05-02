@@ -6,7 +6,9 @@ namespace App\Context\Animal\Domain;
 
 use App\Context\Animal\Domain\Event\AnimalArchived;
 use App\Context\Animal\Domain\Event\AnimalCreated;
+use App\Context\Animal\Domain\Event\AnimalIdentityChanged;
 use App\Context\Animal\Domain\Event\AnimalNameChanged;
+use App\Context\Animal\Domain\Event\AnimalOwnersReplaced;
 use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
 use App\Context\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
@@ -246,6 +248,20 @@ final class Animal extends AggregateRoot
 
         $identification->ensureConsistency();
 
+        $identityChanged = $this->identification->microchipNumber !== $identification->microchipNumber
+            || $this->identification->tattooNumber !== $identification->tattooNumber
+            || $this->identification->passportNumber !== $identification->passportNumber;
+
+        if ($identityChanged) {
+            $this->recordDomainEvent(new AnimalIdentityChanged(
+                animalId: $this->id->toString(),
+                clinicId: $this->clinicId->toString(),
+                microchipNumber: $identification->microchipNumber,
+                tattooNumber: $identification->tattooNumber,
+                passportNumber: $identification->passportNumber,
+            ));
+        }
+
         if ($this->name !== $name) {
             $this->recordDomainEvent(new AnimalNameChanged(
                 animalId: $this->id->toString(),
@@ -328,6 +344,13 @@ final class Animal extends AggregateRoot
         }
 
         $this->updatedAt = $now;
+
+        $this->recordDomainEvent(new AnimalOwnersReplaced(
+            animalId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            primaryOwnerClientId: $primaryOwnerClientId,
+            secondaryOwnerClientIds: $secondaryOwnerClientIds,
+        ));
     }
 
     public function archive(\DateTimeImmutable $now): void

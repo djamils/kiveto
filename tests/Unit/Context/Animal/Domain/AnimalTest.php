@@ -7,7 +7,9 @@ namespace App\Tests\Unit\Context\Animal\Domain;
 use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\Event\AnimalArchived;
 use App\Context\Animal\Domain\Event\AnimalCreated;
+use App\Context\Animal\Domain\Event\AnimalIdentityChanged;
 use App\Context\Animal\Domain\Event\AnimalNameChanged;
+use App\Context\Animal\Domain\Event\AnimalOwnersReplaced;
 use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
@@ -831,6 +833,87 @@ final class AnimalTest extends TestCase
 
         $events = $animal->pullDomainEvents();
         self::assertCount(0, $events);
+    }
+
+    public function testUpdateIdentityEmitsAnimalIdentityChangedWhenChipChanges(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $_      = $animal->pullDomainEvents();
+
+        $newIdentification = new Identification(
+            microchipNumber: '250269802120045',
+            tattooNumber: null,
+            passportNumber: null,
+            registryType: \App\Context\Animal\Domain\ValueObject\RegistryType::NONE,
+            registryNumber: null,
+            sireNumber: null,
+        );
+
+        $animal->updateIdentity(
+            name: 'Rex',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: $newIdentification,
+            auxiliaryContact: null,
+            now: new \DateTimeImmutable(),
+        );
+
+        $events = $animal->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(AnimalIdentityChanged::class, $events[0]);
+
+        $payload = $events[0]->payload();
+        self::assertSame('250269802120045', $payload['microchipNumber']);
+    }
+
+    public function testUpdateIdentityDoesNotEmitAnimalIdentityChangedWhenNothingChanges(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $_      = $animal->pullDomainEvents();
+
+        $animal->updateIdentity(
+            name: 'Rex',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            auxiliaryContact: null,
+            now: new \DateTimeImmutable(),
+        );
+
+        $events = $animal->pullDomainEvents();
+        self::assertCount(0, $events);
+    }
+
+    public function testReplaceOwnersEmitsAnimalOwnersReplaced(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $_      = $animal->pullDomainEvents();
+
+        $animal->replaceOwners(
+            primaryOwnerClientId: 'client-new-primary',
+            secondaryOwnerClientIds: ['client-secondary-1'],
+            now: new \DateTimeImmutable(),
+        );
+
+        $events = $animal->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(AnimalOwnersReplaced::class, $events[0]);
+
+        $payload = $events[0]->payload();
+        self::assertSame('client-new-primary', $payload['primaryOwnerClientId']);
+        self::assertSame(['client-secondary-1'], $payload['secondaryOwnerClientIds']);
     }
 
     private function createMinimalAnimal(): Animal

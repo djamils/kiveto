@@ -18,6 +18,14 @@ final readonly class AppointmentItem
         public ?string $notes,
         public ?string $practitionerLabel,
         public bool $isOrphaned = false,
+        public ?string $ownerId = null,
+        public ?string $ownerLabel = null,
+        public ?string $ownerPhone = null,
+        public ?string $animalId = null,
+        public ?string $animalLabel = null,
+        public ?string $animalSpecies = null,
+        public ?string $animalBirthDate = null,
+        public ?string $animalBreed = null,
     ) {
     }
 
@@ -35,6 +43,14 @@ final readonly class AppointmentItem
             notes: $this->notes,
             practitionerLabel: $this->practitionerLabel,
             isOrphaned: $isOrphaned,
+            ownerId: $this->ownerId,
+            ownerLabel: $this->ownerLabel,
+            ownerPhone: $this->ownerPhone,
+            animalId: $this->animalId,
+            animalLabel: $this->animalLabel,
+            animalSpecies: $this->animalSpecies,
+            animalBirthDate: $this->animalBirthDate,
+            animalBreed: $this->animalBreed,
         );
     }
 }

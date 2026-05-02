@@ -19,6 +19,10 @@ final readonly class AppointmentDetails
         public ?string $serviceStartedAtUtc,
         public string $createdAtUtc,
         public string $updatedAtUtc,
+        public ?string $ownerId = null,
+        public ?string $animalId = null,
+        public ?string $ownerLabel = null,
+        public ?string $animalLabel = null,
     ) {
     }
 }

@@ -42,8 +42,9 @@ final class PhoneFormatRuntime
 
     /**
      * @param bool $international true = show dial code, strip trunk prefix (except keepTrunk countries)
+     * @param bool $showFlag      false = number only, no flag icon
      */
-    public function phoneDisplay(mixed $value, bool $international = false): string
+    public function phoneDisplay(mixed $value, bool $international = false, bool $showFlag = true): string
     {
         if (!\is_string($value)) {
             return '';
@@ -75,7 +76,18 @@ final class PhoneFormatRuntime
 
         $formatted = $this->applyMask($digits, $mask);
         $escaped   = htmlspecialchars($formatted, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
-        $flag      = '<span class="fi fi-' . $country['code'] . '" style="width:16px;height:12px;border-radius:2px;display:inline-block;vertical-align:-1px;margin-right:6px;"></span>';
+
+        if (!$showFlag) {
+            if ($international) {
+                $dialCode = htmlspecialchars($country['dialCode'], \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
+
+                return $dialCode . ' ' . $escaped;
+            }
+
+            return $escaped;
+        }
+
+        $flag = '<span class="fi fi-' . $country['code'] . '" style="width:16px;height:12px;border-radius:2px;display:inline-block;vertical-align:-1px;margin-right:6px;"></span>';
 
         if ($international) {
             $dialCode = htmlspecialchars($country['dialCode'], \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
