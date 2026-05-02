@@ -653,14 +653,12 @@
   {# ══════════════════════════════════════════════════════════════════ #}
 
   {# ── [UI-2] Modal Walk-in (fidèle au layout vetos-flux-du-jour) ── #}
-  <div class="modal-overlay hidden" id="modal-checkin"
-       data-action="click->waiting-room#closeOnOverlayClick">
+  <div class="modal-overlay hidden" id="modal-checkin">
     <div class="modal-box">
       <div class="modal-head">
         <p class="modal-title" id="ci-modal-title">Check-in patient</p>
-        <button class="btn-modal-close"
-                data-action="waiting-room#closeModal"
-                data-waiting-room-modal-id-param="modal-checkin">
+        <button class="btn-modal-close" type="button"
+                data-action="click->waiting-room#closeModal">
           <i data-lucide="x" style="width:12px;height:12px;"></i>
         </button>
       </div>
@@ -683,10 +681,10 @@
             <div class="ci-toggle">
               <button type="button" id="ci-toggle-existing" class="active"
                       data-action="click->waiting-room#ciSetMode"
-                      data-waiting-room-ci-mode-param="existing">Patient existant</button>
+                      data-mode="existing">Patient existant</button>
               <button type="button" id="ci-toggle-new"
                       data-action="click->waiting-room#ciSetMode"
-                      data-waiting-room-ci-mode-param="new">Nouveau client</button>
+                      data-mode="new">Nouveau client</button>
             </div>
           </div>
 
@@ -713,7 +711,7 @@
                 <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
               </div>
             </div>
-            <div id="ci-patient-zone"></div>
+            <div id="ci-patient-zone"><div class="ci-empty-state">Recherchez un patient déjà enregistré ou basculez sur « Nouveau client »</div></div>
           </div>
 
           {# Formulaire nouveau client (caché par défaut) #}
@@ -784,8 +782,8 @@
             <div class="ci-priority-pills">
               <button type="button" class="ci-priority-pill std selected" id="ci-prio-std"
                       data-action="click->waiting-room#ciSetPriority"
-                      data-waiting-room-ci-priority-param="0">
-                <div class="ci-priority-icon">●</div>
+                      data-priority="0">
+                <div class="ci-priority-icon"><i data-lucide="minus" style="width:11px;height:11px;"></i></div>
                 <div class="ci-priority-meta">
                   <div class="ci-priority-name">Standard</div>
                   <div class="ci-priority-sub">file normale</div>
@@ -793,8 +791,8 @@
               </button>
               <button type="button" class="ci-priority-pill prio" id="ci-prio-prio"
                       data-action="click->waiting-room#ciSetPriority"
-                      data-waiting-room-ci-priority-param="1">
-                <div class="ci-priority-icon"><i data-lucide="zap" style="width:11px;height:11px;"></i></div>
+                      data-priority="1">
+                <div class="ci-priority-icon"><i data-lucide="alert-triangle" style="width:11px;height:11px;"></i></div>
                 <div class="ci-priority-meta">
                   <div class="ci-priority-name">Prioritaire</div>
                   <div class="ci-priority-sub">à voir vite</div>
@@ -806,9 +804,7 @@
         </div>
 
         <div class="modal-foot">
-          <button type="button" class="btn btn-secondary"
-                  data-action="waiting-room#closeModal"
-                  data-waiting-room-modal-id-param="modal-checkin">Annuler</button>
+          <button type="button" class="btn btn-secondary" data-ci-close>Annuler</button>
           <button type="submit" class="btn btn-primary" id="ci-validate"
                   data-action="click->waiting-room#ciPrepareNew" disabled>
             <i data-lucide="check" style="width:11px;height:11px;"></i>

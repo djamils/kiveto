@@ -155,9 +155,25 @@ export default class extends Controller {
 
     this._ciUpdateTitle(false, allowToggle);
 
-    document.getElementById('modal-checkin')?.classList.remove('hidden');
+    const overlay = document.getElementById('modal-checkin');
+    overlay?.classList.remove('hidden');
+    if (!overlay?._ciBound) {
+      if (overlay) overlay._ciBound = true;
+      const close = () => this._closeOverlay(overlay);
+
+      overlay?.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+      overlay?.querySelectorAll('.btn-modal-close, [data-ci-close]').forEach(btn => {
+        btn.addEventListener('click', close);
+      });
+      overlay?.querySelectorAll('[data-mode]').forEach(btn => {
+        btn.addEventListener('click', () => this._ciSetModeNative(btn.dataset.mode));
+      });
+      overlay?.querySelectorAll('[data-priority]').forEach(btn => {
+        btn.addEventListener('click', () => this._ciSetPriority(Number(btn.dataset.priority)));
+      });
+    }
     if (allowToggle) {
-      setTimeout(() => document.getElementById('ci-search')?.focus(), 50);
+      document.getElementById('ci-search')?.focus();
     }
   }
 
@@ -290,11 +306,12 @@ export default class extends Controller {
     this._ciUpdateTitle(true, isRdv);
     const btn = document.getElementById('ci-validate');
     if (btn) btn.disabled = false;
-    if (window.lucide) window.lucide.createIcons();
+    document.dispatchEvent(new CustomEvent('kiveto:icons-refresh'));
   }
 
   ciSetMode(event) {
-    const m = event.params.ciMode;
+    const btn = event.target.closest('[data-mode]');
+    const m   = btn?.dataset.mode ?? event.currentTarget.dataset.mode ?? event.params?.ciMode;
     document.getElementById('ci-toggle-existing')?.classList.toggle('active', m === 'existing');
     document.getElementById('ci-toggle-new')?.classList.toggle('active', m === 'new');
     document.getElementById('ci-search-zone').style.display = m === 'existing' ? '' : 'none';
@@ -308,10 +325,24 @@ export default class extends Controller {
     }
   }
 
+  _ciSetModeNative(m) {
+    document.getElementById('ci-toggle-existing')?.classList.toggle('active', m === 'existing');
+    document.getElementById('ci-toggle-new')?.classList.toggle('active', m === 'new');
+    document.getElementById('ci-search-zone').style.display = m === 'existing' ? '' : 'none';
+    document.getElementById('ci-create-form').style.display = m === 'new' ? '' : 'none';
+    this._ciUpdateTitle(false, false);
+    if (m === 'new') {
+      document.getElementById('ci-new-animal')?.focus();
+      this.ciNewValidate();
+    } else {
+      document.getElementById('ci-search')?.focus();
+    }
+  }
+
   ciShowToggle() {
     // Triggered from "créer nouveau client" in dropdown footer
     document.getElementById('ci-toggle-row').style.display = 'block';
-    this.ciSetMode({ params: { ciMode: 'new' } });
+    this._ciSetModeNative('new');
   }
 
   ciFocusSearch() {
@@ -327,7 +358,8 @@ export default class extends Controller {
   }
 
   ciSetPriority(event) {
-    this._ciSetPriority(Number(event.params.ciPriority));
+    const btn = event.target.closest('[data-priority]');
+    this._ciSetPriority(Number(btn?.dataset.priority ?? event.currentTarget.dataset.priority ?? 0));
   }
 
   _ciSetPriority(val) {
@@ -335,7 +367,7 @@ export default class extends Controller {
     if (hidden) hidden.value = String(val);
     document.getElementById('ci-prio-std')?.classList.toggle('selected', val === 0);
     document.getElementById('ci-prio-prio')?.classList.toggle('selected', val === 1);
-    if (window.lucide) window.lucide.createIcons();
+    document.dispatchEvent(new CustomEvent('kiveto:icons-refresh'));
   }
 
   ciNewValidate() {
@@ -377,7 +409,8 @@ export default class extends Controller {
   }
 
   _ciClearPatient() {
-    document.getElementById('ci-patient-zone').innerHTML = '';
+    document.getElementById('ci-patient-zone').innerHTML =
+      '<div class="ci-empty-state">Recherchez un patient déjà enregistré ou basculez sur « Nouveau client »</div>';
     const idEl   = document.getElementById('ci-animal-id');       if (idEl)   idEl.value   = '';
     const nmEl   = document.getElementById('ci-animal-name');     if (nmEl)   nmEl.value   = '';
     const dcEl   = document.getElementById('ci-description');     if (dcEl)   dcEl.value   = '';
@@ -444,7 +477,7 @@ export default class extends Controller {
 
     document.getElementById('detail-slide')?.classList.add('open');
     document.getElementById('detail-backdrop')?.classList.add('open');
-    if (window.lucide) window.lucide.createIcons();
+    document.dispatchEvent(new CustomEvent('kiveto:icons-refresh'));
   }
 
   closeDetailSlide() {
@@ -462,20 +495,29 @@ export default class extends Controller {
     }
   }
 
+  _closeOverlay(el) {
+    if (!el || el.classList.contains('is-closing') || el.classList.contains('hidden')) return;
+    el.classList.add('is-closing');
+    setTimeout(() => { el.classList.remove('is-closing'); el.classList.add('hidden'); }, 120);
+  }
+
   closeModal(event) {
-    const modalId = event.params.modalId;
-    document.getElementById(modalId)?.classList.add('hidden');
+    const overlay = event.target.closest('.modal-overlay')
+                 ?? event.currentTarget.closest?.('.modal-overlay');
+    if (overlay) { this._closeOverlay(overlay); return; }
+    const modalId = event.params?.modalId;
+    if (modalId) this._closeOverlay(document.getElementById(modalId));
   }
 
   closeOnOverlayClick(event) {
     if (event.target === event.currentTarget) {
-      event.currentTarget.classList.add('hidden');
+      this._closeOverlay(event.currentTarget);
     }
   }
 
   closeAllModals() {
-    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach((m) => {
-      m.classList.add('hidden');
+    document.querySelectorAll('.modal-overlay:not(.hidden):not(.is-closing)').forEach((m) => {
+      this._closeOverlay(m);
     });
   }
 
