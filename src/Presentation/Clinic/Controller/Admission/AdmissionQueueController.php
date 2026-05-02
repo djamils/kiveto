@@ -84,13 +84,12 @@ final class AdmissionQueueController extends AbstractController
     }
 
     /**
-     * Batch-enriches admission entries with animal species/breed and owner
-     * name/phone by querying the search read-model and client tables.
-     * Runs two DBAL queries regardless of the number of entries.
+     * Batch-enriches admission entries with animal species/breed, age, last weight,
+     * and owner name/phone. Runs at most 4 DBAL queries regardless of entry count.
      *
      * @param list<WaitingRoomItemDto> $entries
      *
-     * @return array<string, array{species:string|null,breed:string|null,ownerName:string|null,ownerPhone:string|null}>
+     * @return array<string, array{species:string|null,breed:string|null,age:string|null,weight:string|null,ownerName:string|null,ownerPhone:string|null}>
      */
     private function enrichFromSearchEntries(array $entries, string $clinicId): array
     {
@@ -113,25 +112,34 @@ final class AdmissionQueueController extends AbstractController
             array_values($animalIds),
         );
 
-        // Query animal__search_entries for species, breed, owner name + client id
+        // Query search entries + animal birthdate in one JOIN
         $searchRows = $conn->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(id) AS animal_id, species, breed_name,
-                    search_owner_name, BIN_TO_UUID(primary_owner_client_id) AS owner_client_id
-             FROM animal__search_entries
-             WHERE clinic_id = ? AND id IN (?)',
+            'SELECT BIN_TO_UUID(se.id) AS animal_id, se.species, se.breed_name,
+                    se.search_owner_name, BIN_TO_UUID(se.primary_owner_client_id) AS owner_client_id,
+                    a.birth_date
+             FROM animal__search_entries se
+             LEFT JOIN animal__animals a ON a.id = se.id
+             WHERE se.clinic_id = ? AND se.id IN (?)',
             [$clinicBinary, $binAnimalIds],
             [\Doctrine\DBAL\ParameterType::STRING, \Doctrine\DBAL\ArrayParameterType::STRING],
         );
 
-        /** @var array<string, array{species:string|null,breed:string|null,ownerName:string|null,ownerPhone:string|null}> $byAnimalId */
+        /** @var array<string, array{species:string|null,breed:string|null,age:string|null,weight:string|null,ownerName:string|null,ownerPhone:string|null,ownerClientId:string|null}> $byAnimalId */
         $byAnimalId = [];
         $clientIds  = [];
 
         foreach ($searchRows as $row) {
             \assert(\is_string($row['animal_id']));
+            $age = null;
+            if (\is_string($row['birth_date']) && '' !== $row['birth_date']) {
+                $age = $this->computeAge(new \DateTimeImmutable($row['birth_date']));
+            }
+
             $byAnimalId[$row['animal_id']] = [
                 'species'       => \is_string($row['species']) ? $row['species'] : null,
                 'breed'         => \is_string($row['breed_name']) ? $row['breed_name'] : null,
+                'age'           => $age,
+                'weight'        => null,
                 'ownerName'     => \is_string($row['search_owner_name']) ? $row['search_owner_name'] : null,
                 'ownerPhone'    => null,
                 'ownerClientId' => \is_string($row['owner_client_id']) ? $row['owner_client_id'] : null,
@@ -139,6 +147,25 @@ final class AdmissionQueueController extends AbstractController
 
             if (\is_string($row['owner_client_id'])) {
                 $clientIds[] = Uuid::fromString($row['owner_client_id'])->toBinary();
+            }
+        }
+
+        // Last recorded weight per animal via patient__patients → consultation__consultations
+        $weightRows = $conn->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(pp.animal_link_id) AS animal_id, c.weight_kg
+             FROM consultation__consultations c
+             INNER JOIN patient__patients pp ON pp.id = c.patient_id
+             WHERE pp.animal_link_id IN (?) AND c.weight_kg IS NOT NULL
+             ORDER BY c.started_at_utc DESC',
+            [$binAnimalIds],
+            [\Doctrine\DBAL\ArrayParameterType::STRING],
+        );
+
+        foreach ($weightRows as $wr) {
+            \assert(\is_string($wr['animal_id']));
+            if (isset($byAnimalId[$wr['animal_id']]) && null === $byAnimalId[$wr['animal_id']]['weight']) {
+                \assert(\is_string($wr['weight_kg']) || \is_float($wr['weight_kg']) || \is_int($wr['weight_kg']));
+                $byAnimalId[$wr['animal_id']]['weight'] = $this->formatWeight($wr['weight_kg']);
             }
         }
 
@@ -160,7 +187,7 @@ final class AdmissionQueueController extends AbstractController
                 $phoneByClient[$pr['client_id']] = $pr['phone'];
             }
 
-            foreach ($byAnimalId as $aId => &$data) {
+            foreach ($byAnimalId as &$data) {
                 $cid = $data['ownerClientId'] ?? null;
                 if (\is_string($cid) && isset($phoneByClient[$cid])) {
                     $data['ownerPhone'] = $phoneByClient[$cid];
@@ -177,6 +204,8 @@ final class AdmissionQueueController extends AbstractController
                 $result[$admissionId] = [
                     'species'    => $d['species'],
                     'breed'      => $d['breed'],
+                    'age'        => $d['age'],
+                    'weight'     => $d['weight'],
                     'ownerName'  => $d['ownerName'],
                     'ownerPhone' => $d['ownerPhone'],
                 ];
@@ -184,5 +213,29 @@ final class AdmissionQueueController extends AbstractController
         }
 
         return $result;
+    }
+
+    private function computeAge(\DateTimeImmutable $birthDate): string
+    {
+        $diff = $birthDate->diff(new \DateTimeImmutable('now'));
+
+        if ($diff->y >= 1) {
+            return $diff->y . ' an' . ($diff->y > 1 ? 's' : '');
+        }
+
+        $months = $diff->m + ($diff->y * 12);
+        if ($months >= 1) {
+            return $months . ' mois';
+        }
+
+        return '< 1 mois';
+    }
+
+    private function formatWeight(string|float|int $raw): string
+    {
+        $kg        = (float) $raw;
+        $formatted = rtrim(rtrim(number_format($kg, 3, ',', ''), '0'), ',');
+
+        return $formatted . ' kg';
     }
 }

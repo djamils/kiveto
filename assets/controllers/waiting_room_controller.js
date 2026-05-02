@@ -64,6 +64,50 @@ export default class extends Controller {
     event.currentTarget.closest('.scard, .pcard')?.classList.toggle('is-collapsed');
   }
 
+  toggleActMenu(event) {
+    event.stopPropagation();
+    const btn  = event.currentTarget;
+    const wrap = btn.closest('.wait-split');
+
+    const existing = wrap.querySelector('.wait-split-menu');
+    document.querySelectorAll('.wait-split-menu').forEach(m => m.remove());
+    if (existing) return;
+
+    const motif = (wrap.dataset.motif || '').toLowerCase();
+    let suggested = 'consultation';
+    if (/chirurgie|opérat|surgery/.test(motif)) suggested = 'chirurgie';
+    else if (/hospi|hospitali/.test(motif))      suggested = 'hospi';
+
+    const items = [
+      { type: 'consultation', icon: '🩺', label: 'Consultation' },
+      { type: 'chirurgie',    icon: '🔪', label: 'Chirurgie' },
+      { type: 'hospi',        icon: '🏥', label: 'Hospitalisation' },
+    ];
+
+    const checkSvg = `<svg class="wsm-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    const menu = document.createElement('div');
+    menu.className = 'wait-split-menu';
+    menu.innerHTML = items.map(({ type, icon, label }) => {
+      const isSugg = type === suggested;
+      return `<div class="wsm-item${isSugg ? ' selected' : ''}">
+        <div class="wsm-icon">${icon}</div>
+        <div class="wsm-name">${label}${isSugg ? ` <span class="wsm-name-tag">suggéré</span>` : ''}</div>
+        ${isSugg ? checkSvg : ''}
+      </div>`;
+    }).join('');
+
+    wrap.appendChild(menu);
+
+    const close = (e) => {
+      if (!wrap.contains(e.target)) {
+        menu.remove();
+        window.removeEventListener('click', close, true);
+      }
+    };
+    setTimeout(() => window.addEventListener('click', close, true), 0);
+  }
+
   // ── Walk-in modal ─ fidèle à openCheckinModal + ciRender du layout ──
 
   openCheckinWithPatient(event) {
@@ -95,11 +139,12 @@ export default class extends Controller {
     // Reset complet (équivalent openCheckinModal du layout)
     this._ciClearPatient();
     document.getElementById('ci-note').value = '';
-    ['ci-new-animal','ci-new-race','ci-new-proprio','ci-new-tel'].forEach(id => {
+    ['ci-new-animal','ci-new-prenom','ci-new-proprio','ci-new-tel'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
     const espece = document.getElementById('ci-new-espece');
     if (espece) espece.selectedIndex = 0;
+    this._ciSetPriority(0);
 
     // Toggle row : visible si walk-in, caché si RDV pré-sélectionné
     document.getElementById('ci-toggle-row').style.display   = allowToggle ? 'block' : 'none';
@@ -281,12 +326,25 @@ export default class extends Controller {
     setTimeout(() => document.getElementById('ci-tag-input')?.classList.remove('focused'), 150);
   }
 
+  ciSetPriority(event) {
+    this._ciSetPriority(Number(event.params.ciPriority));
+  }
+
+  _ciSetPriority(val) {
+    const hidden = document.getElementById('ci-priority');
+    if (hidden) hidden.value = String(val);
+    document.getElementById('ci-prio-std')?.classList.toggle('selected', val === 0);
+    document.getElementById('ci-prio-prio')?.classList.toggle('selected', val === 1);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   ciNewValidate() {
     const animal  = (document.getElementById('ci-new-animal')?.value ?? '').trim();
+    const prenom  = (document.getElementById('ci-new-prenom')?.value ?? '').trim();
     const proprio = (document.getElementById('ci-new-proprio')?.value ?? '').trim();
     const tel     = (document.getElementById('ci-new-tel')?.value ?? '').trim();
     const btn     = document.getElementById('ci-validate');
-    if (btn) btn.disabled = !(animal && proprio && tel);
+    if (btn) btn.disabled = !(animal && prenom && proprio && tel);
   }
 
   ciPrepareNew(event) {
@@ -302,11 +360,12 @@ export default class extends Controller {
     if (!isNewMode) return;
     const animal  = (document.getElementById('ci-new-animal')?.value ?? '').trim();
     const espece  = document.getElementById('ci-new-espece')?.value ?? '';
-    const race    = (document.getElementById('ci-new-race')?.value ?? '').trim();
+    const prenom  = (document.getElementById('ci-new-prenom')?.value ?? '').trim();
     const proprio = (document.getElementById('ci-new-proprio')?.value ?? '').trim();
+    const owner   = [prenom, proprio].filter(Boolean).join(' ');
     const parts   = [animal];
-    if (espece) parts.push(`(${espece}${race ? ' · ' + race : ''})`);
-    if (proprio) parts.push(`— ${proprio}`);
+    if (espece) parts.push(`(${espece})`);
+    if (owner) parts.push(`— ${owner}`);
     const descEl = document.getElementById('ci-description');
     if (descEl) descEl.value = parts.join(' ');
   }
