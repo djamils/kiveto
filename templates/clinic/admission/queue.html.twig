@@ -330,7 +330,9 @@
                 </div>
                 <div class="wait-actions">
                   {% if isUnknown %}
-                    <button class="wait-act-warn" type="button">Identifier</button>
+                    <button class="wait-act-warn" type="button"
+                            data-action="waiting-room#openModal"
+                            data-waiting-room-modal-id-param="modal-identifier">Identifier</button>
                   {% else %}
                     <button class="wait-act-secondary" type="button">Profil</button>
                   {% endif %}
@@ -1038,6 +1040,118 @@
     </div>
   </div>
 
+  {# ── Modal Identifier ── #}
+  <div class="modal-overlay hidden" id="modal-identifier"
+       data-action="click->waiting-room#closeOnOverlayClick">
+    <div class="modal-box">
+
+      <div class="modal-head id-head">
+        <div class="id-head-title">
+          <div class="id-head-icon">
+            <i data-lucide="search" style="width:14px;height:14px;"></i>
+          </div>
+          <p class="modal-title">Identifier l'animal</p>
+        </div>
+        <button class="btn-modal-close id-close" type="button"
+                data-action="click->waiting-room#closeModal">
+          <i data-lucide="x" style="width:14px;height:14px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="id-ctx-strip">
+          <div class="id-ctx-avatar">🐾</div>
+          <div class="id-ctx-meta">
+            <div class="id-ctx-name" id="id-ctx-name">—</div>
+            <div class="id-ctx-sub" id="id-ctx-sub">—</div>
+          </div>
+          <span class="id-ctx-tag">NON ID</span>
+        </div>
+
+        <div class="id-tabs">
+          <button class="id-tab active" type="button" onclick="idSetTab('chip')">
+            <i data-lucide="cpu" style="width:12px;height:12px;"></i>
+            Puce / Tatouage
+          </button>
+          <button class="id-tab" type="button" onclick="idSetTab('owner')">
+            <i data-lucide="user" style="width:12px;height:12px;"></i>
+            Propriétaire
+          </button>
+          <button class="id-tab" type="button" onclick="idSetTab('anon')">
+            <i data-lucide="alert-circle" style="width:12px;height:12px;"></i>
+            Anonyme
+          </button>
+        </div>
+
+        <div class="id-panel active" id="id-panel-chip">
+          <div class="form-row">
+            <label class="form-label">Numéro de puce ICAD</label>
+            <div class="id-rfid-row">
+              <input type="text" class="ci-input" id="id-chip-input"
+                     placeholder="250269… (15 chiffres)">
+              <button type="button" class="id-rfid-btn">
+                <i data-lucide="radio" style="width:12px;height:12px;"></i>
+                Scanner
+              </button>
+            </div>
+            <div class="id-rfid-help">Branchez un lecteur RFID USB ou Bluetooth pour scan automatique. Sinon, saisissez manuellement le numéro.</div>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label class="form-label">Numéro de tatouage (optionnel)</label>
+            <input type="text" class="ci-input" placeholder="Ex : 2 ABC 123">
+          </div>
+        </div>
+
+        <div class="id-panel" id="id-panel-owner">
+          <div class="form-row">
+            <label class="form-label">Rechercher un propriétaire</label>
+            <input type="text" class="ci-input" id="id-owner-search"
+                   placeholder="Nom, téléphone…">
+          </div>
+          <div id="id-owner-results">
+            <div class="id-sr-empty">Saisissez un nom ou un numéro de téléphone</div>
+          </div>
+          <div style="text-align:center;padding:var(--space-3) 0 var(--space-2);">
+            <button type="button" class="btn btn-secondary btn-sm">
+              <i data-lucide="user-plus" style="width:11px;height:11px;"></i>
+              Créer un nouveau client
+            </button>
+          </div>
+        </div>
+
+        <div class="id-panel" id="id-panel-anon">
+          <div class="id-anon-banner">
+            <div class="id-anon-banner-t">Garder l'animal en statut anonyme</div>
+            <div class="id-anon-banner-s">L'animal restera dans le système sans propriétaire identifié. Vous pourrez compléter l'identification plus tard.</div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Description physique (complément)</label>
+            <textarea class="ci-textarea" id="id-anon-desc"
+                      placeholder="Ex : chat tigré gris, environ 3 kg, yeux verts, collier rouge usé…"></textarea>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label class="form-label">Lieu de découverte / contact tiers (optionnel)</label>
+            <input type="text" class="ci-input" id="id-anon-place"
+                   placeholder="Ex : rue St-Denis, Paris 1er — apporté par M. Durand 06 …">
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-foot">
+        <span class="id-foot-hint" id="id-foot-hint">Aucun résultat ? Basculez sur « Propriétaire » pour rechercher autrement.</span>
+        <button class="btn btn-secondary" type="button"
+                data-action="click->waiting-room#closeModal">Annuler</button>
+        <button class="btn btn-primary" id="id-submit" type="button" disabled>
+          <i data-lucide="check" style="width:11px;height:11px;"></i>
+          <span>Lier au dossier</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
 </div>{# /waiting-room controller #}
 {% endblock %}
 
@@ -1222,6 +1336,26 @@
         banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> <strong>Création nouveau dossier</strong>';
         document.getElementById('urg-title').textContent = 'Urgence — Nouveau dossier';
       }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    /* ── Modal Identifier — tab switching ── */
+    var idHints = {
+      chip:  'Aucun résultat ? Basculez sur « Propriétaire » pour rechercher autrement.',
+      owner: 'Pas trouvé ? Basculez sur « Anonyme » pour garder le statut temporaire.',
+      anon:  'Vous pourrez compléter l’identification plus tard depuis la fiche patient.',
+    };
+    function idSetTab(tab) {
+      document.querySelectorAll('#modal-identifier .id-tab').forEach(function (t) {
+        t.classList.toggle('active', t.getAttribute('onclick') === "idSetTab('" + tab + "')");
+      });
+      document.querySelectorAll('#modal-identifier .id-panel').forEach(function (p) {
+        p.classList.remove('active');
+      });
+      var panel = document.getElementById('id-panel-' + tab);
+      if (panel) panel.classList.add('active');
+      var hint = document.getElementById('id-foot-hint');
+      if (hint && idHints[tab]) hint.textContent = idHints[tab];
       if (window.lucide) window.lucide.createIcons();
     }
 
