@@ -82,7 +82,7 @@ final class CreateAnimalController extends AbstractController
                     passportNumber: null,
                     registryType: 'none',
                     registryNumber: null,
-                    sireNumber: null,
+                    registryReference: null,
                     lifeStatus: 'alive',
                     deceasedAt: null,
                     missingSince: null,

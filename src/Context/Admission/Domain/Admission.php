@@ -149,6 +149,12 @@ final class Admission extends AggregateRoot
         ));
     }
 
+    public function updatePhysicalDescription(?string $description, \DateTimeImmutable $now): void
+    {
+        $this->physicalDescription = $description;
+        $this->updatedAt           = $now;
+    }
+
     public function updateTriageNotes(?string $notes, \DateTimeImmutable $now): void
     {
         $this->triageNotes = $notes;

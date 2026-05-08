@@ -25,7 +25,7 @@ final readonly class UpdateAnimalIdentity implements CommandInterface
         public ?string $passportNumber,
         public string $registryType,
         public ?string $registryNumber,
-        public ?string $sireNumber,
+        public ?string $registryReference,
         public ?string $auxiliaryContactFirstName,
         public ?string $auxiliaryContactLastName,
         public ?string $auxiliaryContactPhoneNumber,

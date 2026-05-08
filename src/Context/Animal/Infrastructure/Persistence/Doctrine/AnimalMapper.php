@@ -7,13 +7,13 @@ namespace App\Context\Animal\Infrastructure\Persistence\Doctrine;
 use App\Context\Animal\Domain\Animal;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\Ownership;
 use App\Context\Animal\Domain\ValueObject\Transfer;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\OwnershipEntity;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use Symfony\Component\Uid\Uuid;
 
 final class AnimalMapper
@@ -27,7 +27,7 @@ final class AnimalMapper
             passportNumber: $entity->getPassportNumber(),
             registryType: $entity->getRegistryType(),
             registryNumber: $entity->getRegistryNumber(),
-            sireNumber: $entity->getSireNumber(),
+            registryReference: $entity->getRegistryReference(),
         );
 
         // Map lifecycle
@@ -120,7 +120,7 @@ final class AnimalMapper
         $entity->setPassportNumber($identification->passportNumber);
         $entity->setRegistryType($identification->registryType);
         $entity->setRegistryNumber($identification->registryNumber);
-        $entity->setSireNumber($identification->sireNumber);
+        $entity->setRegistryReference($identification->registryReference);
 
         // Life cycle
         $lifeCycle = $animal->lifeCycle();

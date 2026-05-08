@@ -19,6 +19,8 @@ use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 
 final class Clinic extends AggregateRoot
 {
@@ -29,6 +31,9 @@ final class Clinic extends AggregateRoot
     private ClinicStatus $status;
     private TimeZone $timeZone;
     private Locale $locale;
+    private CountryCode $countryCode;
+    private ?string $jurisdictionCode;
+    private CurrencyCode $currencyCode;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -42,23 +47,29 @@ final class Clinic extends AggregateRoot
         ClinicSlug $slug,
         TimeZone $timeZone,
         Locale $locale,
+        CountryCode $countryCode,
+        CurrencyCode $currencyCode,
         \DateTimeImmutable $createdAt,
         ?ClinicGroupId $clinicGroupId = null,
+        ?string $jurisdictionCode = null,
     ): self {
         if ('' === trim($name)) {
             throw new \InvalidArgumentException('Clinic name cannot be empty.');
         }
 
-        $clinic                = new self();
-        $clinic->id            = $id;
-        $clinic->name          = $name;
-        $clinic->slug          = $slug;
-        $clinic->timeZone      = $timeZone;
-        $clinic->locale        = $locale;
-        $clinic->clinicGroupId = $clinicGroupId;
-        $clinic->status        = ClinicStatus::ACTIVE;
-        $clinic->createdAt     = $createdAt;
-        $clinic->updatedAt     = $createdAt;
+        $clinic                   = new self();
+        $clinic->id               = $id;
+        $clinic->name             = $name;
+        $clinic->slug             = $slug;
+        $clinic->timeZone         = $timeZone;
+        $clinic->locale           = $locale;
+        $clinic->countryCode      = $countryCode;
+        $clinic->jurisdictionCode = $jurisdictionCode;
+        $clinic->currencyCode     = $currencyCode;
+        $clinic->clinicGroupId    = $clinicGroupId;
+        $clinic->status           = ClinicStatus::ACTIVE;
+        $clinic->createdAt        = $createdAt;
+        $clinic->updatedAt        = $createdAt;
 
         $clinic->recordDomainEvent(new ClinicCreated(
             clinicId: $id->toString(),
@@ -78,21 +89,27 @@ final class Clinic extends AggregateRoot
         ClinicSlug $slug,
         TimeZone $timeZone,
         Locale $locale,
+        CountryCode $countryCode,
+        CurrencyCode $currencyCode,
         ClinicStatus $status,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
         ?ClinicGroupId $clinicGroupId = null,
+        ?string $jurisdictionCode = null,
     ): self {
-        $clinic                = new self();
-        $clinic->id            = $id;
-        $clinic->name          = $name;
-        $clinic->slug          = $slug;
-        $clinic->timeZone      = $timeZone;
-        $clinic->locale        = $locale;
-        $clinic->status        = $status;
-        $clinic->clinicGroupId = $clinicGroupId;
-        $clinic->createdAt     = $createdAt;
-        $clinic->updatedAt     = $updatedAt;
+        $clinic                   = new self();
+        $clinic->id               = $id;
+        $clinic->name             = $name;
+        $clinic->slug             = $slug;
+        $clinic->timeZone         = $timeZone;
+        $clinic->locale           = $locale;
+        $clinic->countryCode      = $countryCode;
+        $clinic->jurisdictionCode = $jurisdictionCode;
+        $clinic->currencyCode     = $currencyCode;
+        $clinic->status           = $status;
+        $clinic->clinicGroupId    = $clinicGroupId;
+        $clinic->createdAt        = $createdAt;
+        $clinic->updatedAt        = $updatedAt;
 
         return $clinic;
     }
@@ -240,6 +257,21 @@ final class Clinic extends AggregateRoot
     public function clinicGroupId(): ?ClinicGroupId
     {
         return $this->clinicGroupId;
+    }
+
+    public function countryCode(): CountryCode
+    {
+        return $this->countryCode;
+    }
+
+    public function jurisdictionCode(): ?string
+    {
+        return $this->jurisdictionCode;
+    }
+
+    public function currencyCode(): CurrencyCode
+    {
+        return $this->currencyCode;
     }
 
     public function createdAt(): \DateTimeImmutable

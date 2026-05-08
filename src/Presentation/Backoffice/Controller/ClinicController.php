@@ -92,13 +92,16 @@ final class ClinicController extends AbstractController
     {
         $this->assertCsrf($request);
 
-        $name          = trim((string) $request->request->get('name'));
-        $slug          = trim((string) $request->request->get('slug'));
-        $timeZone      = trim((string) $request->request->get('time_zone'));
-        $locale        = trim((string) $request->request->get('locale'));
-        $clinicGroupId = $request->request->get('clinic_group_id');
+        $name             = trim((string) $request->request->get('name'));
+        $slug             = trim((string) $request->request->get('slug'));
+        $timeZone         = trim((string) $request->request->get('time_zone'));
+        $locale           = trim((string) $request->request->get('locale'));
+        $countryCode      = trim((string) $request->request->get('country_code'));
+        $currencyCode     = trim((string) $request->request->get('currency_code'));
+        $jurisdictionCode = $request->request->get('jurisdiction_code');
+        $clinicGroupId    = $request->request->get('clinic_group_id');
 
-        if ('' === $name || '' === $slug || '' === $timeZone || '' === $locale) {
+        if ('' === $name || '' === $slug || '' === $timeZone || '' === $locale || '' === $countryCode || '' === $currencyCode) {
             $this->addFlash('error', 'Tous les champs obligatoires doivent être remplis.');
 
             return $this->redirectToRoute('backoffice_clinics_new');
@@ -110,7 +113,10 @@ final class ClinicController extends AbstractController
                 slug: $slug,
                 timeZone: $timeZone,
                 locale: $locale,
+                countryCode: $countryCode,
+                currencyCode: $currencyCode,
                 clinicGroupId: \is_string($clinicGroupId) && '' !== $clinicGroupId ? $clinicGroupId : null,
+                jurisdictionCode: \is_string($jurisdictionCode) && '' !== $jurisdictionCode ? $jurisdictionCode : null,
             ));
 
             $this->addFlash('success', 'Clinique créée avec succès.');

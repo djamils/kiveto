@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Client\Application\Query\GetClientNamesByIds;
 
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

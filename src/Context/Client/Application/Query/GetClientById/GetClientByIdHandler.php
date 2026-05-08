@@ -6,7 +6,7 @@ namespace App\Context\Client\Application\Query\GetClientById;
 
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

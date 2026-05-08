@@ -12,7 +12,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Closes a StrayCustody when an admission is closed with reason HandedToMunicipality.
+ * Closes a StrayCustody when an admission is closed with reason HandedToAuthority.
  */
 #[AsMessageHandler(bus: 'messenger.bus.integration_event')]
 final readonly class AdmissionClosedHandler
@@ -26,7 +26,7 @@ final readonly class AdmissionClosedHandler
 
     public function __invoke(AdmissionClosedIntegrationEvent $event): void
     {
-        if (ClosureReason::HandedToMunicipality->value !== $event->reason) {
+        if (ClosureReason::HandedToAuthority->value !== $event->reason) {
             return;
         }
 
@@ -36,7 +36,7 @@ final readonly class AdmissionClosedHandler
             return;
         }
 
-        $custody->closeHandedToMunicipality($this->clock->now());
+        $custody->closeHandedToAuthority($this->clock->now());
         $this->strayCustodyRepo->save($custody);
         $this->domainEventPublisher->publish($custody);
     }

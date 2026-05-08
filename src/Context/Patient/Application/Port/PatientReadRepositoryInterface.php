@@ -7,4 +7,6 @@ namespace App\Context\Patient\Application\Port;
 interface PatientReadRepositoryInterface
 {
     public function existsActiveForAnimal(string $clinicId, string $animalId): bool;
+
+    public function getActivePatientIdForAnimal(string $clinicId, string $animalId): ?string;
 }

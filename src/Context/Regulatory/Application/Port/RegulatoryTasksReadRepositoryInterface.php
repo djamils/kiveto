@@ -7,11 +7,11 @@ namespace App\Context\Regulatory\Application\Port;
 interface RegulatoryTasksReadRepositoryInterface
 {
     /**
-     * Returns pending Mairie notifications for a given clinic.
+     * Returns pending authority notifications for a given clinic.
      *
      * @return list<array<string, mixed>>
      */
-    public function findPendingMairieNotifications(string $clinicId): array;
+    public function findPendingAuthorityNotifications(string $clinicId): array;
 
     /**
      * Returns active stray custodies for a given clinic.

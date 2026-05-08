@@ -23,13 +23,13 @@ final class PlanningBlockTypeCapabilityCompletenessTest extends TestCase
     public static function provideCapabilityMatrixCases(): iterable
     {
         yield 'CONSULTATION' => [PlanningBlockType::CONSULTATION, true,  true];
-        yield 'CHIRURGIE' => [PlanningBlockType::CHIRURGIE,    true,  true];
-        yield 'BILAN' => [PlanningBlockType::BILAN,        true,  true];
-        yield 'URGENCE' => [PlanningBlockType::URGENCE,      true,  true];
-        yield 'GARDE' => [PlanningBlockType::GARDE,        true,  true];
-        yield 'CONGE' => [PlanningBlockType::CONGE,        false, false];
-        yield 'FORMATION' => [PlanningBlockType::FORMATION,    false, false];
-        yield 'ADMIN' => [PlanningBlockType::ADMIN,        false, false];
+        yield 'SURGERY' => [PlanningBlockType::SURGERY,       true,  true];
+        yield 'HEALTH_CHECK' => [PlanningBlockType::HEALTH_CHECK,  true,  true];
+        yield 'EMERGENCY' => [PlanningBlockType::EMERGENCY,     true,  true];
+        yield 'ON_CALL' => [PlanningBlockType::ON_CALL,       true,  true];
+        yield 'LEAVE' => [PlanningBlockType::LEAVE,         false, false];
+        yield 'TRAINING' => [PlanningBlockType::TRAINING,      false, false];
+        yield 'ADMIN' => [PlanningBlockType::ADMIN,         false, false];
     }
 
     public function testAllCasesAreCovered(): void

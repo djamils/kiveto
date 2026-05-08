@@ -7,7 +7,7 @@ namespace App\Context\Client\Application\Command\UnarchiveClient;
 use App\Context\Client\Domain\Exception\ClientClinicMismatchException;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

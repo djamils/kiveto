@@ -11,6 +11,8 @@ use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ClinicMapper
@@ -23,12 +25,15 @@ final readonly class ClinicMapper
             slug: ClinicSlug::fromString($entity->getSlug()),
             timeZone: TimeZone::fromString($entity->getTimeZone()),
             locale: Locale::fromString($entity->getLocale()),
+            countryCode: CountryCode::fromString($entity->getCountryCode()),
+            currencyCode: CurrencyCode::fromString($entity->getCurrencyCode()),
             status: $entity->getStatus(),
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
             clinicGroupId: $entity->getClinicGroupId()
                 ? ClinicGroupId::fromString($entity->getClinicGroupId()->toString())
                 : null,
+            jurisdictionCode: $entity->getJurisdictionCode(),
         );
     }
 
@@ -40,6 +45,9 @@ final readonly class ClinicMapper
         $entity->setSlug($clinic->slug()->toString());
         $entity->setTimeZone($clinic->timeZone()->toString());
         $entity->setLocale($clinic->locale()->toString());
+        $entity->setCountryCode($clinic->countryCode()->toString());
+        $entity->setJurisdictionCode($clinic->jurisdictionCode());
+        $entity->setCurrencyCode($clinic->currencyCode()->toString());
         $entity->setStatus($clinic->status());
         $entity->setCreatedAt($clinic->createdAt());
         $entity->setUpdatedAt($clinic->updatedAt());

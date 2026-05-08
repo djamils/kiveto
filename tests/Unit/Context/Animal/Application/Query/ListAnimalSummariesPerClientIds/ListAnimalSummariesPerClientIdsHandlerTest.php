@@ -8,7 +8,7 @@ use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\AnimalSummary;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\ListAnimalSummariesPerClientIds;
 use App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds\ListAnimalSummariesPerClientIdsHandler;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class ListAnimalSummariesPerClientIdsHandlerTest extends TestCase

@@ -99,17 +99,19 @@ export default class extends Controller {
 
     this._abortController = new AbortController();
 
-    const params = new URLSearchParams({ q, mode: this.modeValue });
+    const base   = new URL(this.urlValue, window.location.origin);
+    base.searchParams.set('q', q);
+    base.searchParams.set('mode', this.modeValue);
 
     if (this.pickerIdValue) {
-      params.set('pickerId', this.pickerIdValue);
+      base.searchParams.set('pickerId', this.pickerIdValue);
     }
 
     if (this.typeValue) {
-      params.set('type', this.typeValue);
+      base.searchParams.set('type', this.typeValue);
     }
 
-    const url = `${this.urlValue}?${params.toString()}`;
+    const url = base.toString();
 
     try {
       const response = await fetch(url, {

@@ -18,6 +18,8 @@ use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 
 final class ClinicTest extends TestCase
@@ -33,6 +35,8 @@ final class ClinicTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: $now,
         );
 
@@ -57,6 +61,8 @@ final class ClinicTest extends TestCase
             slug: ClinicSlug::fromString('test'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable(),
         );
     }
@@ -271,6 +277,8 @@ final class ClinicTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             status: ClinicStatus::ACTIVE,
             createdAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
             updatedAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
@@ -287,6 +295,8 @@ final class ClinicTest extends TestCase
             slug: ClinicSlug::fromString('test-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
         );
     }

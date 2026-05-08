@@ -12,10 +12,15 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 final readonly class DefaultLocaleResolver implements LocaleResolverInterface
 {
+    /**
+     * @param array<string, string> $shortLocaleMap
+     */
     public function __construct(
         private RequestStack $requestStack,
         private AppScopeResolverInterface $scopeResolver,
-        private string $defaultLocale = 'fr-FR',
+        private string $defaultLocale,
+        private string $backofficeLocale,
+        private array $shortLocaleMap,
     ) {
     }
 
@@ -24,7 +29,7 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         $scope = $this->scopeResolver->resolve();
 
         if (AppScope::BACKOFFICE === $scope) {
-            return Locale::fromString('fr-FR');
+            return Locale::fromString($this->backofficeLocale);
         }
 
         $request = $this->requestStack->getCurrentRequest();
@@ -64,10 +69,6 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         $normalized = str_replace('_', '-', trim($candidate));
         $short      = mb_strtolower($normalized);
 
-        return match ($short) {
-            'fr'    => 'fr-FR',
-            'en'    => 'en-GB',
-            default => $normalized,
-        };
+        return $this->shortLocaleMap[$short] ?? $normalized;
     }
 }

@@ -41,6 +41,10 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     protected ?\DateTimeImmutable $emailVerifiedAt = null;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    protected int $version = 1;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -125,6 +129,11 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     public function getPassword(): string
     {
         return $this->passwordHash;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     abstract public function getType(): UserType;

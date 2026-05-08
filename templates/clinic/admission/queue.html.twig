@@ -23,7 +23,6 @@
   'emergency_by_third_party':  'Urgence tiers',
   'emergency_by_authority':    'Urgence autorités',
   'emergency_by_association':  'Urgence asso.',
-  'emergency_by_municipality': 'Urgence mairie',
   'transfer_from_other_clinic':'Transfert',
 } %}
 
@@ -34,7 +33,6 @@
   'emergency_by_third_party':  'background:var(--color-danger-bg);color:var(--color-danger-text);',
   'emergency_by_authority':    'background:var(--color-danger-bg);color:var(--color-danger-text);',
   'emergency_by_association':  'background:var(--color-warning-bg);color:var(--color-warning-text);',
-  'emergency_by_municipality': 'background:var(--color-warning-bg);color:var(--color-warning-text);',
   'transfer_from_other_clinic':'background:var(--color-purple-bg);color:var(--color-purple-text);',
 } %}
 
@@ -251,7 +249,7 @@
                     {% set speciesLabels = {'dog': 'Canin', 'cat': 'Félin', 'nac': 'NAC', 'other': 'Autre'} %}
                     {% set speciesLabel = speciesLabels[speciesKey] ?? '' %}
                     <div class="sched-col-line">{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}</div>
-                    <div class="sched-col-line muted">{{ ageDisplay }}{% if ageDisplay and appt.reason %} · {% endif %}{{ appt.reason ? appt.reason|lower : '' }}</div>
+                    <div class="sched-col-line muted">{{ ageDisplay }}</div>
                   </div>
                   <div class="sched-col">
                     <div class="sched-col-line">{{ appt.ownerLabel ?? '' }}</div>
@@ -260,6 +258,9 @@
                     {% endif %}
                   </div>
                 </div>
+                {% if appt.notes %}
+                  <div class="card-meta" style="font-style:italic;">{{ appt.notes }}</div>
+                {% endif %}
                 <div class="sched-vet-line">
                   {% if vetShort %}
                     <span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ vetShort[0:2]|upper }}</span>
@@ -308,7 +309,7 @@
               {%- set ageWeight  = [ageVal, weightVal]|filter(v => v)|join(' · ') -%}
               {%- set ownerName  = enr is not empty and enr.ownerName is defined ? enr.ownerName : '' -%}
               {%- set ownerPhone = enr is not empty and enr.ownerPhone is defined ? enr.ownerPhone : '' -%}
-              {%- set isUnknown = not entry.isPatientIdentifiedAtOpening -%}
+              {%- set isUnknown = (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) -%}
               {%- set dangerCls = primaryClass == 'danger' ? 'danger' : '' -%}
               <div class="wait-expanded">
                 <div class="wait-expanded-grid">
@@ -329,7 +330,8 @@
                 </div>
                 <div class="wait-actions">
                   {% if isUnknown %}
-                    <button class="wait-act-warn" type="button">Identifier</button>
+                    <button class="wait-act-warn" type="button"
+                            onclick="openIdentifierModal('{{ entry.admissionId }}', '{{ entry.displayLabel|e('js') }}', '{{ entry.physicalDescription|default('')|e('js') }}', '{{ entry.triageNotes|default('')|e('js') }}')">Identifier</button>
                   {% else %}
                     <button class="wait-act-secondary" type="button">Profil</button>
                   {% endif %}
@@ -349,8 +351,9 @@
             {%- set chevronSvg -%}<span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>{%- endset -%}
 
             {# ── vet pill ── #}
-            {%- macro vetPill(entry) -%}
-              {% if entry.practitionerLabel %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ entry.practitionerLabel|split(" ")|last|slice(0,2)|upper }}</span>{{ entry.practitionerLabel|split(" ")|last }}</span>{% else %}<span></span>{% endif %}
+            {%- macro vetPill(entry, vetByUserId) -%}
+              {%- set vetName = (vetByUserId[entry.practitionerUserId] ?? null) ?: (entry.practitionerLabel ?? null) -%}
+              {% if vetName %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ vetName|split(" ")|last|slice(0,2)|upper }}</span>{{ vetName|split(" ")|last }}</span>{% else %}<span></span>{% endif %}
             {%- endmacro -%}
 
             {% if urgentEntries|length > 0 %}
@@ -361,17 +364,19 @@
                 <div class="pcard urgent is-collapsible is-collapsed">
                   <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
-                      <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
+                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
                     <span style="display:inline-flex;align-items:center;gap:4px;">
-                      <span class="urg-tag{% if not entry.isPatientIdentifiedAtOpening %} nonid{% endif %}">{{ not entry.isPatientIdentifiedAtOpening ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
+                      {%- set cardIsUnknown = (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) -%}
+                      <span class="urg-tag{% if cardIsUnknown %} nonid{% endif %}">{{ cardIsUnknown ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
                       {{ chevronSvg }}
                     </span>
                   </div>
-                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
+                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
+                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
                   <div class="card-foot">
-                    {{ cards.vetPill(entry) }}
+                    {{ cards.vetPill(entry, vetByUserId) }}
                     <span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>
                   </div>
                   {{ cards.waitExpanded(entry, enr, 'danger') }}
@@ -392,10 +397,11 @@
                     </span>
                     {{ chevronSvg }}
                   </div>
-                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
+                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
+                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
                   <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span class="warn">{{ waitDisplay }}</span></div></div>
                   <div class="card-foot">
-                    {{ cards.vetPill(entry) }}
+                    {{ cards.vetPill(entry, vetByUserId) }}
                     <span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>
                   </div>
                   {{ cards.waitExpanded(entry, enr, '') }}
@@ -411,14 +417,15 @@
                 <div class="scard stripe-attente is-collapsible is-collapsed">
                   <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
-                      <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
+                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
                     <span style="display:inline-flex;gap:4px;align-items:center;"><span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>{{ chevronSvg }}</span>
                   </div>
-                  {% set cardMotif = entry.appointmentReason ?? entry.triageNotes %}{% if cardMotif %}<div class="card-meta">{{ cardMotif }}</div>{% endif %}
+                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
+                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
                   <div class="card-foot">
-                    {{ cards.vetPill(entry) }}
+                    {{ cards.vetPill(entry, vetByUserId) }}
                     <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
                   </div>
                   {{ cards.waitExpanded(entry, enr, '') }}
@@ -663,9 +670,7 @@
         </button>
       </div>
 
-      <form method="post" action="{{ path('clinic_admission_walkin') }}" id="ci-main-form"
-            data-checkin-url="{{ path('clinic_admission_checkin') }}"
-            data-walkin-url="{{ path('clinic_admission_walkin') }}">
+      <form method="post" action="{{ path('clinic_admission_checkin') }}" id="ci-main-form">
         <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
         <input type="hidden" name="arrivalMode" value="STANDARD">
         <input type="hidden" name="animalId" id="ci-animal-id">
@@ -857,7 +862,7 @@
           {# Recherche live unifiée (puce ou nom/propriétaire) #}
           <div class="form-row"
                data-controller="global-search"
-               data-global-search-url-value="{{ path('clinic_search') }}"
+               data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
                data-global-search-mode-value="pick"
                data-global-search-picker-id-value="walkin-urgence"
                data-global-search-type-value="animal">
@@ -989,7 +994,6 @@
                     <option value="emergency_by_third_party">Particulier tiers</option>
                     <option value="emergency_by_authority">Police / Pompiers</option>
                     <option value="emergency_by_association">Association</option>
-                    <option value="emergency_by_municipality">Mairie / Fourrière</option>
                   </select>
                 </div>
               </div>
@@ -1036,6 +1040,104 @@
     </div>
   </div>
 
+  {# ── Modal Identifier ── #}
+  <div class="modal-overlay hidden" id="modal-identifier"
+       onclick="if(event.target===this)closeIdentifierModal()">
+    <div class="modal-box">
+
+      <div class="modal-head id-head">
+        <div class="id-head-title">
+          <div class="id-head-icon">
+            <i data-lucide="search" style="width:14px;height:14px;"></i>
+          </div>
+          <p class="modal-title">Identifier l'animal</p>
+        </div>
+        <button class="btn-modal-close id-close" type="button"
+                onclick="closeIdentifierModal()">
+          <i data-lucide="x" style="width:14px;height:14px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <form method="post" action="{{ path('clinic_admission_identify') }}" id="identify-form">
+          <input type="hidden" name="_token" value="{{ csrf_token('admission_identify') }}">
+          <input type="hidden" name="admissionId" id="identify-admission-id">
+          <input type="hidden" name="tab" id="identify-tab" value="owner">
+          <input type="hidden" name="animalId" id="identify-animal-id">
+          <input type="hidden" name="animalName" id="identify-animal-name">
+
+        <div class="id-ctx-strip">
+          <div class="id-ctx-avatar">🐾</div>
+          <div class="id-ctx-meta">
+            <div class="id-ctx-name" id="id-ctx-name">—</div>
+            <div class="id-ctx-sub" id="id-ctx-sub">—</div>
+          </div>
+          <span class="id-ctx-tag">NON ID</span>
+        </div>
+
+        <div class="id-tabs">
+          <button class="id-tab active" type="button" onclick="idSetTab('owner')">
+            <i data-lucide="user" style="width:12px;height:12px;"></i>
+            Propriétaire
+          </button>
+          <button class="id-tab" type="button" onclick="idSetTab('anon')">
+            <i data-lucide="alert-circle" style="width:12px;height:12px;"></i>
+            Anonyme
+          </button>
+        </div>
+
+        <div class="id-panel active" id="id-panel-owner">
+          <div class="form-row">
+            <label class="form-label">Rechercher un animal</label>
+            <div data-controller="global-search"
+                 data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
+                 data-global-search-mode-value="pick"
+                 data-global-search-picker-id-value="identifier-animal"
+                 data-global-search-type-value="animal">
+              <input type="text" class="ci-input" id="id-owner-search"
+                     placeholder="Nom de l'animal, du propriétaire…"
+                     data-global-search-target="input"
+                     data-action="input->global-search#search">
+              <div id="id-owner-results" data-global-search-target="results"></div>
+              <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
+            </div>
+          </div>
+          <div id="id-animal-selected" style="display:none;"></div>
+        </div>
+
+        <div class="id-panel" id="id-panel-anon">
+          <div class="id-anon-banner">
+            <div class="id-anon-banner-t">Garder l'animal en statut anonyme</div>
+            <div class="id-anon-banner-s">L'animal restera dans le système sans propriétaire identifié. Vous pourrez compléter l'identification plus tard.</div>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Description physique (complément)</label>
+            <textarea class="ci-textarea" name="physicalDescription" id="id-anon-desc"
+                      placeholder="Ex : chat tigré gris, environ 3 kg, yeux verts, collier rouge usé…"></textarea>
+          </div>
+          <div class="form-row" style="margin-bottom:0;">
+            <label class="form-label">Lieu de découverte / contact tiers (optionnel)</label>
+            <input type="text" class="ci-input" name="triageNotes" id="id-anon-place"
+                   placeholder="Ex : rue St-Denis, Paris 1er — apporté par M. Durand 06 …">
+          </div>
+        </div>
+
+        </form>
+      </div>
+
+      <div class="modal-foot">
+        <span class="id-foot-hint" id="id-foot-hint">Pas trouvé ? Basculez sur « Anonyme » pour garder le statut temporaire.</span>
+        <button class="btn btn-secondary" type="button"
+                onclick="closeIdentifierModal()">Annuler</button>
+        <button class="btn btn-primary" id="id-submit" type="submit" form="identify-form" disabled>
+          <i data-lucide="check" style="width:11px;height:11px;"></i>
+          <span>Lier au dossier</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
 </div>{# /waiting-room controller #}
 {% endblock %}
 
@@ -1077,7 +1179,6 @@
       emergency: 'Urgence', emergency_by_third_party: 'Urgence tiers',
       emergency_by_authority: 'Urgence autorités',
       emergency_by_association: 'Urgence asso.',
-      emergency_by_municipality: 'Urgence mairie',
       transfer_from_other_clinic: 'Transfert',
     };
 
@@ -1220,6 +1321,80 @@
         banner.style.cssText = 'background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
         banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> <strong>Création nouveau dossier</strong>';
         document.getElementById('urg-title').textContent = 'Urgence — Nouveau dossier';
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    /* ── Modal Identifier ── */
+    function openIdentifierModal(admissionId, label, physicalDescription, triageNotes) {
+      document.getElementById('identify-admission-id').value = admissionId;
+      document.getElementById('identify-animal-id').value = '';
+      document.getElementById('identify-animal-name').value = '';
+      var nameEl = document.getElementById('id-ctx-name');
+      if (nameEl) nameEl.textContent = label || '—';
+      var subEl = document.getElementById('id-ctx-sub');
+      if (subEl) subEl.textContent = '—';
+      var descEl = document.getElementById('id-anon-desc');
+      if (descEl) descEl.value = physicalDescription || '';
+      var placeEl = document.getElementById('id-anon-place');
+      if (placeEl) placeEl.value = triageNotes || '';
+      var selectedEl = document.getElementById('id-animal-selected');
+      if (selectedEl) { selectedEl.style.display = 'none'; selectedEl.innerHTML = ''; }
+      var ownerSearch = document.getElementById('id-owner-search');
+      if (ownerSearch) ownerSearch.value = '';
+      var ownerResults = document.getElementById('id-owner-results');
+      if (ownerResults) ownerResults.innerHTML = '';
+      document.getElementById('modal-identifier').classList.remove('hidden');
+      idSetTab('owner');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeIdentifierModal() {
+      document.getElementById('modal-identifier').classList.add('hidden');
+    }
+
+    function identifierSetAnimal(resourceId, name, subtitle, context) {
+      document.getElementById('identify-animal-id').value = resourceId;
+      document.getElementById('identify-animal-name').value = name;
+      var selectedEl = document.getElementById('id-animal-selected');
+      if (selectedEl) {
+        selectedEl.style.display = '';
+        var parts = [name];
+        if (subtitle) parts.push('(' + subtitle + ')');
+        if (context && context !== 'Sans propriétaire') parts.push('— ' + context);
+        selectedEl.innerHTML = '<div class="id-selected-chip"><strong>' + name + '</strong>' + (subtitle ? ' <span class="muted">(' + subtitle + ')</span>' : '') + '</div>';
+      }
+      var submit = document.getElementById('id-submit');
+      if (submit) submit.disabled = false;
+    }
+
+    /* ── Modal Identifier — tab switching ── */
+    var idHints = {
+      owner: 'Pas trouvé ? Basculez sur « Anonyme » pour garder le statut temporaire.',
+      anon:  "Vous pourrez compléter l'identification plus tard depuis la fiche patient.",
+    };
+    function idSetTab(tab) {
+      document.getElementById('identify-tab').value = tab;
+      document.querySelectorAll('#modal-identifier .id-tab').forEach(function (t) {
+        t.classList.toggle('active', t.getAttribute('onclick') === "idSetTab('" + tab + "')");
+      });
+      document.querySelectorAll('#modal-identifier .id-panel').forEach(function (p) {
+        p.classList.remove('active');
+      });
+      var panel = document.getElementById('id-panel-' + tab);
+      if (panel) panel.classList.add('active');
+      var hint = document.getElementById('id-foot-hint');
+      if (hint && idHints[tab]) hint.textContent = idHints[tab];
+      var submit = document.getElementById('id-submit');
+      if (submit) {
+        if ('anon' === tab) {
+          submit.disabled = false;
+          submit.querySelector('span').textContent = 'Confirmer';
+        } else {
+          var hasAnimal = document.getElementById('identify-animal-id').value !== '';
+          submit.disabled = !hasAnimal;
+          submit.querySelector('span').textContent = 'Lier au dossier';
+        }
       }
       if (window.lucide) window.lucide.createIcons();
     }

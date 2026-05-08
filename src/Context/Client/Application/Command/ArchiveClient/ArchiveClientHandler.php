@@ -8,7 +8,7 @@ use App\Context\Client\Domain\Event\ClientArchivedIntegrationEvent;
 use App\Context\Client\Domain\Exception\ClientClinicMismatchException;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\ClientId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Application\Event\IntegrationEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;

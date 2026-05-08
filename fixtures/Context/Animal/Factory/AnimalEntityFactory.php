@@ -222,7 +222,7 @@ final class AnimalEntityFactory extends PersistentProxyObjectFactory
             'passportNumber'              => null,
             'registryType'                => RegistryType::NONE,
             'registryNumber'              => null,
-            'sireNumber'                  => null,
+            'registryReference'           => null,
             'lifeStatus'                  => $lifeStatus,
             'deceasedAt'                  => null,
             'missingSince'                => null,

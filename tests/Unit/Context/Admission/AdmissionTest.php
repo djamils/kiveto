@@ -276,6 +276,18 @@ final class AdmissionTest extends TestCase
         self::assertCount(0, $admission->recordedDomainEvents());
     }
 
+    public function testUpdatePhysicalDescriptionSetsField(): void
+    {
+        $admission = $this->makeOpenAdmission();
+        $_         = $admission->pullDomainEvents();
+
+        $now = $this->makeNow();
+        $admission->updatePhysicalDescription('fat grey cat', $now);
+
+        self::assertSame('fat grey cat', $admission->physicalDescription());
+        self::assertCount(0, $admission->pullDomainEvents());
+    }
+
     public function testUpdateTriageNotesUpdatesValue(): void
     {
         $admission = $this->makeOpenAdmission();

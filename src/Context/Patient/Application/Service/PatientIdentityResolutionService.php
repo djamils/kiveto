@@ -84,6 +84,21 @@ final readonly class PatientIdentityResolutionService
         ));
     }
 
+    public function linkOrReconcileToAnimal(
+        PatientId $sourcePatientId,
+        string $clinicId,
+        string $animalId,
+        string $animalName,
+    ): void {
+        $existingPatientId = $this->patientReadRepository->getActivePatientIdForAnimal($clinicId, $animalId);
+
+        if (null !== $existingPatientId) {
+            $this->reconcileInto($sourcePatientId, PatientId::fromString($existingPatientId), $clinicId);
+        } else {
+            $this->linkToExistingAnimal($sourcePatientId, $clinicId, $animalId, $animalName);
+        }
+    }
+
     public function reconcileInto(
         PatientId $sourcePatientId,
         PatientId $targetPatientId,

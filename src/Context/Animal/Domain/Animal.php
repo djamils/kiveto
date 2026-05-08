@@ -17,6 +17,7 @@ use App\Context\Animal\Domain\Exception\PrimaryOwnerConflictException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\Ownership;
@@ -26,7 +27,6 @@ use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
 use App\Context\Animal\Domain\ValueObject\Sex;
 use App\Context\Animal\Domain\ValueObject\Species;
 use App\Context\Animal\Domain\ValueObject\Transfer;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class Animal extends AggregateRoot

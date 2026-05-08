@@ -7,7 +7,7 @@ namespace App\Context\Animal\Application\Query\GetAnimalById;
 use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Context\Animal\Domain\Exception\AnimalNotFoundException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 // QueryHandlerInterface removed - Symfony handles it via AsMessageHandler

@@ -81,9 +81,17 @@ final readonly class DoctrineAnimalSearchRepository implements AnimalSearchRepos
     private function searchByName(Connection $conn, string $normalizedTerm, string $clinicBinary, int $limit): array
     {
         $rows = $conn->fetchAllAssociative(
-            self::SELECT . ' WHERE clinic_id = :clinicId AND search_name LIKE :prefix AND status = :status LIMIT :limit',
-            ['clinicId' => $clinicBinary, 'prefix' => $normalizedTerm . '%', 'status' => 'active', 'limit' => $limit],
-            ['limit'    => ParameterType::INTEGER],
+            self::SELECT . ' WHERE clinic_id = :clinicId'
+                . ' AND (search_name LIKE :prefix OR LOWER(search_owner_name) LIKE :ownerContains)'
+                . ' AND status = :status LIMIT :limit',
+            [
+                'clinicId'      => $clinicBinary,
+                'prefix'        => $normalizedTerm . '%',
+                'ownerContains' => '%' . $normalizedTerm . '%',
+                'status'        => 'active',
+                'limit'         => $limit,
+            ],
+            ['limit' => ParameterType::INTEGER],
         );
 
         return $this->mapRows($rows);

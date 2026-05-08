@@ -7,6 +7,7 @@ namespace App\Presentation\Clinic\Controller\Client\Profile;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
+use App\Context\Client\Domain\ValueObject\ClinicId as ClientClinicId;
 use App\Presentation\Clinic\Form\Client\ClientFormType;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -47,7 +48,10 @@ final class CreateClientController extends AbstractController
             $phone     = trim(\is_string($data['phone'] ?? null) ? $data['phone'] : '');
 
             $emailIsDuplicate = '' !== $email
-                && $this->clientReadRepository->emailExistsInClinic($currentClinicId, $email);
+                && $this->clientReadRepository->emailExistsInClinic(
+                    ClientClinicId::fromString($currentClinicId->toString()),
+                    $email,
+                );
 
             if ($emailIsDuplicate) {
                 $form->get('email')->addError(

@@ -15,6 +15,8 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use PHPUnit\Framework\TestCase;
 
 final class ChangeClinicTimeZoneHandlerTest extends TestCase
@@ -28,6 +30,8 @@ final class ChangeClinicTimeZoneHandlerTest extends TestCase
             ClinicSlug::fromString('test-clinic'),
             TimeZone::fromString('Europe/Paris'),
             Locale::fromString('fr-FR'),
+            CountryCode::fromString('FR'),
+            CurrencyCode::fromString('EUR'),
             new \DateTimeImmutable('2024-01-01T10:00:00Z'),
             null,
         );

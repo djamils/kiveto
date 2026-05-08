@@ -12,7 +12,7 @@ final readonly class Identification
     public ?string $tattooNumber;
     public ?string $passportNumber;
     public ?string $registryNumber;
-    public ?string $sireNumber;
+    public ?string $registryReference;
 
     public function __construct(
         ?string $microchipNumber,
@@ -20,13 +20,13 @@ final readonly class Identification
         ?string $passportNumber,
         public RegistryType $registryType,
         ?string $registryNumber,
-        ?string $sireNumber,
+        ?string $registryReference,
     ) {
-        $this->microchipNumber = '' === $microchipNumber ? null : $microchipNumber;
-        $this->tattooNumber    = '' === $tattooNumber ? null : $tattooNumber;
-        $this->passportNumber  = '' === $passportNumber ? null : $passportNumber;
-        $this->registryNumber  = '' === $registryNumber ? null : $registryNumber;
-        $this->sireNumber      = '' === $sireNumber ? null : $sireNumber;
+        $this->microchipNumber   = '' === $microchipNumber ? null : $microchipNumber;
+        $this->tattooNumber      = '' === $tattooNumber ? null : $tattooNumber;
+        $this->passportNumber    = '' === $passportNumber ? null : $passportNumber;
+        $this->registryNumber    = '' === $registryNumber ? null : $registryNumber;
+        $this->registryReference = '' === $registryReference ? null : $registryReference;
     }
 
     public static function createEmpty(): self
@@ -37,7 +37,7 @@ final readonly class Identification
             passportNumber: null,
             registryType: RegistryType::NONE,
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
         );
     }
 
@@ -49,7 +49,7 @@ final readonly class Identification
             passportNumber: $this->passportNumber,
             registryType: $this->registryType,
             registryNumber: $this->registryNumber,
-            sireNumber: $this->sireNumber,
+            registryReference: $this->registryReference,
         );
     }
 
@@ -57,6 +57,10 @@ final readonly class Identification
     {
         if (RegistryType::NONE === $this->registryType && null !== $this->registryNumber) {
             throw new InvalidIdentificationException('RegistryNumber must be null when RegistryType is NONE.');
+        }
+
+        if (RegistryType::NONE === $this->registryType && null !== $this->registryReference) {
+            throw new InvalidIdentificationException('RegistryReference must be null when RegistryType is NONE.');
         }
     }
 }

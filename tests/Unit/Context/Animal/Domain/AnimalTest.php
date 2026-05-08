@@ -15,6 +15,7 @@ use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\Ownership;
@@ -24,7 +25,6 @@ use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
 use App\Context\Animal\Domain\ValueObject\Sex;
 use App\Context\Animal\Domain\ValueObject\Species;
 use App\Context\Animal\Domain\ValueObject\Transfer;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
 final class AnimalTest extends TestCase
@@ -846,7 +846,7 @@ final class AnimalTest extends TestCase
             passportNumber: null,
             registryType: \App\Context\Animal\Domain\ValueObject\RegistryType::NONE,
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
         );
 
         $animal->updateIdentity(

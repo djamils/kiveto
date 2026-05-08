@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Animal\Application\Query\ListAnimalSummariesPerClientIds;
 
 use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

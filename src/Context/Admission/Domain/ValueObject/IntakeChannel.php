@@ -12,6 +12,5 @@ enum IntakeChannel: string
     case EmergencyByThirdParty   = 'emergency_by_third_party';
     case EmergencyByAuthority    = 'emergency_by_authority';
     case EmergencyByAssociation  = 'emergency_by_association';
-    case EmergencyByMunicipality = 'emergency_by_municipality';
     case TransferFromOtherClinic = 'transfer_from_other_clinic';
 }

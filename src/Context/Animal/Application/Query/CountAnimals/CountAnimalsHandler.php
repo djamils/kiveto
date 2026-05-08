@@ -6,7 +6,7 @@ namespace App\Context\Animal\Application\Query\CountAnimals;
 
 use App\Context\Animal\Application\Port\AnimalReadRepositoryInterface;
 use App\Context\Animal\Application\Query\SearchAnimals\SearchAnimalsCriteria;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

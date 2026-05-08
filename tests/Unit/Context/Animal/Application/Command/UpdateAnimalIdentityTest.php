@@ -29,7 +29,7 @@ final class UpdateAnimalIdentityTest extends TestCase
             passportNumber: 'PASS999',
             registryType: 'loof',
             registryNumber: 'LOOF999',
-            sireNumber: null,
+            registryReference: null,
             auxiliaryContactFirstName: 'Jane',
             auxiliaryContactLastName: 'Smith',
             auxiliaryContactPhoneNumber: '+33698765432',
@@ -52,7 +52,7 @@ final class UpdateAnimalIdentityTest extends TestCase
         self::assertSame('PASS999', $command->passportNumber);
         self::assertSame('loof', $command->registryType);
         self::assertSame('LOOF999', $command->registryNumber);
-        self::assertNull($command->sireNumber);
+        self::assertNull($command->registryReference);
         self::assertSame('Jane', $command->auxiliaryContactFirstName);
         self::assertSame('Smith', $command->auxiliaryContactLastName);
         self::assertSame('+33698765432', $command->auxiliaryContactPhoneNumber);

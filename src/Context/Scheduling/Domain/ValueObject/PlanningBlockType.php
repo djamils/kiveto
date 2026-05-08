@@ -7,18 +7,18 @@ namespace App\Context\Scheduling\Domain\ValueObject;
 enum PlanningBlockType: string
 {
     case CONSULTATION = 'consultation';
-    case CHIRURGIE    = 'chirurgie';
-    case BILAN        = 'bilan';
-    case URGENCE      = 'urgence';
-    case GARDE        = 'garde';
-    case CONGE        = 'conge';
-    case FORMATION    = 'formation';
+    case SURGERY      = 'surgery';
+    case HEALTH_CHECK = 'health_check';
+    case EMERGENCY    = 'emergency';
+    case ON_CALL      = 'on_call';
+    case LEAVE        = 'leave';
+    case TRAINING     = 'training';
     case ADMIN        = 'admin';
 
     public function acceptsAppointments(): bool
     {
         return match ($this) {
-            self::CONGE, self::FORMATION, self::ADMIN => false,
+            self::LEAVE, self::TRAINING, self::ADMIN => false,
             default => true,
         };
     }
@@ -26,7 +26,7 @@ enum PlanningBlockType: string
     public function hasCapacityLimit(): bool
     {
         return match ($this) {
-            self::CONGE, self::FORMATION, self::ADMIN => false,
+            self::LEAVE, self::TRAINING, self::ADMIN => false,
             default => true,
         };
     }

@@ -6,15 +6,16 @@ namespace App\Context\Regulatory\Domain;
 
 use App\Context\Regulatory\Domain\Event\StrayCustodyBegun;
 use App\Context\Regulatory\Domain\Event\StrayCustodyCancelledOwnerFound;
-use App\Context\Regulatory\Domain\Event\StrayCustodyClosedHandedToMunicipality;
-use App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator;
+use App\Context\Regulatory\Domain\Event\StrayCustodyClosedHandedToAuthority;
+use App\Context\Regulatory\Domain\Policy\RegulatoryPolicyInterface;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyId;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyStatus;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 
 /**
- * Tracks the mandatory stray animal custody period (code rural L211-25).
- * Deadline: admissionOpenedAt + 8 French working days.
+ * Tracks the mandatory holding period for an unidentified stray animal before
+ * possible handover to the competent authority. Deadline is delegated to the
+ * jurisdiction policy (`RegulatoryPolicyInterface::getStrayCustodyDeadline`).
  */
 final class StrayCustody extends AggregateRoot
 {
@@ -33,7 +34,7 @@ final class StrayCustody extends AggregateRoot
 
     /**
      * Begins a stray custody period.
-     * Deadline is calculated as admissionOpenedAt + 8 French working days.
+     * Deadline is determined by the jurisdiction policy.
      */
     public static function begin(
         StrayCustodyId $id,
@@ -41,10 +42,10 @@ final class StrayCustody extends AggregateRoot
         string $patientId,
         string $clinicId,
         \DateTimeImmutable $admissionOpenedAt,
-        FrenchWorkingDayCalculator $calculator,
+        RegulatoryPolicyInterface $policy,
         \DateTimeImmutable $now,
     ): self {
-        $deadline = $calculator->addWorkingDays($admissionOpenedAt, 8);
+        $deadline = $policy->getStrayCustodyDeadline($admissionOpenedAt);
 
         $custody = new self(
             id: $id,
@@ -94,10 +95,10 @@ final class StrayCustody extends AggregateRoot
     }
 
     /**
-     * Closes the custody after the animal has been handed to the municipality.
+     * Closes the custody after the animal has been handed to the authority.
      * Guard: status must be Active.
      */
-    public function closeHandedToMunicipality(\DateTimeImmutable $now): void
+    public function closeHandedToAuthority(\DateTimeImmutable $now): void
     {
         if (StrayCustodyStatus::Active !== $this->status) {
             throw new \DomainException(\sprintf(
@@ -108,10 +109,10 @@ final class StrayCustody extends AggregateRoot
             ));
         }
 
-        $this->status    = StrayCustodyStatus::ClosedHandedToMunicipality;
+        $this->status    = StrayCustodyStatus::ClosedHandedToAuthority;
         $this->updatedAt = $now;
 
-        $this->recordDomainEvent(new StrayCustodyClosedHandedToMunicipality(
+        $this->recordDomainEvent(new StrayCustodyClosedHandedToAuthority(
             custodyId: $this->id->value(),
             admissionId: $this->admissionId,
             closedAt: $now->format(\DateTimeInterface::ATOM),

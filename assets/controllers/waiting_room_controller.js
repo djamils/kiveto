@@ -75,12 +75,12 @@ export default class extends Controller {
 
     const motif = (wrap.dataset.motif || '').toLowerCase();
     let suggested = 'consultation';
-    if (/chirurgie|opérat|surgery/.test(motif)) suggested = 'chirurgie';
-    else if (/hospi|hospitali/.test(motif))      suggested = 'hospi';
+    if (/opérat|surgery/.test(motif)) suggested = 'surgery';
+    else if (/hospi|hospitali/.test(motif))  suggested = 'hospi';
 
     const items = [
       { type: 'consultation', icon: '🩺', label: 'Consultation' },
-      { type: 'chirurgie',    icon: '🔪', label: 'Chirurgie' },
+      { type: 'surgery',      icon: '🔪', label: 'Chirurgie' },
       { type: 'hospi',        icon: '🏥', label: 'Hospitalisation' },
     ];
 
@@ -114,11 +114,12 @@ export default class extends Controller {
     // Check-in depuis un RDV planifié : toggle CACHÉ, patient pré-sélectionné
     const d = event.currentTarget.dataset;
     this._ciOpenModal(false);
-    if (d.animalName) {
-      // Store appointment ID in modal hidden field
-      const apptIdEl = document.getElementById('ci-appointment-id');
-      if (apptIdEl) apptIdEl.value = d.apptId || '';
 
+    // Always capture appointment ID regardless of whether animal name is present
+    const apptIdEl = document.getElementById('ci-appointment-id');
+    if (apptIdEl) apptIdEl.value = d.apptId || '';
+
+    if (d.animalName) {
       this._ciSelectPatient({
         animalId:  d.animalId  || '',
         name:      d.animalName || '',
@@ -380,14 +381,7 @@ export default class extends Controller {
   }
 
   ciPrepareNew(event) {
-    const form = document.getElementById('ci-main-form');
-    const apptId = document.getElementById('ci-appointment-id')?.value || '';
-    if (form) {
-      form.action = apptId
-        ? (form.dataset.checkinUrl || form.action)
-        : (form.dataset.walkinUrl  || form.action);
-    }
-
+    // Copies new-client form fields into the hidden foundAnimalDescription field before submit
     const isNewMode = document.getElementById('ci-create-form')?.style.display !== 'none';
     if (!isNewMode) return;
     const animal  = (document.getElementById('ci-new-animal')?.value ?? '').trim();
@@ -575,6 +569,17 @@ export default class extends Controller {
       if (lbl2a) lbl2a.value = description;
       if (typeof window.urgSetFromPick === 'function') {
         window.urgSetFromPick(hit.resourceId, description);
+      }
+    } else if ('identifier-animal' === pickerId) {
+      const modal = document.getElementById('modal-identifier');
+      if (!modal) return;
+      clearSearch(modal);
+      const animalId = document.getElementById('identify-animal-id');
+      if (animalId) animalId.value = hit.resourceId;
+      const animalName = document.getElementById('identify-animal-name');
+      if (animalName) animalName.value = hit.title;
+      if (typeof window.identifierSetAnimal === 'function') {
+        window.identifierSetAnimal(hit.resourceId, hit.title, hit.subtitle || '', hit.context || '');
       }
     }
   }

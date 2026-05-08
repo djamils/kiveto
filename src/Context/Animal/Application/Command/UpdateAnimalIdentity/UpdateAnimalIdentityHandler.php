@@ -9,12 +9,12 @@ use App\Context\Animal\Domain\Exception\MicrochipAlreadyUsedException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
+use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\RegistryType;
 use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
 use App\Context\Animal\Domain\ValueObject\Sex;
 use App\Context\Animal\Domain\ValueObject\Species;
-use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -65,7 +65,7 @@ final readonly class UpdateAnimalIdentityHandler
             passportNumber: $command->passportNumber,
             registryType: RegistryType::from($command->registryType),
             registryNumber: $command->registryNumber,
-            sireNumber: $command->sireNumber,
+            registryReference: $command->registryReference,
         );
 
         // Build auxiliary contact

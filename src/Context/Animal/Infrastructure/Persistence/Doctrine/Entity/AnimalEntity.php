@@ -75,7 +75,7 @@ class AnimalEntity
     private ?string $registryNumber = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
-    private ?string $sireNumber = null;
+    private ?string $registryReference = null;
 
     #[ORM\Column(type: 'string', length: 50, enumType: LifeStatus::class)]
     private LifeStatus $lifeStatus;
@@ -291,14 +291,14 @@ class AnimalEntity
         $this->registryNumber = $registryNumber;
     }
 
-    public function getSireNumber(): ?string
+    public function getRegistryReference(): ?string
     {
-        return $this->sireNumber;
+        return $this->registryReference;
     }
 
-    public function setSireNumber(?string $sireNumber): void
+    public function setRegistryReference(?string $registryReference): void
     {
-        $this->sireNumber = $sireNumber;
+        $this->registryReference = $registryReference;
     }
 
     public function getLifeStatus(): LifeStatus

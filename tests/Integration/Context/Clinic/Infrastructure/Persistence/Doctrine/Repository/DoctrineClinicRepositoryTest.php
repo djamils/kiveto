@@ -11,6 +11,8 @@ use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\ValueObject\CountryCode;
+use App\Shared\Domain\ValueObject\CurrencyCode;
 use Doctrine\Bundle\DoctrineBundle\Registry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -115,6 +117,8 @@ final class DoctrineClinicRepositoryTest extends KernelTestCase
             slug: ClinicSlug::fromString('new-clinic'),
             timeZone: TimeZone::fromString('Europe/Paris'),
             locale: Locale::fromString('fr-FR'),
+            countryCode: CountryCode::fromString('FR'),
+            currencyCode: CurrencyCode::fromString('EUR'),
             createdAt: new \DateTimeImmutable('2024-01-01T10:00:00Z'),
         );
 

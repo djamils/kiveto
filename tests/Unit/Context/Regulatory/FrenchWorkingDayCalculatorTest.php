@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Regulatory;
 
-use App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator;
+use App\Context\Regulatory\Jurisdiction\France\FrenchWorkingDayCalculator;
 use PHPUnit\Framework\TestCase;
 
 final class FrenchWorkingDayCalculatorTest extends TestCase

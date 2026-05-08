@@ -21,7 +21,7 @@ final class IdentificationTest extends TestCase
         self::assertNull($identification->passportNumber);
         self::assertSame(RegistryType::NONE, $identification->registryType);
         self::assertNull($identification->registryNumber);
-        self::assertNull($identification->sireNumber);
+        self::assertNull($identification->registryReference);
     }
 
     public function testWithMicrochip(): void
@@ -52,7 +52,7 @@ final class IdentificationTest extends TestCase
             passportNumber: 'PASS123',
             registryType: RegistryType::LOF,
             registryNumber: 'LOF123',
-            sireNumber: 'SIRE123'
+            registryReference: 'SIRE123'
         );
 
         $identification->ensureConsistency();
@@ -68,7 +68,7 @@ final class IdentificationTest extends TestCase
             passportNumber: null,
             registryType: RegistryType::NONE,
             registryNumber: 'SHOULD_BE_NULL',
-            sireNumber: null
+            registryReference: null
         );
 
         $this->expectException(InvalidIdentificationException::class);
@@ -85,7 +85,7 @@ final class IdentificationTest extends TestCase
             passportNumber: null,
             registryType: RegistryType::NONE,
             registryNumber: null,
-            sireNumber: null
+            registryReference: null
         );
 
         $identification->ensureConsistency();
@@ -102,7 +102,7 @@ final class IdentificationTest extends TestCase
             passportNumber: null,
             registryType: RegistryType::NONE,
             registryNumber: null,
-            sireNumber: null,
+            registryReference: null,
         );
 
         self::assertNull($identification->microchipNumber);
@@ -117,12 +117,12 @@ final class IdentificationTest extends TestCase
             passportNumber: '',
             registryType: RegistryType::NONE,
             registryNumber: null,
-            sireNumber: '',
+            registryReference: '',
         );
 
         self::assertNull($identification->microchipNumber);
         self::assertNull($identification->tattooNumber);
         self::assertNull($identification->passportNumber);
-        self::assertNull($identification->sireNumber);
+        self::assertNull($identification->registryReference);
     }
 }

@@ -71,7 +71,7 @@ src/Context/Admission/
 │   └── ValueObject/                               (AdmissionId, ClinicId, IntakeChannel, TriageLevel, ClosureReason, LocationStatus, LocationStatusValue, Presenter, PresenterRole, AdmissionStatus)
 ├── Application/
 │   ├── Command/                                   (OpenEmergencyAdmission, CloseAdmission, UpdateAdmissionTriage)
-│   ├── Port/                                      (AdmissionReadRepositoryInterface, PatientCreationPort, AnimalReadRepositoryPort, PatientReadRepositoryPort, ICADLookupPort, ChipLookupResult variants, WaitingRoomItemDto, AdmissionContextDto)
+│   ├── Port/                                      (AdmissionReadRepositoryInterface, PatientCreationPort, AnimalReadRepositoryPort, PatientReadRepositoryPort, MicrochipRegistryLookupPort, ChipLookupResult variants, WaitingRoomItemDto, AdmissionContextDto)
 │   ├── Service/                                   (EmergencyAdmissionService, ChipLookupService)
 │   └── EventSubscriber/PatientReconciledIntoHandler.php
 └── Infrastructure/

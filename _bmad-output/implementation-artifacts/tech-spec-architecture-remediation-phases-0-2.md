@@ -2,8 +2,8 @@
 title: 'Architecture Remediation Phases 0-2: Hygiene, i18n Foundations & Regulatory Decoupling'
 slug: 'architecture-remediation-phases-0-2'
 created: '2026-05-02'
-status: 'ready-for-dev'
-stepsCompleted: [1, 2, 3, 4]
+status: 'implementation-complete'
+stepsCompleted: [1, 2, 3, 4, 5]
 tech_stack: ['PHP 8.3', 'Symfony 7', 'Doctrine ORM', 'Zenstruck Foundry', 'PHPUnit', 'Twig', 'Tailwind CSS v4']
 files_to_modify:
   - 'src/Context/Admission/Infrastructure/Adapter/Regulatory/ICADLookupAdapter.php'
@@ -179,7 +179,7 @@ Execute the three phases in sequence, each building on the last:
 
 #### Phase 0 — Hygiene (Week 1)
 
-- [ ] **T1: Rename PlanningBlockType enum cases and DB values (Phase 0.4)**
+- [x] **T1: Rename PlanningBlockType enum cases and DB values (Phase 0.4)**
   - File: `src/Context/Scheduling/Domain/ValueObject/PlanningBlockType.php`
   - Action: Rename 6 cases: `CHIRURGIE→SURGERY('surgery')`, `BILAN→HEALTH_CHECK('health_check')`, `URGENCE→EMERGENCY('emergency')`, `GARDE→ON_CALL('on_call')`, `CONGE→LEAVE('leave')`, `FORMATION→TRAINING('training')`. Update `acceptsAppointments()` match arms from `self::CONGE, self::FORMATION, self::ADMIN` to `self::LEAVE, self::TRAINING, self::ADMIN`. Same for `hasCapacityLimit()`.
   - File: `fixtures/Context/Scheduling/Story/SchedulingPlanningBlockStory.php`
@@ -195,7 +195,7 @@ Execute the three phases in sequence, each building on the last:
   - Action: Check for CSS selectors or class names derived from French enum values (e.g. `.wr-urgence`) — update if present.
   - Action: Run `make assets` after any JS/CSS change to rebuild frontend assets.
 
-- [ ] **T2: Rewrite 4 BC READMEs (Phase 0.3)**
+- [x] **T2: Rewrite 4 BC READMEs (Phase 0.3)**
   - File: `src/Context/Clinic/README.md`
   - Action: Rewrite in English. Include: BC purpose (multi-tenant root), aggregates (Clinic, ClinicGroup, ClinicMembership, StaffProfile), Staff sub-domain description (professional titles, agenda colors, registration numbers), cross-BC dependencies (produces Membership events consumed by AccessControl; reads IdentityAccess via UserExistenceChecker port).
   - File: `src/Context/Scheduling/README.md`
@@ -205,7 +205,7 @@ Execute the three phases in sequence, each building on the last:
   - File: `src/System/IdentityAccess/README.md`
   - Action: Expand from minimalist state. Add: authentication flow description, 3 concrete UserEntity sub-types, `AuthenticateUser` query, security gaps noted (2FA, lockout — out of scope but documented as known debt).
 
-- [ ] **T3: Create local ClinicId VOs in Animal and Client BCs (Phase 0.5)**
+- [x] **T3: Create local ClinicId VOs in Animal and Client BCs (Phase 0.5)**
   - Files to create: `src/Context/Animal/Domain/ValueObject/ClinicId.php`, `src/Context/Client/Domain/ValueObject/ClinicId.php`
   - Action: Copy exact shape of `src/Context/Patient/Domain/ValueObject/ClinicId.php` — `final class ClinicId extends AbstractUuidId` with single `public static function fromString(string $value): self` factory. Change namespace to `App\Context\Animal\Domain\ValueObject` / `App\Context\Client\Domain\ValueObject`.
   - Files to modify (Animal BC — 17 files): `src/Context/Animal/Domain/Animal.php`, `src/Context/Animal/Application/Command/ArchiveAnimal/ArchiveAnimalHandler.php`, `src/Context/Animal/Application/Command/CreateAnimal/CreateAnimalHandler.php`, `src/Context/Animal/Application/Command/ReplaceAnimalOwners/ReplaceAnimalOwnersHandler.php`, `src/Context/Animal/Application/Command/UpdateAnimalIdentity/UpdateAnimalIdentityHandler.php`, `src/Context/Animal/Application/Command/UpdateAnimalLifeCycle/UpdateAnimalLifeCycleHandler.php`, `src/Context/Animal/Application/Command/UpdateAnimalTransfer/UpdateAnimalTransferHandler.php`, `src/Context/Animal/Application/Query/CountAnimals/CountAnimalsHandler.php`, `src/Context/Animal/Application/Query/GetAnimalById/GetAnimalByIdHandler.php`, `src/Context/Animal/Application/Query/ListAnimalSummariesPerClientIds/ListAnimalSummariesPerClientIdsHandler.php`, `src/Context/Animal/Application/Query/SearchAnimals/SearchAnimalsHandler.php`, `src/Context/Animal/Domain/Repository/AnimalRepositoryInterface.php`, `src/Context/Animal/Application/Port/AnimalReadRepositoryInterface.php`, `src/Context/Animal/Infrastructure/Messaging/Consumer/ClientArchivedIntegrationEventConsumer.php`, `src/Context/Animal/Infrastructure/Persistence/Doctrine/DoctrineAnimalRepository.php`, `src/Context/Animal/Infrastructure/Persistence/Doctrine/DoctrineAnimalReadRepository.php`, `src/Context/Animal/Infrastructure/Persistence/Doctrine/AnimalMapper.php`
@@ -214,14 +214,14 @@ Execute the three phases in sequence, each building on the last:
   - Action: Replace `use App\Context\Clinic\Domain\ValueObject\ClinicId;` → `use App\Context\Client\Domain\ValueObject\ClinicId;` in all 16 Client files.
   - Notes: No DB migration needed — `clinicId` column already mapped as `UuidType::NAME` (plain UUID string) in both Doctrine entities. No schema change. After changes, run `make ci` — PHPStan must pass at level max.
 
-- [ ] **T4: Add `#[Version]` optimistic locking to Clinic, Client, Consultation, Scheduling, IdentityAccess entities (Phase 0.2)**
+- [x] **T4: Add `#[Version]` optimistic locking to Clinic, Client, Consultation, Scheduling, IdentityAccess entities (Phase 0.2)**
   - Files to modify: `src/Context/Clinic/Infrastructure/Persistence/Doctrine/Entity/ClinicEntity.php`, `src/Context/Client/Infrastructure/Persistence/Doctrine/Entity/ClientEntity.php`, `src/Context/Consultation/Infrastructure/Persistence/Doctrine/Entity/ConsultationEntity.php`, `src/System/IdentityAccess/Infrastructure/Persistence/Doctrine/Entity/UserEntity.php`, `src/Context/Scheduling/Infrastructure/Persistence/Doctrine/Entity/PlanningBlockEntity.php`, `src/Context/Scheduling/Infrastructure/Persistence/Doctrine/Entity/AppointmentEntity.php`
   - Action: For concrete entities (ClinicEntity, ClientEntity, ConsultationEntity, PlanningBlockEntity, AppointmentEntity): add `#[ORM\Version] #[ORM\Column] private int $version = 1;` and a `public function getVersion(): int { return $this->version; }` getter.
   - Action: For `UserEntity` (abstract base with `#[ORM\InheritanceType('SINGLE_TABLE')]`): declare the field as `protected` not `private` — `#[ORM\Version] #[ORM\Column] protected int $version = 1;` — so sub-classes can access it without PHPStan "access private property from child class" errors. Add `public function getVersion(): int { return $this->version; }` on the abstract base.
   - Action: Check each BC's domain aggregate `reconstitute()` factory — Regulatory aggregates expose `version(): int`; replicate the same pattern here (add `int $version` param to `reconstitute()` and update the corresponding Mapper class). If the BC has no `reconstitute()` with version, entity-only is acceptable.
   - Action: Run `make doctrine:migrations:diff` to generate migration, then `make migrate-db`.
 
-- [ ] **T5: Wire ICADLookupAdapter to dispatch OpenICADLookup command (Phase 0.1)**
+- [x] **T5: Wire ICADLookupAdapter to dispatch OpenICADLookup command (Phase 0.1)**
   - File: `src/Context/Admission/Infrastructure/Adapter/Regulatory/ICADLookupAdapter.php`
   - Action: Add constructor parameter `private readonly CommandBusInterface $commandBus` (use `App\Shared\Application\Bus\CommandBusInterface` — the project's own abstraction, not raw `MessageBusInterface`). In `initiateChipLookup(string $chipNumber, string $clinicId): void`, add: `$this->commandBus->dispatch(new OpenICADLookup(chipNumber: $chipNumber, clinicId: $clinicId));`. Add `use` for `CommandBusInterface` and `OpenICADLookup`.
   - File to create: `tests/Unit/Context/Admission/Infrastructure/Adapter/ICADLookupAdapterTest.php`
@@ -231,14 +231,14 @@ Execute the three phases in sequence, each building on the last:
 
 #### Phase 1 — i18n Foundations (Weeks 2-3)
 
-- [ ] **T6: Create CountryCode and CurrencyCode Shared VOs (Phase 1.1)**
+- [x] **T6: Create CountryCode and CurrencyCode Shared VOs (Phase 1.1)**
   - Files to create: `src/Shared/Domain/ValueObject/CountryCode.php`, `src/Shared/Domain/ValueObject/CurrencyCode.php`
   - Action `CountryCode`: `final class CountryCode` with `private function __construct(private readonly string $value)`. Factory `public static function fromString(string $value): self` — validate exactly 2 uppercase ASCII letters (e.g. `preg_match('/^[A-Z]{2}$/', $value)`) or throw `\InvalidArgumentException`. `public function toString(): string`, `public function equals(self $other): bool`.
   - Action `CurrencyCode`: same pattern, validate exactly 3 uppercase ASCII letters (`/^[A-Z]{3}$/`).
   - Files to create: `tests/Unit/Shared/Domain/ValueObject/CountryCodeTest.php`, `tests/Unit/Shared/Domain/ValueObject/CurrencyCodeTest.php`
   - Action: Test valid codes (`FR`, `DE`, `EUR`, `USD`), invalid codes throw exception, `equals()` with same and different values.
 
-- [ ] **T7: Enrich Clinic aggregate, entity, read model, form, and factory (Phase 1.2)**
+- [x] **T7: Enrich Clinic aggregate, entity, read model, form, and factory (Phase 1.2)**
   - File: `src/Context/Clinic/Domain/Clinic.php`
   - Action: Add properties `private CountryCode $countryCode`, `private ?string $jurisdictionCode`, `private CurrencyCode $currencyCode`. Add to `create()` static factory (required params). Add to `reconstitute()` static factory. Add accessors `countryCode(): CountryCode`, `jurisdictionCode(): ?string`, `currencyCode(): CurrencyCode`.
   - File: `src/Context/Clinic/Infrastructure/Persistence/Doctrine/Entity/ClinicEntity.php`
@@ -257,14 +257,14 @@ Execute the three phases in sequence, each building on the last:
   - Notes: `countryCode`, `jurisdictionCode`, `currencyCode` are **write-once at creation** (alpha decision) — no `ChangeClinicCountryCode` command exists and none should be created in this spec. If update is needed later, a dedicated command can be added then.
   - Notes: `ClinicController` has multiple public methods (pre-existing violation of `CLAUDE.md §5`). T7 enriches the existing controller without fixing the split — refactoring to single-`__invoke` controllers is tracked separately as a follow-up chore. Do NOT add new methods; only extend the existing `create()` and `update()` handlers.
 
-- [ ] **T8: Externalise defaultLocale and locale mappings to Symfony config parameters (Phase 1.3)**
+- [x] **T8: Externalise defaultLocale and locale mappings to Symfony config parameters (Phase 1.3)**
   - File: `src/System/Translation/Infrastructure/Resolver/DefaultLocaleResolver.php`
   - Action: Change constructor signature to receive three explicit `string` parameters: `string $defaultLocale`, `string $backofficeLocale`, and `array $shortLocaleMap` (e.g. `['fr' => 'fr-FR', 'en' => 'en-GB']`). Remove the `= 'fr-FR'` hardcoded default. Replace the hardcoded `return Locale::fromString('fr-FR')` in the BACKOFFICE branch with `return Locale::fromString($this->backofficeLocale)`. Replace the hardcoded `match` in `normalizeCandidate()` (currently `'fr' => 'fr-FR', 'en' => 'en-GB'`) with a lookup into `$this->shortLocaleMap`, falling back to the candidate as-is. Remove ALL hardcoded locale string literals from the class.
   - File: `config/services.yaml` (or `config/packages/translation.yaml`)
   - Action: Define parameters: `app.default_locale: 'en'`, `app.backoffice_locale: 'fr-FR'`, `app.short_locale_map: { fr: 'fr-FR', en: 'en-GB' }`. Wire them as service arguments on `DefaultLocaleResolver`.
   - Action: Update unit tests for `DefaultLocaleResolver`: inject parameters explicitly; test that `normalizeCandidate('en')` returns `'en-GB'` from config (not hardcoded), and that changing the map changes the output.
 
-- [ ] **T9: Neutralise Admission enum values (Phase 1.4)**
+- [x] **T9: Neutralise Admission enum values (Phase 1.4)**
   - File: `src/Context/Admission/Domain/ValueObject/IntakeChannel.php`
   - Action: **CAUTION — collision risk**: `EmergencyByAuthority = 'emergency_by_authority'` **already exists** as a distinct case. `EmergencyByMunicipality = 'emergency_by_municipality'` is a separate concept (town-hall pound intake). Do NOT rename it to `EmergencyByAuthority` — that would silently merge two semantically different intake channels. Instead: **DELETE `EmergencyByMunicipality`** and update all usages to point to `EmergencyByAuthority` (the existing case, which is the correct neutral successor). Before deleting, grep all of `src/`, `templates/`, `tests/`, `fixtures/` for `EmergencyByMunicipality` and `emergency_by_municipality` — update every reference to `EmergencyByAuthority` / `'emergency_by_authority'`.
   - File: `src/Context/Admission/Domain/ValueObject/ClosureReason.php`
@@ -288,7 +288,7 @@ Execute the three phases in sequence, each building on the last:
 
 #### Phase 2 — Regulatory Decoupling (Weeks 4-7)
 
-- [ ] **T10: Rename Regulatory aggregates, events, VOs, infrastructure, DB tables (Phase 2.1)**
+- [x] **T10: Rename Regulatory aggregates, events, VOs, infrastructure, DB tables (Phase 2.1)**
   - This is one large atomic refactor. All renames in a single commit. Run `make load-fixtures` after migration.
   - **MairieNotification → AuthorityNotification** (rename all files, classes, namespaces):
     - `src/Context/Regulatory/Domain/MairieNotification.php` → `AuthorityNotification.php`
@@ -332,7 +332,7 @@ Execute the three phases in sequence, each building on the last:
   - **DB migration**: DROP TABLE `mairie_notifications`, CREATE TABLE `authority_notifications` (same columns). DROP TABLE `icad_lookups`, CREATE TABLE `microchip_registry_lookups` (same columns). Run `make load-fixtures` after.
   - **All Regulatory tests**: update all class/method references throughout `tests/Unit/Context/Regulatory/`.
 
-- [ ] **T11: Extract RegulatoryPolicyInterface and WorkingDayCalculatorInterface (Phase 2.2)**
+- [x] **T11: Extract RegulatoryPolicyInterface and WorkingDayCalculatorInterface (Phase 2.2)**
   - Files to create:
     - `src/Context/Regulatory/Domain/Policy/RegulatoryPolicyInterface.php`
     - `src/Context/Regulatory/Domain/Service/WorkingDayCalculatorInterface.php`
@@ -361,7 +361,7 @@ Execute the three phases in sequence, each building on the last:
   - Action: Change `begin()` parameter from concrete `FrenchWorkingDayCalculator $calculator` to `RegulatoryPolicyInterface $policy`. Replace `$calculator->addWorkingDays($admissionOpenedAt, 8)` with `$policy->getStrayCustodyDeadline($admissionOpenedAt)`. Remove the calculator parameter entirely from the aggregate method signature.
   - Files: handlers that call `AuthorityNotification::schedule()` and `StrayCustody::begin()` — inject `RegulatoryPolicyInterface` into handlers (resolved via jurisdiction in T12). Remove any direct `FrenchWorkingDayCalculator` injection from handlers.
 
-- [ ] **T12: Create Jurisdiction/France/ sub-namespace and JurisdictionResolverInterface (Phase 2.3)**
+- [x] **T12: Create Jurisdiction/France/ sub-namespace and JurisdictionResolverInterface (Phase 2.3)**
   - Files to create:
     - `src/Context/Regulatory/Domain/JurisdictionResolverInterface.php`
     - `src/Context/Regulatory/Infrastructure/Resolver/ClinicJurisdictionResolver.php`
@@ -387,7 +387,7 @@ Execute the three phases in sequence, each building on the last:
     5. Wire `WorkingDayCalculatorInterface` → `FrenchWorkingDayCalculator` (aliased, or injected explicitly into `FranceRegulatoryPolicy`).
   - Notes: Atomically commit namespace move + service container wiring in a single commit. No intermediate state where old namespace is gone but DI still references it. Verify `make ci` passes before merging.
 
-- [ ] **T13: Refactor Animal Identification.sireNumber and RegistryType enum (Phase 2.4)**
+- [x] **T13: Refactor Animal Identification.sireNumber and RegistryType enum (Phase 2.4)**
   - File: `src/Context/Animal/Domain/ValueObject/RegistryType.php`
   - Action: Add `FOREIGN_REGISTRY = 'foreign_registry'` case. Keep `NONE`, `LOF`, `LOOF`, `OTHER` as-is. Add unit test covering new case.
   - File: `src/Context/Animal/Domain/ValueObject/Identification.php`
@@ -402,7 +402,7 @@ Execute the three phases in sequence, each building on the last:
   - Action: `RENAME COLUMN sire_number TO registry_reference` (or DROP/ADD if DB doesn't support RENAME COLUMN). Run `make load-fixtures` after.
   - Files: All unit tests for `Identification`, `Animal` — update `sireNumber` references to `registryReference`.
 
-- [ ] **T14: Seed Translation BC with Regulatory jurisdiction-neutral labels (Phase 2.5)**
+- [x] **T14: Seed Translation BC with Regulatory jurisdiction-neutral labels (Phase 2.5)**
   - File to create: `fixtures/System/Translation/Story/RegulatoryTranslationStory.php`
   - Action: Create Foundry Story class extending `Story`. Use `TranslationEntryEntityFactory` to create entries with `appScope='shared'`, `locale='fr-FR'`, `domain='regulatory'`. Seed the following keys with French labels:
     - `authority_notification.scheduled` → `'Notification autorité planifiée'`

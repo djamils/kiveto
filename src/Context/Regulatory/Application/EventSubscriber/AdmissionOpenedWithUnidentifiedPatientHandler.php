@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Context\Regulatory\Application\EventSubscriber;
 
 use App\Context\Admission\Domain\Event\AdmissionOpenedWithUnidentifiedPatient;
-use App\Context\Regulatory\Domain\MairieNotification;
-use App\Context\Regulatory\Domain\Repository\MairieNotificationRepositoryInterface;
+use App\Context\Regulatory\Domain\AuthorityNotification;
+use App\Context\Regulatory\Domain\Policy\RegulatoryPolicyInterface;
+use App\Context\Regulatory\Domain\Repository\AuthorityNotificationRepositoryInterface;
 use App\Context\Regulatory\Domain\Repository\StrayCustodyRepositoryInterface;
-use App\Context\Regulatory\Domain\Service\FrenchWorkingDayCalculator;
 use App\Context\Regulatory\Domain\StrayCustody;
-use App\Context\Regulatory\Domain\ValueObject\MairieNotificationId;
+use App\Context\Regulatory\Domain\ValueObject\AuthorityNotificationId;
 use App\Context\Regulatory\Domain\ValueObject\StrayCustodyId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
@@ -21,9 +21,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class AdmissionOpenedWithUnidentifiedPatientHandler
 {
     public function __construct(
-        private MairieNotificationRepositoryInterface $mairieRepo,
+        private AuthorityNotificationRepositoryInterface $authorityNotificationRepo,
         private StrayCustodyRepositoryInterface $strayCustodyRepo,
-        private FrenchWorkingDayCalculator $calculator,
+        private RegulatoryPolicyInterface $policy,
         private DomainEventPublisher $domainEventPublisher,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
@@ -35,15 +35,16 @@ final readonly class AdmissionOpenedWithUnidentifiedPatientHandler
         $now               = $this->clock->now();
         $admissionOpenedAt = new \DateTimeImmutable($event->openedAt);
 
-        $notification = MairieNotification::schedule(
-            id: MairieNotificationId::fromString($this->uuidGenerator->generate()),
+        $notification = AuthorityNotification::schedule(
+            id: AuthorityNotificationId::fromString($this->uuidGenerator->generate()),
             admissionId: $event->admissionId,
             patientId: $event->patientId,
             clinicId: $event->clinicId,
             admissionOpenedAt: $admissionOpenedAt,
+            policy: $this->policy,
             now: $now,
         );
-        $this->mairieRepo->save($notification);
+        $this->authorityNotificationRepo->save($notification);
         $this->domainEventPublisher->publish($notification);
 
         $custody = StrayCustody::begin(
@@ -52,7 +53,7 @@ final readonly class AdmissionOpenedWithUnidentifiedPatientHandler
             patientId: $event->patientId,
             clinicId: $event->clinicId,
             admissionOpenedAt: $admissionOpenedAt,
-            calculator: $this->calculator,
+            policy: $this->policy,
             now: $now,
         );
         $this->strayCustodyRepo->save($custody);

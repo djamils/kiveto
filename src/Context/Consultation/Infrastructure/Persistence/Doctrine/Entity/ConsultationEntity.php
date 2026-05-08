@@ -56,6 +56,10 @@ class ConsultationEntity
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $closedAtUtc = null;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAtUtc;
 
@@ -205,6 +209,11 @@ class ConsultationEntity
     public function getUpdatedAtUtc(): \DateTimeImmutable
     {
         return $this->updatedAtUtc;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function setUpdatedAtUtc(\DateTimeImmutable $updatedAtUtc): void
