@@ -221,12 +221,12 @@ function setPaiement(btn,mode){
 /* -- Modals & Drawer -- */
 function openDrawer(){document.getElementById('drawer-overlay').classList.add('open');document.getElementById('drawer').classList.add('open');}
 function closeDrawer(){document.getElementById('drawer-overlay').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
-function closeConsult(){var o=document.getElementById('modal-overlay');o.classList.add('open');}
-function closeModal(){var o=document.getElementById('modal-overlay');o.classList.remove('open');}
+function closeConsult(){var o=document.getElementById('modal-overlay');o.classList.remove('hidden');}
+function closeModal(){var o=document.getElementById('modal-overlay');o.classList.add('hidden');}
 function signDoc(){var a=document.getElementById('sign-area'),l=document.getElementById('sign-label');a.classList.add('signed');a.style.borderColor='var(--brand-500)';a.style.borderStyle='solid';a.style.background='var(--brand-50)';a.style.cursor='default';l.innerHTML='<svg width="13" height="13" fill="none" viewBox="0 0 16 16" style="margin-right:5px;"><path d="M2 8l4 4 8-8" stroke="var(--brand-600)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="color:var(--brand-600);font-weight:var(--weight-medium);">Signé électroniquement — Dr. Rousseau</span>';l.style.display='flex';l.style.alignItems='center';a.onmouseenter=null;a.onmouseleave=null;a.onclick=null;}
 function confirmClose(){var btn=document.getElementById('modal-confirm-btn');btn.innerHTML='<svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Enregistré !';btn.style.background='#16a34a';btn.style.pointerEvents='none';setTimeout(closeModal,1200);}
-function openExamensModal(){document.getElementById('examens-modal').classList.add('open');}
-function closeExamensModal(){document.getElementById('examens-modal').classList.remove('open');}
+function openExamensModal(){document.getElementById('examens-modal').classList.remove('hidden');}
+function closeExamensModal(){document.getElementById('examens-modal').classList.add('hidden');}
 function addExamen(){
   var type=document.getElementById('new-examen-type').value;
   if(!type){showToast("Choisir un type d\u2019examen",'#f59e0b');return;}
@@ -254,10 +254,10 @@ function addExamen(){
   document.getElementById('new-examen-type').value='';document.getElementById('new-examen-detail').value='';
   showToast(type+' ajouté','#16a34a');
 }
-function openRxModal(){var o=document.getElementById('rx-modal-overlay');o.classList.add('open');}
-function closeRxModal(){document.getElementById('rx-modal-overlay').classList.remove('open');}
-function openVaxModal(){var o=document.getElementById('vax-modal');o.classList.add('open');}
-function closeVaxModal(){document.getElementById('vax-modal').classList.remove('open');}
+function openRxModal(){var o=document.getElementById('rx-modal-overlay');o.classList.remove('hidden');}
+function closeRxModal(){document.getElementById('rx-modal-overlay').classList.add('hidden');}
+function openVaxModal(){var o=document.getElementById('vax-modal');o.classList.remove('hidden');}
+function closeVaxModal(){document.getElementById('vax-modal').classList.add('hidden');}
 
 // Event listeners stored for cleanup
 let _keydownHandler = null;
@@ -293,7 +293,7 @@ export function init() {
   // Escape key handler for modals
   _keydownHandler = function(e){
     if(e.key==='Escape'){
-      document.querySelectorAll('.modal-overlay.open').forEach(function(m){m.classList.remove('open');});
+      document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(function(m){m.classList.add('hidden');});
       closeDrawer();
     }
   };

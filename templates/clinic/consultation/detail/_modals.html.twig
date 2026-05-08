@@ -1,7 +1,7 @@
 {# All consultation modals: prescription, examens, close consultation, vaccine #}
 
 {# -- Prescription modal -- #}
-<div id="rx-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeRxModal()">
+<div id="rx-modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeRxModal()">
   <div id="rx-modal-box" class="modal-box consult-modal-rx">
     <div class="modal-head">
       <div><p class="consult-modal-title">Ordonnance</p><p class="consult-modal-subtitle">Luna · 19 mars 2026 · Dr. Rousseau · N° 75-12384</p></div>
@@ -71,7 +71,7 @@
 </div>
 
 {# -- Examens modal -- #}
-<div id="examens-modal" class="modal-overlay" onclick="if(event.target===this)closeExamensModal()">
+<div id="examens-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeExamensModal()">
   <div class="modal-box consult-modal-examens">
     <div class="modal-head">
       <div><p class="consult-modal-title">Examens complémentaires</p><p class="consult-modal-subtitle">Luna · Consultation du 19 mars 2026</p></div>
@@ -175,7 +175,7 @@
 </div>
 
 {# -- Close consultation modal -- #}
-<div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+<div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeModal()">
   <div id="modal-box" class="modal-box consult-modal-close">
     <div class="modal-head">
       <div><p class="consult-modal-title">Clôturer la consultation</p><p class="consult-modal-subtitle">Luna · Persan · 4 ans · 19 mars 2026 · Dr. Rousseau</p></div>
@@ -224,7 +224,7 @@
 </div>
 
 {# -- Vaccine modal -- #}
-<div id="vax-modal" class="modal-overlay" onclick="if(event.target===this)closeVaxModal()">
+<div id="vax-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeVaxModal()">
   <div class="modal-box consult-modal-vax">
     <div class="modal-head">
       <div><p class="consult-modal-title">Rappel vaccinal FeLV</p><p class="consult-modal-subtitle">Luna · Persan 4 ans</p></div>

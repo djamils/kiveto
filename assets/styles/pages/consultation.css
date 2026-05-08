@@ -798,114 +798,6 @@
     }
     .consult-pulse-amber { background: #f59e0b; }
 
-    /* ── History drawer ── */
-    .drawer {
-      @apply fixed flex flex-col;
-      top: 0;
-      right: 0;
-      height: 100vh;
-      width: 360px;
-      background: var(--surface-card);
-      border-left: 1px solid var(--border-light);
-      z-index: 201;
-      transform: translateX(100%);
-      transition: transform .28s cubic-bezier(.4,0,.2,1);
-      box-shadow: -8px 0 32px rgba(0,0,0,.1);
-    }
-    .drawer.open { transform: translateX(0); }
-    .consult-drawer-head {
-      @apply flex items-center justify-between shrink-0;
-      padding: var(--space-4) var(--space-5) var(--space-3);
-      border-bottom: 1px solid var(--border-light);
-    }
-    .consult-drawer-title {
-      @apply font-medium;
-      font-size: var(--text-base);
-      color: var(--text-primary);
-    }
-    .consult-drawer-subtitle { font-size: var(--text-sm); color: var(--text-subtle); }
-    .consult-drawer-tabs {
-      @apply flex shrink-0;
-      padding: var(--space-2) var(--space-5);
-      border-bottom: 1px solid var(--border-light);
-      gap: var(--space-1);
-    }
-    .consult-drawer-body {
-      @apply flex-1 overflow-y-auto;
-      padding: var(--space-4) var(--space-5);
-    }
-    .consult-drawer-row {
-      @apply flex justify-between;
-      margin-bottom: 2px;
-    }
-    .consult-drawer-item-title {
-      @apply font-medium;
-      font-size: var(--text-md);
-    }
-    .consult-drawer-item-date { font-size: var(--text-sm); color: var(--text-subtle); }
-    .consult-drawer-hoverable {
-      @apply flex-1;
-      padding: var(--space-1) var(--space-2);
-      border-radius: var(--radius-md);
-      transition: background .12s;
-    }
-    .consult-drawer-item-pad {
-      @apply flex-1;
-      padding: var(--space-1) var(--space-2);
-    }
-    .consult-drawer-tags {
-      @apply flex;
-      gap: var(--space-2);
-      margin-top: var(--space-1);
-    }
-    .consult-drawer-tag {
-      font-size: var(--text-xs);
-      padding: 1px var(--space-2);
-      border-radius: var(--radius-full);
-    }
-    .consult-drawer-tag--consult { background: #eff6ff; color: #1d4ed8; }
-    .consult-drawer-tag--vaccine { background: #f0fdf4; color: #15803d; }
-    .consult-drawer-tag--surgery { background: #fef2f2; color: #b91c1c; }
-    .consult-drawer-tag-vet { font-size: var(--text-xs); color: var(--text-subtle); }
-    .consult-drawer-allergy { margin-top: var(--space-1); }
-    .consult-drawer-allergy-text { font-size: var(--text-xs); color: #9a3412; }
-
-    /* ── Timeline items ── */
-    .tl-item {
-      @apply flex relative;
-      gap: var(--space-3);
-      padding: var(--space-2) 0;
-    }
-    .tl-item:not(:last-child)::before {
-      @apply absolute;
-      content: '';
-      left: 6px;
-      top: 20px;
-      bottom: -8px;
-      width: 1.5px;
-      background: var(--border-light);
-    }
-    .tl-dot {
-      @apply shrink-0;
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      margin-top: 3px;
-      border: 2.5px solid #fff;
-      box-shadow: 0 0 0 1.5px currentColor;
-    }
-    .consult-tl-dot--active { color: #4338ca; background: #eef2ff; }
-    .consult-tl-dot--past { color: #64748b; background: #f1f5f9; }
-    .consult-tl-dot--surgery { color: #ef4444; background: #fef2f2; }
-    .consult-tl-dot--first { color: #22c55e; background: #f0fdf4; }
-    .consult-tl-content { @apply flex-1; }
-    .consult-tl-title {
-      @apply font-medium;
-      font-size: var(--text-md);
-    }
-    .consult-tl-title--active { color: var(--brand-600); }
-    .consult-tl-desc { font-size: var(--text-sm); color: var(--text-muted); }
-    .consult-tl-date { font-size: var(--text-xs); color: var(--text-subtle); }
 
     /* ── Bottom tabs — portrait ── */
     .bottom-tabs {
@@ -1410,6 +1302,122 @@
     .breadcrumb .bc-middle { display: none; }
     .topbar-actions .btn span { display: none; }
   }
+}
+
+/* ── History drawer + timeline — outside [data-page] scope because
+      {% block drawers %} is rendered outside <main data-page="..."> ── */
+@layer components {
+  #drawer-overlay.open {
+    @apply opacity-100 pointer-events-auto;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  #drawer {
+    @apply fixed flex flex-col;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 360px;
+    background: var(--surface-card);
+    border-left: 1px solid var(--border-light);
+    z-index: 201;
+    transform: translateX(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow: -8px 0 32px rgba(0,0,0,.1);
+  }
+  #drawer.open { transform: translateX(0); }
+  .consult-drawer-head {
+    @apply flex items-center justify-between shrink-0;
+    padding: var(--space-4) var(--space-5) var(--space-3);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .consult-drawer-title {
+    @apply font-medium;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+  }
+  .consult-drawer-subtitle { font-size: var(--text-sm); color: var(--text-subtle); }
+  .consult-drawer-tabs {
+    @apply flex shrink-0;
+    padding: var(--space-2) var(--space-5);
+    border-bottom: 1px solid var(--border-light);
+    gap: var(--space-1);
+  }
+  .consult-drawer-body {
+    @apply flex-1 overflow-y-auto;
+    padding: var(--space-4) var(--space-5);
+  }
+  .consult-drawer-row {
+    @apply flex justify-between;
+    margin-bottom: 2px;
+  }
+  .consult-drawer-item-title {
+    @apply font-medium;
+    font-size: var(--text-md);
+  }
+  .consult-drawer-item-date { font-size: var(--text-sm); color: var(--text-subtle); }
+  .consult-drawer-hoverable {
+    @apply flex-1;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    transition: background .12s;
+  }
+  .consult-drawer-item-pad {
+    @apply flex-1;
+    padding: var(--space-1) var(--space-2);
+  }
+  .consult-drawer-tags {
+    @apply flex;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+  }
+  .consult-drawer-tag {
+    font-size: var(--text-xs);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+  }
+  .consult-drawer-tag--consult { background: #eff6ff; color: #1d4ed8; }
+  .consult-drawer-tag--vaccine { background: #f0fdf4; color: #15803d; }
+  .consult-drawer-tag--surgery { background: #fef2f2; color: #b91c1c; }
+  .consult-drawer-tag-vet { font-size: var(--text-xs); color: var(--text-subtle); }
+  .consult-drawer-allergy { margin-top: var(--space-1); }
+  .consult-drawer-allergy-text { font-size: var(--text-xs); color: #9a3412; }
+
+  .tl-item {
+    @apply flex relative;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+  }
+  .tl-item:not(:last-child)::before {
+    @apply absolute;
+    content: '';
+    left: 6px;
+    top: 20px;
+    bottom: -8px;
+    width: 1.5px;
+    background: var(--border-light);
+  }
+  .tl-dot {
+    @apply shrink-0;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    margin-top: 3px;
+    border: 2.5px solid #fff;
+    box-shadow: 0 0 0 1.5px currentColor;
+  }
+  .consult-tl-dot--active { color: #4338ca; background: #eef2ff; }
+  .consult-tl-dot--past { color: #64748b; background: #f1f5f9; }
+  .consult-tl-dot--surgery { color: #ef4444; background: #fef2f2; }
+  .consult-tl-dot--first { color: #22c55e; background: #f0fdf4; }
+  .consult-tl-content { @apply flex-1; }
+  .consult-tl-title {
+    @apply font-medium;
+    font-size: var(--text-md);
+  }
+  .consult-tl-title--active { color: var(--brand-600); }
+  .consult-tl-desc { font-size: var(--text-sm); color: var(--text-muted); }
+  .consult-tl-date { font-size: var(--text-xs); color: var(--text-subtle); }
 }
 
 /* ── Keyframes (must live outside @layer for Tailwind v4) ── */
