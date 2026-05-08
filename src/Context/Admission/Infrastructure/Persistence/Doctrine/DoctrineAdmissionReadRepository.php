@@ -148,10 +148,12 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $clinicBinary = Uuid::fromString($clinicId)->toBinary();
 
         $practitionerRows = $conn->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name, sa.reason AS appt_reason
+            'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name,
+                    sa.reason AS appt_reason, sa.notes AS appt_notes,
+                    BIN_TO_UUID(sa.practitioner_user_id) AS practitioner_user_id
              FROM scheduling__appointments sa
-             JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = ?
-             JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
+             LEFT JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = ?
+             LEFT JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
              WHERE sa.linked_admission_id IN (?)',
             [$clinicBinary, $admissionBinIds],
             [\Doctrine\DBAL\ParameterType::STRING, ArrayParameterType::STRING],
@@ -161,6 +163,10 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $practitionerLabels = [];
         /** @var array<string, string> $appointmentReasons */
         $appointmentReasons = [];
+        /** @var array<string, string> $contextNotes */
+        $contextNotes = [];
+        /** @var array<string, string> $practitionerUserIds */
+        $practitionerUserIds = [];
         foreach ($practitionerRows as $pr) {
             \assert(\is_string($pr['admission_id']));
             if (\is_string($pr['vet_name'])) {
@@ -168,6 +174,12 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             }
             if (\is_string($pr['appt_reason'])) {
                 $appointmentReasons[$pr['admission_id']] = $pr['appt_reason'];
+            }
+            if (\is_string($pr['appt_notes'])) {
+                $contextNotes[$pr['admission_id']] = $pr['appt_notes'];
+            }
+            if (\is_string($pr['practitioner_user_id'])) {
+                $practitionerUserIds[$pr['admission_id']] = $pr['practitioner_user_id'];
             }
         }
 
@@ -189,6 +201,8 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 knownAnimalId: $animalIds[$patientUuid] ?? null,
                 practitionerLabel: $practitionerLabels[$admissionId] ?? null,
                 appointmentReason: $appointmentReasons[$admissionId] ?? null,
+                contextNote: $contextNotes[$admissionId] ?? null,
+                practitionerUserId: $practitionerUserIds[$admissionId] ?? null,
             );
         }
 

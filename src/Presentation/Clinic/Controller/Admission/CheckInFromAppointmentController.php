@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Admission;
 
+use App\Context\Admission\Application\Command\OpenAdmissionForWalkIn\OpenAdmissionForWalkIn;
 use App\Context\Admission\Application\Command\OpenAdmissionFromAppointment\OpenAdmissionFromAppointment;
 use App\Context\Scheduling\Application\Command\CheckInAppointment\CheckInAppointment;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -43,28 +44,37 @@ final class CheckInFromAppointmentController extends AbstractController
         $animalName    = $request->request->getString('animalName') ?: null;
         $triageNotes   = $request->request->getString('triageNotes') ?: null;
 
-        if (null === $appointmentId) {
-            $this->addFlash('error', 'Identifiant du rendez-vous manquant.');
-
-            return $this->redirectToRoute('clinic_admission_queue');
-        }
-
         try {
-            $admissionId = $this->commandBus->dispatch(new OpenAdmissionFromAppointment(
-                clinicId: $currentClinicId->toString(),
-                appointmentId: $appointmentId,
-                knownAnimalId: $animalId,
-                animalName: $animalName,
-                triageNotes: $triageNotes,
-            ));
+            if (null !== $appointmentId) {
+                $admissionId = $this->commandBus->dispatch(new OpenAdmissionFromAppointment(
+                    clinicId: $currentClinicId->toString(),
+                    appointmentId: $appointmentId,
+                    knownAnimalId: $animalId,
+                    animalName: $animalName,
+                    triageNotes: $triageNotes,
+                ));
 
-            \assert(\is_string($admissionId));
+                \assert(\is_string($admissionId));
 
-            $this->commandBus->dispatch(new CheckInAppointment(
-                clinicId: $currentClinicId->toString(),
-                appointmentId: $appointmentId,
-                admissionId: $admissionId,
-            ));
+                $this->commandBus->dispatch(new CheckInAppointment(
+                    clinicId: $currentClinicId->toString(),
+                    appointmentId: $appointmentId,
+                    admissionId: $admissionId,
+                ));
+            } else {
+                $priority    = (int) $request->request->getString('priority', '0');
+                $description = $request->request->getString('foundAnimalDescription') ?: null;
+                $triageLevel = 1 === $priority ? 'priority' : 'standard';
+
+                $this->commandBus->dispatch(new OpenAdmissionForWalkIn(
+                    clinicId: $currentClinicId->toString(),
+                    triageLevel: $triageLevel,
+                    knownAnimalId: $animalId,
+                    animalName: $animalName,
+                    provisionalLabel: $description,
+                    triageNotes: $triageNotes,
+                ));
+            }
 
             $this->addFlash('success', 'Patient enregistré en salle d\'attente.');
         } catch (\InvalidArgumentException $e) {

@@ -43,14 +43,14 @@ final class MicrochipRegistryLookupEntityFactory extends PersistentProxyObjectFa
     protected function defaults(): array|callable
     {
         return [
-            'id'             => Uuid::v7(),
-            'chipNumber'     => self::faker()->numerify('###############'),
-            'clinicId'       => Uuid::v7(),
-            'status'         => MicrochipRegistryLookupStatus::Pending,
+            'id'                 => Uuid::v7(),
+            'chipNumber'         => self::faker()->numerify('###############'),
+            'clinicId'           => Uuid::v7(),
+            'status'             => MicrochipRegistryLookupStatus::Pending,
             'registryAnimalData' => null,
-            'errorMessage'   => null,
-            'version'        => 1,
-            'initiatedAt'    => \DateTimeImmutable::createFromMutable(
+            'errorMessage'       => null,
+            'version'            => 1,
+            'initiatedAt'        => \DateTimeImmutable::createFromMutable(
                 self::faker()->dateTimeBetween('-3 months')
             ),
             'createdAt' => \DateTimeImmutable::createFromMutable(

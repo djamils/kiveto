@@ -20,6 +20,8 @@ final readonly class WaitingRoomItemDto
         public ?string $knownAnimalId = null,
         public ?string $practitionerLabel = null,
         public ?string $appointmentReason = null,
+        public ?string $contextNote = null,
+        public ?string $practitionerUserId = null,
     ) {
     }
 }
