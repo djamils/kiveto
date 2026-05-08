@@ -364,11 +364,12 @@
                 <div class="pcard urgent is-collapsible is-collapsed">
                   <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
-                      <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
+                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
                     <span style="display:inline-flex;align-items:center;gap:4px;">
-                      <span class="urg-tag{% if not entry.isPatientIdentifiedAtOpening %} nonid{% endif %}">{{ not entry.isPatientIdentifiedAtOpening ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
+                      {%- set cardIsUnknown = (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) -%}
+                      <span class="urg-tag{% if cardIsUnknown %} nonid{% endif %}">{{ cardIsUnknown ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
                       {{ chevronSvg }}
                     </span>
                   </div>
@@ -416,7 +417,7 @@
                 <div class="scard stripe-attente is-collapsible is-collapsed">
                   <div class="card-top" data-action="click->waiting-room#toggleCollapse">
                     <span class="card-pet">
-                      <span class="card-pet-icon">{% if not entry.isPatientIdentifiedAtOpening %}❓{% else %}🐾{% endif %}</span>
+                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
                       <span class="card-pet-name">{{ entry.displayLabel }}</span>
                     </span>
                     <span style="display:inline-flex;gap:4px;align-items:center;"><span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>{{ chevronSvg }}</span>
