@@ -570,6 +570,17 @@ export default class extends Controller {
       if (typeof window.urgSetFromPick === 'function') {
         window.urgSetFromPick(hit.resourceId, description);
       }
+    } else if ('identifier-animal' === pickerId) {
+      const modal = document.getElementById('modal-identifier');
+      if (!modal) return;
+      clearSearch(modal);
+      const animalId = document.getElementById('identify-animal-id');
+      if (animalId) animalId.value = hit.resourceId;
+      const animalName = document.getElementById('identify-animal-name');
+      if (animalName) animalName.value = hit.title;
+      if (typeof window.identifierSetAnimal === 'function') {
+        window.identifierSetAnimal(hit.resourceId, hit.title, hit.subtitle || '', hit.context || '');
+      }
     }
   }
 

@@ -199,6 +199,7 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 triageNotes: $entity->getTriageNotes(),
                 isPatientIdentifiedAtOpening: $entity->isPatientIdentifiedAtOpening(),
                 knownAnimalId: $animalIds[$patientUuid] ?? null,
+                physicalDescription: $entity->getPhysicalDescription(),
                 practitionerLabel: $practitionerLabels[$admissionId] ?? null,
                 appointmentReason: $appointmentReasons[$admissionId] ?? null,
                 contextNote: $contextNotes[$admissionId] ?? null,

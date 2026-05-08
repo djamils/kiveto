@@ -26,4 +26,11 @@ interface PatientCreationPort
         string $animalId,
         string $animalName,
     ): string;
+
+    public function reconcilePatientToAnimal(
+        string $sourcePatientId,
+        string $animalId,
+        string $animalName,
+        string $clinicId,
+    ): void;
 }

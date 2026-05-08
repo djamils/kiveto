@@ -7,6 +7,7 @@ namespace App\Context\Admission\Infrastructure\Adapter\Patient;
 use App\Context\Admission\Application\Port\PatientCreationPort;
 use App\Context\Patient\Application\Command\CreateIdentifiedPatient\CreateIdentifiedPatient;
 use App\Context\Patient\Application\Command\CreateUnidentifiedPatient\CreateUnidentifiedPatient;
+use App\Context\Patient\Application\Command\ReconcilePatientToAnimal\ReconcilePatientToAnimal;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 final readonly class CommandBusPatientCreationAdapter implements PatientCreationPort
@@ -48,5 +49,19 @@ final readonly class CommandBusPatientCreationAdapter implements PatientCreation
         \assert(\is_string($result));
 
         return $result;
+    }
+
+    public function reconcilePatientToAnimal(
+        string $sourcePatientId,
+        string $animalId,
+        string $animalName,
+        string $clinicId,
+    ): void {
+        $this->commandBus->dispatch(new ReconcilePatientToAnimal(
+            sourcePatientId: $sourcePatientId,
+            animalId: $animalId,
+            animalName: $animalName,
+            clinicId: $clinicId,
+        ));
     }
 }

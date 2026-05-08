@@ -20,11 +20,16 @@ final readonly class DoctrinePatientReadRepository implements PatientReadReposit
 
     public function existsActiveForAnimal(string $clinicId, string $animalId): bool
     {
+        return null !== $this->getActivePatientIdForAnimal($clinicId, $animalId);
+    }
+
+    public function getActivePatientIdForAnimal(string $clinicId, string $animalId): ?string
+    {
         $clinicUuid = Uuid::fromString($clinicId);
         $animalUuid = Uuid::fromString($animalId);
 
         $qb = $this->entityManager->createQueryBuilder();
-        $qb->select('COUNT(p.id)')
+        $qb->select('p.id')
             ->from(PatientEntity::class, 'p')
             ->where('p.clinicId = :clinicId')
             ->andWhere('p.animalLinkId = :animalLinkId')
@@ -32,10 +37,12 @@ final readonly class DoctrinePatientReadRepository implements PatientReadReposit
             ->setParameter('clinicId', $clinicUuid, UuidType::NAME)
             ->setParameter('animalLinkId', $animalUuid, UuidType::NAME)
             ->setParameter('status', PatientStatus::Active)
+            ->setMaxResults(1)
         ;
 
-        $count = (int) $qb->getQuery()->getSingleScalarResult();
+        /** @var array{id: Uuid}|null $row */
+        $row = $qb->getQuery()->getOneOrNullResult();
 
-        return $count > 0;
+        return null !== $row ? $row['id']->toString() : null;
     }
 }
