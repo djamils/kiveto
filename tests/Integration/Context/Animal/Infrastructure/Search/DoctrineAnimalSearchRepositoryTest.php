@@ -104,6 +104,41 @@ final class DoctrineAnimalSearchRepositoryTest extends KernelTestCase
         self::assertSame('Rémi', $result[0]->animalName);
     }
 
+    public function testSearchByOwnerNameReturnsHits(): void
+    {
+        $animalId = Uuid::v7()->toString();
+        $this->insertAnimal($animalId, $this->clinicId, 'Rex', 'rex', null, null, 'active', 'Sophie Dupont');
+
+        $query  = new SearchQuery('dupont', $this->clinicId, 'user-1', 21);
+        $result = $this->repo->findByQuery($query);
+
+        self::assertCount(1, $result);
+        self::assertSame($animalId, $result[0]->id);
+    }
+
+    public function testSearchByOwnerFirstNameReturnsHits(): void
+    {
+        $animalId = Uuid::v7()->toString();
+        $this->insertAnimal($animalId, $this->clinicId, 'Minou', 'minou', null, null, 'active', 'Marc Lefebvre');
+
+        $query  = new SearchQuery('marc', $this->clinicId, 'user-1', 21);
+        $result = $this->repo->findByQuery($query);
+
+        self::assertCount(1, $result);
+        self::assertSame($animalId, $result[0]->id);
+    }
+
+    public function testSearchByOwnerDoesNotReturnArchivedAnimals(): void
+    {
+        $animalId = Uuid::v7()->toString();
+        $this->insertAnimal($animalId, $this->clinicId, 'Ghost', 'ghost', null, null, 'archived', 'Jean Valjean');
+
+        $query  = new SearchQuery('valjean', $this->clinicId, 'user-1', 21);
+        $result = $this->repo->findByQuery($query);
+
+        self::assertCount(0, $result);
+    }
+
     private function insertAnimal(
         string $id,
         string $clinicId,
@@ -112,11 +147,12 @@ final class DoctrineAnimalSearchRepositoryTest extends KernelTestCase
         ?string $searchChip,
         ?string $searchPhone,
         string $status,
+        ?string $searchOwnerName = null,
     ): void {
         $cols = 'id, clinic_id, animal_name, search_name, search_chip, search_phone, species,'
             . ' breed_name, search_owner_name, primary_owner_client_id, status, updated_at';
         $vals = ':id, :clinicId, :animalName, :searchName, :searchChip, :searchPhone, :species,'
-            . ' NULL, NULL, NULL, :status, NOW()';
+            . ' NULL, :ownerName, NULL, :status, NOW()';
 
         $this->conn->executeStatement(
             "INSERT INTO animal__search_entries ({$cols}) VALUES ({$vals})",
@@ -128,6 +164,7 @@ final class DoctrineAnimalSearchRepositoryTest extends KernelTestCase
                 'searchChip'  => $searchChip,
                 'searchPhone' => $searchPhone,
                 'species'     => 'dog',
+                'ownerName'   => $searchOwnerName,
                 'status'      => $status,
             ],
         );

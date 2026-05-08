@@ -861,7 +861,7 @@
           {# Recherche live unifiée (puce ou nom/propriétaire) #}
           <div class="form-row"
                data-controller="global-search"
-               data-global-search-url-value="{{ path('clinic_search') }}"
+               data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
                data-global-search-mode-value="pick"
                data-global-search-picker-id-value="walkin-urgence"
                data-global-search-type-value="animal">
@@ -1095,7 +1095,8 @@
                  data-global-search-type-value="animal">
               <input type="text" class="ci-input" id="id-owner-search"
                      placeholder="Nom de l'animal, du propriétaire…"
-                     data-global-search-target="input">
+                     data-global-search-target="input"
+                     data-action="input->global-search#search">
               <div id="id-owner-results" data-global-search-target="results"></div>
               <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
             </div>
