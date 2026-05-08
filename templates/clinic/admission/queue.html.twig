@@ -1042,7 +1042,7 @@
 
   {# ── Modal Identifier ── #}
   <div class="modal-overlay hidden" id="modal-identifier"
-       data-action="click->waiting-room#closeOnOverlayClick">
+       onclick="if(event.target===this)closeIdentifierModal()">
     <div class="modal-box">
 
       <div class="modal-head id-head">
@@ -1053,7 +1053,7 @@
           <p class="modal-title">Identifier l'animal</p>
         </div>
         <button class="btn-modal-close id-close" type="button"
-                data-action="click->waiting-room#closeModal">
+                onclick="closeIdentifierModal()">
           <i data-lucide="x" style="width:14px;height:14px;"></i>
         </button>
       </div>
@@ -1142,7 +1142,7 @@
       <div class="modal-foot">
         <span class="id-foot-hint" id="id-foot-hint">Aucun résultat ? Basculez sur « Propriétaire » pour rechercher autrement.</span>
         <button class="btn btn-secondary" type="button"
-                data-action="click->waiting-room#closeModal">Annuler</button>
+                onclick="closeIdentifierModal()">Annuler</button>
         <button class="btn btn-primary" id="id-submit" type="button" disabled>
           <i data-lucide="check" style="width:11px;height:11px;"></i>
           <span>Lier au dossier</span>
@@ -1337,6 +1337,11 @@
         document.getElementById('urg-title').textContent = 'Urgence — Nouveau dossier';
       }
       if (window.lucide) window.lucide.createIcons();
+    }
+
+    /* ── Modal Identifier ── */
+    function closeIdentifierModal() {
+      document.getElementById('modal-identifier').classList.add('hidden');
     }
 
     /* ── Modal Identifier — tab switching ── */
