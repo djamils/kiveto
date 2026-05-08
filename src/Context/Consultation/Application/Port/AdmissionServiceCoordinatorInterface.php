@@ -13,6 +13,6 @@ interface AdmissionServiceCoordinatorInterface
     public function updateLocationStatus(
         string $admissionId,
         string $newLocationStatus,
-        string $triggeredByUserId,
+        string $clinicId,
     ): void;
 }

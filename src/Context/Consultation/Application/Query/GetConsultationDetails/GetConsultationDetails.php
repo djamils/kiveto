@@ -8,6 +8,7 @@ final readonly class GetConsultationDetails
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
     ) {
     }
 }

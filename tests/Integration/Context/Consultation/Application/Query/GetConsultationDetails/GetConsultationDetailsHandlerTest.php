@@ -44,7 +44,7 @@ final class GetConsultationDetailsHandlerTest extends KernelTestCase
         $handler = self::getContainer()->get(GetConsultationDetailsHandler::class);
         \assert($handler instanceof GetConsultationDetailsHandler);
 
-        $result = $handler(new GetConsultationDetails($consultationId));
+        $result = $handler(new GetConsultationDetails($consultationId, $clinicId));
 
         self::assertInstanceOf(ConsultationDetailsDTO::class, $result);
         self::assertSame($consultationId, $result->consultationId);
@@ -67,6 +67,38 @@ final class GetConsultationDetailsHandlerTest extends KernelTestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Consultation "00000000-0000-4000-8000-000000000000" not found.');
 
-        $handler(new GetConsultationDetails('00000000-0000-4000-8000-000000000000'));
+        $handler(new GetConsultationDetails(
+            '00000000-0000-4000-8000-000000000000',
+            '22222222-2222-4222-8222-222222222222',
+        ));
+    }
+
+    public function testThrowsWhenConsultationBelongsToDifferentClinic(): void
+    {
+        $consultationId = '11111111-1111-4111-8111-111111111112';
+        $clinicA        = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $clinicB        = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+        ConsultationEntityFactory::new()
+            ->withId($consultationId)
+            ->withClinicId($clinicA)
+            ->withPractitionerUserId('55555555-5555-4555-8555-555555555555')
+            ->withAdmissionId('44444444-4444-4444-8444-444444444445')
+            ->withPatientId('66666666-6666-4666-8666-666666666667')
+            ->withStatus(ConsultationStatus::OPEN)
+            ->create([
+                'startedAtUtc' => new \DateTimeImmutable('2026-04-10 09:00:00'),
+                'createdAtUtc' => new \DateTimeImmutable('2026-04-10 09:00:00'),
+                'updatedAtUtc' => new \DateTimeImmutable('2026-04-10 09:00:00'),
+            ])
+        ;
+
+        $handler = self::getContainer()->get(GetConsultationDetailsHandler::class);
+        \assert($handler instanceof GetConsultationDetailsHandler);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessageMatches('/not found/');
+
+        $handler(new GetConsultationDetails($consultationId, $clinicB));
     }
 }

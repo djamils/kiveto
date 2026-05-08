@@ -6,6 +6,7 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repositor
 
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
@@ -18,15 +19,16 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
     ) {
     }
 
-    public function findById(ConsultationId $consultationId): ConsultationDetailsDTO
+    public function findById(ConsultationId $consultationId, ClinicId $clinicId): ConsultationDetailsDTO
     {
-        $uuid                 = Uuid::fromString($consultationId->toString());
-        $consultationIdBinary = $uuid->toBinary();
+        $consultationIdBinary = Uuid::fromString($consultationId->toString())->toBinary();
+        $clinicIdBinary       = Uuid::fromString($clinicId->toString())->toBinary();
 
         // Fetch consultation
-        $sql          = 'SELECT * FROM consultation__consultations WHERE id = :id';
+        $sql          = 'SELECT * FROM consultation__consultations WHERE id = :id AND clinic_id = :clinicId';
         $consultation = $this->connection->fetchAssociative($sql, [
-            'id' => $consultationIdBinary,
+            'id'       => $consultationIdBinary,
+            'clinicId' => $clinicIdBinary,
         ]);
 
         if (false === $consultation) {

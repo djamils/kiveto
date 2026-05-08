@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Consultation\Application\Command\StartConsultationFromAdmission;
 
 use App\Context\Consultation\Application\Port\AdmissionContextProviderInterface;
+use App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface;
 use App\Context\Consultation\Application\Port\PractitionerEligibilityCheckerInterface;
 use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
@@ -23,6 +24,7 @@ final readonly class StartConsultationFromAdmissionHandler
         private ConsultationRepositoryInterface $consultations,
         private PractitionerEligibilityCheckerInterface $eligibilityChecker,
         private AdmissionContextProviderInterface $admissionContextProvider,
+        private AdmissionServiceCoordinatorInterface $admissionServiceCoordinator,
         private ClockInterface $clock,
     ) {
     }
@@ -63,6 +65,13 @@ final readonly class StartConsultationFromAdmissionHandler
 
         // 4. Persist
         $this->consultations->save($consultation);
+
+        // 5. Move admission to consultation room
+        $this->admissionServiceCoordinator->updateLocationStatus(
+            $command->admissionId,
+            'in_consultation_room',
+            $admissionContext->clinicId,
+        );
 
         return $consultationId->toString();
     }

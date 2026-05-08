@@ -8,6 +8,7 @@ use App\Context\Consultation\Application\Command\StartConsultationFromAdmission\
 use App\Context\Consultation\Application\Command\StartConsultationFromAdmission\StartConsultationFromAdmissionHandler;
 use App\Context\Consultation\Application\Port\AdmissionContextDto;
 use App\Context\Consultation\Application\Port\AdmissionContextProviderInterface;
+use App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface;
 use App\Context\Consultation\Application\Port\PractitionerEligibilityCheckerInterface;
 use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
@@ -26,6 +27,7 @@ final class StartConsultationFromAdmissionHandlerTest extends TestCase
     private ConsultationRepositoryInterface&MockObject $consultations;
     private PractitionerEligibilityCheckerInterface&MockObject $eligibility;
     private AdmissionContextProviderInterface&MockObject $admissionContextProvider;
+    private AdmissionServiceCoordinatorInterface&MockObject $coordinator;
     private ClockInterface&MockObject $clock;
     private StartConsultationFromAdmissionHandler $handler;
 
@@ -34,12 +36,14 @@ final class StartConsultationFromAdmissionHandlerTest extends TestCase
         $this->consultations            = $this->createMock(ConsultationRepositoryInterface::class);
         $this->eligibility              = $this->createMock(PractitionerEligibilityCheckerInterface::class);
         $this->admissionContextProvider = $this->createMock(AdmissionContextProviderInterface::class);
+        $this->coordinator              = $this->createMock(AdmissionServiceCoordinatorInterface::class);
         $this->clock                    = $this->createMock(ClockInterface::class);
 
         $this->handler = new StartConsultationFromAdmissionHandler(
             $this->consultations,
             $this->eligibility,
             $this->admissionContextProvider,
+            $this->coordinator,
             $this->clock,
         );
     }
@@ -60,6 +64,10 @@ final class StartConsultationFromAdmissionHandlerTest extends TestCase
             ->method('save')
             ->with(self::isInstanceOf(Consultation::class))
         ;
+        $this->coordinator->expects(self::once())
+            ->method('updateLocationStatus')
+            ->with(self::ADMISSION_ID, 'in_consultation_room', self::CLINIC_ID)
+        ;
 
         $consultationId = ($this->handler)(new StartConsultationFromAdmission(
             admissionId: self::ADMISSION_ID,
@@ -67,6 +75,41 @@ final class StartConsultationFromAdmissionHandlerTest extends TestCase
         ));
 
         self::assertNotEmpty($consultationId);
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testCallsUpdateLocationStatusAfterSave(): void
+    {
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:00:00'));
+        $this->admissionContextProvider->method('getAdmissionContext')
+            ->willReturn(new AdmissionContextDto(
+                patientId: self::PATIENT_ID,
+                clinicId: self::CLINIC_ID,
+            ))
+        ;
+        $this->eligibility->method('isEligibleForClinicAt')->willReturn(true);
+
+        $callOrder = [];
+
+        $this->consultations->expects(self::once())
+            ->method('save')
+            ->willReturnCallback(function () use (&$callOrder): void {
+                $callOrder[] = 'save';
+            })
+        ;
+        $this->coordinator->expects(self::once())
+            ->method('updateLocationStatus')
+            ->willReturnCallback(function () use (&$callOrder): void {
+                $callOrder[] = 'updateLocationStatus';
+            })
+        ;
+
+        ($this->handler)(new StartConsultationFromAdmission(
+            admissionId: self::ADMISSION_ID,
+            startedByUserId: self::USER_ID,
+        ));
+
+        self::assertSame(['save', 'updateLocationStatus'], $callOrder);
     }
 
     #[AllowMockObjectsWithoutExpectations]

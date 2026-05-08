@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Consultation\View;
 
 use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
 use App\Shared\Application\Bus\QueryBusInterface;
+use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,13 +15,17 @@ final class ConsultationDetailsController extends AbstractController
 {
     public function __construct(
         private readonly QueryBusInterface $queryBus,
+        private readonly CurrentClinicContextInterface $currentClinicContext,
     ) {
     }
 
     #[Route('/clinic/consultations/{id}', name: 'clinic_consultation_details', methods: ['GET'])]
     public function __invoke(string $id): Response
     {
-        $consultation = $this->queryBus->ask(new GetConsultationDetails($id));
+        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
+        \assert(null !== $currentClinicId);
+
+        $consultation = $this->queryBus->ask(new GetConsultationDetails($id, $currentClinicId->toString()));
 
         return $this->render('clinic/consultation/detail/index.html.twig', [
             'consultation' => $consultation,
