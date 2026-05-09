@@ -1,242 +1,122 @@
-{# Right column: SOAP notes, diagnosis, plan, ordonnance, examens, tablet tabs #}
-<div class="consult-col-right">
+{# SOAP grid 2×2 — S Subjectif · O Objectif · A Analyse · P Plan #}
+<div class="soap-grid">
 
-  {# SOAP notes widget #}
-  <div class="widget">
-    <div class="w-head">
-      <span class="w-title">Notes SOAP</span>
-      <span class="consult-soap-subtitle">Note médicale de la consultation</span>
+  {# ── S — Subjectif ── #}
+  <div class="quad" data-letter="S">
+    <div class="quad-head">
+      <span class="quad-letter">S</span>
+      <span class="quad-title">Subjectif</span>
+      <span class="quad-sub">— motif &amp; symptômes</span>
+      <span class="quad-action" title="Dicter">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="2" width="4" height="8" rx="2"/><path d="M3.5 8c0 2.5 2 4.5 4.5 4.5s4.5-2 4.5-4.5M8 12.5v2"/></svg>
+        dicter
+      </span>
     </div>
-    <div class="w-body consult-soap-body">
+    <div class="quad-body">
+      <textarea class="quad-textarea" placeholder="Ce que rapporte le propriétaire…">Propriétaire signale une légère perte d'appétit depuis 2 jours. Luna est moins active. Pas de vomissements identifiés.</textarea>
+    </div>
+  </div>
 
-      {# S -- Subjective #}
-      <div class="consult-soap-section">
-        <div class="consult-soap-gutter">
-          <div class="soap-letter consult-soap-s">S</div>
-          <div class="consult-soap-line"></div>
-        </div>
-        <div class="consult-soap-content">
-          <p class="consult-soap-heading consult-soap-heading--s">Subjectif — motif &amp; symptômes</p>
-          <textarea class="form-input" rows="3" placeholder="Symptômes rapportés par le propriétaire...">Propriétaire rapporte une baisse d'appétit depuis 48h. Luna boit normalement. Légère léthargie. Pas de vomissement ni diarrhée. Aucun changement environnemental.</textarea>
-        </div>
+  {# ── O — Objectif ── #}
+  <div class="quad" data-letter="O">
+    <div class="quad-head">
+      <span class="quad-letter">O</span>
+      <span class="quad-title">Objectif</span>
+      <span class="quad-sub">— observations cliniques</span>
+      <span class="quad-action">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M8 3v10"/></svg>
+        tout RAS
+      </span>
+    </div>
+    <div class="quad-body">
+      <div class="exam-grid">
+        <div class="exam-cell is-normal"><span class="exam-name">Cardiovasculaire</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Respiratoire</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Digestif</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Urogénital</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Locomoteur</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Neurologique</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-normal"><span class="exam-name">Cutané</span><span class="exam-status">RAS</span></div>
+        <div class="exam-cell is-untested"><span class="exam-name">Ophtalmo</span><span class="exam-status">— non testé</span></div>
       </div>
+      <textarea class="quad-textarea" placeholder="Observations détaillées…" style="min-height:50px"></textarea>
+    </div>
+  </div>
 
-      {# O -- Objective #}
-      <div class="consult-soap-section">
-        <div class="consult-soap-gutter">
-          <div class="soap-letter consult-soap-o">O</div>
-          <div class="consult-soap-line"></div>
-        </div>
-        <div class="consult-soap-content">
-          <p class="consult-soap-heading consult-soap-heading--o">Objectif — observations cliniques</p>
-          <textarea class="form-input" rows="3" placeholder="Observations à l'examen...">Légère déshydratation (2-3%), muqueuses roses, TRC &lt; 2s. Abdomen souple, légère douleur à la palpation épigastrique. Ganglions non palpables. Pelage terne.</textarea>
-        </div>
-      </div>
-
-      {# A -- Assessment #}
-      <div class="consult-soap-section">
-        <div class="consult-soap-gutter">
-          <div class="soap-letter consult-soap-a">A</div>
-          <div class="consult-soap-line"></div>
-        </div>
-        <div class="consult-soap-content">
-          <p class="consult-soap-heading consult-soap-heading--a">Analyse &amp; Diagnostic</p>
-          <div id="diag-badges" class="consult-diag-badges">
-            <span class="diag-tag confirmed consult-diag-tag--lg" onclick="cycleDiag(this)">
-              <svg width="9" height="9" fill="none" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Gastro-entérite légère
-            </span>
-            <span class="diag-tag suspected" onclick="cycleDiag(this)">
-              <svg width="8" height="8" fill="none" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M5 3v2l1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              Cause infectieuse
-            </span>
-            <span class="diag-tag suspected" onclick="cycleDiag(this)">
-              <svg width="8" height="8" fill="none" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M5 3v2l1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              Lipidose hépatique
-            </span>
-            <span class="diag-tag excluded" onclick="cycleDiag(this)">Corps étranger</span>
-            <span id="diag-add-btn" onclick="showDiagInput()" class="diag-tag consult-diag-add" onmouseenter="this.style.borderColor='var(--brand-400)';this.style.color='var(--brand-600)'" onmouseleave="this.style.borderColor='var(--border-medium)';this.style.color='var(--text-subtle)'">
-              <svg width="8" height="8" fill="none" viewBox="0 0 10 10"><path d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter
-            </span>
-            <div id="diag-input-wrapper" class="consult-diag-input-wrapper" style="display:none;">
-              <input id="diag-input" type="text" class="form-input consult-diag-input" placeholder="Nouveau diagnostic...">
-              <button onmousedown="event.preventDefault()" onclick="addDiagFromInput()" class="consult-diag-ok-btn">OK</button>
-              <button onmousedown="event.preventDefault()" onclick="hideDiagInput()" class="consult-diag-cancel-btn">✕</button>
-            </div>
-          </div>
-          <div class="consult-diag-legend">
-            <span class="consult-diag-legend-hint">Cliquer pour changer :</span>
-            <span class="consult-diag-legend--confirmed">● Confirmé</span>
-            <span class="consult-diag-legend--suspected">● Suspecté</span>
-            <span class="consult-diag-legend--excluded">● Écarté</span>
-          </div>
-          <div id="diag-notes-row" style="display:none;"><textarea class="form-input consult-diag-notes-textarea" rows="2" placeholder="Notes d'analyse complémentaires..."></textarea></div>
-          <button onclick="toggleDiagNotes()" id="diag-notes-btn" class="consult-add-notes-btn" onmouseenter="this.style.color='var(--text-muted)'" onmouseleave="this.style.color='var(--text-subtle)'">
-            <svg width="8" height="8" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter des notes
+  {# ── A — Analyse & Diagnostic ── #}
+  <div class="quad" data-letter="A">
+    <div class="quad-head">
+      <span class="quad-letter">A</span>
+      <span class="quad-title">Analyse &amp; Diagnostic</span>
+      <span class="quad-sub">— différentiel</span>
+      <span class="quad-action" title="Suggestions IA">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M3.8 3.8l2 2M10.2 10.2l2 2M3.8 12.2l2-2M10.2 5.8l2-2"/></svg>
+        suggérer
+      </span>
+    </div>
+    <div class="quad-body">
+      <div class="dx-list">
+        <div class="dx-item" data-confidence="probable">
+          <span class="dx-code">M.DIG.05</span>
+          <span class="dx-label">Gastro-entérite aiguë</span>
+          <span class="dx-confidence" data-confidence="probable">probable</span>
+          <button class="dx-remove" type="button" title="Retirer" aria-label="Retirer ce diagnostic">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
           </button>
         </div>
       </div>
-
-      {# P -- Plan #}
-      <div class="consult-soap-section">
-        <div class="consult-soap-gutter--no-line">
-          <div class="soap-letter consult-soap-p">P</div>
-        </div>
-        <div class="consult-soap-content">
-          <p class="consult-soap-heading consult-soap-heading--p">Plan — traitement &amp; suivi</p>
-          <div id="plan-grid" class="consult-plan-grid">
-            <div id="plan-col">
-              <div id="plan-lines" class="consult-plan-lines">
-                <div class="plan-line" data-type="med" onmouseenter="showPlanActions(this)" onmouseleave="hidePlanActions(this)"><span class="consult-plan-num">1.</span><span class="consult-plan-icon consult-plan-icon--med">💊</span><span class="plan-text consult-plan-text">Réhydratation SC NaCl 0,9% — 50ml</span><div class="plan-actions"><button class="ordo-btn consult-ordo-btn" onclick="addToOrdo(this,'NaCl 0,9%','50ml SC · Séance unique')">→ Ordo</button><button onclick="editPlanLine(this)" class="consult-plan-edit-btn"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="var(--text-muted)" stroke-width="1.3" stroke-linejoin="round"/></svg></button><button onclick="deletePlanLine(this)" class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div class="plan-line" data-type="med" onmouseenter="showPlanActions(this)" onmouseleave="hidePlanActions(this)"><span class="consult-plan-num">2.</span><span class="consult-plan-icon consult-plan-icon--med">💊</span><span class="plan-text consult-plan-text">Smecta 1 sachet/j pendant 5j</span><div class="plan-actions"><button class="ordo-btn consult-ordo-btn" onclick="addToOrdo(this,'Smecta','1 sachet/j · 5 jours · Orale')">→ Ordo</button><button onclick="editPlanLine(this)" class="consult-plan-edit-btn"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="var(--text-muted)" stroke-width="1.3" stroke-linejoin="round"/></svg></button><button onclick="deletePlanLine(this)" class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div class="plan-line" data-type="conseil" onmouseenter="showPlanActions(this)" onmouseleave="hidePlanActions(this)"><span class="consult-plan-num">3.</span><span class="consult-plan-icon consult-plan-icon--conseil">💬</span><span class="plan-text consult-plan-text">Diète 24h puis repas fractionnés × 3/j</span><div class="plan-actions"><button onclick="editPlanLine(this)" class="consult-plan-edit-btn"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="var(--text-muted)" stroke-width="1.3" stroke-linejoin="round"/></svg></button><button onclick="deletePlanLine(this)" class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div class="plan-line" data-type="examen" onmouseenter="showPlanActions(this)" onmouseleave="hidePlanActions(this)"><span class="consult-plan-num">4.</span><span class="consult-plan-icon consult-plan-icon--examen">🔬</span><span class="plan-text consult-plan-text">Bilan sanguin CBC + biochimie</span><div class="plan-actions"><button onclick="editPlanLine(this)" class="consult-plan-edit-btn"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="var(--text-muted)" stroke-width="1.3" stroke-linejoin="round"/></svg></button><button onclick="deletePlanLine(this)" class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div class="plan-line" data-type="suivi" onmouseenter="showPlanActions(this)" onmouseleave="hidePlanActions(this)"><span class="consult-plan-num">5.</span><span class="consult-plan-icon consult-plan-icon--suivi">📅</span><span class="plan-text consult-plan-text">Contrôle à J+5 si pas d'amélioration</span><div class="plan-actions"><button onclick="editPlanLine(this)" class="consult-plan-edit-btn"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M8 2l2 2-6 6H2V8l6-6z" stroke="var(--text-muted)" stroke-width="1.3" stroke-linejoin="round"/></svg></button><button onclick="deletePlanLine(this)" class="consult-plan-delete-btn"><svg width="8" height="8" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-              </div>
-              <button onclick="addPlanLine()" class="consult-add-plan-btn" onmouseenter="this.style.borderColor='var(--brand-400)';this.style.color='var(--brand-600)'" onmouseleave="this.style.borderColor='var(--border-medium)';this.style.color='var(--text-subtle)'">+ Ajouter une ligne</button>
-              <div class="consult-plan-actions-row">
-                <button id="btn-create-ordo" onclick="showOrdonnance()" class="consult-plan-action-btn consult-plan-action-btn--ordo" onmouseenter="this.style.background='#eef2ff';this.style.borderColor='var(--brand-400)'" onmouseleave="this.style.background='var(--brand-50)';this.style.borderColor='#c7d2fe'"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ordonnance</button>
-                <button id="btn-create-examens" onclick="showExamensP()" class="consult-plan-action-btn consult-plan-action-btn--exam" onmouseenter="this.style.background='var(--surface-hover)';this.style.borderColor='var(--text-subtle)'" onmouseleave="this.style.background='var(--surface-subtle)';this.style.borderColor='var(--border-medium)'"><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Examens</button>
-              </div>
-            </div>
-            {# Ordonnance inline panel #}
-            <div id="ordo-col" class="consult-inline-panel" style="display:none;">
-              <div class="consult-inline-panel-inner">
-                <div class="consult-inline-panel-head"><span class="w-title">Ordonnance</span><div class="consult-flex-center"><button onclick="openRxModal()" class="consult-manage-link">Gérer →</button><button onclick="hideOrdonnance()" class="consult-plan-delete-btn consult-plan-delete-btn--sm"><svg width="7" height="7" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div id="ordo-list" class="consult-ordo-list"><p class="consult-empty-msg">Aucun médicament — utilisez → Ordo</p></div>
-                <button class="btn btn-secondary consult-print-btn"><svg width="9" height="9" fill="none" viewBox="0 0 16 16"><path d="M4 6V2h8v4M4 12H2V7h12v5h-2M4 12v2h8v-2H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Imprimer</button>
-              </div>
-            </div>
-            {# Examens inline panel #}
-            <div id="examens-col" class="consult-inline-panel" style="display:none;">
-              <div class="consult-inline-panel-inner">
-                <div class="consult-inline-panel-head"><span class="w-title">Examens complémentaires</span><div class="consult-flex-center consult-gap-xs"><button onclick="openExamensModal()" class="consult-manage-link">Gérer →</button><button onclick="hideExamensP()" class="consult-plan-delete-btn consult-plan-delete-btn--sm"><svg width="7" height="7" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#dc2626" stroke-width="1.3" stroke-linecap="round"/></svg></button></div></div>
-                <div class="consult-examens-inline-list">
-                  <div class="consult-exam-row" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background='var(--surface-card)'"><div class="consult-exam-icon consult-exam-icon--blue"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><path d="M3 4h10a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="#1d4ed8" stroke-width="1.4"/><path d="M5 8h6" stroke="#1d4ed8" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="consult-exam-info"><p class="consult-exam-name">Bilan sanguin</p><p class="consult-exam-detail">CBC + Biochimie</p></div><span class="consult-exam-status consult-exam-status--requested">Demandé</span></div>
-                  <div class="consult-exam-row" onmouseenter="this.style.background='var(--surface-subtle)'" onmouseleave="this.style.background='var(--surface-card)'"><div class="consult-exam-icon consult-exam-icon--green"><svg width="10" height="10" fill="none" viewBox="0 0 16 16"><ellipse cx="8" cy="8" rx="5" ry="6.5" stroke="#15803d" stroke-width="1.4"/><path d="M4 8h8M8 3v10" stroke="#15803d" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="consult-exam-info"><p class="consult-exam-name">Échographie</p><p class="consult-exam-detail">Abdominale</p></div><span class="consult-exam-status consult-exam-status--planned">À planifier</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <button class="add-row" type="button">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
+        Ajouter un diagnostic
+      </button>
     </div>
   </div>
 
-</div>
-
-{# -- Tablet portrait tabs (hidden on desktop) -- #}
-<div class="tab-body" id="tab-body" data-turbo-temporary style="display:none;">
-  <div class="consult-tab-container">
-
-    {# Tab Clinique #}
-    <div class="tab-pane active" id="tab-clinique" class="consult-tab-scroll">
-      <div class="widget consult-mb-sm">
-        <div class="w-head"><span class="w-title">Signes vitaux</span><button class="btn btn-ghost btn-xs" onclick="toggleEditVitals()" id="vitals-edit-btn-tab"><i data-lucide="pencil" class="consult-icon-xs"></i>Modifier</button></div>
-        <div class="consult-tab-vitals-pad">
-          <div class="consult-vitals-grid">
-            <div class="vital-pill ok" onclick="selectVital(this,'poids')" data-vital="poids"><div class="vital-num">3.8 <span class="vital-unit">kg</span></div><div class="vital-lbl">Poids</div></div>
-            <div class="vital-pill alert" onclick="selectVital(this,'temp')" data-vital="temp"><div class="vital-num">39.6 <span class="vital-unit">°C</span></div><div class="vital-lbl">Temp.</div></div>
-            <div class="vital-pill" onclick="selectVital(this,'fc')" data-vital="fc"><div class="vital-num">142 <span class="vital-unit">bpm</span></div><div class="vital-lbl">FC</div></div>
-            <div class="vital-pill" onclick="selectVital(this,'fr')" data-vital="fr"><div class="vital-num">28 <span class="vital-unit">/min</span></div><div class="vital-lbl">FR</div></div>
-            <div class="vital-pill" data-vital="douleur" onclick="selectVital(this,'douleur')"><div class="vital-num consult-pain-placeholder">—</div><div class="vital-lbl">Douleur</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="widget">
-        <div class="w-head"><span class="w-title">Actes &amp; Facturation</span></div>
-        <div class="w-body consult-acts-body">
-          <div class="consult-acts-list-compact">
-            <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Consultation</p></div><span class="consult-act-price">35,00 €</span></div>
-            <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Vaccination FeLV</p></div><span class="consult-act-price">18,00 €</span></div>
-            <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">Smecta</p></div><span class="consult-act-price">4,50 €</span></div>
-            <div class="acte-row"><div class="consult-acts-flex"><p class="consult-act-name">NaCl 0,9% SC</p></div><span class="consult-act-price">6,00 €</span></div>
-          </div>
-          <div class="consult-acts-total-compact"><span>Total TTC</span><span>63,50 €</span></div>
-        </div>
-      </div>
+  {# ── P — Plan ── #}
+  <div class="quad" data-letter="P">
+    <div class="quad-head">
+      <span class="quad-letter">P</span>
+      <span class="quad-title">Plan</span>
+      <span class="quad-sub">— traitement &amp; suivi</span>
+      <span class="quad-action">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6"/></svg>
+        templates
+      </span>
     </div>
-
-    {# Tab Notes #}
-    <div class="tab-pane" id="tab-notes" class="consult-tab-scroll">
-      <div class="widget">
-        <div class="w-head"><span class="w-title">Notes SOAP &amp; Diagnostic</span></div>
-        <div class="w-body consult-soap-tabs-body">
-          <div>
-            <div class="consult-soap-tab-header"><div class="soap-letter consult-soap-s">S</div><p class="consult-soap-tab-label consult-soap-heading--s">Subjectif</p></div>
-            <textarea class="form-input" rows="3">Propriétaire rapporte une baisse d'appétit depuis 48h. Luna boit normalement. Légère léthargie.</textarea>
-          </div>
-          <div>
-            <div class="consult-soap-tab-header"><div class="soap-letter consult-soap-o">O</div><p class="consult-soap-tab-label consult-soap-heading--o">Objectif</p></div>
-            <textarea class="form-input" rows="3">Légère déshydratation (2-3%), muqueuses roses, TRC &lt; 2s. Abdomen souple, légère douleur épigastrique.</textarea>
-          </div>
-          <div>
-            <div class="consult-soap-tab-header"><div class="soap-letter consult-soap-a">A</div><p class="consult-soap-tab-label consult-soap-heading--a">Analyse &amp; Diagnostic</p></div>
-            <div class="consult-diag-badges">
-              <span class="diag-tag confirmed consult-diag-tag--lg">✓ Gastro-entérite légère</span>
-              <span class="diag-tag suspected">? Cause infectieuse</span>
-              <span class="diag-tag excluded">Corps étranger</span>
-            </div>
-          </div>
-          <div>
-            <div class="consult-soap-tab-header"><div class="soap-letter consult-soap-p">P</div><p class="consult-soap-tab-label consult-soap-heading--p">Plan de traitement</p></div>
-            <div class="consult-plan-lines">
-              <div class="plan-line consult-no-pointer"><span class="consult-plan-num">1.</span><span class="consult-plan-icon consult-plan-icon--med">💊</span><span class="consult-plan-text">Réhydratation SC NaCl 0,9% — 50ml</span></div>
-              <div class="plan-line consult-no-pointer"><span class="consult-plan-num">2.</span><span class="consult-plan-icon consult-plan-icon--med">💊</span><span class="consult-plan-text">Smecta 1 sachet/j pendant 5j</span></div>
-              <div class="plan-line consult-no-pointer"><span class="consult-plan-num">3.</span><span class="consult-plan-icon consult-plan-icon--conseil">💬</span><span class="consult-plan-text">Diète 24h puis repas fractionnés × 3/j</span></div>
-            </div>
-            <div class="consult-tab-plan-btns">
-              <button onclick="openRxModal()" class="btn btn-secondary consult-tab-plan-btn">Ordonnance</button>
-              <button onclick="openExamensModal()" class="btn btn-secondary consult-tab-plan-btn">Examens</button>
-            </div>
-          </div>
+    <div class="quad-body">
+      <div class="plan-list">
+        <div class="plan-item has-row-x is-done">
+          <span class="plan-checkbox">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2" aria-hidden="true"><path d="M3.5 8l3 3 6-6"/></svg>
+          </span>
+          <span class="plan-text">Vaccination FeLV sous-cutanée</span>
+          <span class="plan-meta">facturé</span>
+          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          </button>
+        </div>
+        <div class="plan-item has-row-x">
+          <span class="plan-checkbox"></span>
+          <span class="plan-text">Smecta 3 j + régime digestible 5 j</span>
+          <span class="plan-meta">→ ordonnance</span>
+          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          </button>
+        </div>
+        <div class="plan-item has-row-x">
+          <span class="plan-checkbox"></span>
+          <span class="plan-text">Recontrôle J+7 si persistance</span>
+          <span class="plan-meta">RDV</span>
+          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          </button>
         </div>
       </div>
+      <button class="add-row" type="button">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
+        Ajouter une action
+      </button>
     </div>
-
-    {# Tab Patient #}
-    <div class="tab-pane" id="tab-patient" class="consult-tab-scroll">
-      <div class="widget consult-mb-sm">
-        <div class="w-head"><span class="w-title">Informations patient</span></div>
-        <div class="w-body">
-          <div class="consult-patient-info-block">
-            <div class="consult-patient-info-avatar">🐱</div>
-            <div><p class="consult-patient-info-name">Luna</p><p class="consult-patient-info-meta">Persan · 4 ans · Femelle stérilisée</p><p class="consult-patient-info-id">#PAT-00412 · Visite #3</p></div>
-          </div>
-          <div class="consult-patient-fields">
-            <div class="consult-patient-field"><span class="consult-patient-field-label">Propriétaire</span><span class="consult-patient-field-value">Mme Dubois</span></div>
-            <div class="consult-patient-field"><span class="consult-patient-field-label">Téléphone</span><span class="consult-patient-field-value consult-patient-field-value--purple">+33 6 12 34 56 78</span></div>
-            <div class="consult-patient-field consult-patient-field--last"><span class="consult-patient-field-label">Allergie connue</span><span class="consult-patient-field-value consult-patient-field-value--danger">⚠ Pénicilline</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="widget">
-        <div class="w-head"><span class="w-title">Historique médical</span></div>
-        <div class="w-body" id="tab-history">
-          <div class="tl-item"><div class="tl-dot consult-tl-dot--active"></div><div class="consult-tl-content"><p class="consult-tl-title consult-tl-title--active">En cours</p><p class="consult-tl-desc">Troubles digestifs · Suivi vaccinal</p><p class="consult-tl-date">Dr. Rousseau · 19 mars 2026</p></div></div>
-          <div class="tl-item"><div class="tl-dot consult-tl-dot--past"></div><div class="consult-tl-content"><p class="consult-tl-title">Gastro-entérite</p><p class="consult-tl-desc">Smecta · NaCl SC</p><p class="consult-tl-date">Dr. Rousseau · 12 jan. 2026</p></div></div>
-          <div class="tl-item"><div class="tl-dot consult-tl-dot--past"></div><div class="consult-tl-content"><p class="consult-tl-title">Bilan annuel + vaccination</p><p class="consult-tl-desc">Typhus · Coryza · FeLV · Rage</p><p class="consult-tl-date">Dr. Rousseau · 8 sept. 2025</p></div></div>
-          <div class="tl-item"><div class="tl-dot consult-tl-dot--surgery"></div><div class="consult-tl-content"><p class="consult-tl-title">Stérilisation</p><p class="consult-tl-desc">Ovariectomie · Anesthésie générale</p><p class="consult-tl-date">Dr. Rousseau · 3 avr. 2024</p></div></div>
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  {# Bottom tabs #}
-  <div class="bottom-tabs">
-    <button class="bottom-tab active" id="btab-clinique" onclick="switchConsultTab('clinique')">
-      <i data-lucide="stethoscope" class="consult-icon-lg"></i>
-      <span class="bottom-tab-label">Clinique</span>
-    </button>
-    <button class="bottom-tab" id="btab-notes" onclick="switchConsultTab('notes')">
-      <i data-lucide="file-text" class="consult-icon-lg"></i>
-      <span class="bottom-tab-label">Notes</span>
-    </button>
-    <button class="bottom-tab" id="btab-patient" onclick="switchConsultTab('patient')">
-      <i data-lucide="user" class="consult-icon-lg"></i>
-      <span class="bottom-tab-label">Patient</span>
-    </button>
-  </div>
 </div>

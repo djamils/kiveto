@@ -1,56 +1,54 @@
-{# Patient banner — desktop 2-line and compact portrait variants #}
+{# Patient bar — single-row compact, cockpit design #}
+<div class="patient-bar">
+  <div class="pb-row">
 
-{# -- Desktop banner -- #}
-<div class="patient-banner">
-  <div class="banner-line1">
-    <div class="consult-avatar">🐱</div>
-    <div>
-      <div class="consult-name-row">
-        <span class="consult-patient-name">Luna</span>
-        <span class="badge b-feline">Félin</span>
-        <span class="consult-patient-meta">Persan · 4 ans · Femelle stérilisée</span>
-      </div>
-      <div class="consult-patient-sub">
-        <span>#PAT-00412</span>
-        <span class="consult-dot-separator">·</span>
-        <span class="consult-visit-badge">Visite #3</span>
-        <span class="consult-dot-separator">·</span>
-        <span>Dernière visite 12 jan. 2026</span>
-      </div>
+    <div class="pb-photo" title="Voir le dossier patient">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Félin">
+        <path d="M12 5C8.5 5 5.5 7.5 5 11c-.3 1.5-.5 4 1 6h12c1.5-2 1.3-4.5 1-6C18.5 7.5 15.5 5 12 5z"/>
+        <path d="M8 5 6 2M16 5l2-2"/>
+        <path d="M9.5 14v.5M14.5 14v.5M10.5 17h3"/>
+      </svg>
     </div>
-    <button class="vax-btn consult-vax-btn" onclick="openVaxModal()">
-      <div class="pulse-dot consult-pulse-amber"></div>
-      <span class="consult-vax-label">Rappel FeLV à faire</span>
-      <i data-lucide="chevron-right" class="consult-icon-xs consult-icon-amber"></i>
-    </button>
-    <div class="consult-banner-actions">
-      <button class="btn btn-secondary btn-xs"><i data-lucide="folder" class="consult-icon-xs"></i>Dossier</button>
-      <button class="btn btn-secondary btn-xs" onclick="openDrawer()"><i data-lucide="clock" class="consult-icon-xs"></i>Historique</button>
-    </div>
-  </div>
-  <div class="banner-line2">
-    <i data-lucide="user" class="consult-icon-sm consult-icon-purple"></i>
-    <span class="consult-owner-name">Mme Dubois</span>
-    <div class="consult-vdivider"></div>
-    <span class="consult-owner-phone">+33 6 12 34 56 78</span>
-    <div class="consult-vdivider"></div>
-    <span class="consult-allergy-label">Allergie connue :</span>
-    <span class="consult-allergy-badge">⚠ Pénicilline</span>
-  </div>
-</div>
 
-{# -- Compact banner (tablet portrait) -- #}
-<div class="banner-compact">
-  <div class="consult-avatar-compact">🐱</div>
-  <div class="consult-compact-info">
-    <div class="consult-compact-row">
-      <span class="consult-compact-name">Luna</span>
-      <span class="badge b-feline consult-badge-sm">Félin</span>
-      <span class="consult-compact-meta">Persan · 4 ans</span>
-      <span class="consult-allergy-badge consult-allergy-badge--right">⚠ Pénicilline</span>
+    <div class="pb-id">
+      <div class="pb-name">
+        Luna
+        <span class="badge b-feline" style="font-size:var(--text-xs)">♀ stérilisée</span>
+      </div>
+      <div class="pb-meta">
+        <span>Persan</span>
+        <span class="sep-v" aria-hidden="true"></span>
+        <span>4 ans</span>
+        <span class="sep-v" aria-hidden="true"></span>
+        <span class="mono" style="font-size:var(--text-sm)">#PAT-00412</span>
+        <span class="sep-v" aria-hidden="true"></span>
+        <span class="pb-owner">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c.5-2.5 3-4 5.5-4s5 1.5 5.5 4"/></svg>
+          Mme Dubois
+        </span>
+      </div>
     </div>
-    <div class="consult-compact-sub">Mme Dubois · Visite #3 · 19 mars 2026</div>
+
+    <div class="pb-warnings">
+      <span class="pb-warn">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
+        Allergie pénicilline
+      </span>
+      <span class="pb-warn is-info">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
+        Rappel FeLV à faire
+      </span>
+    </div>
+
+    <div class="pb-actions">
+      <button class="btn btn-ghost btn-sm">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 6h6M5 9h4"/></svg>
+        Dossier complet
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Plus d'options" aria-label="Plus d'options">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
+      </button>
+    </div>
+
   </div>
-  <button class="btn btn-secondary btn-xs" onclick="openDrawer()"><i data-lucide="clock" class="consult-icon-xs"></i></button>
-  <button class="btn btn-primary btn-xs" onclick="closeConsult()"><i data-lucide="check" class="consult-icon-xs"></i>Clôturer</button>
 </div>

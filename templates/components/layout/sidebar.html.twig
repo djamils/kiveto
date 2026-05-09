@@ -122,7 +122,7 @@
 
 {# Compact icon-rail mode on pages that need maximum horizontal space (e.g. scheduling). #}
 {% set _route = app.request.attributes.get('_route') %}
-{% set _rail = _route in ['clinic_scheduling_agenda', 'clinic_scheduling_planning'] %}
+{% set _rail = _route in ['clinic_scheduling_agenda', 'clinic_scheduling_planning', 'clinic_consultation_details'] %}
 
 <aside class="sidebar{% if _rail %} sidebar--rail{% endif %}" id="appSidebar" data-controller="sidebar">
 
