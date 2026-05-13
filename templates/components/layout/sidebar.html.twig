@@ -94,7 +94,7 @@
 
   { section: 'Médical' },
   { key: 'clinic_clients_list',           label: 'Clients & Patients', icon: icon_users,       route: 'clinic_clients_list' },
-  { key: 'clinic_consultations',           label: 'Consultations',      icon: icon_stethoscope, route: 'clinic_consultations' },
+  { key: 'clinic_consultations',           label: 'Consultations',      icon: icon_stethoscope, route: 'clinic_consultations', matches: ['clinic_consultation_details'] },
   { key: 'clinic_hospitalisations',       label: 'Hospitalisations',   icon: icon_bed,         route: 'clinic_hospitalisations' },
 
   { section: 'Gestion' },
@@ -261,7 +261,7 @@
       {% if item.section is defined %}
         <p class="nav-section">{{ item.section }}</p>
       {% else %}
-        {% set _is_active = active_item is defined and (active_item == item.key or active_item starts with item.key) %}
+        {% set _is_active = active_item is defined and (active_item == item.key or active_item starts with item.key or (item.matches is defined and active_item in item.matches)) %}
         <a
           href="{{ item.route ? path(item.route) : '#' }}"
           class="nav-item{% if _is_active %} active{% endif %}{% if _rail %} ki-tooltip{% endif %}"
