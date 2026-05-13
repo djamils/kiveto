@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # PHP extensions
 RUN docker-php-ext-configure intl \
-    && docker-php-ext-install intl pdo_mysql zip
+    && docker-php-ext-install bcmath intl pdo_mysql zip
 
 # Xdebug
 RUN pecl install xdebug \
