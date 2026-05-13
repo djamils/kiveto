@@ -1127,36 +1127,6 @@ export function init() {
   // ─ strip text inline edit ─
   document.querySelectorAll('.strip:first-child .strip-text').forEach(wireStripTextEdit);
 
-  // ─ sidebar toggle ─
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle');
-  const sidebarEl = document.querySelector('.sidebar');
-  if (sidebarToggleBtn && sidebarEl) {
-    sidebarToggleBtn.addEventListener('click', () => {
-      const collapsed = sidebarEl.classList.toggle('sidebar--rail');
-      Dropdown.close();
-    });
-  }
-
-  // ─ sidebar nav links ─
-  document.querySelectorAll('.sidebar .nav-item').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      if (link.classList.contains('active')) return;
-      const label = link.querySelector('span')?.textContent.trim() || '';
-      Toast.info(`Navigation vers "${label}"`);
-    });
-  });
-
-  // ─ sidebar clinic btn ─
-  document.querySelector('.sb-clinic-btn')?.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'switch-1', label: 'Clinique du Prado · Marseille' },
-      { action: 'switch-2', label: 'Clinique de la Joliette' },
-      { divider: true },
-      { action: 'add-clinic', label: 'Ajouter une clinique' },
-    ], { align: 'left', onSelect: () => Toast.info('Clinique active modifiée') });
-  });
-
   // ─ topbar crumb link ─
   document.querySelector('.consult-crumb a')?.addEventListener('click', e => {
     e.preventDefault();
