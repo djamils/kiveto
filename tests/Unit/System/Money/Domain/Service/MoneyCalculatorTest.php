@@ -7,7 +7,6 @@ namespace App\Tests\Unit\System\Money\Domain\Service;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\System\Money\Domain\Currency;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
-use App\System\Money\Domain\RoundingPolicy\CommercialRounding;
 use App\System\Money\Domain\Service\CurrencyRegistry;
 use App\System\Money\Domain\Service\MoneyCalculator;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
@@ -102,9 +101,8 @@ final class MoneyCalculatorTest extends TestCase
 
     public function testMultiply(): void
     {
-        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $rounding = new CommercialRounding();
-        $result   = $this->calculator->multiply($money, '1.5', $rounding);
+        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $result = $this->calculator->multiply($money, '1.5');
 
         self::assertSame(1500, $result->minorUnits());
         self::assertSame('EUR', $result->currency()->toString());
@@ -112,36 +110,32 @@ final class MoneyCalculatorTest extends TestCase
 
     public function testDivide(): void
     {
-        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $rounding = new CommercialRounding();
-        $result   = $this->calculator->divide($money, '4', $rounding);
+        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $result = $this->calculator->divide($money, '4');
 
         self::assertSame(250, $result->minorUnits());
     }
 
     public function testPercentage(): void
     {
-        $money    = Money::fromMinorUnits(10000, $this->eur); // 100.00 EUR
-        $rounding = new CommercialRounding();
-        $result   = $this->calculator->percentage($money, '10', $rounding);
+        $money  = Money::fromMinorUnits(10000, $this->eur); // 100.00 EUR
+        $result = $this->calculator->percentage($money, '10');
 
         self::assertSame(1000, $result->minorUnits()); // 10.00 EUR = 10%
     }
 
     public function testApplyCoefficient(): void
     {
-        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $rounding = new CommercialRounding();
-        $result   = $this->calculator->applyCoefficient($money, '1.07', $rounding);
+        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $result = $this->calculator->applyCoefficient($money, '1.07');
 
         self::assertSame(1070, $result->minorUnits()); // 10.70 EUR
     }
 
     public function testAllocateDistributesAmountExactly(): void
     {
-        $money    = Money::fromMinorUnits(100, $this->eur);
-        $rounding = new CommercialRounding();
-        $parts    = $this->calculator->allocate($money, [1, 1, 1], $rounding);
+        $money = Money::fromMinorUnits(100, $this->eur);
+        $parts = $this->calculator->allocate($money, [1, 1, 1]);
 
         self::assertCount(3, $parts);
 
@@ -151,9 +145,8 @@ final class MoneyCalculatorTest extends TestCase
 
     public function testAllocateZeroMoney(): void
     {
-        $money    = Money::zero($this->eur);
-        $rounding = new CommercialRounding();
-        $parts    = $this->calculator->allocate($money, [1, 1, 1], $rounding);
+        $money = Money::zero($this->eur);
+        $parts = $this->calculator->allocate($money, [1, 1, 1]);
 
         self::assertCount(3, $parts);
 
@@ -164,22 +157,20 @@ final class MoneyCalculatorTest extends TestCase
 
     public function testAllocateThrowsOnEmptyRatios(): void
     {
-        $money    = Money::fromMinorUnits(100, $this->eur);
-        $rounding = new CommercialRounding();
+        $money = Money::fromMinorUnits(100, $this->eur);
 
         $this->expectException(\App\System\Money\Domain\Exception\AllocationException::class);
 
-        $this->calculator->allocate($money, [], $rounding);
+        $this->calculator->allocate($money, []);
     }
 
     public function testAllocateThrowsOnAllZeroRatios(): void
     {
-        $money    = Money::fromMinorUnits(100, $this->eur);
-        $rounding = new CommercialRounding();
+        $money = Money::fromMinorUnits(100, $this->eur);
 
         $this->expectException(\App\System\Money\Domain\Exception\AllocationException::class);
 
-        $this->calculator->allocate($money, [0, 0, 0], $rounding);
+        $this->calculator->allocate($money, [0, 0, 0]);
     }
 
     public function testAbs(): void

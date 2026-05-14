@@ -6,15 +6,14 @@ namespace App\System\Money\Domain\Service;
 
 use App\System\Money\Domain\Exception\AllocationException;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
-use App\System\Money\Domain\RoundingPolicy\RoundingPolicy;
 use App\System\Money\Domain\ValueObject\Money;
 
 /**
  * Arithmetic operations on monetary amounts.
  *
  * All operations use bcmath exclusively (zero floats).
- * add() and subtract() operate on integer minor units; multiply(),
- * divide() and allocate() delegate final rounding to the provided RoundingPolicy.
+ * add() and subtract() operate on integer minor units directly.
+ * multiply(), divide() and allocate() use HalfAwayFromZero rounding on minor units.
  * allocate() guarantees that the sum of parts equals exactly the original amount
  * (remainder distributed to the last element).
  */
@@ -42,7 +41,7 @@ final class MoneyCalculator
         return Money::fromMinorUnits($a->minorUnits() - $b->minorUnits(), $a->currency());
     }
 
-    public function multiply(Money $money, string $factor, RoundingPolicy $rounding): Money
+    public function multiply(Money $money, string $factor): Money
     {
         $currency = $this->currencyRegistry->get($money->currency());
         $decimals = $currency->decimals();
@@ -55,7 +54,7 @@ final class MoneyCalculator
         return Money::fromMinorUnits((int) $rounded, $money->currency());
     }
 
-    public function divide(Money $money, string $divisor, RoundingPolicy $rounding): Money
+    public function divide(Money $money, string $divisor): Money
     {
         $currency = $this->currencyRegistry->get($money->currency());
         $decimals = $currency->decimals();
@@ -66,14 +65,14 @@ final class MoneyCalculator
         return Money::fromMinorUnits((int) $rounded, $money->currency());
     }
 
-    public function percentage(Money $money, string $percent, RoundingPolicy $rounding): Money
+    public function percentage(Money $money, string $percent): Money
     {
-        return $this->multiply($money, bcdiv($percent, '100', 10), $rounding);
+        return $this->multiply($money, bcdiv($percent, '100', 10));
     }
 
-    public function applyCoefficient(Money $money, string $coefficient, RoundingPolicy $rounding): Money
+    public function applyCoefficient(Money $money, string $coefficient): Money
     {
-        return $this->multiply($money, $coefficient, $rounding);
+        return $this->multiply($money, $coefficient);
     }
 
     /**
@@ -81,7 +80,7 @@ final class MoneyCalculator
      *
      * @return list<Money>
      */
-    public function allocate(Money $money, array $ratios, RoundingPolicy $rounding): array
+    public function allocate(Money $money, array $ratios): array
     {
         if ([] === $ratios) {
             throw new AllocationException('ratios array is empty');
