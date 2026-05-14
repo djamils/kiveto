@@ -9,6 +9,15 @@ use App\System\Money\Domain\Exception\CurrencyMismatchException;
 use App\System\Money\Domain\RoundingPolicy\RoundingPolicy;
 use App\System\Money\Domain\ValueObject\Money;
 
+/**
+ * Arithmetic operations on monetary amounts.
+ *
+ * All operations use bcmath exclusively (zero floats).
+ * add() and subtract() operate on integer minor units; multiply(),
+ * divide() and allocate() delegate final rounding to the provided RoundingPolicy.
+ * allocate() guarantees that the sum of parts equals exactly the original amount
+ * (remainder distributed to the last element).
+ */
 final class MoneyCalculator
 {
     public function __construct(private readonly CurrencyRegistry $currencyRegistry)

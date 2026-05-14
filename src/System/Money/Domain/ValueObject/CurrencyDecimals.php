@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\System\Money\Domain\ValueObject;
 
+/**
+ * Number of decimal places for an ISO 4217 currency (0 to 4).
+ *
+ * Examples: EUR = 2, JPY = 0, KWD = 3. Used to convert between
+ * minor units and decimal amounts in both directions.
+ */
 final class CurrencyDecimals
 {
     private int $value;

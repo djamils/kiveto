@@ -13,6 +13,16 @@ use App\System\Money\Domain\Event\CurrencyRegistered;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\CurrencySymbol;
 
+/**
+ * Reference entry for an ISO 4217 currency supported by the application.
+ *
+ * Documented exception: the PK is CurrencyCode (CHAR 3) rather than UUIDv7,
+ * because Currency is a static dictionary aggregate referenced by FK in ExchangeRate.
+ *
+ * activate() and deactivate() are idempotent: no event is emitted if the currency
+ * is already in the target state. updateDisplay() allows a silent update
+ * (idempotent bootstrap via LoadCurrenciesCommand).
+ */
 final class Currency extends AggregateRoot
 {
     private CurrencyCode $code;

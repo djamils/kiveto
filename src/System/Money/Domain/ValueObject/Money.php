@@ -6,6 +6,12 @@ namespace App\System\Money\Domain\ValueObject;
 
 use App\Shared\Domain\ValueObject\CurrencyCode;
 
+/**
+ * Immutable monetary amount expressed as integer minor units (e.g. 1850 = 18.50 EUR).
+ *
+ * All arithmetic goes through bcmath: no float is ever used.
+ * Storing amounts as minor units eliminates rounding errors at the source.
+ */
 final class Money
 {
     private int $minorUnits;

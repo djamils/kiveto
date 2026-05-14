@@ -20,9 +20,9 @@ final class HistoricalRateTest extends TestCase
 
         $historicalRate = HistoricalRate::of($pair, '0.9523', $effectiveDate, 'ECB');
 
-        self::assertSame('EUR/CHF', $historicalRate->pair->toString());
-        self::assertSame('0.9523', $historicalRate->rate);
-        self::assertSame('2026-05-14', $historicalRate->effectiveDate->format('Y-m-d'));
-        self::assertSame('ECB', $historicalRate->source);
+        self::assertSame('EUR/CHF', $historicalRate->pair()->toString());
+        self::assertSame('0.9523', $historicalRate->rate());
+        self::assertSame('2026-05-14', $historicalRate->effectiveDate()->format('Y-m-d'));
+        self::assertSame('ECB', $historicalRate->source());
     }
 }

@@ -7,6 +7,14 @@ namespace App\System\Money\Domain\Service;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
 use App\System\Money\Domain\ValueObject\Money;
 
+/**
+ * Comparisons between monetary amounts.
+ *
+ * equals() returns false silently for different currencies.
+ * isGreaterThan(), isLessThan() and their variants throw CurrencyMismatchException
+ * when currencies differ (an ordered cross-currency comparison has no meaning).
+ * max() and min() throw \InvalidArgumentException for an empty or mixed-currency list.
+ */
 final class MoneyComparator
 {
     public function equals(Money $a, Money $b): bool

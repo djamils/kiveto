@@ -12,6 +12,11 @@ use App\System\Money\Domain\RoundingPolicy\SwissCashRounding;
 use App\System\Money\Domain\ValueObject\PsychologicalStrategy;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
 
+/**
+ * Factory for rounding policies. Instantiates and returns the requested strategy.
+ *
+ * Stateless; can be injected as a singleton service or instantiated on the fly.
+ */
 final class RoundingPolicyRegistry
 {
     public function get(RoundingPolicyId $id): RoundingPolicy

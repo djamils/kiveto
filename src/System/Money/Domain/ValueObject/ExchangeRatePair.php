@@ -6,6 +6,12 @@ namespace App\System\Money\Domain\ValueObject;
 
 use App\Shared\Domain\ValueObject\CurrencyCode;
 
+/**
+ * Ordered currency pair (source → target) identifying an exchange rate.
+ *
+ * Source and target currencies must be distinct. Provides inverse()
+ * to obtain the symmetric pair (e.g. EUR/CHF → CHF/EUR).
+ */
 final class ExchangeRatePair
 {
     private CurrencyCode $from;

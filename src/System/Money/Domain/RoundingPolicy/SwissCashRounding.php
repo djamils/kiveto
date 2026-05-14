@@ -9,6 +9,14 @@ use App\System\Money\Domain\Exception\SwissCashRoundingRequiresChfException;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
 
+/**
+ * Swiss cash rounding to the nearest 0.05 CHF multiple.
+ *
+ * Mandatory for cash transactions in Switzerland since the removal of 1 and 2
+ * centime coins. Exclusively applicable to CHF; any other currency throws
+ * SwissCashRoundingRequiresChfException.
+ * Example: 1.425 → 1.45; 1.426 → 1.45; 1.475 → 1.50.
+ */
 final class SwissCashRounding implements RoundingPolicy
 {
     public function id(): RoundingPolicyId

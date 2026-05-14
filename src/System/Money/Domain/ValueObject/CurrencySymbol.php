@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\System\Money\Domain\ValueObject;
 
+/**
+ * Typographic symbol of a currency (e.g. €, £, $, CHF).
+ *
+ * Non-empty, 8 characters maximum. Used for display purposes only;
+ * carries no business semantics beyond that.
+ */
 final class CurrencySymbol
 {
     private string $value;

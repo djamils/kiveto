@@ -39,9 +39,9 @@ final class EcbExchangeRateProviderTest extends TestCase
 
         foreach ($rates as $rate) {
             self::assertInstanceOf(HistoricalRate::class, $rate);
-            self::assertSame('ECB', $rate->source);
-            self::assertSame('EUR', $rate->pair->from()->toString());
-            self::assertSame('2026-05-14', $rate->effectiveDate->format('Y-m-d'));
+            self::assertSame('ECB', $rate->source());
+            self::assertSame('EUR', $rate->pair()->from()->toString());
+            self::assertSame('2026-05-14', $rate->effectiveDate()->format('Y-m-d'));
         }
     }
 
@@ -57,8 +57,8 @@ final class EcbExchangeRateProviderTest extends TestCase
 
         $rate = $provider->getCurrentRate($pair);
 
-        self::assertSame('1.0850', $rate->rate);
-        self::assertSame('EUR/USD', $rate->pair->toString());
+        self::assertSame('1.0850', $rate->rate());
+        self::assertSame('EUR/USD', $rate->pair()->toString());
     }
 
     public function testGetRateAtReturnsMatchingRate(): void
@@ -73,8 +73,8 @@ final class EcbExchangeRateProviderTest extends TestCase
 
         $rate = $provider->getRateAt($pair, new \DateTimeImmutable('2026-05-14'));
 
-        self::assertSame('0.9523', $rate->rate);
-        self::assertSame('EUR/CHF', $rate->pair->toString());
+        self::assertSame('0.9523', $rate->rate());
+        self::assertSame('EUR/CHF', $rate->pair()->toString());
     }
 
     public function testGetCurrentRateThrowsForUnknownPair(): void

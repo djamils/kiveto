@@ -34,9 +34,9 @@ final readonly class ImportExchangeRatesHandler
             $id           = ExchangeRateId::generate($this->uuidGenerator);
             $exchangeRate = ExchangeRate::create(
                 $id,
-                $historicalRate->pair,
-                $historicalRate->rate,
-                $historicalRate->effectiveDate,
+                $historicalRate->pair(),
+                $historicalRate->rate(),
+                $historicalRate->effectiveDate(),
                 $command->source,
                 $now,
             );

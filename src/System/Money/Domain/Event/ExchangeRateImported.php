@@ -6,6 +6,7 @@ namespace App\System\Money\Domain\Event;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
+/** Emitted when a new historical exchange rate is imported (source: ECB, manual or fixed). */
 final readonly class ExchangeRateImported extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'money';

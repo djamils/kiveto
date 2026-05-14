@@ -8,6 +8,13 @@ use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
 
+/**
+ * Commercial rounding: HALF_AWAY_FROM_ZERO (standard rounding).
+ *
+ * Equidistant values (x.5) are rounded towards the higher absolute value.
+ * This is the behaviour expected by most end users.
+ * Example: 1.245 → 1.25; 1.235 → 1.24.
+ */
 final class CommercialRounding implements RoundingPolicy
 {
     public function id(): RoundingPolicyId

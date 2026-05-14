@@ -9,6 +9,15 @@ use App\System\Money\Domain\Event\ExchangeRateImported;
 use App\System\Money\Domain\ValueObject\ExchangeRateId;
 use App\System\Money\Domain\ValueObject\ExchangeRatePair;
 
+/**
+ * Historical exchange rate between two currencies at an effective date.
+ *
+ * The rate is stored as a bcmath decimal string (e.g. "0.9523") to guarantee
+ * precision; it must be strictly positive. The source field identifies the
+ * rate origin ("ECB", "MANUAL", "FIXED").
+ *
+ * A unique constraint enforces one row per (from, to, effective_date, source).
+ */
 final class ExchangeRate extends AggregateRoot
 {
     private ExchangeRateId $id;

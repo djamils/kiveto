@@ -6,6 +6,11 @@ namespace App\System\Money\Domain\ValueObject;
 
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 
+/**
+ * UUIDv7 identifier of an ExchangeRate aggregate.
+ *
+ * Generated via UuidGeneratorInterface to preserve testability.
+ */
 final class ExchangeRateId
 {
     private string $value;

@@ -12,6 +12,14 @@ use App\System\Money\Domain\RoundingPolicy\RoundingPolicy;
 use App\System\Money\Domain\ValueObject\ExchangeRatePair;
 use App\System\Money\Domain\ValueObject\Money;
 
+/**
+ * Converts a monetary amount from one currency to another using historical exchange rates.
+ *
+ * The rate used is the most recent one whose effective date is ≤ the requested date.
+ * If that rate is older than $maxStalenessInDays (default 7), StaleExchangeRateException
+ * is thrown. Same-currency conversion returns the input amount immediately without
+ * any repository lookup (same-currency short-circuit).
+ */
 final class ConversionService
 {
     public function __construct(

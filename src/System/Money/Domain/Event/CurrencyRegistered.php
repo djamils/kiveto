@@ -6,6 +6,7 @@ namespace App\System\Money\Domain\Event;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
+/** Emitted when a new currency is registered in the reference catalogue. */
 final readonly class CurrencyRegistered extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'money';

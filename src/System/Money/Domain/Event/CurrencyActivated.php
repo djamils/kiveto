@@ -6,6 +6,7 @@ namespace App\System\Money\Domain\Event;
 
 use App\Shared\Domain\Event\AbstractDomainEvent;
 
+/** Emitted when a previously deactivated currency is reactivated. */
 final readonly class CurrencyActivated extends AbstractDomainEvent
 {
     protected const string BOUNDED_CONTEXT = 'money';

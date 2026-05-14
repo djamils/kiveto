@@ -24,7 +24,7 @@ final class EcbExchangeRateProvider implements ExchangeRateProvider
         $rates = $this->fetchSnapshot(new \DateTimeImmutable());
 
         foreach ($rates as $rate) {
-            if ($rate->pair->equals($pair)) {
+            if ($rate->pair()->equals($pair)) {
                 return $rate;
             }
         }
@@ -41,7 +41,7 @@ final class EcbExchangeRateProvider implements ExchangeRateProvider
         $rates = $this->fetchSnapshot($date);
 
         foreach ($rates as $rate) {
-            if ($rate->pair->equals($pair)) {
+            if ($rate->pair()->equals($pair)) {
                 return $rate;
             }
         }

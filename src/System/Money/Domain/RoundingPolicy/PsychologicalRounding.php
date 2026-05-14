@@ -9,6 +9,12 @@ use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\PsychologicalStrategy;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
 
+/**
+ * Psychological rounding: produces visually attractive prices.
+ *
+ * The variant is determined by the PsychologicalStrategy injected in the constructor.
+ * See the enum for details on each case (NINETY_NINE, NINETY, TEN_CENTS).
+ */
 final class PsychologicalRounding implements RoundingPolicy
 {
     public function __construct(private readonly PsychologicalStrategy $strategy)
