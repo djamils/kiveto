@@ -134,6 +134,14 @@ final class MoneyCalculatorTest extends TestCase
         self::assertSame(200, $result->minorUnits()); // 2.00 CHF
     }
 
+    public function testMultiplyThrowsOnNonNumericFactor(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        // @phpstan-ignore-next-line argument.type
+        $this->calculator->multiply(Money::fromMinorUnits(1000, $this->eur), 'abc', new CommercialRounding());
+    }
+
     public function testDivide(): void
     {
         $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
@@ -141,6 +149,21 @@ final class MoneyCalculatorTest extends TestCase
         $result   = $this->calculator->divide($money, '4', $rounding);
 
         self::assertSame(250, $result->minorUnits());
+    }
+
+    public function testDivideThrowsOnNonNumericDivisor(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        // @phpstan-ignore-next-line argument.type
+        $this->calculator->divide(Money::fromMinorUnits(1000, $this->eur), 'abc', new CommercialRounding());
+    }
+
+    public function testDivideThrowsOnZeroDivisor(): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+
+        $this->calculator->divide(Money::fromMinorUnits(1000, $this->eur), '0', new CommercialRounding());
     }
 
     public function testPercentage(): void
