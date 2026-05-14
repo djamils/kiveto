@@ -249,6 +249,8 @@ reset-test-db: drop-test-db create-test-db migrate-test-db
 	@$(call ok,TEST database reset complete)
 
 load-fixtures:
+	@$(call step,Seeding currency catalogue...)
+	$(Q)$(call run_live,$(SYMFONY) app:money:load-currencies --no-interaction)
 	@$(call step,Loading fixtures (dev) with Foundry...)
 	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call step,Backfilling search index from fixtures...)
