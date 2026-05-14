@@ -6,6 +6,7 @@ namespace App\System\Money\Domain\Service;
 
 use App\System\Money\Domain\Exception\AllocationException;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
+use App\System\Money\Domain\RoundingPolicy\RoundingPolicy;
 use App\System\Money\Domain\ValueObject\Money;
 
 /**
@@ -13,9 +14,10 @@ use App\System\Money\Domain\ValueObject\Money;
  *
  * All operations use bcmath exclusively (zero floats).
  * add() and subtract() operate on integer minor units directly.
- * multiply(), divide() and allocate() use HalfAwayFromZero rounding on minor units.
- * allocate() guarantees that the sum of parts equals exactly the original amount
- * (remainder distributed to the last element).
+ * multiply(), divide(), percentage() and applyCoefficient() convert to decimal,
+ * apply the provided RoundingPolicy, then convert back to minor units.
+ * allocate() distributes minor units exactly (remainder to last part) —
+ * no policy needed since the result is always exact integers.
  */
 final class MoneyCalculator
 {
@@ -41,38 +43,50 @@ final class MoneyCalculator
         return Money::fromMinorUnits($a->minorUnits() - $b->minorUnits(), $a->currency());
     }
 
-    public function multiply(Money $money, string $factor): Money
+    public function multiply(Money $money, string $factor, RoundingPolicy $rounding): Money
     {
         $currency = $this->currencyRegistry->get($money->currency());
         $decimals = $currency->decimals();
         $scale    = $decimals->value() + 4;
+
+        $multiplier = (string) (10 ** $decimals->value());
+        /** @var numeric-string $decimalAmount */
+        $decimalAmount = bcdiv((string) $money->minorUnits(), $multiplier, $scale);
         /** @var numeric-string $factor */
         /** @var numeric-string $result */
-        $result  = bcmul((string) $money->minorUnits(), $factor, $scale);
-        $rounded = bcround($result, 0, \RoundingMode::HalfAwayFromZero);
+        $result = bcmul($decimalAmount, $factor, $scale);
+        /** @var numeric-string $rounded */
+        $rounded = $rounding->round($result, $money->currency(), $decimals);
 
-        return Money::fromMinorUnits((int) $rounded, $money->currency());
+        return Money::fromMinorUnits((int) bcmul($rounded, $multiplier, 0), $money->currency());
     }
 
-    public function divide(Money $money, string $divisor): Money
+    public function divide(Money $money, string $divisor, RoundingPolicy $rounding): Money
     {
         $currency = $this->currencyRegistry->get($money->currency());
         $decimals = $currency->decimals();
         $scale    = $decimals->value() + 4;
-        $result   = bcdiv((string) $money->minorUnits(), $divisor, $scale);
-        $rounded  = bcround($result, 0, \RoundingMode::HalfAwayFromZero);
 
-        return Money::fromMinorUnits((int) $rounded, $money->currency());
+        $multiplier = (string) (10 ** $decimals->value());
+        /** @var numeric-string $decimalAmount */
+        $decimalAmount = bcdiv((string) $money->minorUnits(), $multiplier, $scale);
+        /** @var numeric-string $divisor */
+        /** @var numeric-string $result */
+        $result = bcdiv($decimalAmount, $divisor, $scale);
+        /** @var numeric-string $rounded */
+        $rounded = $rounding->round($result, $money->currency(), $decimals);
+
+        return Money::fromMinorUnits((int) bcmul($rounded, $multiplier, 0), $money->currency());
     }
 
-    public function percentage(Money $money, string $percent): Money
+    public function percentage(Money $money, string $percent, RoundingPolicy $rounding): Money
     {
-        return $this->multiply($money, bcdiv($percent, '100', 10));
+        return $this->multiply($money, bcdiv($percent, '100', 10), $rounding);
     }
 
-    public function applyCoefficient(Money $money, string $coefficient): Money
+    public function applyCoefficient(Money $money, string $coefficient, RoundingPolicy $rounding): Money
     {
-        return $this->multiply($money, $coefficient);
+        return $this->multiply($money, $coefficient, $rounding);
     }
 
     /**

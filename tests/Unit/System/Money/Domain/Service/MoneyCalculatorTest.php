@@ -7,6 +7,9 @@ namespace App\Tests\Unit\System\Money\Domain\Service;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\System\Money\Domain\Currency;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
+use App\System\Money\Domain\RoundingPolicy\AccountingRounding;
+use App\System\Money\Domain\RoundingPolicy\CommercialRounding;
+use App\System\Money\Domain\RoundingPolicy\SwissCashRounding;
 use App\System\Money\Domain\Service\CurrencyRegistry;
 use App\System\Money\Domain\Service\MoneyCalculator;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
@@ -99,35 +102,61 @@ final class MoneyCalculatorTest extends TestCase
         $this->calculator->subtract($a, $b);
     }
 
-    public function testMultiply(): void
+    public function testMultiplyCommercial(): void
     {
-        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $result = $this->calculator->multiply($money, '1.5');
+        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $rounding = new CommercialRounding();
+        $result   = $this->calculator->multiply($money, '1.5', $rounding);
 
         self::assertSame(1500, $result->minorUnits());
         self::assertSame('EUR', $result->currency()->toString());
     }
 
+    public function testMultiplyAccountingHalfEvenRoundsDown(): void
+    {
+        // 10.00 EUR * 0.1255 = 1.255 EUR — HalfEven: 5 is equidistant, last kept digit is 5 (odd) → round up to 1.26
+        // HalfAwayFromZero would also give 1.26 here; use 0.1245 → 1.245: HalfEven rounds to 1.24 (4 is even)
+        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $rounding = new AccountingRounding();
+        $result   = $this->calculator->multiply($money, '0.1245', $rounding); // 1.245 EUR
+
+        // HalfEven: .245 → last kept digit 4 is even → stay at 1.24
+        self::assertSame(124, $result->minorUnits()); // 1.24 EUR
+    }
+
+    public function testMultiplySwissCashRoundsToNearestFiveCents(): void
+    {
+        // 9.95 CHF * 0.20 = 1.99 CHF — commercial rounds to 1.99, SwissCash to 2.00
+        $money    = Money::fromMinorUnits(995, $this->chf); // 9.95 CHF
+        $rounding = new SwissCashRounding();
+        $result   = $this->calculator->multiply($money, '0.20', $rounding);
+
+        self::assertSame(200, $result->minorUnits()); // 2.00 CHF
+    }
+
     public function testDivide(): void
     {
-        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $result = $this->calculator->divide($money, '4');
+        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $rounding = new CommercialRounding();
+        $result   = $this->calculator->divide($money, '4', $rounding);
 
         self::assertSame(250, $result->minorUnits());
     }
 
     public function testPercentage(): void
     {
-        $money  = Money::fromMinorUnits(10000, $this->eur); // 100.00 EUR
-        $result = $this->calculator->percentage($money, '10');
+        $money    = Money::fromMinorUnits(10000, $this->eur); // 100.00 EUR
+        $rounding = new CommercialRounding();
+        $result   = $this->calculator->percentage($money, '10', $rounding);
 
         self::assertSame(1000, $result->minorUnits()); // 10.00 EUR = 10%
     }
 
     public function testApplyCoefficient(): void
     {
-        $money  = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
-        $result = $this->calculator->applyCoefficient($money, '1.07');
+        $money    = Money::fromMinorUnits(1000, $this->eur); // 10.00 EUR
+        $rounding = new CommercialRounding();
+        $result   = $this->calculator->applyCoefficient($money, '1.07', $rounding);
 
         self::assertSame(1070, $result->minorUnits()); // 10.70 EUR
     }
