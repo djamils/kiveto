@@ -9,11 +9,12 @@ use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
 
 /**
- * Rounding strategy for a decimal amount to the precision of a currency.
+ * Strategy for rounding a decimal monetary amount to the precision of a currency.
  *
- * All implementations use bcmath exclusively (zero floats).
- * The $currency parameter lets currency-specific policies (e.g. SwissCash)
- * validate the currency before rounding.
+ * Implementations must be stateless. round() always returns a numeric string
+ * with at most $decimals decimal places. Implementations that are restricted
+ * to a specific currency (e.g. SwissCashRounding) must throw when given an
+ * incompatible currency; all others accept any currency.
  */
 interface RoundingPolicy
 {

@@ -13,6 +13,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Yaml\Yaml;
 
+/**
+ * Seeds the currency catalogue from currencies.yaml via RegisterCurrency commands.
+ *
+ * Idempotent: safe to run multiple times; existing entries are updated silently,
+ * no duplicate records are created.
+ */
 #[AsCommand(
     name: 'app:money:load-currencies',
     description: 'Loads the canonical currency list from currencies.yaml into the database (idempotent).',
