@@ -435,19 +435,11 @@ services:
         class: App\System\Money\Infrastructure\Persistence\Doctrine\Repository\DoctrineCurrencyRepository
         public: true
 
-    App\System\Money\Domain\Repository\ExchangeRateRepository:
-        class: App\System\Money\Infrastructure\Persistence\Doctrine\Repository\DoctrineExchangeRateRepository
-        public: true
-
     App\System\Money\Domain\Service\CurrencyRegistry:
         class: App\System\Money\Infrastructure\Registry\DoctrineCurrencyRegistry
         public: true
 
-    App\System\Money\Application\Port\ExchangeRateProvider:
-        class: App\System\Money\Infrastructure\ExchangeRate\EcbExchangeRateProvider
-
     App\System\Money\Infrastructure\Persistence\Doctrine\Mapper\CurrencyMapper: ~
-    App\System\Money\Infrastructure\Persistence\Doctrine\Mapper\ExchangeRateMapper: ~
 
 when@dev: &services_dev
     services:

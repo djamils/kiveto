@@ -11,7 +11,7 @@ final class Version20260514000000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create money__currencies and money__exchange_rates tables';
+        return 'Create money__currencies table';
     }
 
     public function up(Schema $schema): void
@@ -28,28 +28,10 @@ final class Version20260514000000 extends AbstractMigration
               PRIMARY KEY (code)
             ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
         SQL);
-
-        $this->addSql(<<<'SQL'
-            CREATE TABLE money__exchange_rates (
-              id             BINARY(16)     NOT NULL,
-              currency_from  CHAR(3)        NOT NULL,
-              currency_to    CHAR(3)        NOT NULL,
-              rate           DECIMAL(20,10) NOT NULL,
-              effective_date DATE           NOT NULL,
-              source         VARCHAR(32)    NOT NULL,
-              created_at     DATETIME       NOT NULL,
-              UNIQUE INDEX uniq_money_xr_from_to_date_src (currency_from, currency_to, effective_date, source),
-              INDEX idx_money_xr_from_to_date (currency_from, currency_to, effective_date),
-              CONSTRAINT fk_money_xr_currency_from FOREIGN KEY (currency_from) REFERENCES money__currencies (code),
-              CONSTRAINT fk_money_xr_currency_to   FOREIGN KEY (currency_to)   REFERENCES money__currencies (code),
-              PRIMARY KEY (id)
-            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci`
-        SQL);
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP TABLE money__exchange_rates');
         $this->addSql('DROP TABLE money__currencies');
     }
 }

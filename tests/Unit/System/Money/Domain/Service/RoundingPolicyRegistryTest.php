@@ -6,7 +6,6 @@ namespace App\Tests\Unit\System\Money\Domain\Service;
 
 use App\System\Money\Domain\RoundingPolicy\AccountingRounding;
 use App\System\Money\Domain\RoundingPolicy\CommercialRounding;
-use App\System\Money\Domain\RoundingPolicy\PsychologicalRounding;
 use App\System\Money\Domain\RoundingPolicy\SwissCashRounding;
 use App\System\Money\Domain\Service\RoundingPolicyRegistry;
 use App\System\Money\Domain\ValueObject\RoundingPolicyId;
@@ -42,13 +41,6 @@ final class RoundingPolicyRegistryTest extends TestCase
         self::assertInstanceOf(SwissCashRounding::class, $policy);
     }
 
-    public function testGetPsychological(): void
-    {
-        $policy = $this->registry->get(RoundingPolicyId::PSYCHOLOGICAL);
-
-        self::assertInstanceOf(PsychologicalRounding::class, $policy);
-    }
-
     public function testAccountingReturnsAccountingRounding(): void
     {
         $policy = $this->registry->accounting();
@@ -71,13 +63,5 @@ final class RoundingPolicyRegistryTest extends TestCase
 
         self::assertInstanceOf(SwissCashRounding::class, $policy);
         self::assertSame(RoundingPolicyId::SWISS_CASH, $policy->id());
-    }
-
-    public function testPsychologicalReturnsDefaultNinetyNine(): void
-    {
-        $policy = $this->registry->psychological();
-
-        self::assertInstanceOf(PsychologicalRounding::class, $policy);
-        self::assertSame(RoundingPolicyId::PSYCHOLOGICAL, $policy->id());
     }
 }

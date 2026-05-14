@@ -17,7 +17,8 @@ use App\System\Money\Domain\ValueObject\CurrencySymbol;
  * Reference entry for an ISO 4217 currency supported by the application.
  *
  * Documented exception: the PK is CurrencyCode (CHAR 3) rather than UUIDv7,
- * because Currency is a static dictionary aggregate referenced by FK in ExchangeRate.
+ * because Currency is a static reference/dictionary aggregate where the code
+ * itself is the natural identifier.
  *
  * activate() and deactivate() are idempotent: no event is emitted if the currency
  * is already in the target state. updateDisplay() allows a silent update
