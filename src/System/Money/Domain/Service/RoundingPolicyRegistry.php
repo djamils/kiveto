@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\System\Money\Domain\Service;
+
+use App\System\Money\Domain\RoundingPolicy\AccountingRounding;
+use App\System\Money\Domain\RoundingPolicy\CommercialRounding;
+use App\System\Money\Domain\RoundingPolicy\RoundingPolicy;
+use App\System\Money\Domain\RoundingPolicy\SwissCashRounding;
+use App\System\Money\Domain\ValueObject\RoundingPolicyId;
+
+/**
+ * Factory for rounding policies. Instantiates and returns the requested strategy.
+ *
+ * Stateless; can be injected as a singleton service or instantiated on the fly.
+ */
+final class RoundingPolicyRegistry
+{
+    public function get(RoundingPolicyId $id): RoundingPolicy
+    {
+        return match ($id) {
+            RoundingPolicyId::ACCOUNTING => $this->accounting(),
+            RoundingPolicyId::COMMERCIAL => $this->commercial(),
+            RoundingPolicyId::SWISS_CASH => $this->swissCash(),
+        };
+    }
+
+    public function accounting(): AccountingRounding
+    {
+        return new AccountingRounding();
+    }
+
+    public function commercial(): CommercialRounding
+    {
+        return new CommercialRounding();
+    }
+
+    public function swissCash(): SwissCashRounding
+    {
+        return new SwissCashRounding();
+    }
+}

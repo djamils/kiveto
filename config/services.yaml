@@ -427,6 +427,20 @@ services:
     App\Context\Regulatory\Infrastructure\Persistence\Doctrine\StrayCustodyMapper: ~
     App\Context\Regulatory\Infrastructure\Persistence\Doctrine\MicrochipRegistryLookupMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: MONEY
+    # ============================================================================
+
+    App\System\Money\Domain\Repository\CurrencyRepository:
+        class: App\System\Money\Infrastructure\Persistence\Doctrine\Repository\DoctrineCurrencyRepository
+        public: true
+
+    App\System\Money\Domain\Service\CurrencyRegistry:
+        class: App\System\Money\Infrastructure\Registry\DoctrineCurrencyRegistry
+        public: true
+
+    App\System\Money\Infrastructure\Persistence\Doctrine\Mapper\CurrencyMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

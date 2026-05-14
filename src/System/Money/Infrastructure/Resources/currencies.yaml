@@ -1,0 +1,17 @@
+currencies:
+  EUR:
+    symbol: '€'
+    decimals: 2
+    displayName: 'Euro'
+  CHF:
+    symbol: 'CHF'
+    decimals: 2
+    displayName: 'Franc suisse'
+  GBP:
+    symbol: '£'
+    decimals: 2
+    displayName: 'Livre sterling'
+  USD:
+    symbol: '$'
+    decimals: 2
+    displayName: 'Dollar américain'
