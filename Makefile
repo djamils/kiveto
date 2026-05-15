@@ -414,6 +414,6 @@ test-integration:
 
 test-coverage:
 	@$(call step,Running PHPUnit with coverage...)
-	$(Q)$(EXEC_PHP) bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
+	$(Q)$(EXEC_PHP) php -d memory_limit=512M bin/phpunit --colors=always --coverage-html coverage --coverage-filter src/
 	@$(call ok,Coverage generated (coverage/))
 
