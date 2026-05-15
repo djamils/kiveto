@@ -1,0 +1,58 @@
+categories:
+  - code: veterinary.act.consultation
+    displayName: "Consultation vétérinaire"
+    description: null
+  - code: veterinary.act.surgery
+    displayName: "Acte chirurgical"
+    description: null
+  - code: veterinary.act.hospitalization
+    displayName: "Hospitalisation"
+    description: null
+  - code: veterinary.act.imaging
+    displayName: "Imagerie médicale"
+    description: null
+  - code: veterinary.act.laboratory
+    displayName: "Analyses de laboratoire"
+    description: null
+  - code: veterinary.act.vaccination
+    displayName: "Vaccination"
+    description: null
+  - code: veterinary.act.dental
+    displayName: "Soins dentaires"
+    description: null
+  - code: veterinary.act.preventive
+    displayName: "Médecine préventive"
+    description: null
+  - code: veterinary.act.emergency
+    displayName: "Urgences vétérinaires"
+    description: null
+  - code: veterinary.drug.companion
+    displayName: "Médicaments animaux de compagnie"
+    description: "Médicaments vétérinaires pour animaux de compagnie (taux réduit)"
+  - code: veterinary.drug.livestock
+    displayName: "Médicaments animaux d'élevage"
+    description: "Médicaments vétérinaires pour animaux de rente (taux particulier)"
+  - code: veterinary.drug.equine
+    displayName: "Médicaments équins"
+    description: null
+  - code: veterinary.drug.prescription
+    displayName: "Médicaments sur ordonnance"
+    description: null
+  - code: veterinary.food.therapeutic
+    displayName: "Aliments thérapeutiques"
+    description: "Aliments diététiques à visée thérapeutique"
+  - code: veterinary.food.preventive
+    displayName: "Aliments préventifs"
+    description: null
+  - code: veterinary.consumable.medical
+    displayName: "Consommables médicaux"
+    description: null
+  - code: veterinary.consumable.hygiene
+    displayName: "Produits d'hygiène"
+    description: null
+  - code: veterinary.service.boarding
+    displayName: "Pension / garderie"
+    description: null
+  - code: veterinary.service.grooming
+    displayName: "Toilettage"
+    description: null

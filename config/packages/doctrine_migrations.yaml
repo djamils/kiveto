@@ -13,6 +13,7 @@ doctrine_migrations:
         'DoctrineMigrations\Admission': '%kernel.project_dir%/migrations/Admission'
         'DoctrineMigrations\Regulatory': '%kernel.project_dir%/migrations/Regulatory'
         'DoctrineMigrations\Money': '%kernel.project_dir%/migrations/Money'
+        'DoctrineMigrations\Taxation': '%kernel.project_dir%/migrations/Taxation'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

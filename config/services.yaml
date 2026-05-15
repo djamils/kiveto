@@ -441,6 +441,30 @@ services:
 
     App\System\Money\Infrastructure\Persistence\Doctrine\Mapper\CurrencyMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: TAXATION
+    # ============================================================================
+
+    App\System\Taxation\Domain\Repository\TaxRegimeRepositoryInterface:
+        class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxRegimeRepository
+
+    App\System\Taxation\Domain\Repository\TaxCategoryRepositoryInterface:
+        class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxCategoryRepository
+
+    App\System\Taxation\Domain\Repository\MentionTemplateRepositoryInterface:
+        class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineMentionTemplateRepository
+
+    App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface:
+        class: App\System\Taxation\Infrastructure\Registry\DoctrineTaxCategoryRegistry
+
+    App\System\Taxation\Application\Port\TaxRegimeLoaderInterface:
+        class: App\System\Taxation\Infrastructure\RegimeLoader\YamlTaxRegimeLoader
+
+    App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxRateMapper: ~
+    App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxRegimeMapper: ~
+    App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxCategoryMapper: ~
+    App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\MentionTemplateMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
@@ -496,3 +520,58 @@ when@test:
         limiter.api_clinic_ip:
             alias: 'App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.ip'
             public: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: TAXATION — public for integration tests
+        # ========================================================================
+
+        App\System\Taxation\Domain\Repository\TaxRegimeRepositoryInterface:
+            class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxRegimeRepository
+            public: true
+            autowire: true
+
+        App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxRegimeRepository:
+            public: true
+            autowire: true
+
+        App\System\Taxation\Domain\Repository\TaxCategoryRepositoryInterface:
+            class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxCategoryRepository
+            public: true
+            autowire: true
+
+        App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxCategoryRepository:
+            public: true
+            autowire: true
+
+        App\System\Taxation\Domain\Repository\MentionTemplateRepositoryInterface:
+            class: App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineMentionTemplateRepository
+            public: true
+            autowire: true
+
+        App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineMentionTemplateRepository:
+            public: true
+            autowire: true
+
+        App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface:
+            class: App\System\Taxation\Infrastructure\Registry\DoctrineTaxCategoryRegistry
+            public: true
+            autowire: true
+
+        App\System\Taxation\Infrastructure\Registry\DoctrineTaxCategoryRegistry:
+            public: true
+            autowire: true
+
+        App\System\Taxation\Infrastructure\Console\LoadTaxCategoriesCommand:
+            public: true
+            autowire: true
+            autoconfigure: true
+
+        App\System\Taxation\Infrastructure\Console\LoadTaxRegimeCommand:
+            public: true
+            autowire: true
+            autoconfigure: true
+
+        App\System\Taxation\Infrastructure\Console\ReloadAllRegimesCommand:
+            public: true
+            autowire: true
+            autoconfigure: true

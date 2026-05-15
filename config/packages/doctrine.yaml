@@ -39,6 +39,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/System/Money/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\System\Money\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Money
+            Taxation:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/System/Taxation/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\Taxation\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Taxation
             Clinic:
                 type: attribute
                 is_bundle: false

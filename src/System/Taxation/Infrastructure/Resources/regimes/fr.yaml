@@ -1,0 +1,66 @@
+id: FR
+name: "Régime TVA France"
+country: FR
+active: true
+rates:
+  - id: fr.standard
+    value: "20.0"
+    validFrom: "2014-01-01"
+    validTo: null
+    appliesTo:
+      categories: []
+      conditions:
+        regions: []
+        customerStatuses: []
+        animalUsages: []
+        clinicLiability: null
+  - id: fr.reduced
+    value: "10.0"
+    validFrom: "2014-01-01"
+    validTo: null
+    appliesTo:
+      categories: ["veterinary.act.hospitalization"]
+      conditions:
+        regions: []
+        customerStatuses: []
+        animalUsages: []
+        clinicLiability: null
+  - id: fr.super_reduced
+    value: "5.5"
+    validFrom: "2014-01-01"
+    validTo: null
+    appliesTo:
+      categories: ["veterinary.drug.companion", "veterinary.food.therapeutic"]
+      conditions:
+        regions: []
+        customerStatuses: []
+        animalUsages: []
+        clinicLiability: null
+  - id: fr.particular
+    value: "2.1"
+    validFrom: "2014-01-01"
+    validTo: null
+    appliesTo:
+      categories: ["veterinary.drug.livestock"]
+      conditions:
+        regions: []
+        customerStatuses: []
+        animalUsages: []
+        clinicLiability: null
+mentionTemplates:
+  - code: INTRACOM_REVERSE_CHARGE
+    template: "TVA non applicable, article 262 ter, I du CGI"
+    locale: fr_FR
+    condition:
+      regions: []
+      customerStatuses: [intracom]
+      animalUsages: []
+      clinicLiability: null
+  - code: EXPORT_OUT_OF_EU
+    template: "Exportation hors UE — exonération TVA article 262 I du CGI"
+    locale: fr_FR
+    condition:
+      regions: []
+      customerStatuses: [export]
+      animalUsages: []
+      clinicLiability: null
