@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<medicinal-products>
+    <medicinal-product
+        num-amm="FR/H/0001"
+        name="Apoquel 3,6 mg comprimés"
+        holder="Zoetis Belgium SA"
+        date-amm="2015-09-10"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Comprimé"
+        atc-vet-code="QD11AH91"
+        permanent-id="">
+        <presentation description="Plaquette de 20 comprimés" pres-code="1" gtin="03700942019756"/>
+        <composition sub-code="1" qty="3.6" unit-label="mg" unit-code="mg" is-excipient="0"/>
+        <voie-administration route-code="14" species-code="7"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0002"
+        name="Cerenia 10 mg/mL"
+        holder="Zoetis Belgium SA"
+        date-amm="2007-01-01"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Solution injectable"
+        atc-vet-code="QA03AA55">
+        <presentation description="Flacon 20 mL" pres-code="1" gtin="03700942019800"/>
+        <composition sub-code="2" qty="10" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
+        <voie-administration route-code="18" species-code="7"/>
+        <voie-administration route-code="18" species-code="8"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0003"
+        name="Frontline Combo Chien"
+        holder="Boehringer Ingelheim"
+        date-amm="2000-03-15"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Solution spot-on"
+        atc-vet-code="QP54AB05">
+        <presentation description="3 pipettes" pres-code="1" gtin="03660245001002"/>
+        <composition sub-code="3" qty="67.2" unit-label="mg" unit-code="mg" is-excipient="0"/>
+        <voie-administration route-code="2" species-code="7"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0004"
+        name="Convenia 80 mg/mL"
+        holder="Zoetis Belgium SA"
+        date-amm="2006-10-15"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Poudre et solvant pour suspension injectable"
+        atc-vet-code="QJ01DB10">
+        <presentation description="Flacon 10 mL + solvant" pres-code="4" gtin="03700942019817"/>
+        <composition sub-code="4" qty="80" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
+        <voie-administration route-code="18" species-code="7"/>
+        <voie-administration route-code="18" species-code="8"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0005"
+        name="Vetmedin 1,25 mg comprimés"
+        holder="Boehringer Ingelheim"
+        date-amm="2000-09-29"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Comprimé à croquer"
+        atc-vet-code="QC01CE90">
+        <presentation description="Boîte de 100 comprimés" pres-code="1" gtin="03660245002000"/>
+        <composition sub-code="5" qty="1.25" unit-label="mg" unit-code="mg" is-excipient="0"/>
+        <voie-administration route-code="14" species-code="7"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0006"
+        name="Stronghold 45 mg"
+        holder="Zoetis Belgium SA"
+        date-amm="1999-09-15"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Solution spot-on"
+        atc-vet-code="QP54AB05">
+        <presentation description="Pipette 0,75 mL" pres-code="1" gtin="03700942020004"/>
+        <composition sub-code="3" qty="60" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
+        <voie-administration route-code="2" species-code="7"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0007"
+        name="Synulox comprimés"
+        holder="Zoetis Belgium SA"
+        date-amm="1990-01-01"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Comprimé"
+        atc-vet-code="QJ01CR02">
+        <presentation description="Boîte de 10 comprimés" pres-code="1" gtin="03700942021001"/>
+        <voie-administration route-code="14" species-code="7"/>
+        <voie-administration route-code="14" species-code="8"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0008"
+        name="Cystaid Plus"
+        holder="Vetplus Ltd"
+        date-amm="2010-06-15"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Gélule">
+        <presentation description="Boîte de 30 gélules" pres-code="1" gtin="05060219430007"/>
+        <voie-administration route-code="14" species-code="8"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0009"
+        name="Meloxidyl 1 mg/mL suspension buvable"
+        holder="Ceva Santé Animale"
+        date-amm="2004-09-15"
+        status-code="2"
+        nature-code="1"
+        pharmaceutical-form="Suspension buvable"
+        atc-vet-code="QM01AE16">
+        <presentation description="Flacon 32 mL" pres-code="1" gtin="03814716031003"/>
+        <voie-administration route-code="14" species-code="7"/>
+        <voie-administration route-code="14" species-code="8"/>
+    </medicinal-product>
+    <medicinal-product
+        num-amm="FR/H/0010"
+        name="Rilexine 300 mg comprimés"
+        holder="Virbac"
+        date-amm="1997-01-01"
+        status-code="5"
+        nature-code="1"
+        pharmaceutical-form="Comprimé"
+        atc-vet-code="QJ01DB01">
+        <presentation description="Boîte de 14 comprimés" pres-code="1" gtin="03597133119047"/>
+        <voie-administration route-code="14" species-code="7"/>
+    </medicinal-product>
+</medicinal-products>

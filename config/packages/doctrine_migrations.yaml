@@ -10,6 +10,7 @@ doctrine_migrations:
         'DoctrineMigrations\Scheduling': '%kernel.project_dir%/migrations/Scheduling'
         'DoctrineMigrations\Consultation': '%kernel.project_dir%/migrations/Consultation'
         'DoctrineMigrations\Patient': '%kernel.project_dir%/migrations/Patient'
+        'DoctrineMigrations\PharmaceuticalRegistry': '%kernel.project_dir%/migrations/PharmaceuticalRegistry'
         'DoctrineMigrations\Admission': '%kernel.project_dir%/migrations/Admission'
         'DoctrineMigrations\Regulatory': '%kernel.project_dir%/migrations/Regulatory'
         'DoctrineMigrations\Taxation': '%kernel.project_dir%/migrations/Taxation'

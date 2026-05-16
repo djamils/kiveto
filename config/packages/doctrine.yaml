@@ -87,6 +87,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Admission/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Admission
+            PharmaceuticalRegistry:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/System/PharmaceuticalRegistry/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity'
+                alias: PharmaceuticalRegistry
             Regulatory:
                 type: attribute
                 is_bundle: false

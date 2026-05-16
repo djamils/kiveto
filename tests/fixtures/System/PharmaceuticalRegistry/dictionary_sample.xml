@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dictionary>
+    <term-group type="sub_act">
+        <term id="1" label="oclacitinib"/>
+        <term id="2" label="maropitant"/>
+        <term id="3" label="fipronil"/>
+        <term id="4" label="cefovecin"/>
+        <term id="5" label="pimobendan"/>
+    </term-group>
+    <term-group type="cond_pres">
+        <term id="1" label="Sans ordonnance"/>
+        <term id="2" label="Ordonnance"/>
+        <term id="3" label="Liste 1"/>
+        <term id="4" label="Ordonnance vétérinaire"/>
+    </term-group>
+    <term-group type="esp">
+        <term id="7" label="Chien"/>
+        <term id="8" label="Chat"/>
+        <term id="1" label="Bovins"/>
+    </term-group>
+    <term-group type="voie_adm">
+        <term id="14" label="Orale"/>
+        <term id="18" label="Sous-cutanée"/>
+        <term id="2" label="Cutanée"/>
+    </term-group>
+    <term-group type="unit_att">
+        <term id="1" label="Jours"/>
+        <term id="2" label="Heures"/>
+    </term-group>
+</dictionary>
