@@ -53,6 +53,11 @@
 }
 .row-x:hover, .dx-remove:hover { background: var(--color-danger-bg); color: var(--color-danger-text); }
 
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @layer components {
 [data-page="clinic_consultation_details"] {
 
@@ -244,10 +249,6 @@
   .quad[data-letter="O"] { animation-delay: .08s; }
   .quad[data-letter="A"] { animation-delay: .12s; }
   .quad[data-letter="P"] { animation-delay: .16s; }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
   .quad::before {
     content: ""; position: absolute; top: 0; left: 0; right: 0;
     height: 2px; background: var(--slate-300, #cbd5e1); z-index: 1;

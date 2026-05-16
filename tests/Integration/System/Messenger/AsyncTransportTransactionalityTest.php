@@ -10,16 +10,13 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * B11 / AC14b — Determines whether async transport inserts roll back with an
- * explicit DBAL transaction (proxy for the doctrine_transaction middleware behavior)
- * or commit independently.
+ * B11 / AC14b — Guards the confirmed "at-least-once" transactionality verdict.
  *
- * Records a verdict via markTestIncomplete so the reviewer can reconcile D30
- * before approving PR2.
+ * Verdict (confirmed): the async transport INSERT rolls back with an explicit
+ * DBAL transaction. D30 debt vanishes — no outbox needed.
  *
- * VERDICT recorded in the test output:
- * - "at-least-once": shared__messenger_messages insert rolls back → D30 debt vanishes.
- * - "at-most-once": insert commits independently → D30 debt stands.
+ * This test exists as a regression guard: if a messenger/transport config change
+ * ever breaks the rollback behaviour, this test will fail and surface the risk.
  */
 final class AsyncTransportTransactionalityTest extends KernelTestCase
 {
@@ -55,21 +52,12 @@ final class AsyncTransportTransactionalityTest extends KernelTestCase
         $rowsAfter = $this->countMessengerRows($connection);
         $newRows   = $rowsAfter - $rowsBefore;
 
-        if (0 === $newRows) {
-            self::markTestIncomplete(
-                'VERDICT: at-least-once cross-BC. '
-                . 'The async transport insert rolled back with the explicit DBAL transaction. '
-                . 'D30 debt effectively vanishes — no outbox needed. '
-                . 'Remove "log-and-pray" language from the spec and update D30 accordingly.',
-            );
-        } else {
-            self::markTestIncomplete(
-                "VERDICT: at-most-once cross-BC. {$newRows} row(s) remain in shared__messenger_messages "
-                . 'even after the outer DBAL transaction was rolled back. '
-                . 'D30 debt stands — keep log-a-warning-on-publish-failure stance. '
-                . 'Open a GitHub issue to track the outbox pattern as future work.',
-            );
-        }
+        self::assertSame(
+            0,
+            $newRows,
+            'Async transport insert must roll back with an explicit DBAL transaction (at-least-once guarantee). '
+            . 'If this fails, a messenger/transport config change broke transactionality — review D30.',
+        );
     }
 
     private function countMessengerRows(Connection $connection): int
