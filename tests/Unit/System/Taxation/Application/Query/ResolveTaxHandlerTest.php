@@ -7,10 +7,10 @@ namespace App\Tests\Unit\System\Taxation\Application\Query;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CountryCode;
 use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\System\Money\Domain\Currency;
 use App\System\Money\Domain\Service\CurrencyRegistry;
 use App\System\Money\Domain\Service\MoneyCalculator;
 use App\System\Money\Domain\Service\RoundingPolicyRegistry;
+use App\System\Money\Domain\ValueObject\Currency;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\CurrencySymbol;
 use App\System\Money\Domain\ValueObject\Money;
@@ -179,14 +179,11 @@ final class ResolveTaxHandlerTest extends TestCase
         TaxRegimeRepositoryInterface $regimeRepo,
         TaxCategoryRegistryInterface $categoryRegistry,
     ): TaxResolver {
-        $eurCurrency = Currency::reconstitute(
+        $eurCurrency = Currency::of(
             code: $this->eur,
             symbol: CurrencySymbol::fromString('€'),
             decimals: CurrencyDecimals::of(2),
             displayName: 'Euro',
-            active: true,
-            createdAt: $this->now,
-            updatedAt: $this->now,
         );
 
         $currencyRegistry = $this->createStub(CurrencyRegistry::class);

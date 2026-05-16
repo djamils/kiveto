@@ -431,15 +431,11 @@ services:
     # BOUNDED CONTEXT: MONEY
     # ============================================================================
 
-    App\System\Money\Domain\Repository\CurrencyRepository:
-        class: App\System\Money\Infrastructure\Persistence\Doctrine\Repository\DoctrineCurrencyRepository
-        public: true
-
     App\System\Money\Domain\Service\CurrencyRegistry:
-        class: App\System\Money\Infrastructure\Registry\DoctrineCurrencyRegistry
+        class: App\System\Money\Infrastructure\Registry\YamlCurrencyRegistry
+        arguments:
+            $catalogPath: '%kernel.project_dir%/src/System/Money/Infrastructure/Resources/currencies.yaml'
         public: true
-
-    App\System\Money\Infrastructure\Persistence\Doctrine\Mapper\CurrencyMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: TAXATION

@@ -7,16 +7,15 @@ bcmath is used for all arithmetic to prevent floating-point precision errors.
 
 ## Ubiquitous Language
 - **Money**: An immutable value object carrying an amount (minor units) and a currency.
-- **Currency**: A reference aggregate identified by its ISO 4217 code.
+- **Currency**: An immutable VO describing an ISO 4217 currency (symbol, decimals, display name).
 - **RoundingPolicy**: A strategy for rounding decimal amounts.
 
-## Documented Exceptions to Project Standards
-
-### Currency uses CHAR(3) as Primary Key
-The `Currency` aggregate uses `CurrencyCode` (CHAR 3) as its PK instead of the usual UUIDv7.
-Reason: `Currency` is a static reference/dictionary aggregate where the code itself is the natural identifier.
-Using a UUID PK while needing a unique currency code would add unnecessary indirection.
-This is the only aggregate in the project with a non-UUID PK.
+## Currency catalogue
+The list of supported currencies is a static dictionary loaded from
+`Infrastructure/Resources/currencies.yaml` at boot by `YamlCurrencyRegistry`.
+There is no database persistence and no runtime mutation: refusing or restricting
+a currency for a given clinic is a separate concern that belongs to its own
+bounded context.
 
 ## Business Invariants
 - Amounts are always stored as integer minor units (e.g. EUR 18.50 = 1850 minor units).

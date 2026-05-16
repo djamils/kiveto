@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Unit\System\Money\Domain\Service;
 
 use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\System\Money\Domain\Currency;
 use App\System\Money\Domain\Exception\CurrencyMismatchException;
 use App\System\Money\Domain\RoundingPolicy\AccountingRounding;
 use App\System\Money\Domain\RoundingPolicy\CommercialRounding;
 use App\System\Money\Domain\RoundingPolicy\SwissCashRounding;
 use App\System\Money\Domain\Service\CurrencyRegistry;
 use App\System\Money\Domain\Service\MoneyCalculator;
+use App\System\Money\Domain\ValueObject\Currency;
 use App\System\Money\Domain\ValueObject\CurrencyDecimals;
 use App\System\Money\Domain\ValueObject\CurrencySymbol;
 use App\System\Money\Domain\ValueObject\Money;
@@ -28,24 +28,17 @@ final class MoneyCalculatorTest extends TestCase
         $this->eur = CurrencyCode::fromString('EUR');
         $this->chf = CurrencyCode::fromString('CHF');
 
-        $now             = new \DateTimeImmutable('2026-05-14T10:00:00+00:00');
-        $eurCurrencyData = Currency::reconstitute(
+        $eurCurrencyData = Currency::of(
             code: $this->eur,
             symbol: CurrencySymbol::fromString('€'),
             decimals: CurrencyDecimals::of(2),
             displayName: 'Euro',
-            active: true,
-            createdAt: $now,
-            updatedAt: $now,
         );
-        $chfCurrencyData = Currency::reconstitute(
+        $chfCurrencyData = Currency::of(
             code: $this->chf,
             symbol: CurrencySymbol::fromString('CHF'),
             decimals: CurrencyDecimals::of(2),
             displayName: 'Swiss Franc',
-            active: true,
-            createdAt: $now,
-            updatedAt: $now,
         );
 
         $registry = $this->createStub(CurrencyRegistry::class);
