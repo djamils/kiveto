@@ -99,7 +99,7 @@ endef
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	assets tailwind-build \
-	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations regulatory-migrations shared-migrations \
+	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
 	load-fixtures test-unit test-integration init-test-db
 
@@ -255,7 +255,7 @@ load-fixtures:
 	$(Q)$(call run_live,$(SYMFONY) app:search:reindex --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)
 
-migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations regulatory-migrations shared-migrations
+migrations: identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations
 
 identity-access-migrations:
 	@$(call step,Generating migrations for IdentityAccess...)
@@ -306,6 +306,11 @@ admission-migrations:
 	@$(call step,Generating migrations for Admission...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Admission' --filter-expression='/^admission__/')
 	@$(call ok,Admission migrations generated)
+
+pharmaceutical-registry-migrations:
+	@$(call step,Generating migrations for PharmaceuticalRegistry...)
+	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\PharmaceuticalRegistry' --filter-expression='/^pharmaceutical_registry__/')
+	@$(call ok,PharmaceuticalRegistry migrations generated)
 
 regulatory-migrations:
 	@$(call step,Generating migrations for Regulatory...)
