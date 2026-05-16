@@ -24,7 +24,9 @@ final class DisplayName
         }
 
         if (mb_strlen($trimmed) > 60) {
-            throw new \InvalidArgumentException(\sprintf('Display name cannot exceed 60 characters (got %d).', mb_strlen($trimmed)));
+            throw new \InvalidArgumentException(
+                \sprintf('Display name cannot exceed 60 characters (got %d).', mb_strlen($trimmed)),
+            );
         }
 
         return new self($trimmed);

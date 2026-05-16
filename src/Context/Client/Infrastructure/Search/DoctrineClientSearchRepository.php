@@ -15,8 +15,8 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClientSearchRepository implements ClientSearchRepositoryInterface
 {
-    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name, search_phone, primary_email, status'
-        . ' FROM client__search_entries';
+    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name'
+        . ', search_phone, primary_email, status FROM client__search_entries';
 
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -62,7 +62,8 @@ final readonly class DoctrineClientSearchRepository implements ClientSearchRepos
     private function searchByName(Connection $conn, string $normalizedTerm, string $clinicBinary, int $limit): array
     {
         $rows = $conn->fetchAllAssociative(
-            self::SELECT . ' WHERE clinic_id = :clinicId AND search_name LIKE :prefix AND status = :status LIMIT :limit',
+            self::SELECT . ' WHERE clinic_id = :clinicId AND search_name LIKE :prefix'
+                . ' AND status = :status LIMIT :limit',
             ['clinicId' => $clinicBinary, 'prefix' => $normalizedTerm . '%', 'status' => 'active', 'limit' => $limit],
             ['limit'    => ParameterType::INTEGER],
         );

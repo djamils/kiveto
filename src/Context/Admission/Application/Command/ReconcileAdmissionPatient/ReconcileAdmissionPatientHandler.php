@@ -26,7 +26,10 @@ final readonly class ReconcileAdmissionPatientHandler
 
     public function __invoke(ReconcileAdmissionPatient $command): void
     {
-        $admission       = $this->admissionRepository->get(ClinicId::fromString($command->clinicId), AdmissionId::fromString($command->admissionId));
+        $admission = $this->admissionRepository->get(
+            ClinicId::fromString($command->clinicId),
+            AdmissionId::fromString($command->admissionId),
+        );
         $sourcePatientId = $admission->patientId();
 
         $this->patientCreationPort->reconcilePatientToAnimal(
@@ -47,7 +50,8 @@ final readonly class ReconcileAdmissionPatientHandler
 
         if (null !== $activePatientId && $activePatientId !== $sourcePatientId) {
             $this->connection->executeStatement(
-                'UPDATE admission__admissions SET patient_id = :targetId WHERE patient_id = :sourceId AND clinic_id = :clinicId',
+                'UPDATE admission__admissions SET patient_id = :targetId'
+                    . ' WHERE patient_id = :sourceId AND clinic_id = :clinicId',
                 [
                     'targetId' => Uuid::fromString($activePatientId)->toBinary(),
                     'sourceId' => Uuid::fromString($sourcePatientId)->toBinary(),

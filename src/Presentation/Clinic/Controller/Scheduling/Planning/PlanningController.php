@@ -113,9 +113,15 @@ final class PlanningController extends AbstractController
             'selectedDate'          => $selectedDate,
             'clinicTimezone'        => $clinic->timeZone,
             'planningBlocksJs'      => $planningBlocksJs,
-            'prevLink'              => $this->generateUrl('clinic_scheduling_planning', ['date' => $prevDate->format('Y-m-d')]),
-            'nextLink'              => $this->generateUrl('clinic_scheduling_planning', ['date' => $nextDate->format('Y-m-d')]),
-            'todayLink'             => $this->generateUrl('clinic_scheduling_planning'),
+            'prevLink'              => $this->generateUrl(
+                'clinic_scheduling_planning',
+                ['date' => $prevDate->format('Y-m-d')],
+            ),
+            'nextLink' => $this->generateUrl(
+                'clinic_scheduling_planning',
+                ['date' => $nextDate->format('Y-m-d')],
+            ),
+            'todayLink' => $this->generateUrl('clinic_scheduling_planning'),
         ]);
     }
 }

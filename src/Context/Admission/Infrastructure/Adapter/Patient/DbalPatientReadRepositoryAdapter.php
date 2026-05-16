@@ -26,7 +26,8 @@ final readonly class DbalPatientReadRepositoryAdapter implements PatientReadRepo
         $animalBinary = Uuid::fromString($animalId)->toBinary();
 
         $row = $this->connection->fetchAssociative(
-            'SELECT BIN_TO_UUID(id) AS patientId FROM patient__patients WHERE clinic_id = :clinicId AND animal_link_id = :animalId AND status = :status LIMIT 1',
+            'SELECT BIN_TO_UUID(id) AS patientId FROM patient__patients'
+                . ' WHERE clinic_id = :clinicId AND animal_link_id = :animalId AND status = :status LIMIT 1',
             [
                 'clinicId' => $clinicBinary,
                 'animalId' => $animalBinary,

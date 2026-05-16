@@ -39,8 +39,11 @@ final class TaxApplicationTest extends TestCase
             new \DateTimeImmutable('2014-01-01'),
             'yaml.fr.standard',
         );
-        $this->fiscalContext = FiscalContext::minimal(CountryCode::fromString('FR'), new \DateTimeImmutable('2026-05-16'));
-        $this->resolvedAt    = new \DateTimeImmutable('2026-05-16T10:00:00+00:00');
+        $this->fiscalContext = FiscalContext::minimal(
+            CountryCode::fromString('FR'),
+            new \DateTimeImmutable('2026-05-16'),
+        );
+        $this->resolvedAt = new \DateTimeImmutable('2026-05-16T10:00:00+00:00');
     }
 
     public function testAllGettersReturnConstructorValues(): void

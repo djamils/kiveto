@@ -35,7 +35,9 @@ final readonly class RegisterVeterinaryCredentialsHandler
 
         $membership = $this->membershipRepository->findById($profile->membershipId());
         if (null === $membership) {
-            throw new \InvalidArgumentException(\sprintf('ClinicMembership "%s" not found.', $profile->membershipId()->toString()));
+            throw new \InvalidArgumentException(
+                \sprintf('ClinicMembership "%s" not found.', $profile->membershipId()->toString()),
+            );
         }
 
         if (!$membership->role()->canHoldVeterinaryCredentials()) {

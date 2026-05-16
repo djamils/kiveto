@@ -11,8 +11,11 @@ use PHPUnit\Framework\TestCase;
 final class PlanningBlockTypeCapabilityCompletenessTest extends TestCase
 {
     #[DataProvider('provideCapabilityMatrixCases')]
-    public function testCapabilityMatrix(PlanningBlockType $type, bool $acceptsAppointments, bool $hasCapacityLimit): void
-    {
+    public function testCapabilityMatrix(
+        PlanningBlockType $type,
+        bool $acceptsAppointments,
+        bool $hasCapacityLimit,
+    ): void {
         self::assertSame($acceptsAppointments, $type->acceptsAppointments());
         self::assertSame($hasCapacityLimit, $type->hasCapacityLimit());
     }

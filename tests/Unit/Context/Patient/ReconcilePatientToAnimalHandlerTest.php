@@ -38,7 +38,9 @@ final class ReconcilePatientToAnimalHandlerTest extends TestCase
             patientRepository: $this->patientRepository,
             patientReadRepository: $this->patientReadRepository,
             domainEventPublisher: new DomainEventPublisher($this->createStub(EventBusInterface::class)),
-            integrationEventPublisher: new IntegrationEventPublisher($this->createStub(IntegrationEventBusInterface::class)),
+            integrationEventPublisher: new IntegrationEventPublisher(
+                $this->createStub(IntegrationEventBusInterface::class),
+            ),
             clock: $this->clock,
         );
 

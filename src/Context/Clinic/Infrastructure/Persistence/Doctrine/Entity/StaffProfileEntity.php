@@ -46,7 +46,13 @@ class StaffProfileEntity
     #[ORM\Column(name: 'registration_number', type: 'string', length: 32, nullable: true)]
     private ?string $registrationNumber;
 
-    #[ORM\Column(name: 'professional_title', type: 'string', length: 8, enumType: ProfessionalTitle::class, nullable: true)]
+    #[ORM\Column(
+        name: 'professional_title',
+        type: 'string',
+        length: 8,
+        enumType: ProfessionalTitle::class,
+        nullable: true,
+    )]
     private ?ProfessionalTitle $professionalTitle;
 
     #[ORM\Column(name: 'signature_image_key', type: 'string', length: 255, nullable: true)]

@@ -19,7 +19,9 @@ final class PhoneNumber
         }
 
         if (!preg_match('/^\+[1-9]\d{6,14}$/', $cleaned)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid phone number: "%s". Expected E.164 format (e.g. +33612345678).', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Invalid phone number: "%s". Expected E.164 format (e.g. +33612345678).', $value),
+            );
         }
 
         return new self($cleaned);

@@ -47,7 +47,11 @@ final readonly class TaxResolver
         $candidates = $regime->findCandidateRates($item->category(), $context);
 
         if (0 === \count($candidates)) {
-            throw new NoApplicableRateException($item->category()->toString(), $regimeId->toString(), $context->saleDate());
+            throw new NoApplicableRateException(
+                $item->category()->toString(),
+                $regimeId->toString(),
+                $context->saleDate(),
+            );
         }
 
         if (1 === \count($candidates)) {

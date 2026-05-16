@@ -30,7 +30,8 @@ final class Version20260502194059 extends AbstractMigration
             ALTER TABLE
               clinic__staff_profiles
             ADD
-              CONSTRAINT `fk_staff_profile_membership` FOREIGN KEY (membership_id) REFERENCES clinic__clinic_memberships (id) ON
+              CONSTRAINT `fk_staff_profile_membership`
+              FOREIGN KEY (membership_id) REFERENCES clinic__clinic_memberships (id) ON
             UPDATE
               NO ACTION
         SQL);

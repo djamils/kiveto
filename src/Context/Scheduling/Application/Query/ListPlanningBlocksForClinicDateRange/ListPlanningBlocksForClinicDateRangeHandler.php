@@ -46,8 +46,10 @@ final readonly class ListPlanningBlocksForClinicDateRangeHandler
             'toDate'   => $query->toDate,
         ]);
 
-        $rangeStart = \DateTimeImmutable::createFromFormat('Y-m-d', $query->fromDate) ?: new \DateTimeImmutable($query->fromDate);
-        $rangeEnd   = \DateTimeImmutable::createFromFormat('Y-m-d', $query->toDate) ?: new \DateTimeImmutable($query->toDate);
+        $rangeStart = \DateTimeImmutable::createFromFormat('Y-m-d', $query->fromDate)
+            ?: new \DateTimeImmutable($query->fromDate);
+        $rangeEnd = \DateTimeImmutable::createFromFormat('Y-m-d', $query->toDate)
+            ?: new \DateTimeImmutable($query->toDate);
 
         $views = [];
         foreach ($rows as $row) {

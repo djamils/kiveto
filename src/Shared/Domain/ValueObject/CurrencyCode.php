@@ -13,7 +13,9 @@ final class CurrencyCode
     public static function fromString(string $value): self
     {
         if (1 !== preg_match('/^[A-Z]{3}$/', $value)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid currency code: "%s". Expected ISO 4217 (e.g. "EUR", "USD").', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Invalid currency code: "%s". Expected ISO 4217 (e.g. "EUR", "USD").', $value),
+            );
         }
 
         return new self($value);

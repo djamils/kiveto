@@ -39,7 +39,8 @@ final readonly class OnAnimalOwnersReplaced
             : null;
 
         $phoneRow = $conn->fetchAssociative(
-            "SELECT value FROM client__contact_methods WHERE client_id = :id AND type = 'phone' AND is_primary = 1 LIMIT 1",
+            'SELECT value FROM client__contact_methods'
+            . " WHERE client_id = :id AND type = 'phone' AND is_primary = 1 LIMIT 1",
             ['id' => $ownerBinary],
         );
 

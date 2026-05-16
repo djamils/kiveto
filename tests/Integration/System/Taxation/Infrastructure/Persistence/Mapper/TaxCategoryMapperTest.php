@@ -58,7 +58,10 @@ final class TaxCategoryMapperTest extends TestCase
 
         self::assertSame('veterinary.drug.companion', $reconstituted->code()->toString());
         self::assertSame('Médicaments animaux de compagnie', $reconstituted->displayName());
-        self::assertSame('Médicaments vétérinaires pour animaux de compagnie (taux réduit)', $reconstituted->description());
+        self::assertSame(
+            'Médicaments vétérinaires pour animaux de compagnie (taux réduit)',
+            $reconstituted->description(),
+        );
     }
 
     public function testRoundTripWithInactiveCategory(): void

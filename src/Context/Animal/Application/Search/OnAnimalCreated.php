@@ -50,7 +50,8 @@ final readonly class OnAnimalCreated
             }
 
             $phoneRow = $conn->fetchAssociative(
-                "SELECT value FROM client__contact_methods WHERE client_id = :id AND type = 'phone' AND is_primary = 1 LIMIT 1",
+                'SELECT value FROM client__contact_methods'
+                . " WHERE client_id = :id AND type = 'phone' AND is_primary = 1 LIMIT 1",
                 ['id' => $ownerBinary],
             );
 
@@ -78,7 +79,8 @@ final readonly class OnAnimalCreated
             chipNumber: $chipNumber,
             ownerName: $ownerName,
             ownerPhone: $ownerPhone,
-            primaryOwnerClientId: isset($payload['primaryOwnerClientId']) && \is_string($payload['primaryOwnerClientId'])
+            primaryOwnerClientId: isset($payload['primaryOwnerClientId'])
+                && \is_string($payload['primaryOwnerClientId'])
                 ? $payload['primaryOwnerClientId']
                 : null,
             status: 'active',

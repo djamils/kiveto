@@ -96,7 +96,8 @@ final class ReindexSearchEntriesCommand extends Command
                 ownerPhone: \is_string($row['owner_phone']) && '' !== $row['owner_phone']
                     ? $row['owner_phone']
                     : null,
-                primaryOwnerClientId: \is_string($row['primary_owner_client_id']) && '' !== $row['primary_owner_client_id']
+                primaryOwnerClientId: \is_string($row['primary_owner_client_id'])
+                    && '' !== $row['primary_owner_client_id']
                     ? $row['primary_owner_client_id']
                     : null,
                 status: $row['status'],

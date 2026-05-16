@@ -69,11 +69,20 @@ final readonly class TaxRateMapper
     {
         $condition     = $rate->appliesTo();
         $conditionJson = [
-            'categories'        => $condition->categoriesMatching(),
-            'regions'           => array_map(static fn (RegionCode $r) => $r->toString(), $condition->regionsMatching()),
-            'customer_statuses' => array_map(static fn (CustomerTaxStatus $s) => $s->value, $condition->customerStatusesMatching()),
-            'animal_usages'     => array_map(static fn (AnimalUsage $u) => $u->value, $condition->animalUsagesMatching()),
-            'clinic_liability'  => $condition->clinicLiability()?->value,
+            'categories' => $condition->categoriesMatching(),
+            'regions'    => array_map(
+                static fn (RegionCode $r) => $r->toString(),
+                $condition->regionsMatching(),
+            ),
+            'customer_statuses' => array_map(
+                static fn (CustomerTaxStatus $s) => $s->value,
+                $condition->customerStatusesMatching(),
+            ),
+            'animal_usages' => array_map(
+                static fn (AnimalUsage $u) => $u->value,
+                $condition->animalUsagesMatching(),
+            ),
+            'clinic_liability' => $condition->clinicLiability()?->value,
         ];
 
         $entity = new TaxRateEntity();

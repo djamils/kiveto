@@ -127,7 +127,8 @@ final readonly class AnimalSearchEntryWriter implements AnimalSearchEntryWriterI
         $clinicBinary = Uuid::fromString($clinicId)->toBinary();
 
         $conn->executeStatement(
-            'UPDATE animal__search_entries SET search_owner_name = :name WHERE primary_owner_client_id = :clientId AND clinic_id = :clinicId',
+            'UPDATE animal__search_entries SET search_owner_name = :name'
+                . ' WHERE primary_owner_client_id = :clientId AND clinic_id = :clinicId',
             ['name' => $newOwnerName, 'clientId' => $clientBinary, 'clinicId' => $clinicBinary],
         );
     }

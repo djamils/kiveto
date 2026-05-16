@@ -9,7 +9,8 @@ final class CannotCreatePractitionerMembershipWithoutProfile extends \RuntimeExc
     public function __construct(string $role)
     {
         parent::__construct(\sprintf(
-            'Cannot create a membership with role "%s" via CreateClinicMembership. Use OnboardStaffMember to create practitioner memberships with a linked StaffProfile.',
+            'Cannot create a membership with role "%s" via CreateClinicMembership.'
+                . ' Use OnboardStaffMember to create practitioner memberships with a linked StaffProfile.',
             $role,
         ));
     }

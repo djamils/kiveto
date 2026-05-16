@@ -81,7 +81,9 @@ final class TaxRegime extends AggregateRoot
     {
         $this->rates[]   = $rate;
         $this->updatedAt = $clock->now();
-        $this->recordDomainEvent(new TaxRateAdded($this->id->toString(), $rate->id()->toString(), $rate->value()->basisPoints()));
+        $this->recordDomainEvent(
+            new TaxRateAdded($this->id->toString(), $rate->id()->toString(), $rate->value()->basisPoints()),
+        );
     }
 
     /**
@@ -124,7 +126,8 @@ final class TaxRegime extends AggregateRoot
     {
         return array_values(array_filter(
             $this->rates,
-            static fn (TaxRate $rate): bool => $rate->isValidOn($context->saleDate()) && $rate->matchesContext($category, $context),
+            static fn (TaxRate $rate): bool => $rate->isValidOn($context->saleDate())
+                && $rate->matchesContext($category, $context),
         ));
     }
 

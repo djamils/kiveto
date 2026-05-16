@@ -35,8 +35,13 @@ final class TaxApplication
         FiscalContext $fiscalContext,
         \DateTimeImmutable $resolvedAt,
     ): self {
-        if (!$netAmount->currency()->equals($taxAmount->currency()) || !$taxAmount->currency()->equals($grossAmount->currency())) {
-            throw new \LogicException('Currency mismatch in TaxApplication: netAmount, taxAmount, grossAmount must share the same currency.');
+        $currencyMismatch = !$netAmount->currency()->equals($taxAmount->currency())
+            || !$taxAmount->currency()->equals($grossAmount->currency());
+
+        if ($currencyMismatch) {
+            throw new \LogicException(
+                'Currency mismatch in TaxApplication: netAmount, taxAmount, grossAmount must share the same currency.',
+            );
         }
 
         if ($netAmount->minorUnits() + $taxAmount->minorUnits() !== $grossAmount->minorUnits()) {

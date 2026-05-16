@@ -13,7 +13,9 @@ final class CountryCode
     public static function fromString(string $value): self
     {
         if (1 !== preg_match('/^[A-Z]{2}$/', $value)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid country code: "%s". Expected ISO 3166-1 alpha-2 (e.g. "FR", "DE").', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Invalid country code: "%s". Expected ISO 3166-1 alpha-2 (e.g. "FR", "DE").', $value),
+            );
         }
 
         return new self($value);

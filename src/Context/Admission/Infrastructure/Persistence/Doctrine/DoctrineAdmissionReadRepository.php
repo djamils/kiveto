@@ -121,8 +121,9 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $conn = $this->entityManager->getConnection();
 
         $labelRows = $conn->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(p.id) AS patient_id, p.display_label_value, BIN_TO_UUID(p.animal_link_id) AS animal_link_id
-             FROM patient__patients p WHERE p.id IN (?)',
+            'SELECT BIN_TO_UUID(p.id) AS patient_id, p.display_label_value'
+                . ', BIN_TO_UUID(p.animal_link_id) AS animal_link_id'
+                . ' FROM patient__patients p WHERE p.id IN (?)',
             [$patientBinIds],
             [ArrayParameterType::STRING],
         );

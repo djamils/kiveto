@@ -10,10 +10,15 @@ use PHPUnit\Framework\TestCase;
 final class ClinicMemberRoleCapabilityCompletenessTest extends TestCase
 {
     /**
-     * Explicit snapshot: role value → [canHoldVeterinaryCredentials, canBePractitionerOfRecord, appearsInMedicalAgendaByDefault].
+     * Explicit snapshot: role value →
+     * [canHoldVeterinaryCredentials, canBePractitionerOfRecord, appearsInMedicalAgendaByDefault].
      * Updating this map is mandatory when adding a new ClinicMemberRole case.
      *
-     * @var array<string, array{canHoldVeterinaryCredentials: bool, canBePractitionerOfRecord: bool, appearsInMedicalAgendaByDefault: bool}>
+     * @var array<string, array{
+     *   canHoldVeterinaryCredentials: bool,
+     *   canBePractitionerOfRecord: bool,
+     *   appearsInMedicalAgendaByDefault: bool
+     * }>
      */
     private const array EXPECTED_CAPABILITIES = [
         'MANAGER' => [

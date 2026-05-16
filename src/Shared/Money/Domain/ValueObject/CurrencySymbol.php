@@ -28,7 +28,9 @@ final class CurrencySymbol
         }
 
         if (mb_strlen($trimmed) > 8) {
-            throw new \InvalidArgumentException(\sprintf('CurrencySymbol cannot exceed 8 characters, got "%s".', $trimmed));
+            throw new \InvalidArgumentException(
+                \sprintf('CurrencySymbol cannot exceed 8 characters, got "%s".', $trimmed),
+            );
         }
 
         return new self($trimmed);

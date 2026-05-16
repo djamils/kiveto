@@ -63,7 +63,10 @@ final readonly class UpdatePlanningBlockHandler
         $count = $this->appointmentCounter->countActiveInWindow($clinicId, $staffUserId, $startUtc, $endUtc);
 
         // D.4 — recurrence rule immutable once set
-        if ($newRule->freq() !== $block->recurrenceRule()->freq() || $newRule->until() !== $block->recurrenceRule()->until()) {
+        $ruleChanged = $newRule->freq() !== $block->recurrenceRule()->freq()
+            || $newRule->until() !== $block->recurrenceRule()->until();
+
+        if ($ruleChanged) {
             throw new CannotModifyRecurrenceRuleOnExistingBlock(
                 'Cannot modify recurrence rule on an existing planning block.'
             );

@@ -44,9 +44,15 @@ final class CreatePlanningBlockController extends AbstractController
                 startTime: isset($data['start']) && \is_string($data['start']) ? $data['start'] : '',
                 endTime: isset($data['end']) && \is_string($data['end']) ? $data['end'] : '',
                 capacityPerHour: isset($data['capacity']) && \is_int($data['capacity']) ? $data['capacity'] : 0,
-                recurrenceFreq: strtoupper(isset($data['recurrence']) && \is_string($data['recurrence']) ? $data['recurrence'] : 'NONE'),
-                recurrenceUntil: isset($data['recurrenceUntil']) && \is_string($data['recurrenceUntil']) && '' !== $data['recurrenceUntil'] ? $data['recurrenceUntil'] : null,
-                note: isset($data['note']) && \is_string($data['note']) && '' !== $data['note'] ? $data['note'] : null,
+                recurrenceFreq: strtoupper(
+                    isset($data['recurrence']) && \is_string($data['recurrence']) ? $data['recurrence'] : 'NONE',
+                ),
+                recurrenceUntil: isset($data['recurrenceUntil'])
+                    && \is_string($data['recurrenceUntil'])
+                    && '' !== $data['recurrenceUntil']
+                    ? $data['recurrenceUntil'] : null,
+                note: isset($data['note']) && \is_string($data['note']) && '' !== $data['note']
+                    ? $data['note'] : null,
             ));
 
             return new JsonResponse(['id' => $id], 200);

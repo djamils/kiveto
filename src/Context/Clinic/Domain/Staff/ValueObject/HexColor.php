@@ -20,7 +20,9 @@ final class HexColor
         $normalized = strtolower(trim($value));
 
         if (!preg_match('/^#[0-9a-f]{6}$/', $normalized)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid hex color: "%s". Expected format #rrggbb (e.g. #1a2b3c).', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Invalid hex color: "%s". Expected format #rrggbb (e.g. #1a2b3c).', $value),
+            );
         }
 
         return new self($normalized);

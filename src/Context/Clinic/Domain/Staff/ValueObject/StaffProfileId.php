@@ -28,7 +28,9 @@ final class StaffProfileId
         try {
             Uuid::fromString($trimmed);
         } catch (\Throwable) {
-            throw new \InvalidArgumentException(\sprintf('Invalid StaffProfileId: "%s". Expected a valid UUID.', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Invalid StaffProfileId: "%s". Expected a valid UUID.', $value),
+            );
         }
 
         return new self($trimmed);

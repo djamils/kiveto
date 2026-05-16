@@ -24,19 +24,31 @@ final class SignatureImageKey
         }
 
         if (mb_strlen($trimmed) > 255) {
-            throw new \InvalidArgumentException(\sprintf('Signature image key cannot exceed 255 characters (got %d).', mb_strlen($trimmed)));
+            throw new \InvalidArgumentException(
+                \sprintf('Signature image key cannot exceed 255 characters (got %d).', mb_strlen($trimmed)),
+            );
         }
 
         if (!preg_match('/^[A-Za-z0-9_\-\.\/]+$/', $trimmed)) {
-            throw new \InvalidArgumentException(\sprintf('Signature image key contains invalid characters: "%s". Only ASCII alphanumeric, _, -, ., / are allowed.', $value));
+            throw new \InvalidArgumentException(
+                \sprintf(
+                    'Signature image key contains invalid characters: "%s".'
+                    . ' Only ASCII alphanumeric, _, -, ., / are allowed.',
+                    $value,
+                ),
+            );
         }
 
         if (str_contains($trimmed, '..')) {
-            throw new \InvalidArgumentException(\sprintf('Signature image key must not contain ".." (path traversal): "%s".', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Signature image key must not contain ".." (path traversal): "%s".', $value),
+            );
         }
 
         if (str_starts_with($trimmed, '/')) {
-            throw new \InvalidArgumentException(\sprintf('Signature image key must not start with a leading slash: "%s".', $value));
+            throw new \InvalidArgumentException(
+                \sprintf('Signature image key must not start with a leading slash: "%s".', $value),
+            );
         }
 
         return new self($trimmed);

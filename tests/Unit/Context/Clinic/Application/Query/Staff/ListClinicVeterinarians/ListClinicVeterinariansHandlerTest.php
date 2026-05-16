@@ -130,6 +130,8 @@ final class ListClinicVeterinariansHandlerTest extends TestCase
             ->willReturn(false)
         ;
 
-        self::assertFalse($profileRepo->hasVeterinaryCredentialsFor(ClinicMembershipId::fromString(self::MEMBERSHIP_ID)));
+        self::assertFalse(
+            $profileRepo->hasVeterinaryCredentialsFor(ClinicMembershipId::fromString(self::MEMBERSHIP_ID)),
+        );
     }
 }

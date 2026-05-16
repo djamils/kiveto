@@ -24,7 +24,8 @@ final readonly class PatientReconciledIntoHandler
         $clinicUuid = Uuid::fromString($event->clinicId)->toBinary();
 
         $this->connection->executeStatement(
-            'UPDATE admission__admissions SET patient_id = :targetId WHERE patient_id = :sourceId AND clinic_id = :clinicId',
+            'UPDATE admission__admissions SET patient_id = :targetId'
+                . ' WHERE patient_id = :sourceId AND clinic_id = :clinicId',
             [
                 'targetId' => $targetUuid,
                 'sourceId' => $sourceUuid,

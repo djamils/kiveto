@@ -9,7 +9,8 @@ final class CannotChangeRoleWhileVeterinaryCredentialsExist extends \RuntimeExce
     public function __construct(string $membershipId, string $newRole)
     {
         parent::__construct(\sprintf(
-            'Cannot change role of membership "%s" to "%s" while veterinary credentials exist. Clear credentials first.',
+            'Cannot change role of membership "%s" to "%s" while veterinary credentials exist.'
+                . ' Clear credentials first.',
             $membershipId,
             $newRole,
         ));

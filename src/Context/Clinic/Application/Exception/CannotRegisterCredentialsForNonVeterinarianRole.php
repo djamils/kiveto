@@ -9,7 +9,8 @@ final class CannotRegisterCredentialsForNonVeterinarianRole extends \RuntimeExce
     public function __construct(string $role, string $membershipId)
     {
         parent::__construct(\sprintf(
-            'Cannot register veterinary credentials for membership "%s" with role "%s". Only VETERINARY role can hold credentials.',
+            'Cannot register veterinary credentials for membership "%s" with role "%s".'
+                . ' Only VETERINARY role can hold credentials.',
             $membershipId,
             $role,
         ));

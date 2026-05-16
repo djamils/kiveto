@@ -58,10 +58,19 @@ final readonly class MentionTemplateMapper
     {
         $condition     = $template->condition();
         $conditionJson = [
-            'regions'           => array_map(static fn (RegionCode $r) => $r->toString(), $condition->regionsMatching()),
-            'customer_statuses' => array_map(static fn (CustomerTaxStatus $s) => $s->value, $condition->customerStatusesMatching()),
-            'animal_usages'     => array_map(static fn (AnimalUsage $u) => $u->value, $condition->animalUsagesMatching()),
-            'clinic_liability'  => $condition->clinicLiability()?->value,
+            'regions' => array_map(
+                static fn (RegionCode $r) => $r->toString(),
+                $condition->regionsMatching(),
+            ),
+            'customer_statuses' => array_map(
+                static fn (CustomerTaxStatus $s) => $s->value,
+                $condition->customerStatusesMatching(),
+            ),
+            'animal_usages' => array_map(
+                static fn (AnimalUsage $u) => $u->value,
+                $condition->animalUsagesMatching(),
+            ),
+            'clinic_liability' => $condition->clinicLiability()?->value,
         ];
 
         $entity = new MentionTemplateEntity();

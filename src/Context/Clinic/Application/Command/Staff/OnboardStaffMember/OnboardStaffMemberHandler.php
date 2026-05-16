@@ -105,7 +105,14 @@ final readonly class OnboardStaffMemberHandler
             updatedAt: $now,
         );
 
-        if (null !== $command->registrationNumber && null !== $command->professionalTitle && $command->role->canHoldVeterinaryCredentials()) {
+        $hasCredentials = null !== $command->registrationNumber
+            && null !== $command->professionalTitle
+            && $command->role->canHoldVeterinaryCredentials();
+
+        if ($hasCredentials) {
+            \assert(null !== $command->registrationNumber);
+            \assert(null !== $command->professionalTitle);
+
             $signatureImageKey = null !== $command->signatureImageKey
                 ? SignatureImageKey::fromString($command->signatureImageKey)
                 : null;

@@ -24,7 +24,9 @@ final class ProfessionalRegistrationNumber
         }
 
         if (mb_strlen($trimmed) > 32) {
-            throw new \InvalidArgumentException(\sprintf('Professional registration number cannot exceed 32 characters (got %d).', mb_strlen($trimmed)));
+            throw new \InvalidArgumentException(
+                \sprintf('Professional registration number cannot exceed 32 characters (got %d).', mb_strlen($trimmed)),
+            );
         }
 
         return new self($trimmed);

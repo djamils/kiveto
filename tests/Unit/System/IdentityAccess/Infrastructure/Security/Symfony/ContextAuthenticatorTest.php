@@ -149,7 +149,11 @@ final class ContextAuthenticatorTest extends TestCase
         );
         $request->headers->set('Accept', 'application/json');
 
-        $response = $authenticator->onAuthenticationSuccess($request, $this->tokenWithUser('user-456', UserType::PORTAL), 'main');
+        $response = $authenticator->onAuthenticationSuccess(
+            $request,
+            $this->tokenWithUser('user-456', UserType::PORTAL),
+            'main',
+        );
 
         self::assertInstanceOf(JsonResponse::class, $response);
         $payload = json_decode((string) $response->getContent(), true);
@@ -169,7 +173,11 @@ final class ContextAuthenticatorTest extends TestCase
             ],
         );
 
-        $response = $authenticator->onAuthenticationSuccess($request, $this->tokenWithUser('user-789', UserType::BACKOFFICE), 'main');
+        $response = $authenticator->onAuthenticationSuccess(
+            $request,
+            $this->tokenWithUser('user-789', UserType::BACKOFFICE),
+            'main',
+        );
 
         self::assertInstanceOf(JsonResponse::class, $response);
         $payload = json_decode((string) $response->getContent(), true);

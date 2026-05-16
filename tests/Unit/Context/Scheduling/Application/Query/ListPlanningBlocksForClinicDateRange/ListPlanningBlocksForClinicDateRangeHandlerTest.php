@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange;
 
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
-use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRangeHandler;
+use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRangeHandler; // phpcs:ignore Generic.Files.LineLength
 use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
 use App\Context\Scheduling\Domain\Service\RecurrenceExpander;
 use Doctrine\DBAL\Connection;
@@ -114,8 +114,12 @@ final class ListPlanningBlocksForClinicDateRangeHandlerTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function row(string $date, string $type = 'consultation', string $freq = 'NONE', ?string $until = null): array
-    {
+    private function row(
+        string $date,
+        string $type = 'consultation',
+        string $freq = 'NONE',
+        ?string $until = null,
+    ): array {
         return [
             'id_str'            => '11111111-1111-1111-1111-111111111111',
             'clinic_str'        => '22222222-2222-2222-2222-222222222222',

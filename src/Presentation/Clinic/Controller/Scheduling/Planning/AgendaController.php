@@ -94,7 +94,8 @@ final class AgendaController extends AbstractController
             toDate: $toDate,
         ));
         \assert(\is_array($planningBlocks));
-        // PlanningBlockView property names differ from the JS payload keys (staffUserId→vet, startTime→start, endTime→end).
+        // PlanningBlockView property names differ from the JS payload keys
+        // (staffUserId→vet, startTime→start, endTime→end).
         $planningBlocksJs = array_map(static function (mixed $b): array {
             \assert($b instanceof PlanningBlockView);
 

@@ -14,7 +14,11 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route('/admission/{admissionId}/start-consultation', name: 'clinic_consultation_start_from_admission', methods: ['POST'])]
+#[Route(
+    '/admission/{admissionId}/start-consultation',
+    name: 'clinic_consultation_start_from_admission',
+    methods: ['POST'],
+)]
 final class StartConsultationFromAdmissionController extends AbstractController
 {
     public function __construct(

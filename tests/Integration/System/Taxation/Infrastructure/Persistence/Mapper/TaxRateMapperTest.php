@@ -87,15 +87,27 @@ final class TaxRateMapperTest extends TestCase
         $entity        = $this->mapper->toEntity($rate, 'FR');
         $reconstituted = $this->mapper->toDomain($entity);
 
-        self::assertSame(['veterinary.drug.companion', 'veterinary.drug.livestock'], $reconstituted->appliesTo()->categoriesMatching());
+        self::assertSame(
+            ['veterinary.drug.companion', 'veterinary.drug.livestock'],
+            $reconstituted->appliesTo()->categoriesMatching(),
+        );
 
-        $regionStrings = array_map(static fn (RegionCode $r) => $r->toString(), $reconstituted->appliesTo()->regionsMatching());
+        $regionStrings = array_map(
+            static fn (RegionCode $r) => $r->toString(),
+            $reconstituted->appliesTo()->regionsMatching(),
+        );
         self::assertSame(['IDF', 'ARA'], $regionStrings);
 
-        $statusValues = array_map(static fn (CustomerTaxStatus $s) => $s->value, $reconstituted->appliesTo()->customerStatusesMatching());
+        $statusValues = array_map(
+            static fn (CustomerTaxStatus $s) => $s->value,
+            $reconstituted->appliesTo()->customerStatusesMatching(),
+        );
         self::assertSame(['b2c', 'b2b'], $statusValues);
 
-        $usageValues = array_map(static fn (AnimalUsage $u) => $u->value, $reconstituted->appliesTo()->animalUsagesMatching());
+        $usageValues = array_map(
+            static fn (AnimalUsage $u) => $u->value,
+            $reconstituted->appliesTo()->animalUsagesMatching(),
+        );
         self::assertSame(['companion'], $usageValues);
 
         self::assertSame(ClinicLiabilityStatus::LIABLE, $reconstituted->appliesTo()->clinicLiability());

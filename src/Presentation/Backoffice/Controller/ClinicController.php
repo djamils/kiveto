@@ -101,7 +101,10 @@ final class ClinicController extends AbstractController
         $jurisdictionCode = $request->request->get('jurisdiction_code');
         $clinicGroupId    = $request->request->get('clinic_group_id');
 
-        if ('' === $name || '' === $slug || '' === $timeZone || '' === $locale || '' === $countryCode || '' === $currencyCode) {
+        $missingField = '' === $name || '' === $slug || '' === $timeZone
+            || '' === $locale || '' === $countryCode || '' === $currencyCode;
+
+        if ($missingField) {
             $this->addFlash('error', 'Tous les champs obligatoires doivent être remplis.');
 
             return $this->redirectToRoute('backoffice_clinics_new');
