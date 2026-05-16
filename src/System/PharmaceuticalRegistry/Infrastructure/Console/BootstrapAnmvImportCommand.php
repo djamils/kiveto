@@ -49,6 +49,7 @@ final class BootstrapAnmvImportCommand extends Command
         private readonly UuidGeneratorInterface $uuidGenerator,
         private readonly ClockInterface $clock,
         private readonly EntityManagerInterface $em,
+        private readonly ImportFileManager $importFileManager,
     ) {
         parent::__construct();
     }
@@ -56,21 +57,39 @@ final class BootstrapAnmvImportCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('file', null, InputOption::VALUE_REQUIRED, 'Path to the ANMV XML file')
-            ->addOption('dictionary', null, InputOption::VALUE_REQUIRED, 'Path to the ANMV dictionary XML file')
+            ->addOption('file', null, InputOption::VALUE_OPTIONAL, '[debug] Override amm.xml path')
+            ->addOption('dictionary', null, InputOption::VALUE_OPTIONAL, '[debug] Override dict.xml path')
             ->addOption('batch', null, InputOption::VALUE_OPTIONAL, 'Batch size', 500)
         ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        /** @var string $file */
-        $file = $input->getOption('file');
-        /** @var string $dictionary */
-        $dictionary = $input->getOption('dictionary');
+        /** @var string|null $fileOverride */
+        $fileOverride = $input->getOption('file');
+        /** @var string|null $dictOverride */
+        $dictOverride    = $input->getOption('dictionary');
+        $isDebugOverride = null !== $fileOverride || null !== $dictOverride;
+
+        $file       = $this->importFileManager->resolveFile(ImportSource::ANMV, 'amm.xml', $fileOverride);
+        $dictionary = $this->importFileManager->resolveFile(ImportSource::ANMV, 'dict.xml', $dictOverride);
+
         /** @var int|string $batchRaw */
         $batchRaw  = $input->getOption('batch');
         $batchSize = (int) $batchRaw;
+
+        if (!file_exists($file)) {
+            $output->writeln(\sprintf('<error>File not found: %s</error>', $file));
+            $output->writeln('<comment>Place amm.xml and dict.xml in storage/pharma-registry/france/current/ before importing.</comment>');
+
+            return Command::FAILURE;
+        }
+
+        if (!file_exists($dictionary)) {
+            $output->writeln(\sprintf('<error>Dictionary not found: %s</error>', $dictionary));
+
+            return Command::FAILURE;
+        }
 
         $output->writeln('<info>Staging ANMV snapshot...</info>');
 
@@ -135,6 +154,11 @@ final class BootstrapAnmvImportCommand extends Command
             $withdrawn,
             $skipped,
         ));
+
+        if (!$isDebugOverride) {
+            $this->importFileManager->archiveCurrentFiles(ImportSource::ANMV, $now);
+            $output->writeln('<info>Files archived.</info>');
+        }
 
         return Command::SUCCESS;
     }

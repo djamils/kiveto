@@ -325,31 +325,33 @@ shared-migrations:
 
 ##
 ## PHARMACEUTICAL REGISTRY
-## Usage: make pharma-bootstrap FILE=/path/to/amm.xml DICT=/path/to/dict.xml
-##        make pharma-full-import FILE=/path/to/amm.xml DICT=/path/to/dict.xml
-##        make pharma-diff SNAPSHOT=<uuid>
-##        make pharma-apply SNAPSHOT=<uuid>
+## Nominal: place amm.xml + dict.xml in storage/pharma-registry/france/current/
+##   then: make pharma-bootstrap    (first import, ~14k products)
+##         make pharma-full-import  (weekly delta)
+## Debug override: make pharma-full-import FILE=... DICT=...
 ##
 
 pharma-bootstrap:
-	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-bootstrap FILE=... DICT=..."; exit 1)
-	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-bootstrap FILE=... DICT=..."; exit 1)
 	@$(call step,Running PharmaceuticalRegistry bootstrap import \(batched transactions\)...)
-	$(Q)$(SYMFONY) app:pharmaceutical-registry:bootstrap --file='$(FILE)' --dictionary='$(DICT)' --batch=500
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:bootstrap \
+		$(if $(FILE),--file='$(FILE)',) \
+		$(if $(DICT),--dictionary='$(DICT)',) \
+		--batch=500
 	@$(call ok,PharmaceuticalRegistry bootstrap complete)
 
 pharma-full-import:
-	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-full-import FILE=... DICT=..."; exit 1)
-	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-full-import FILE=... DICT=..."; exit 1)
 	@$(call step,Running PharmaceuticalRegistry full import cycle...)
-	$(Q)$(SYMFONY) app:pharmaceutical-registry:full-import-cycle --source=ANMV --file='$(FILE)' --dictionary='$(DICT)'
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:full-import-cycle \
+		$(if $(SOURCE),--source='$(SOURCE)',) \
+		$(if $(FILE),--file='$(FILE)',) \
+		$(if $(DICT),--dictionary='$(DICT)',)
 	@$(call ok,PharmaceuticalRegistry full import cycle complete)
 
 pharma-import:
-	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-import FILE=... DICT=..."; exit 1)
-	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-import FILE=... DICT=..."; exit 1)
-	@$(call step,Staging ANMV snapshot...)
-	$(Q)$(SYMFONY) app:pharmaceutical-registry:import-anmv --file='$(FILE)' --dictionary='$(DICT)'
+	@$(call step,Staging ANMV snapshot \(no diff/apply\)...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:import-anmv \
+		$(if $(FILE),--file='$(FILE)',) \
+		$(if $(DICT),--dictionary='$(DICT)',)
 	@$(call ok,Snapshot staged)
 
 pharma-diff:
