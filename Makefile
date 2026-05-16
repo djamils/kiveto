@@ -101,7 +101,8 @@ endef
 	assets tailwind-build \
 	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations \
 	drop-db create-db migrate-db reset-db drop-test-db create-test-db migrate-test-db reset-test-db \
-	load-fixtures test-unit test-integration init-test-db
+	load-fixtures test-unit test-integration init-test-db \
+	pharma-bootstrap pharma-import pharma-diff pharma-apply pharma-full-import
 
 ##
 ## HELP
@@ -321,6 +322,47 @@ shared-migrations:
 	@$(call step,Generating migrations for Shared (technical tables)...)
 	$(Q)$(call run_live,$(SYMFONY) doctrine:migrations:diff --no-interaction --allow-empty-diff --formatted --namespace='DoctrineMigrations\Shared' --filter-expression='/^shared__/')
 	@$(call ok,Shared migrations generated)
+
+##
+## PHARMACEUTICAL REGISTRY
+## Usage: make pharma-bootstrap FILE=/path/to/amm.xml DICT=/path/to/dict.xml
+##        make pharma-full-import FILE=/path/to/amm.xml DICT=/path/to/dict.xml
+##        make pharma-diff SNAPSHOT=<uuid>
+##        make pharma-apply SNAPSHOT=<uuid>
+##
+
+pharma-bootstrap:
+	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-bootstrap FILE=... DICT=..."; exit 1)
+	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-bootstrap FILE=... DICT=..."; exit 1)
+	@$(call step,Running PharmaceuticalRegistry bootstrap import \(batched transactions\)...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:bootstrap --file='$(FILE)' --dictionary='$(DICT)' --batch=500
+	@$(call ok,PharmaceuticalRegistry bootstrap complete)
+
+pharma-full-import:
+	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-full-import FILE=... DICT=..."; exit 1)
+	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-full-import FILE=... DICT=..."; exit 1)
+	@$(call step,Running PharmaceuticalRegistry full import cycle...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:full-import-cycle --source=ANMV --file='$(FILE)' --dictionary='$(DICT)'
+	@$(call ok,PharmaceuticalRegistry full import cycle complete)
+
+pharma-import:
+	@test -n "$(FILE)" || (echo "ERROR: FILE is required. Usage: make pharma-import FILE=... DICT=..."; exit 1)
+	@test -n "$(DICT)" || (echo "ERROR: DICT is required. Usage: make pharma-import FILE=... DICT=..."; exit 1)
+	@$(call step,Staging ANMV snapshot...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:import-anmv --file='$(FILE)' --dictionary='$(DICT)'
+	@$(call ok,Snapshot staged)
+
+pharma-diff:
+	@test -n "$(SNAPSHOT)" || (echo "ERROR: SNAPSHOT is required. Usage: make pharma-diff SNAPSHOT=<uuid>"; exit 1)
+	@$(call step,Calculating diff for snapshot $(SNAPSHOT)...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:diff --snapshot='$(SNAPSHOT)'
+	@$(call ok,Diff calculated)
+
+pharma-apply:
+	@test -n "$(SNAPSHOT)" || (echo "ERROR: SNAPSHOT is required. Usage: make pharma-apply SNAPSHOT=<uuid>"; exit 1)
+	@$(call step,Applying diff for snapshot $(SNAPSHOT)...)
+	$(Q)$(SYMFONY) app:pharmaceutical-registry:apply-diff --snapshot='$(SNAPSHOT)'
+	@$(call ok,Diff applied)
 
 check-web:
 	@$(call step,Checking web endpoint...)
