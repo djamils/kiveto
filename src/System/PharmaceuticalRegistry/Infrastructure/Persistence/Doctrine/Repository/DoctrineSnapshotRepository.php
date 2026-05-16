@@ -41,6 +41,22 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             $existing->setAppliedAt($snapshot->appliedAt());
             $existing->setErrorMessage($snapshot->errorMessage());
 
+            // Persist snapshot entries added after the initial save (e.g. by AnmvImporter).
+            // Use a COUNT query to avoid loading the full collection into memory.
+            $persistedCount = (int) $this->em->createQueryBuilder()
+                ->select('COUNT(e.id)')
+                ->from(SnapshotEntryEntity::class, 'e')
+                ->where('e.snapshot = :snapshot')
+                ->setParameter('snapshot', $existing)
+                ->getQuery()
+                ->getSingleScalarResult()
+            ;
+
+            foreach (\array_slice($snapshot->entries(), $persistedCount) as $entry) {
+                $entryEntity = $this->mapper->snapshotEntryToEntity($entry, $existing);
+                $this->em->persist($entryEntity);
+            }
+
             foreach ($snapshot->diffEntries() as $diffEntry) {
                 $entryRepo   = $this->em->getRepository(SnapshotEntryEntity::class);
                 $entryEntity = $entryRepo->findOneBy([
