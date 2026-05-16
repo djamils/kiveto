@@ -22,11 +22,11 @@ final class AnmvMedicinalProductDto
     public function __construct(
         public readonly string $authorityIdentifier,
         public readonly string $commercialName,
-        public readonly string $holderLaboratory,
+        public readonly string $holderLaboratoryLabel,
         public readonly int $statusCode,
         public readonly string $authorizationDate,
         public readonly int $natureCode,
-        public readonly string $pharmaceuticalForm,
+        public readonly string $pharmaceuticalFormLabel,
         public readonly ?string $atcVetCode,
         public readonly ?string $permanentIdentifier,
         public readonly array $presentations,
@@ -40,16 +40,16 @@ final class AnmvMedicinalProductDto
     public function toArray(): array
     {
         return [
-            'authorityIdentifier' => $this->authorityIdentifier,
-            'commercialName'      => $this->commercialName,
-            'holderLaboratory'    => $this->holderLaboratory,
-            'statusCode'          => (string) $this->statusCode,
-            'authorizationDate'   => $this->authorizationDate,
-            'natureCode'          => (string) $this->natureCode,
-            'pharmaceuticalForm'  => $this->pharmaceuticalForm,
-            'atcVetCode'          => $this->atcVetCode,
-            'permanentIdentifier' => $this->permanentIdentifier,
-            'presentations'       => array_map(
+            'authorityIdentifier'     => $this->authorityIdentifier,
+            'commercialName'          => $this->commercialName,
+            'holderLaboratoryLabel'   => $this->holderLaboratoryLabel,
+            'statusCode'              => (string) $this->statusCode,
+            'authorizationDate'       => $this->authorizationDate,
+            'natureCode'              => (string) $this->natureCode,
+            'pharmaceuticalFormLabel' => $this->pharmaceuticalFormLabel,
+            'atcVetCode'              => $this->atcVetCode,
+            'permanentIdentifier'     => $this->permanentIdentifier,
+            'presentations'           => array_map(
                 static fn (AnmvPresentationDto $p) => $p->toArray(),
                 $this->presentations,
             ),
@@ -68,16 +68,26 @@ final class AnmvMedicinalProductDto
      * @param array{
      *     authorityIdentifier: string,
      *     commercialName: string,
-     *     holderLaboratory: string,
+     *     holderLaboratoryLabel: string,
      *     statusCode: string,
      *     authorizationDate: string,
      *     natureCode: string,
-     *     pharmaceuticalForm: string,
+     *     pharmaceuticalFormLabel: string,
      *     atcVetCode: string|null,
      *     permanentIdentifier: string|null,
-     *     presentations: array<int, array{description: string, unitCount: string|null, packaging: string|null, gtin: string|null, euPackIdentifier: string|null, prescriptionCode: int}>,
-     *     compositions: array<int, array{activeSubstanceLabel: string, quantityValue: string|null, quantityUnitLabel: string|null, quantityUnitCode: string|null, isExcipient: bool}>,
-     *     voiesAdministration: array<int, array{routeCode: int, speciesCode: int, foodProductionCode: string|null, withdrawalPeriodQuantity: string|null, withdrawalPeriodUnitCode: int|null, jurisdictionalNote: string|null}>,
+     *     presentations: array<int, array{
+     *         description: string, unitCount: string|null, packaging: string|null,
+     *         gtin: string|null, euPackIdentifier: string|null, prescriptionCode: int
+     *     }>,
+     *     compositions: array<int, array{
+     *         activeSubstanceLabel: string, quantityValue: string|null,
+     *         quantityUnitLabel: string|null, quantityUnitCode: string|null, isExcipient: bool
+     *     }>,
+     *     voiesAdministration: array<int, array{
+     *         routeCode: int, speciesCode: int, foodProductionCode: int|null,
+     *         withdrawalPeriodQuantity: string|null, withdrawalPeriodUnitCode: int|null,
+     *         jurisdictionalNote: string|null
+     *     }>,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -100,11 +110,11 @@ final class AnmvMedicinalProductDto
         return new self(
             authorityIdentifier: $data['authorityIdentifier'],
             commercialName: $data['commercialName'],
-            holderLaboratory: $data['holderLaboratory'],
+            holderLaboratoryLabel: $data['holderLaboratoryLabel'],
             statusCode: (int) $data['statusCode'],
             authorizationDate: $data['authorizationDate'],
             natureCode: (int) $data['natureCode'],
-            pharmaceuticalForm: $data['pharmaceuticalForm'],
+            pharmaceuticalFormLabel: $data['pharmaceuticalFormLabel'],
             atcVetCode: $data['atcVetCode'],
             permanentIdentifier: $data['permanentIdentifier'],
             presentations: $presentations,

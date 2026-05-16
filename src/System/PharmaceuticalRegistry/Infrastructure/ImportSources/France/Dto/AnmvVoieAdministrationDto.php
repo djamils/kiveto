@@ -9,7 +9,7 @@ final class AnmvVoieAdministrationDto
     public function __construct(
         public readonly int $routeCode,
         public readonly int $speciesCode,
-        public readonly ?string $foodProductionCode,
+        public readonly ?int $foodProductionCode,
         public readonly ?string $withdrawalPeriodQuantity,
         public readonly ?int $withdrawalPeriodUnitCode,
         public readonly ?string $jurisdictionalNote,
@@ -33,7 +33,7 @@ final class AnmvVoieAdministrationDto
      * @param array{
      *     routeCode: int,
      *     speciesCode: int,
-     *     foodProductionCode: string|null,
+     *     foodProductionCode: int|null,
      *     withdrawalPeriodQuantity: string|null,
      *     withdrawalPeriodUnitCode: int|null,
      *     jurisdictionalNote: string|null,

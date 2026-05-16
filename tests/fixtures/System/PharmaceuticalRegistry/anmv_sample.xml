@@ -1,133 +1,493 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<medicinal-products>
-    <medicinal-product
-        num-amm="FR/H/0001"
-        name="Apoquel 3,6 mg comprimés"
-        holder="Zoetis Belgium SA"
-        date-amm="2015-09-10"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Comprimé"
-        atc-vet-code="QD11AH91"
-        permanent-id="">
-        <presentation description="Plaquette de 20 comprimés" pres-code="1" gtin="03700942019756"/>
-        <composition sub-code="1" qty="3.6" unit-label="mg" unit-code="mg" is-excipient="0"/>
-        <voie-administration route-code="14" species-code="7"/>
+<medicinal-product-group>
+    <medicinal-product>
+        <src-id>1</src-id>
+        <nom>Apoquel 3,6 mg comprimés</nom>
+        <num>0100001</num>
+        <term-tit>1</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2015-09-10</date-amm>
+        <term-fp>1</term-fp>
+        <num-amm>FR/H/0001/001/DC/001</num-amm>
+        <perm-id>600000123456</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>1</term-sa>
+                    <quantite>3.6</quantite>
+                    <term-unite>1</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Plaquette de 20 comprimés</lib-mod>
+                <nb-unit>20</nb-unit>
+                <term-pres>1</term-pres>
+                <term-cd>1</term-cd>
+                <lib-condp>Plaquette</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Plaquette de 20 comprimés</lib-mod>
+                <pack-id>aaaa1111-0000-0000-0000-000000000001</pack-id>
+                <code-gtin>03700942019756</code-gtin>
+                <num-amm>FR/H/0001/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QD11AH91</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0002"
-        name="Cerenia 10 mg/mL"
-        holder="Zoetis Belgium SA"
-        date-amm="2007-01-01"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Solution injectable"
-        atc-vet-code="QA03AA55">
-        <presentation description="Flacon 20 mL" pres-code="1" gtin="03700942019800"/>
-        <composition sub-code="2" qty="10" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
-        <voie-administration route-code="18" species-code="7"/>
-        <voie-administration route-code="18" species-code="8"/>
+    <medicinal-product>
+        <src-id>2</src-id>
+        <nom>Cerenia 10 mg/mL solution injectable</nom>
+        <num>0100002</num>
+        <term-tit>1</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2007-01-01</date-amm>
+        <term-fp>2</term-fp>
+        <num-amm>FR/H/0002/001/DC/001</num-amm>
+        <perm-id>600000123457</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>2</term-sa>
+                    <quantite>10</quantite>
+                    <term-unite>2</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>24</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+            <voie-admin>
+                <term-va>24</term-va>
+                <term-esp>16</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Flacon 20 mL</lib-mod>
+                <nb-unit>1</nb-unit>
+                <term-pres>2</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Flacon</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Flacon 20 mL</lib-mod>
+                <pack-id>bbbb2222-0000-0000-0000-000000000002</pack-id>
+                <code-gtin>03700942019800</code-gtin>
+                <num-amm>FR/H/0002/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QA03AA55</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0003"
-        name="Frontline Combo Chien"
-        holder="Boehringer Ingelheim"
-        date-amm="2000-03-15"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Solution spot-on"
-        atc-vet-code="QP54AB05">
-        <presentation description="3 pipettes" pres-code="1" gtin="03660245001002"/>
-        <composition sub-code="3" qty="67.2" unit-label="mg" unit-code="mg" is-excipient="0"/>
-        <voie-administration route-code="2" species-code="7"/>
+    <medicinal-product>
+        <src-id>3</src-id>
+        <nom>Frontline Combo Chien solution spot-on</nom>
+        <num>0100003</num>
+        <term-tit>2</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2000-03-15</date-amm>
+        <term-fp>3</term-fp>
+        <num-amm>FR/H/0003/001/DC/001</num-amm>
+        <perm-id>600000123458</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>3</term-sa>
+                    <quantite>67.2</quantite>
+                    <term-unite>1</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>2</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>3 pipettes</lib-mod>
+                <nb-unit>3</nb-unit>
+                <term-pres>3</term-pres>
+                <term-cd>1</term-cd>
+                <lib-condp>Pipette</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>3 pipettes</lib-mod>
+                <pack-id>cccc3333-0000-0000-0000-000000000003</pack-id>
+                <code-gtin>03660245001002</code-gtin>
+                <num-amm>FR/H/0003/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QP54AB05</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0004"
-        name="Convenia 80 mg/mL"
-        holder="Zoetis Belgium SA"
-        date-amm="2006-10-15"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Poudre et solvant pour suspension injectable"
-        atc-vet-code="QJ01DB10">
-        <presentation description="Flacon 10 mL + solvant" pres-code="4" gtin="03700942019817"/>
-        <composition sub-code="4" qty="80" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
-        <voie-administration route-code="18" species-code="7"/>
-        <voie-administration route-code="18" species-code="8"/>
+    <medicinal-product>
+        <src-id>4</src-id>
+        <nom>Convenia 80 mg/mL poudre et solvant</nom>
+        <num>0100004</num>
+        <term-tit>1</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2006-10-15</date-amm>
+        <term-fp>8</term-fp>
+        <num-amm>FR/H/0004/001/DC/001</num-amm>
+        <perm-id>600000123459</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>4</term-sa>
+                    <quantite>80</quantite>
+                    <term-unite>2</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>24</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+            <voie-admin>
+                <term-va>24</term-va>
+                <term-esp>16</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Flacon 10 mL + solvant</lib-mod>
+                <nb-unit>1</nb-unit>
+                <term-pres>4</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Flacon</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Flacon 10 mL + solvant</lib-mod>
+                <pack-id>dddd4444-0000-0000-0000-000000000004</pack-id>
+                <code-gtin>03700942019817</code-gtin>
+                <num-amm>FR/H/0004/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QJ01DB10</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0005"
-        name="Vetmedin 1,25 mg comprimés"
-        holder="Boehringer Ingelheim"
-        date-amm="2000-09-29"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Comprimé à croquer"
-        atc-vet-code="QC01CE90">
-        <presentation description="Boîte de 100 comprimés" pres-code="1" gtin="03660245002000"/>
-        <composition sub-code="5" qty="1.25" unit-label="mg" unit-code="mg" is-excipient="0"/>
-        <voie-administration route-code="14" species-code="7"/>
+    <medicinal-product>
+        <src-id>5</src-id>
+        <nom>Vetmedin 1,25 mg comprimés à croquer</nom>
+        <num>0100005</num>
+        <term-tit>2</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2000-09-29</date-amm>
+        <term-fp>4</term-fp>
+        <num-amm>FR/H/0005/001/DC/001</num-amm>
+        <perm-id>600000123460</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>5</term-sa>
+                    <quantite>1.25</quantite>
+                    <term-unite>1</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Boîte de 100 comprimés</lib-mod>
+                <nb-unit>100</nb-unit>
+                <term-pres>5</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Boîte</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Boîte de 100 comprimés</lib-mod>
+                <pack-id>eeee5555-0000-0000-0000-000000000005</pack-id>
+                <code-gtin>03660245002000</code-gtin>
+                <num-amm>FR/H/0005/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QC01CE90</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0006"
-        name="Stronghold 45 mg"
-        holder="Zoetis Belgium SA"
-        date-amm="1999-09-15"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Solution spot-on"
-        atc-vet-code="QP54AB05">
-        <presentation description="Pipette 0,75 mL" pres-code="1" gtin="03700942020004"/>
-        <composition sub-code="3" qty="60" unit-label="mg/mL" unit-code="mg/ml" is-excipient="0"/>
-        <voie-administration route-code="2" species-code="7"/>
+    <medicinal-product>
+        <src-id>6</src-id>
+        <nom>Stronghold 45 mg solution spot-on</nom>
+        <num>0100006</num>
+        <term-tit>1</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>1999-09-15</date-amm>
+        <term-fp>3</term-fp>
+        <num-amm>FR/H/0006/001/DC/001</num-amm>
+        <perm-id>600000123461</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>6</term-sa>
+                    <quantite>60</quantite>
+                    <term-unite>2</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>2</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Pipette 0,75 mL</lib-mod>
+                <nb-unit>1</nb-unit>
+                <term-pres>6</term-pres>
+                <term-cd>1</term-cd>
+                <lib-condp>Pipette</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Pipette 0,75 mL</lib-mod>
+                <pack-id>ffff6666-0000-0000-0000-000000000006</pack-id>
+                <code-gtin>03700942020004</code-gtin>
+                <num-amm>FR/H/0006/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QP54AB05</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0007"
-        name="Synulox comprimés"
-        holder="Zoetis Belgium SA"
-        date-amm="1990-01-01"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Comprimé"
-        atc-vet-code="QJ01CR02">
-        <presentation description="Boîte de 10 comprimés" pres-code="1" gtin="03700942021001"/>
-        <voie-administration route-code="14" species-code="7"/>
-        <voie-administration route-code="14" species-code="8"/>
+    <medicinal-product>
+        <src-id>7</src-id>
+        <nom>Synulox comprimés</nom>
+        <num>0100007</num>
+        <term-tit>1</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>1990-01-01</date-amm>
+        <term-fp>1</term-fp>
+        <num-amm>FR/H/0007/001/DC/001</num-amm>
+        <perm-id>600000123462</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>7</term-sa>
+                    <quantite>50</quantite>
+                    <term-unite>1</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>16</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Boîte de 10 comprimés</lib-mod>
+                <nb-unit>10</nb-unit>
+                <term-pres>7</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Boîte</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Boîte de 10 comprimés</lib-mod>
+                <pack-id>gggg7777-0000-0000-0000-000000000007</pack-id>
+                <code-gtin>03700942021001</code-gtin>
+                <num-amm>FR/H/0007/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QJ01CR02</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0008"
-        name="Cystaid Plus"
-        holder="Vetplus Ltd"
-        date-amm="2010-06-15"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Gélule">
-        <presentation description="Boîte de 30 gélules" pres-code="1" gtin="05060219430007"/>
-        <voie-administration route-code="14" species-code="8"/>
+    <medicinal-product>
+        <src-id>8</src-id>
+        <nom>Cystaid Plus gélules</nom>
+        <num>0100008</num>
+        <term-tit>5</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2010-06-15</date-amm>
+        <term-fp>6</term-fp>
+        <num-amm>FR/H/0008/001/DC/001</num-amm>
+        <perm-id>600000123463</perm-id>
+        <composition>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>16</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Boîte de 30 gélules</lib-mod>
+                <nb-unit>30</nb-unit>
+                <term-pres>8</term-pres>
+                <term-cd>1</term-cd>
+                <lib-condp>Boîte</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Boîte de 30 gélules</lib-mod>
+                <pack-id>hhhh8888-0000-0000-0000-000000000008</pack-id>
+                <code-gtin>05060219430007</code-gtin>
+                <num-amm>FR/H/0008/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0009"
-        name="Meloxidyl 1 mg/mL suspension buvable"
-        holder="Ceva Santé Animale"
-        date-amm="2004-09-15"
-        status-code="2"
-        nature-code="1"
-        pharmaceutical-form="Suspension buvable"
-        atc-vet-code="QM01AE16">
-        <presentation description="Flacon 32 mL" pres-code="1" gtin="03814716031003"/>
-        <voie-administration route-code="14" species-code="7"/>
-        <voie-administration route-code="14" species-code="8"/>
+    <medicinal-product>
+        <src-id>9</src-id>
+        <nom>Meloxidyl 1 mg/mL suspension buvable</nom>
+        <num>0100009</num>
+        <term-tit>3</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>1</term-stat-auto>
+        <date-amm>2004-09-15</date-amm>
+        <term-fp>5</term-fp>
+        <num-amm>FR/H/0009/001/DC/001</num-amm>
+        <perm-id>600000123464</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>8</term-sa>
+                    <quantite>1</quantite>
+                    <term-unite>2</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>16</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Flacon 32 mL</lib-mod>
+                <nb-unit>1</nb-unit>
+                <term-pres>9</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Flacon</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Flacon 32 mL</lib-mod>
+                <pack-id>iiii9999-0000-0000-0000-000000000009</pack-id>
+                <code-gtin>03814716031003</code-gtin>
+                <num-amm>FR/H/0009/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QM01AE16</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-    <medicinal-product
-        num-amm="FR/H/0010"
-        name="Rilexine 300 mg comprimés"
-        holder="Virbac"
-        date-amm="1997-01-01"
-        status-code="5"
-        nature-code="1"
-        pharmaceutical-form="Comprimé"
-        atc-vet-code="QJ01DB01">
-        <presentation description="Boîte de 14 comprimés" pres-code="1" gtin="03597133119047"/>
-        <voie-administration route-code="14" species-code="7"/>
+    <medicinal-product>
+        <src-id>10</src-id>
+        <nom>Rilexine 300 mg comprimés</nom>
+        <num>0100010</num>
+        <term-tit>4</term-tit>
+        <term-nat>1</term-nat>
+        <term-stat-auto>5</term-stat-auto>
+        <date-amm>1997-01-01</date-amm>
+        <term-fp>1</term-fp>
+        <num-amm>FR/H/0010/001/DC/001</num-amm>
+        <perm-id>600000123465</perm-id>
+        <composition>
+            <compo>
+                <sa>
+                    <term-sa>9</term-sa>
+                    <quantite>300</quantite>
+                    <term-unite>1</term-unite>
+                </sa>
+            </compo>
+        </composition>
+        <voie-administration>
+            <voie-admin>
+                <term-va>19</term-va>
+                <term-esp>22</term-esp>
+                <term-denr>10</term-denr>
+            </voie-admin>
+        </voie-administration>
+        <modele-destine-vente>
+            <mod-vte>
+                <lib-mod>Boîte de 14 comprimés</lib-mod>
+                <nb-unit>14</nb-unit>
+                <term-pres>10</term-pres>
+                <term-cd>7094</term-cd>
+                <lib-condp>Boîte</lib-condp>
+            </mod-vte>
+        </modele-destine-vente>
+        <mdv-codes-gtin>
+            <mod-vte>
+                <lib-mod>Boîte de 14 comprimés</lib-mod>
+                <pack-id>jjjj0000-0000-0000-0000-000000000010</pack-id>
+                <code-gtin>03597133119047</code-gtin>
+                <num-amm>FR/H/0010/001/DC/001</num-amm>
+            </mod-vte>
+        </mdv-codes-gtin>
+        <atcvet-code>
+            <code-atcvet>QJ01DB01</code-atcvet>
+        </atcvet-code>
     </medicinal-product>
-</medicinal-products>
+</medicinal-product-group>
