@@ -6,8 +6,8 @@ namespace App\Tests\Unit\System\Taxation\Domain\ValueObject;
 
 use App\Shared\Domain\ValueObject\CountryCode;
 use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\System\Money\Domain\ValueObject\Money;
-use App\System\Money\Domain\ValueObject\RoundingPolicyId;
+use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\RoundingPolicyId;
 use App\System\Taxation\Domain\ValueObject\AppliedTaxRate;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\LegalMentions;

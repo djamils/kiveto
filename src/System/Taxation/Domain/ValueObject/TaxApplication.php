@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\System\Taxation\Domain\ValueObject;
 
-use App\System\Money\Domain\ValueObject\Money;
-use App\System\Money\Domain\ValueObject\RoundingPolicyId;
+use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\RoundingPolicyId;
 
 final class TaxApplication
 {

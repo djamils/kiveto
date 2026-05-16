@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\System\Taxation\Application\Query\ResolveTax;
 
 use App\Shared\Application\Bus\QueryInterface;
-use App\System\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;

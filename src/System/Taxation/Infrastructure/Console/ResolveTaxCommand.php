@@ -7,7 +7,7 @@ namespace App\System\Taxation\Infrastructure\Console;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\ValueObject\CountryCode;
 use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\System\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Application\Query\ResolveTax\ResolveTax;
 use App\System\Taxation\Domain\ValueObject\AnimalUsage;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;

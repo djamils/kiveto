@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\System\Taxation\Domain\Service;
 
 use App\Shared\Domain\Time\ClockInterface;
-use App\System\Money\Domain\Service\MoneyCalculator;
-use App\System\Money\Domain\Service\RoundingPolicyRegistry;
-use App\System\Money\Domain\ValueObject\RoundingPolicyId;
+use App\Shared\Money\Domain\Service\MoneyCalculator;
+use App\Shared\Money\Domain\Service\RoundingPolicyRegistry;
+use App\Shared\Money\Domain\ValueObject\RoundingPolicyId;
 use App\System\Taxation\Domain\Entity\TaxRate;
 use App\System\Taxation\Domain\Exception\AmbiguousRateException;
 use App\System\Taxation\Domain\Exception\NoApplicableRateException;

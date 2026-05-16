@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\System\Taxation\Application\Query\GetEffectiveRateForUI;
 
 use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\System\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\Service\TaxResolver;
 use App\System\Taxation\Domain\ValueObject\TaxableItem;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
