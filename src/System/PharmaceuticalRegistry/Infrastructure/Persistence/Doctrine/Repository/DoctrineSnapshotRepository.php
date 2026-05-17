@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry;
 use App\System\PharmaceuticalRegistry\Domain\Entity\SnapshotEntry;
 use App\System\PharmaceuticalRegistry\Domain\Repository\SnapshotRepositoryInterface;
 use App\System\PharmaceuticalRegistry\Domain\Snapshot;
+use App\System\PharmaceuticalRegistry\Domain\ValueObject\DiffKind;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportSource;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\SnapshotId;
 use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntity;
@@ -57,32 +59,7 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
                 $this->em->persist($entryEntity);
             }
 
-            foreach ($snapshot->diffEntries() as $diffEntry) {
-                $entryRepo   = $this->em->getRepository(SnapshotEntryEntity::class);
-                $entryEntity = $entryRepo->findOneBy([
-                    'snapshot'            => $existing,
-                    'authorityIdentifier' => $diffEntry->authorityIdentifier(),
-                ]);
-
-                if (null !== $entryEntity) {
-                    $this->mapper->diffEntryToEntity($diffEntry, $entryEntity);
-                } else {
-                    $newEntry = new SnapshotEntryEntity();
-                    $newEntry->setId(Uuid::v7());
-                    $newEntry->setSnapshot($existing);
-                    $newEntry->setAuthorityIdentifier($diffEntry->authorityIdentifier());
-                    $newEntry->setContentHash('');
-                    $newEntry->setRawDto($diffEntry->rawDto() ?? []);
-                    $newEntry->setDiffKind($diffEntry->diffKind()->value);
-                    $newEntry->setTargetUuid(
-                        null !== $diffEntry->targetUuid()
-                            ? Uuid::fromString($diffEntry->targetUuid()->toString())
-                            : null
-                    );
-                    $newEntry->setChanges($diffEntry->changes());
-                    $this->em->persist($newEntry);
-                }
-            }
+            $this->saveDiffEntries($existing, $snapshot->diffEntries());
         }
 
         $this->em->flush();
@@ -134,6 +111,70 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             \assert($entryEntity instanceof SnapshotEntryEntity);
             yield $this->mapper->snapshotEntryToDomain($entryEntity);
             $this->em->detach($entryEntity);
+        }
+    }
+
+    /**
+     * Bulk-updates diff_kind (and target_uuid for UPDATE/WITHDRAW) on existing
+     * SnapshotEntry rows using DQL UPDATE chunks of 500.
+     * Avoids 3k+ individual findOneBy queries and Doctrine UoW identity-map issues.
+     *
+     * @param DiffEntry[] $diffEntries
+     */
+    private function saveDiffEntries(SnapshotEntity $snapshot, array $diffEntries): void
+    {
+        if ([] === $diffEntries) {
+            return;
+        }
+
+        $byKind = [
+            DiffKind::CREATE->value   => [],
+            DiffKind::UPDATE->value   => [],
+            DiffKind::WITHDRAW->value => [],
+        ];
+
+        foreach ($diffEntries as $entry) {
+            $byKind[$entry->diffKind()->value][] = $entry;
+        }
+
+        // CREATE: set diff_kind only (no targetUuid)
+        foreach (array_chunk($byKind[DiffKind::CREATE->value], 500) as $chunk) {
+            $ids = array_map(static fn (DiffEntry $e) => $e->authorityIdentifier(), $chunk);
+
+            $this->em->createQueryBuilder()
+                ->update(SnapshotEntryEntity::class, 'e')
+                ->set('e.diffKind', ':kind')
+                ->where('e.snapshot = :snapshot')
+                ->andWhere('e.authorityIdentifier IN (:ids)')
+                ->setParameter('kind', DiffKind::CREATE->value)
+                ->setParameter('snapshot', $snapshot)
+                ->setParameter('ids', $ids)
+                ->getQuery()
+                ->execute()
+            ;
+        }
+
+        // UPDATE and WITHDRAW: set diff_kind + targetUuid (one query per entry — small numbers)
+        foreach ([DiffKind::UPDATE->value, DiffKind::WITHDRAW->value] as $kind) {
+            foreach ($byKind[$kind] as $entry) {
+                $targetUuid = null !== $entry->targetUuid()
+                    ? Uuid::fromString($entry->targetUuid()->toString())
+                    : null;
+
+                $this->em->createQueryBuilder()
+                    ->update(SnapshotEntryEntity::class, 'e')
+                    ->set('e.diffKind', ':kind')
+                    ->set('e.targetUuid', ':targetUuid')
+                    ->where('e.snapshot = :snapshot')
+                    ->andWhere('e.authorityIdentifier = :id')
+                    ->setParameter('kind', $kind)
+                    ->setParameter('targetUuid', $targetUuid)
+                    ->setParameter('snapshot', $snapshot)
+                    ->setParameter('id', $entry->authorityIdentifier())
+                    ->getQuery()
+                    ->execute()
+                ;
+            }
         }
     }
 }
