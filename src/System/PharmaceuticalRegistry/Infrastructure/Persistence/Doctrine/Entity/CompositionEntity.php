@@ -27,7 +27,7 @@ class CompositionEntity
     #[ORM\Column(name: 'quantity_value', type: 'string', length: 32, nullable: true)]
     private ?string $quantityValue;
 
-    #[ORM\Column(name: 'quantity_unit_label', type: 'string', length: 64, nullable: true)]
+    #[ORM\Column(name: 'quantity_unit_label', type: 'string', length: 255, nullable: true)]
     private ?string $quantityUnitLabel;
 
     #[ORM\Column(name: 'quantity_unit_code', type: 'string', length: 32, nullable: true)]

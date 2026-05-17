@@ -8,8 +8,10 @@ use App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry;
 use App\System\PharmaceuticalRegistry\Domain\Entity\SnapshotEntry;
 use App\System\PharmaceuticalRegistry\Domain\Repository\SnapshotRepositoryInterface;
 use App\System\PharmaceuticalRegistry\Domain\Snapshot;
+use App\System\PharmaceuticalRegistry\Domain\ValueObject\ContentHash;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\DiffKind;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportSource;
+use App\System\PharmaceuticalRegistry\Domain\ValueObject\MarketingAuthorizationId;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\SnapshotId;
 use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntity;
 use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntryEntity;
@@ -43,16 +45,14 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             $existing->setAppliedAt($snapshot->appliedAt());
             $existing->setErrorMessage($snapshot->errorMessage());
 
-            // Persist snapshot entries added after the initial save (e.g. by AnmvImporter).
-            // Use a COUNT query to avoid loading the full collection into memory.
-            $persistedCount = (int) $this->em->createQueryBuilder()
-                ->select('COUNT(e.id)')
-                ->from(SnapshotEntryEntity::class, 'e')
-                ->where('e.snapshot = :snapshot')
-                ->setParameter('snapshot', $existing)
-                ->getQuery()
-                ->getSingleScalarResult()
-            ;
+            // Count persisted entries via DBAL + UNHEX to avoid ORM binary UUID comparison issue.
+            $snapshotUuidHex   = str_replace('-', '', $snapshot->id()->toString());
+            $table             = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+            $persistedCountRaw = $this->em->getConnection()->executeQuery(
+                "SELECT COUNT(*) FROM {$table} WHERE snapshot_id = UNHEX(?)",
+                [$snapshotUuidHex],
+            )->fetchOne();
+            $persistedCount = is_numeric($persistedCountRaw) ? (int) $persistedCountRaw : 0;
 
             foreach (\array_slice($snapshot->entries(), $persistedCount) as $entry) {
                 $entryEntity = $this->mapper->snapshotEntryToEntity($entry, $existing);
@@ -65,7 +65,7 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
         $this->em->flush();
     }
 
-    public function findById(SnapshotId $id): ?Snapshot
+    public function findById(SnapshotId $id, bool $withDiffEntries = true): ?Snapshot
     {
         $entity = $this->em->find(SnapshotEntity::class, Uuid::fromString($id->toString()));
 
@@ -73,7 +73,9 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             return null;
         }
 
-        return $this->mapper->toDomain($entity);
+        $diffEntries = $withDiffEntries ? $this->loadDiffEntries($id->toString()) : [];
+
+        return $this->mapper->toDomain($entity, $diffEntries);
     }
 
     /**
@@ -93,25 +95,87 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
      */
     public function streamEntriesForDiff(SnapshotId $id): iterable
     {
-        $snapshotEntity = $this->em->find(SnapshotEntity::class, Uuid::fromString($id->toString()));
+        // Use raw DBAL + UNHEX to avoid the ORM binary UUID parameter encoding issue:
+        // Doctrine passes toBinary() as PARAM_STR which MySQL mishandles when the
+        // binary bytes form invalid UTF-8 sequences.
+        $snapshotUuidHex = str_replace('-', '', $id->toString());
+        $table           = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+        $conn            = $this->em->getConnection();
 
-        if (null === $snapshotEntity) {
-            return;
+        $stmt = $conn->executeQuery(
+            "SELECT authority_identifier, content_hash, raw_dto FROM {$table} WHERE snapshot_id = UNHEX(?)",
+            [$snapshotUuidHex],
+        );
+
+        foreach ($stmt->iterateAssociative() as $row) {
+            \assert(\is_string($row['authority_identifier']));
+            \assert(\is_string($row['content_hash']));
+            \assert(\is_string($row['raw_dto']));
+
+            /** @var array<mixed> $rawDto */
+            $rawDto = json_decode($row['raw_dto'], true) ?? [];
+
+            yield new SnapshotEntry(
+                authorityIdentifier: $row['authority_identifier'],
+                contentHash: ContentHash::fromString($row['content_hash']),
+                rawDto: $rawDto,
+            );
+        }
+    }
+
+    /**
+     * Loads diff entries via raw DBAL + UNHEX to avoid ORM binary UUID comparison issue.
+     *
+     * @return DiffEntry[]
+     */
+    private function loadDiffEntries(string $snapshotUuid): array
+    {
+        $snapshotUuidHex = str_replace('-', '', $snapshotUuid);
+        $table           = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+
+        $rows = $this->em->getConnection()->executeQuery(
+            'SELECT authority_identifier, diff_kind, target_uuid, changes, raw_dto'
+            . " FROM {$table}"
+            . ' WHERE snapshot_id = UNHEX(?) AND diff_kind IS NOT NULL',
+            [$snapshotUuidHex],
+        )->fetchAllAssociative();
+
+        $diffEntries = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['authority_identifier']));
+            \assert(\is_string($row['diff_kind']));
+
+            $targetUuid = null;
+
+            if (null !== $row['target_uuid']) {
+                \assert(\is_string($row['target_uuid']));
+                $targetUuid = MarketingAuthorizationId::fromString(
+                    \sprintf(
+                        '%s-%s-%s-%s-%s',
+                        bin2hex(substr($row['target_uuid'], 0, 4)),
+                        bin2hex(substr($row['target_uuid'], 4, 2)),
+                        bin2hex(substr($row['target_uuid'], 6, 2)),
+                        bin2hex(substr($row['target_uuid'], 8, 2)),
+                        bin2hex(substr($row['target_uuid'], 10, 6)),
+                    ),
+                );
+            }
+
+            /** @var array<mixed>|null $rawDto */
+            $rawDto = null !== $row['raw_dto'] && \is_string($row['raw_dto'])
+                ? json_decode($row['raw_dto'], true)
+                : null;
+
+            $diffEntries[] = new DiffEntry(
+                authorityIdentifier: $row['authority_identifier'],
+                diffKind: DiffKind::from($row['diff_kind']),
+                targetUuid: $targetUuid,
+                rawDto: $rawDto,
+            );
         }
 
-        $qb = $this->em->createQueryBuilder()
-            ->select('e')
-            ->from(SnapshotEntryEntity::class, 'e')
-            ->where('e.snapshot = :snapshot')
-            ->setParameter('snapshot', $snapshotEntity)
-            ->getQuery()
-        ;
-
-        foreach ($qb->toIterable() as $entryEntity) {
-            \assert($entryEntity instanceof SnapshotEntryEntity);
-            yield $this->mapper->snapshotEntryToDomain($entryEntity);
-            $this->em->detach($entryEntity);
-        }
+        return $diffEntries;
     }
 
     /**

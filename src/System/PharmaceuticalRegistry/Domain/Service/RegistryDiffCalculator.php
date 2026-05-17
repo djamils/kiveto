@@ -33,18 +33,18 @@ final class RegistryDiffCalculator
             $seenIdentifiers[$identifier] = true;
 
             if (!isset($projectionMap[$identifier])) {
+                // rawDto is intentionally omitted — it lives in snapshot_entries.raw_dto
+                // and will be loaded from DB at apply time via SnapshotMapper::toDomain().
                 $diffEntries[] = new DiffEntry(
                     authorityIdentifier: $identifier,
                     diffKind: DiffKind::CREATE,
                     targetUuid: null,
-                    rawDto: $entry->rawDto(),
                 );
             } elseif (!$projectionMap[$identifier]->contentHash->equals($entry->contentHash())) {
                 $diffEntries[] = new DiffEntry(
                     authorityIdentifier: $identifier,
                     diffKind: DiffKind::UPDATE,
                     targetUuid: $projectionMap[$identifier]->id,
-                    rawDto: $entry->rawDto(),
                 );
             }
         }

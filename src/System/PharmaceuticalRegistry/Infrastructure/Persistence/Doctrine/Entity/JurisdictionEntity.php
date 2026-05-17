@@ -10,10 +10,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity]
 #[ORM\Table]
-#[ORM\UniqueConstraint(
-    name: 'uniq_pharma_jurisdiction',
-    columns: ['jurisdiction_code', 'authority_code', 'authority_identifier'],
-)]
+#[ORM\Index(name: 'idx_pharma_jurisdiction_lookup', columns: ['jurisdiction_code', 'authority_code', 'authority_identifier'])]
 class JurisdictionEntity
 {
     #[ORM\Id]

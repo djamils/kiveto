@@ -153,7 +153,7 @@ final class AnmvCodeMapper
         $fr = JurisdictionCode::fromString('FR');
 
         return match ($code) {
-            1, 2, 5, 6, 7, 8, 7093 => PrescriptionRequirement::none(),
+            0, 1, 2, 5, 6, 7, 8, 7093 => PrescriptionRequirement::none(),
             3, 4, 9, 11, 12, 14, 7094, 7095, 8565, 10930 => PrescriptionRequirement::rx(
                 PrescriptionClass::RX,
                 JurisdictionalPrescriptionCode::of($fr, (string) $code),

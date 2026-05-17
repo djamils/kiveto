@@ -8,10 +8,8 @@ use App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry;
 use App\System\PharmaceuticalRegistry\Domain\Entity\SnapshotEntry;
 use App\System\PharmaceuticalRegistry\Domain\Snapshot;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ContentHash;
-use App\System\PharmaceuticalRegistry\Domain\ValueObject\DiffKind;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportSource;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportStatus;
-use App\System\PharmaceuticalRegistry\Domain\ValueObject\MarketingAuthorizationId;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\SnapshotId;
 use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntity;
 use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntryEntity;
@@ -19,30 +17,15 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class SnapshotMapper
 {
-    /** Does NOT load entries — entries are streamed separately via streamEntriesForDiff(). */
-    public function toDomain(SnapshotEntity $entity): Snapshot
+    /**
+     * Build Snapshot domain object with pre-loaded diff entries.
+     * Diff entries must be loaded via DBAL (UNHEX) to avoid the ORM binary
+     * UUID parameter encoding issue on MySQL utf8mb4 connections.
+     *
+     * @param DiffEntry[] $diffEntries
+     */
+    public function toDomain(SnapshotEntity $entity, array $diffEntries = []): Snapshot
     {
-        $diffEntries = [];
-
-        foreach ($entity->getEntries() as $entryEntity) {
-            if (null === $entryEntity->getDiffKind()) {
-                continue;
-            }
-
-            $diffKind = DiffKind::from($entryEntity->getDiffKind());
-            $targetId = null !== $entryEntity->getTargetUuid()
-                ? MarketingAuthorizationId::fromString($entryEntity->getTargetUuid()->toString())
-                : null;
-
-            $diffEntries[] = new DiffEntry(
-                authorityIdentifier: $entryEntity->getAuthorityIdentifier(),
-                diffKind: $diffKind,
-                targetUuid: $targetId,
-                changes: $entryEntity->getChanges(),
-                rawDto: $entryEntity->getRawDto(),
-            );
-        }
-
         return Snapshot::reconstitute(
             id: SnapshotId::fromString($entity->getId()->toString()),
             source: ImportSource::from($entity->getSource()),

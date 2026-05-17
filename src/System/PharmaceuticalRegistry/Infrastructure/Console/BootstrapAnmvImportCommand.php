@@ -13,6 +13,7 @@ use App\System\PharmaceuticalRegistry\Application\Command\ImportSnapshot\ImportS
 use App\System\PharmaceuticalRegistry\Application\Port\BlueprintBuilderInterface;
 use App\System\PharmaceuticalRegistry\Domain\ActiveSubstance;
 use App\System\PharmaceuticalRegistry\Domain\Entity\Composition;
+use App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry;
 use App\System\PharmaceuticalRegistry\Domain\Entity\Presentation;
 use App\System\PharmaceuticalRegistry\Domain\MarketingAuthorization;
 use App\System\PharmaceuticalRegistry\Domain\Repository\ActiveSubstanceRepositoryInterface;
@@ -22,8 +23,10 @@ use App\System\PharmaceuticalRegistry\Domain\ValueObject\ActiveSubstanceId;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\DiffKind;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportResult;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\ImportSource;
+use App\System\PharmaceuticalRegistry\Domain\ValueObject\MarketingAuthorizationId;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\PresentationId;
 use App\System\PharmaceuticalRegistry\Domain\ValueObject\SnapshotId;
+use App\System\PharmaceuticalRegistry\Infrastructure\Persistence\Doctrine\Entity\SnapshotEntryEntity;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -65,6 +68,9 @@ final class BootstrapAnmvImportCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        // Bootstrap handles ~14 000 products — needs more than the default 128M
+        ini_set('memory_limit', '1G');
+
         /** @var string|null $fileOverride */
         $fileOverride = $input->getOption('file');
         /** @var string|null $dictOverride */
@@ -105,7 +111,7 @@ final class BootstrapAnmvImportCommand extends Command
 
         $output->writeln('<info>Diff calculated. Applying in batches...</info>');
 
-        $snapshot = $this->snapshotRepository->findById(SnapshotId::fromString($snapshotId));
+        $snapshot = $this->snapshotRepository->findById(SnapshotId::fromString($snapshotId), withDiffEntries: false);
 
         if (null === $snapshot) {
             $output->writeln('<error>Snapshot not found after staging.</error>');
@@ -121,9 +127,49 @@ final class BootstrapAnmvImportCommand extends Command
         $batch     = [];
         $batchNum  = 0;
 
+        // Stream diff entries directly from DB to avoid loading all rawDtos at once (memory).
+        $snapshotUuidHex = str_replace('-', '', $snapshotId);
+        $table           = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+
         try {
-            foreach ($snapshot->diffEntries() as $entry) {
-                $batch[] = $entry;
+            $stmt = $this->em->getConnection()->executeQuery(
+                'SELECT authority_identifier, diff_kind, target_uuid, raw_dto'
+                . " FROM {$table}"
+                . ' WHERE snapshot_id = UNHEX(?) AND diff_kind IS NOT NULL',
+                [$snapshotUuidHex],
+            );
+
+            foreach ($stmt->iterateAssociative() as $row) {
+                \assert(\is_string($row['authority_identifier']));
+                \assert(\is_string($row['diff_kind']));
+
+                $targetUuid = null;
+
+                if (null !== $row['target_uuid']) {
+                    \assert(\is_string($row['target_uuid']));
+                    $targetUuid = MarketingAuthorizationId::fromString(
+                        \sprintf(
+                            '%s-%s-%s-%s-%s',
+                            bin2hex(substr($row['target_uuid'], 0, 4)),
+                            bin2hex(substr($row['target_uuid'], 4, 2)),
+                            bin2hex(substr($row['target_uuid'], 6, 2)),
+                            bin2hex(substr($row['target_uuid'], 8, 2)),
+                            bin2hex(substr($row['target_uuid'], 10, 6)),
+                        ),
+                    );
+                }
+
+                /** @var array<mixed>|null $rawDto */
+                $rawDto = null !== $row['raw_dto'] && \is_string($row['raw_dto'])
+                    ? json_decode($row['raw_dto'], true)
+                    : null;
+
+                $batch[] = new DiffEntry(
+                    authorityIdentifier: $row['authority_identifier'],
+                    diffKind: DiffKind::from($row['diff_kind']),
+                    targetUuid: $targetUuid,
+                    rawDto: $rawDto,
+                );
 
                 if (\count($batch) >= $batchSize) {
                     $this->processBatch($batch, $snapshot->source()->value, $now, $created, $updated, $withdrawn, $skipped);
@@ -140,9 +186,13 @@ final class BootstrapAnmvImportCommand extends Command
             $snapshot->markAsApplied(ImportResult::of($created, $updated, $withdrawn, $skipped), $now);
             $this->snapshotRepository->save($snapshot);
         } catch (\Throwable $e) {
-            $snapshot->markAsFailed($e->getMessage(), $now);
-            $this->snapshotRepository->save($snapshot);
-            $output->writeln(\sprintf('<error>Bootstrap failed: %s</error>', $e->getMessage()));
+            $output->writeln(\sprintf('<error>Bootstrap failed: %s in %s:%d</error>', $e->getMessage(), $e->getFile(), $e->getLine()));
+
+            try {
+                $snapshot->markAsFailed($e->getMessage(), $now);
+                $this->snapshotRepository->save($snapshot);
+            } catch (\Throwable) {
+            }
 
             return Command::FAILURE;
         }
@@ -164,7 +214,7 @@ final class BootstrapAnmvImportCommand extends Command
     }
 
     /**
-     * @param \App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry[] $batch
+     * @param DiffEntry[] $batch
      */
     private function processBatch(
         array $batch,
@@ -191,6 +241,7 @@ final class BootstrapAnmvImportCommand extends Command
             $this->em->flush();
             $this->em->commit();
             $this->em->clear();
+            gc_collect_cycles();
         } catch (\Throwable $e) {
             $this->em->rollback();
 
@@ -199,7 +250,7 @@ final class BootstrapAnmvImportCommand extends Command
     }
 
     private function applyCreate(
-        \App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry $entry,
+        DiffEntry $entry,
         ImportSource $source,
         \DateTimeImmutable $now,
         int &$created,
@@ -247,7 +298,7 @@ final class BootstrapAnmvImportCommand extends Command
         }
 
         $ma = MarketingAuthorization::create(
-            id: \App\System\PharmaceuticalRegistry\Domain\ValueObject\MarketingAuthorizationId::fromString($this->uuidGenerator->generate()),
+            id: MarketingAuthorizationId::fromString($this->uuidGenerator->generate()),
             commercialName: $blueprint->commercialName,
             holderLaboratory: $blueprint->holderLaboratory,
             status: $blueprint->status,
@@ -272,7 +323,7 @@ final class BootstrapAnmvImportCommand extends Command
     }
 
     private function applyUpdate(
-        \App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry $entry,
+        DiffEntry $entry,
         ImportSource $source,
         \DateTimeImmutable $now,
         int &$updated,
@@ -296,7 +347,7 @@ final class BootstrapAnmvImportCommand extends Command
     }
 
     private function applyWithdraw(
-        \App\System\PharmaceuticalRegistry\Domain\Entity\DiffEntry $entry,
+        DiffEntry $entry,
         \DateTimeImmutable $now,
         int &$withdrawn,
     ): void {

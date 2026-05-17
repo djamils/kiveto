@@ -13,7 +13,8 @@ interface SnapshotRepositoryInterface
 {
     public function save(Snapshot $snapshot): void;
 
-    public function findById(SnapshotId $id): ?Snapshot;
+    /** @param bool $withDiffEntries Set to false in memory-constrained contexts (bootstrap) to skip loading rawDto. */
+    public function findById(SnapshotId $id, bool $withDiffEntries = true): ?Snapshot;
 
     /**
      * @return Snapshot[]

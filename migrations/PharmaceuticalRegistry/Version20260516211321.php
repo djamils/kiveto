@@ -59,7 +59,7 @@ final class Version20260516211321 extends AbstractMigration
             CREATE TABLE pharmaceutical_registry__compositions (
               id BINARY(16) NOT NULL,
               quantity_value VARCHAR(32) DEFAULT NULL,
-              quantity_unit_label VARCHAR(64) DEFAULT NULL,
+              quantity_unit_label VARCHAR(255) DEFAULT NULL,
               quantity_unit_code VARCHAR(32) DEFAULT NULL,
               is_excipient TINYINT DEFAULT 0 NOT NULL,
               authorization_id BINARY(16) NOT NULL,
