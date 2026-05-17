@@ -127,9 +127,9 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             return;
         }
 
-        $conn        = $this->em->getConnection();
-        $table       = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
-        $snapshotBin = $snapshot->getId()->toBinary();
+        $conn            = $this->em->getConnection();
+        $table           = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+        $snapshotUuidHex = str_replace('-', '', $snapshot->getId()->toRfc4122());
 
         $byKind = [
             DiffKind::CREATE->value   => [],
@@ -141,27 +141,27 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             $byKind[$entry->diffKind()->value][] = $entry;
         }
 
-        // CREATE: bulk UPDATE in chunks of 500 — no target_uuid needed
+        // CREATE: bulk UPDATE in chunks of 500 via UNHEX() to avoid binary param encoding issues
         foreach (array_chunk($byKind[DiffKind::CREATE->value], 500) as $chunk) {
             $ids          = array_map(static fn (DiffEntry $e) => $e->authorityIdentifier(), $chunk);
             $placeholders = implode(',', array_fill(0, \count($ids), '?'));
 
             $conn->executeStatement(
-                "UPDATE {$table} SET diff_kind = ? WHERE snapshot_id = ? AND authority_identifier IN ({$placeholders})",
-                array_merge([DiffKind::CREATE->value, $snapshotBin], $ids),
+                "UPDATE {$table} SET diff_kind = ? WHERE snapshot_id = UNHEX(?) AND authority_identifier IN ({$placeholders})",
+                array_merge([DiffKind::CREATE->value, $snapshotUuidHex], $ids),
             );
         }
 
-        // UPDATE and WITHDRAW: one row per entry (small numbers in practice)
+        // UPDATE and WITHDRAW: one query per entry (small numbers in practice)
         foreach ([DiffKind::UPDATE->value, DiffKind::WITHDRAW->value] as $kind) {
             foreach ($byKind[$kind] as $entry) {
-                $targetUuidBin = null !== $entry->targetUuid()
-                    ? Uuid::fromString($entry->targetUuid()->toString())->toBinary()
+                $targetUuidHex = null !== $entry->targetUuid()
+                    ? str_replace('-', '', $entry->targetUuid()->toString())
                     : null;
 
                 $conn->executeStatement(
-                    "UPDATE {$table} SET diff_kind = ?, target_uuid = ? WHERE snapshot_id = ? AND authority_identifier = ?",
-                    [$kind, $targetUuidBin, $snapshotBin, $entry->authorityIdentifier()],
+                    "UPDATE {$table} SET diff_kind = ?, target_uuid = UNHEX(?) WHERE snapshot_id = UNHEX(?) AND authority_identifier = ?",
+                    [$kind, $targetUuidHex, $snapshotUuidHex, $entry->authorityIdentifier()],
                 );
             }
         }
