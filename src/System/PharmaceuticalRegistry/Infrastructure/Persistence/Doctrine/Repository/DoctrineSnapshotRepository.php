@@ -115,9 +115,9 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
     }
 
     /**
-     * Bulk-updates diff_kind (and target_uuid for UPDATE/WITHDRAW) on existing
-     * SnapshotEntry rows using DQL UPDATE chunks of 500.
-     * Avoids 3k+ individual findOneBy queries and Doctrine UoW identity-map issues.
+     * Bulk-updates diff_kind (and target_uuid for UPDATE/WITHDRAW) via raw DBAL.
+     * Bypasses Doctrine ORM entirely to avoid DQL IN-parameter expansion issues
+     * and UoW identity-map interference after mass detach().
      *
      * @param DiffEntry[] $diffEntries
      */
@@ -126,6 +126,10 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
         if ([] === $diffEntries) {
             return;
         }
+
+        $conn        = $this->em->getConnection();
+        $table       = $this->em->getClassMetadata(SnapshotEntryEntity::class)->getTableName();
+        $snapshotBin = $snapshot->getId()->toBinary();
 
         $byKind = [
             DiffKind::CREATE->value   => [],
@@ -137,43 +141,28 @@ final class DoctrineSnapshotRepository implements SnapshotRepositoryInterface
             $byKind[$entry->diffKind()->value][] = $entry;
         }
 
-        // CREATE: set diff_kind only (no targetUuid)
+        // CREATE: bulk UPDATE in chunks of 500 — no target_uuid needed
         foreach (array_chunk($byKind[DiffKind::CREATE->value], 500) as $chunk) {
-            $ids = array_map(static fn (DiffEntry $e) => $e->authorityIdentifier(), $chunk);
+            $ids          = array_map(static fn (DiffEntry $e) => $e->authorityIdentifier(), $chunk);
+            $placeholders = implode(',', array_fill(0, \count($ids), '?'));
 
-            $this->em->createQueryBuilder()
-                ->update(SnapshotEntryEntity::class, 'e')
-                ->set('e.diffKind', ':kind')
-                ->where('e.snapshot = :snapshot')
-                ->andWhere('e.authorityIdentifier IN (:ids)')
-                ->setParameter('kind', DiffKind::CREATE->value)
-                ->setParameter('snapshot', $snapshot)
-                ->setParameter('ids', $ids)
-                ->getQuery()
-                ->execute()
-            ;
+            $conn->executeStatement(
+                "UPDATE {$table} SET diff_kind = ? WHERE snapshot_id = ? AND authority_identifier IN ({$placeholders})",
+                array_merge([DiffKind::CREATE->value, $snapshotBin], $ids),
+            );
         }
 
-        // UPDATE and WITHDRAW: set diff_kind + targetUuid (one query per entry — small numbers)
+        // UPDATE and WITHDRAW: one row per entry (small numbers in practice)
         foreach ([DiffKind::UPDATE->value, DiffKind::WITHDRAW->value] as $kind) {
             foreach ($byKind[$kind] as $entry) {
-                $targetUuid = null !== $entry->targetUuid()
-                    ? Uuid::fromString($entry->targetUuid()->toString())
+                $targetUuidBin = null !== $entry->targetUuid()
+                    ? Uuid::fromString($entry->targetUuid()->toString())->toBinary()
                     : null;
 
-                $this->em->createQueryBuilder()
-                    ->update(SnapshotEntryEntity::class, 'e')
-                    ->set('e.diffKind', ':kind')
-                    ->set('e.targetUuid', ':targetUuid')
-                    ->where('e.snapshot = :snapshot')
-                    ->andWhere('e.authorityIdentifier = :id')
-                    ->setParameter('kind', $kind)
-                    ->setParameter('targetUuid', $targetUuid)
-                    ->setParameter('snapshot', $snapshot)
-                    ->setParameter('id', $entry->authorityIdentifier())
-                    ->getQuery()
-                    ->execute()
-                ;
+                $conn->executeStatement(
+                    "UPDATE {$table} SET diff_kind = ?, target_uuid = ? WHERE snapshot_id = ? AND authority_identifier = ?",
+                    [$kind, $targetUuidBin, $snapshotBin, $entry->authorityIdentifier()],
+                );
             }
         }
     }
