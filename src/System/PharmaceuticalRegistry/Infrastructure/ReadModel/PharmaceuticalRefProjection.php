@@ -40,7 +40,7 @@ final readonly class PharmaceuticalRefProjection
             return null;
         }
 
-        return $this->hydrate($presentation->getAuthorization());
+        return $this->hydrate($presentation->getAuthorization(), $gtin);
     }
 
     public function findByJurisdictionalId(string $jurisdiction, string $authority, string $identifier): ?PharmaceuticalRefView
@@ -60,7 +60,7 @@ final readonly class PharmaceuticalRefProjection
         return $this->hydrate($jurisdictionEntity->getAuthorization());
     }
 
-    private function hydrate(AuthorizationEntity $entity): PharmaceuticalRefView
+    private function hydrate(AuthorizationEntity $entity, ?string $knownGtin = null): PharmaceuticalRefView
     {
         $presentations = $entity->getPresentations()->map(
             static fn (PresentationEntity $p) => [
@@ -75,6 +75,8 @@ final readonly class PharmaceuticalRefProjection
             static fn (CompositionEntity $c) => $c->getActiveSubstance()->getLabel(),
         )->toArray();
 
+        $gtin = $knownGtin ?? $this->extractFirstGtin($entity);
+
         return new PharmaceuticalRefView(
             id: $entity->getId()->toString(),
             commercialName: $entity->getCommercialName(),
@@ -87,6 +89,19 @@ final readonly class PharmaceuticalRefProjection
             pharmaceuticalForm: $entity->getPharmaceuticalForm(),
             lastImportSource: $entity->getLastImportSource(),
             lastImportedAt: $entity->getLastImportedAt(),
+            controlledSubstanceClass: $entity->getControlledSubstanceClass(),
+            gtin: $gtin,
         );
+    }
+
+    private function extractFirstGtin(AuthorizationEntity $entity): ?string
+    {
+        foreach ($entity->getPresentations() as $presentation) {
+            if (null !== $presentation->getGtin()) {
+                return $presentation->getGtin();
+            }
+        }
+
+        return null;
     }
 }

@@ -22,6 +22,8 @@ readonly class PharmaceuticalRefView
         public string $pharmaceuticalForm,
         public string $lastImportSource,
         public \DateTimeImmutable $lastImportedAt,
+        public ?string $controlledSubstanceClass = null,
+        public ?string $gtin = null,
     ) {
     }
 }

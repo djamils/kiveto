@@ -34,7 +34,7 @@ final readonly class GetMarketingAuthorizationDetailHandler
             pharmaceuticalForm: $view->pharmaceuticalForm,
             atcVetCode: $view->atcVetCode,
             permanentIdentifier: $view->permanentIdentifier,
-            controlledSubstanceClass: null,
+            controlledSubstanceClass: $view->controlledSubstanceClass,
             presentations: $view->presentations,
             activeSubstances: $view->activeSubstanceLabels,
             targetUsages: [],
