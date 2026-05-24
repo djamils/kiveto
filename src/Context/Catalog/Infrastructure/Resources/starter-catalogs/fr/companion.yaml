@@ -1,0 +1,133 @@
+acts:
+  - code: CONS_STD
+    name: "Consultation standard"
+    category: CONSULTATION
+    tax_category_code: "veterinary.act.consultation"
+    base_price_minor_units: 5000
+    estimated_duration_minutes: 20
+    requires_anesthesia: false
+
+  - code: CONS_VACC
+    name: "Consultation vaccin"
+    category: VACCINATION
+    tax_category_code: "veterinary.act.consultation"
+    base_price_minor_units: 6000
+    estimated_duration_minutes: 30
+    requires_anesthesia: false
+
+  - code: STERIL_FEMELLE
+    name: "Stérilisation femelle"
+    category: SURGERY
+    tax_category_code: "veterinary.act.surgery"
+    base_price_minor_units: 25000
+    estimated_duration_minutes: 90
+    requires_anesthesia: true
+
+  - code: RADIO_THORAX
+    name: "Radiographie thorax"
+    category: IMAGING
+    tax_category_code: "veterinary.act.imaging"
+    base_price_minor_units: 8000
+    estimated_duration_minutes: 15
+    requires_anesthesia: false
+
+  - code: HOSPIT_J
+    name: "Hospitalisation jour"
+    category: HOSPITALIZATION
+    tax_category_code: "veterinary.act.hospitalization"
+    base_price_minor_units: 12000
+    estimated_duration_minutes: 480
+    requires_anesthesia: false
+
+drug_articles:
+  - code: AMOX-250
+    name: "Amoxicilline 250mg comprimés"
+    gtin: "03401234567890"
+    tax_category_code: "veterinary.drug.prescription"
+    base_price_minor_units: 1500
+    unit_of_measure: TABLET
+    authorization_ref: null
+    requires_prescription: true
+    prescription_class: RX
+    is_controlled_substance: false
+    track_stock: true
+
+  - code: MELOXI-1
+    name: "Meloxicam 1mg/ml solution injectable"
+    gtin: "03401234567891"
+    tax_category_code: "veterinary.drug.prescription"
+    base_price_minor_units: 2200
+    unit_of_measure: ML
+    authorization_ref: null
+    requires_prescription: true
+    prescription_class: RX
+    is_controlled_substance: false
+    track_stock: true
+
+  - code: TRAMAD-50
+    name: "Tramadol 50mg comprimés"
+    gtin: "03401234567892"
+    tax_category_code: "veterinary.drug.controlled"
+    base_price_minor_units: 3000
+    unit_of_measure: TABLET
+    authorization_ref: null
+    requires_prescription: true
+    prescription_class: RX_CONTROLLED
+    is_controlled_substance: true
+    track_stock: true
+
+  - code: VACC-POLYV
+    name: "Vaccin polyvalent chien"
+    gtin: "03401234567893"
+    tax_category_code: "veterinary.drug.vaccine"
+    base_price_minor_units: 1800
+    unit_of_measure: DOSE
+    authorization_ref: null
+    requires_prescription: false
+    prescription_class: null
+    is_controlled_substance: false
+    track_stock: true
+
+  - code: SEDAT-MEDE
+    name: "Médétomidine 1mg/ml solution injectable"
+    gtin: "03401234567894"
+    tax_category_code: "veterinary.drug.controlled"
+    base_price_minor_units: 4500
+    unit_of_measure: ML
+    authorization_ref: null
+    requires_prescription: true
+    prescription_class: RX_CONTROLLED
+    is_controlled_substance: true
+    track_stock: true
+
+non_drug_articles:
+  - code: COLLAR-E
+    name: "Collerette élisabéthaine"
+    kind: CONSUMABLE
+    gtin: null
+    tax_category_code: "veterinary.consumable.standard"
+    base_price_minor_units: 800
+    unit_of_measure: UNIT
+    track_stock: true
+
+  - code: BANDAGE-STD
+    name: "Bandage stérile standard"
+    kind: CONSUMABLE
+    gtin: null
+    tax_category_code: "veterinary.consumable.standard"
+    base_price_minor_units: 350
+    unit_of_measure: UNIT
+    track_stock: true
+
+  - code: FOOD-RC
+    name: "Royal Canin Veterinary Diet"
+    kind: FOOD
+    gtin: null
+    tax_category_code: "veterinary.food.dietetic"
+    base_price_minor_units: 5500
+    unit_of_measure: KG
+    track_stock: true
+
+price_lists:
+  - name: "Tarifs standard"
+    is_default: true
