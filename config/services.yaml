@@ -464,6 +464,41 @@ services:
     App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxCategoryMapper: ~
     App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\MentionTemplateMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: CATALOG
+    # ============================================================================
+
+    App\Context\Catalog\Application\Port\PharmaceuticalRefProviderInterface:
+        class: App\Context\Catalog\Infrastructure\Adapter\HealthRegistry\HealthRegistryPharmaceuticalRefAdapter
+
+    App\Context\Catalog\Application\Port\ClinicInfoProviderInterface:
+        class: App\Context\Catalog\Infrastructure\Adapter\Clinic\ClinicInfoAdapter
+
+    App\Context\Catalog\Domain\Act\Repository\ActRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineActRepository
+
+    App\Context\Catalog\Domain\Article\Repository\ArticleRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineArticleRepository
+
+    App\Context\Catalog\Application\Port\ArticleReadRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineArticleReadRepository
+
+    App\Context\Catalog\Domain\Pricing\Repository\PriceListRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePriceListRepository
+
+    App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePackageRepository
+
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\ActMapper: ~
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\ArticleMapper: ~
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\PriceListMapper: ~
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\PriceListItemMapper: ~
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\PriceRuleMapper: ~
+    App\Context\Catalog\Infrastructure\Persistence\Doctrine\Mapper\PackageMapper: ~
+
+    App\Context\Catalog\Application\Port\CatalogSearchRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineCatalogSearchRepository
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
@@ -574,3 +609,42 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: CATALOG — public for integration tests
+        # ========================================================================
+
+        App\Context\Catalog\Domain\Act\Repository\ActRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineActRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Domain\Article\Repository\ArticleRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineArticleRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Application\Port\ArticleReadRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineArticleReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Domain\Pricing\Repository\PriceListRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePriceListRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePackageRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Application\Port\PharmaceuticalRefProviderInterface:
+            class: App\Context\Catalog\Infrastructure\Adapter\HealthRegistry\HealthRegistryPharmaceuticalRefAdapter
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Application\Port\ClinicInfoProviderInterface:
+            class: App\Context\Catalog\Infrastructure\Adapter\Clinic\ClinicInfoAdapter
+            public: true
+            autowire: true

@@ -99,6 +99,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Regulatory/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Regulatory\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Regulatory
+            Catalog:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Catalog/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Catalog
         controller_resolver:
             auto_mapping: false
 
