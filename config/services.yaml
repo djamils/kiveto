@@ -133,6 +133,12 @@ services:
             $catalogPath: '%kernel.project_dir%/src/Shared/Money/Infrastructure/Resources/currencies.yaml'
         public: true
 
+    # Shared / UnitOfMeasure — static unit catalogue loaded from YAML
+    App\Shared\Domain\UnitOfMeasure\Service\UnitOfMeasureRegistry:
+        class: App\Shared\Infrastructure\UnitOfMeasure\Registry\YamlUnitOfMeasureRegistry
+        arguments:
+            $catalogPath: '%kernel.project_dir%/src/Shared/Infrastructure/UnitOfMeasure/Resources/units.yaml'
+
     # ============================================================================
     # BOUNDED CONTEXT: IDENTITY ACCESS
     # ============================================================================

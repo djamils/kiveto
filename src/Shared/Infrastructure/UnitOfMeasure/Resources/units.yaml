@@ -1,0 +1,48 @@
+units:
+  BOX:
+    category: COUNT
+    base_factor: ~
+
+  TABLET:
+    category: COUNT
+    base_factor: ~
+
+  CAPSULE:
+    category: COUNT
+    base_factor: ~
+
+  VIAL:
+    category: COUNT
+    base_factor: ~
+
+  SACHET:
+    category: COUNT
+    base_factor: ~
+
+  AMPULE:
+    category: COUNT
+    base_factor: ~
+
+  UNIT:
+    category: COUNT
+    base_factor: ~
+
+  DOSE:
+    category: COUNT
+    base_factor: ~
+
+  ML:
+    category: VOLUME
+    base_factor: '0.001'
+
+  L:
+    category: VOLUME
+    base_factor: '1'
+
+  G:
+    category: MASS
+    base_factor: '0.001'
+
+  KG:
+    category: MASS
+    base_factor: '1'
