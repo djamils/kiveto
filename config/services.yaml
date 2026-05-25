@@ -499,6 +499,29 @@ services:
     App\Context\Catalog\Application\Port\CatalogSearchRepositoryInterface:
         class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineCatalogSearchRepository
 
+    # ============================================================================
+    # BOUNDED CONTEXT: INVENTORY
+    # ============================================================================
+
+    App\Context\Inventory\Domain\StockItem\Repository\StockItemRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockItemRepository
+
+    App\Context\Inventory\Application\Port\StockItemReadRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockItemReadRepository
+
+    App\Context\Inventory\Domain\StockMovement\Repository\StockMovementRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockMovementRepository
+
+    App\Context\Inventory\Application\Port\StockAlertReadRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockAlertReadRepository
+
+    App\Context\Inventory\Application\Port\ArticleProviderInterface:
+        class: App\Context\Inventory\Infrastructure\Adapter\Catalog\CatalogArticleProviderAdapter
+
+    App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockItemMapper: ~
+    App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\LotMapper: ~
+    App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockMovementMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

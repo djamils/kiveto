@@ -15,6 +15,7 @@ doctrine_migrations:
         'DoctrineMigrations\Regulatory': '%kernel.project_dir%/migrations/Regulatory'
         'DoctrineMigrations\Taxation': '%kernel.project_dir%/migrations/Taxation'
         'DoctrineMigrations\Catalog': '%kernel.project_dir%/migrations/Catalog'
+        'DoctrineMigrations\Inventory': '%kernel.project_dir%/migrations/Inventory'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true
