@@ -1,0 +1,565 @@
+products:
+  # Hematology analyzer supplies
+  - code: ALC-HEMA-DILUENT-20L
+    name: "Diluant hématologie analyseur 20L"
+    price_minor: 8900
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-HEMA-LYSE-5L
+    name: "Réactif lyse érythrocytaire 5L"
+    price_minor: 6200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-HEMA-RINSE-20L
+    name: "Solution de rinçage analyseur 20L"
+    price_minor: 4500
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-HEMA-CTRL-N
+    name: "Contrôle normal NFS 5ml 6 flacons"
+    price_minor: 12000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: ALC-HEMA-CTRL-A
+    name: "Contrôle anormal NFS 5ml 6 flacons"
+    price_minor: 12000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: ALC-HEMA-CAL-5ML
+    name: "Calibrant hématologie 5ml 4 flacons"
+    price_minor: 15000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "4"
+  # Biochemistry reagents
+  - code: ALC-BIO-ALB-50T
+    name: "Réactif albumine 50 tests"
+    price_minor: 3200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-ALT-50T
+    name: "Réactif ALAT/ALT 50 tests"
+    price_minor: 3800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-AST-50T
+    name: "Réactif ASAT/AST 50 tests"
+    price_minor: 3800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-UREE-50T
+    name: "Réactif urée 50 tests"
+    price_minor: 2900
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-CREAT-50T
+    name: "Réactif créatinine 50 tests"
+    price_minor: 3100
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-GLU-50T
+    name: "Réactif glucose 50 tests"
+    price_minor: 2800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-CHOL-50T
+    name: "Réactif cholestérol total 50 tests"
+    price_minor: 3200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-TRIG-50T
+    name: "Réactif triglycérides 50 tests"
+    price_minor: 3200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-TBIL-50T
+    name: "Réactif bilirubine totale 50 tests"
+    price_minor: 3600
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-PHOS-50T
+    name: "Réactif phosphore inorganique 50 tests"
+    price_minor: 3100
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-CALCI-50T
+    name: "Réactif calcium 50 tests"
+    price_minor: 3300
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-PROT-50T
+    name: "Réactif protéines totales 50 tests"
+    price_minor: 2900
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-PALC-50T
+    name: "Réactif phosphatase alcaline 50 tests"
+    price_minor: 3500
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-AMYL-50T
+    name: "Réactif amylase 50 tests"
+    price_minor: 3800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-LIPAS-50T
+    name: "Réactif lipase 50 tests"
+    price_minor: 4200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-GGT-50T
+    name: "Réactif gamma-GT 50 tests"
+    price_minor: 3600
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-CPK-50T
+    name: "Réactif créatine kinase total 50 tests"
+    price_minor: 4100
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-BIO-CTRL-N
+    name: "Contrôle biochimie niveau normal 5ml 6 flacons"
+    price_minor: 9800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: ALC-BIO-CTRL-P
+    name: "Contrôle biochimie niveau pathologique 5ml 6 flacons"
+    price_minor: 9800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: ALC-BIO-CAL-SERUM
+    name: "Sérum de calibration multi-paramètre 5ml 4 flacons"
+    price_minor: 14500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "4"
+  # Cytology products
+  - code: ALC-CYTO-PAPAN-500ML
+    name: "Colorant May-Grünwald-Giemsa 500ml"
+    price_minor: 2800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-CYTO-DIFF-500ML
+    name: "Colorant Diff-Quik solution A 500ml"
+    price_minor: 2400
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-CYTO-DIFF-B-500
+    name: "Colorant Diff-Quik solution B 500ml"
+    price_minor: 2400
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-CYTO-RAPI-DIFF
+    name: "Kit Rapi-Diff colorant rapide 3 flacons"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "3"
+  - code: ALC-CYTO-FIXAT-SPRAY
+    name: "Spray fixateur cytologie 400ml"
+    price_minor: 1850
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-CYTO-CYTOFU-TUBE
+    name: "Tubes coniques cytofuge 50 pièces"
+    price_minor: 2100
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: ALC-CYTO-LAME-FROSTED
+    name: "Lames dépolies bords ronds 100 pièces"
+    price_minor: 520
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  # Bacteriology supplies
+  - code: ALC-BACTI-SWAB-AMIES
+    name: "Écouvillons transport milieu Amies 25 pièces"
+    price_minor: 1680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "25"
+  - code: ALC-BACTI-SWAB-CHAR
+    name: "Écouvillons charbon activated 25 pièces"
+    price_minor: 1750
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "25"
+  - code: ALC-BACTI-AGAR-SANG
+    name: "Gélose au sang de mouton 10 boîtes"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-BACTI-AGAR-CHOC
+    name: "Gélose chocolat polyvitex 10 boîtes"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-BACTI-AGAR-MAC
+    name: "Gélose MacConkey 10 boîtes"
+    price_minor: 2600
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-BACTI-AGAR-SABOU
+    name: "Gélose Sabouraud chloramphénicol 10 boîtes"
+    price_minor: 2900
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-BACTI-ANTIBIOG
+    name: "Galerie d'antibiogramme vétérinaire 10 pièces"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-BACTI-DISQUES-AMP
+    name: "Disques ampicilline 10mcg 50 disques"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: ALC-BACTI-DISQUES-ENRO
+    name: "Disques enrofloxacine 5mcg 50 disques"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: ALC-BACTI-DISQUES-AMOX
+    name: "Disques amoxicilline/acide clavulanique 50 disques"
+    price_minor: 1350
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  # Urine analysis strips and reagents
+  - code: ALC-URIN-STRIP-10P
+    name: "Bandelettes urinaires 10 paramètres 100 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-URIN-STRIP-5P
+    name: "Bandelettes urinaires 5 paramètres 100 pièces"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-URIN-TUBE-CONIQ
+    name: "Tubes coniques urine 10ml 100 pièces"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-URIN-REFRACT-SOL
+    name: "Solution de nettoyage réfractomètre 100ml"
+    price_minor: 680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  # PCR test kits
+  - code: ALC-PCR-PARVO-CHIEN
+    name: "Kit PCR parvovirus canin 24 tests"
+    price_minor: 18500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-HERPES-FELIN
+    name: "Kit PCR herpèsvirus félin 24 tests"
+    price_minor: 18500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-LEPTOSPIRA
+    name: "Kit PCR leptospira spp 24 tests"
+    price_minor: 22000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-ANAPLASMA
+    name: "Kit PCR Anaplasma phagocytophilum 24 tests"
+    price_minor: 24000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-EHRLICHIA
+    name: "Kit PCR Ehrlichia canis 24 tests"
+    price_minor: 24000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-BORRELIA
+    name: "Kit PCR Borrelia burgdorferi 24 tests"
+    price_minor: 26000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-TOXOPLASMA
+    name: "Kit PCR Toxoplasma gondii 24 tests"
+    price_minor: 22000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-LEISHMANIA
+    name: "Kit PCR Leishmania infantum 24 tests"
+    price_minor: 28000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-PCR-CRYPTO-FEL
+    name: "Kit PCR Cryptococcus neoformans félin 24 tests"
+    price_minor: 25000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  # Serology ELISA kits
+  - code: ALC-ELIS-FIV-96T
+    name: "Kit ELISA FIV anticorps 96 tests"
+    price_minor: 32000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ELIS-FELV-96T
+    name: "Kit ELISA FeLV antigène 96 tests"
+    price_minor: 32000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ELIS-TOXO-96T
+    name: "Kit ELISA Toxoplasma IgG 96 tests"
+    price_minor: 28000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  # Coagulation
+  - code: ALC-COAG-PT-24T
+    name: "Réactif temps de prothrombine 24 tests"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-COAG-APTT-24T
+    name: "Réactif TCA (APTT) 24 tests"
+    price_minor: 5200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-COAG-FIBRI-24T
+    name: "Réactif fibrinogène 24 tests"
+    price_minor: 5600
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "24"
+  - code: ALC-COAG-TUBE-CITRAT
+    name: "Tubes citratés 2.7ml 100 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  # Endocrinology
+  - code: ALC-ENDO-T4-96T
+    name: "Kit dosage T4 total 96 tests"
+    price_minor: 28000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ENDO-TSH-96T
+    name: "Kit dosage TSH canine 96 tests"
+    price_minor: 34000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ENDO-CORTISOL-96T
+    name: "Kit dosage cortisol 96 tests"
+    price_minor: 30000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ENDO-PROGESTER-96T
+    name: "Kit dosage progestérone 96 tests"
+    price_minor: 32000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  - code: ALC-ENDO-INSUL-96T
+    name: "Kit dosage insuline 96 tests"
+    price_minor: 36000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "96"
+  # Rapid tests (immunochromatography)
+  - code: ALC-RAPID-LEISH-10T
+    name: "Tests rapides Leishmania anticorps 10 tests"
+    price_minor: 5600
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-RAPID-EHRLICH-10T
+    name: "Tests rapides Ehrlichia/Anaplasma 10 tests"
+    price_minor: 5800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-RAPID-BORRELIA-10T
+    name: "Tests rapides Borrelia anticorps 10 tests"
+    price_minor: 6200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-RAPID-GIARDIA-10T
+    name: "Tests rapides Giardia antigène 10 tests"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-RAPID-CRYPTO-10T
+    name: "Tests rapides Cryptosporidium antigène 10 tests"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: ALC-RAPID-CRP-5T
+    name: "Tests rapides CRP quantitatif 5 tests"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: ALC-RAPID-SAA-5T
+    name: "Tests rapides SAA (sérum amyloïde A) 5 tests"
+    price_minor: 3400
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  # Laboratory consumables
+  - code: ALC-CONS-MICROTUBE-15
+    name: "Microtubes 1.5ml sans bouchon 500 pièces"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "500"
+  - code: ALC-CONS-MICROTUBE-2
+    name: "Microtubes 2ml à bouchon 500 pièces"
+    price_minor: 1350
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "500"
+  - code: ALC-CONS-PIPETTE-P200
+    name: "Pointes de pipette P200 jaunes 200 pièces"
+    price_minor: 680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "200"
+  - code: ALC-CONS-PIPETTE-P1000
+    name: "Pointes de pipette P1000 bleues 100 pièces"
+    price_minor: 720
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-CONS-TUBE-15ML
+    name: "Tubes Falcon 15ml stériles 50 pièces"
+    price_minor: 850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: ALC-CONS-TUBE-50ML
+    name: "Tubes Falcon 50ml stériles 25 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "25"
+  - code: ALC-CONS-GANTS-NITRILE-S
+    name: "Gants nitrile non poudrés taille S 100 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-CONS-GANTS-NITRILE-M
+    name: "Gants nitrile non poudrés taille M 100 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-CONS-GANTS-NITRILE-L
+    name: "Gants nitrile non poudrés taille L 100 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-CONS-GANTS-VINYL-M
+    name: "Gants vinyle non poudrés taille M 100 pièces"
+    price_minor: 680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-CONS-DESINFECT-PAILLASSE
+    name: "Désinfectant paillasse laboratoire 1L concentré"
+    price_minor: 1850
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-CONS-PAPIER-ABS
+    name: "Papier absorbant laboratoire 400 feuilles"
+    price_minor: 580
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "400"
+  - code: ALC-CONS-RACK-TUBE
+    name: "Rack porte-tubes polypropylène 50 positions"
+    price_minor: 1200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Blood gas and electrolytes
+  - code: ALC-GAZ-CARTOUCHE-100T
+    name: "Cartouches analyseur gazométrie 100 tests"
+    price_minor: 28000
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: ALC-GAZ-SOL-ETALON
+    name: "Solution d'étalonnage gazométrie 4 flacons"
+    price_minor: 8500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "4"
+  - code: ALC-ELEC-REAGENT-NA-K
+    name: "Réactif électrolytes Na/K/Cl 100 tests"
+    price_minor: 6800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: ALC-ELEC-CAL-STD
+    name: "Standard de calibration électrolytes 50ml"
+    price_minor: 3200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"

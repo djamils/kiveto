@@ -1,0 +1,558 @@
+products:
+  - code: CVT-VAC-RABIES-001
+    name: "Vaccin Antirabique Lyovac 10 doses"
+    gtin: "3401583742391"
+    price_minor: 4250
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "10"
+  - code: CVT-ATB-AMOX-500
+    name: "Amoxicilline 500mg 100 comprimés"
+    gtin: "3400938754201"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ATB-ENRO-50
+    name: "Enrofloxacine 50mg/ml 100ml injectable"
+    price_minor: 2890
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-PAR-IVERM-1
+    name: "Ivermectine 1% injectable 500ml"
+    price_minor: 3200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-PAR-PRAZ-50
+    name: "Praziquantel 50mg 20 comprimés"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "20"
+  - code: CVT-ANTI-MELO-15
+    name: "Méloxicam 15mg/ml 50ml injectable"
+    price_minor: 1650
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-ANTI-KETAM-10
+    name: "Kétamine 10% 10ml injectable"
+    price_minor: 2200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-SEDA-ACE-10
+    name: "Acépromazine 10mg/ml 10ml"
+    price_minor: 1450
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-SERINGUE-5
+    name: "Seringues 5ml stériles 100 pièces"
+    price_minor: 650
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-AIGUILLE-21G
+    name: "Aiguilles 21G x 1.5 pouces 100 pièces"
+    price_minor: 480
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-VAC-POLY-C5
+    name: "Vaccin polyvalent chien 5 valences"
+    gtin: "3401583742408"
+    price_minor: 5600
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "10"
+  - code: CVT-ATB-CEPHAL-500
+    name: "Céfalexine 500mg 100 gélules"
+    price_minor: 2100
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ATB-DOXY-100
+    name: "Doxycycline 100mg 100 comprimés"
+    price_minor: 1750
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-CARPROFEN-50
+    name: "Carprofène 50mg 100 comprimés"
+    price_minor: 3400
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-GANTS-L
+    name: "Gants en latex taille L 100 pièces"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-GANTS-M
+    name: "Gants en latex taille M 100 pièces"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-CATHETER-20
+    name: "Cathéter intraveineux 20G 50 pièces"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: CVT-CONS-CATHETER-22
+    name: "Cathéter intraveineux 22G 50 pièces"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: CVT-CONS-PERFUSION-1L
+    name: "Soluté NaCl 0.9% 1L 12 poches"
+    price_minor: 1800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-COMPRESSES-5
+    name: "Compresses stériles 5x5cm 100 pièces"
+    price_minor: 450
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-PREDNI-5
+    name: "Prednisolone 5mg 100 comprimés"
+    price_minor: 1350
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-DEXA-2
+    name: "Dexaméthasone 2mg/ml 50ml injectable"
+    price_minor: 1680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-VAC-LEPT-4
+    name: "Vaccin leptospirose 4 sérovars 10 doses"
+    gtin: "3401583742415"
+    price_minor: 6200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "10"
+  - code: CVT-CONS-BISTOURI-22
+    name: "Lames bistouri n22 100 pièces"
+    price_minor: 680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-FILS-2-0
+    name: "Fils résorbables 2-0 polyglycolic 12 aiguilles"
+    price_minor: 2400
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-FILS-3-0
+    name: "Fils résorbables 3-0 polyglycolic 12 aiguilles"
+    price_minor: 2400
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-SPARADRAP-5
+    name: "Sparadrap médical 5cm x 5m"
+    price_minor: 350
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: CVT-CONS-BANDE-10
+    name: "Bandes cohésives 10cm x 4.5m 12 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-ALCOOL-1L
+    name: "Alcool isopropylique 70% 1L"
+    price_minor: 520
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-BETADINE-250
+    name: "Bétadine scrub 10% 250ml"
+    price_minor: 680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-TUBE-EDTA-2
+    name: "Tubes EDTA 2ml pour NFS 100 pièces"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-TUBE-SEC-5
+    name: "Tubes secs 5ml biochimie 100 pièces"
+    price_minor: 920
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-LAME-MICRO
+    name: "Lames microscopie 25x75mm 100 pièces"
+    price_minor: 380
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-LAMELLE
+    name: "Lamelles couvre-objet 18x18mm 200 pièces"
+    price_minor: 290
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "200"
+  - code: CVT-ANES-PROPO-10
+    name: "Propofol 10mg/ml 20ml injectable"
+    price_minor: 3800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "10"
+  - code: CVT-ANES-ISOFL-250
+    name: "Isoflurane 250ml pour inhalation"
+    price_minor: 12500
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-ANES-MIDAZ-5
+    name: "Midazolam 5mg/ml 10ml injectable"
+    price_minor: 2800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-MASQUE-CHIRURG
+    name: "Masques chirurgicaux 50 pièces"
+    price_minor: 480
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: CVT-CONS-SURBLOUSE
+    name: "Surblouses imperméables jetables 10 pièces"
+    price_minor: 620
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-CHARLOTTE
+    name: "Charlottes jetables 100 pièces"
+    price_minor: 380
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-COUVRE-CHAUS
+    name: "Couvre-chaussures jetables 100 pièces"
+    price_minor: 420
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-DIAG-RAPID-PARVO
+    name: "Tests rapides parvovirus chien 10 pièces"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-DIAG-RAPID-CORONA
+    name: "Tests rapides coronavirus félin 10 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-DIAG-RAPID-FIV
+    name: "Tests rapides FIV/FeLV chat 10 pièces"
+    price_minor: 5600
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-CYSTOFIX
+    name: "Kits cystocentèse 20G 48 unités"
+    price_minor: 2900
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "48"
+  - code: CVT-ANTI-FUROS-10
+    name: "Furosémide 10mg/ml 20ml injectable"
+    price_minor: 1280
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-ANTI-ENALAPRIL-5
+    name: "Énalapril 5mg 100 comprimés"
+    price_minor: 2100
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-ATENOL-25
+    name: "Aténolol 25mg 100 comprimés"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-VAC-FELV-10
+    name: "Vaccin FeLV 10 doses"
+    gtin: "3401583742422"
+    price_minor: 4800
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "10"
+  - code: CVT-CONS-COLLIER-ELIZ-S
+    name: "Collerettes élisabéthaines taille S 5 pièces"
+    price_minor: 680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: CVT-CONS-COLLIER-ELIZ-M
+    name: "Collerettes élisabéthaines taille M 5 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: CVT-CONS-COLLIER-ELIZ-L
+    name: "Collerettes élisabéthaines taille L 5 pièces"
+    price_minor: 880
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: CVT-CONS-PLAQUE-CHAUFF
+    name: "Plaques chauffantes rechargeables 2 pièces"
+    price_minor: 1500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "2"
+  - code: CVT-ANTI-TRAMADOL-50
+    name: "Tramadol 50mg 100 comprimés"
+    price_minor: 2650
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-GABAPENTIN-100
+    name: "Gabapentine 100mg 100 gélules"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ANTI-MAROPITANT-16
+    name: "Maropitant 16mg 4 comprimés"
+    price_minor: 1800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "4"
+  - code: CVT-DERM-CHLORHEX-4
+    name: "Chlorhexidine shampooing 4% 250ml"
+    price_minor: 1250
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-OPHT-VISCOL-10
+    name: "Viscomélalose solution ophtalmique 10ml"
+    price_minor: 1680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-OPHT-CHLORAM-5
+    name: "Chloramphénicol collyre 1% 5ml"
+    price_minor: 920
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-ANTIPAR-NEOPROSOL
+    name: "Néoprosol 100ml pour injection"
+    price_minor: 2100
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-PAR-MILBEMAX-CHAT
+    name: "Milbemax chat 48 comprimés"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "48"
+  - code: CVT-PAR-MILBEMAX-CHIEN
+    name: "Milbemax chien 48 comprimés"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "48"
+  - code: CVT-CONS-SAC-STERILE
+    name: "Sachets stériles autoclave 200x350mm 200 pièces"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "200"
+  - code: CVT-CONS-GAZE-STREE
+    name: "Gaze stérile en rouleau 10cm x 4m"
+    price_minor: 450
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: CVT-ATB-METRONIDAZOL-250
+    name: "Métronidazole 250mg 100 comprimés"
+    price_minor: 1580
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-ATB-SPIRAMYCINE-500
+    name: "Spiramycine 500mg 20 comprimés"
+    price_minor: 1950
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "20"
+  - code: CVT-ENDO-SOMATOSTATINE-10
+    name: "Octréotide 100mcg/ml 10ml"
+    price_minor: 8900
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-ONCO-CYCLOPHOSPHAMIDE-50
+    name: "Cyclophosphamide 50mg 10 comprimés"
+    price_minor: 4500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-ELECTRO-GEL
+    name: "Gel conducteur électrocardiographie 250ml"
+    price_minor: 680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-RADIO-FILM
+    name: "Films radiographiques 18x24cm 100 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-ECHO-GEL
+    name: "Gel échographie 1kg"
+    price_minor: 890
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-DESINFECT-500
+    name: "Désinfectant surfaces 500ml"
+    price_minor: 580
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-SAVON-CHIRU
+    name: "Savon chirurgical antiseptique 500ml"
+    price_minor: 720
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-PAR-FRONTLINE-CHAT
+    name: "Frontline Combo chat 6 pipettes"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: CVT-PAR-FRONTLINE-CHIEN-M
+    name: "Frontline Combo chien M 10-20kg 6 pipettes"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: CVT-CONS-MICROCHIP-ISO
+    name: "Micropuces ISO 15mm 10 pièces"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-SONDE-FOLEY-12
+    name: "Sondes de Foley 12 CH 10 pièces"
+    price_minor: 1250
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-SONDE-URINAIRE-8
+    name: "Sondes urinaires 8 CH 10 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-CONS-DRAIN-THORAX
+    name: "Drains thoraciques 14 FR 5 pièces"
+    price_minor: 1680
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: CVT-CONS-OPERCULE-PERF
+    name: "Opercules de perfusion 100 pièces"
+    price_minor: 520
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-TUBULURE-PERF
+    name: "Tubulures perfusion standard 50 pièces"
+    price_minor: 890
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: CVT-ANTI-BUPRENORPHINE-0-3
+    name: "Buprénorphine 0.3mg/ml 1ml ampoules 5 pièces"
+    price_minor: 3500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: CVT-ANTI-MORPHINE-10
+    name: "Morphine 10mg/ml 1ml ampoules 10 pièces"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-ATB-CEFOVET-1G
+    name: "Céfovétine 1g poudre injectable 1 flacon"
+    price_minor: 8900
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-EXTENSEUR-SANG
+    name: "Extenseurs de sang DEXTRAN 70 500ml"
+    price_minor: 1250
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: CVT-CONS-RINGER-500
+    name: "Ringer lactate 500ml 12 poches"
+    price_minor: 1600
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-GLUCOS-5-500
+    name: "Glucose 5% 500ml 12 poches"
+    price_minor: 1520
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: CVT-CONS-KCL-7-5
+    name: "Chlorure de potassium 7.5% 20ml ampoules 10 pièces"
+    price_minor: 980
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: CVT-OPHT-CHLORAM-POMM
+    name: "Chloramphénicol pommade ophtalmique 5g"
+    price_minor: 1120
+    currency: EUR
+    unit: TUBE
+    packaging_amount: "1"
+  - code: CVT-CONS-SERINGUE-1
+    name: "Seringues insuline 1ml 100 pièces"
+    price_minor: 580
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-SERINGUE-10
+    name: "Seringues 10ml stériles 100 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: CVT-CONS-SERINGUE-20
+    name: "Seringues 20ml stériles 50 pièces"
+    price_minor: 650
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"

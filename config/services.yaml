@@ -23,6 +23,9 @@ parameters:
         animal: 'clinic_animals_view'
         client: 'clinic_clients_view'
 
+    # Procurement BC parameters
+    procurement.simulation.profile: 'DEMO_FAST'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -522,6 +525,62 @@ services:
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\LotMapper: ~
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockMovementMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: PROCUREMENT
+    # ============================================================================
+
+    # Supplier Integration Adapters (tagged for SupplierIntegrationDispatcher)
+    App\Context\Procurement\Infrastructure\Adapter\Supplier\Simulation\SimulatedSupplierAdapter:
+        tags: ['procurement.supplier_adapter']
+
+    App\Context\Procurement\Infrastructure\Adapter\Supplier\Manual\CentravetCsvExporter:
+        tags: ['procurement.supplier_adapter']
+
+    App\Context\Procurement\Infrastructure\Adapter\Supplier\Manual\AlcyonCsvExporter:
+        tags: ['procurement.supplier_adapter']
+
+    App\Context\Procurement\Infrastructure\Adapter\Supplier\Manual\GenericCsvExporter:
+        tags: ['procurement.supplier_adapter']
+
+    # Shared file storage
+    App\Shared\Domain\Storage\FileStorageInterface:
+        alias: App\Shared\Infrastructure\Storage\LocalFileSystemStorage
+
+    # Cross-BC port adapters
+    App\Context\Procurement\Application\Port\ClinicProviderInterface:
+        alias: App\Context\Procurement\Infrastructure\Adapter\Clinic\ClinicProviderAdapter
+
+    App\Context\Procurement\Application\Port\ArticleProviderInterface:
+        alias: App\Context\Procurement\Infrastructure\Adapter\Catalog\CatalogArticleProviderAdapter
+
+    # PurchaseOrderNumberGeneratorInterface
+    App\Context\Procurement\Domain\PurchaseOrder\Service\PurchaseOrderNumberGeneratorInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrinePurchaseOrderNumberSequenceRepository
+
+    # SupplierIntegrationDispatcher: inject tagged adapters
+    App\Context\Procurement\Application\Service\SupplierIntegrationDispatcher:
+        arguments:
+            $adapters: !tagged_iterator procurement.supplier_adapter
+
+    # Procurement read repository port bindings
+    App\Context\Procurement\Application\Port\SupplierReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierReadRepository
+
+    App\Context\Procurement\Application\Port\SupplierAccountReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierAccountReadRepository
+
+    App\Context\Procurement\Application\Port\SupplierCatalogReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierCatalogReadRepository
+
+    App\Context\Procurement\Application\Port\SupplierPricingReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierPricingReadRepository
+
+    App\Context\Procurement\Application\Port\PurchaseOrderReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrinePurchaseOrderReadRepository
+
+    App\Context\Procurement\Application\Port\SupplierReceiptReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierReceiptReadRepository
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
@@ -669,5 +728,49 @@ when@test:
 
         App\Context\Catalog\Application\Port\ClinicInfoProviderInterface:
             class: App\Context\Catalog\Infrastructure\Adapter\Clinic\ClinicInfoAdapter
+            public: true
+            autowire: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: PROCUREMENT — public for integration tests
+        # ========================================================================
+
+        App\Context\Procurement\Domain\Supplier\Repository\SupplierRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\SupplierAccount\Repository\SupplierAccountRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierAccountRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\SupplierCatalog\Repository\SupplierCatalogEntryRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierCatalogEntryRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\SupplierPricing\Repository\SupplierPricingRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierPricingRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\PurchaseOrder\Repository\PurchaseOrderRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrinePurchaseOrderRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\SupplierReceipt\Repository\SupplierReceiptRepositoryInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierReceiptRepository
+            public: true
+            autowire: true
+
+        App\Context\Procurement\Domain\PurchaseOrder\Service\PurchaseOrderNumberGeneratorInterface:
+            class: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrinePurchaseOrderNumberSequenceRepository
+            public: true
+            autowire: true
+
+        App\Shared\Application\Bus\CommandBusInterface:
+            class: App\Shared\Infrastructure\Bus\Messenger\CommandBus
             public: true
             autowire: true
