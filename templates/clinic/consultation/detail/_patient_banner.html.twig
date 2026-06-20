@@ -1,12 +1,16 @@
-{# Patient bar — single-row compact, cockpit design #}
+{# Patient bar — single-row compact, ported from layout #}
 <div class="patient-bar">
   <div class="pb-row">
 
-    <div class="pb-photo" title="Voir le dossier patient">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Félin">
-        <path d="M12 5C8.5 5 5.5 7.5 5 11c-.3 1.5-.5 4 1 6h12c1.5-2 1.3-4.5 1-6C18.5 7.5 15.5 5 12 5z"/>
-        <path d="M8 5 6 2M16 5l2-2"/>
-        <path d="M9.5 14v.5M14.5 14v.5M10.5 17h3"/>
+    <div class="pb-photo" title="Modifier la photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Chien">
+        <path d="M10 5.172A4 4 0 0 1 14 5l3 1.5"/>
+        <path d="M5.5 9.172a3 3 0 0 1 0-4 3 3 0 0 1 4.5 0L11 6.5"/>
+        <path d="M19 9.172a3 3 0 0 0 0-4 3 3 0 0 0-4.5 0L13 6.5"/>
+        <path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/>
+        <path d="M8 14v.5"/>
+        <path d="M16 14v.5"/>
+        <path d="M11.25 16.25h1.5L12 17z"/>
       </svg>
     </div>
 
@@ -16,37 +20,37 @@
         <span class="badge b-feline" style="font-size:var(--text-xs)">♀ stérilisée</span>
       </div>
       <div class="pb-meta">
-        <span>Persan</span>
-        <span class="sep-v" aria-hidden="true"></span>
+        <span>Beauceron</span>
+        <span class="sep-v"></span>
         <span>4 ans</span>
-        <span class="sep-v" aria-hidden="true"></span>
-        <span class="mono" style="font-size:var(--text-sm)">#PAT-00412</span>
-        <span class="sep-v" aria-hidden="true"></span>
+        <span class="sep-v"></span>
+        <span class="mono" style="font-size:var(--text-sm)">250268500412739</span>
+        <span class="sep-v"></span>
         <span class="pb-owner">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c.5-2.5 3-4 5.5-4s5 1.5 5.5 4"/></svg>
-          Mme Dubois
+          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c.5-2.5 3-4 5.5-4s5 1.5 5.5 4"/></svg>
+          Marie Lambert
         </span>
       </div>
     </div>
 
     <div class="pb-warnings">
       <span class="pb-warn">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
+        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
         Allergie pénicilline
       </span>
       <span class="pb-warn is-info">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
-        Rappel FeLV à faire
+        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
+        Suivi arthrose
       </span>
     </div>
 
     <div class="pb-actions">
       <button class="btn btn-ghost btn-sm">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 6h6M5 9h4"/></svg>
+        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 6h6M5 9h4"/></svg>
         Dossier complet
       </button>
-      <button class="btn btn-ghost btn-icon btn-sm" title="Plus d'options" aria-label="Plus d'options">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Plus">
+        <svg class="icon-14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
       </button>
     </div>
 

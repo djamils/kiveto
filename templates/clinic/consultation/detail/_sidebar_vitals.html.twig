@@ -1,13 +1,13 @@
-{# Summary strip — motif chips + constantes vitales #}
+{# Summary strip — motif chips + constantes vitales (ported from layout) #}
 <div class="summary">
 
   <div class="strip">
     <span class="strip-label">Motif</span>
     <div class="strip-content">
-      <button class="chip is-selected" type="button">Suivi vaccinal</button>
-      <button class="chip is-selected" type="button">Troubles digestifs</button>
-      <button class="chip chip-add" type="button">+ ajouter</button>
-      <span class="strip-text" style="margin-left:var(--space-2)">Propriétaire signale une légère perte d'appétit depuis 2 jours. Luna est moins active. Pas de vomissements.</span>
+      <button class="chip is-selected">Vaccination</button>
+      <button class="chip is-selected">Boiterie</button>
+      <button class="chip chip-add">+ ajouter</button>
+      <span class="strip-text" style="margin-left:var(--space-2)">Rappel CHPLR + boiterie postérieure D depuis 5 j, intermittente.</span>
     </div>
   </div>
 
@@ -15,43 +15,20 @@
     <span class="strip-label">Constantes</span>
     <div class="vitals-strip">
 
-      <div class="vital-pill" data-state="ok">
+      <div class="vital-pill">
         <div class="vital-pill-label">Poids</div>
-        <div class="vital-pill-value">3,8 <span class="unit">kg</span></div>
-        <span class="vital-pill-delta is-down">−0,2 kg</span>
-        <button class="row-x" title="Retirer" aria-label="Retirer le poids">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
+        <div class="vital-pill-value">28,5 <span class="unit">kg</span></div>
+        <span class="vital-pill-delta is-down">−0,3 kg</span>
       </div>
 
-      <div class="vital-pill" data-state="warn">
-        <div class="vital-pill-label">Température</div>
-        <div class="vital-pill-value">39,6 <span class="unit">°C</span></div>
-        <button class="row-x" title="Retirer" aria-label="Retirer la température">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
-      </div>
-
-      <div class="vital-pill" data-state="">
-        <div class="vital-pill-label">FC</div>
-        <div class="vital-pill-value">142 <span class="unit">bpm</span></div>
-        <button class="row-x" title="Retirer" aria-label="Retirer la FC">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
-      </div>
-
-      <div class="vital-pill" data-state="">
-        <div class="vital-pill-label">FR</div>
-        <div class="vital-pill-value">28 <span class="unit">/min</span></div>
-        <button class="row-x" title="Retirer" aria-label="Retirer la FR">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
-      </div>
-
-      <button class="chip chip-add" type="button" style="align-self:stretch;min-width:140px;padding:var(--space-1) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-md);justify-content:center;gap:var(--space-2);">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+      <button class="chip chip-add">
+        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
         ajouter une constante
       </button>
+
+      <span class="strip-text" style="margin-left:auto;color:var(--text-subtle);font-size:var(--text-sm)">
+        Température · FC · FR · Score douleur · TRC · Muqueuses…
+      </span>
 
     </div>
   </div>
