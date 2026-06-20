@@ -1,0 +1,515 @@
+products:
+  # Surgical consumables — general
+  - code: HPC-CHIR-FILS-VICRYL-2-0
+    name: "Fils Vicryl résorbables 2-0 aiguille ronde 12 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: HPC-CHIR-FILS-VICRYL-3-0
+    name: "Fils Vicryl résorbables 3-0 aiguille triangulaire 12 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: HPC-CHIR-FILS-NYLON-3-0
+    name: "Fils nylon non résorbables 3-0 12 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: HPC-CHIR-FILS-NYLON-4-0
+    name: "Fils nylon non résorbables 4-0 12 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: HPC-CHIR-FILS-PDS-0
+    name: "Fils PDS résorbables 0 aiguille ronde 12 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "12"
+  - code: HPC-CHIR-LAME-10
+    name: "Lames bistouri n10 stériles 100 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-CHIR-LAME-15
+    name: "Lames bistouri n15 stériles 100 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-CHIR-LAME-22
+    name: "Lames bistouri n22 stériles 100 pièces"
+    price_minor: 780
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-CHIR-CAMP-STER
+    name: "Champs opératoires stériles 50x75cm 10 pièces"
+    price_minor: 2400
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-CHIR-GANTS-STER-6-5
+    name: "Gants chirurgicaux stériles taille 6.5 50 paires"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-CHIR-GANTS-STER-7-0
+    name: "Gants chirurgicaux stériles taille 7.0 50 paires"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-CHIR-GANTS-STER-7-5
+    name: "Gants chirurgicaux stériles taille 7.5 50 paires"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-CHIR-TROCART-5MM
+    name: "Trocart laparoscopie 5mm réutilisable"
+    price_minor: 28000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-CHIR-TROCART-10MM
+    name: "Trocart laparoscopie 10mm réutilisable"
+    price_minor: 32000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-CHIR-AGRAFE-SKIN-35
+    name: "Agrafeuse cutanée 35 agrafes"
+    price_minor: 2200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-CHIR-AGRAFE-ENLEV
+    name: "Dégrafeuse cutanée 10 pièces"
+    price_minor: 1200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  # Wound care
+  - code: HPC-PANS-TELFA-10-20
+    name: "Pansements non adhérents Telfa 10x20cm 50 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-PANS-TELFA-5-10
+    name: "Pansements non adhérents Telfa 5x10cm 50 pièces"
+    price_minor: 1800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-PANS-COHERE-5CM
+    name: "Bande cohésive Vetrap 5cm x 4.5m 36 rouleaux"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "36"
+  - code: HPC-PANS-COHERE-10CM
+    name: "Bande cohésive Vetrap 10cm x 4.5m 18 rouleaux"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "18"
+  - code: HPC-PANS-HYDROC-10
+    name: "Pansement hydrocolloïde 10x10cm 10 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-PANS-ALGIN-10
+    name: "Pansement alginate de calcium 10x10cm 10 pièces"
+    price_minor: 4500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-PANS-FOAM-10
+    name: "Pansement mousse polyuréthane 10x10cm 10 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-PANS-SILICONE-10
+    name: "Pansement siliconé non adhérent 10x10cm 10 pièces"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-PANS-TULLE-GRAS
+    name: "Tulle gras imprégné vaseline 10x10cm 30 pièces"
+    price_minor: 2100
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "30"
+  - code: HPC-PANS-IODOFORM
+    name: "Mèche iodoformée 1cm x 5m stérile"
+    price_minor: 980
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Orthopedic implants and supplies
+  - code: HPC-ORTHO-PLAQUE-3-5-4T
+    name: "Plaque de compression dynamique DCP 3.5mm 4 trous"
+    price_minor: 18500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ORTHO-PLAQUE-3-5-6T
+    name: "Plaque de compression dynamique DCP 3.5mm 6 trous"
+    price_minor: 22000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ORTHO-PLAQUE-2-7-4T
+    name: "Plaque vétérinaire 2.7mm 4 trous"
+    price_minor: 15500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ORTHO-VIS-CORTICAL-35
+    name: "Vis corticale 3.5mm x 16mm 10 pièces"
+    price_minor: 8500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ORTHO-VIS-CORTICAL-27
+    name: "Vis corticale 2.7mm x 12mm 10 pièces"
+    price_minor: 7200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ORTHO-VIS-OS-35
+    name: "Vis spongieuse tête large 3.5mm 10 pièces"
+    price_minor: 9200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ORTHO-BROCHE-2MM
+    name: "Broche de Steinmann 2.0mm 25cm 10 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ORTHO-BROCHE-2-5MM
+    name: "Broche de Steinmann 2.5mm 25cm 10 pièces"
+    price_minor: 4200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ORTHO-FIL-CERCLAGE-1
+    name: "Fil de cerclage acier inoxydable 1mm 5m"
+    price_minor: 2800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ORTHO-ATTELLE-THERMO
+    name: "Attelle thermoformable vétérinaire 30x40cm"
+    price_minor: 3500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ORTHO-RESINE-CAST
+    name: "Résine de moulage orthopédique 5cm x 3.6m"
+    price_minor: 2200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Dental equipment and supplies
+  - code: HPC-DENT-FRAISE-ROUND-1
+    name: "Fraises dentaires boule n1 carbure de tungstène 5 pièces"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: HPC-DENT-FRAISE-ROUND-2
+    name: "Fraises dentaires boule n2 carbure de tungstène 5 pièces"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: HPC-DENT-FRAISE-FISS-1
+    name: "Fraises dentaires fissure n1 carbure de tungstène 5 pièces"
+    price_minor: 4800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: HPC-DENT-CURETTE-GRACEY
+    name: "Curettes Gracey universelle acier stérile 2 pièces"
+    price_minor: 6500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "2"
+  - code: HPC-DENT-SONDE-PARO
+    name: "Sondes parodontales graduées 2 pièces"
+    price_minor: 5200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "2"
+  - code: HPC-DENT-DISCLOSANT
+    name: "Solution révélatrice de plaque dentaire 30ml"
+    price_minor: 1200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: HPC-DENT-ACRYLIQ-20G
+    name: "Résine acrylique auto-polymérisante dentaire 20g"
+    price_minor: 2800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-DENT-GUTTA-PERCHA
+    name: "Points de gutta-percha ISO 25 120 points"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "120"
+  - code: HPC-DENT-LIME-K-15
+    name: "Limes K-file ISO 15 longueur 25mm 6 pièces"
+    price_minor: 2200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: HPC-DENT-LIME-K-25
+    name: "Limes K-file ISO 25 longueur 25mm 6 pièces"
+    price_minor: 2200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "6"
+  - code: HPC-DENT-RADIOGRAPH-DENT
+    name: "Films radiographiques dentaires D-speed 50 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  # Anesthesia accessories
+  - code: HPC-ANES-MASQUE-CHIEN-3
+    name: "Masque anesthésie chien taille 3"
+    price_minor: 4200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-MASQUE-CHIEN-4
+    name: "Masque anesthésie chien taille 4"
+    price_minor: 4200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-MASQUE-CHAT-1
+    name: "Masque anesthésie chat taille 1"
+    price_minor: 3800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-MASQUE-CHAT-2
+    name: "Masque anesthésie chat taille 2"
+    price_minor: 3800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-SONDE-INTUB-5
+    name: "Sondes intubation Murphy 5.0mm 10 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ANES-SONDE-INTUB-6
+    name: "Sondes intubation Murphy 6.0mm 10 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ANES-SONDE-INTUB-7
+    name: "Sondes intubation Murphy 7.0mm 10 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ANES-SONDE-INTUB-8
+    name: "Sondes intubation Murphy 8.0mm 10 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-ANES-FILTRE-BACT
+    name: "Filtres bactériens respiratoires 25 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "25"
+  - code: HPC-ANES-CIRCUIT-BAIN
+    name: "Circuits respiratoires Bain 1.5m réutilisable"
+    price_minor: 8500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-CHAUX-SODEE-1KG
+    name: "Chaux sodée absorbant CO2 1kg"
+    price_minor: 2200
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: HPC-ANES-VALVE-APL
+    name: "Valve APL respiratoire de remplacement"
+    price_minor: 6800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-ANES-CORDON-ECG
+    name: "Cordons ECG monitoring 4 électrodes"
+    price_minor: 3500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "4"
+  - code: HPC-ANES-ELEC-ECG-50
+    name: "Électrodes ECG clip crocodile 50 pièces"
+    price_minor: 1800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "50"
+  - code: HPC-ANES-SONDE-SPO2
+    name: "Sonde SpO2 clip doigt/oreille réutilisable"
+    price_minor: 4800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Sterilization supplies
+  - code: HPC-STER-SAC-PLAT-100
+    name: "Sachets de stérilisation plats 100x200mm 200 pièces"
+    price_minor: 1650
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "200"
+  - code: HPC-STER-SAC-PLAT-200
+    name: "Sachets de stérilisation plats 200x350mm 100 pièces"
+    price_minor: 1850
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-STER-SAC-SOUF-50
+    name: "Sachets de stérilisation soufflets 50x150mm 200 pièces"
+    price_minor: 1750
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "200"
+  - code: HPC-STER-INDICAT-CLASSE-6
+    name: "Indicateurs intégrateurs classe 6 100 pièces"
+    price_minor: 2200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-STER-HELIX-TEST
+    name: "Tests Helix quotidiens stérilisateur 25 pièces"
+    price_minor: 3800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "25"
+  - code: HPC-STER-DETERG-MULTI-5L
+    name: "Détergent désinfectant instruments chirurgicaux 5L"
+    price_minor: 3600
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  # Ophtalmology and ENT
+  - code: HPC-OPHT-CILS-PINCE
+    name: "Pince à épiler cils stérile 10 pièces"
+    price_minor: 8500
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "10"
+  - code: HPC-OPHT-PORTE-AIGUILLE
+    name: "Porte-aiguille ophtalmique Castroviejo 12cm"
+    price_minor: 24000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-OPHT-CISEAUX-CORNEE
+    name: "Ciseaux de cornée courbés 11cm"
+    price_minor: 18000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Imaging and monitoring accessories
+  - code: HPC-IMAG-GEL-ECHO-250
+    name: "Gel échographie vétérinaire 250ml"
+    price_minor: 680
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: HPC-IMAG-GEL-ECHO-1KG
+    name: "Gel échographie vétérinaire 1kg flacon"
+    price_minor: 1850
+    currency: EUR
+    unit: FLACON
+    packaging_amount: "1"
+  - code: HPC-IMAG-TONTE-TONDEUSE
+    name: "Lames tondeuse de tonte chirurgicale 5 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "5"
+  - code: HPC-IMAG-PROTECT-RADIO
+    name: "Tablier plombé protection radiologique 0.5mm Pb"
+    price_minor: 85000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-IMAG-DOSIMETRE-BADGE
+    name: "Dosimètre badge radiologique trimestriel"
+    price_minor: 2800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Rehabilitation and physiotherapy
+  - code: HPC-REHAB-BANDE-KINESIO-5
+    name: "Bande kinesiologique vétérinaire 5cm x 5m"
+    price_minor: 1500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-REHAB-BANDE-KINESIO-7
+    name: "Bande kinesiologique vétérinaire 7.5cm x 5m"
+    price_minor: 1800
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-REHAB-PISCINE-GOND-S
+    name: "Gonflable mini piscine rééducation canine S"
+    price_minor: 18000
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-REHAB-BALLE-FITBALL-45
+    name: "Ballon de thérapie canine 45cm"
+    price_minor: 3200
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  - code: HPC-REHAB-RAMPE-PLIANTE
+    name: "Rampe pliante antidérapante pour chien"
+    price_minor: 4500
+    currency: EUR
+    unit: UNITE
+    packaging_amount: "1"
+  # Acupuncture needles
+  - code: HPC-ACUP-AIGUILLE-0-25-25
+    name: "Aiguilles acupuncture vétérinaire 0.25x25mm 100 pièces"
+    price_minor: 2800
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"
+  - code: HPC-ACUP-AIGUILLE-0-30-40
+    name: "Aiguilles acupuncture vétérinaire 0.30x40mm 100 pièces"
+    price_minor: 3200
+    currency: EUR
+    unit: BOITE
+    packaging_amount: "100"

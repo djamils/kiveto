@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Context\Procurement\Domain\SupplierCatalog\Event;
+
+use App\Shared\Domain\Event\AbstractDomainEvent;
+
+final readonly class SupplierCatalogEntryAdded extends AbstractDomainEvent
+{
+    protected const string BOUNDED_CONTEXT = 'procurement';
+    protected const int VERSION            = 1;
+
+    public function __construct(
+        private string $entryId,
+        private string $supplierId,
+        private string $productCode,
+        private string $name,
+    ) {
+    }
+
+    public function aggregateId(): string
+    {
+        return $this->entryId;
+    }
+
+    public function payload(): array
+    {
+        return [
+            'entryId'     => $this->entryId,
+            'supplierId'  => $this->supplierId,
+            'productCode' => $this->productCode,
+            'name'        => $this->name,
+        ];
+    }
+}
