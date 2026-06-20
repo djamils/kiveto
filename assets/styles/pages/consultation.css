@@ -3058,4 +3058,47 @@
       pointer-events: all !important;
     }
 
+    /* ───────────────────────────────────────────────────────────────
+       INTEGRATION OVERRIDES (Kiveto base layout vs standalone mockup)
+       ─────────────────────────────────────────────────────────────── */
+
+    /* The mockup expects .app-shell + .app-rpanel as direct siblings
+       at the viewport root. Kiveto wraps them under
+       app-root > app-header(40px) > app-shell > app-content > app-main-wrap
+       so .app-shell sized 100vh would push the page down by 40px and
+       create vertical scroll. Let the project's flex layout constrain it. */
+    .app-shell { height: auto; }
+
+    /* Same reasoning for app-content — the mockup makes it overflow:hidden
+       which prevents the project's flex sizing from working when there is
+       no fixed height on the parent. Re-enable through flex. */
+    .app-content {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Right panel — the mockup's height: 100vh + width: 340px was tuned
+       for a sibling-of-shell mount point. In Kiveto the rpanel lives
+       inside .app-main-wrap so it inherits the flex height naturally.
+       Width matches the mockup's focus-mode value (380px) — the cockpit
+       always runs with the sidebar collapsed, gives medication / billing
+       rows enough horizontal room. */
+    .app-rpanel {
+      width: 380px;
+      height: auto;
+      border-left: 1px solid var(--border-light);
+      background: var(--surface-card);
+    }
+
+    /* SOAP quad headers — Quad S uses .quad-action (span, padding 2px) but
+       Quad O/A/P use real .quad-actions > button (padding 4-6px) which makes
+       their headers a few pixels taller. Pin a minimum height so all four
+       quad heads align perfectly regardless of action element type. */
+    .quad-head {
+      min-height: 52px;
+      box-sizing: border-box;
+    }
+
 }
