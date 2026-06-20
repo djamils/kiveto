@@ -126,7 +126,10 @@ const Modal = (() => {
     close();
     mount = document.createElement('div');
     mount.className = 'modal-overlay';
-    const wClass = width === 'wide' ? 'modal-wide' : (width === 'narrow' ? 'modal-narrow' : '');
+    let wClass = '';
+    if (width === 'xwide')       wClass = 'modal-xwide';
+    else if (width === 'wide')   wClass = 'modal-wide';
+    else if (width === 'narrow') wClass = 'modal-narrow';
     mount.innerHTML = `
       <div class="modal ${wClass}">
         <div class="modal-head">
@@ -504,7 +507,7 @@ function openAddDiagnosticModal() {
       </div>
       <div class="m-list" id="dx-list">${html}</div>
     `,
-    width: 'wide',
+    width: 'xwide',
   });
   Modal.getEl('#dx-search').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
@@ -1261,6 +1264,17 @@ export function init() {
   // expose for debug
   window.VetOS = { Modal, Toast, Dropdown, state, MEDICATIONS, DIAGNOSTICS };
 
+  // ─ expose vanilla functions referenced via inline onclick attributes ─
+  window.openDrawer  = () => {
+    document.getElementById('drawer-overlay')?.classList.add('is-open');
+    document.getElementById('drawer')?.classList.add('is-open');
+  };
+  window.closeDrawer = () => {
+    document.getElementById('drawer-overlay')?.classList.remove('is-open');
+    document.getElementById('drawer')?.classList.remove('is-open');
+  };
+  window.closeConsult = () => openCloseConsultationModal();
+
   // welcome toast
   setTimeout(() => Toast.info('Tous les éléments sont interactifs · ⌘↵ pour clôturer'), 600);
 }
@@ -1272,4 +1286,7 @@ export function cleanup() {
     document.removeEventListener('keydown', _keydownHandler);
     _keydownHandler = null;
   }
+  delete window.openDrawer;
+  delete window.closeDrawer;
+  delete window.closeConsult;
 }
