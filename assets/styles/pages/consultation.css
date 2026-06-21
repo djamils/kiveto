@@ -3093,12 +3093,25 @@
     }
 
     /* SOAP quad headers — Quad S uses .quad-action (span, padding 2px) but
-       Quad O/A/P use real .quad-actions > button (padding 4-6px) which makes
-       their headers a few pixels taller. Pin a minimum height so all four
-       quad heads align perfectly regardless of action element type. */
+       Quad O/A/P use real <button> elements (.quad-action-btn /
+       .template-btn / .suggest-btn / .header-add-btn) whose intrinsic
+       line-height + padding makes their content taller, pushing the
+       border-bottom 1–2 px below Quad S's. Lock an exact height on
+       every quad header AND neutralise the button line-height variance
+       to align the four border-bottoms pixel-perfectly. */
     .quad-head {
-      min-height: 52px;
+      height: 53px;
+      min-height: 53px;
       box-sizing: border-box;
     }
+
+    .quad-actions > .quad-action-btn,
+    .quad-actions > .template-btn,
+    .quad-actions > .suggest-btn {
+      line-height: 1;
+      padding: 4px 8px;
+    }
+    .quad-actions > .template-btn { padding: 4px 10px; }
+    /* .header-add-btn already has fixed 24×24 so it does not contribute */
 
 }
