@@ -1676,7 +1676,7 @@
   position: fixed;
   inset: 0;
   background: rgba(15,23,42,.45);
-  z-index: 50;
+  z-index: var(--z-modal);
   opacity: 0;
   pointer-events: none;
   transition: opacity .18s ease;
@@ -2077,7 +2077,7 @@
 
 /* MODAL */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 50;
+  position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: var(--z-modal);
   opacity: 0; pointer-events: none; transition: opacity .18s ease;
   display: flex; align-items: center; justify-content: center; padding: var(--space-5);
 }
@@ -2481,7 +2481,7 @@
 
 /* MODAL */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 50;
+  position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: var(--z-modal);
   opacity: 0; pointer-events: none; transition: opacity .18s ease;
   display: flex; align-items: center; justify-content: center; padding: var(--space-5);
 }
