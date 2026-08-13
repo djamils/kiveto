@@ -1672,7 +1672,17 @@
 .rowF.is-untested .rowF-icon { background: var(--slate-50); color: var(--text-subtle); }
 
 /* MODAL */
-.modal-overlay {
+/* Scoped to the consultation detail page: this file is bundled globally via
+   tailwind.css, and these rules redefine the shared .modal-overlay/.modal
+   component (hidden-class pattern) with the is-open pattern. Without the
+   scope they leak into every other page and keep their modals invisible.
+   body:has() is used (not a plain [data-page] ancestor) because the SOAP
+   modals render in the Twig "modals" block, outside main[data-page].
+   The global search modal (.search-modal-overlay, hidden-class pattern) also
+   lives at body level on this page, hence the zero-specificity :where()
+   exclusions on the base .modal-overlay/.modal rules. */
+body:has([data-page="clinic_consultation_details"]) {
+.modal-overlay:where(:not(.search-modal-overlay)) {
   position: fixed;
   inset: 0;
   background: rgba(15,23,42,.45);
@@ -1686,7 +1696,7 @@
   padding: var(--space-5);
 }
 .modal-overlay.is-open { opacity: 1; pointer-events: all; }
-.modal {
+.modal:where(:not(.search-modal)) {
   background: var(--surface-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -1740,6 +1750,7 @@
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
+}
 }
 
 .field-block { margin-bottom: var(--space-4); }
@@ -2076,13 +2087,15 @@
 .dx-add-btn svg { width: 14px; height: 14px; }
 
 /* MODAL */
-.modal-overlay {
+/* Scoped to the consultation detail page — see the first MODAL block. */
+body:has([data-page="clinic_consultation_details"]) {
+.modal-overlay:where(:not(.search-modal-overlay)) {
   position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: var(--z-modal);
   opacity: 0; pointer-events: none; transition: opacity .18s ease;
   display: flex; align-items: center; justify-content: center; padding: var(--space-5);
 }
 .modal-overlay.is-open { opacity: 1; pointer-events: all; }
-.modal {
+.modal:where(:not(.search-modal)) {
   background: var(--surface-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);
   width: 100%; max-width: 560px; max-height: calc(100vh - 40px);
   display: flex; flex-direction: column;
@@ -2139,6 +2152,7 @@
   display: inline-block; padding: 1px 5px; font-family: 'DM Mono', monospace;
   font-size: 10px; background: var(--surface-subtle); border: 1px solid var(--border-medium);
   border-radius: 3px; color: var(--text-secondary);
+}
 }
 
 /* QUICK-ADD modale */
@@ -2480,13 +2494,15 @@
 .plan-add-btn svg { width: 14px; height: 14px; }
 
 /* MODAL */
-.modal-overlay {
+/* Scoped to the consultation detail page — see the first MODAL block. */
+body:has([data-page="clinic_consultation_details"]) {
+.modal-overlay:where(:not(.search-modal-overlay)) {
   position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: var(--z-modal);
   opacity: 0; pointer-events: none; transition: opacity .18s ease;
   display: flex; align-items: center; justify-content: center; padding: var(--space-5);
 }
 .modal-overlay.is-open { opacity: 1; pointer-events: all; }
-.modal {
+.modal:where(:not(.search-modal)) {
   background: var(--surface-card); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);
   width: 100%; max-width: 560px; max-height: calc(100vh - 40px);
   display: flex; flex-direction: column;
@@ -2495,6 +2511,10 @@
 .modal-overlay.is-open .modal { transform: translateY(0) scale(1); }
 .modal--wide { max-width: 720px; }
 .modal--xwide { max-width: 1200px; }
+/* Modal.open() width variants — single-dash classes from components/overlays.css;
+   redeclared here because the scoped .modal rule above outranks the globals */
+.modal-wide { max-width: 720px; }
+.modal-narrow { max-width: 360px; }
 .modal-head {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-light);
@@ -2543,6 +2563,7 @@
   display: inline-block; padding: 1px 5px; font-family: 'DM Mono', monospace;
   font-size: 10px; background: var(--surface-subtle); border: 1px solid var(--border-medium);
   border-radius: 3px; color: var(--text-secondary);
+}
 }
 
 /* QUICK-ADD — Proposition B — 2 zones asymétriques */
@@ -3052,7 +3073,7 @@
     /* ============== Fix FOUC : inline opacity:0 sur modales SOAP au load ============== */
     /* Les modales SOAP statiques ont opacity:0 inline pour empêcher le flash au premier paint.
        Quand .is-open est ajouté, on les ré-active avec !important pour battre l'inline style. */
-    .modal-overlay.is-open {
+    body:has([data-page="clinic_consultation_details"]) .modal-overlay.is-open {
       opacity: 1 !important;
       visibility: visible !important;
       pointer-events: all !important;
