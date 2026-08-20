@@ -10,6 +10,7 @@ use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
+use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
@@ -71,5 +72,9 @@ final class ClinicDataset extends Story
 
         // Seed the demo clinic's Catalog (acts, articles, packages, price lists)
         CompanionClinicCatalogStory::load();
+
+        // Seed admissions + consultations in varied cockpit states (needs the
+        // catalog and the animals above)
+        ConsultationDemoStory::load();
     }
 }

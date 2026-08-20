@@ -24,7 +24,7 @@ final readonly class RecordVitalsHandler
         $consultationId = ConsultationId::fromString($command->consultationId);
         $consultation   = $this->consultations->findById($consultationId);
 
-        if (null === $consultation) {
+        if (null === $consultation || $consultation->getClinicId()->toString() !== $command->clinicId) {
             throw new \DomainException('Consultation not found');
         }
 

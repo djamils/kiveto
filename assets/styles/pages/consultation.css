@@ -20,6 +20,54 @@
     }
     .app-body { padding: 0; }
 
+    /* ─── 0. CLOSED CONSULTATION — read-only ─── */
+    .closed-banner {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-5);
+      background: var(--color-warning-bg);
+      color: var(--color-warning-text);
+      border-bottom: 1px solid var(--color-warning-border);
+      font-size: var(--text-md);
+      line-height: var(--lh-normal);
+    }
+    .closed-banner strong { font-weight: var(--weight-semibold); }
+
+    /* Every affordance that would mutate the record disappears; what is left
+       still reads exactly like the open cockpit. */
+    body.consultation-readonly .chip-add,
+    body.consultation-readonly #qO-ras-all,
+    body.consultation-readonly #qO-template-btn,
+    body.consultation-readonly #qA-add-btn,
+    body.consultation-readonly #qA-suggest-btn,
+    body.consultation-readonly #qP-add-btn,
+    body.consultation-readonly #qP-template-btn,
+    body.consultation-readonly #qS-dictate,
+    body.consultation-readonly #btn-add-medication,
+    body.consultation-readonly #btn-close-consultation,
+    body.consultation-readonly .row-x,
+    body.consultation-readonly .dx-x,
+    body.consultation-readonly .plan-item-x {
+      display: none;
+    }
+    body.consultation-readonly .state-toggle,
+    body.consultation-readonly .dx-star,
+    body.consultation-readonly .rowF,
+    body.consultation-readonly .dx-row,
+    body.consultation-readonly .plan-item,
+    body.consultation-readonly .rx-item,
+    body.consultation-readonly .chip {
+      pointer-events: none;
+    }
+    body.consultation-readonly .state-toggle,
+    body.consultation-readonly .dx-star { opacity: 0.45; }
+    body.consultation-readonly .quad-textarea {
+      background: var(--surface-subtle);
+      cursor: default;
+    }
+
     /* ─── 1. PATIENT BAR (compact) ─── */
     .patient-bar {
       flex-shrink: 0;
@@ -195,6 +243,21 @@
       white-space: nowrap;
     }
     .strip-text:hover { background: var(--surface-subtle); }
+
+    /* The motif detail is an input styled like the surrounding strip text. */
+    input.strip-text {
+      flex: 1;
+      min-width: 180px;
+      margin-left: var(--space-2);
+      border: none;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+    }
+    input.strip-text:focus {
+      outline: none;
+      background: var(--surface-subtle);
+    }
 
     /* Vitals strip */
     .vitals-strip {
@@ -3145,4 +3208,96 @@ body:has([data-page="clinic_consultation_details"]) {
     .quad-actions > .template-btn { padding: 4px 10px; }
     /* .header-add-btn already has fixed 24×24 so it does not contribute */
 
+    /* ─────────────────────────────────────────────
+       PRINT — ordonnance & compte-rendu
+       The cockpit is a fixed single-viewport shell; printing releases the
+       height locks and keeps only the blocks the chosen document needs.
+       body[data-print-mode] is set by the Imprimer modal.
+       ───────────────────────────────────────────── */
+    @media print {
+      html, body {
+        overflow: visible;
+        height: auto;
+        background: #fff;
+      }
+      .app-root,
+      .app-shell,
+      .app-content,
+      .app-main-wrap,
+      .app-scroll,
+      .app-body,
+      .app-rpanel,
+      .rp-scroll {
+        height: auto;
+        max-height: none;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        flex: none;
+        overflow: visible;
+        display: block;
+        border: none;
+        background: #fff;
+      }
+      .app-header,
+      .sidebar,
+      .sidebar-overlay,
+      .rpanel-overlay,
+      .topbar,
+      .rp-head,
+      .rp-foot,
+      .pb-actions,
+      .toast-container,
+      .modal-overlay,
+      .annotation,
+      .closed-banner,
+      .chip-add,
+      .add-row,
+      .quad-actions,
+      .quad-action,
+      .row-x,
+      .dx-x,
+      .plan-item-x {
+        display: none !important;
+      }
+      .quad,
+      .rp-block,
+      .summary,
+      .patient-bar {
+        break-inside: avoid;
+        border: none;
+        box-shadow: none;
+      }
+      .soap-grid {
+        display: block;
+      }
+      .quad-body,
+      .listF,
+      .dx-list,
+      .plan-list {
+        overflow: visible;
+        max-height: none;
+      }
+      .quad-textarea {
+        border: none;
+        resize: none;
+        overflow: visible;
+        height: auto;
+        min-height: 0;
+      }
+
+      /* Ordonnance: patient identity + prescription only. Neither the billing
+         draft nor the internal memo belong on the owner's copy. */
+      body[data-print-mode="ordonnance"] .summary,
+      body[data-print-mode="ordonnance"] .soap-grid,
+      body[data-print-mode="ordonnance"] .rp-block:nth-of-type(2),
+      body[data-print-mode="ordonnance"] .rp-block:nth-of-type(3) {
+        display: none !important;
+      }
+
+      /* Compte-rendu: everything but the internal team memo. */
+      body[data-print-mode="compte-rendu"] .rp-block:nth-of-type(3) {
+        display: none !important;
+      }
+    }
 }

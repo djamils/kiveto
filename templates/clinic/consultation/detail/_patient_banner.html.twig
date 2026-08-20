@@ -1,51 +1,73 @@
-{# Patient bar — single-row compact, ported from layout #}
+{#
+ # Patient bar — single-row compact.
+ #
+ # Variables:
+ #   patient  array       Patient banner payload (CockpitPatientBuilder)
+ #   owner    array|null  Primary owner payload
+ #
+ # The allergy / chronic-condition badges are rendered client-side from the
+ # hydration payload so they stay in sync with the ordonnance warning.
+ #}
 <div class="patient-bar">
   <div class="pb-row">
 
-    <div class="pb-photo" title="Modifier la photo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Chien">
-        <path d="M10 5.172A4 4 0 0 1 14 5l3 1.5"/>
-        <path d="M5.5 9.172a3 3 0 0 1 0-4 3 3 0 0 1 4.5 0L11 6.5"/>
-        <path d="M19 9.172a3 3 0 0 0 0-4 3 3 0 0 0-4.5 0L13 6.5"/>
-        <path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/>
-        <path d="M8 14v.5"/>
-        <path d="M16 14v.5"/>
-        <path d="M11.25 16.25h1.5L12 17z"/>
-      </svg>
+    <div class="pb-photo">
+      {% if patient.photoUrl %}
+        <img src="{{ patient.photoUrl }}" alt="{{ patient.name }}">
+      {% else %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="{{ patient.speciesLabel|default('Patient') }}">
+          <path d="M10 5.172A4 4 0 0 1 14 5l3 1.5"/>
+          <path d="M5.5 9.172a3 3 0 0 1 0-4 3 3 0 0 1 4.5 0L11 6.5"/>
+          <path d="M19 9.172a3 3 0 0 0 0-4 3 3 0 0 0-4.5 0L13 6.5"/>
+          <path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/>
+          <path d="M8 14v.5"/>
+          <path d="M16 14v.5"/>
+          <path d="M11.25 16.25h1.5L12 17z"/>
+        </svg>
+      {% endif %}
     </div>
 
     <div class="pb-id">
       <div class="pb-name">
-        Luna
-        <span class="badge b-feline" style="font-size:var(--text-xs)">♀ stérilisée</span>
+        {{ patient.name }}
+        {% if patient.isIdentified %}
+          {% if patient.sexLabel %}
+            <span class="badge b-feline" style="font-size:var(--text-xs)">
+              {{ patient.sexLabel }}{% if patient.sterilized %} stérilisé{% if patient.sexLabel == '♀' %}e{% endif %}{% endif %}
+            </span>
+          {% endif %}
+        {% else %}
+          <span class="badge b-grey" style="font-size:var(--text-xs)">Patient non identifié</span>
+        {% endif %}
       </div>
       <div class="pb-meta">
-        <span>Beauceron</span>
-        <span class="sep-v"></span>
-        <span>4 ans</span>
-        <span class="sep-v"></span>
-        <span class="mono" style="font-size:var(--text-sm)">250268500412739</span>
-        <span class="sep-v"></span>
-        <span class="pb-owner">
-          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c.5-2.5 3-4 5.5-4s5 1.5 5.5 4"/></svg>
-          Marie Lambert
-        </span>
+        {% if patient.speciesLabel %}<span>{{ patient.speciesLabel }}</span>{% endif %}
+        {% if patient.breed %}
+          <span class="sep-v"></span>
+          <span>{{ patient.breed }}</span>
+        {% endif %}
+        {% if patient.ageLabel %}
+          <span class="sep-v"></span>
+          <span>{{ patient.ageLabel }}</span>
+        {% endif %}
+        {% if patient.microchip %}
+          <span class="sep-v"></span>
+          <span class="mono" style="font-size:var(--text-sm)">{{ patient.microchip }}</span>
+        {% endif %}
+        {% if owner %}
+          <span class="sep-v"></span>
+          <span class="pb-owner">
+            <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 13.5c.5-2.5 3-4 5.5-4s5 1.5 5.5 4"/></svg>
+            {{ owner.fullName }}
+          </span>
+        {% endif %}
       </div>
     </div>
 
-    <div class="pb-warnings">
-      <span class="pb-warn">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-        Allergie pénicilline
-      </span>
-      <span class="pb-warn is-info">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
-        Suivi arthrose
-      </span>
-    </div>
+    <div class="pb-warnings" id="pb-warnings"></div>
 
     <div class="pb-actions">
-      <button class="btn btn-ghost btn-sm" id="btn-patient-file">
+      <button class="btn btn-ghost btn-sm" id="btn-patient-file"{% if not patient.isIdentified %} disabled{% endif %}>
         <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 6h6M5 9h4"/></svg>
         Dossier complet
       </button>

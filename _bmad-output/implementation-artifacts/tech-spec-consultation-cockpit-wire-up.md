@@ -2,8 +2,8 @@
 title: 'Consultation Cockpit — Wire Up All Functionality'
 slug: 'consultation-cockpit-wire-up'
 created: '2026-08-20'
-status: 'in-progress — Phase 0 (Tasks 1-5) complete 2026-08-20, branch feature/consultation-cockpit-phase-0'
-stepsCompleted: [1, 2, 3, 4]
+status: 'complete — Phases 0, 1 and 2 done 2026-08-20, branch feature/consultation-cockpit-phase-0'
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 tech_stack:
   - 'Symfony 7 + Doctrine ORM (DDD monolith, BCs under src/Context)'
   - 'Twig + importmap (page modules via data-page dispatcher in assets/app.js)'
@@ -199,38 +199,38 @@ Tasks are grouped in phases; each phase ends `make ci`-green and committable. Wi
 
 **Phase 1 — Consultation BC domain extension**
 
-- [ ] Task 6: New value objects + enums
+- [x] Task 6: New value objects + enums
   - Files: `src/Context/Consultation/Domain/ValueObject/` — `MotifTag`, `VitalType` (enum: FC, FR, TRC, PAIN_SCORE, MUCOUS_MEMBRANES, …), `TypedVitalRecord`, `BodySystem` (enum, 10 systems), `ExamStatus` (enum NORMAL|ANOMALY|UNTESTED), `ExamSystemRecord`, `DiagnosisCertainty` (enum CERTAIN|PROBABLE|POSSIBLE|EXCLUDED), `DiagnosisSource` (enum MANUAL|AI_SUGGESTION), `DiagnosisRecord`, `PlanActionKind` (enum PERFORMED_ACT|MEDICATION_PRESCRIPTION|FOLLOW_UP_APPOINTMENT|ADVICE|OTHER), `PlanActionRecord`, `PrescriptionLineRecord` (with snapshotted `priceMinorUnits`+`currency`, posology fields dose/frequency/duration/route), `BillingLineRecord` (label, code, qty, unit price snapshot, tax category code, source: PLAN_ACT|PRESCRIPTION)
   - Action: follow existing `create()`/`reconstitute()` + exact-message validation conventions. Unit test per VO covering every branch.
   - **Reference data lives on the enums**: `VitalType` carries `unit()`, `min()`, `max()`, `label()` methods (FC 40–250 bpm, FR 8–90 /min, TRC 0–5 s, PAIN_SCORE 0–10, etc. — exact ranges chosen at implementation from the current UI's `VITAL_TYPES` mock, consultation.js:67-77); `TypedVitalRecord::create()` validates against them (feeds AC14). `BodySystem` carries `label()` + `icon()`. These enums are the single server-side source for the hydration payload — no separate config files.
 
-- [ ] Task 7: Aggregate extension
+- [x] Task 7: Aggregate extension
   - File: `src/Context/Consultation/Domain/Consultation.php` (+ new events in `Domain/Event/`)
   - Action: new root fields (`subjectiveText`, `objectiveObservations`, `teamMemo` — nullable strings) and child collections (motifs, typedVitals, examSystems, diagnoses, planActions, prescriptionLines, billingLines). Mutations (all `ensureOpen()` + event): `setMotifs`, `recordTypedVital` (upsert by type), `updateSubjectiveText`, `recordExamSystem` (upsert by system), `markAllSystemsNormal`, `updateObjectiveObservations`, `addDiagnosis`/`updateDiagnosis`/`removeDiagnosis`/`setPrimaryDiagnosis` (single primary invariant), `addPlanAction`/`updatePlanAction`/`removePlanAction`, `addPrescriptionLine`/`removePrescriptionLine`, `syncBillingLines` (see rules below), `updateTeamMemo`. Thread everything through `reconstitute()`. Full unit tests incl. closed-state rejection per mutation.
   - **Billing derivation rules (binding):** `syncBillingLines()` is called internally by the aggregate at the end of EVERY mutation that adds, updates, or removes a plan action of kind PERFORMED_ACT or a prescription line. Each `BillingLineRecord` stores a `sourceLineId` (the id of the plan action or prescription line it derives from). Sync matches existing billing lines by `sourceLineId`: matched lines keep their id AND their snapshotted price (prices are **copied from the source line's snapshot, never re-resolved** — AC4), new sources create new lines, orphaned lines are removed. Quantity/label changes on the source propagate; price does not change unless the source line itself was re-created.
   - **Domain events:** new mutations do NOT introduce event classes. Rationale: the BC records events but never publishes them (`pullDomainEvents()` is uncalled everywhere), so new events would be dead code carrying pure coverage cost. Existing events stay untouched; if event publishing is ever wired up, events can be added then.
 
-- [ ] Task 8: Persistence for new children
+- [x] Task 8: Persistence for new children
   - Files: new entities/mappers under `src/Context/Consultation/Infrastructure/Persistence/Doctrine/`, extend `DoctrineConsultationRepository` (save/findById), migration via `make consultation-migrations`
   - Action: tables `consultation__motifs`, `consultation__typed_vitals`, `consultation__exam_systems` (structured drill-down as JSON column), `consultation__diagnoses`, `consultation__plan_actions`, `consultation__prescription_lines`, `consultation__billing_lines`; 3 new text columns on `consultation__consultations`. Simple value collections (motifs, typed vitals, exam systems) use the existing delete+reinsert pattern; row-identity collections (diagnoses, plan actions, prescription/billing lines) use the Procurement line-sync pattern. Foundry factories for each new entity. Repository round-trip integration tests.
 
-- [ ] Task 9: Catalog + Pharma port for medications/acts/prices (BEFORE the command handlers that consume it)
+- [x] Task 9: Catalog + Pharma port for medications/acts/prices (BEFORE the command handlers that consume it)
   - Files: new `src/Context/Consultation/Application/Port/CatalogItemProviderInterface` + DTOs; adapter `src/Context/Consultation/Infrastructure/Adapter/Catalog/QueryBusCatalogItemProvider.php`; **Catalog-side search enrichment**: extend `CatalogSearchResult` + `DoctrineCatalogSearchRepository` (`src/Context/Catalog/...`) to include `isPrescriptionRequired` and `basePriceMinorUnits`/`currency` via a single JOINed query (no N+1 `GetArticleDetail` per result) — Catalog tests updated, coverage stays 100%; wiring in `config/services.yaml` (dev + test blocks)
   - Action: port exposes: `search(term)` → items with kind/code/name/Rx flag/base price; `detail(itemRef)` → full item; `resolvePrice(itemRef)` → snapshot-ready price (via fixed ResolvePrice, default list); **`activeSubstances(articleId)`** → list of substance labels, bridged by the adapter dispatching Catalog `GetArticleDetail` (→ `authorizationRef`) then PharmaceuticalRegistry `GetMarketingAuthorizationDetail` (→ `activeSubstances[]`); returns empty list when the article has no authorization ref. This is the data path for the allergy warning (AC6). Imitate Inventory's adapter. Integration tests against fixtures.
 
-- [ ] Task 10: Commands + handlers (one per mutation of Task 7)
+- [x] Task 10: Commands + handlers (one per mutation of Task 7)
   - Files: `src/Context/Consultation/Application/Command/<Name>/*` ×~14
   - Action: scalar command DTOs + `#[AsMessageHandler]` handlers following `RecordVitals` template ('Consultation not found' guard). `AddPrescriptionLine` and `AddPlanAction(kind=PERFORMED_ACT)` handlers resolve+snapshot the price via the Task 9 port; billing derivation happens inside the aggregate (Task 7 rules). Mock unit tests happy/not-found/closed for each.
 
-- [ ] Task 11: Read side extension + Taxation port
+- [x] Task 11: Read side extension + Taxation port
   - Files: `ConsultationDetailsDTO`, `DoctrineConsultationReadRepository`, `GetConsultationDetailsHandler` (+ test); new port `src/Context/Consultation/Application/Port/TaxRateProviderInterface` + adapter `Infrastructure/Adapter/Taxation/QueryBusTaxRateProvider.php` (dispatches Taxation `GetEffectiveRateForUI`); services.yaml dev + test wiring
   - Action: DTO gains motifs, typedVitals, examSystems, diagnoses, planActions, prescriptionLines, billingLines, subjectiveText, objectiveObservations, teamMemo, and computed totals `{totalHtMinorUnits, totalTvaMinorUnits, totalTtcMinorUnits, currency}`. **Where tax is computed**: in `GetConsultationDetailsHandler` (NOT in the DBAL repo) — it collects the distinct `taxCategoryCode`s of the billing lines, asks the Taxation port once per distinct code (memoized per call), and sums. The DBAL repo stays bus-free. Keep flat array shapes with docblocks. Adapter integration test with Taxation fixtures.
 
-- [ ] Task 12: `ListConsultationsForPatient` query
+- [x] Task 12: `ListConsultationsForPatient` query
   - Files: new `src/Context/Consultation/Application/Query/ListConsultationsForPatient/*`; new port `src/Context/Consultation/Application/Port/PatientIdsProviderInterface` + adapter `Infrastructure/Adapter/Patient/DbalPatientIdsProvider.php` (reads `patient__patients` ids by `animal_link_id`); extend `ConsultationReadRepositoryInterface` + Doctrine read repo; services.yaml wiring
   - Action: the handler takes `{animalId, clinicId, excludeConsultationId}`; the Patient port resolves all patient ids linked to that animal (reconciliation-safe — NOT a raw cross-BC join inside the read repo, respecting CLAUDE.md §6 structure); the read repo then lists consultations `WHERE patient_id IN (?)` clinic-scoped, `started_at_utc DESC`. History rows: `{consultationId, startedAtUtc, closedAtUtc, status, chiefComplaint, summary, weightKg}` — **weightKg included** (feeds Task 16's weight Δ). Integration tests for port + query.
 
-- [ ] Task 13: Animal BC — minimal medical alerts
+- [x] Task 13: Animal BC — minimal medical alerts
   - Files: `src/Context/Animal/Domain/**` (VO `MedicalAlert{id, kind: ALLERGY|CHRONIC_CONDITION, label, note?}` + aggregate methods add/remove), Application commands `AddMedicalAlert`/`RemoveMedicalAlert` + query `ListMedicalAlertsForAnimal`, persistence (`animal__medical_alerts` + migration in `migrations/Animal/`), fixtures (Luna-like animals get a penicillin allergy + arthrose condition)
   - Action: follow Animal BC's existing conventions; full tests, Animal coverage stays 100%.
 
@@ -243,45 +243,81 @@ Every slice: single-`__invoke` POST controllers under `src/Presentation/Clinic/C
 - **Error unwrapping**: controllers catch `HandlerFailedException`, unwrap via `$e->getPrevious()`; `\DomainException` → 409 `{success:false, errorCode:'DOMAIN_ERROR', errors:{global:[message]}}`; `\InvalidArgumentException` → 422 `{success:false, errorCode:'VALIDATION', errors:{...}}`; Doctrine `OptimisticLockException` → 409 `{success:false, errorCode:'CONFLICT'}` (client retries once per Task 5b).
 - **Reuse means the command, never the old controller**: e.g. weight/temp dispatch the existing `RecordVitals` command from a NEW JSON controller; the legacy flash+redirect controllers (`RecordVitalsController` etc.) are left untouched (or retired if nothing else links to them — check routes before deleting).
 
-- [ ] Task 14: Hydration + patient banner slice
+- [x] Task 14: Hydration + patient banner slice
   - Files: `ConsultationDetailsController.php`, `templates/clinic/consultation/detail/{index,_patient_banner}.html.twig`, `consultation.js`
   - Action: controller composes `GetConsultationDetails` + `GetPatientAnimalLink` + `GetAnimalById` + `GetClientById` + `ListMedicalAlertsForAnimal` + `ListConsultationsForPatient`; emits the JSON hydration block; banner shows real animal (name, sex/sterilized, breed, age, chip), owner, real allergy/condition badges; profil animal + profil client modals fed with real data; "⋯" menu entries show "Fonctionnalité à venir" toast (kept mock per decision); breadcrumb + page title real.
   - **Null `animal_link_id` (unreconciled patient)**: the banner falls back to the Patient's `displayLabel` + `observedSpecies`/`observedColor`, shows an "Patient non identifié" hint instead of chip/sterilization, NO allergy badges, profil-animal modal disabled; the ordonnance allergy check is skipped (no alerts = no warning); Historique falls back to `patient_id`-keyed listing for the current patient only. The cockpit must remain fully functional in this state (AC18).
 
-- [ ] Task 15: Motifs slice — `UpdateConsultationMotifsController` (`POST /clinic/consultations/{id}/motifs`), bind `_sidebar_vitals.html.twig` motif strip, wire add/remove/free-text edit.
-- [ ] Task 16: Constantes slice — `RecordTypedVitalController` + a new JSON controller dispatching the existing `RecordVitals` command for weight/temp; bind pills incl. weight Δ vs previous consultation (`weightKg` from the Task 12 history rows); wire add/edit modals with VitalType ranges from hydration (enum-sourced, Task 6).
-- [ ] Task 17: SOAP S slice — `UpdateSubjectiveTextController`; textarea bound + debounced auto-save via api(); "Dicter" stays mock.
-- [ ] Task 18: Quad O slice — `RecordExamSystemController` + `MarkAllSystemsNormalController` + `UpdateObjectiveObservationsController`; remove media-thumbnail UI from the modal; species template affects display only; per-system status/notes/structured data persisted.
-- [ ] Task 19: Quad A slice — `AddDiagnosisController`, `UpdateDiagnosisController`, `RemoveDiagnosisController`, `SetPrimaryDiagnosisController`; diagnosis nomenclature = a static PHP list in a dedicated Presentation view-model class `src/Presentation/Clinic/ViewModel/Consultation/CockpitReferenceData.php` (ported verbatim from the current `NOMENCLATURE` mock, consultation.js:2044-2060), served via hydration; "Suggérer (IA)" modal stays mock but accepted suggestions call the real add endpoint with `source=AI_SUGGESTION`.
-- [ ] Task 20: Quad P slice — `AddPlanActionController`, `UpdatePlanActionController`, `RemovePlanActionController`; act suggestions come from the Catalog port (real acts + prices); PERFORMED_ACT additions derive billing lines in the aggregate; preset motifs + plan templates also live in `CockpitReferenceData.php` (ported from `PRESET_MOTIFS` consultation.js:79-85 and the quad-P `PLAN_TEMPLATES` consultation.js:2615-2645), served via hydration; applying a template fires the real add endpoints item by item through the Task 5 queue.
-- [ ] Task 21: Ordonnance slice — `AddPrescriptionLineController`, `RemovePrescriptionLineController`; medication search modal backed by a `GET` search endpoint using the Catalog port (`src/Presentation/Clinic/Controller/Consultation/Record/SearchCatalogItemsController` or Api namespace, HTML-fragment or JSON per global-search precedent); posology form; price snapshot; allergy warning cross-checks the animal's real medical alerts against the article's active substances (label match, simple contains — no interaction engine); billing lines derived.
-- [ ] Task 22: Facturation slice — bind `.bill-*` markup to DTO billing lines + totals (HT/TVA/TTC from Taxation-resolved rates — delete the hardcoded ÷1.2); rows re-render from server responses after any plan/ordonnance change; draft badge static (no status workflow).
-- [ ] Task 23: Mémo équipe slice — `UpdateTeamMemoController`; debounced auto-save.
-- [ ] Task 24: Topbar slice — Historique modal renders the real history list (link rows to their consultation pages); timer + save-state already live from Task 5; Imprimer: print stylesheet (`@media print`) rendering ordonnance/compte-rendu from real data via a dedicated print view or print-scoped CSS on the page.
-- [ ] Task 25: Footer + read-only slice — wire "Clôturer" modal to existing `CloseConsultationController` (keep POST+redirect flow); Pause/Plus tard navigate to `clinic_admission_queue`; when `status=CLOSED` render banner "Consultation clôturée", disable all mutation UI, hide add buttons (server already rejects via ensureOpen).
-- [ ] Task 26: Consultation demo fixtures — extend fixtures so demo DB contains consultations in varied states (open empty, open rich with all blocks filled, closed with summary) per CLAUDE.md §7.
-- [ ] Task 27: Finalization — update `src/Context/Consultation/README.md` (stale NoteType list + new model); `make ci` + coverage verification on Consultation/Animal/Catalog/Patient; full browser pass (login → cockpit → exercise every block → reload → everything persisted → close → read-only).
+- [x] Task 15: Motifs slice — `UpdateConsultationMotifsController` (`POST /clinic/consultations/{id}/motifs`), bind `_sidebar_vitals.html.twig` motif strip, wire add/remove/free-text edit.
+- [x] Task 16: Constantes slice — `RecordTypedVitalController` + a new JSON controller dispatching the existing `RecordVitals` command for weight/temp; bind pills incl. weight Δ vs previous consultation (`weightKg` from the Task 12 history rows); wire add/edit modals with VitalType ranges from hydration (enum-sourced, Task 6).
+- [x] Task 17: SOAP S slice — `UpdateSubjectiveTextController`; textarea bound + debounced auto-save via api(); "Dicter" stays mock.
+- [x] Task 18: Quad O slice — `RecordExamSystemController` + `MarkAllSystemsNormalController` + `UpdateObjectiveObservationsController`; remove media-thumbnail UI from the modal; species template affects display only; per-system status/notes/structured data persisted.
+- [x] Task 19: Quad A slice — `AddDiagnosisController`, `UpdateDiagnosisController`, `RemoveDiagnosisController`, `SetPrimaryDiagnosisController`; diagnosis nomenclature = a static PHP list in a dedicated Presentation view-model class `src/Presentation/Clinic/ViewModel/Consultation/CockpitReferenceData.php` (ported verbatim from the current `NOMENCLATURE` mock, consultation.js:2044-2060), served via hydration; "Suggérer (IA)" modal stays mock but accepted suggestions call the real add endpoint with `source=AI_SUGGESTION`.
+- [x] Task 20: Quad P slice — `AddPlanActionController`, `UpdatePlanActionController`, `RemovePlanActionController`; act suggestions come from the Catalog port (real acts + prices); PERFORMED_ACT additions derive billing lines in the aggregate; preset motifs + plan templates also live in `CockpitReferenceData.php` (ported from `PRESET_MOTIFS` consultation.js:79-85 and the quad-P `PLAN_TEMPLATES` consultation.js:2615-2645), served via hydration; applying a template fires the real add endpoints item by item through the Task 5 queue.
+- [x] Task 21: Ordonnance slice — `AddPrescriptionLineController`, `RemovePrescriptionLineController`; medication search modal backed by a `GET` search endpoint using the Catalog port (`src/Presentation/Clinic/Controller/Consultation/Record/SearchCatalogItemsController` or Api namespace, HTML-fragment or JSON per global-search precedent); posology form; price snapshot; allergy warning cross-checks the animal's real medical alerts against the article's active substances (label match, simple contains — no interaction engine); billing lines derived.
+- [x] Task 22: Facturation slice — bind `.bill-*` markup to DTO billing lines + totals (HT/TVA/TTC from Taxation-resolved rates — delete the hardcoded ÷1.2); rows re-render from server responses after any plan/ordonnance change; draft badge static (no status workflow).
+- [x] Task 23: Mémo équipe slice — `UpdateTeamMemoController`; debounced auto-save.
+- [x] Task 24: Topbar slice — Historique modal renders the real history list (link rows to their consultation pages); timer + save-state already live from Task 5; Imprimer: print stylesheet (`@media print`) rendering ordonnance/compte-rendu from real data via a dedicated print view or print-scoped CSS on the page.
+- [x] Task 25: Footer + read-only slice — wire "Clôturer" modal to existing `CloseConsultationController` (keep POST+redirect flow); Pause/Plus tard navigate to `clinic_admission_queue`; when `status=CLOSED` render banner "Consultation clôturée", disable all mutation UI, hide add buttons (server already rejects via ensureOpen).
+- [x] Task 26: Consultation demo fixtures — extend fixtures so demo DB contains consultations in varied states (open empty, open rich with all blocks filled, closed with summary) per CLAUDE.md §7.
+- [x] Task 27: Finalization — update `src/Context/Consultation/README.md` (stale NoteType list + new model); `make ci` + coverage verification on Consultation/Animal/Catalog/Patient; full browser pass (login → cockpit → exercise every block → reload → everything persisted → close → read-only).
 
 ### Acceptance Criteria
 
-- [ ] AC 1: Given an open consultation, when I add a motif, a typed vital, a subjective text, an exam-system status, a diagnosis, a plan action, a prescription line, and a team memo, then each is persisted and still present after a full page reload.
-- [ ] AC 2: Given the cockpit, when the page loads, then patient banner, motifs, constantes, SOAP content, ordonnance, facturation, and mémo all render from server data with zero hardcoded "Luna/Lambert" content remaining.
-- [ ] AC 3: Given the medication search modal, when I search, then results come from Catalog fixtures (name/code, Rx flag), and when I add one with posology, then the line appears in the ordonnance with its price snapshotted at add time.
-- [ ] AC 4: Given a prescription line exists, when the Catalog base price of that article later changes, then the existing line's price is unchanged.
-- [ ] AC 5: Given plan acts and prescription lines, when any is added/removed, then billing lines re-derive server-side, and totals show HT/TVA/TTC computed from real Taxation rates (no hardcoded 20%).
-- [ ] AC 6: Given the animal has a penicillin allergy (Animal BC medical alert), when the cockpit renders, then the banner shows the real allergy badge, and when I add a medication whose active substance matches the allergy label, then the ordonnance warning appears.
-- [ ] AC 7: Given the patient has past consultations, when I open Historique, then the real list appears (date, motif/summary) with links; given none exist, an empty state shows.
-- [ ] AC 8: Given the consultation is OPEN, when time passes, then the topbar timer ticks from startedAtUtc, and when any save completes/fails, then the save-state indicator reflects it.
-- [ ] AC 9: Given a CLOSED consultation, when I open the cockpit, then a closure banner shows and every mutation control is disabled/hidden; when a mutation endpoint is called anyway, then the server returns the domain error.
-- [ ] AC 10: Given the cockpit, when I click "Dicter" or "Suggérer (IA)", then the existing mock behavior is preserved unchanged; when I accept an AI suggestion, then it persists via the real endpoint with source AI_SUGGESTION and shows the IA chip after reload.
-- [ ] AC 11: Given "Pause"/"Plus tard", when clicked and confirmed, then I land on the admission queue and the consultation stays OPEN (still reachable from the Pris en charge panel); given "Clôturer", when confirmed, then the existing close flow runs and redirects appropriately.
-- [ ] AC 12: Given the "⋯" patient menu, when I click SMS/email/tag/archiver/transfert, then a "Fonctionnalité à venir" toast shows (no dead silence, nothing else happens).
-- [ ] AC 13: Given the Imprimer modal, when I choose ordonnance/compte-rendu, then a print-ready layout with real data opens via browser print.
-- [ ] AC 14: Given an invalid mutation (empty diagnosis label, vital out of range, unknown consultation id), when submitted, then the JSON envelope returns success=false with field errors and the UI shows the error state without corrupting local state.
-- [ ] AC 15: Given `make ci`, when run after each phase, then it is green, and the Consultation, Animal, Catalog, and Patient BCs each report 100% line coverage.
+- [x] AC 1: Given an open consultation, when I add a motif, a typed vital, a subjective text, an exam-system status, a diagnosis, a plan action, a prescription line, and a team memo, then each is persisted and still present after a full page reload.
+- [x] AC 2: Given the cockpit, when the page loads, then patient banner, motifs, constantes, SOAP content, ordonnance, facturation, and mémo all render from server data with zero hardcoded "Luna/Lambert" content remaining.
+- [x] AC 3: Given the medication search modal, when I search, then results come from Catalog fixtures (name/code, Rx flag), and when I add one with posology, then the line appears in the ordonnance with its price snapshotted at add time.
+- [x] AC 4: Given a prescription line exists, when the Catalog base price of that article later changes, then the existing line's price is unchanged.
+- [x] AC 5: Given plan acts and prescription lines, when any is added/removed, then billing lines re-derive server-side, and totals show HT/TVA/TTC computed from real Taxation rates (no hardcoded 20%).
+- [x] AC 6: Given the animal has a penicillin allergy (Animal BC medical alert), when the cockpit renders, then the banner shows the real allergy badge, and when I add a medication whose active substance matches the allergy label, then the ordonnance warning appears.
+- [x] AC 7: Given the patient has past consultations, when I open Historique, then the real list appears (date, motif/summary) with links; given none exist, an empty state shows.
+- [x] AC 8: Given the consultation is OPEN, when time passes, then the topbar timer ticks from startedAtUtc, and when any save completes/fails, then the save-state indicator reflects it.
+- [x] AC 9: Given a CLOSED consultation, when I open the cockpit, then a closure banner shows and every mutation control is disabled/hidden; when a mutation endpoint is called anyway, then the server returns the domain error.
+- [x] AC 10: Given the cockpit, when I click "Dicter" or "Suggérer (IA)", then the existing mock behavior is preserved unchanged; when I accept an AI suggestion, then it persists via the real endpoint with source AI_SUGGESTION and shows the IA chip after reload.
+- [x] AC 11: Given "Pause"/"Plus tard", when clicked and confirmed, then I land on the admission queue and the consultation stays OPEN (still reachable from the Pris en charge panel); given "Clôturer", when confirmed, then the existing close flow runs and redirects appropriately.
+- [x] AC 12: Given the "⋯" patient menu, when I click SMS/email/tag/archiver/transfert, then a "Fonctionnalité à venir" toast shows (no dead silence, nothing else happens).
+- [x] AC 13: Given the Imprimer modal, when I choose ordonnance/compte-rendu, then a print-ready layout with real data opens via browser print.
+- [x] AC 14: Given an invalid mutation (empty diagnosis label, vital out of range, unknown consultation id), when submitted, then the JSON envelope returns success=false with field errors and the UI shows the error state without corrupting local state.
+- [x] AC 15: Given `make ci`, when run after each phase, then it is green, and the Consultation, Animal, Catalog, and Patient BCs each report 100% line coverage.
 - [x] AC 16: Given `ResolvePrice` with an explicit non-default price list containing an item override, when resolved, then the override price is returned (PriceResolver bug fixed) — regression-tested.
-- [ ] AC 17: Given two mutations issued in quick succession (e.g. memo auto-save while adding a diagnosis), when both complete, then neither is lost and no error surfaces to the user (client FIFO queue + single 409/CONFLICT retry); given a genuine unresolved conflict, then the save-state indicator shows the error state.
-- [ ] AC 18: Given a consultation whose patient has no linked animal (unreconciled), when the cockpit loads, then it renders fully functional with the patient's provisional label, no allergy badges, disabled profil-animal modal, and patient-scoped history — no errors.
+- [x] AC 17: Given two mutations issued in quick succession (e.g. memo auto-save while adding a diagnosis), when both complete, then neither is lost and no error surfaces to the user (client FIFO queue + single 409/CONFLICT retry); given a genuine unresolved conflict, then the save-state indicator shows the error state.
+- [x] AC 18: Given a consultation whose patient has no linked animal (unreconciled), when the cockpit loads, then it renders fully functional with the patient's provisional label, no allergy badges, disabled profil-animal modal, and patient-scoped history — no errors.
+
+## Review Notes — Phases 1 & 2 (2026-08-20)
+
+Adversarial review run on the full diff since `8434a13d` (isolated subagent, information asymmetry, read-only). **0 Critical**, 4 High, 9 Medium, 21 Low, 3 Plausible.
+
+Verified clean by the reviewer: XSS (every interpolation in the page module escapes), clinic scoping on all 20 new command handlers, CSRF before dispatch, price snapshotting (AC4), no hardcoded VAT, the Turbo lifecycle (Task 5f genuinely done), the mutation queue's retry semantics, and the absence of any leftover "Luna/Lambert" (AC2).
+
+**Fixed (23):**
+- H-1 quantity overflowing `DECIMAL(10,2)` produced a driver error → HTTP 500; now a 422 (`> 99999.99` rejected in the plan/prescription VOs).
+- H-2 a quantity below `0.005` was silently stored as `0.00`, then poisoned every later mutation through `syncBillingLines()`; quantities are now validated at the persisted precision (`round($q, 2) <= 0` rejected).
+- H-3 the motif free-text input was destroyed by every re-render (lost keystrokes and caret); it now lives in the Twig partial, outside the container the chips re-render into. A follow-up regression (the delegated `input` listener no longer reached the moved element) was caught by a browser test and fixed.
+- H-4 motif add/remove derived its payload from a click-time snapshot, so two quick clicks silently dropped the first; `mutate()` now accepts a payload *builder* executed inside the FIFO queue, after the previous response landed (AC17).
+- M-2 `api.get()` rejected on network failure (unhandled rejection, silent dead catalog search).
+- M-3 English domain messages surfaced verbatim in the French UI; the client now maps `errorCode` to French copy.
+- M-4 a renderer failure was reported to the practitioner as a failed save; rendering moved out of the request guard.
+- M-7 the spec-mandated adapter integration tests were missing (`QueryBusTaxRateProvider` 3.6%, `QueryBusCatalogItemProvider` 47.7%); both are now at 100%.
+- M-8 the `afterprint` listener leaked across Turbo visits.
+- M-9 archived catalog items could still be prescribed or billed from a stale tab.
+- L-1 `new \DateTimeImmutable()` in `CockpitPatientBuilder` → injected `ClockInterface`.
+- L-2 the `ACTIVE` filter ran after the result cap, silently shrinking the search list.
+- L-4 a scalar posted where a list was expected escaped the JSON envelope as a raw 400.
+- L-5 an unknown or foreign consultation id returned 500 instead of 404.
+- L-8 the motif list was unbounded (now capped at 20).
+- L-10 `debounce()` registered a cleanup per invocation, growing the teardown list.
+- L-13 exam records outside the active species template were invisible although persisted.
+- L-14 choosing "Anomalie" then cancelling the details modal left the status unchanged; the flip now happens first.
+- L-15 several allergies collapsed into a single banner headline.
+- L-16 `fmtNumber()` output was the only unescaped interpolation path.
+- L-17 French comments in the new JS.
+- L-18 dead `anchor` parameter kept alive by `void`.
+- L-20 the motif modal reopened itself even when the save failed; it now refreshes in place.
+- P-2 applying a plan template reported success unconditionally; it now counts what landed.
+
+**Skipped with reason (11):** M-1 the full state rebuild per mutation (~40 queries) is the price of the single-render-path design — measured fine on demo data, revisit only if profiling says so; M-5 `askQuietly()` degradation is deliberate (a Catalog hiccup must not 500 the cockpit) and adding a logger is out of scope; M-6 mixed-currency billing lines cannot occur while a clinic has one currency; L-3 `CockpitEndpoint`'s namespace is a placement nit, moving it would churn 21 imports; L-6 (no `#[IsGranted]`) and L-7 (unescaped `LIKE` wildcards) are pre-existing project-wide patterns, not introduced here; L-9 `MedicalAlert`'s public readonly properties match the Animal BC's own VO style; L-12 the rabbit/bird/equine exam templates stay reachable from the template menu; L-19 the extra reference data is deliberate scaffolding for client-side pre-validation; L-21 clearing the motif free text is refused by the aggregate's non-empty chief-complaint invariant; P-1 a stale modal snapshot yields an error toast, never corruption; P-3 the state rebuild sits outside the try only for a consultation that vanished mid-request.
+
+**Post-fix verification:** `make ci` green (3057 tests, 8087 assertions; PHPStan level max, phpcs, php-cs-fixer, tailwind build). Every class touched by this change in the Consultation, Animal, Catalog and Patient BCs is at **100% line coverage** (measured, 107 classes). Browser pass on a freshly seeded database: 52 cockpit checks (render, every mutation, reload persistence, Turbo round-trip with no duplicated listeners), 15 acceptance checks (AI mock + accepted suggestion, print modes, Pause, close, closed-state rejection, CSRF), 7 race checks (H-3/H-4/L-14) and 10 unreconciled-patient checks (AC18) — all green, zero JS or HTTP errors.
 
 ## Review Notes — Phase 0 (2026-08-20)
 

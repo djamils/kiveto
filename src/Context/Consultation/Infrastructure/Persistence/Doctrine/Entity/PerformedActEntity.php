@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table]
 #[ORM\Index(name: 'idx_consultation_performed', columns: ['consultation_id', 'performed_at_utc'])]
-class PerformedActEntity
+class PerformedActEntity implements ConsultationChildEntity
 {
     #[ORM\Id]
     #[ORM\Column(type: 'binary', length: 16)]

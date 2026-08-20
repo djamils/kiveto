@@ -13,6 +13,8 @@ use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
+use App\Context\Animal\Domain\ValueObject\MedicalAlert;
+use App\Context\Animal\Domain\ValueObject\MedicalAlertKind;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
@@ -238,6 +240,84 @@ final class DoctrineAnimalRepositoryTest extends KernelTestCase
 
         self::assertNotNull($foundAnimal->auxiliaryContact());
         self::assertSame('John', $foundAnimal->auxiliaryContact()->firstName);
+    }
+
+    public function testSaveAndReloadMedicalAlerts(): void
+    {
+        $clinicId = ClinicId::fromString(Uuid::v7()->toString());
+
+        $repo = static::getContainer()->get(AnimalRepositoryInterface::class);
+        \assert($repo instanceof AnimalRepositoryInterface);
+
+        $animalId = AnimalId::fromString(Uuid::v7()->toString());
+        $now      = new \DateTimeImmutable('2024-01-01T10:00:00+00:00');
+
+        $animal = Animal::create(
+            id: $animalId,
+            clinicId: $clinicId,
+            name: 'Rex',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            lifeCycle: LifeCycle::alive(),
+            transfer: Transfer::none(),
+            auxiliaryContact: null,
+            primaryOwnerClientId: Uuid::v7()->toString(),
+            secondaryOwnerClientIds: [],
+            now: $now
+        );
+
+        $allergy = MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline', 'Choc anaphylactique en 2023');
+        $chronic = MedicalAlert::create(MedicalAlertKind::CHRONIC_CONDITION, 'Diabète');
+
+        $animal->addMedicalAlert($allergy, $now);
+        $animal->addMedicalAlert($chronic, $now);
+
+        $repo->save($animal);
+
+        /** @var Registry $doctrine */
+        $doctrine = static::getContainer()->get('doctrine');
+        $doctrine->getManager()->clear();
+
+        $reloaded = $repo->findById($clinicId, $animalId);
+        \assert(null !== $reloaded);
+
+        $alerts = $reloaded->medicalAlerts();
+        self::assertCount(2, $alerts);
+
+        $byId = [];
+        foreach ($alerts as $alert) {
+            $byId[$alert->id] = $alert;
+        }
+
+        self::assertArrayHasKey($allergy->id, $byId);
+        self::assertSame(MedicalAlertKind::ALLERGY, $byId[$allergy->id]->kind);
+        self::assertSame('Pénicilline', $byId[$allergy->id]->label);
+        self::assertSame('Choc anaphylactique en 2023', $byId[$allergy->id]->note);
+
+        self::assertArrayHasKey($chronic->id, $byId);
+        self::assertSame(MedicalAlertKind::CHRONIC_CONDITION, $byId[$chronic->id]->kind);
+        self::assertSame('Diabète', $byId[$chronic->id]->label);
+        self::assertNull($byId[$chronic->id]->note);
+
+        // Removing one alert must survive the save/reload round-trip too.
+        $reloaded->removeMedicalAlert($allergy->id, new \DateTimeImmutable('2024-02-01T10:00:00+00:00'));
+        $repo->save($reloaded);
+
+        $doctrine->getManager()->clear();
+
+        $afterRemoval = $repo->findById($clinicId, $animalId);
+        \assert(null !== $afterRemoval);
+
+        self::assertCount(1, $afterRemoval->medicalAlerts());
+        self::assertSame($chronic->id, $afterRemoval->medicalAlerts()[0]->id);
+        self::assertSame('Diabète', $afterRemoval->medicalAlerts()[0]->label);
     }
 
     public function testExistsMicrochip(): void

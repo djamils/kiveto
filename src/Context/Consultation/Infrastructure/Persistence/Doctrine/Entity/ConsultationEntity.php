@@ -44,6 +44,15 @@ class ConsultationEntity
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $summary = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $subjectiveText = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $objectiveObservations = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $teamMemo = null;
+
     #[ORM\Column(type: 'decimal', precision: 6, scale: 3, nullable: true)]
     private ?string $weightKg = null;
 
@@ -154,6 +163,36 @@ class ConsultationEntity
     public function setSummary(?string $summary): void
     {
         $this->summary = $summary;
+    }
+
+    public function getSubjectiveText(): ?string
+    {
+        return $this->subjectiveText;
+    }
+
+    public function setSubjectiveText(?string $subjectiveText): void
+    {
+        $this->subjectiveText = $subjectiveText;
+    }
+
+    public function getObjectiveObservations(): ?string
+    {
+        return $this->objectiveObservations;
+    }
+
+    public function setObjectiveObservations(?string $objectiveObservations): void
+    {
+        $this->objectiveObservations = $objectiveObservations;
+    }
+
+    public function getTeamMemo(): ?string
+    {
+        return $this->teamMemo;
+    }
+
+    public function setTeamMemo(?string $teamMemo): void
+    {
+        $this->teamMemo = $teamMemo;
     }
 
     public function getWeightKg(): ?string

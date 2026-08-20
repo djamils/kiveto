@@ -11,9 +11,12 @@ use Symfony\Component\Uid\Uuid;
 
 final class ClinicalNoteMapper
 {
-    public function toEntity(ClinicalNoteRecord $note, string $consultationIdBinary): ClinicalNoteEntity
-    {
-        $entity = new ClinicalNoteEntity();
+    public function toEntity(
+        ClinicalNoteRecord $note,
+        string $consultationIdBinary,
+        ?ClinicalNoteEntity $entity = null,
+    ): ClinicalNoteEntity {
+        $entity ??= new ClinicalNoteEntity();
         $entity->setId(Uuid::fromString($note->getId())->toBinary());
         $entity->setConsultationId($consultationIdBinary);
         $entity->setNoteType($note->getNoteType()->value);

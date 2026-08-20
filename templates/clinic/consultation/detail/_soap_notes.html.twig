@@ -1,4 +1,7 @@
-{# SOAP grid 2×2 — S Subjectif · O Objectif · A Diagnostic · P Plan (ported from layout) #}
+{#
+ # SOAP grid 2×2 — S Subjectif · O Objectif · A Diagnostic · P Plan.
+ # Textareas and lists are filled client-side from the hydration payload.
+ #}
 <div class="soap-grid">
 
   {# ── S — Subjectif ── #}
@@ -7,17 +10,13 @@
       <span class="quad-letter">S</span>
       <span class="quad-title">Subjectif</span>
       <span class="quad-sub">— motif &amp; symptômes</span>
-      <span class="quad-action" title="Dicter">
+      <span class="quad-action" id="qS-dictate" title="Dicter">
         <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="4" height="8" rx="2"/><path d="M3.5 8c0 2.5 2 4.5 4.5 4.5s4.5-2 4.5-4.5M8 12.5v2"/></svg>
         dicter
       </span>
     </div>
     <div class="quad-body">
-      <textarea class="quad-textarea" placeholder="Ce que rapporte le propriétaire…">Mme Lambert rapporte une boiterie postérieure droite intermittente depuis 5 jours, plus marquée le matin au lever et après les sorties longues.
-
-Pas de chute identifiée. Appétit conservé, comportement habituel. Luna boite moins après quelques minutes de marche.
-
-Aucune modification récente d'environnement ou d'alimentation.</textarea>
+      <textarea class="quad-textarea" id="q-subjective" placeholder="Ce que rapporte le propriétaire…"></textarea>
     </div>
   </div>
 
@@ -44,12 +43,12 @@ Aucune modification récente d'environnement ou d'alimentation.</textarea>
       <div class="listF" id="qO-listF"></div>
       <div class="observations-block">
         <span class="observations-label">Observations détaillées</span>
-        <textarea class="quad-textarea" placeholder="État général, démarche, comportement, contexte, observations libres du vet…">Animal alerte et coopératif. Démarche raide en fin d'examen, hésitation à charger le postérieur droit.</textarea>
+        <textarea class="quad-textarea" id="q-objective" placeholder="État général, démarche, comportement, contexte, observations libres du vet…"></textarea>
       </div>
     </div>
   </div>
 
-  {# ── A — Diagnostic (Quick-Add v3) ── #}
+  {# ── A — Diagnostic ── #}
   <div class="quad" data-letter="A">
     <div class="quad-head">
       <span class="quad-letter">A</span>
@@ -72,7 +71,7 @@ Aucune modification récente d'environnement ou d'alimentation.</textarea>
     </div>
   </div>
 
-  {# ── P — Plan (Proposition B-v2 : 2 zones asymétriques) ── #}
+  {# ── P — Plan ── #}
   <div class="quad" data-letter="P">
     <div class="quad-head">
       <span class="quad-letter">P</span>

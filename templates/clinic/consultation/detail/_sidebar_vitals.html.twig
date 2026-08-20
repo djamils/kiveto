@@ -1,36 +1,26 @@
-{# Summary strip — motif chips + constantes vitales (ported from layout) #}
+{#
+ # Summary strip — motif chips + constantes vitales.
+ # Both strips are rendered client-side from the hydration payload.
+ #}
 <div class="summary">
 
   <div class="strip">
     <span class="strip-label">Motif</span>
     <div class="strip-content">
-      <button class="chip is-selected">Vaccination</button>
-      <button class="chip is-selected">Boiterie</button>
-      <button class="chip chip-add">+ ajouter</button>
-      <span class="strip-text" style="margin-left:var(--space-2)">Rappel CHPLR + boiterie postérieure D depuis 5 j, intermittente.</span>
+      {#
+       # Chips are re-rendered on every save; the free-text input lives outside
+       # that container so a repaint never destroys what is being typed.
+       #}
+      <span id="motif-strip"></span>
+      <input class="strip-text" id="motif-free-text" autocomplete="off"
+             placeholder="Précisions sur le motif…"
+             value="{{ consultation.chiefComplaint }}">
     </div>
   </div>
 
   <div class="strip">
     <span class="strip-label">Constantes</span>
-    <div class="vitals-strip">
-
-      <div class="vital-pill">
-        <div class="vital-pill-label">Poids</div>
-        <div class="vital-pill-value">28,5 <span class="unit">kg</span></div>
-        <span class="vital-pill-delta is-down">−0,3 kg</span>
-      </div>
-
-      <button class="chip chip-add">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
-        ajouter une constante
-      </button>
-
-      <span class="strip-text" style="margin-left:auto;color:var(--text-subtle);font-size:var(--text-sm)">
-        Température · FC · FR · Score douleur · TRC · Muqueuses…
-      </span>
-
-    </div>
+    <div class="vitals-strip" id="vitals-strip"></div>
   </div>
 
 </div>

@@ -126,9 +126,19 @@ class AnimalEntity
     )]
     private Collection $ownerships;
 
+    /** @var Collection<int, MedicalAlertEntity> */
+    #[ORM\OneToMany(
+        targetEntity: MedicalAlertEntity::class,
+        mappedBy: 'animal',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    private Collection $medicalAlerts;
+
     public function __construct()
     {
-        $this->ownerships = new ArrayCollection();
+        $this->ownerships    = new ArrayCollection();
+        $this->medicalAlerts = new ArrayCollection();
     }
 
     public function getId(): Uuid
@@ -451,6 +461,20 @@ class AnimalEntity
             if ($ownership->getAnimal() === $this) {
                 $ownership->setAnimal(null);
             }
+        }
+    }
+
+    /** @return Collection<int, MedicalAlertEntity> */
+    public function getMedicalAlerts(): Collection
+    {
+        return $this->medicalAlerts;
+    }
+
+    public function addMedicalAlert(MedicalAlertEntity $alert): void
+    {
+        if (!$this->medicalAlerts->contains($alert)) {
+            $this->medicalAlerts->add($alert);
+            $alert->setAnimal($this);
         }
     }
 }

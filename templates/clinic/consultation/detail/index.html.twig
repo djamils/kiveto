@@ -4,7 +4,14 @@
  # docs/frontend-theme/vetsaas-layouts/vetos-consultation.html.
  #
  # Variables:
- #   consultation  ConsultationDto   The consultation data
+ #   consultation  ConsultationDetailsDTO  The consultation read model
+ #   patient       array                   Patient banner payload
+ #   owner         array|null              Primary owner payload
+ #   hydration     array                   Server → JS payload (see #consultation-data)
+ #
+ # Every dynamic region below is an empty shell: assets/js/pages/consultation.js
+ # renders it from the hydration payload on init and re-renders it from the JSON
+ # each mutation endpoint returns, so there is a single rendering implementation.
  #}
 {% extends 'clinic/base.html.twig' %}
 
@@ -20,26 +27,14 @@
   {# Page-level CSRF token shared by all cockpit mutation endpoints #}
   <input type="hidden" id="consultation-csrf" value="{{ csrf_token('consultation_edit') }}">
 
-  {#
-   # Server → JS hydration payload (agenda pattern). Parsed once by
-   # assets/js/pages/consultation.js at init(). Extended per vertical slice.
-   #}
   {# JSON_HEX_TAG keeps "<" escaped so free text can never break out of the script tag #}
   <script type="application/json" id="consultation-data">
-  {{ {
-    consultationId: consultation.consultationId,
-    status: consultation.status,
-    startedAtUtc: consultation.startedAtUtc,
-    closedAtUtc: consultation.closedAtUtc,
-    serverNowUtc: 'now'|date('Y-m-d H:i:s', 'UTC'),
-    patientId: consultation.patientId,
-    chiefComplaint: consultation.chiefComplaint,
-  }|json_encode(constant('JSON_HEX_TAG'))|raw }}
+  {{ hydration|json_encode(constant('JSON_HEX_TAG'))|raw }}
   </script>
 
   {# ── Topbar cockpit ── #}
   <header class="topbar">
-    <button class="tb-toggle" id="sidebar-toggle" title="Réduire / agrandir la sidebar" data-action="click->sidebar#toggle">
+    <button class="tb-toggle" id="sidebar-toggle" title="Réduire / agrandir la sidebar">
       <svg class="icon-16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
         <rect x="2" y="2.5" width="12" height="11" rx="1.5"/>
         <path d="M6.5 2.5v11"/>
@@ -49,7 +44,9 @@
     <div class="crumb">
       <a href="{{ path('clinic_consultations') }}">Consultations</a>
       <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3l5 5-5 5"/></svg>
-      <span class="crumb-current">Luna · Lambert</span>
+      <span class="crumb-current">
+        {{ patient.name }}{% if owner %} · {{ owner.fullName }}{% endif %}
+      </span>
     </div>
 
     <div class="topbar-right">
@@ -70,6 +67,15 @@
       </button>
     </div>
   </header>
+
+  {% if consultation.isClosed %}
+    <div class="closed-banner" id="closed-banner" role="status">
+      <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="7" width="10" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+      </svg>
+      <span><strong>Consultation clôturée</strong> — lecture seule. Aucune modification n'est possible.</span>
+    </div>
+  {% endif %}
 
   {# ── Patient bar ── #}
   {% include 'clinic/consultation/detail/_patient_banner.html.twig' %}
@@ -98,40 +104,15 @@
     {# ── Ordonnance ── #}
     <div class="rp-block">
       <div class="rp-block-head">
-        <span class="rp-block-title">Ordonnance · 2 médicaments</span>
+        <span class="rp-block-title" id="rx-title">Ordonnance</span>
         <button class="btn btn-ghost btn-icon btn-xs" id="btn-rx-print" title="Voir / imprimer">
           <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 3H5L3 5v8h10V5z"/><path d="M5 8h6M5 10.5h4"/></svg>
         </button>
       </div>
 
-      <div class="rx-warning">
-        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-        <span><strong style="font-weight:var(--weight-medium)">Pénicilline allergique</strong> — molécules incompatibles filtrées du catalogue.</span>
-      </div>
+      <div class="rx-warning" id="rx-warning" hidden></div>
 
-      <div class="rx-list">
-        <div class="rx-item has-row-x" data-code="MED-001">
-          <div class="rx-item-row">
-            <span class="rx-name">Méloxicam 1,5 mg/mL</span>
-            <span class="rx-price">14,80 €</span>
-            <button class="row-x" title="Retirer ce médicament" aria-label="Retirer ce médicament">
-              <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-            </button>
-          </div>
-          <div class="rx-poso">0,1 mg/kg · 1×/j · 7 j · per os</div>
-        </div>
-
-        <div class="rx-item has-row-x" data-code="MED-003">
-          <div class="rx-item-row">
-            <span class="rx-name">Cartrophen Vet 100 mg/mL</span>
-            <span class="rx-price">38,50 €</span>
-            <button class="row-x" title="Retirer ce médicament" aria-label="Retirer ce médicament">
-              <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-            </button>
-          </div>
-          <div class="rx-poso">3 mg/kg · SC · 1×/sem · 4 sem</div>
-        </div>
-      </div>
+      <div class="rx-list" id="rx-list"></div>
 
       <button class="add-row" id="btn-add-medication">
         <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
@@ -149,50 +130,14 @@
         Lignes générées depuis le plan et l'ordonnance · modifiez à la source
       </div>
 
-      <div class="bill-list">
-        <div class="bill-row">
-          <div class="bill-name">
-            Consultation standard
-            <span class="bill-qty">CONS · 30 min</span>
-          </div>
-          <div class="bill-price">42,00 €</div>
-        </div>
-        <div class="bill-row">
-          <div class="bill-name">
-            Vaccin CHPLR
-            <span class="bill-qty">VAC.CHPLR · ×1</span>
-          </div>
-          <div class="bill-price">38,00 €</div>
-        </div>
-        <div class="bill-row">
-          <div class="bill-name">
-            Radio grasset (×2)
-            <span class="bill-qty">IMG.RX · ×2</span>
-          </div>
-          <div class="bill-price">68,00 €</div>
-        </div>
-        <div class="bill-row" data-code="MED-001">
-          <div class="bill-name">
-            Méloxicam
-            <span class="bill-qty">MED · 32 mL</span>
-          </div>
-          <div class="bill-price">14,80 €</div>
-        </div>
-        <div class="bill-row" data-code="MED-003">
-          <div class="bill-name">
-            Cartrophen Vet
-            <span class="bill-qty">MED · 20 mL</span>
-          </div>
-          <div class="bill-price">38,50 €</div>
-        </div>
-      </div>
+      <div class="bill-list" id="bill-list"></div>
 
       <div class="bill-total">
         <div>
           <div style="font-size:var(--text-md);font-weight:var(--weight-medium);color:var(--text-secondary)">Total TTC</div>
-          <div style="font-size:var(--text-xs);color:var(--text-subtle);font-family:'DM Mono',monospace;margin-top:2px">HT 167,77 € · TVA 33,55 €</div>
+          <div id="bill-total-detail" style="font-size:var(--text-xs);color:var(--text-subtle);font-family:'DM Mono',monospace;margin-top:2px"></div>
         </div>
-        <div class="bill-total-amount">201,30 €</div>
+        <div class="bill-total-amount" id="bill-total-amount">—</div>
       </div>
     </div>
 
@@ -201,7 +146,9 @@
       <div class="rp-block-head">
         <span class="rp-block-title">Mémo équipe</span>
       </div>
-      <textarea class="quad-textarea" rows="2" placeholder="Note interne (non visible propriétaire)…" style="font-size:var(--text-md);min-height:auto;padding:var(--space-2);background:var(--surface-subtle);border:1px solid var(--border-medium)">Prévoir rappel SMS J+13 pour proposer recontrôle.</textarea>
+      <textarea class="quad-textarea" id="team-memo" rows="2"
+                placeholder="Note interne (non visible propriétaire)…"
+                style="font-size:var(--text-md);min-height:auto;padding:var(--space-2);background:var(--surface-subtle);border:1px solid var(--border-medium)"></textarea>
     </div>
 
   </div>
@@ -214,6 +161,9 @@
     <button class="btn btn-primary btn-lg" id="btn-close-consultation">
       Clôturer la consultation
     </button>
+    <form id="close-consultation-form" method="post" action="{{ path('clinic_consultation_close', {id: consultation.consultationId}) }}" hidden>
+      <input type="hidden" name="summary" id="close-consultation-summary" value="">
+    </form>
   </div>
 
 </aside>

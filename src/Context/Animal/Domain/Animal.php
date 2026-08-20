@@ -13,6 +13,8 @@ use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
 use App\Context\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
 use App\Context\Animal\Domain\Exception\DuplicateActiveOwnerException;
+use App\Context\Animal\Domain\Exception\DuplicateMedicalAlertException;
+use App\Context\Animal\Domain\Exception\MedicalAlertNotFoundException;
 use App\Context\Animal\Domain\Exception\PrimaryOwnerConflictException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
@@ -20,6 +22,7 @@ use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
+use App\Context\Animal\Domain\ValueObject\MedicalAlert;
 use App\Context\Animal\Domain\ValueObject\Ownership;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
@@ -33,6 +36,9 @@ final class Animal extends AggregateRoot
 {
     /** @var list<Ownership> */
     private array $ownerships = [];
+
+    /** @var list<MedicalAlert> */
+    private array $medicalAlerts = [];
 
     private function __construct(
         private readonly AnimalId $id,
@@ -220,6 +226,12 @@ final class Animal extends AggregateRoot
         return $this->ownerships;
     }
 
+    /** @return list<MedicalAlert> */
+    public function medicalAlerts(): array
+    {
+        return $this->medicalAlerts;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -300,6 +312,42 @@ final class Animal extends AggregateRoot
 
         $this->transfer  = $transfer;
         $this->updatedAt = $now;
+    }
+
+    public function addMedicalAlert(MedicalAlert $alert, \DateTimeImmutable $now): void
+    {
+        $this->ensureNotArchived();
+
+        $label = mb_strtolower($alert->label);
+
+        foreach ($this->medicalAlerts as $existing) {
+            if ($existing->kind === $alert->kind && mb_strtolower($existing->label) === $label) {
+                throw new DuplicateMedicalAlertException($this->id->toString(), $alert->label);
+            }
+        }
+
+        $this->medicalAlerts[] = $alert;
+        $this->updatedAt       = $now;
+    }
+
+    public function removeMedicalAlert(string $alertId, \DateTimeImmutable $now): void
+    {
+        $this->ensureNotArchived();
+
+        $kept = [];
+
+        foreach ($this->medicalAlerts as $alert) {
+            if ($alert->id !== $alertId) {
+                $kept[] = $alert;
+            }
+        }
+
+        if (\count($kept) === \count($this->medicalAlerts)) {
+            throw new MedicalAlertNotFoundException($alertId);
+        }
+
+        $this->medicalAlerts = $kept;
+        $this->updatedAt     = $now;
     }
 
     /**
@@ -479,7 +527,8 @@ final class Animal extends AggregateRoot
 
     // Reconstruction from persistence
     /**
-     * @param list<Ownership> $ownerships
+     * @param list<Ownership>    $ownerships
+     * @param list<MedicalAlert> $medicalAlerts
      */
     public static function reconstituteFromPersistence(
         AnimalId $id,
@@ -501,6 +550,7 @@ final class Animal extends AggregateRoot
         array $ownerships,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
+        array $medicalAlerts = [],
     ): self {
         $animal = new self(
             id: $id,
@@ -523,7 +573,8 @@ final class Animal extends AggregateRoot
             updatedAt: $updatedAt,
         );
 
-        $animal->ownerships = $ownerships;
+        $animal->ownerships    = $ownerships;
+        $animal->medicalAlerts = $medicalAlerts;
 
         return $animal;
     }
