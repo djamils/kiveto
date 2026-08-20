@@ -39,12 +39,13 @@
     background: var(--surface-card);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
-    max-width: 480px;
+    max-width: 560px;
     max-height: 90vh;
     animation: overlay-in .15s var(--ease-overlay);
   }
 
-  .modal-wide   { max-width: 680px; }
+  .modal-wide   { max-width: 720px; }
+  .modal-xwide  { max-width: 1200px; }
   .modal-narrow { max-width: 360px; }
   .modal-full   { max-width: 90vw; max-height: 90vh; }
 
@@ -590,6 +591,7 @@
 
   .modal,
   .modal-wide,
+  .modal-xwide,
   .modal-narrow {
     max-width: 100%;
     max-height: 90vh;

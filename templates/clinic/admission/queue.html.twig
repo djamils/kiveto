@@ -459,6 +459,7 @@
                   data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
                   data-owner-name="{{ enr.ownerName ?? '' }}"
                   data-owner-phone="{{ enr.ownerPhone ?? '' }}"
+                  {% if consultationIdByAdmission[entry.admissionId] ?? false %}data-consultation-url="{{ path('clinic_consultation_details', { id: consultationIdByAdmission[entry.admissionId] }) }}"{% endif %}
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">
@@ -644,6 +645,23 @@
       </div>
     </div>
   </div>{# /content-soins #}
+
+  {# Backdrop — ferme le slide au clic extérieur #}
+  <div class="detail-backdrop" id="detail-backdrop"
+       data-action="click->waiting-room#closeDetailSlide"></div>
+
+  {# ── Section 7: Detail Slide ── #}
+  <div class="detail-slide" id="detail-slide">
+    <div class="detail-head">
+      <p class="detail-head-title" id="slide-title">Détail patient</p>
+      <button class="btn-modal-close"
+              data-action="click->waiting-room#closeDetailSlide">
+        <i data-lucide="x" style="width:12px;height:12px;"></i>
+      </button>
+    </div>
+    <div class="detail-scroll" id="slide-content">
+      <div style="padding:var(--space-4);color:var(--text-subtle);font-size:var(--text-sm);">Sélectionnez un patient pour voir son détail.</div>
+    </div>
   </div>
 
   {# FABs (mobile) #}

@@ -1,4 +1,4 @@
-{# SOAP grid 2×2 — S Subjectif · O Objectif · A Analyse · P Plan #}
+{# SOAP grid 2×2 — S Subjectif · O Objectif · A Diagnostic · P Plan (ported from layout) #}
 <div class="soap-grid">
 
   {# ── S — Subjectif ── #}
@@ -8,114 +8,91 @@
       <span class="quad-title">Subjectif</span>
       <span class="quad-sub">— motif &amp; symptômes</span>
       <span class="quad-action" title="Dicter">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="6" y="2" width="4" height="8" rx="2"/><path d="M3.5 8c0 2.5 2 4.5 4.5 4.5s4.5-2 4.5-4.5M8 12.5v2"/></svg>
+        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="4" height="8" rx="2"/><path d="M3.5 8c0 2.5 2 4.5 4.5 4.5s4.5-2 4.5-4.5M8 12.5v2"/></svg>
         dicter
       </span>
     </div>
     <div class="quad-body">
-      <textarea class="quad-textarea" placeholder="Ce que rapporte le propriétaire…">Propriétaire signale une légère perte d'appétit depuis 2 jours. Luna est moins active. Pas de vomissements identifiés.</textarea>
+      <textarea class="quad-textarea" placeholder="Ce que rapporte le propriétaire…">Mme Lambert rapporte une boiterie postérieure droite intermittente depuis 5 jours, plus marquée le matin au lever et après les sorties longues.
+
+Pas de chute identifiée. Appétit conservé, comportement habituel. Luna boite moins après quelques minutes de marche.
+
+Aucune modification récente d'environnement ou d'alimentation.</textarea>
     </div>
   </div>
 
-  {# ── O — Objectif ── #}
+  {# ── O — Objectif (examen clinique) ── #}
   <div class="quad" data-letter="O">
     <div class="quad-head">
       <span class="quad-letter">O</span>
       <span class="quad-title">Objectif</span>
-      <span class="quad-sub">— observations cliniques</span>
-      <span class="quad-action">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M8 3v10"/></svg>
-        tout RAS
-      </span>
-    </div>
-    <div class="quad-body">
-      <div class="exam-grid">
-        <div class="exam-cell is-normal"><span class="exam-name">Cardiovasculaire</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Respiratoire</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Digestif</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Urogénital</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Locomoteur</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Neurologique</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-normal"><span class="exam-name">Cutané</span><span class="exam-status">RAS</span></div>
-        <div class="exam-cell is-untested"><span class="exam-name">Ophtalmo</span><span class="exam-status">— non testé</span></div>
+      <span class="quad-sub">— examen clinique</span>
+      <div class="quad-actions">
+        <button class="quad-action-btn" id="qO-ras-all">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l3 3 7-7"/></svg>
+          Tout RAS
+        </button>
+        <button class="template-btn" id="qO-template-btn">
+          <span class="template-btn-label">Template :</span>
+          <span class="template-btn-name" id="qO-template-btn-name">Chien standard</span>
+          <svg class="template-btn-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>
+        </button>
       </div>
-      <textarea class="quad-textarea" placeholder="Observations détaillées…" style="min-height:50px"></textarea>
+    </div>
+
+    <div class="quad-body">
+      <div class="listF" id="qO-listF"></div>
+      <div class="observations-block">
+        <span class="observations-label">Observations détaillées</span>
+        <textarea class="quad-textarea" placeholder="État général, démarche, comportement, contexte, observations libres du vet…">Animal alerte et coopératif. Démarche raide en fin d'examen, hésitation à charger le postérieur droit.</textarea>
+      </div>
     </div>
   </div>
 
-  {# ── A — Analyse & Diagnostic ── #}
+  {# ── A — Diagnostic (Quick-Add v3) ── #}
   <div class="quad" data-letter="A">
     <div class="quad-head">
       <span class="quad-letter">A</span>
-      <span class="quad-title">Analyse &amp; Diagnostic</span>
+      <span class="quad-title">Diagnostic</span>
+      <span class="quad-count" id="qA-dx-count">0 dx</span>
       <span class="quad-sub">— différentiel</span>
-      <span class="quad-action" title="Suggestions IA">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 2v3M8 11v3M2 8h3M11 8h3M3.8 3.8l2 2M10.2 10.2l2 2M3.8 12.2l2-2M10.2 5.8l2-2"/></svg>
-        suggérer
-      </span>
-    </div>
-    <div class="quad-body">
-      <div class="dx-list">
-        <div class="dx-item" data-confidence="probable">
-          <span class="dx-code">M.DIG.05</span>
-          <span class="dx-label">Gastro-entérite aiguë</span>
-          <span class="dx-confidence" data-confidence="probable">probable</span>
-          <button class="dx-remove" type="button" title="Retirer" aria-label="Retirer ce diagnostic">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-          </button>
-        </div>
+      <div class="quad-actions">
+        <button class="suggest-btn" id="qA-suggest-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Suggérer (IA)
+        </button>
+        <button class="header-add-btn" id="qA-add-btn" type="button" title="Ajouter des diagnostics" aria-label="Ajouter des diagnostics">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+        </button>
       </div>
-      <button class="add-row" type="button">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
-        Ajouter un diagnostic
-      </button>
+    </div>
+
+    <div class="quad-body">
+      <div class="dx-list" id="qA-dx-list"></div>
     </div>
   </div>
 
-  {# ── P — Plan ── #}
+  {# ── P — Plan (Proposition B-v2 : 2 zones asymétriques) ── #}
   <div class="quad" data-letter="P">
     <div class="quad-head">
       <span class="quad-letter">P</span>
       <span class="quad-title">Plan</span>
+      <span class="quad-count" id="qP-plan-count">0 actions</span>
       <span class="quad-sub">— traitement &amp; suivi</span>
-      <span class="quad-action">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6"/></svg>
-        templates
-      </span>
-    </div>
-    <div class="quad-body">
-      <div class="plan-list">
-        <div class="plan-item has-row-x is-done">
-          <span class="plan-checkbox">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2" aria-hidden="true"><path d="M3.5 8l3 3 6-6"/></svg>
-          </span>
-          <span class="plan-text">Vaccination FeLV sous-cutanée</span>
-          <span class="plan-meta">facturé</span>
-          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-          </button>
-        </div>
-        <div class="plan-item has-row-x">
-          <span class="plan-checkbox"></span>
-          <span class="plan-text">Smecta 3 j + régime digestible 5 j</span>
-          <span class="plan-meta">→ ordonnance</span>
-          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-          </button>
-        </div>
-        <div class="plan-item has-row-x">
-          <span class="plan-checkbox"></span>
-          <span class="plan-text">Recontrôle J+7 si persistance</span>
-          <span class="plan-meta">RDV</span>
-          <button class="row-x" type="button" title="Retirer" aria-label="Retirer du plan">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-          </button>
-        </div>
+      <div class="quad-actions">
+        <button class="template-btn" id="qP-template-btn">
+          <svg class="template-btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5h10M3 8h10M3 11.5h6"/></svg>
+          Template
+          <svg class="template-btn-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 6l3 3 3-3"/></svg>
+        </button>
+        <button class="header-add-btn" id="qP-add-btn" type="button" title="Ajouter des actions" aria-label="Ajouter des actions">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+        </button>
       </div>
-      <button class="add-row" type="button">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
-        Ajouter une action
-      </button>
+    </div>
+
+    <div class="quad-body">
+      <div class="plan-list" id="qP-plan-list"></div>
     </div>
   </div>
 
