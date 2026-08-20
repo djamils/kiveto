@@ -418,20 +418,32 @@ export default class extends Controller {
     if (btn) btn.disabled = true;
   }
 
+  // Escapes text for safe interpolation into innerHTML (dataset values are
+  // entity-decoded, so re-parsing them unescaped would allow stored XSS)
+  _esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   openDetailSlide(event) {
     const card = event.currentTarget;
     const d = card.dataset;
+    const esc = this._esc;
 
-    const name       = card.querySelector('.card-pet-name')?.textContent.trim() ?? 'Détail patient';
-    const species    = d.species    || '';
-    const motif      = d.motif      || '—';
-    const channel    = d.channel    || '—';
-    const openedAt   = d.openedAt   || '—';
-    const triage     = d.triageLabel || (card.classList.contains('urgent') ? 'Urgence' : card.classList.contains('priority') ? 'Prioritaire' : 'Standard');
-    const vet        = d.vet        || '— Non assigné';
-    const ownerName  = d.ownerName  || '—';
-    const ownerPhone = d.ownerPhone || '—';
-    const notes      = d.notes      || '';
+    const name       = esc(card.querySelector('.card-pet-name')?.textContent.trim() ?? 'Détail patient');
+    const species    = esc(d.species    || '');
+    const motif      = esc(d.motif      || '—');
+    const channel    = esc(d.channel    || '—');
+    const openedAt   = esc(d.openedAt   || '—');
+    const triage     = esc(d.triageLabel || (card.classList.contains('urgent') ? 'Urgence' : card.classList.contains('priority') ? 'Prioritaire' : 'Standard'));
+    const vet        = esc(d.vet        || '— Non assigné');
+    const ownerName  = esc(d.ownerName  || '—');
+    const ownerPhone = esc(d.ownerPhone || '—');
+    const notes      = esc(d.notes      || '');
     const isUrgent   = card.classList.contains('urgent');
 
     const titleEl = document.getElementById('slide-title');
@@ -463,7 +475,9 @@ export default class extends Controller {
       <div class="pd-actions">
         ${isUrgent
           ? '<button class="btn btn-danger btn-full">Affecter un vétérinaire</button>'
-          : '<button class="btn btn-primary btn-full">Démarrer la consultation</button>'}
+          : d.consultationUrl
+            ? `<a class="btn btn-primary btn-full" href="${esc(d.consultationUrl)}">Accéder à la consultation</a>`
+            : '<button class="btn btn-primary btn-full" disabled>Accéder à la consultation</button>'}
         <button class="btn btn-secondary">Profil animal</button>
         <button class="btn btn-secondary">Profil client</button>
         <button class="btn btn-secondary btn-full">Placer en chirurgie</button>

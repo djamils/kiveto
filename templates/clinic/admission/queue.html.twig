@@ -459,6 +459,7 @@
                   data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
                   data-owner-name="{{ enr.ownerName ?? '' }}"
                   data-owner-phone="{{ enr.ownerPhone ?? '' }}"
+                  {% if consultationIdByAdmission[entry.admissionId] ?? false %}data-consultation-url="{{ path('clinic_consultation_details', { id: consultationIdByAdmission[entry.admissionId] }) }}"{% endif %}
                   data-action="click->waiting-room#openDetailSlide">
                   <div class="card-top">
                     <span class="card-pet">

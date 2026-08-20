@@ -74,12 +74,16 @@ final class AdmissionQueueController extends AbstractController
         // ── Animal enrichment (species, breed, owner name/phone) ───────────
         $animalEnrichment = $this->enrichFromSearchEntries($entries, $clinicId);
 
+        // ── Open consultation per admission (for "Pris en charge" cards) ───
+        $consultationIdByAdmission = $this->findOpenConsultationIds($entries, $clinicId);
+
         return $this->render('clinic/admission/queue.html.twig', [
-            'entries'           => $entries,
-            'countUnidentified' => $countUnidentified,
-            'practitioners'     => $practitioners,
-            'appointments'      => $plannedAppointments,
-            'animalEnrichment'  => $animalEnrichment,
+            'entries'                   => $entries,
+            'countUnidentified'         => $countUnidentified,
+            'practitioners'             => $practitioners,
+            'appointments'              => $plannedAppointments,
+            'animalEnrichment'          => $animalEnrichment,
+            'consultationIdByAdmission' => $consultationIdByAdmission,
         ]);
     }
 
@@ -210,6 +214,48 @@ final class AdmissionQueueController extends AbstractController
                     'ownerPhone' => $d['ownerPhone'],
                 ];
             }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Maps each in-consultation admission to its consultation, so "Pris en charge"
+     * cards can link straight to the consultation detail page. Open consultations
+     * are preferred over closed ones, then the most recently started wins.
+     *
+     * @param list<WaitingRoomItemDto> $entries
+     *
+     * @return array<string, string> admissionId => consultationId
+     */
+    private function findOpenConsultationIds(array $entries, string $clinicId): array
+    {
+        $binAdmissionIds = [];
+        foreach ($entries as $entry) {
+            if ('in_consultation_room' === $entry->locationStatus) {
+                $binAdmissionIds[] = Uuid::fromString($entry->admissionId)->toBinary();
+            }
+        }
+
+        if ([] === $binAdmissionIds) {
+            return [];
+        }
+
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            "SELECT BIN_TO_UUID(admission_id) AS admission_id, BIN_TO_UUID(id) AS consultation_id
+             FROM consultation__consultations
+             WHERE clinic_id = ? AND admission_id IN (?)
+             ORDER BY (status = 'OPEN') DESC, started_at_utc DESC",
+            [Uuid::fromString($clinicId)->toBinary(), $binAdmissionIds],
+            [\Doctrine\DBAL\ParameterType::STRING, \Doctrine\DBAL\ArrayParameterType::STRING],
+        );
+
+        $result = [];
+        foreach ($rows as $row) {
+            \assert(\is_string($row['admission_id']));
+            \assert(\is_string($row['consultation_id']));
+            // First row per admission wins thanks to the ORDER BY above
+            $result[$row['admission_id']] ??= $row['consultation_id'];
         }
 
         return $result;
