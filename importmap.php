@@ -36,6 +36,9 @@ return [
     'kiveto/modal' => [
         'path' => './assets/js/ui/modal.js',
     ],
+    'kiveto/money' => [
+        'path' => './assets/js/money.js',
+    ],
     'kiveto/toast' => [
         'path' => './assets/js/ui/toast.js',
     ],
