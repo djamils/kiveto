@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Fixtures\System\PharmaceuticalRegistry\Story;
 
+use App\Fixtures\System\PharmaceuticalRegistry\Factory\ActiveSubstanceEntityFactory;
 use App\Fixtures\System\PharmaceuticalRegistry\Factory\AuthorizationEntityFactory;
+use App\Fixtures\System\PharmaceuticalRegistry\Factory\CompositionEntityFactory;
 use App\Fixtures\System\PharmaceuticalRegistry\Factory\PresentationEntityFactory;
 use Zenstruck\Foundry\Story;
 
@@ -13,9 +15,9 @@ final class ControlledSubstancesStory extends Story
     public function build(): void
     {
         $narcotics = [
-            ['name' => 'Narketan 10 mg/mL', 'class' => 'NARCOTIC_I'],
-            ['name' => 'Medetomidine 1 mg/mL', 'class' => 'NARCOTIC_II'],
-            ['name' => 'Ketamine 100 mg/mL', 'class' => 'NARCOTIC_I'],
+            ['name' => 'Narketan 10 mg/mL', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
+            ['name' => 'Medetomidine 1 mg/mL', 'class' => 'NARCOTIC_II', 'substances' => ['Médétomidine']],
+            ['name' => 'Ketamine 100 mg/mL', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
         ];
 
         foreach ($narcotics as $narcotic) {
@@ -36,6 +38,13 @@ final class ControlledSubstancesStory extends Story
                 'prescriptionJurisJurisdiction' => 'FR',
                 'prescriptionJurisCode'         => 'NARCO',
             ]);
+
+            foreach ($narcotic['substances'] as $substanceLabel) {
+                CompositionEntityFactory::createOne([
+                    'authorization'   => $authorization,
+                    'activeSubstance' => ActiveSubstanceEntityFactory::named($substanceLabel),
+                ]);
+            }
         }
     }
 }

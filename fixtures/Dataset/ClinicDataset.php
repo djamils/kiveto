@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
+use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
@@ -14,6 +15,10 @@ use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
+use App\Fixtures\System\PharmaceuticalRegistry\Story\CoreMedicationsStory;
+use App\Fixtures\System\PharmaceuticalRegistry\Story\LivestockMedicationsStory;
+use App\Fixtures\System\Taxation\Story\TaxonomyBootstrapStory;
 use App\Fixtures\System\Translation\Story\RegulatoryTranslationStory;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
@@ -54,5 +59,17 @@ final class ClinicDataset extends Story
 
         // Seed Regulatory BC translation labels
         RegulatoryTranslationStory::load();
+
+        // Seed Taxation reference data (categories + FR regime), needed by Catalog pricing
+        TaxonomyBootstrapStory::load();
+
+        // Seed PharmaceuticalRegistry authorizations (must precede the catalog:
+        // drug articles reference authorizations by commercial name)
+        CoreMedicationsStory::load();
+        ControlledSubstancesStory::load();
+        LivestockMedicationsStory::load();
+
+        // Seed the demo clinic's Catalog (acts, articles, packages, price lists)
+        CompanionClinicCatalogStory::load();
     }
 }
