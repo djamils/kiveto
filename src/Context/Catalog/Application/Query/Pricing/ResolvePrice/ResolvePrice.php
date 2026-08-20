@@ -9,8 +9,8 @@ use App\Shared\Application\Bus\QueryInterface;
 final readonly class ResolvePrice implements QueryInterface
 {
     public function __construct(
-        public string $priceListId,
         public string $clinicId,
+        public ?string $priceListId,
         public string $itemType,
         public string $itemId,
         public bool $isUrgency = false,
