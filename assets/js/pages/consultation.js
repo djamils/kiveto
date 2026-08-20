@@ -6,10 +6,185 @@
 // inside init() so Stimulus / Turbo can mount + cleanup safely.
 
 let _mounted = false;
+// Teardown callbacks registered during init() (document-level listeners,
+// intervals, observers). Flushed by cleanup() on turbo:before-cache.
+const _cleanups = [];
 
 export function init() {
   if (_mounted) return;
   _mounted = true;
+
+  // ═══════════════════════════════════════════════
+  //  SHARED PAGE INFRASTRUCTURE
+  //  Visible from every IIFE below (closure over init scope).
+  // ═══════════════════════════════════════════════
+
+  // Server → JS hydration payload (see #consultation-data in index.html.twig)
+  const HYDRATION = (() => {
+    try {
+      return JSON.parse(document.getElementById('consultation-data')?.textContent || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  function registerCleanup(fn) {
+    _cleanups.push(fn);
+  }
+
+  // Document-level listeners MUST go through this helper so cleanup()
+  // removes them (raw document.addEventListener leaks across Turbo visits).
+  function onDocument(type, handler) {
+    document.addEventListener(type, handler);
+    registerCleanup(() => document.removeEventListener(type, handler));
+  }
+
+  // ── Toast system (shared by all blocks) ──
+  const Toast = (() => {
+    let container = null;
+    function ensure() {
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+      }
+      return container;
+    }
+    function show(message, type = 'success') {
+      const c = ensure();
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      const icon = {
+        success: '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 8l3 3 6-6"/></svg>',
+        info:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 11h.01"/></svg>',
+        warn:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01"/></svg>',
+        error:   '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>',
+      }[type] || '';
+      t.innerHTML = icon + ' ' + message;
+      c.appendChild(t);
+      requestAnimationFrame(() => t.classList.add('show'));
+      setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => t.remove(), 220);
+      }, 2400);
+    }
+    registerCleanup(() => {
+      if (container) { container.remove(); container = null; }
+    });
+    return {
+      success: m => show(m, 'success'),
+      info:    m => show(m, 'info'),
+      warn:    m => show(m, 'warn'),
+      error:   m => show(m, 'error'),
+    };
+  })();
+
+  // ── Save-state indicator (topbar chip, fed by api()) ──
+  const SaveState = (() => {
+    const el = document.getElementById('save-state');
+    const LABELS = {
+      idle:   'Brouillon',
+      saving: 'Enregistrement…',
+      saved:  'Enregistré',
+      error:  'Erreur de sauvegarde',
+    };
+    let lastSavedAt = null;
+    function set(state) {
+      if (!el) return;
+      el.dataset.state = state;
+      const label = el.querySelector('.save-state-label');
+      if (label) label.textContent = LABELS[state] || LABELS.idle;
+      if (state === 'saved') lastSavedAt = new Date();
+    }
+    return { set, get lastSavedAt() { return lastSavedAt; } };
+  })();
+
+  // ── api() — JSON mutation helper with per-consultation FIFO queue ──
+  // Mutations are serialized (one in-flight request at a time) so debounced
+  // auto-saves can never race a line-add against the aggregate's optimistic
+  // lock. A 409 CONFLICT response is retried once transparently.
+  const api = (() => {
+    let chain = Promise.resolve();
+    function csrfToken() {
+      return document.getElementById('consultation-csrf')?.value || '';
+    }
+    async function send(url, data) {
+      const body = new URLSearchParams();
+      Object.entries(data || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) body.append(key, value);
+      });
+      body.append('_token', csrfToken());
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body,
+      });
+      let payload = null;
+      try { payload = await response.json(); } catch { /* non-JSON response */ }
+      return { status: response.status, payload };
+    }
+    function mutate(url, data) {
+      const run = async () => {
+        SaveState.set('saving');
+        try {
+          let result = await send(url, data);
+          if (result.status === 409 && result.payload?.errorCode === 'CONFLICT') {
+            result = await send(url, data);
+          }
+          if (result.payload?.success) {
+            SaveState.set('saved');
+            return result.payload;
+          }
+          SaveState.set('error');
+          const message = result.payload?.errors?.global?.[0] || 'Erreur lors de la sauvegarde';
+          Toast.error(message);
+          return result.payload || { success: false, errorCode: 'HTTP_' + result.status };
+        } catch {
+          SaveState.set('error');
+          Toast.error('Connexion perdue — modification non enregistrée');
+          return { success: false, errorCode: 'NETWORK' };
+        }
+      };
+      chain = chain.then(run, run);
+      return chain;
+    }
+    return { mutate };
+  })();
+  void api; // wired to real endpoints by the Phase 2 vertical slices
+
+  // Parses a server datetime as UTC even when the string carries no zone
+  // marker (the read side emits "YYYY-MM-DD HH:MM:SS" in UTC).
+  function parseUtcDate(value) {
+    if (!value) return null;
+    const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : value.replace(' ', 'T') + 'Z';
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  // ── Live consultation timer (topbar, from startedAtUtc) ──
+  (() => {
+    const timerEl = document.getElementById('consultation-timer');
+    const startedAt = parseUtcDate(HYDRATION.startedAtUtc);
+    if (!timerEl || !startedAt) return;
+    const closedAt = parseUtcDate(HYDRATION.closedAtUtc);
+    // Compensate client clock skew against the server's notion of "now"
+    const serverNow = parseUtcDate(HYDRATION.serverNowUtc);
+    const clockOffsetMs = serverNow ? serverNow.getTime() - Date.now() : 0;
+    const render = () => {
+      const end = closedAt || new Date(Date.now() + clockOffsetMs);
+      const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      const pad = n => String(n).padStart(2, '0');
+      timerEl.textContent = h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+    };
+    render();
+    if (!closedAt) {
+      const interval = setInterval(render, 1000);
+      registerCleanup(() => clearInterval(interval));
+    }
+  })();
 
 (() => {
   'use strict';
@@ -46,24 +221,6 @@ export function init() {
     { code: 'MED-012', name: 'Vetmedin 5 mg', cls: 'Cardiologie', form: 'comprimés', dose: 0.25, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 30, price: 42.00 },
   ];
 
-  const DIAGNOSTICS = [
-    { code: 'M.LOC.21', name: 'Arthrose grasset, stade précoce', system: 'Locomoteur' },
-    { code: 'M.LOC.18', name: 'Rupture partielle ligament croisé', system: 'Locomoteur' },
-    { code: 'M.LOC.25', name: 'Dysplasie de la hanche', system: 'Locomoteur' },
-    { code: 'M.LOC.30', name: 'Tendinite postérieure', system: 'Locomoteur' },
-    { code: 'M.LOC.05', name: 'Contracture musculaire', system: 'Locomoteur' },
-    { code: 'M.CARDIO.01', name: 'Insuffisance cardiaque congestive', system: 'Cardiovasculaire' },
-    { code: 'M.CARDIO.05', name: 'Souffle cardiaque grade 2', system: 'Cardiovasculaire' },
-    { code: 'M.DERMA.10', name: 'Pyodermite superficielle', system: 'Cutané' },
-    { code: 'M.DERMA.15', name: 'Allergie atopique', system: 'Cutané' },
-    { code: 'M.DERMA.20', name: 'Dermatite par allergie aux puces', system: 'Cutané' },
-    { code: 'M.DIG.05', name: 'Gastro-entérite aiguë', system: 'Digestif' },
-    { code: 'M.DIG.10', name: 'Pancréatite', system: 'Digestif' },
-    { code: 'M.URO.03', name: 'Cystite bactérienne', system: 'Urogénital' },
-    { code: 'M.NEU.01', name: 'Hernie discale', system: 'Neurologique' },
-    { code: 'M.PREV.01', name: 'Vaccination de routine', system: 'Préventif' },
-  ];
-
   const VITAL_TYPES = [
     { id: 'temperature', label: 'Température', unit: '°C', range: '38,0–39,2', def: '38,5' },
     { id: 'fc', label: 'Fréq. cardiaque', unit: 'bpm', range: '70–120', def: '90' },
@@ -84,53 +241,6 @@ export function init() {
     { category: 'Urgence', items: ['Urgence vitale', 'Traumatisme', 'Intoxication'] },
   ];
 
-  const PLAN_TEMPLATES = [
-    { id: 'tpl-1', name: 'Vaccination annuelle (chien)', description: 'CHPLR + examen + rappel',
-      items: [
-        { text: 'Vaccination CHPLR sous-cutanée', meta: 'acte' },
-        { text: 'Examen clinique général', meta: 'acte' },
-        { text: 'Rappel vaccin dans 12 mois', meta: 'RDV' },
-        { text: 'Vermifugation orale', meta: 'acte' },
-      ]},
-    { id: 'tpl-2', name: 'Suivi arthrose', description: 'AINS + chondroprotecteur + recontrôle',
-      items: [
-        { text: 'AINS 7 j + repos forcé 10 j', meta: '→ ordonnance' },
-        { text: 'Chondroprotecteur cure 4 semaines', meta: '→ ordonnance' },
-        { text: 'Recontrôle dans 14 jours', meta: 'RDV' },
-        { text: 'Conseil nutritionnel : aliment joints care', meta: 'conseil' },
-      ]},
-    { id: 'tpl-3', name: 'Post-stérilisation', description: 'Antibio + antalgique + retrait points',
-      items: [
-        { text: 'Antibiotique 7 j', meta: '→ ordonnance' },
-        { text: 'Antalgique 5 j', meta: '→ ordonnance' },
-        { text: 'Collerette 10 j', meta: 'matériel' },
-        { text: 'Retrait des points à J+10', meta: 'RDV' },
-      ]},
-    { id: 'tpl-4', name: 'Bilan pré-anesthésique', description: 'Bilan sanguin + ECG + à jeun',
-      items: [
-        { text: 'Bilan sanguin pré-op (NFS, biochimie)', meta: 'acte' },
-        { text: 'ECG de repos', meta: 'acte' },
-        { text: 'Mise à jeun 12h avant intervention', meta: 'consigne' },
-      ]},
-  ];
-
-  const PLAN_TYPES = [
-    { id: 'acte', icon: '🩺', label: 'Acte médical', meta: 'acte' },
-    { id: 'examen', icon: '🔬', label: 'Examen complémentaire', meta: 'examen' },
-    { id: 'medic', icon: '💊', label: 'Médicament (ordonnance)', meta: '→ ordonnance', special: 'medication' },
-    { id: 'conseil', icon: '💬', label: 'Conseil propriétaire', meta: 'conseil' },
-    { id: 'rdv', icon: '📅', label: 'Recontrôle / RDV', meta: 'RDV' },
-    { id: 'consigne', icon: '📋', label: 'Consigne', meta: 'consigne' },
-  ];
-
-  const CONFIDENCE = {
-    certain:  { key: 'certain',  label: 'certain',    description: 'Établi par examen ou test' },
-    probable: { key: 'probable', label: 'probable',   description: 'Hypothèse principale retenue' },
-    possible: { key: 'possible', label: 'possible',   description: 'À confirmer par examens' },
-    ecarter:  { key: 'ecarter',  label: 'à écarter',  description: 'Différentiel à exclure' },
-  };
-  const CONFIDENCE_ORDER = ['certain', 'probable', 'possible', 'ecarter'];
-
   const PAST_CONSULTATIONS = [
     { date: '24 janv. 2026', motif: 'Bilan annuel + vaccin', summary: 'Vaccination CHPLR. Poids stable 28,8 kg. RAS clinique.' },
     { date: '12 sept. 2025', motif: 'Boiterie postérieure', summary: 'Première suspicion arthrose. AINS 5 j. À surveiller.' },
@@ -138,45 +248,6 @@ export function init() {
     { date: '10 août 2024', motif: 'Plaie patte avant', summary: 'Plaie superficielle. Désinfection + antibio 5 j. Collerette.' },
     { date: '20 mai 2024', motif: 'Stérilisation', summary: 'Ovariohystérectomie. Suites simples. Retrait points J+10.' },
   ];
-
-  // ═══════════════════════════════════════════════
-  //  TOAST SYSTEM
-  // ═══════════════════════════════════════════════
-  const Toast = (() => {
-    let container = null;
-    function ensure() {
-      if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-      }
-      return container;
-    }
-    function show(message, type = 'success') {
-      const c = ensure();
-      const t = document.createElement('div');
-      t.className = `toast toast-${type}`;
-      const icon = {
-        success: '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 8l3 3 6-6"/></svg>',
-        info:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 11h.01"/></svg>',
-        warn:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01"/></svg>',
-        error:   '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>',
-      }[type] || '';
-      t.innerHTML = icon + ' ' + message;
-      c.appendChild(t);
-      requestAnimationFrame(() => t.classList.add('show'));
-      setTimeout(() => {
-        t.classList.remove('show');
-        setTimeout(() => t.remove(), 220);
-      }, 2400);
-    }
-    return {
-      success: m => show(m, 'success'),
-      info:    m => show(m, 'info'),
-      warn:    m => show(m, 'warn'),
-      error:   m => show(m, 'error'),
-    };
-  })();
 
   // ═══════════════════════════════════════════════
   //  MODAL SYSTEM
@@ -348,80 +419,6 @@ export function init() {
     titleEl.textContent = `Ordonnance · ${newCount} médicament${newCount > 1 ? 's' : ''}`;
     recomputeBillTotal();
     Toast.info('Médicament retiré');
-  }
-
-  // Add a diagnostic to A quad — confidenceKey ∈ CONFIDENCE_ORDER
-  function addDiagnostic(dx, confidenceKey = 'probable') {
-    const conf = CONFIDENCE[confidenceKey];
-    if (!conf) return;
-    const list = document.querySelector('.quad[data-letter="A"] .dx-list');
-    const item = document.createElement('div');
-    item.className = 'dx-item';
-    item.dataset.code = dx.code;
-    item.dataset.confidence = conf.key;
-    item.innerHTML = `
-      <span class="dx-code">${dx.code}</span>
-      <span class="dx-label">${dx.name}</span>
-      <span class="dx-confidence" data-confidence="${conf.key}" title="Cliquer pour modifier la certitude">${conf.label}</span>
-      <button class="dx-remove" title="Retirer" aria-label="Retirer ce diagnostic">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
-    `;
-    list.appendChild(item);
-    wireDxRemove(item);
-    wireDxConfidence(item);
-    highlightNew(item);
-    Toast.success(`Diagnostic ${conf.label} : ${dx.name}`);
-  }
-
-  // Change la certitude d'un dx existant en dropdown — édition in-place
-  function wireDxConfidence(item) {
-    const badge = item.querySelector('.dx-confidence');
-    if (!badge) return;
-    badge.addEventListener('click', e => {
-      e.stopPropagation();
-      const dxName = item.querySelector('.dx-label').textContent;
-      const items = CONFIDENCE_ORDER.map(key => {
-        const c = CONFIDENCE[key];
-        const isCurrent = item.dataset.confidence === key;
-        return {
-          action: key,
-          // Pastille colorée + label
-          icon: '<circle cx="8" cy="8" r="5"/>',
-          label: `<span style="display:inline-flex;align-items:center;gap:8px"><span class="dx-confidence" data-confidence="${key}" style="cursor:default;pointer-events:none">${c.label}</span><span style="color:var(--text-subtle);font-size:var(--text-xs)">${c.description}</span>${isCurrent ? '<span style="color:var(--brand-600);margin-left:4px">✓</span>' : ''}</span>`,
-        };
-      });
-      Dropdown.open(badge, items, {
-        onSelect: key => {
-          const conf = CONFIDENCE[key];
-          item.dataset.confidence = key;
-          badge.dataset.confidence = key;
-          badge.textContent = conf.label;
-          badge.title = 'Cliquer pour modifier la certitude';
-          Toast.info(`${dxName} → ${conf.label}`);
-        },
-      });
-    });
-  }
-  // Câbler les dx-confidence des items existants au démarrage
-  document.querySelectorAll('.dx-item').forEach(wireDxConfidence);
-
-  // Add a plan item
-  function addPlanItem(text, meta) {
-    const list = document.querySelector('.quad[data-letter="P"] .plan-list');
-    const item = document.createElement('div');
-    item.className = 'plan-item has-row-x';
-    item.innerHTML = `
-      <span class="plan-checkbox"></span>
-      <span class="plan-text">${text}</span>
-      <span class="plan-meta">${meta}</span>
-      <button class="row-x" title="Retirer du plan" aria-label="Retirer du plan">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
-    `;
-    list.appendChild(item);
-    wirePlanItem(item);
-    highlightNew(item);
   }
 
   // Add a constante (vital pill)
@@ -605,231 +602,6 @@ export function init() {
       if (!value) { Toast.error('Valeur requise'); return; }
       Modal.close();
       addVitalPill(vt, value);
-    });
-  }
-
-  // — Add Diagnostic — modal unique avec quick-pills inline
-  function openAddDiagnosticModal() {
-    const grouped = DIAGNOSTICS.reduce((acc, d) => {
-      (acc[d.system] = acc[d.system] || []).push(d);
-      return acc;
-    }, {});
-    const pillsHtml = CONFIDENCE_ORDER.map(key =>
-      `<button class="dx-quick-pill" data-conf="${key}" title="${CONFIDENCE[key].description}">${CONFIDENCE[key].label}</button>`
-    ).join('');
-    const html = Object.entries(grouped).map(([sys, items]) => `
-      <div class="m-list-section">${sys}</div>
-      ${items.map(d => `
-        <div class="m-item" data-code="${d.code}">
-          <span class="m-item-tag">${d.code}</span>
-          <div class="m-item-content"><span class="m-item-name">${d.name}</span></div>
-          <div class="dx-quick-pills">${pillsHtml}</div>
-        </div>
-      `).join('')}
-    `).join('');
-    const body = `
-      <div class="modal-search">
-        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-        <input type="text" placeholder="Rechercher par code ou nom…" id="dx-search">
-      </div>
-      <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-bottom:var(--space-2);padding:0 var(--space-2)">
-        Cliquez la ligne pour ajouter en <strong style="color:var(--brand-700)">probable</strong>, ou choisissez directement le niveau de certitude.
-      </div>
-      <div class="m-list" id="dx-list">${html}</div>
-    `;
-    Modal.open({ title: 'Ajouter un diagnostic', body, width: 'wide' });
-
-    Modal.getEl('#dx-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
-      Modal.getEl('#dx-list').querySelectorAll('.m-item').forEach(it => {
-        const code = it.dataset.code.toLowerCase();
-        const name = it.querySelector('.m-item-name').textContent.toLowerCase();
-        it.style.display = (code.includes(q) || name.includes(q)) ? '' : 'none';
-      });
-    });
-
-    Modal.getEl('#dx-list').addEventListener('click', e => {
-      const pill = e.target.closest('.dx-quick-pill');
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const dx = DIAGNOSTICS.find(d => d.code === it.dataset.code);
-      if (document.querySelector(`.dx-item[data-code="${dx.code}"]`)) {
-        Toast.warn('Ce diagnostic est déjà dans la liste');
-        return;
-      }
-      // Si clic sur une pill spécifique → utilise cette certitude
-      // Sinon (clic sur la ligne) → défaut "probable"
-      const confidenceKey = pill ? pill.dataset.conf : 'probable';
-      Modal.close();
-      addDiagnostic(dx, confidenceKey);
-    });
-  }
-
-  // openDxConfidenceModal reste disponible pour les cas où on veut une modale pleine
-  // (par exemple depuis la modale de suggestion IA quand on veut nuancer la certitude),
-  // mais n'est plus appelée depuis le flux d'ajout principal.
-  function openDxConfidenceModal(dx) {
-    const items = CONFIDENCE_ORDER.map(key => {
-      const c = CONFIDENCE[key];
-      return `<div class="m-item" data-conf="${key}">
-        <div class="m-item-content">
-          <span class="m-item-name"><span class="dx-confidence" data-confidence="${key}" style="cursor:default;pointer-events:none">${c.label}</span></span>
-          <span class="m-item-meta">${c.description}</span>
-        </div>
-      </div>`;
-    }).join('');
-    const body = `
-      <div style="padding:var(--space-3);background:var(--brand-50);border:1px solid var(--brand-100);border-radius:var(--radius-md);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
-        <span class="dx-code">${dx.code}</span>
-        <span style="font-weight:var(--weight-medium)">${dx.name}</span>
-      </div>
-      <div class="m-list-section" style="padding-left:0">Niveau de certitude</div>
-      <div class="m-list">${items}</div>
-    `;
-    Modal.open({ title: 'Niveau de certitude', body, width: 'narrow' });
-    Modal.getEl('.m-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      Modal.close();
-      addDiagnostic(dx, it.dataset.conf);
-    });
-  }
-
-  // — AI Suggest Diagnostic —
-  function openSuggestDiagnosticModal() {
-    Modal.open({
-      title: '✨ Suggestions diagnostiques (IA)',
-      body: `
-        <div style="padding:var(--space-4);text-align:center;color:var(--text-muted);font-size:var(--text-md)">
-          <span class="live-pulse" style="display:inline-block;background:var(--brand-500);margin-right:var(--space-2)"></span>
-          Analyse en cours…
-        </div>
-      `,
-      width: 'narrow',
-    });
-    setTimeout(() => {
-      const suggestions = [
-        { dx: DIAGNOSTICS[2], score: 78, reason: 'Race prédisposée + boiterie chronique' },
-        { dx: DIAGNOSTICS[3], score: 64, reason: 'Boiterie après effort, amyotrophie' },
-        { dx: DIAGNOSTICS[1], score: 52, reason: 'Tiroir antérieur à confirmer' },
-      ];
-      const html = suggestions.map(s => `
-        <div class="ai-suggest-item">
-          <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
-            <div style="display:flex;align-items:center;gap:var(--space-2)">
-              <span class="dx-code">${s.dx.code}</span>
-              <span style="font-weight:var(--weight-medium);font-size:var(--text-md)">${s.dx.name}</span>
-            </div>
-            <span style="font-size:var(--text-sm);color:var(--text-muted)">${s.reason}</span>
-          </div>
-          <div class="meter"><div class="meter-fill" style="width:${s.score}%"></div></div>
-          <span style="font-family:'DM Mono',monospace;font-size:var(--text-sm);color:var(--brand-700);min-width:32px;text-align:right">${s.score}%</span>
-          <button class="btn btn-primary btn-xs" data-add="${s.dx.code}">+</button>
-        </div>
-      `).join('');
-      const body = `
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-          Basé sur l'examen clinique, l'âge, la race et l'historique du patient.
-        </div>
-        ${html}
-        <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--border-light)">
-          ⓘ Ces suggestions ne remplacent pas le jugement clinique du praticien.
-        </div>
-      `;
-      Modal.getEl('.modal-body').innerHTML = body;
-      Modal.el.querySelectorAll('[data-add]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const dx = DIAGNOSTICS.find(d => d.code === btn.dataset.add);
-          if (document.querySelector(`.dx-item[data-code="${dx.code}"]`)) {
-            Toast.warn('Diagnostic déjà ajouté');
-            return;
-          }
-          Modal.close();
-          addDiagnostic(dx, 'probable');
-        });
-      });
-    }, 800);
-  }
-
-  // — Add Plan Action —
-  function openAddPlanActionModal() {
-    const html = PLAN_TYPES.map(t => `
-      <button class="type-card" data-type="${t.id}">
-        <span class="type-card-icon">${t.icon}</span>
-        <span class="type-card-text">
-          <span class="type-card-label">${t.label}</span>
-          <span class="type-card-meta">${t.meta}</span>
-        </span>
-      </button>
-    `).join('');
-    Modal.open({
-      title: 'Ajouter au plan',
-      body: `<div class="type-grid">${html}</div>`,
-    });
-    Modal.getEl('.type-grid').addEventListener('click', e => {
-      const card = e.target.closest('.type-card');
-      if (!card) return;
-      const t = PLAN_TYPES.find(x => x.id === card.dataset.type);
-      Modal.close();
-      if (t.special === 'medication') {
-        openAddMedicationModal();
-      } else {
-        openPlanActionTextModal(t);
-      }
-    });
-  }
-
-  function openPlanActionTextModal(planType) {
-    const body = `
-      <div class="form-row">
-        <span class="form-row-label">Type</span>
-        <span style="display:flex;align-items:center;gap:var(--space-2)"><span style="font-size:18px">${planType.icon}</span> <span>${planType.label}</span></span>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Description</span>
-        <input type="text" class="inline-num-input" id="plan-text" placeholder="Décrire l'action…">
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="plan-save">Ajouter</button>
-    `;
-    Modal.open({ title: planType.label, body, footer, width: 'narrow' });
-    Modal.getEl('#plan-save').addEventListener('click', () => {
-      const text = Modal.getEl('#plan-text').value.trim();
-      if (!text) { Toast.error('Description requise'); return; }
-      Modal.close();
-      addPlanItem(text, planType.meta);
-      Toast.success('Action ajoutée au plan');
-    });
-  }
-
-  // — Plan Templates —
-  function openPlanTemplatesModal() {
-    const html = PLAN_TEMPLATES.map(t => `
-      <div class="m-item" data-tpl="${t.id}">
-        <div class="m-item-content">
-          <span class="m-item-name">${t.name}</span>
-          <span class="m-item-meta">${t.description} · ${t.items.length} actions</span>
-        </div>
-      </div>
-    `).join('');
-    Modal.open({
-      title: 'Templates de plan',
-      body: `
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-          Sélectionnez un template — toutes ses actions seront ajoutées au plan en cours.
-        </div>
-        <div class="m-list">${html}</div>
-      `,
-    });
-    Modal.getEl('.m-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const tpl = PLAN_TEMPLATES.find(x => x.id === it.dataset.tpl);
-      Modal.close();
-      tpl.items.forEach(i => addPlanItem(i.text, i.meta));
-      Toast.success(`Template "${tpl.name}" appliqué (${tpl.items.length} actions)`);
     });
   }
 
@@ -1192,54 +964,6 @@ export function init() {
   }
   document.querySelectorAll('.strip:first-child .chip:not(.chip-add)').forEach(wireMotifChip);
 
-  function wireExamCell(cell) {
-    cell.addEventListener('click', () => {
-      const status = cell.querySelector('.exam-status');
-      if (cell.classList.contains('is-normal')) {
-        cell.classList.remove('is-normal');
-        cell.classList.add('is-abnormal');
-        status.textContent = 'À noter';
-      } else if (cell.classList.contains('is-abnormal')) {
-        cell.classList.remove('is-abnormal');
-        cell.classList.add('is-untested');
-        status.textContent = '— non testé';
-      } else {
-        cell.classList.remove('is-untested');
-        cell.classList.add('is-normal');
-        status.textContent = 'RAS';
-      }
-    });
-  }
-  document.querySelectorAll('.exam-cell').forEach(wireExamCell);
-
-  function wirePlanItem(item) {
-    // s'assurer que la classe has-row-x est bien présente (cas des items existants)
-    if (!item.classList.contains('has-row-x')) item.classList.add('has-row-x');
-
-    item.addEventListener('click', e => {
-      // ignore les clics sur la croix ou sur le meta
-      if (e.target.closest('.row-x') || e.target.closest('.plan-meta')) return;
-      item.classList.toggle('is-done');
-      const cb = item.querySelector('.plan-checkbox');
-      if (item.classList.contains('is-done') && !cb.querySelector('svg')) {
-        cb.innerHTML = '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2"><path d="M3.5 8l3 3 6-6"/></svg>';
-      } else if (!item.classList.contains('is-done')) {
-        cb.innerHTML = '';
-      }
-    });
-
-    const xBtn = item.querySelector('.row-x');
-    if (xBtn) {
-      xBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const text = item.querySelector('.plan-text').textContent;
-        item.remove();
-        Toast.info(`Action retirée : ${text}`);
-      });
-    }
-  }
-  document.querySelectorAll('.plan-item').forEach(wirePlanItem);
-
   function wireVitalPill(pill) {
     pill.addEventListener('click', e => {
       // ignore click sur la croix
@@ -1265,18 +989,6 @@ export function init() {
     }
   }
   document.querySelectorAll('.vital-pill').forEach(wireVitalPill);
-
-  function wireDxRemove(item) {
-    const btn = item.querySelector('.dx-remove');
-    if (!btn) return;
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const name = item.querySelector('.dx-label').textContent;
-      item.remove();
-      Toast.info(`Diagnostic retiré : ${name}`);
-    });
-  }
-  document.querySelectorAll('.dx-item').forEach(wireDxRemove);
 
   function wireRxItem(item, med) {
     item.addEventListener('click', e => {
@@ -1325,53 +1037,21 @@ export function init() {
     });
   }
 
-  // ─── Sidebar nav ───
-  document.querySelectorAll('.sidebar .nav-item').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      if (link.classList.contains('active')) return;
-      const label = link.textContent.trim().split('\n')[0].trim();
-      Toast.info(`Navigation vers "${label}"`);
-    });
-  });
-
-  // Sidebar clinic switcher
-  document.querySelector('.sb-clinic-btn')?.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'switch-1', icon: '<rect x="2" y="3" width="12" height="11" rx="1.5"/>', label: 'Clinique du Prado · Marseille' },
-      { action: 'switch-2', icon: '<rect x="2" y="3" width="12" height="11" rx="1.5"/>', label: 'Clinique de la Joliette' },
-      { divider: true },
-      { action: 'add-clinic', icon: '<circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>', label: 'Ajouter une clinique' },
-    ], { align: 'left', onSelect: a => Toast.info(a === 'add-clinic' ? 'Ajout d\'une clinique' : 'Clinique active modifiée') });
-  });
-
-  // Sidebar settings
-  document.querySelector('.sb-settings')?.addEventListener('click', () => Toast.info('Ouverture des paramètres'));
-  document.querySelector('.sb-user')?.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'profile', icon: '<circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 14c.5-3 3-4.5 5.5-4.5s5 1.5 5.5 4.5"/>', label: 'Mon profil' },
-      { action: 'prefs', icon: '<circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2"/>', label: 'Préférences' },
-      { divider: true },
-      { action: 'logout', icon: '<path d="M11 12l3-4-3-4M14 8H6M9 3H3v10h6"/>', label: 'Se déconnecter', danger: true },
-    ], { align: 'left', onSelect: a => Toast.info(a === 'logout' ? 'Déconnexion…' : 'Action: ' + a) });
-  });
-
   // ─── Topbar ───
   document.querySelector('.crumb a')?.addEventListener('click', e => {
     e.preventDefault();
+    const href = e.currentTarget.href;
     openConfirmModal({
       title: 'Quitter la consultation',
       message: 'La consultation est en brouillon. Vous pouvez la reprendre depuis l\'agenda.',
       confirmLabel: 'Quitter',
-      onConfirm: () => Toast.info('Retour à la liste des consultations'),
+      onConfirm: () => { window.Turbo ? window.Turbo.visit(href) : window.location.assign(href); },
     });
   });
 
   // Topbar buttons
-  const histBtn = [...document.querySelectorAll('.topbar .btn')].find(b => b.textContent.includes('Historique'));
-  if (histBtn) histBtn.addEventListener('click', openHistoryModal);
-  const printBtn = [...document.querySelectorAll('.topbar .btn')].find(b => b.textContent.includes('Imprimer'));
-  if (printBtn) printBtn.addEventListener('click', openPrintModal);
+  document.getElementById('btn-history')?.addEventListener('click', openHistoryModal);
+  document.getElementById('btn-print')?.addEventListener('click', openPrintModal);
 
   // ─── Patient bar ───
   document.querySelector('.pb-photo')?.addEventListener('click', () => Toast.info('Téléversement de photo (à implémenter)'));
@@ -1385,10 +1065,9 @@ export function init() {
     warn.style.cursor = 'pointer';
   });
   // dossier complet
-  const dossierBtn = [...document.querySelectorAll('.pb-actions .btn')].find(b => b.textContent.includes('Dossier'));
-  if (dossierBtn) dossierBtn.addEventListener('click', openPatientFileModal);
+  document.getElementById('btn-patient-file')?.addEventListener('click', openPatientFileModal);
   // ⋯ menu
-  const moreBtn = document.querySelectorAll('.pb-actions .btn-icon')[0];
+  const moreBtn = document.getElementById('btn-patient-more');
   if (moreBtn) moreBtn.addEventListener('click', e => {
     Dropdown.open(e.currentTarget, [
       { action: 'sms', icon: '<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 12l-1 2 4-2"/>', label: 'Envoyer un SMS au propriétaire' },
@@ -1401,8 +1080,11 @@ export function init() {
   });
 
   // ─── Save state click → details ───
-  document.querySelector('.save-state')?.addEventListener('click', () => {
-    Toast.info('Brouillon synchronisé · dernière sauvegarde il y a 4 s');
+  document.getElementById('save-state')?.addEventListener('click', () => {
+    const savedAt = SaveState.lastSavedAt;
+    Toast.info(savedAt
+      ? `Dernière sauvegarde à ${savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Aucune modification enregistrée pour le moment');
   });
 
   // ─── Motif strip ───
@@ -1450,45 +1132,15 @@ export function init() {
     setTimeout(() => Toast.success('Dictée transcrite'), 2000);
   });
 
-  // ─── SOAP O — tout RAS ───
-  const oQuad = document.querySelector('.quad[data-letter="O"]');
-  oQuad?.querySelector('.quad-action')?.addEventListener('click', () => {
-    oQuad.querySelectorAll('.exam-cell').forEach(c => {
-      c.classList.remove('is-abnormal', 'is-untested');
-      c.classList.add('is-normal');
-      c.querySelector('.exam-status').textContent = 'RAS';
-    });
-    Toast.success('Tous les systèmes marqués RAS');
-  });
-
-  // ─── SOAP A — suggérer ───
-  const aQuad = document.querySelector('.quad[data-letter="A"]');
-  aQuad?.querySelector('.quad-action')?.addEventListener('click', openSuggestDiagnosticModal);
-  aQuad?.querySelector('.add-row')?.addEventListener('click', openAddDiagnosticModal);
-  // marquer les dx initiaux avec data-code
-  aQuad?.querySelectorAll('.dx-item').forEach((item, i) => {
-    if (!item.dataset.code) {
-      const code = item.querySelector('.dx-code').textContent.trim();
-      item.dataset.code = code;
-    }
-  });
-
-  // ─── SOAP P — templates + add ───
-  const pQuad = document.querySelector('.quad[data-letter="P"]');
-  pQuad?.querySelector('.quad-action')?.addEventListener('click', openPlanTemplatesModal);
-  pQuad?.querySelector('.add-row')?.addEventListener('click', openAddPlanActionModal);
-
   // ─── Right panel ───
   // Print/view ordonnance
-  const rxPrintBtn = document.querySelector('.rp-block .btn-icon');
-  if (rxPrintBtn) rxPrintBtn.addEventListener('click', openPrintModal);
+  document.getElementById('btn-rx-print')?.addEventListener('click', openPrintModal);
 
   // Add medication button
-  const addMedBtn = document.querySelector('.rp-block .add-row');
-  if (addMedBtn) addMedBtn.addEventListener('click', openAddMedicationModal);
+  document.getElementById('btn-add-medication')?.addEventListener('click', openAddMedicationModal);
 
   // Bill draft badge → status menu
-  const draftBadge = document.querySelector('.rp-block:nth-of-type(2) .badge');
+  const draftBadge = document.getElementById('bill-status-badge');
   if (draftBadge) {
     draftBadge.style.cursor = 'pointer';
     draftBadge.addEventListener('click', e => {
@@ -1511,7 +1163,7 @@ export function init() {
 
   // ─── Footer ───
   // Pause
-  const pauseBtn = [...document.querySelectorAll('.rp-foot .btn')].find(b => b.textContent.trim() === 'Pause');
+  const pauseBtn = document.getElementById('btn-pause');
   if (pauseBtn) pauseBtn.addEventListener('click', () => {
     openConfirmModal({
       title: 'Mettre la consultation en pause',
@@ -1522,7 +1174,7 @@ export function init() {
   });
 
   // Plus tard
-  const laterBtn = [...document.querySelectorAll('.rp-foot .btn')].find(b => b.textContent.trim() === 'Plus tard');
+  const laterBtn = document.getElementById('btn-later');
   if (laterBtn) laterBtn.addEventListener('click', () => {
     openConfirmModal({
       title: 'Reporter la consultation',
@@ -1533,22 +1185,18 @@ export function init() {
   });
 
   // Clôturer
-  const closeBtn = [...document.querySelectorAll('.rp-foot .btn-primary')].find(b => b.textContent.includes('Clôturer'));
-  if (closeBtn) closeBtn.addEventListener('click', openCloseConsultationModal);
+  document.getElementById('btn-close-consultation')?.addEventListener('click', openCloseConsultationModal);
 
   // ─── Keyboard shortcuts ───
-  document.addEventListener('keydown', e => {
+  onDocument('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       openCloseConsultationModal();
     }
   });
 
-  // expose for debugging
-  window.VetOS = { Modal, Toast, Dropdown, state, MEDICATIONS, DIAGNOSTICS };
-
-  // welcome toast
-  setTimeout(() => Toast.info('Tous les éléments sont interactifs · ⌘↵ pour clôturer'), 600);
+  // Close any floating UI left open when Turbo caches the page
+  registerCleanup(() => { Modal.close(); Dropdown.close(); });
 
 })();
 
@@ -1710,12 +1358,12 @@ $('#qO-template-btn').addEventListener('click', e => {
   e.stopPropagation();
   openTemplateMenu();
 });
-document.addEventListener('click', e => {
+onDocument('click', e => {
   if (!e.target.closest('.template-menu') && !e.target.closest('#qO-template-btn')) {
     closeTemplateMenu();
   }
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeTemplateMenu();
 });
 
@@ -1991,7 +1639,7 @@ $('#qO-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 $('#qO-modal-save').addEventListener('click', saveModal);
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
@@ -2507,7 +2155,7 @@ $('#qA-modal-close').addEventListener('click', closeModal);
 $('#qA-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
@@ -3080,15 +2728,12 @@ function renderSidePresets() {
   });
 }
 
-// Close any open selector on outside click (once globally)
-if (!window.__qaSelectorCloseHandler) {
-  window.__qaSelectorCloseHandler = true;
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.qa-selector')) {
-      document.querySelectorAll('.qa-selector.is-open').forEach(s => s.classList.remove('is-open'));
-    }
-  });
-}
+// Close any open selector on outside click (removed again by cleanup())
+onDocument('click', (e) => {
+  if (!e.target.closest('.qa-selector')) {
+    document.querySelectorAll('.qa-selector.is-open').forEach(s => s.classList.remove('is-open'));
+  }
+});
 
 function addFromSuggestion(kind, code) {
   const s = (SUGGESTIONS[kind] || []).find(x => x.code === code);
@@ -3266,7 +2911,7 @@ $('#qP-modal-close').addEventListener('click', closeModal);
 $('#qP-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeTemplateMenu(); }
 });
 
@@ -3313,7 +2958,7 @@ function openTemplateMenu() {
 }
 
 $('#qP-template-btn').addEventListener('click', e => { e.stopPropagation(); openTemplateMenu(); });
-document.addEventListener('click', e => {
+onDocument('click', e => {
   if (!e.target.closest('.template-menu') && !e.target.closest('#qP-template-btn')) closeTemplateMenu();
 });
 
@@ -3347,6 +2992,7 @@ renderList();
     }
   });
   observer.observe(document.body, { childList: true });
+  registerCleanup(() => observer.disconnect());
 })();
 
 
@@ -3360,6 +3006,9 @@ renderList();
 
 export function cleanup() {
   _mounted = false;
-  // Vanilla JS state is local to init's IIFEs; reload via Turbo replaces
-  // the document body so DOM-bound state is naturally garbage-collected.
+  // Remove document-level listeners, intervals and observers registered
+  // during init(); element-bound listeners die with the body swap.
+  _cleanups.splice(0).forEach(fn => {
+    try { fn(); } catch { /* never block teardown */ }
+  });
 }

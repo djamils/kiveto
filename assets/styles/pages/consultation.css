@@ -833,6 +833,16 @@
       color: var(--text-muted);
     }
     .save-state .live-pulse { background: var(--brand-500); }
+    .save-state[data-state='saving'] .live-pulse { background: var(--color-warning-600); }
+    .save-state[data-state='error'] { color: var(--color-danger-text); }
+    .save-state[data-state='error'] .live-pulse { background: var(--color-danger-600); }
+
+    .tb-timer {
+      font-family: 'DM Mono', monospace;
+      font-size: var(--text-sm);
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
 
     .sb-logo {
       width: 24px; height: 24px;
