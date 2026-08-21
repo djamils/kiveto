@@ -44,9 +44,10 @@ export default class extends Controller {
     createLabel: { type: String, default: '' },
   };
 
-  _debounceTimer = null;
-  _activeIndex   = -1;
-  _items         = [];
+  _debounceTimer   = null;
+  _activeIndex     = -1;
+  _items           = [];
+  _onDocumentClick = null;
 
   connect() {
     if (this.hasInputTarget) {
@@ -54,9 +55,17 @@ export default class extends Controller {
       this.inputTarget.setAttribute('aria-autocomplete', 'list');
       this.inputTarget.setAttribute('aria-expanded', 'false');
     }
+
+    // Clicking anywhere else dismisses the list, selection or not.
+    this._onDocumentClick = (event) => {
+      if (!this.element.contains(event.target)) this._closeDropdown();
+    };
+    document.addEventListener('click', this._onDocumentClick);
   }
 
   disconnect() {
+    document.removeEventListener('click', this._onDocumentClick);
+
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
     }
