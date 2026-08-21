@@ -15,4 +15,17 @@ interface AdmissionServiceCoordinatorInterface
         string $newLocationStatus,
         string $clinicId,
     ): void;
+
+    /**
+     * Ends the visit the consultation belonged to, so the patient leaves the
+     * board and lands in the discharged column.
+     *
+     * A no-op when the visit is already over: several consultations can share
+     * one admission and only the first of them ends it.
+     */
+    public function closeAdmission(
+        string $admissionId,
+        string $clinicId,
+        string $closureReason,
+    ): void;
 }

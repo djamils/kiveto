@@ -1338,6 +1338,8 @@ export function init() {
     pill.addEventListener('click', e => {
       // ignore click sur la croix
       if (e.target.closest('.row-x')) return;
+      // une consultation clôturée est en lecture seule
+      if (isClosed()) return;
       // pour le poids et la température, ouvrir l'éditeur dédié
       if (!pill.dataset.vital || pill.dataset.vital === 'weight' || pill.dataset.vital === 'temperature') {
         openEditWeightModal();
@@ -1527,8 +1529,14 @@ export function init() {
   // Bill draft badge → status menu
   const draftBadge = document.getElementById('bill-status-badge');
   if (draftBadge) {
-    draftBadge.style.cursor = 'pointer';
+    // There is no invoice state in the domain yet, so the badge can only
+    // report what is known: a closed consultation is no longer a draft.
+    onServerState(() => {
+      draftBadge.textContent = isClosed() ? 'clôturée' : 'brouillon';
+      draftBadge.style.cursor = isClosed() ? 'default' : 'pointer';
+    });
     draftBadge.addEventListener('click', e => {
+      if (isClosed()) return;
       Dropdown.open(e.currentTarget, [
         { action: 'draft', label: '✏ Brouillon' },
         { action: 'pending', label: '⏳ À facturer' },

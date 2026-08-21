@@ -47,6 +47,8 @@
     body.consultation-readonly #qS-dictate,
     body.consultation-readonly #btn-add-medication,
     body.consultation-readonly #btn-close-consultation,
+    body.consultation-readonly #btn-pause,
+    body.consultation-readonly #btn-later,
     body.consultation-readonly .row-x,
     body.consultation-readonly .dx-x,
     body.consultation-readonly .plan-item-x {
@@ -58,6 +60,7 @@
     body.consultation-readonly .dx-row,
     body.consultation-readonly .plan-item,
     body.consultation-readonly .rx-item,
+    body.consultation-readonly .vital-pill,
     body.consultation-readonly .chip {
       pointer-events: none;
     }
