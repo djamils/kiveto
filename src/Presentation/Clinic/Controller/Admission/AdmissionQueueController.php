@@ -71,14 +71,24 @@ final class AdmissionQueueController extends AbstractController
             }
         }
 
+        // ── Today's discharges (real) ─────────────────────────────────────
+        $dischargedToday = $this->admissionReadRepository->findClosedForClinicSince(
+            $clinicId,
+            $today->setTime(0, 0)->setTimezone(new \DateTimeZone('UTC')),
+        );
+
         // ── Animal enrichment (species, breed, owner name/phone) ───────────
-        $animalEnrichment = $this->enrichFromSearchEntries($entries, $clinicId);
+        $animalEnrichment = $this->enrichFromSearchEntries(
+            [...$entries, ...$dischargedToday],
+            $clinicId,
+        );
 
         // ── Open consultation per admission (for "Pris en charge" cards) ───
         $consultationIdByAdmission = $this->findOpenConsultationIds($entries, $clinicId);
 
         return $this->render('clinic/admission/queue.html.twig', [
             'entries'                   => $entries,
+            'dischargedToday'           => $dischargedToday,
             'countUnidentified'         => $countUnidentified,
             'practitioners'             => $practitioners,
             'appointments'              => $plannedAppointments,

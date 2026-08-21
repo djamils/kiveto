@@ -109,6 +109,63 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         /** @var list<AdmissionEntity> $entities */
         $entities = $qb->getQuery()->getResult();
 
+        return $this->hydrate($entities, $clinicId);
+    }
+
+    /**
+     * Admissions closed since a point in time, most recent first.
+     *
+     * @return list<WaitingRoomItemDto>
+     */
+    public function findClosedForClinicSince(string $clinicId, \DateTimeImmutable $since): array
+    {
+        $qb = $this->entityManager->createQueryBuilder();
+        $qb->select('a')
+            ->from(AdmissionEntity::class, 'a')
+            ->where('a.clinicId = :clinicId')
+            ->andWhere('a.status = :status')
+            ->andWhere('a.closedAt >= :since')
+            ->setParameter('clinicId', Uuid::fromString($clinicId), UuidType::NAME)
+            ->setParameter('status', AdmissionStatus::Closed)
+            ->setParameter('since', $since)
+            ->orderBy('a.closedAt', 'DESC')
+        ;
+
+        /** @var list<AdmissionEntity> $entities */
+        $entities = $qb->getQuery()->getResult();
+
+        return $this->hydrate($entities, $clinicId);
+    }
+
+    public function getAdmissionContext(string $admissionId): AdmissionContextDto
+    {
+        $admissionUuid = Uuid::fromString($admissionId);
+        $repository    = $this->entityManager->getRepository(AdmissionEntity::class);
+
+        /** @var AdmissionEntity|null $entity */
+        $entity = $repository->find($admissionUuid);
+
+        if (null === $entity) {
+            throw new \RuntimeException(\sprintf('Admission not found: %s', $admissionId));
+        }
+
+        return new AdmissionContextDto(
+            patientId: $entity->getPatientId()->toString(),
+            clinicId: $entity->getClinicId()->toString(),
+        );
+    }
+
+    /**
+     * Turns admission entities into view items, enriching them with the patient
+     * label and the linked appointment's practitioner in a fixed number of
+     * queries whatever the entity count.
+     *
+     * @param list<AdmissionEntity> $entities
+     *
+     * @return list<WaitingRoomItemDto>
+     */
+    private function hydrate(array $entities, string $clinicId): array
+    {
         if ([] === $entities) {
             return [];
         }
@@ -205,27 +262,11 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 appointmentReason: $appointmentReasons[$admissionId] ?? null,
                 contextNote: $contextNotes[$admissionId] ?? null,
                 practitionerUserId: $practitionerUserIds[$admissionId] ?? null,
+                closedAt: $entity->getClosedAt()?->format(\DateTimeInterface::ATOM),
+                closureReason: $entity->getClosureReason()?->value,
             );
         }
 
         return $items;
-    }
-
-    public function getAdmissionContext(string $admissionId): AdmissionContextDto
-    {
-        $admissionUuid = Uuid::fromString($admissionId);
-        $repository    = $this->entityManager->getRepository(AdmissionEntity::class);
-
-        /** @var AdmissionEntity|null $entity */
-        $entity = $repository->find($admissionUuid);
-
-        if (null === $entity) {
-            throw new \RuntimeException(\sprintf('Admission not found: %s', $admissionId));
-        }
-
-        return new AdmissionContextDto(
-            patientId: $entity->getPatientId()->toString(),
-            clinicId: $entity->getClinicId()->toString(),
-        );
     }
 }

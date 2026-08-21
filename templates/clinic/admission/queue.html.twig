@@ -39,8 +39,12 @@
 {% set urgCount = entries|filter(e => e.triageLevel in ['emergency','vital_emergency'])|length %}
 {% set waitEntries = entries|filter(e => e.locationStatus in ['in_waiting_room','at_reception']) %}
 {% set consultEntries = entries|filter(e => e.locationStatus == 'in_consultation_room') %}
+{% set surgeryEntries = entries|filter(e => e.locationStatus == 'in_surgery') %}
+{% set hospiEntries = entries|filter(e => e.locationStatus == 'in_hospitalization') %}
 {% set attenteCount = waitEntries|length %}
 {% set consultCount = consultEntries|length %}
+{# A practitioner counts as busy when one of their patients is in consultation. #}
+{% set busyVetIds = consultEntries|map(e => e.practitionerUserId)|filter(id => id is not null) %}
 
 {% block content %}
 <div data-controller="waiting-room" class="wr-root">
@@ -82,12 +86,12 @@
         <span>Flux ambulatoire</span>
         <span class="tab-badge{% if urgCount > 0 %} warn{% endif %}">{{ entries|length }} · {{ urgCount }} urg.</span>
       </button>
-      <button class="tab-btn" data-tab="soins"
-              data-action="click->waiting-room#setTab"
-              data-waiting-room-tab-param="soins">
+      {# Disabled until the domain models surgical stages, cages and care plans #}
+      <button class="tab-btn" data-tab="soins" disabled
+              title="Soins cliniques — bientôt disponible">
         <i data-lucide="bed-double"></i>
         <span>Soins cliniques</span>
-        <span class="tab-badge">3 · 4</span>
+        <span class="tab-badge">{{ surgeryEntries|length }} · {{ hospiEntries|length }}</span>
       </button>
     </div>
     <div class="tabs-kpis" id="tabs-kpis">
@@ -104,11 +108,11 @@
         <span class="kpi-label">urgences</span>
       </div>
       <div class="kpi-item">
-        <span class="kpi-num purple">3</span>
+        <span class="kpi-num purple">{{ surgeryEntries|length }}</span>
         <span class="kpi-label">bloc</span>
       </div>
       <div class="kpi-item">
-        <span class="kpi-num success">4</span>
+        <span class="kpi-num success">{{ hospiEntries|length }}</span>
         <span class="kpi-label">hospi</span>
       </div>
       <div class="kpi-live">
@@ -130,18 +134,15 @@
         <div class="vcard">
           <div class="vcard-av" style="background:{{ color }}22;color:{{ color }};">{{ initials[0:2] }}</div>
           <span class="vcard-name">{{ name|split(' ')|last }}</span>
-          <span class="vcard-status">· libre</span>
+          {% if vet.userId in busyVetIds %}
+            <span class="vcard-status">· en consultation</span>
+          {% else %}
+            <span class="vcard-status free">· libre</span>
+          {% endif %}
         </div>
       {% else %}
         <span style="font-size:var(--text-sm);color:var(--text-subtle);">Aucun praticien configuré</span>
       {% endfor %}
-    </div>
-    <div class="vstrip-rooms">
-      <span class="vstrip-l" style="margin-right:4px;">Salles</span>
-      <span class="room-pill occupee">S1</span>
-      <span class="room-pill occupee">S2</span>
-      <span class="room-pill libre">S3</span>
-      <span class="room-pill occupee">Bloc</span>
     </div>
   </div>
 
@@ -180,7 +181,9 @@
         <div class="col-title">
           <div>
             <div class="col-title-l">Sortie</div>
-            <div class="col-title-meta">1 patient</div>
+            <div class="col-title-meta">
+              {{ dischargedToday|length }} patient{{ dischargedToday|length > 1 ? 's' : '' }}
+            </div>
           </div>
         </div>
       </div>
@@ -479,56 +482,47 @@
               <div class="col-empty">Aucun patient en consultation</div>
             {% endif %}
 
-            {# Mock — Prioritaire en consultation #}
-            <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">1</span></div>
-            <div class="pcard priority"
-                 data-motif="Boiterie patte avant droite — radio prescrite"
-                 data-channel="RDV" data-opened-at="09h30"
-                 data-triage-label="Prioritaire" data-species="Canin · Berger australien"
-                 data-vet="Dr. Rousseau · Salle 2" data-owner-name="James Park" data-owner-phone="+33 6 11 22 33 44"
-                 data-notes="Boite depuis 48h. Radio numérique programmée. Dossier antécédents fracture 2024."
-                 data-action="click->waiting-room#openDetailSlide">
-              <div class="card-top">
-                <span class="card-pet"><span class="card-pet-icon">🐕</span><span class="card-pet-name">Pixel</span></span>
-                <span class="card-when">09h30</span>
-              </div>
-              <div class="card-meta">Boiterie — radio patte avant</div>
-              <div class="card-foot">
-                <span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">RO</span>Rousseau <span class="card-room">S2</span></span>
-                <span class="card-wait warn">32 min</span>
-              </div>
-            </div>
-
-            {# Mock — Standard en consultation #}
-            <div class="col-section-l">Standard <span class="col-section-cnt">1</span></div>
-            <div class="scard stripe-consult"
-                 data-motif="Bilan annuel + vaccination rappel"
-                 data-channel="RDV" data-opened-at="09h45"
-                 data-triage-label="Standard" data-species="Félin · British Shorthair"
-                 data-vet="Dr. Dupont · Salle 1" data-owner-name="Amélie Dubois" data-owner-phone="+33 6 99 88 77 66"
-                 data-action="click->waiting-room#openDetailSlide">
-              <div class="card-top">
-                <span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Mochi</span></span>
-                <span class="card-when">09h45</span>
-              </div>
-              <div class="card-meta">Bilan annuel + vaccination · Dubois</div>
-              <div class="card-foot">
-                <span class="card-vet"><span class="card-vet-dot" style="background:#fce7f3;color:#be185d;">DU</span>Dupont <span class="card-room">S1</span></span>
-                <span class="card-wait">18 min</span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {# Sortie (MOCK) #}
+        {# Sortie (REAL — admissions closed today) #}
         <div class="kcol">
           <div class="kcol-scroll">
-            <div class="col-section-l done">Sortie <span class="col-section-cnt">1</span></div>
-            <div class="scard stripe-sortie">
-              <div class="card-top"><span class="card-pet"><span class="card-pet-icon">🐈</span><span class="card-pet-name">Cleo</span></span><span class="card-when">09:30</span></div>
-              <div class="card-meta">Otite — traitement terminé · Anderson</div>
-              <div class="card-foot"><span class="card-vet"><span class="card-vet-dot" style="background:#dcfce7;color:#15803d;">MA</span>Martin</span><span class="card-wait" style="color:var(--color-success-600);">Sortie ✓</span></div>
-            </div>
+            {% if dischargedToday|length > 0 %}
+              <div class="col-section-l done">Sortie <span class="col-section-cnt">{{ dischargedToday|length }}</span></div>
+              {% for entry in dischargedToday %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
+                <div class="scard stripe-sortie" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
+                  data-vet="{{ entry.practitionerLabel ?? '' }}"
+                  data-action="click->waiting-room#openDetailSlide">
+                  <div class="card-top">
+                    <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">{{ entry.displayLabel }}</span></span>
+                    <span class="card-when">{{ entry.closedAt ? entry.closedAt|date('H\\hi') : '' }}</span>
+                  </div>
+                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
+                  {% if motif or (enr.ownerName ?? false) %}
+                    <div class="card-meta">{{ motif }}{% if motif and (enr.ownerName ?? false) %} · {% endif %}{{ enr.ownerName ?? '' }}</div>
+                  {% endif %}
+                  <div class="card-foot">
+                    {% if entry.practitionerLabel %}
+                      <span class="card-vet"><span class="card-vet-dot">{{ entry.practitionerLabel|split(' ')|last|slice(0, 2)|upper }}</span>{{ entry.practitionerLabel }}</span>
+                    {% else %}
+                      <span class="card-vet"></span>
+                    {% endif %}
+                    <span class="card-wait" style="color:var(--color-success-600);">Sortie ✓</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="col-empty">Aucune sortie aujourd'hui</div>
+            {% endif %}
           </div>
         </div>
 
@@ -536,7 +530,13 @@
     </div>{# /kanban-amb #}
   </div>{# /content-amb #}
 
-  {# ── Section 6: Tab Content — Soins Cliniques (MOCK) ── #}
+  {#
+   # ── Section 6: Tab Content — Soins Cliniques ──
+   # Fed by the admissions whose location status is `in_surgery` /
+   # `in_hospitalization`. The domain has no surgical stage, no cage and no care
+   # schedule yet, so the pré-op / réveil columns and the per-card checklists,
+   # progress bars and soins blocks of the layout have nothing to show.
+   #}
   <div class="tab-content" id="content-soins">
     <div class="soins-grid">
       {# LEFT: Bloc opératoire #}
@@ -544,52 +544,46 @@
         <div class="soins-pane-head">
           <div class="soins-pane-title">
             <div class="soins-pane-icon bloc"><i data-lucide="syringe" style="width:14px;height:14px;"></i></div>
-            <div><div class="soins-pane-title-name">Bloc opératoire</div><div class="soins-pane-title-meta">3 interventions · 1 en cours</div></div>
+            <div>
+              <div class="soins-pane-title-name">Bloc opératoire</div>
+              <div class="soins-pane-title-meta">
+                {{ surgeryEntries|length }} intervention{{ surgeryEntries|length > 1 ? 's' : '' }} en cours
+              </div>
+            </div>
           </div>
           <button class="btn btn-secondary btn-sm"><i data-lucide="plus" style="width:11px;height:11px;"></i> Programmer</button>
         </div>
         <div class="bloc-cols">
           <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="clipboard-list" style="width:11px;height:11px;"></i> Pré-op <span class="bloc-substatus-cnt">1</span></div>
+            <div class="bloc-substatus"><i data-lucide="clipboard-list" style="width:11px;height:11px;"></i> Pré-op <span class="bloc-substatus-cnt">0</span></div>
             <div class="bloc-subcol-scroll">
-              <div class="surg-card preop">
-                <div class="card-top"><span class="surg-pet">🐇 Coco</span><span class="surg-room">Bloc 1</span></div>
-                <div class="surg-motif">Stérilisation</div>
-                <div class="surg-meta"><span class="surg-meta-item"><i data-lucide="user" style="width:11px;height:11px;"></i>Dr. Lambert</span></div>
-                <div class="surg-checklist">
-                  <div class="surg-check done"><div class="surg-check-box"><svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div> À jeun depuis 22:00</div>
-                  <div class="surg-check done"><div class="surg-check-box"><svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div> Prise de sang OK</div>
-                  <div class="surg-check done"><div class="surg-check-box"><svg width="8" height="8" viewBox="0 0 10 10"><path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div> Consentement signé</div>
-                  <div class="surg-check"><div class="surg-check-box"></div> Vérification du matériel</div>
-                </div>
-              </div>
+              <div class="col-empty">Aucun patient en pré-op</div>
             </div>
           </div>
           <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="zap" style="width:11px;height:11px;"></i> Per-op <span class="bloc-substatus-cnt">1</span></div>
+            <div class="bloc-substatus"><i data-lucide="zap" style="width:11px;height:11px;"></i> Per-op <span class="bloc-substatus-cnt">{{ surgeryEntries|length }}</span></div>
             <div class="bloc-subcol-scroll">
-              <div class="surg-card perop">
-                <div class="card-top"><span class="surg-pet">🐕 Bella</span><span class="surg-room">Bloc 2</span></div>
-                <div class="surg-motif">Ostéosynthèse fémur</div>
-                <div class="surg-meta"><span class="surg-meta-item"><i data-lucide="user" style="width:11px;height:11px;"></i>Dr. Rousseau</span></div>
-                <div class="surg-progress">
-                  <div class="surg-bar"><div class="surg-bar-fill live" style="width:21%;"></div></div>
-                  <div class="sla-meta"><span>19 min écoulées</span><span>71 min restantes</span></div>
+              {% for entry in surgeryEntries %}
+                <div class="surg-card perop">
+                  <span class="surg-pet">🐾 {{ entry.displayLabel }}</span>
+                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
+                  {% if motif %}<div class="surg-motif">{{ motif }}</div>{% endif %}
+                  <div class="surg-meta">
+                    {% if entry.practitionerLabel %}
+                      <span class="surg-meta-item"><i data-lucide="user" style="width:11px;height:11px;"></i>{{ entry.practitionerLabel }}</span>
+                    {% endif %}
+                    <span class="surg-meta-item"><i data-lucide="clock" style="width:11px;height:11px;"></i>depuis {{ entry.openedAt|date('H\\hi') }}</span>
+                  </div>
                 </div>
-              </div>
+              {% else %}
+                <div class="col-empty">Aucune intervention en cours</div>
+              {% endfor %}
             </div>
           </div>
           <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="moon" style="width:11px;height:11px;"></i> Réveil <span class="bloc-substatus-cnt">1</span></div>
+            <div class="bloc-substatus"><i data-lucide="moon" style="width:11px;height:11px;"></i> Réveil <span class="bloc-substatus-cnt">0</span></div>
             <div class="bloc-subcol-scroll">
-              <div class="surg-card reveil">
-                <div class="card-top"><span class="surg-pet">🐈 Felix</span><span class="surg-room">Réveil 1</span></div>
-                <div class="surg-motif">Castration</div>
-                <div class="surg-meta">
-                  <div class="surg-meta-item"><i data-lucide="thermometer" style="width:11px;height:11px;"></i>T° 38.4 · FC 142</div>
-                  <div class="surg-meta-item"><i data-lucide="clock" style="width:11px;height:11px;"></i>35 min</div>
-                </div>
-              </div>
+              <div class="col-empty">Aucun patient en réveil</div>
             </div>
           </div>
         </div>
@@ -600,47 +594,31 @@
         <div class="soins-pane-head">
           <div class="soins-pane-title">
             <div class="soins-pane-icon hospi"><i data-lucide="bed-double" style="width:14px;height:14px;"></i></div>
-            <div><div class="soins-pane-title-name">Hospitalisation</div><div class="soins-pane-title-meta">4 patients · 4 cages libres</div></div>
+            <div>
+              <div class="soins-pane-title-name">Hospitalisation</div>
+              <div class="soins-pane-title-meta">
+                {{ hospiEntries|length }} patient{{ hospiEntries|length > 1 ? 's' : '' }}
+              </div>
+            </div>
           </div>
           <button class="btn btn-secondary btn-sm"><i data-lucide="plus" style="width:11px;height:11px;"></i> Hospitaliser</button>
         </div>
         <div class="hospi-list">
-          <div class="hospi-row critique">
-            <div class="hospi-head"><span class="hospi-cage">C-01</span><span class="hospi-pet">🐕 Gaia <span class="hospi-day">J+1</span></span><span class="hospi-status critique">critique</span></div>
-            <div class="hospi-motif">Post-urgence · Convulsions traitées</div>
-            <div class="hospi-vet">Dr. Martin</div>
-            <div class="hospi-soins">
-              <div class="hospi-soin"><div class="hospi-soin-label">Dernier soin</div><div class="hospi-soin-value hospi-soin-done">✓ 08:45</div><div class="hospi-soin-act">anticonvulsivants</div></div>
-              <div class="hospi-soin"><div class="hospi-soin-label">Prochain soin</div><div class="hospi-soin-value imminent">10:00</div><div class="hospi-soin-act">bilan neuro + ECG</div></div>
+          {% for entry in hospiEntries %}
+            {% set days = date(entry.openedAt).diff(date()).days %}
+            {% set severity = { 'vital_emergency': 'critique', 'emergency': 'critique', 'priority': 'surveillance' }[entry.triageLevel] ?? 'stable' %}
+            <div class="hospi-row {{ severity }}">
+              <div class="hospi-head">
+                <span class="hospi-pet">🐾 {{ entry.displayLabel }} <span class="hospi-day">J+{{ days }}</span></span>
+                <span class="hospi-status {{ severity }}">{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}</span>
+              </div>
+              {% set motif = entry.appointmentReason ?? entry.triageNotes %}
+              {% if motif %}<div class="hospi-motif">{{ motif }}</div>{% endif %}
+              {% if entry.practitionerLabel %}<div class="hospi-vet">{{ entry.practitionerLabel }}</div>{% endif %}
             </div>
-          </div>
-          <div class="hospi-row surveillance">
-            <div class="hospi-head"><span class="hospi-cage">C-04</span><span class="hospi-pet">🐈 Tigrou <span class="hospi-day">J+2</span></span><span class="hospi-status surveillance">surveillance</span></div>
-            <div class="hospi-motif">Post-op rein gauche</div>
-            <div class="hospi-vet">Dr. Lambert</div>
-            <div class="hospi-soins">
-              <div class="hospi-soin"><div class="hospi-soin-label">Dernier soin</div><div class="hospi-soin-value hospi-soin-done">✓ 09:30</div><div class="hospi-soin-act">perfusion</div></div>
-              <div class="hospi-soin"><div class="hospi-soin-label">Prochain soin</div><div class="hospi-soin-value imminent">11:00</div><div class="hospi-soin-act">perfusion + bilan rénal</div></div>
-            </div>
-          </div>
-          <div class="hospi-row stable">
-            <div class="hospi-head"><span class="hospi-cage">C-07</span><span class="hospi-pet">🐕 Max <span class="hospi-day">J+3</span></span><span class="hospi-status stable">stable</span></div>
-            <div class="hospi-motif">Fracture patte · immobilisation</div>
-            <div class="hospi-vet">Dr. Rousseau</div>
-            <div class="hospi-soins">
-              <div class="hospi-soin"><div class="hospi-soin-label">Dernier soin</div><div class="hospi-soin-value hospi-soin-done">✓ 08:00</div><div class="hospi-soin-act">analgésiques</div></div>
-              <div class="hospi-soin"><div class="hospi-soin-label">Prochain soin</div><div class="hospi-soin-value soon">14:00</div><div class="hospi-soin-act">analgésiques + kiné</div></div>
-            </div>
-          </div>
-          <div class="hospi-row stable">
-            <div class="hospi-head"><span class="hospi-cage">C-09</span><span class="hospi-pet">🐈 Nala <span class="hospi-day">J+1</span></span><span class="hospi-status stable">stable</span></div>
-            <div class="hospi-motif">Pyomètre post-op</div>
-            <div class="hospi-vet">Dr. Dupont</div>
-            <div class="hospi-soins">
-              <div class="hospi-soin"><div class="hospi-soin-label">Dernier soin</div><div class="hospi-soin-value hospi-soin-done">✓ 09:00</div><div class="hospi-soin-act">antibiotiques</div></div>
-              <div class="hospi-soin"><div class="hospi-soin-label">Prochain soin</div><div class="hospi-soin-value">16:00</div><div class="hospi-soin-act">antibiotiques</div></div>
-            </div>
-          </div>
+          {% else %}
+            <div class="col-empty">Aucun patient hospitalisé</div>
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -1250,11 +1228,6 @@
     /* ── Detail slide ── */
     function closeDetailSlide() {
       document.getElementById('detail-slide').classList.remove('open');
-    }
-
-    /* ── Urgence alert (MOCK) ── */
-    function affecterUrgence() {
-      document.getElementById('urg-alert').style.display = 'none';
     }
 
     /* ── [UI-1] Urgence wizard ── */
