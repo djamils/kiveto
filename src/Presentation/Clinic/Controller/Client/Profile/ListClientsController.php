@@ -108,6 +108,7 @@ final class ListClientsController extends AbstractController
         $clients      = [];
         $animals      = [];
         $enrichment   = [];
+        $weights      = [];
         $ownerNames   = [];
         $summaries    = [];
         $clientsTotal = 0;
@@ -152,6 +153,7 @@ final class ListClientsController extends AbstractController
 
             $ownerNames = $this->ownerNames($clinicId, $animals);
             $enrichment = $this->alertsPerAnimal($animals);
+            $weights    = $this->lastWeightPerAnimal($animals);
         }
 
         $total      = self::MODE_CLIENTS === $mode ? $clientsTotal : $animalsTotal;
@@ -174,6 +176,7 @@ final class ListClientsController extends AbstractController
             'avatarColors'      => $this->avatarColors($clients),
             'ownerNames'        => $ownerNames,
             'enrichment'        => $enrichment,
+            'weights'           => $weights,
             'cityOptions'       => $cities,
             'statusOptions'     => self::CLIENT_STATUSES,
             'speciesOptions'    => self::SPECIES,
@@ -457,6 +460,55 @@ final class ListClientsController extends AbstractController
         }
 
         return $lastVisits;
+    }
+
+    /**
+     * Last weight recorded for each listed animal, in one query.
+     *
+     * The animal itself carries no weight: it is measured at a consultation,
+     * so the most recent one wins.
+     *
+     * @param list<AnimalListItemView> $animals
+     *
+     * @return array<string, string>
+     */
+    private function lastWeightPerAnimal(array $animals): array
+    {
+        if ([] === $animals) {
+            return [];
+        }
+
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(p.animal_link_id) AS animal_id, c.weight_kg
+             FROM consultation__consultations c
+             INNER JOIN patient__patients p ON p.id = c.patient_id
+             WHERE p.animal_link_id IN (?) AND c.weight_kg IS NOT NULL
+             ORDER BY c.started_at_utc DESC',
+            [array_map(
+                static fn (AnimalListItemView $animal): string => Uuid::fromString($animal->id)->toBinary(),
+                $animals,
+            )],
+            [ArrayParameterType::BINARY],
+        );
+
+        $weights = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['animal_id']));
+            \assert(\is_string($row['weight_kg']) || \is_float($row['weight_kg']) || \is_int($row['weight_kg']));
+
+            // The rows come newest first, so the first one per animal wins.
+            $weights[$row['animal_id']] ??= $this->formatWeight($row['weight_kg']);
+        }
+
+        return $weights;
+    }
+
+    private function formatWeight(string|float|int $raw): string
+    {
+        $formatted = rtrim(rtrim(number_format((float) $raw, 3, ',', ''), '0'), ',');
+
+        return $formatted . ' kg';
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Presentation\Clinic\Form\Animal;
 
 use App\Presentation\Clinic\Form\Animal\AnimalFormType;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use Symfony\Component\Form\ChoiceList\View\ChoiceView;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Test\TypeTestCase;
 use Symfony\Component\Validator\Validation;
@@ -21,8 +22,10 @@ final class AnimalFormTypeTest extends TypeTestCase
             'name'                 => 'Rex',
             'species'              => 'dog',
             'sex'                  => 'male',
+            'reproductiveStatus'   => 'neutered',
             'breedName'            => 'Berger',
             'birthDate'            => '2020-05-12',
+            'microchipNumber'      => '250269801234567',
             'primaryOwnerClientId' => '12345678-1234-4abc-9def-1234567890ab',
         ]);
 
@@ -34,6 +37,25 @@ final class AnimalFormTypeTest extends TypeTestCase
         self::assertSame('Rex', $data['name']);
         self::assertSame('dog', $data['species']);
         self::assertSame('male', $data['sex']);
+        self::assertSame('neutered', $data['reproductiveStatus']);
+        self::assertSame('250269801234567', $data['microchipNumber']);
+    }
+
+    public function testTheSpeciesChoicesMatchTheDomain(): void
+    {
+        $view = $this->factory->create(AnimalFormType::class)->createView();
+
+        $rawChoices = $view->children['species']->vars['choices'];
+        self::assertIsArray($rawChoices);
+
+        $choices = [];
+
+        foreach ($rawChoices as $choice) {
+            self::assertInstanceOf(ChoiceView::class, $choice);
+            $choices[] = (string) $choice->value;
+        }
+
+        self::assertSame(['dog', 'cat', 'nac', 'other'], $choices);
     }
 
     public function testEmptyNameYieldsFrenchError(): void

@@ -1,122 +1,70 @@
-{# Modal: Nouvel animal — wizard step 1 = autocomplete (Stimulus), step 2 = animal form. #}
-
+{#
+ # Modal: Nouvel animal — the Répertoire design. One pane instead of the old
+ # two-step wizard: the mock puts the owner picker at the top of the same form.
+ # The autocomplete markup is unchanged so its Stimulus controller keeps working.
+ #}
 <div
   class="modal-overlay hidden"
   id="modal-new-animal"
   role="dialog"
   aria-modal="true"
   aria-labelledby="modal-new-animal-title"
-  data-controller="wizard"
 >
-  <div class="modal wizard-modal" style="max-width: 640px;">
+  <div class="modal">
 
     <div class="modal-head">
-      <div class="wizard-head-left">
-        <span class="modal-title" id="modal-new-animal-title">Nouvel animal</span>
-        <span class="wizard-step-label">
-          Étape <span data-wizard-target="currentLabel">1</span> sur <span data-wizard-target="totalLabel">2</span>
-        </span>
+      <div class="modal-head-icon" aria-hidden="true"><i data-lucide="paw-print"></i></div>
+      <div class="modal-head-title" id="modal-new-animal-title">
+        Nouvel animal
+        <span class="modal-head-sub">Créer une fiche patient</span>
       </div>
       <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Fermer" data-modal-close>
         <i data-lucide="x"></i>
       </button>
     </div>
 
-    {# Stepper #}
-    <div class="wizard-stepper">
-      <div class="wizard-step is-active" data-wizard-target="stepIndicator">
-        <span class="wizard-step-num">1</span>
-        <span class="wizard-step-name">Propriétaire</span>
-      </div>
-      <div class="wizard-step-sep"></div>
-      <div class="wizard-step" data-wizard-target="stepIndicator">
-        <span class="wizard-step-num">2</span>
-        <span class="wizard-step-name">Animal</span>
-      </div>
-    </div>
-
-    <div class="modal-body wizard-body">
-
-      {# ── Step 1: Owner autocomplete only ── #}
+    <div class="modal-body">
       <div
-        class="wizard-pane"
-        data-wizard-target="pane"
+        class="form-row combobox"
         data-controller="client-search-autocomplete"
         data-client-search-autocomplete-url-value="{{ path('api_clinic_clients_search') }}"
       >
-        <p class="wizard-section-title">Propriétaire</p>
-
-        <div class="field">
-          <label class="field-label" for="na-owner-search">Rechercher un client</label>
-          <div class="autocomplete">
-            <input
-              type="text"
-              id="na-owner-search"
-              class="form-input"
-              placeholder="Tapez au moins 2 caractères…"
-              role="combobox"
-              aria-expanded="false"
-              aria-autocomplete="list"
-              aria-controls="na-owner-listbox"
-              autocomplete="off"
-              data-client-search-autocomplete-target="input"
-              data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
-            />
-            <ul
-              id="na-owner-listbox"
-              class="autocomplete-listbox hidden"
-              role="listbox"
-              data-client-search-autocomplete-target="dropdown"
-            ></ul>
-            <div
-              class="visually-hidden"
-              aria-live="polite"
-              data-client-search-autocomplete-target="liveRegion"
-            ></div>
-          </div>
-        </div>
+        <label class="form-label" for="na-owner-search">Propriétaire <span class="req">*</span></label>
+        <input
+          type="text"
+          id="na-owner-search"
+          class="form-input"
+          placeholder="Rechercher un client…"
+          role="combobox"
+          aria-expanded="false"
+          aria-autocomplete="list"
+          aria-controls="na-owner-listbox"
+          autocomplete="off"
+          data-client-search-autocomplete-target="input"
+          data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
+        />
+        <ul
+          id="na-owner-listbox"
+          class="autocomplete-listbox combobox-list hidden"
+          role="listbox"
+          data-client-search-autocomplete-target="dropdown"
+        ></ul>
+        <div
+          class="visually-hidden"
+          aria-live="polite"
+          data-client-search-autocomplete-target="liveRegion"
+        ></div>
       </div>
 
-      {# ── Step 2: Animal form ── #}
-      <div class="wizard-pane hidden" data-wizard-target="pane">
-        <p class="wizard-section-title">Informations sur l'animal</p>
-        {{ include('clinic/clients/list/_form_animal_body.html.twig', {form: createAnimalForm}) }}
-      </div>
-
+      {{ include('clinic/clients/list/_form_animal_body.html.twig', {form: createAnimalForm}) }}
     </div>
 
-    <div class="modal-foot wizard-foot">
+    <div class="modal-foot">
       <button type="button" class="btn btn-secondary btn-sm" data-modal-close>Annuler</button>
-      <div class="wizard-foot-right">
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          data-wizard-target="prev"
-          data-action="click->wizard#prev"
-          disabled
-        >
-          <i data-lucide="chevron-left"></i>
-          Précédent
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          data-wizard-target="next"
-          data-action="click->wizard#next"
-        >
-          Suivant
-          <i data-lucide="chevron-right"></i>
-        </button>
-        <button
-          type="submit"
-          form="form-new-animal"
-          class="btn btn-primary btn-sm hidden"
-          data-wizard-target="finish"
-        >
-          <i data-lucide="check"></i>
-          Créer l'animal
-        </button>
-      </div>
+      <button type="submit" form="form-new-animal" class="btn btn-primary btn-sm">
+        <i data-lucide="check"></i>
+        Créer l'animal
+      </button>
     </div>
 
   </div>

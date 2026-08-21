@@ -16,7 +16,7 @@
           </div>
         </th>
         {{ ui.sortHead('name', 'Animal', 'col-patient-name', sort, direction, qs) }}
-        {{ ui.sortHead('species', 'Race / âge', 'col-breed', sort, direction, qs) }}
+        {{ ui.sortHead('species', 'Race / âge / poids', 'col-breed', sort, direction, qs) }}
         <th class="col-owner">Propriétaire</th>
         {# No animal↔practitioner assignment exists in the domain #}
         <th class="col-owner" title="Bientôt disponible">Suivi</th>
@@ -54,7 +54,7 @@
               </span>
               <span class="cell-breed-meta">
                 {{ animal.ageLabel() ?? 'Âge inconnu' }}
-                {%- if animal.microchipNumber %} · puce {{ animal.microchipNumber }}{% endif -%}
+                {%- if weights[animal.id] is defined %} · {{ weights[animal.id] }}{% endif -%}
               </span>
             </div>
           </td>

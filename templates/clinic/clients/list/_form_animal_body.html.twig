@@ -1,4 +1,22 @@
-{# Path B (Turbo Streams) — plain wrapper div. #}
+{#
+ # Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>.
+ #}
+
+{#
+ # Radio inputs written by hand: the form theme renders its own label next to
+ # each input, which would sit beside the chip instead of inside it.
+ #}
+{% macro radioChips(field) %}
+  {# Hand-rendered fields stay "unrendered" for Twig: without this, form_end
+     would print the whole radio list again at the bottom of the form. #}
+  {% do field.setRendered %}
+  {% for choice in field %}
+    <input type="radio" id="{{ choice.vars.id }}" name="{{ choice.vars.full_name }}"
+           value="{{ choice.vars.value }}"{{ choice.vars.checked ? ' checked' : '' }}>
+    <label class="radio-chip" for="{{ choice.vars.id }}">{{ choice.vars.label }}</label>
+  {% endfor %}
+{% endmacro %}
+
 <div id="new-animal-form-body">
   {{ form_start(form, {
     'attr':   {'id': 'form-new-animal'},
@@ -8,36 +26,71 @@
     {{ form_errors(form) }}
 
     <div class="form-grid">
-      <div class="field">
-        {{ form_label(form.name, "Nom de l'animal") }}
-        {{ form_widget(form.name, {'attr': {'class': 'form-input', 'placeholder': 'Milo'}}) }}
+      <div class="form-row">
+        {{ form_label(form.name, "Nom de l'animal", {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_widget(form.name, {'attr': {'class': 'form-input', 'placeholder': 'Luna'}}) }}
         {{ form_errors(form.name) }}
       </div>
-      <div class="field">
-        {{ form_label(form.species, 'Espèce') }}
+      <div class="form-row">
+        {{ form_label(form.species, 'Espèce', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.species, {'attr': {'class': 'form-input'}}) }}
         {{ form_errors(form.species) }}
       </div>
-      <div class="field">
-        {{ form_label(form.sex, 'Sexe') }}
-        {{ form_widget(form.sex, {'attr': {'class': 'form-input'}}) }}
-        {{ form_errors(form.sex) }}
-      </div>
-      <div class="field">
-        {{ form_label(form.breedName, 'Race') }}
-        {{ form_widget(form.breedName, {'attr': {'class': 'form-input', 'placeholder': 'Berger Australien'}}) }}
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        {{ form_label(form.breedName, 'Race', {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_widget(form.breedName, {'attr': {'class': 'form-input', 'placeholder': 'ex : Beauceron, Européen…'}}) }}
         {{ form_errors(form.breedName) }}
       </div>
-      <div class="field">
-        {{ form_label(form.birthDate, 'Date de naissance') }}
+      <div class="form-row">
+        {{ form_label(form.birthDate, 'Date de naissance', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.birthDate, {'attr': {'class': 'form-input'}}) }}
         {{ form_errors(form.birthDate) }}
       </div>
     </div>
 
-    {{ form_widget(form.primaryOwnerClientId) }}
-    {{ form_errors(form.primaryOwnerClientId) }}
+    <div class="form-grid">
+      <div class="form-row">
+        <span class="form-label">Sexe <span class="req">*</span></span>
+        <div class="radio-group" role="radiogroup">
+          {{ _self.radioChips(form.sex) }}
+        </div>
+        {{ form_errors(form.sex) }}
+      </div>
+      <div class="form-row">
+        <span class="form-label">Stérilisé·e</span>
+        <div class="radio-group" role="radiogroup">
+          {{ _self.radioChips(form.reproductiveStatus) }}
+        </div>
+        {{ form_errors(form.reproductiveStatus) }}
+      </div>
+    </div>
 
+    <div class="form-grid">
+      <div class="form-row">
+        {{ form_label(form.microchipNumber, 'Puce électronique', {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_widget(form.microchipNumber, {'attr': {'class': 'form-input', 'placeholder': '250269801234567'}}) }}
+        {{ form_errors(form.microchipNumber) }}
+      </div>
+      {#
+       # The animal carries no weight of its own — it is measured at a
+       # consultation — and no practitioner is assigned to a patient.
+       #}
+      <div class="form-row">
+        <span class="form-label">Poids (kg)</span>
+        <input class="form-input" disabled placeholder="Relevé en consultation"
+               title="Le poids est relevé lors d'une consultation">
+      </div>
+    </div>
+    <div class="form-row">
+      <span class="form-label">Vétérinaire de suivi</span>
+      <input class="form-input" disabled placeholder="Bientôt disponible"
+             title="Le vétérinaire de suivi n'est pas encore géré">
+    </div>
+
+    {{ form_widget(form.primaryOwnerClientId) }}
     {{ form_widget(form._returnTo) }}
   {{ form_end(form) }}
 </div>

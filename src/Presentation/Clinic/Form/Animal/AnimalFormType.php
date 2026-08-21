@@ -28,11 +28,10 @@ final class AnimalFormType extends AbstractType
             ])
             ->add('species', ChoiceType::class, [
                 'choices' => [
-                    'Chien'  => 'dog',
-                    'Chat'   => 'cat',
-                    'Lapin'  => 'rabbit',
-                    'Oiseau' => 'bird',
-                    'Autre'  => 'other',
+                    'Chien' => 'dog',
+                    'Chat'  => 'cat',
+                    'NAC'   => 'nac',
+                    'Autre' => 'other',
                 ],
                 'placeholder' => '— Sélectionner une espèce —',
                 'constraints' => [
@@ -41,17 +40,36 @@ final class AnimalFormType extends AbstractType
             ])
             ->add('sex', ChoiceType::class, [
                 'choices' => [
-                    'Mâle'    => 'male',
-                    'Femelle' => 'female',
-                    'Inconnu' => 'unknown',
+                    '♀ Femelle' => 'female',
+                    '♂ Mâle'    => 'male',
+                    'Inconnu'   => 'unknown',
                 ],
-                'placeholder' => '— Sélectionner un sexe —',
+                'data'        => 'unknown',
+                'expanded'    => true,
                 'constraints' => [
                     new NotBlank(message: 'Le sexe est obligatoire.'),
                 ],
             ])
+            ->add('reproductiveStatus', ChoiceType::class, [
+                'choices' => [
+                    'Oui'     => 'neutered',
+                    'Non'     => 'intact',
+                    'Inconnu' => 'unknown',
+                ],
+                'data'        => 'unknown',
+                'expanded'    => true,
+                'constraints' => [
+                    new NotBlank(message: 'Le statut reproductif est obligatoire.'),
+                ],
+            ])
             ->add('breedName', TextType::class, [
                 'required' => false,
+            ])
+            ->add('microchipNumber', TextType::class, [
+                'required'    => false,
+                'constraints' => [
+                    new Length(max: 50, maxMessage: 'Le numéro de puce ne peut pas dépasser 50 caractères.'),
+                ],
             ])
             ->add('birthDate', DateType::class, [
                 'required' => false,

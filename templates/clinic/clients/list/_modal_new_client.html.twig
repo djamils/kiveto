@@ -1,5 +1,7 @@
-{# Modal: Nouveau client — wires the Symfony form via Path B (Turbo Streams). #}
-
+{#
+ # Modal: Nouveau client — the Répertoire design, wired to the Symfony form
+ # through Turbo Streams.
+ #}
 <div
   class="modal-overlay hidden"
   id="modal-new-client"
@@ -7,10 +9,14 @@
   aria-modal="true"
   aria-labelledby="modal-new-client-title"
 >
-  <div class="modal" style="max-width: 560px;">
+  <div class="modal">
 
     <div class="modal-head">
-      <span class="modal-title" id="modal-new-client-title">Nouveau client</span>
+      <div class="modal-head-icon" aria-hidden="true"><i data-lucide="user-plus"></i></div>
+      <div class="modal-head-title" id="modal-new-client-title">
+        Nouveau client
+        <span class="modal-head-sub">Créer une fiche propriétaire</span>
+      </div>
       <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Fermer" data-modal-close>
         <i data-lucide="x"></i>
       </button>

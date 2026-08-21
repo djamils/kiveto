@@ -8,26 +8,52 @@
     {{ form_errors(form) }}
 
     <div class="form-grid">
-      <div class="field">
-        {{ form_label(form.firstName, 'Prénom') }}
+      <div class="form-row">
+        {{ form_label(form.firstName, 'Prénom', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.firstName, {'attr': {'class': 'form-input', 'placeholder': 'Sophie'}}) }}
         {{ form_errors(form.firstName) }}
       </div>
-      <div class="field">
-        {{ form_label(form.lastName, 'Nom') }}
+      <div class="form-row">
+        {{ form_label(form.lastName, 'Nom', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.lastName, {'attr': {'class': 'form-input', 'placeholder': 'Dubois'}}) }}
         {{ form_errors(form.lastName) }}
       </div>
-      <div class="field form-col-2">
-        {{ form_label(form.email, 'Email') }}
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        {{ form_label(form.phone, 'Téléphone', {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '06 12 34 56 78'}}) }}
+        {{ form_errors(form.phone) }}
+      </div>
+      <div class="form-row">
+        {{ form_label(form.email, 'Email', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.email, {'attr': {'class': 'form-input', 'placeholder': 'sophie.dubois@email.fr'}}) }}
         {{ form_errors(form.email) }}
       </div>
-      <div class="field">
-        {{ form_label(form.phone, 'Téléphone') }}
-        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '+33 6 12 34 56 78'}}) }}
-        {{ form_errors(form.phone) }}
+    </div>
+    <p class="form-hint">Le téléphone ou l'email est obligatoire.</p>
+
+    {#
+     # Storing an address needs a street and a country, which this form does not
+     # ask for; the status of a new client is always "actif"; and the domain has
+     # no notes field. All three are shown and disabled rather than faked.
+     #}
+    <div class="form-grid" style="margin-top:var(--space-3)">
+      <div class="form-row">
+        <span class="form-label">Ville</span>
+        <input class="form-input" disabled placeholder="Depuis la fiche client"
+               title="L'adresse se renseigne depuis la fiche client">
       </div>
+      <div class="form-row">
+        <span class="form-label">Statut</span>
+        <input class="form-input" disabled value="Actif" title="Un nouveau client est toujours actif">
+      </div>
+    </div>
+    <div class="form-row">
+      <span class="form-label">Notes</span>
+      <textarea class="form-input" disabled placeholder="Bientôt disponible"
+                title="Les notes client ne sont pas encore gérées"></textarea>
     </div>
 
     {{ form_widget(form._returnTo) }}

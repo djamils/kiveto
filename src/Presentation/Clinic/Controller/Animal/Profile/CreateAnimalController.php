@@ -71,13 +71,13 @@ final class CreateAnimalController extends AbstractController
                     name: $name,
                     species: $species,
                     sex: $sex,
-                    reproductiveStatus: 'unknown',
+                    reproductiveStatus: $this->stringValue($data, 'reproductiveStatus') ?? 'unknown',
                     isMixedBreed: false,
                     breedName: $breedName,
                     birthDate: $birthDate,
                     color: null,
                     photoUrl: null,
-                    microchipNumber: null,
+                    microchipNumber: $this->stringValue($data, 'microchipNumber'),
                     tattooNumber: null,
                     passportNumber: null,
                     registryType: 'none',
@@ -139,5 +139,15 @@ final class CreateAnimalController extends AbstractController
             'clinic/clients/list/_form_animal_body.html.twig',
             ['form' => $form],
         );
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private function stringValue(array $data, string $key): ?string
+    {
+        $value = $data[$key] ?? null;
+
+        return \is_string($value) && '' !== $value ? $value : null;
     }
 }
