@@ -10,6 +10,7 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
 - **Cycle de vie** : Statut de vie (vivant/décédé/disparu) avec dates
 - **Transfert** : Statut de cession (vendu/donné) avec dates
 - **Ownerships** : Gestion des propriétaires primaires et secondaires
+- **Alertes médicales** : Allergies et affections chroniques durables du patient
 - **Contact auxiliaire** : Contact local non-propriétaire optionnel
 - **Scoping multi-clinique** : Toutes les opérations sont scopées par `ClinicId`
 - **Integration Events** : Consommation d'événements cross-BC (archivage client)
@@ -47,6 +48,15 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
 - **OwnershipRole** : `PRIMARY` | `SECONDARY`
 - **OwnershipStatus** : `ACTIVE` | `ENDED`
 - **AuxiliaryContact** : Contact local non-propriétaire (optionnel)
+
+### Alertes médicales
+- **MedicalAlert** : Signalement médical durable porté par l'animal (identifiant, type, libellé, note optionnelle)
+- **MedicalAlertKind** : `ALLERGY` | `CHRONIC_CONDITION`
+- Un même couple type + libellé ne peut être enregistré deux fois (`DuplicateMedicalAlertException`)
+- Ajout et retrait interdits sur un animal archivé
+- `MedicalAlert::matchesSubstance()` fait une correspondance textuelle simple (le libellé de
+  l'alerte contenu dans le nom de la substance). C'est volontairement naïf : le cockpit de
+  consultation s'en sert pour un avertissement « à vérifier », pas pour un moteur d'interactions.
 
 ## Architecture
 

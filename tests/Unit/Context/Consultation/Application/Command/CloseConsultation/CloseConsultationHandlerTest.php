@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Consultation\Application\Command\CloseConsultat
 
 use App\Context\Consultation\Application\Command\CloseConsultation\CloseConsultation;
 use App\Context\Consultation\Application\Command\CloseConsultation\CloseConsultationHandler;
+use App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface;
+use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
@@ -31,19 +33,25 @@ final class CloseConsultationHandlerTest extends TestCase
     private const string PATIENT_ID      = '66666666-6666-4666-8666-666666666666';
 
     private ConsultationRepositoryInterface&MockObject $consultations;
+    private ConsultationReadRepositoryInterface&MockObject $consultationsRead;
     private SchedulingServiceCoordinatorInterface&MockObject $coordinator;
+    private AdmissionServiceCoordinatorInterface&MockObject $admissions;
     private ClockInterface&MockObject $clock;
     private CloseConsultationHandler $handler;
 
     protected function setUp(): void
     {
-        $this->consultations = $this->createMock(ConsultationRepositoryInterface::class);
-        $this->coordinator   = $this->createMock(SchedulingServiceCoordinatorInterface::class);
-        $this->clock         = $this->createMock(ClockInterface::class);
+        $this->consultations     = $this->createMock(ConsultationRepositoryInterface::class);
+        $this->consultationsRead = $this->createMock(ConsultationReadRepositoryInterface::class);
+        $this->coordinator       = $this->createMock(SchedulingServiceCoordinatorInterface::class);
+        $this->admissions        = $this->createMock(AdmissionServiceCoordinatorInterface::class);
+        $this->clock             = $this->createMock(ClockInterface::class);
 
         $this->handler = new CloseConsultationHandler(
             $this->consultations,
+            $this->consultationsRead,
             $this->coordinator,
+            $this->admissions,
             $this->clock,
         );
     }
@@ -64,11 +72,39 @@ final class CloseConsultationHandlerTest extends TestCase
                 self::callback(static fn (UserId $id): bool => self::USER_ID === $id->toString()),
             )
         ;
+        $this->consultationsRead->expects(self::once())->method('hasOpenConsultationForAdmission')->willReturn(false);
+        $this->admissions->expects(self::once())->method('sendToReception');
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
             closedByUserId: self::USER_ID,
             summary: 'Done',
+        ));
+    }
+
+    public function testClosingTheLastConsultationSendsThePatientBackToTheDesk(): void
+    {
+        $this->consultations->expects(self::once())
+            ->method('findById')
+            ->willReturn($this->makeAdmissionConsultation())
+        ;
+        $this->consultations->expects(self::once())->method('save');
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 10:00:00'));
+        $this->coordinator->expects(self::never())->method('completeAppointment');
+
+        $this->consultationsRead->expects(self::once())
+            ->method('hasOpenConsultationForAdmission')
+            ->willReturn(false)
+        ;
+        $this->admissions->expects(self::once())
+            ->method('sendToReception')
+            ->with(self::ADMISSION_ID, self::CLINIC_ID)
+        ;
+
+        ($this->handler)(new CloseConsultation(
+            consultationId: self::CONSULTATION_ID,
+            closedByUserId: self::USER_ID,
+            summary: null,
         ));
     }
 
@@ -79,6 +115,30 @@ final class CloseConsultationHandlerTest extends TestCase
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 10:00:00'));
         $this->consultations->expects(self::once())->method('save');
         $this->coordinator->expects(self::never())->method('completeAppointment');
+        $this->consultationsRead->expects(self::once())->method('hasOpenConsultationForAdmission')->willReturn(false);
+        $this->admissions->expects(self::once())->method('sendToReception');
+
+        ($this->handler)(new CloseConsultation(
+            consultationId: self::CONSULTATION_ID,
+            closedByUserId: self::USER_ID,
+            summary: null,
+        ));
+    }
+
+    public function testAVisitWithAnotherRunningConsultationIsLeftAlone(): void
+    {
+        $this->consultations->expects(self::once())
+            ->method('findById')
+            ->willReturn($this->makeAdmissionConsultation())
+        ;
+        $this->consultations->expects(self::once())->method('save');
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 10:00:00'));
+        $this->coordinator->expects(self::never())->method('completeAppointment');
+        $this->consultationsRead->expects(self::once())
+            ->method('hasOpenConsultationForAdmission')
+            ->willReturn(true)
+        ;
+        $this->admissions->expects(self::never())->method('sendToReception');
 
         ($this->handler)(new CloseConsultation(
             consultationId: self::CONSULTATION_ID,
@@ -91,6 +151,8 @@ final class CloseConsultationHandlerTest extends TestCase
     public function testFailsWhenConsultationNotFound(): void
     {
         $this->consultations->expects(self::once())->method('findById')->willReturn(null);
+        $this->consultationsRead->expects(self::never())->method('hasOpenConsultationForAdmission');
+        $this->admissions->expects(self::never())->method('sendToReception');
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Consultation not found');

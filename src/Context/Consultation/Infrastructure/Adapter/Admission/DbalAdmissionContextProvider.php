@@ -22,7 +22,7 @@ final readonly class DbalAdmissionContextProvider implements AdmissionContextPro
         $admissionBinary = Uuid::fromString($admissionId)->toBinary();
 
         $sql = '
-            SELECT patient_id, clinic_id
+            SELECT patient_id, clinic_id, status, location_status_value
             FROM admission__admissions
             WHERE id = :admissionId
         ';
@@ -38,6 +38,8 @@ final readonly class DbalAdmissionContextProvider implements AdmissionContextPro
         return new AdmissionContextDto(
             patientId: RowAccessor::uuid($result, 'patient_id'),
             clinicId: RowAccessor::uuid($result, 'clinic_id'),
+            isOpen: 'closed' !== RowAccessor::string($result, 'status'),
+            locationStatus: RowAccessor::string($result, 'location_status_value'),
         );
     }
 }

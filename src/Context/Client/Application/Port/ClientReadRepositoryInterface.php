@@ -22,6 +22,13 @@ interface ClientReadRepositoryInterface
     public function countBy(ClinicId $clinicId, SearchClientsCriteria $criteria): int;
 
     /**
+     * Distinct, non-empty cities of the clinic's clients, alphabetically.
+     *
+     * @return list<string>
+     */
+    public function listCities(ClinicId $clinicId): array;
+
+    /**
      * Returns true if any client in the given clinic already uses this email
      * in one of their contact methods.
      */

@@ -12,6 +12,12 @@ final readonly class SearchClients
         public ?string $status = null,
         public int $page = 1,
         public int $limit = 20,
+        /** @var list<string> statuses to keep, empty means all */
+        public array $statuses = [],
+        /** @var list<string> cities to keep, empty means all */
+        public array $cities = [],
+        public string $sort = 'name',
+        public string $direction = 'asc',
     ) {
     }
 }

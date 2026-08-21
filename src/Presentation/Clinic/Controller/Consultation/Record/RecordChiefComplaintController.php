@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Consultation\Record;
 
 use App\Context\Consultation\Application\Command\RecordChiefComplaint\RecordChiefComplaint;
-use App\Shared\Application\Bus\CommandBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 final class RecordChiefComplaintController extends AbstractController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
+        private readonly CockpitEndpoint $endpoint,
     ) {
     }
 
@@ -23,29 +22,16 @@ final class RecordChiefComplaintController extends AbstractController
         name: 'clinic_consultation_record_chief_complaint',
         methods: ['POST'],
     )]
-    public function __invoke(string $id, Request $request): Response
+    public function __invoke(string $id, Request $request): JsonResponse
     {
-        $chiefComplaint = $request->request->getString('chiefComplaint');
-
-        if ('' === $chiefComplaint) {
-            $this->addFlash('error', 'Le motif de consultation est obligatoire.');
-
-            return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
-        }
-
-        try {
-            $this->commandBus->dispatch(
-                new RecordChiefComplaint(
-                    consultationId: $id,
-                    chiefComplaint: $chiefComplaint,
-                )
-            );
-
-            $this->addFlash('success', 'Motif de consultation enregistré.');
-        } catch (\Exception $e) {
-            $this->addFlash('error', 'Erreur : ' . $e->getMessage());
-        }
-
-        return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
+        return $this->endpoint->run(
+            $request,
+            $id,
+            static fn (string $clinicId, string $userId): RecordChiefComplaint => new RecordChiefComplaint(
+                consultationId: $id,
+                clinicId: $clinicId,
+                chiefComplaint: $request->request->getString('chiefComplaint'),
+            ),
+        );
     }
 }

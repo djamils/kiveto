@@ -33,8 +33,16 @@ final class SchedulingStory extends Story
             );
         }
 
+        $lyonVetUser = ClinicUserFactory::repository()->findOneBy(['email' => 'vet.lyon@kiveto.local']);
+        if (null === $lyonVetUser) {
+            throw new \RuntimeException(
+                'vet.lyon@kiveto.local not found. ClinicStaffProfileDataStory must be loaded first.',
+            );
+        }
+
         $vetUserId        = $vetUser->getId()->toRfc4122();
         $contractorUserId = $contractorUser->getId()->toRfc4122();
+        $lyonVetUserId    = $lyonVetUser->getId()->toRfc4122();
 
         $paris = ClinicDataStory::INDEPENDENT_CLINIC_ID;
         $lyon  = ClinicDataStory::GROUP_CLINIC_ID;
@@ -69,22 +77,63 @@ final class SchedulingStory extends Story
                 ->setTime($hour, $minute, 0)
             ;
 
-            $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
-                clinicId: $clinicId,
-                practitionerUserId: $practitionerId,
-                startsAtUtc: $localStart->setTimezone($utcTz),
-                durationMinutes: $duration,
-                reason: $reason,
-                notes: null,
+            $this->schedule($clinicId, $practitionerId, $localStart, $utcTz, $duration, $reason, $cancelled);
+        }
+
+        // Whatever day the fixtures are loaded on, both clinics need a booked
+        // day: the daily board and the agenda open on today.
+        $today = $now->setTime(0, 0, 0);
+
+        $todayPlan = [
+            // [hour, minute, clinicId, practitionerId, duration, reason, cancelled]
+            [8,  30, $paris, $vetUserId,        30, 'Consultation vaccinale',    false],
+            [9,  15, $paris, $contractorUserId, 20, 'Contrôle post-opératoire',  false],
+            [11, 0,  $paris, $vetUserId,        30, 'Bilan annuel',              false],
+            [14, 30, $paris, $contractorUserId, 45, 'Détartrage',                false],
+            [16, 0,  $paris, $vetUserId,        20, 'Vaccin',                    true],
+            [9,  0,  $lyon,  $vetUserId,        30, 'Consultation',              false],
+            [10, 30, $lyon,  $lyonVetUserId,    60, 'Chirurgie de convenance',   false],
+            [15, 0,  $lyon,  $lyonVetUserId,    20, 'Contrôle de poids',         false],
+            [17, 0,  $lyon,  $vetUserId,        30, 'Consultation dermatologie', false],
+        ];
+
+        foreach ($todayPlan as [$hour, $minute, $clinicId, $practitionerId, $duration, $reason, $cancelled]) {
+            $this->schedule(
+                $clinicId,
+                $practitionerId,
+                $today->setTime($hour, $minute, 0),
+                $utcTz,
+                $duration,
+                $reason,
+                $cancelled,
+            );
+        }
+    }
+
+    private function schedule(
+        string $clinicId,
+        string $practitionerId,
+        \DateTimeImmutable $localStart,
+        \DateTimeZone $utcTz,
+        int $durationMinutes,
+        string $reason,
+        bool $cancelled,
+    ): void {
+        $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
+            clinicId: $clinicId,
+            practitionerUserId: $practitionerId,
+            startsAtUtc: $localStart->setTimezone($utcTz),
+            durationMinutes: $durationMinutes,
+            reason: $reason,
+            notes: null,
+        ));
+
+        \assert(\is_string($appointmentId));
+
+        if ($cancelled) {
+            $this->commandBus->dispatch(new CancelAppointment(
+                appointmentId: $appointmentId,
             ));
-
-            \assert(\is_string($appointmentId));
-
-            if ($cancelled) {
-                $this->commandBus->dispatch(new CancelAppointment(
-                    appointmentId: $appointmentId,
-                ));
-            }
         }
     }
 }

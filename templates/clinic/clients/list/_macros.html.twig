@@ -1,0 +1,28 @@
+{#
+ # Kiveto — templates/clinic/clients/list/_macros.html.twig
+ # ───────────────────────────────────────────────────────
+ # Shared by the directory shell and both of its modes. They live in their own
+ # file because `_self` only reaches the macros of the template it is written
+ # in, so an included partial cannot borrow the shell's.
+ #}
+
+{# Sortable column header: clicking flips the direction, or starts a new sort #}
+{% macro sortHead(column, label, cssClass, sort, direction, qs) %}
+  {% set active = sort == column %}
+  {% set nextDir = active and direction == 'asc' ? 'desc' : 'asc' %}
+  <th class="{{ cssClass }} sortable{{ active ? (direction == 'asc' ? ' is-sorted-asc' : ' is-sorted-desc') : '' }}">
+    <a href="{{ path('clinic_clients_list', qs|merge({ sort: column, dir: nextDir })) }}">
+      {{ label }} <span class="sort-icon">▼</span>
+    </a>
+  </th>
+{% endmacro %}
+
+{# One entry of a multi-value filter menu #}
+{% macro filterOption(key, value, label, active, qs) %}
+  {% set checked = value in active %}
+  <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+     href="{{ path('clinic_clients_list', qs|merge({ (key): checked ? active|filter(v => v != value) : active|merge([value]) })) }}">
+    <span style="flex:1">{{ label }}</span>
+    <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+  </a>
+{% endmacro %}

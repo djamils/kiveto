@@ -36,13 +36,17 @@ final class PriceResolver
 
     public function resolve(CatalogItemRef $itemRef, PricingContext $context): ResolvedPrice
     {
-        $clinicId = ClinicId::fromString($context->priceListId->toString());
+        $clinicId = $context->clinicId;
 
-        // 1. Load price list
-        $priceList = $this->priceListRepository->findDefaultForClinic($clinicId);
+        // 1. Load the requested price list, or the clinic's default one when none is requested
+        $priceList = null !== $context->priceListId
+            ? $this->priceListRepository->findById($context->priceListId, $clinicId)
+            : $this->priceListRepository->findDefaultForClinic($clinicId);
 
         if (null === $priceList) {
-            throw new PriceListNotFoundException($context->priceListId->toString());
+            throw new PriceListNotFoundException(
+                $context->priceListId?->toString() ?? \sprintf('default (clinic %s)', $clinicId->toString()),
+            );
         }
 
         // 2. Find PriceListItem for itemRef

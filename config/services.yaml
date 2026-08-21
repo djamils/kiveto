@@ -359,9 +359,25 @@ services:
     App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Admission\MessengerAdmissionServiceCoordinator
 
+    App\Context\Consultation\Application\Port\CatalogItemProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusCatalogItemProvider
+
+    App\Context\Consultation\Application\Port\TaxRateProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Taxation\QueryBusTaxRateProvider
+
+    App\Context\Consultation\Application\Port\PatientIdsProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Patient\DbalPatientIdsProvider
+
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\MotifMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\TypedVitalMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ExamSystemMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\DiagnosisMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PlanActionMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PrescriptionLineMapper: ~
+    App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\BillingLineMapper: ~
 
     # ============================================================================
     # BOUNDED CONTEXT: ADMISSION
@@ -772,5 +788,29 @@ when@test:
 
         App\Shared\Application\Bus\CommandBusInterface:
             class: App\Shared\Infrastructure\Bus\Messenger\CommandBus
+            public: true
+            autowire: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: CONSULTATION — public for integration tests
+        # ========================================================================
+
+        App\Context\Consultation\Application\Port\CatalogItemProviderInterface:
+            class: App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusCatalogItemProvider
+            public: true
+            autowire: true
+
+        App\Context\Consultation\Application\Port\TaxRateProviderInterface:
+            class: App\Context\Consultation\Infrastructure\Adapter\Taxation\QueryBusTaxRateProvider
+            public: true
+            autowire: true
+
+        App\Context\Consultation\Application\Port\PatientIdsProviderInterface:
+            class: App\Context\Consultation\Infrastructure\Adapter\Patient\DbalPatientIdsProvider
+            public: true
+            autowire: true
+
+        App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface:
+            class: App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repository\DoctrineConsultationReadRepository
             public: true
             autowire: true

@@ -23,6 +23,8 @@ final readonly class WaitingRoomItemDto
         public ?string $appointmentReason = null,
         public ?string $contextNote = null,
         public ?string $practitionerUserId = null,
+        public ?string $closedAt = null,
+        public ?string $closureReason = null,
     ) {
     }
 }

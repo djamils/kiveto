@@ -127,8 +127,10 @@
 @import "./pages/common.css";
 @import "./pages/home.css";
 @import "./pages/clients/list.css";
+@import "./pages/clients/directory.css";
 @import "./pages/clients/view.css";
 @import "./pages/consultation.css";
+@import "./pages/consultations.css";
 @import "./pages/hospitalisations.css";
 @import "./pages/scheduling/_shared.css";
 @import "./pages/scheduling/agenda.css";

@@ -51,6 +51,7 @@ final class RecordVitalsHandlerTest extends TestCase
 
         ($this->handler)(new RecordVitals(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             weightKg: 12.5,
             temperatureC: 38.2,
         ));
@@ -66,6 +67,7 @@ final class RecordVitalsHandlerTest extends TestCase
 
         ($this->handler)(new RecordVitals(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             weightKg: 12.5,
             temperatureC: null,
         ));

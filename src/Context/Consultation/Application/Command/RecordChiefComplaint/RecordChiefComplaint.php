@@ -10,6 +10,7 @@ final readonly class RecordChiefComplaint implements CommandInterface
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
         public string $chiefComplaint,
     ) {
     }

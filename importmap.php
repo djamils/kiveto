@@ -36,6 +36,9 @@ return [
     'kiveto/modal' => [
         'path' => './assets/js/ui/modal.js',
     ],
+    'kiveto/money' => [
+        'path' => './assets/js/money.js',
+    ],
     'kiveto/toast' => [
         'path' => './assets/js/ui/toast.js',
     ],
@@ -65,6 +68,9 @@ return [
     ],
     'pages/consultation' => [
         'path' => './assets/js/pages/consultation.js',
+    ],
+    'pages/consultations' => [
+        'path' => './assets/js/pages/consultations.js',
     ],
     'pages/select-clinic' => [
         'path' => './assets/js/pages/select-clinic.js',

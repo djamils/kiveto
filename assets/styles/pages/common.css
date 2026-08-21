@@ -15,6 +15,7 @@
   main.app-body[data-page="clinic_clients_list"],
   main.app-body[data-page="clinic_clients_view"],
   main.app-body[data-page="clinic_consultation_details"],
+  main.app-body[data-page="clinic_consultations"],
   main.app-body[data-page="clinic_select_clinic"] {
     padding: 0 !important;
     @apply flex flex-col flex-1 overflow-hidden min-h-0;
@@ -29,6 +30,7 @@
   .app-scroll:has(> main[data-page="clinic_clients_list"]),
   .app-scroll:has(> main[data-page="clinic_clients_view"]),
   .app-scroll:has(> main[data-page="clinic_consultation_details"]),
+  .app-scroll:has(> main[data-page="clinic_consultations"]),
   .app-scroll:has(> main[data-page="clinic_select_clinic"]) {
     overflow: hidden !important;
     @apply flex flex-col flex-1 min-h-0;

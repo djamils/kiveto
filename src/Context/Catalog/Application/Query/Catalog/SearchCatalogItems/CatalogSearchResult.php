@@ -12,6 +12,10 @@ final readonly class CatalogSearchResult
         public string $name,
         public string $code,
         public string $status,
+        public int $basePriceMinorUnits,
+        public string $basePriceCurrency,
+        public string $taxCategoryCode,
+        public bool $requiresPrescription,
     ) {
     }
 }

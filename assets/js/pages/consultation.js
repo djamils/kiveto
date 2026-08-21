@@ -6,142 +6,40 @@
 // inside init() so Stimulus / Turbo can mount + cleanup safely.
 
 let _mounted = false;
+// Teardown callbacks registered during init() (document-level listeners,
+// intervals, observers). Flushed by cleanup() on turbo:before-cache.
+const _cleanups = [];
 
 export function init() {
   if (_mounted) return;
   _mounted = true;
 
-(() => {
-  'use strict';
-
   // ═══════════════════════════════════════════════
-  //  STATE
+  //  SHARED PAGE INFRASTRUCTURE
+  //  Visible from every IIFE below (closure over init scope).
   // ═══════════════════════════════════════════════
-  const state = {
-    patient: {
-      name: 'Luna', species: 'Chien', breed: 'Beauceron',
-      age: 4, sex: 'F', weight: 28.5, lastWeight: 28.8,
-      allergies: ['Pénicilline'],
-    },
-    consultation: {
-      startedAt: new Date(),
-    },
-  };
 
-  // ═══════════════════════════════════════════════
-  //  DATA — catalogues mockés
-  // ═══════════════════════════════════════════════
-  const MEDICATIONS = [
-    { code: 'MED-001', name: 'Méloxicam 1,5 mg/mL', cls: 'AINS', form: 'sol. buvable', dose: 0.1, doseUnit: 'mg/kg', route: 'per os', freq: '1×/j', days: 7, price: 14.80 },
-    { code: 'MED-002', name: 'Carprofène 50 mg', cls: 'AINS', form: 'comprimés', dose: 2, doseUnit: 'mg/kg', route: 'per os', freq: '1×/j', days: 7, price: 18.50 },
-    { code: 'MED-003', name: 'Cartrophen Vet 100 mg/mL', cls: 'Chondroprotecteur', form: 'injectable', dose: 3, doseUnit: 'mg/kg', route: 'SC', freq: '1×/sem', days: 28, price: 38.50 },
-    { code: 'MED-004', name: 'Amoxicilline 500 mg', cls: 'Antibiotique', form: 'comprimés', dose: 20, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 7, price: 22.00, contra: ['Pénicilline'] },
-    { code: 'MED-005', name: 'Marbofloxacine 50 mg', cls: 'Antibiotique', form: 'comprimés', dose: 2, doseUnit: 'mg/kg', route: 'per os', freq: '1×/j', days: 7, price: 28.50 },
-    { code: 'MED-006', name: 'Doxycycline 100 mg', cls: 'Antibiotique', form: 'comprimés', dose: 5, doseUnit: 'mg/kg', route: 'per os', freq: '1×/j', days: 14, price: 16.00 },
-    { code: 'MED-007', name: 'Tramadol 50 mg', cls: 'Antalgique', form: 'comprimés', dose: 4, doseUnit: 'mg/kg', route: 'per os', freq: '3×/j', days: 5, price: 12.00 },
-    { code: 'MED-008', name: 'Gabapentine 100 mg', cls: 'Antalgique', form: 'gélules', dose: 10, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 14, price: 19.50 },
-    { code: 'MED-009', name: 'Furosémide 40 mg', cls: 'Diurétique', form: 'comprimés', dose: 2, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 30, price: 9.80 },
-    { code: 'MED-010', name: 'Apoquel 16 mg', cls: 'Antiprurigineux', form: 'comprimés', dose: 0.5, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 14, price: 56.00 },
-    { code: 'MED-011', name: 'Frontline Combo Spot-On', cls: 'Antiparasitaire', form: 'pipettes', dose: 1, doseUnit: 'pipette', route: 'cutané', freq: '1×/mois', days: 30, price: 11.50 },
-    { code: 'MED-012', name: 'Vetmedin 5 mg', cls: 'Cardiologie', form: 'comprimés', dose: 0.25, doseUnit: 'mg/kg', route: 'per os', freq: '2×/j', days: 30, price: 42.00 },
-  ];
+  // Server → JS hydration payload (see #consultation-data in index.html.twig)
+  const HYDRATION = (() => {
+    try {
+      return JSON.parse(document.getElementById('consultation-data')?.textContent || '{}');
+    } catch {
+      return {};
+    }
+  })();
 
-  const DIAGNOSTICS = [
-    { code: 'M.LOC.21', name: 'Arthrose grasset, stade précoce', system: 'Locomoteur' },
-    { code: 'M.LOC.18', name: 'Rupture partielle ligament croisé', system: 'Locomoteur' },
-    { code: 'M.LOC.25', name: 'Dysplasie de la hanche', system: 'Locomoteur' },
-    { code: 'M.LOC.30', name: 'Tendinite postérieure', system: 'Locomoteur' },
-    { code: 'M.LOC.05', name: 'Contracture musculaire', system: 'Locomoteur' },
-    { code: 'M.CARDIO.01', name: 'Insuffisance cardiaque congestive', system: 'Cardiovasculaire' },
-    { code: 'M.CARDIO.05', name: 'Souffle cardiaque grade 2', system: 'Cardiovasculaire' },
-    { code: 'M.DERMA.10', name: 'Pyodermite superficielle', system: 'Cutané' },
-    { code: 'M.DERMA.15', name: 'Allergie atopique', system: 'Cutané' },
-    { code: 'M.DERMA.20', name: 'Dermatite par allergie aux puces', system: 'Cutané' },
-    { code: 'M.DIG.05', name: 'Gastro-entérite aiguë', system: 'Digestif' },
-    { code: 'M.DIG.10', name: 'Pancréatite', system: 'Digestif' },
-    { code: 'M.URO.03', name: 'Cystite bactérienne', system: 'Urogénital' },
-    { code: 'M.NEU.01', name: 'Hernie discale', system: 'Neurologique' },
-    { code: 'M.PREV.01', name: 'Vaccination de routine', system: 'Préventif' },
-  ];
+  function registerCleanup(fn) {
+    _cleanups.push(fn);
+  }
 
-  const VITAL_TYPES = [
-    { id: 'temperature', label: 'Température', unit: '°C', range: '38,0–39,2', def: '38,5' },
-    { id: 'fc', label: 'Fréq. cardiaque', unit: 'bpm', range: '70–120', def: '90' },
-    { id: 'fr', label: 'Fréq. respiratoire', unit: 'rpm', range: '15–30', def: '20' },
-    { id: 'sc', label: 'Score corporel', unit: '/9', range: 'Idéal 4–5', def: '5' },
-    { id: 'douleur', label: 'Score douleur', unit: '/4', range: '0 = aucune', def: '0' },
-    { id: 'trc', label: 'TRC', unit: 's', range: '< 2 s', def: '<2' },
-    { id: 'muqueuses', label: 'Muqueuses', unit: '', range: 'Roses', def: 'Roses' },
-    { id: 'tension', label: 'Tension artérielle', unit: 'mmHg', range: '120/80', def: '125/80' },
-    { id: 'glycemie', label: 'Glycémie', unit: 'mmol/L', range: '4–7', def: '5,2' },
-  ];
+  // Document-level listeners MUST go through this helper so cleanup()
+  // removes them (raw document.addEventListener leaks across Turbo visits).
+  function onDocument(type, handler) {
+    document.addEventListener(type, handler);
+    registerCleanup(() => document.removeEventListener(type, handler));
+  }
 
-  const PRESET_MOTIFS = [
-    { category: 'Médecine préventive', items: ['Vaccination', 'Vermifugation', 'Bilan annuel', 'Identification (puce)', 'Stérilisation'] },
-    { category: 'Pathologie', items: ['Boiterie', 'Vomissements', 'Diarrhée', 'Toux', 'Prurit', 'Otite'] },
-    { category: 'Soins', items: ['Toilettage', 'Détartrage', 'Pansement', 'Retrait de fil'] },
-    { category: 'Suivi', items: ['Suivi post-op', 'Recontrôle', 'Suivi chronique'] },
-    { category: 'Urgence', items: ['Urgence vitale', 'Traumatisme', 'Intoxication'] },
-  ];
-
-  const PLAN_TEMPLATES = [
-    { id: 'tpl-1', name: 'Vaccination annuelle (chien)', description: 'CHPLR + examen + rappel',
-      items: [
-        { text: 'Vaccination CHPLR sous-cutanée', meta: 'acte' },
-        { text: 'Examen clinique général', meta: 'acte' },
-        { text: 'Rappel vaccin dans 12 mois', meta: 'RDV' },
-        { text: 'Vermifugation orale', meta: 'acte' },
-      ]},
-    { id: 'tpl-2', name: 'Suivi arthrose', description: 'AINS + chondroprotecteur + recontrôle',
-      items: [
-        { text: 'AINS 7 j + repos forcé 10 j', meta: '→ ordonnance' },
-        { text: 'Chondroprotecteur cure 4 semaines', meta: '→ ordonnance' },
-        { text: 'Recontrôle dans 14 jours', meta: 'RDV' },
-        { text: 'Conseil nutritionnel : aliment joints care', meta: 'conseil' },
-      ]},
-    { id: 'tpl-3', name: 'Post-stérilisation', description: 'Antibio + antalgique + retrait points',
-      items: [
-        { text: 'Antibiotique 7 j', meta: '→ ordonnance' },
-        { text: 'Antalgique 5 j', meta: '→ ordonnance' },
-        { text: 'Collerette 10 j', meta: 'matériel' },
-        { text: 'Retrait des points à J+10', meta: 'RDV' },
-      ]},
-    { id: 'tpl-4', name: 'Bilan pré-anesthésique', description: 'Bilan sanguin + ECG + à jeun',
-      items: [
-        { text: 'Bilan sanguin pré-op (NFS, biochimie)', meta: 'acte' },
-        { text: 'ECG de repos', meta: 'acte' },
-        { text: 'Mise à jeun 12h avant intervention', meta: 'consigne' },
-      ]},
-  ];
-
-  const PLAN_TYPES = [
-    { id: 'acte', icon: '🩺', label: 'Acte médical', meta: 'acte' },
-    { id: 'examen', icon: '🔬', label: 'Examen complémentaire', meta: 'examen' },
-    { id: 'medic', icon: '💊', label: 'Médicament (ordonnance)', meta: '→ ordonnance', special: 'medication' },
-    { id: 'conseil', icon: '💬', label: 'Conseil propriétaire', meta: 'conseil' },
-    { id: 'rdv', icon: '📅', label: 'Recontrôle / RDV', meta: 'RDV' },
-    { id: 'consigne', icon: '📋', label: 'Consigne', meta: 'consigne' },
-  ];
-
-  const CONFIDENCE = {
-    certain:  { key: 'certain',  label: 'certain',    description: 'Établi par examen ou test' },
-    probable: { key: 'probable', label: 'probable',   description: 'Hypothèse principale retenue' },
-    possible: { key: 'possible', label: 'possible',   description: 'À confirmer par examens' },
-    ecarter:  { key: 'ecarter',  label: 'à écarter',  description: 'Différentiel à exclure' },
-  };
-  const CONFIDENCE_ORDER = ['certain', 'probable', 'possible', 'ecarter'];
-
-  const PAST_CONSULTATIONS = [
-    { date: '24 janv. 2026', motif: 'Bilan annuel + vaccin', summary: 'Vaccination CHPLR. Poids stable 28,8 kg. RAS clinique.' },
-    { date: '12 sept. 2025', motif: 'Boiterie postérieure', summary: 'Première suspicion arthrose. AINS 5 j. À surveiller.' },
-    { date: '03 mars 2025', motif: 'Vermifugation', summary: 'Drontal Plus. Pas de symptôme rapporté.' },
-    { date: '10 août 2024', motif: 'Plaie patte avant', summary: 'Plaie superficielle. Désinfection + antibio 5 j. Collerette.' },
-    { date: '20 mai 2024', motif: 'Stérilisation', summary: 'Ovariohystérectomie. Suites simples. Retrait points J+10.' },
-  ];
-
-  // ═══════════════════════════════════════════════
-  //  TOAST SYSTEM
-  // ═══════════════════════════════════════════════
+  // ── Toast system (shared by all blocks) ──
   const Toast = (() => {
     let container = null;
     function ensure() {
@@ -170,6 +68,9 @@ export function init() {
         setTimeout(() => t.remove(), 220);
       }, 2400);
     }
+    registerCleanup(() => {
+      if (container) { container.remove(); container = null; }
+    });
     return {
       success: m => show(m, 'success'),
       info:    m => show(m, 'info'),
@@ -177,6 +78,300 @@ export function init() {
       error:   m => show(m, 'error'),
     };
   })();
+
+  // ── Save-state indicator (topbar chip, fed by api()) ──
+  const SaveState = (() => {
+    const el = document.getElementById('save-state');
+    const LABELS = {
+      idle:   'Brouillon',
+      saving: 'Enregistrement…',
+      saved:  'Enregistré',
+      error:  'Erreur de sauvegarde',
+    };
+    let lastSavedAt = null;
+    function set(state) {
+      if (!el) return;
+      el.dataset.state = state;
+      const label = el.querySelector('.save-state-label');
+      if (label) label.textContent = LABELS[state] || LABELS.idle;
+      if (state === 'saved') lastSavedAt = new Date();
+    }
+    return { set, get lastSavedAt() { return lastSavedAt; } };
+  })();
+
+  // ── api() — JSON mutation helper with per-consultation FIFO queue ──
+  // Mutations are serialized (one in-flight request at a time) so debounced
+  // auto-saves can never race a line-add against the aggregate's optimistic
+  // lock. A 409 CONFLICT response is retried once transparently.
+  const api = (() => {
+    let chain = Promise.resolve();
+    function csrfToken() {
+      return document.getElementById('consultation-csrf')?.value || '';
+    }
+    async function send(url, data) {
+      const body = new URLSearchParams();
+      Object.entries(data || {}).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (Array.isArray(value)) {
+          value.forEach(entry => body.append(`${key}[]`, entry));
+          return;
+        }
+        if (typeof value === 'object') {
+          Object.entries(value).forEach(([subKey, subValue]) => {
+            if (subValue !== undefined && subValue !== null) body.append(`${key}[${subKey}]`, subValue);
+          });
+          return;
+        }
+        body.append(key, value);
+      });
+      body.append('_token', csrfToken());
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body,
+      });
+      let payload = null;
+      try { payload = await response.json(); } catch { /* non-JSON response */ }
+      return { status: response.status, payload };
+    }
+    // Domain messages are English by project convention, so the UI maps the
+    // error code to French copy instead of echoing them.
+    const ERROR_COPY = {
+      CSRF_INVALID: 'Session expirée — rechargez la page.',
+      CONFLICT:     'Modification concurrente — réessayez.',
+      DOMAIN_ERROR: 'Modification refusée dans l\'état actuel de la consultation.',
+      VALIDATION:   'Valeur invalide — vérifiez la saisie.',
+    };
+
+    // `data` may be a builder: a queued mutation deriving its payload from the
+    // current state must read it AFTER the previous one landed.
+    function mutate(url, data) {
+      const run = async () => {
+        if (!url) return { success: false, errorCode: 'NO_ENDPOINT' };
+        const payload = typeof data === 'function' ? data() : data;
+        SaveState.set('saving');
+        try {
+          let result = await send(url, payload);
+          if (result.status === 409 && result.payload?.errorCode === 'CONFLICT') {
+            result = await send(url, payload);
+          }
+          if (result.payload?.success) {
+            SaveState.set('saved');
+            return result.payload;
+          }
+          SaveState.set('error');
+          Toast.error(ERROR_COPY[result.payload?.errorCode] || 'Erreur lors de la sauvegarde');
+          return result.payload || { success: false, errorCode: 'HTTP_' + result.status };
+        } catch {
+          SaveState.set('error');
+          Toast.error('Connexion perdue — modification non enregistrée');
+          return { success: false, errorCode: 'NETWORK' };
+        }
+      };
+      chain = chain.then(run, run);
+      return chain;
+    }
+    async function get(url, params) {
+      try {
+        const query = new URLSearchParams(params || {});
+        const response = await fetch(`${url}?${query.toString()}`, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        return await response.json();
+      } catch {
+        return null;
+      }
+    }
+
+    return { mutate, get };
+  })();
+
+  // Parses a server datetime as UTC even when the string carries no zone
+  // marker (the read side emits "YYYY-MM-DD HH:MM:SS" in UTC).
+  function parseUtcDate(value) {
+    if (!value) return null;
+    const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : value.replace(' ', 'T') + 'Z';
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  // ── Live consultation timer (topbar, from startedAtUtc) ──
+  (() => {
+    const timerEl = document.getElementById('consultation-timer');
+    const consultation = HYDRATION.consultation || {};
+    const startedAt = parseUtcDate(consultation.startedAtUtc);
+    if (!timerEl || !startedAt) return;
+    const closedAt = parseUtcDate(consultation.closedAtUtc);
+    // Compensate client clock skew against the server's notion of "now"
+    const serverNow = parseUtcDate(HYDRATION.serverNowUtc);
+    const clockOffsetMs = serverNow ? serverNow.getTime() - Date.now() : 0;
+    const render = () => {
+      const end = closedAt || new Date(Date.now() + clockOffsetMs);
+      const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      const pad = n => String(n).padStart(2, '0');
+      timerEl.textContent = h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+    };
+    render();
+    if (!closedAt) {
+      const interval = setInterval(render, 1000);
+      registerCleanup(() => clearInterval(interval));
+    }
+  })();
+
+  // ═══════════════════════════════════════════════
+  //  SERVER STATE
+  //  Single source of truth for the whole page: the hydration payload,
+  //  replaced wholesale by the `consultation` object every mutation returns.
+  //  Each block registers a renderer so one save repaints everything.
+  // ═══════════════════════════════════════════════
+  const REF = HYDRATION.reference || {};
+  const EP = HYDRATION.endpoints || {};
+  const PATIENT = HYDRATION.patient || {};
+  const OWNER = HYDRATION.owner || null;
+  const HISTORY = HYDRATION.history || [];
+
+  let SERVER = HYDRATION.consultation || {};
+  const serverRenderers = [];
+
+  function onServerState(fn) {
+    serverRenderers.push(fn);
+  }
+
+  function renderFromServer() {
+    serverRenderers.forEach(fn => fn());
+  }
+
+  function isClosed() {
+    return SERVER.isClosed === true;
+  }
+
+  /**
+   * Every mutation goes through here: refused on a closed consultation (the
+   * server refuses it too), queued, then the refreshed state is applied.
+   */
+  function save(url, data) {
+    if (isClosed()) {
+      Toast.warn('Consultation clôturée — lecture seule');
+      return Promise.resolve({ success: false, errorCode: 'CLOSED' });
+    }
+    return api.mutate(url, data).then(payload => {
+      if (payload?.success && payload.consultation) {
+        SERVER = payload.consultation;
+        renderFromServer();
+      }
+      return payload;
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function money(minorUnits, currency) {
+    const symbol = { EUR: '€', CHF: 'CHF', USD: '$', GBP: '£' }[currency || 'EUR'] || (currency || '');
+    const negative = minorUnits < 0;
+    const absolute = Math.abs(Number(minorUnits) || 0);
+    const int = String(Math.trunc(absolute / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+    return `${negative ? '-' : ''}${int},${String(absolute % 100).padStart(2, '0')}\u00a0${symbol}`;
+  }
+
+  function frNumber(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value ?? '');
+    return String(Number(n.toFixed(3))).replace('.', ',');
+  }
+
+  // Catalogue rows are fetched once per modal opening and filtered client-side,
+  // so the search feels instant exactly as the prototype did.
+  const Catalog = (() => {
+    let acts = [];
+    let articles = [];
+
+    async function load(term = '') {
+      const payload = await api.get(EP.catalogSearch, { term });
+      const items = payload?.items || [];
+      acts = items.filter(i => i.itemType === 'ACT');
+      articles = items.filter(i => i.itemType === 'ARTICLE');
+      return { acts, articles };
+    }
+
+    return {
+      load,
+      get acts() { return acts; },
+      get articles() { return articles; },
+      find(code) { return [...acts, ...articles].find(i => i.code === code) || null; },
+    };
+  })();
+
+(() => {
+  'use strict';
+
+  // ═══════════════════════════════════════════════
+  //  STATE — patient identity, from the server
+  // ═══════════════════════════════════════════════
+  const state = {
+    patient: {
+      name: PATIENT.name || 'Patient',
+      species: PATIENT.speciesLabel || '',
+      breed: PATIENT.breed || '',
+      age: PATIENT.ageLabel || '',
+      sex: PATIENT.sexLabel || '',
+      microchip: PATIENT.microchip || '',
+      color: PATIENT.color || '',
+      isIdentified: PATIENT.isIdentified === true,
+      get weight() {
+        return SERVER.vitals?.weightKg !== undefined && SERVER.vitals?.weightKg !== null
+          ? Number(SERVER.vitals.weightKg)
+          : null;
+      },
+      get lastWeight() {
+        const previous = HISTORY.find(row => row.weightKg !== null && row.weightKg !== undefined);
+        return previous ? Number(previous.weightKg) : null;
+      },
+      get allergies() {
+        return (SERVER.medicalAlerts || [])
+          .filter(alert => alert.kind === 'ALLERGY')
+          .map(alert => alert.label);
+      },
+      get conditions() {
+        return (SERVER.medicalAlerts || [])
+          .filter(alert => alert.kind === 'CHRONIC_CONDITION')
+          .map(alert => alert.label);
+      },
+    },
+  };
+
+  // ═══════════════════════════════════════════════
+  //  DATA — reference lists served by the server
+  // ═══════════════════════════════════════════════
+
+  // Same shape as the former mock so every modal body below is unchanged.
+  const VITAL_TYPES = (REF.vitalTypes || []).map(v => ({
+    id: v.id, label: v.label, unit: v.unit, range: v.range, def: v.default,
+  }));
+
+  const PRESET_MOTIFS = REF.presetMotifs || [];
+
+  const HISTORY_DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  function fmtHistoryDate(value) {
+    const date = parseUtcDate(value);
+    return date ? HISTORY_DATE_FMT.format(date) : '';
+  }
+
+  const PAST_CONSULTATIONS = HISTORY.map(row => ({
+    date: fmtHistoryDate(row.startedAtUtc),
+    motif: row.motif || 'Consultation',
+    summary: row.summary || '',
+    url: row.url,
+    startedAtUtc: row.startedAtUtc,
+    weightKg: row.weightKg,
+  }));
 
   // ═══════════════════════════════════════════════
   //  MODAL SYSTEM
@@ -207,8 +402,9 @@ export function init() {
       });
       escHandler = e => { if (e.key === 'Escape') close(); };
       document.addEventListener('keydown', escHandler);
+      // The modal may already be closed when this fires.
       setTimeout(() => {
-        const f = mount.querySelector('input,textarea');
+        const f = mount?.querySelector('input,textarea');
         if (f) f.focus();
       }, 60);
       return mount;
@@ -273,15 +469,16 @@ export function init() {
   function fmtPrice(n) {
     return n.toFixed(2).replace('.', ',') + ' €';
   }
+  // HT / TVA / TTC come from the Taxation-resolved totals computed server-side.
   function recomputeBillTotal() {
-    const rows = [...document.querySelectorAll('.bill-row .bill-price')];
-    const total = rows.reduce((s, el) => s + parseFloat(el.textContent.replace(',', '.').replace('€', '').trim()), 0);
-    const ht = total / 1.2;
-    const tva = total - ht;
+    const totals = SERVER.totals || {};
+    const currency = totals.currency || 'EUR';
     const totalEl = document.querySelector('.bill-total-amount');
     const subEl = document.querySelector('.bill-total div div:nth-child(2)');
-    if (totalEl) totalEl.textContent = fmtPrice(total);
-    if (subEl) subEl.textContent = `HT ${fmtPrice(ht).replace(' €','')} · TVA ${fmtPrice(tva).replace(' €','')}`;
+    if (totalEl) totalEl.textContent = money(totals.totalTtcMinorUnits || 0, currency);
+    if (subEl) {
+      subEl.textContent = `HT ${money(totals.totalHtMinorUnits || 0, currency)} · TVA ${money(totals.totalTvaMinorUnits || 0, currency)}`;
+    }
   }
   function highlightNew(el) {
     el.classList.add('is-just-added');
@@ -289,161 +486,225 @@ export function init() {
   }
 
   // ═══════════════════════════════════════════════
+  //  RENDERERS — same markup as the layout, fed by the server
+  // ═══════════════════════════════════════════════
+
+  // Chips are inserted before the "+ ajouter" chip so they stay direct flex
+  // children of .strip-content, exactly as in the layout.
+  function renderMotifStrip() {
+    const strip = document.querySelector('.strip:first-child .strip-content');
+    const addChip = strip?.querySelector('.chip-add');
+    if (!strip || !addChip) return;
+
+    strip.querySelectorAll('.chip:not(.chip-add)').forEach(chip => chip.remove());
+    addChip.insertAdjacentHTML('beforebegin', (SERVER.motifs || []).map(motif =>
+      `<button class="chip is-selected" data-motif-id="${escapeHtml(motif.id)}">${escapeHtml(motif.label)}</button>`).join(''));
+    strip.querySelectorAll('.chip:not(.chip-add)').forEach(wireMotifChip);
+  }
+
+  function renderVitalsStrip() {
+    const strip = document.querySelector('.vitals-strip');
+    const addChip = strip?.querySelector('.chip-add');
+    if (!strip || !addChip) return;
+
+    strip.querySelectorAll('.vital-pill').forEach(pill => pill.remove());
+
+    const pills = [];
+    const weight = SERVER.vitals?.weightKg;
+    const temperature = SERVER.vitals?.temperatureC;
+
+    pills.push(weightPillHtml(weight));
+
+    if (temperature !== null && temperature !== undefined) {
+      pills.push(vitalPillHtml('temperature', 'Température', frNumber(temperature), '°C'));
+    }
+
+    (SERVER.typedVitals || []).forEach(vital => {
+      const def = VITAL_TYPES.find(v => v.id === vital.type);
+      pills.push(vitalPillHtml(vital.type, def?.label || vital.type, vital.value, def?.unit || ''));
+    });
+
+    addChip.insertAdjacentHTML('beforebegin', pills.join(''));
+    strip.querySelectorAll('.vital-pill').forEach(wireVitalPill);
+
+    const hint = strip.querySelector('.strip-text');
+    if (hint) {
+      const recorded = new Set((SERVER.typedVitals || []).map(v => v.type));
+      const remaining = VITAL_TYPES.filter(v => !recorded.has(v.id)).map(v => v.label);
+      hint.textContent = remaining.length ? remaining.join(' · ') : 'Toutes les constantes sont renseignées';
+    }
+  }
+
+  function weightPillHtml(weight) {
+    const value = (weight === null || weight === undefined) ? '—' : frNumber(weight);
+    const last = state.patient.lastWeight;
+    let delta = '';
+    if (weight !== null && weight !== undefined && last !== null) {
+      const diff = Number(weight) - last;
+      if (Math.abs(diff) >= 0.05) {
+        delta = `<span class="vital-pill-delta ${diff < 0 ? 'is-down' : 'is-up'}">${diff < 0 ? '−' : '+'}${frNumber(Math.abs(diff))} kg</span>`;
+      }
+    }
+    return `
+      <div class="vital-pill" data-vital="weight">
+        <div class="vital-pill-label">Poids</div>
+        <div class="vital-pill-value">${escapeHtml(value)} <span class="unit">kg</span></div>
+        ${delta}
+      </div>`;
+  }
+
+  function vitalPillHtml(id, label, value, unit) {
+    const removable = id !== 'weight' && id !== 'temperature';
+    const valueDisplay = unit
+      ? `${escapeHtml(value)} <span class="unit">${escapeHtml(unit)}</span>`
+      : `<span style="font-size:var(--text-sm)">${escapeHtml(value)}</span>`;
+    return `
+      <div class="vital-pill" data-vital="${escapeHtml(id)}">
+        <div class="vital-pill-label">${escapeHtml(label)}</div>
+        <div class="vital-pill-value">${valueDisplay}</div>
+        ${removable ? `<button class="row-x" title="Retirer cette constante" aria-label="Retirer ${escapeHtml(label)}">
+          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </button>` : ''}
+      </div>`;
+  }
+
+  function renderPrescription() {
+    const list = document.querySelector('.rp-block .rx-list');
+    if (!list) return;
+    const lines = SERVER.prescriptionLines || [];
+
+    list.innerHTML = lines.map(line => `
+        <div class="rx-item has-row-x" data-line-id="${escapeHtml(line.id)}" data-code="${escapeHtml(line.code || '')}">
+          <div class="rx-item-row">
+            <span class="rx-name">${escapeHtml(line.label)}</span>
+            <span class="rx-price">${escapeHtml(money(line.unitPriceMinorUnits, line.currency))}</span>
+            <button class="row-x" title="Retirer ce médicament" aria-label="Retirer ce médicament">
+              <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+            </button>
+          </div>
+          <div class="rx-poso">${escapeHtml(posologyLabel(line))}</div>
+        </div>`).join('');
+
+    list.querySelectorAll('.rx-item').forEach(item => wireRxItem(item));
+
+    const titleEl = document.querySelector('.rp-block .rp-block-title');
+    if (titleEl) {
+      titleEl.textContent = lines.length === 0
+        ? 'Ordonnance'
+        : `Ordonnance · ${lines.length} médicament${lines.length > 1 ? 's' : ''}`;
+    }
+
+    renderAllergyBanner();
+  }
+
+  function posologyLabel(line) {
+    return [
+      line.dose,
+      line.frequency,
+      line.durationDays ? `${line.durationDays} ${line.durationDays > 1 ? 'jours' : 'jour'}` : null,
+      line.route,
+    ].filter(Boolean).join(' · ') || '—';
+  }
+
+  function renderAllergyBanner() {
+    const banner = document.querySelector('.rx-warning');
+    if (!banner) return;
+    const allergies = state.patient.allergies;
+    const conflicts = SERVER.allergyWarnings || [];
+
+    if (allergies.length === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = '';
+    const icon = '<svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>';
+
+    if (conflicts.length === 0) {
+      banner.innerHTML = `${icon}
+        <span><strong style="font-weight:var(--weight-medium)">${escapeHtml(allergies.join(', '))} allergique</strong> — molécules incompatibles filtrées du catalogue.</span>`;
+      return;
+    }
+
+    const detail = [...new Set(conflicts.map(c => `${c.medication} (${c.substance})`))].join(', ');
+    banner.innerHTML = `${icon}
+      <span><strong style="font-weight:var(--weight-medium)">${escapeHtml(conflicts[0].alertLabel)} allergique</strong> — vérifiez ${escapeHtml(detail)}.</span>`;
+  }
+
+  function renderBill() {
+    const billList = document.querySelector('.bill-list');
+    if (!billList) return;
+
+    billList.innerHTML = (SERVER.billingLines || []).map(line => `
+        <div class="bill-row" data-code="${escapeHtml(line.code || '')}">
+          <div class="bill-name">
+            ${escapeHtml(line.label)}
+            <span class="bill-qty">${escapeHtml(line.code || line.source)}${Number(line.quantity) !== 1 ? ` · ×${frNumber(line.quantity)}` : ''}</span>
+          </div>
+          <div class="bill-price">${escapeHtml(money(line.totalMinorUnits, line.currency))}</div>
+        </div>`).join('');
+
+    recomputeBillTotal();
+  }
+
+  function renderTeamMemo() {
+    const memo = document.getElementById('team-memo');
+    if (memo && memo !== document.activeElement) memo.value = SERVER.teamMemo || '';
+  }
+
+  function renderChiefComplaint() {
+    const span = document.querySelector('.strip:first-child .strip-text');
+    if (span && span.tagName === 'SPAN') span.textContent = SERVER.chiefComplaint || '';
+  }
+
+  onServerState(renderMotifStrip);
+  onServerState(renderVitalsStrip);
+  onServerState(renderPrescription);
+  onServerState(renderBill);
+  onServerState(renderTeamMemo);
+  onServerState(renderChiefComplaint);
+
+  // ═══════════════════════════════════════════════
   //  ACTIONS — domain operations
   // ═══════════════════════════════════════════════
 
-  // Add a medication: updates ordonnance + facturation
-  function addMedication(med, posology) {
-    // 1. Ajouter à l'ordonnance
-    const list = document.querySelector('.rp-block .rx-list');
-    const item = document.createElement('div');
-    item.className = 'rx-item has-row-x';
-    item.dataset.code = med.code;
-    item.dataset.price = med.price;
-    item.innerHTML = `
-      <div class="rx-item-row">
-        <span class="rx-name">${med.name}</span>
-        <span class="rx-price">${fmtPrice(med.price)}</span>
-        <button class="row-x" title="Retirer ce médicament" aria-label="Retirer ce médicament">
-          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
-      </div>
-      <div class="rx-poso">${posology.dose} ${med.doseUnit} · ${posology.freq} · ${posology.days} ${posology.days > 1 ? 'jours' : 'jour'} · ${posology.route}</div>
-    `;
-    list.appendChild(item);
-    // wire l'edit click sur le nouvel item
-    wireRxItem(item, med);
-
-    // 2. Mettre à jour le compteur d'ordonnance
-    const titleEl = document.querySelector('.rp-block .rp-block-title');
-    const countMatch = titleEl.textContent.match(/(\d+)/);
-    const newCount = (countMatch ? parseInt(countMatch[1]) : 0) + 1;
-    titleEl.textContent = `Ordonnance · ${newCount} médicaments`;
-
-    // 3. Ajouter à la facturation (la ligne est en lecture seule, dérivée du rx)
-    const billList = document.querySelector('.bill-list');
-    const billRow = document.createElement('div');
-    billRow.className = 'bill-row';
-    billRow.dataset.code = med.code;
-    billRow.innerHTML = `
-      <div class="bill-name">
-        ${med.name.split(' ').slice(0, 2).join(' ')}
-        <span class="bill-qty">MED · ${posology.days} ${posology.days > 1 ? 'jours' : 'jour'}</span>
-      </div>
-      <div class="bill-price">${fmtPrice(med.price)}</div>
-    `;
-    billList.appendChild(billRow);
-    recomputeBillTotal();
-    highlightNew(item);
-    highlightNew(billRow);
-
-    Toast.success(`${med.name} ajouté à l'ordonnance et à la facture`);
-  }
-
-  function removeMedication(code) {
-    document.querySelectorAll(`.rx-item[data-code="${code}"], .bill-row[data-code="${code}"]`).forEach(el => el.remove());
-    const list = document.querySelector('.rp-block .rx-list');
-    const titleEl = document.querySelector('.rp-block .rp-block-title');
-    const newCount = list.children.length;
-    titleEl.textContent = `Ordonnance · ${newCount} médicament${newCount > 1 ? 's' : ''}`;
-    recomputeBillTotal();
-    Toast.info('Médicament retiré');
-  }
-
-  // Add a diagnostic to A quad — confidenceKey ∈ CONFIDENCE_ORDER
-  function addDiagnostic(dx, confidenceKey = 'probable') {
-    const conf = CONFIDENCE[confidenceKey];
-    if (!conf) return;
-    const list = document.querySelector('.quad[data-letter="A"] .dx-list');
-    const item = document.createElement('div');
-    item.className = 'dx-item';
-    item.dataset.code = dx.code;
-    item.dataset.confidence = conf.key;
-    item.innerHTML = `
-      <span class="dx-code">${dx.code}</span>
-      <span class="dx-label">${dx.name}</span>
-      <span class="dx-confidence" data-confidence="${conf.key}" title="Cliquer pour modifier la certitude">${conf.label}</span>
-      <button class="dx-remove" title="Retirer" aria-label="Retirer ce diagnostic">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
-    `;
-    list.appendChild(item);
-    wireDxRemove(item);
-    wireDxConfidence(item);
-    highlightNew(item);
-    Toast.success(`Diagnostic ${conf.label} : ${dx.name}`);
-  }
-
-  // Change la certitude d'un dx existant en dropdown — édition in-place
-  function wireDxConfidence(item) {
-    const badge = item.querySelector('.dx-confidence');
-    if (!badge) return;
-    badge.addEventListener('click', e => {
-      e.stopPropagation();
-      const dxName = item.querySelector('.dx-label').textContent;
-      const items = CONFIDENCE_ORDER.map(key => {
-        const c = CONFIDENCE[key];
-        const isCurrent = item.dataset.confidence === key;
-        return {
-          action: key,
-          // Pastille colorée + label
-          icon: '<circle cx="8" cy="8" r="5"/>',
-          label: `<span style="display:inline-flex;align-items:center;gap:8px"><span class="dx-confidence" data-confidence="${key}" style="cursor:default;pointer-events:none">${c.label}</span><span style="color:var(--text-subtle);font-size:var(--text-xs)">${c.description}</span>${isCurrent ? '<span style="color:var(--brand-600);margin-left:4px">✓</span>' : ''}</span>`,
-        };
-      });
-      Dropdown.open(badge, items, {
-        onSelect: key => {
-          const conf = CONFIDENCE[key];
-          item.dataset.confidence = key;
-          badge.dataset.confidence = key;
-          badge.textContent = conf.label;
-          badge.title = 'Cliquer pour modifier la certitude';
-          Toast.info(`${dxName} → ${conf.label}`);
-        },
-      });
+  // Add a medication: persists the prescription line, the billing draft is
+  // re-derived server-side.
+  function addMedication(item, posology) {
+    return save(EP.prescriptionLineAdd, {
+      articleId: item.itemId,
+      dose: posology.dose,
+      frequency: posology.freq,
+      durationDays: posology.days,
+      route: posology.route,
+      quantity: 1,
+    }).then(payload => {
+      if (!payload?.success) return payload;
+      const added = document.querySelector('.rx-item:last-child');
+      const billRow = document.querySelector('.bill-list .bill-row:last-child');
+      if (added) highlightNew(added);
+      if (billRow) highlightNew(billRow);
+      Toast.success(`${item.name} ajouté à l'ordonnance et à la facture`);
+      return payload;
     });
   }
-  // Câbler les dx-confidence des items existants au démarrage
-  document.querySelectorAll('.dx-item').forEach(wireDxConfidence);
 
-  // Add a plan item
-  function addPlanItem(text, meta) {
-    const list = document.querySelector('.quad[data-letter="P"] .plan-list');
-    const item = document.createElement('div');
-    item.className = 'plan-item has-row-x';
-    item.innerHTML = `
-      <span class="plan-checkbox"></span>
-      <span class="plan-text">${text}</span>
-      <span class="plan-meta">${meta}</span>
-      <button class="row-x" title="Retirer du plan" aria-label="Retirer du plan">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
-    `;
-    list.appendChild(item);
-    wirePlanItem(item);
-    highlightNew(item);
+  function removeMedication(lineId) {
+    return save(EP.prescriptionLineRemove, { prescriptionLineId: lineId }).then(payload => {
+      if (payload?.success) Toast.info('Médicament retiré');
+      return payload;
+    });
   }
 
   // Add a constante (vital pill)
   function addVitalPill(vt, value) {
-    const strip = document.querySelector('.vitals-strip');
-    const pill = document.createElement('div');
-    pill.className = 'vital-pill';
-    pill.dataset.vital = vt.id;
-    const valueDisplay = vt.unit ? `${value} <span class="unit">${vt.unit}</span>` : `<span style="font-size:var(--text-sm)">${value}</span>`;
-    pill.innerHTML = `
-      <div class="vital-pill-label">${vt.label}</div>
-      <div class="vital-pill-value">${valueDisplay}</div>
-      <button class="row-x" title="Retirer cette constante" aria-label="Retirer ${vt.label}">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
-    `;
-    // insert before the "+ ajouter" chip
-    const addChip = strip.querySelector('.chip-add');
-    strip.insertBefore(pill, addChip);
-    wireVitalPill(pill);
-    highlightNew(pill);
-    Toast.success(`${vt.label} ajoutée : ${value} ${vt.unit}`);
+    return save(EP.typedVitalRecord, { type: vt.id, value }).then(payload => {
+      if (!payload?.success) return payload;
+      const pill = document.querySelector(`.vital-pill[data-vital="${vt.id}"]`);
+      if (pill) highlightNew(pill);
+      Toast.success(`${vt.label} ajoutée : ${value} ${vt.unit}`);
+      return payload;
+    });
   }
 
   // ═══════════════════════════════════════════════
@@ -477,23 +738,24 @@ export function init() {
       const it = e.target.closest('.m-item');
       if (!it) return;
       const motif = it.dataset.motif;
-      // already exists?
-      const existing = [...document.querySelectorAll('.strip:first-child .chip:not(.chip-add)')]
-        .find(c => c.textContent.trim() === motif);
-      if (existing) {
-        existing.classList.add('is-selected');
-        Toast.info(`"${motif}" déjà présent`);
-      } else {
-        const chip = document.createElement('button');
-        chip.className = 'chip is-selected';
-        chip.textContent = motif;
-        wireMotifChip(chip);
-        const addChip = document.querySelector('.strip-content .chip-add');
-        addChip.parentNode.insertBefore(chip, addChip);
-        Toast.success(`Motif ajouté : ${motif}`);
-      }
+      const already = (SERVER.motifs || []).some(m => m.label.toLowerCase() === motif.toLowerCase());
       Modal.close();
+      if (already) {
+        Toast.info(`"${motif}" déjà présent`);
+        return;
+      }
+      // The payload is built inside the queue so two quick picks never
+      // overwrite each other with a stale list.
+      save(EP.motifs, () => ({ labels: [...(SERVER.motifs || []).map(m => m.label), motif] }))
+        .then(payload => { if (payload?.success) Toast.success(`Motif ajouté : ${motif}`); });
     });
+  }
+
+  function lastWeighingLabel() {
+    const previous = HISTORY.find(row => row.weightKg !== null && row.weightKg !== undefined);
+    return previous
+      ? `${frNumber(previous.weightKg)} kg · ${fmtHistoryDate(previous.startedAtUtc)}`
+      : 'aucune pesée antérieure';
   }
 
   // — Edit Weight —
@@ -501,7 +763,7 @@ export function init() {
     const body = `
       <div class="form-row">
         <span class="form-row-label">Poids actuel</span>
-        <input type="text" class="inline-num-input" id="weight-input" value="${state.patient.weight}">
+        <input type="text" class="inline-num-input" id="weight-input" value="${state.patient.weight ?? ''}">
       </div>
       <div class="form-row">
         <span class="form-row-label">Unité</span>
@@ -509,7 +771,7 @@ export function init() {
       </div>
       <div class="form-row">
         <span class="form-row-label">Dernière pesée</span>
-        <span class="form-hint">${state.patient.lastWeight} kg · 24 janv. 2026</span>
+        <span class="form-hint">${lastWeighingLabel()}</span>
       </div>
       <div style="padding:var(--space-3);background:var(--brand-50);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--brand-700);margin-top:var(--space-3)">
         ℹ Le nouveau poids sert au recalcul automatique des dosages dans l'ordonnance.
@@ -524,24 +786,18 @@ export function init() {
       const v = Modal.getEl('#weight-input').value.replace(',', '.');
       const newW = parseFloat(v);
       if (isNaN(newW) || newW <= 0) { Toast.error('Poids invalide'); return; }
-      const oldW = state.patient.weight;
-      state.patient.weight = newW;
-      const delta = newW - state.patient.lastWeight;
-      // update vital pill
-      const pill = document.querySelector('.vital-pill[data-vital]');
-      const pillValue = document.querySelector('.vital-pill .vital-pill-value');
-      const pillDelta = document.querySelector('.vital-pill .vital-pill-delta');
-      if (pillValue) pillValue.innerHTML = `${newW.toString().replace('.', ',')} <span class="unit">kg</span>`;
-      if (pillDelta) {
-        pillDelta.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(1).replace('.', ',') + ' kg';
-        pillDelta.classList.toggle('is-down', delta < 0);
-        pillDelta.classList.toggle('is-up', delta > 0);
-      }
-      // update patient bar weight
-      const meta = document.querySelector('.pb-meta');
-      // (le poids n'est pas dans le meta dans cette version, mais on peut l'ajouter)
+      const last = state.patient.lastWeight;
       Modal.close();
-      Toast.success(`Poids enregistré : ${newW.toString().replace('.', ',')} kg (${delta >= 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')})`);
+      save(EP.vitals, {
+        weightKg: newW,
+        temperatureC: SERVER.vitals?.temperatureC ?? '',
+      }).then(payload => {
+        if (!payload?.success) return;
+        const delta = last !== null ? newW - last : null;
+        Toast.success(delta === null
+          ? `Poids enregistré : ${frNumber(newW)} kg`
+          : `Poids enregistré : ${frNumber(newW)} kg (${delta >= 0 ? '+' : ''}${frNumber(Number(delta.toFixed(1)))})`);
+      });
     });
   }
 
@@ -608,327 +864,122 @@ export function init() {
     });
   }
 
-  // — Add Diagnostic — modal unique avec quick-pills inline
-  function openAddDiagnosticModal() {
-    const grouped = DIAGNOSTICS.reduce((acc, d) => {
-      (acc[d.system] = acc[d.system] || []).push(d);
-      return acc;
-    }, {});
-    const pillsHtml = CONFIDENCE_ORDER.map(key =>
-      `<button class="dx-quick-pill" data-conf="${key}" title="${CONFIDENCE[key].description}">${CONFIDENCE[key].label}</button>`
-    ).join('');
-    const html = Object.entries(grouped).map(([sys, items]) => `
-      <div class="m-list-section">${sys}</div>
-      ${items.map(d => `
-        <div class="m-item" data-code="${d.code}">
-          <span class="m-item-tag">${d.code}</span>
-          <div class="m-item-content"><span class="m-item-name">${d.name}</span></div>
-          <div class="dx-quick-pills">${pillsHtml}</div>
-        </div>
-      `).join('')}
-    `).join('');
-    const body = `
-      <div class="modal-search">
-        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-        <input type="text" placeholder="Rechercher par code ou nom…" id="dx-search">
-      </div>
-      <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-bottom:var(--space-2);padding:0 var(--space-2)">
-        Cliquez la ligne pour ajouter en <strong style="color:var(--brand-700)">probable</strong>, ou choisissez directement le niveau de certitude.
-      </div>
-      <div class="m-list" id="dx-list">${html}</div>
-    `;
-    Modal.open({ title: 'Ajouter un diagnostic', body, width: 'wide' });
-
-    Modal.getEl('#dx-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
-      Modal.getEl('#dx-list').querySelectorAll('.m-item').forEach(it => {
-        const code = it.dataset.code.toLowerCase();
-        const name = it.querySelector('.m-item-name').textContent.toLowerCase();
-        it.style.display = (code.includes(q) || name.includes(q)) ? '' : 'none';
-      });
-    });
-
-    Modal.getEl('#dx-list').addEventListener('click', e => {
-      const pill = e.target.closest('.dx-quick-pill');
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const dx = DIAGNOSTICS.find(d => d.code === it.dataset.code);
-      if (document.querySelector(`.dx-item[data-code="${dx.code}"]`)) {
-        Toast.warn('Ce diagnostic est déjà dans la liste');
-        return;
-      }
-      // Si clic sur une pill spécifique → utilise cette certitude
-      // Sinon (clic sur la ligne) → défaut "probable"
-      const confidenceKey = pill ? pill.dataset.conf : 'probable';
-      Modal.close();
-      addDiagnostic(dx, confidenceKey);
-    });
-  }
-
-  // openDxConfidenceModal reste disponible pour les cas où on veut une modale pleine
-  // (par exemple depuis la modale de suggestion IA quand on veut nuancer la certitude),
-  // mais n'est plus appelée depuis le flux d'ajout principal.
-  function openDxConfidenceModal(dx) {
-    const items = CONFIDENCE_ORDER.map(key => {
-      const c = CONFIDENCE[key];
-      return `<div class="m-item" data-conf="${key}">
-        <div class="m-item-content">
-          <span class="m-item-name"><span class="dx-confidence" data-confidence="${key}" style="cursor:default;pointer-events:none">${c.label}</span></span>
-          <span class="m-item-meta">${c.description}</span>
-        </div>
-      </div>`;
-    }).join('');
-    const body = `
-      <div style="padding:var(--space-3);background:var(--brand-50);border:1px solid var(--brand-100);border-radius:var(--radius-md);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
-        <span class="dx-code">${dx.code}</span>
-        <span style="font-weight:var(--weight-medium)">${dx.name}</span>
-      </div>
-      <div class="m-list-section" style="padding-left:0">Niveau de certitude</div>
-      <div class="m-list">${items}</div>
-    `;
-    Modal.open({ title: 'Niveau de certitude', body, width: 'narrow' });
-    Modal.getEl('.m-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      Modal.close();
-      addDiagnostic(dx, it.dataset.conf);
-    });
-  }
-
-  // — AI Suggest Diagnostic —
-  function openSuggestDiagnosticModal() {
-    Modal.open({
-      title: '✨ Suggestions diagnostiques (IA)',
-      body: `
-        <div style="padding:var(--space-4);text-align:center;color:var(--text-muted);font-size:var(--text-md)">
-          <span class="live-pulse" style="display:inline-block;background:var(--brand-500);margin-right:var(--space-2)"></span>
-          Analyse en cours…
-        </div>
-      `,
-      width: 'narrow',
-    });
-    setTimeout(() => {
-      const suggestions = [
-        { dx: DIAGNOSTICS[2], score: 78, reason: 'Race prédisposée + boiterie chronique' },
-        { dx: DIAGNOSTICS[3], score: 64, reason: 'Boiterie après effort, amyotrophie' },
-        { dx: DIAGNOSTICS[1], score: 52, reason: 'Tiroir antérieur à confirmer' },
-      ];
-      const html = suggestions.map(s => `
-        <div class="ai-suggest-item">
-          <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
-            <div style="display:flex;align-items:center;gap:var(--space-2)">
-              <span class="dx-code">${s.dx.code}</span>
-              <span style="font-weight:var(--weight-medium);font-size:var(--text-md)">${s.dx.name}</span>
-            </div>
-            <span style="font-size:var(--text-sm);color:var(--text-muted)">${s.reason}</span>
-          </div>
-          <div class="meter"><div class="meter-fill" style="width:${s.score}%"></div></div>
-          <span style="font-family:'DM Mono',monospace;font-size:var(--text-sm);color:var(--brand-700);min-width:32px;text-align:right">${s.score}%</span>
-          <button class="btn btn-primary btn-xs" data-add="${s.dx.code}">+</button>
-        </div>
-      `).join('');
-      const body = `
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-          Basé sur l'examen clinique, l'âge, la race et l'historique du patient.
-        </div>
-        ${html}
-        <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--border-light)">
-          ⓘ Ces suggestions ne remplacent pas le jugement clinique du praticien.
-        </div>
-      `;
-      Modal.getEl('.modal-body').innerHTML = body;
-      Modal.el.querySelectorAll('[data-add]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const dx = DIAGNOSTICS.find(d => d.code === btn.dataset.add);
-          if (document.querySelector(`.dx-item[data-code="${dx.code}"]`)) {
-            Toast.warn('Diagnostic déjà ajouté');
-            return;
-          }
-          Modal.close();
-          addDiagnostic(dx, 'probable');
-        });
-      });
-    }, 800);
-  }
-
-  // — Add Plan Action —
-  function openAddPlanActionModal() {
-    const html = PLAN_TYPES.map(t => `
-      <button class="type-card" data-type="${t.id}">
-        <span class="type-card-icon">${t.icon}</span>
-        <span class="type-card-text">
-          <span class="type-card-label">${t.label}</span>
-          <span class="type-card-meta">${t.meta}</span>
-        </span>
-      </button>
-    `).join('');
-    Modal.open({
-      title: 'Ajouter au plan',
-      body: `<div class="type-grid">${html}</div>`,
-    });
-    Modal.getEl('.type-grid').addEventListener('click', e => {
-      const card = e.target.closest('.type-card');
-      if (!card) return;
-      const t = PLAN_TYPES.find(x => x.id === card.dataset.type);
-      Modal.close();
-      if (t.special === 'medication') {
-        openAddMedicationModal();
-      } else {
-        openPlanActionTextModal(t);
-      }
-    });
-  }
-
-  function openPlanActionTextModal(planType) {
-    const body = `
-      <div class="form-row">
-        <span class="form-row-label">Type</span>
-        <span style="display:flex;align-items:center;gap:var(--space-2)"><span style="font-size:18px">${planType.icon}</span> <span>${planType.label}</span></span>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Description</span>
-        <input type="text" class="inline-num-input" id="plan-text" placeholder="Décrire l'action…">
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="plan-save">Ajouter</button>
-    `;
-    Modal.open({ title: planType.label, body, footer, width: 'narrow' });
-    Modal.getEl('#plan-save').addEventListener('click', () => {
-      const text = Modal.getEl('#plan-text').value.trim();
-      if (!text) { Toast.error('Description requise'); return; }
-      Modal.close();
-      addPlanItem(text, planType.meta);
-      Toast.success('Action ajoutée au plan');
-    });
-  }
-
-  // — Plan Templates —
-  function openPlanTemplatesModal() {
-    const html = PLAN_TEMPLATES.map(t => `
-      <div class="m-item" data-tpl="${t.id}">
-        <div class="m-item-content">
-          <span class="m-item-name">${t.name}</span>
-          <span class="m-item-meta">${t.description} · ${t.items.length} actions</span>
-        </div>
-      </div>
-    `).join('');
-    Modal.open({
-      title: 'Templates de plan',
-      body: `
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-          Sélectionnez un template — toutes ses actions seront ajoutées au plan en cours.
-        </div>
-        <div class="m-list">${html}</div>
-      `,
-    });
-    Modal.getEl('.m-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const tpl = PLAN_TEMPLATES.find(x => x.id === it.dataset.tpl);
-      Modal.close();
-      tpl.items.forEach(i => addPlanItem(i.text, i.meta));
-      Toast.success(`Template "${tpl.name}" appliqué (${tpl.items.length} actions)`);
-    });
-  }
-
   // — Add Medication —
   function openAddMedicationModal() {
-    const grouped = MEDICATIONS.reduce((acc, m) => {
-      (acc[m.cls] = acc[m.cls] || []).push(m);
-      return acc;
-    }, {});
-    const html = Object.entries(grouped).map(([cls, items]) => `
-      <div class="m-list-section">${cls}</div>
-      ${items.map(m => {
-        const blocked = m.contra && m.contra.some(c => state.patient.allergies.includes(c));
-        return `
-          <div class="m-item ${blocked ? 'is-disabled' : ''}" data-code="${m.code}" ${blocked ? 'data-blocked="1"' : ''}>
-            <div class="m-item-content">
-              <span class="m-item-name">${m.name}</span>
-              <span class="m-item-meta">${m.form} · ${m.route} · ${m.dose} ${m.doseUnit}</span>
-            </div>
-            ${blocked ? `<span class="m-item-warn">filtré : ${m.contra.join(', ')}</span>` : ''}
-            <span class="m-item-price">${fmtPrice(m.price)}</span>
-          </div>
-        `;
-      }).join('')}
-    `).join('');
+    const allergies = state.patient.allergies;
     const body = `
       <div class="modal-search">
         <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
         <input type="text" placeholder="Rechercher dans le catalogue…" id="med-search">
       </div>
-      <div style="padding:var(--space-2) var(--space-3);background:var(--color-warning-bg);border:1px solid var(--color-warning-border);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-warning-text);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
+      ${allergies.length ? `<div style="padding:var(--space-2) var(--space-3);background:var(--color-warning-bg);border:1px solid var(--color-warning-border);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-warning-text);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
         <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-        Allergie déclarée : <strong>${state.patient.allergies.join(', ')}</strong> — molécules incompatibles filtrées.
-      </div>
-      <div class="m-list" id="med-list">${html}</div>
+        Allergie déclarée : <strong>${escapeHtml(allergies.join(', '))}</strong> — molécules incompatibles filtrées.
+      </div>` : ''}
+      <div class="m-list" id="med-list"><div class="m-empty">Chargement du catalogue…</div></div>
     `;
     Modal.open({ title: 'Ajouter un médicament', body, width: 'wide' });
+
+    const renderList = () => {
+      const listEl = Modal.getEl('#med-list');
+      if (!listEl) return;
+      const groups = [
+        ['Sur ordonnance', Catalog.articles.filter(a => a.requiresPrescription)],
+        ['Sans ordonnance', Catalog.articles.filter(a => !a.requiresPrescription)],
+      ].filter(([, items]) => items.length > 0);
+
+      if (groups.length === 0) {
+        listEl.innerHTML = '<div class="m-empty">Aucun médicament dans le catalogue de la clinique.</div>';
+        return;
+      }
+
+      listEl.innerHTML = groups.map(([label, items]) => `
+        <div class="m-list-section">${escapeHtml(label)}</div>
+        ${items.map(m => {
+          const blocked = (m.allergyConflicts || []).length > 0;
+          return `
+          <div class="m-item ${blocked ? 'is-disabled' : ''}" data-code="${escapeHtml(m.code)}" ${blocked ? 'data-blocked="1"' : ''}>
+            <div class="m-item-content">
+              <span class="m-item-name">${escapeHtml(m.name)}</span>
+              <span class="m-item-meta">${escapeHtml(m.code)}</span>
+            </div>
+            ${blocked ? `<span class="m-item-warn">filtré : ${escapeHtml(m.allergyConflicts.join(', '))}</span>` : ''}
+            <span class="m-item-price">${escapeHtml(money(m.basePriceMinorUnits, m.currency))}</span>
+          </div>
+        `;
+        }).join('')}
+      `).join('');
+
+      listEl.querySelectorAll('.m-item').forEach(it => {
+        it.addEventListener('click', () => {
+          if (it.dataset.blocked) {
+            Toast.warn('Médicament incompatible avec les allergies du patient');
+            return;
+          }
+          const med = Catalog.find(it.dataset.code);
+          if (!med) return;
+          Modal.close();
+          openMedicationPosologyModal(med);
+        });
+      });
+    };
+
+    Catalog.load('').then(renderList);
+
     Modal.getEl('#med-search').addEventListener('input', e => {
       const q = e.target.value.toLowerCase();
-      Modal.getEl('#med-list').querySelectorAll('.m-item').forEach(it => {
+      const listEl = Modal.getEl('#med-list');
+      if (!listEl) return;
+      let visible = 0;
+      listEl.querySelectorAll('.m-item').forEach(it => {
         const name = it.querySelector('.m-item-name').textContent.toLowerCase();
-        it.style.display = name.includes(q) ? '' : 'none';
+        const shown = name.includes(q);
+        it.style.display = shown ? '' : 'none';
+        if (shown) visible += 1;
       });
-    });
-    Modal.getEl('#med-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      if (it.dataset.blocked) {
-        Toast.warn('Médicament incompatible avec les allergies du patient');
-        return;
-      }
-      const med = MEDICATIONS.find(m => m.code === it.dataset.code);
-      if (document.querySelector(`.rx-item[data-code="${med.code}"]`)) {
-        Toast.warn('Ce médicament est déjà dans l\'ordonnance');
-        return;
-      }
-      Modal.close();
-      openMedicationPosologyModal(med);
+      // Beyond the first page the catalogue is re-queried server-side.
+      if (visible === 0 && q.length >= 2) Catalog.load(e.target.value).then(renderList);
     });
   }
 
-  function openMedicationPosologyModal(med) {
-    const totalDose = (state.patient.weight * med.dose).toFixed(2).replace('.', ',');
+  function openMedicationPosologyModal(med, existingLine = null) {
+    const weight = state.patient.weight;
+    const dose = existingLine?.dose ?? '';
     const body = `
       <div style="padding:var(--space-3);background:var(--brand-50);border:1px solid var(--brand-100);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
-        <div style="font-weight:var(--weight-medium);font-size:var(--text-md)">${med.name}</div>
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-top:2px">${med.cls} · ${med.form}</div>
+        <div style="font-weight:var(--weight-medium);font-size:var(--text-md)">${escapeHtml(med.name)}</div>
+        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-top:2px">${escapeHtml(med.code)}${med.requiresPrescription ? ' · sur ordonnance' : ''}</div>
       </div>
       <div class="form-row">
         <span class="form-row-label">Dose</span>
         <div style="display:flex;gap:var(--space-2);align-items:center">
-          <input type="text" class="inline-num-input" id="poso-dose" value="${med.dose}" style="width:80px">
-          <span class="form-hint">${med.doseUnit}</span>
-          <span class="form-hint" style="margin-left:var(--space-2)">→ ${totalDose} mg / prise pour ${state.patient.weight} kg</span>
+          <input type="text" class="inline-num-input" id="poso-dose" value="${escapeHtml(dose)}" style="width:120px" placeholder="0,1 mg/kg">
+          <span class="form-hint" id="poso-dose-hint">${weight !== null ? `poids actuel ${frNumber(weight)} kg` : 'poids non renseigné'}</span>
         </div>
       </div>
       <div class="form-row">
         <span class="form-row-label">Voie</span>
-        <input type="text" class="inline-num-input" id="poso-route" value="${med.route}">
+        <input type="text" class="inline-num-input" id="poso-route" value="${escapeHtml(existingLine?.route ?? 'per os')}">
       </div>
       <div class="form-row">
         <span class="form-row-label">Fréquence</span>
-        <input type="text" class="inline-num-input" id="poso-freq" value="${med.freq}">
+        <input type="text" class="inline-num-input" id="poso-freq" value="${escapeHtml(existingLine?.frequency ?? '1×/j')}">
       </div>
       <div class="form-row">
         <span class="form-row-label">Durée</span>
         <div style="display:flex;gap:var(--space-2);align-items:center">
-          <input type="text" class="inline-num-input" id="poso-days" value="${med.days}" style="width:80px">
+          <input type="text" class="inline-num-input" id="poso-days" value="${escapeHtml(existingLine?.durationDays ?? 7)}" style="width:80px">
           <span class="form-hint">jours</span>
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--space-3);border-top:1px solid var(--border-light)">
         <span style="font-size:var(--text-sm);color:var(--text-muted)">Coût catalogue</span>
-        <span style="font-family:'DM Mono',monospace;font-size:var(--text-lg);font-weight:var(--weight-medium)">${fmtPrice(med.price)}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:var(--text-lg);font-weight:var(--weight-medium)">${escapeHtml(money(med.basePriceMinorUnits, med.currency))}</span>
       </div>
     `;
     const footer = `
       <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="poso-save">Ajouter à l'ordonnance</button>
+      <button class="btn btn-primary" id="poso-save">${existingLine ? 'Enregistrer' : 'Ajouter à l\'ordonnance'}</button>
     `;
     Modal.open({ title: 'Posologie', body, footer });
     Modal.getEl('#poso-save').addEventListener('click', () => {
@@ -936,9 +987,15 @@ export function init() {
         dose: Modal.getEl('#poso-dose').value,
         route: Modal.getEl('#poso-route').value,
         freq: Modal.getEl('#poso-freq').value,
-        days: parseInt(Modal.getEl('#poso-days').value) || med.days,
+        days: parseInt(Modal.getEl('#poso-days').value, 10) || '',
       };
       Modal.close();
+      if (existingLine) {
+        // No update endpoint for a prescription line: re-issuing it also
+        // re-snapshots the price, which is what an edit means here.
+        removeMedication(existingLine.id).then(() => addMedication(med, posology));
+        return;
+      }
       addMedication(med, posology);
     });
   }
@@ -956,11 +1013,11 @@ export function init() {
         </button>
         <button class="print-card" data-doc="ordo">
           <span class="print-card-title">💊 Ordonnance</span>
-          <span class="print-card-meta">2 médicaments · format légal FR</span>
+          <span class="print-card-meta">${(SERVER.prescriptionLines || []).length} médicament(s) · format légal FR</span>
         </button>
         <button class="print-card" data-doc="facture">
           <span class="print-card-title">🧾 Facture</span>
-          <span class="print-card-meta">Total 201,30 € TTC · NF525</span>
+          <span class="print-card-meta">Total ${money((SERVER.totals || {}).totalTtcMinorUnits || 0, (SERVER.totals || {}).currency)} TTC · NF525</span>
         </button>
         <button class="print-card" data-doc="all">
           <span class="print-card-title">📦 Tout</span>
@@ -972,41 +1029,57 @@ export function init() {
     Modal.getEl('.print-grid').addEventListener('click', e => {
       const card = e.target.closest('.print-card');
       if (!card) return;
-      const labels = { cr: 'Compte-rendu', ordo: 'Ordonnance', facture: 'Facture', all: '3 documents' };
+      // The print stylesheet keys off body[data-print-mode].
+      const modes = { cr: 'compte-rendu', ordo: 'ordonnance', facture: 'facture', all: 'tout' };
       Modal.close();
-      Toast.info(`${labels[card.dataset.doc]} envoyé à l'impression`);
+      document.body.dataset.printMode = modes[card.dataset.doc];
+      window.print();
     });
   }
 
+  const restorePrintMode = () => { delete document.body.dataset.printMode; };
+  window.addEventListener('afterprint', restorePrintMode);
+  registerCleanup(() => {
+    window.removeEventListener('afterprint', restorePrintMode);
+    restorePrintMode();
+  });
+
   // — Historique —
   function openHistoryModal() {
-    const html = PAST_CONSULTATIONS.map(c => `
-      <div class="tl-item">
-        <span class="tl-date">${c.date}</span>
+    const html = PAST_CONSULTATIONS.map((c, index) => `
+      <div class="tl-item" data-index="${index}">
+        <span class="tl-date">${escapeHtml(c.date)}</span>
         <div class="tl-content">
-          <span class="tl-motif">${c.motif}</span>
-          <span class="tl-summary">${c.summary}</span>
+          <span class="tl-motif">${escapeHtml(c.motif)}</span>
+          <span class="tl-summary">${escapeHtml(c.summary)}</span>
         </div>
       </div>
     `).join('');
     Modal.open({
       title: `Historique — ${state.patient.name}`,
-      body: `<div class="timeline">${html}</div>`,
+      body: PAST_CONSULTATIONS.length
+        ? `<div class="timeline">${html}</div>`
+        : '<div class="m-empty">Aucune consultation antérieure pour ce patient.</div>',
       width: 'wide',
     });
-    Modal.getEl('.timeline').addEventListener('click', e => {
+    Modal.getEl('.timeline')?.addEventListener('click', e => {
       const item = e.target.closest('.tl-item');
       if (!item) return;
-      Toast.info('Ouverture du dossier historique (mock)');
+      const target = PAST_CONSULTATIONS[Number(item.dataset.index)];
+      if (!target?.url) return;
+      Modal.close();
+      if (window.Turbo) window.Turbo.visit(target.url); else window.location.assign(target.url);
     });
   }
 
   // — Patient File (Dossier complet) —
   function openPatientFileModal() {
+    const p = state.patient;
+    const row = (label, value) => `<div class="form-row"><span class="form-row-label">${escapeHtml(label)}</span><span>${escapeHtml(value || '—')}</span></div>`;
     const body = `
       <div style="display:flex;align-items:center;gap:var(--space-4);padding-bottom:var(--space-4);border-bottom:1px solid var(--border-light);margin-bottom:var(--space-4)">
         <div class="pb-photo" style="width:72px;height:72px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Chien">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="${escapeHtml(p.species || 'Patient')}">
             <path d="M10 5.172A4 4 0 0 1 14 5l3 1.5"/>
             <path d="M5.5 9.172a3 3 0 0 1 0-4 3 3 0 0 1 4.5 0L11 6.5"/>
             <path d="M19 9.172a3 3 0 0 0 0-4 3 3 0 0 0-4.5 0L13 6.5"/>
@@ -1017,70 +1090,84 @@ export function init() {
           </svg>
         </div>
         <div>
-          <div style="font-size:var(--text-xl);font-weight:var(--weight-medium);letter-spacing:-.3px">${state.patient.name}</div>
-          <div style="color:var(--text-muted);margin-top:2px">${state.patient.breed} · ${state.patient.age} ans · ${state.patient.weight} kg</div>
-          <div style="font-family:'DM Mono',monospace;font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px">250268500412739</div>
+          <div style="font-size:var(--text-xl);font-weight:var(--weight-medium);letter-spacing:-.3px">${escapeHtml(p.name)}</div>
+          <div style="color:var(--text-muted);margin-top:2px">${escapeHtml([p.breed, p.age, p.weight !== null ? `${frNumber(p.weight)} kg` : null].filter(Boolean).join(' · '))}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px">${escapeHtml(p.microchip || '')}</div>
         </div>
       </div>
 
       <div class="m-list-section" style="padding-left:0">Identité</div>
-      <div class="form-row"><span class="form-row-label">Nom</span><span>${state.patient.name}</span></div>
-      <div class="form-row"><span class="form-row-label">Espèce</span><span>${state.patient.species}</span></div>
-      <div class="form-row"><span class="form-row-label">Race</span><span>${state.patient.breed}</span></div>
-      <div class="form-row"><span class="form-row-label">Naissance</span><span>15 mars 2022 (${state.patient.age} ans)</span></div>
-      <div class="form-row"><span class="form-row-label">Sexe</span><span>Femelle stérilisée</span></div>
-      <div class="form-row"><span class="form-row-label">Couleur</span><span>Noir et feu</span></div>
-      <div class="form-row"><span class="form-row-label">Propriétaire</span><span style="color:var(--brand-600);cursor:pointer">Marie Lambert →</span></div>
+      ${row('Nom', p.name)}
+      ${row('Espèce', p.species)}
+      ${row('Race', p.breed)}
+      ${row('Naissance', PATIENT.birthDate ? `${fmtHistoryDate(PATIENT.birthDate)}${p.age ? ` (${p.age})` : ''}` : null)}
+      ${row('Sexe', p.sex ? `${p.sex}${PATIENT.sterilized ? ' stérilisé(e)' : ''}` : null)}
+      ${row('Couleur', p.color)}
+      <div class="form-row"><span class="form-row-label">Propriétaire</span><span style="color:var(--brand-600);cursor:pointer" id="patient-file-owner">${escapeHtml(OWNER ? OWNER.fullName : '—')}${OWNER ? ' →' : ''}</span></div>
 
       <div class="m-list-section" style="padding-left:0;margin-top:var(--space-3)">Médical</div>
-      <div class="form-row"><span class="form-row-label">Allergies</span><span style="color:var(--color-danger-text)">Pénicilline</span></div>
-      <div class="form-row"><span class="form-row-label">Conditions</span><span>Suivi arthrose précoce</span></div>
-      <div class="form-row"><span class="form-row-label">Vaccinations</span><span>CHPLR à jour (24/01/2026)</span></div>
-      <div class="form-row"><span class="form-row-label">Vermifuge</span><span>Drontal · 03/03/2025</span></div>
+      <div class="form-row"><span class="form-row-label">Allergies</span><span style="color:var(--color-danger-text)">${escapeHtml(p.allergies.join(', ') || 'aucune')}</span></div>
+      ${row('Conditions', p.conditions.join(', ') || 'aucune')}
+      <div class="form-row"><span class="form-row-label">Vaccinations</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
+      <div class="form-row"><span class="form-row-label">Vermifuge</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
 
       <div class="m-list-section" style="padding-left:0;margin-top:var(--space-3)">Activité</div>
-      <div class="form-row"><span class="form-row-label">Consultations</span><span>${PAST_CONSULTATIONS.length} antérieures</span></div>
-      <div class="form-row"><span class="form-row-label">Dernière visite</span><span>24 janv. 2026 (3 mois)</span></div>
+      ${row('Consultations', `${PAST_CONSULTATIONS.length} antérieure${PAST_CONSULTATIONS.length > 1 ? 's' : ''}`)}
+      ${row('Dernière visite', PAST_CONSULTATIONS[0]?.date)}
     `;
     const footer = `
       <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-primary">Modifier le dossier</button>
+      <button class="btn btn-primary" id="patient-file-edit">Modifier le dossier</button>
     `;
     Modal.open({ title: 'Dossier patient', body, footer, width: 'wide' });
+    Modal.getEl('.modal-body')?.addEventListener('click', e => {
+      if (e.target.closest('[data-soon]')) Toast.info('Fonctionnalité à venir');
+    });
+    Modal.getEl('#patient-file-owner')?.addEventListener('click', () => { Modal.close(); openOwnerModal(); });
+    Modal.getEl('#patient-file-edit')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
   }
 
   // — Owner —
   function openOwnerModal() {
+    if (!OWNER) {
+      Toast.info('Aucun propriétaire rattaché à ce patient');
+      return;
+    }
+    const initials = OWNER.fullName.split(/\s+/).map(part => part.charAt(0).toUpperCase()).slice(0, 2).join('');
     const body = `
       <div style="display:flex;align-items:center;gap:var(--space-3);padding-bottom:var(--space-3);border-bottom:1px solid var(--border-light);margin-bottom:var(--space-3)">
-        <span class="avatar avatar-lg">ML</span>
+        <span class="avatar avatar-lg">${escapeHtml(initials)}</span>
         <div>
-          <div style="font-size:var(--text-lg);font-weight:var(--weight-medium)">Marie Lambert</div>
-          <div style="color:var(--text-muted);font-size:var(--text-sm)">Propriétaire depuis 2022 · 1 animal</div>
+          <div style="font-size:var(--text-lg);font-weight:var(--weight-medium)">${escapeHtml(OWNER.fullName)}</div>
+          <div style="color:var(--text-muted);font-size:var(--text-sm)">Propriétaire de ${escapeHtml(state.patient.name)}</div>
         </div>
       </div>
-      <div class="form-row"><span class="form-row-label">Téléphone</span><span style="color:var(--brand-600);cursor:pointer">+33 6 12 34 56 78 →</span></div>
-      <div class="form-row"><span class="form-row-label">Email</span><span style="color:var(--brand-600);cursor:pointer">marie.lambert@example.fr →</span></div>
-      <div class="form-row"><span class="form-row-label">Adresse</span><span>15 rue Paradis, 13001 Marseille</span></div>
-      <div class="form-row"><span class="form-row-label">Solde</span><span style="color:var(--color-success-600)">+0,00 €</span></div>
-      <div class="form-row"><span class="form-row-label">Préférences</span><span>SMS rappel J-1 · Email facture</span></div>
+      <div class="form-row"><span class="form-row-label">Téléphone</span><span style="color:var(--brand-600)">${escapeHtml(OWNER.phone || '—')}</span></div>
+      <div class="form-row"><span class="form-row-label">Email</span><span style="color:var(--brand-600)">${escapeHtml(OWNER.email || '—')}</span></div>
+      <div class="form-row"><span class="form-row-label">Adresse</span><span>${escapeHtml(OWNER.address || '—')}</span></div>
+      <div class="form-row"><span class="form-row-label">Solde</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
+      <div class="form-row"><span class="form-row-label">Préférences</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
     `;
     const footer = `
       <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-primary">Voir fiche complète</button>
+      <button class="btn btn-primary" id="owner-full">Voir fiche complète</button>
     `;
     Modal.open({ title: 'Propriétaire', body, footer });
+    Modal.getEl('.modal-body')?.addEventListener('click', e => {
+      if (e.target.closest('[data-soon]')) Toast.info('Fonctionnalité à venir');
+    });
+    Modal.getEl('#owner-full')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
   }
 
   // — Allergie info —
-  function openAllergieInfoModal() {
+  function openAllergieInfoModal(alert) {
     const body = `
       <div style="padding:var(--space-3);background:var(--color-danger-bg);border:1px solid var(--color-danger-border);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
         <div style="display:flex;align-items:center;gap:var(--space-2);color:var(--color-danger-text);font-weight:var(--weight-medium);margin-bottom:var(--space-1)">
           <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-          Allergie pénicilline
+          Allergie ${escapeHtml(alert.label)}
         </div>
-        <div style="font-size:var(--text-sm);color:var(--color-danger-text)">Réaction cutanée sévère observée le 12/09/2025. Toutes les pénicillines (amoxicilline, ampicilline, etc.) sont à proscrire.</div>
+        <div style="font-size:var(--text-sm);color:var(--color-danger-text)">${escapeHtml(alert.note || 'Aucune précision enregistrée.')}</div>
       </div>
       <div style="font-size:var(--text-sm);color:var(--text-muted);line-height:var(--lh-loose)">
         Cette allergie est <strong style="font-weight:var(--weight-medium);color:var(--text-primary)">automatiquement appliquée</strong> au catalogue de médicaments dans la modale d'ajout d'ordonnance. Les molécules incompatibles apparaissent grisées et non sélectionnables.
@@ -1088,20 +1175,44 @@ export function init() {
     `;
     const footer = `
       <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-ghost">Modifier</button>
+      <button class="btn btn-ghost" id="allergy-edit">Modifier</button>
     `;
     Modal.open({ title: 'Détails de l\'allergie', body, footer, width: 'narrow' });
+    Modal.getEl('#allergy-edit')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
+  }
+
+  function openConditionInfoModal(alert) {
+    const body = `
+      <div style="padding:var(--space-3);background:var(--color-info-bg);border:1px solid var(--color-info-border);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
+        <div style="display:flex;align-items:center;gap:var(--space-2);color:var(--color-info-text);font-weight:var(--weight-medium);margin-bottom:var(--space-1)">
+          <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
+          ${escapeHtml(alert.label)}
+        </div>
+        <div style="font-size:var(--text-sm);color:var(--color-info-text)">${escapeHtml(alert.note || 'Aucune précision enregistrée.')}</div>
+      </div>
+    `;
+    Modal.open({
+      title: 'Suivi en cours',
+      body,
+      footer: '<button class="btn btn-secondary" data-close>Fermer</button>',
+      width: 'narrow',
+    });
   }
 
   // — Clôturer la consultation —
   function openCloseConsultationModal() {
-    // validation: on regarde les éléments de la page
-    const motifs = document.querySelectorAll('.strip-content .chip:not(.chip-add).is-selected').length;
-    const dxCount = document.querySelectorAll('.dx-item').length;
-    const planCount = document.querySelectorAll('.plan-item').length;
-    const planDone = document.querySelectorAll('.plan-item.is-done').length;
-    const rxCount = document.querySelectorAll('.rx-item').length;
-    const total = document.querySelector('.bill-total-amount').textContent;
+    if (isClosed()) {
+      Toast.warn('Consultation déjà clôturée');
+      return;
+    }
+
+    const motifs = (SERVER.motifs || []).length;
+    const vitals = (SERVER.typedVitals || []).length + (SERVER.vitals ? 1 : 0);
+    const exams = (SERVER.examSystems || []).length;
+    const dxCount = (SERVER.diagnoses || []).length;
+    const planCount = (SERVER.planActions || []).length;
+    const rxCount = (SERVER.prescriptionLines || []).length;
+    const total = money((SERVER.totals || {}).totalTtcMinorUnits || 0, (SERVER.totals || {}).currency);
 
     function check(label, ok, extra) {
       return `<div class="check-item ${ok ? '' : 'is-fail'}">
@@ -1114,24 +1225,28 @@ export function init() {
     const body = `
       <div class="checklist">
         ${check('Motif renseigné', motifs >= 1, motifs + ' chip(s)')}
-        ${check('Au moins une constante', true, '1 mesure')}
-        ${check('Examen objectif renseigné', true, '8 systèmes')}
+        ${check('Au moins une constante', vitals >= 1, vitals + ' mesure(s)')}
+        ${check('Examen objectif renseigné', exams >= 1, exams + ' système(s)')}
         ${check('Au moins un diagnostic', dxCount >= 1, dxCount + ' dx')}
-        ${check('Plan défini', planCount >= 1, planDone + '/' + planCount + ' réalisés')}
-        ${check('Facturation établie', rxCount >= 0, total)}
+        ${check('Plan défini', planCount >= 1, planCount + ' action(s)')}
+        ${check('Facturation établie', true, total)}
       </div>
       <div class="m-list-section" style="padding-left:0">Finalisation</div>
+      <div class="field-block">
+        <label class="field-label-mini" for="close-summary">Compte-rendu de sortie</label>
+        <textarea class="modal-textarea" id="close-summary" rows="3" placeholder="Synthèse remise au propriétaire…">${escapeHtml(SERVER.summary || '')}</textarea>
+      </div>
       <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked> <span>Envoyer la facture par email à Marie Lambert</span>
+        <input type="checkbox" checked data-soon> <span>Envoyer la facture par email${OWNER ? ` à ${escapeHtml(OWNER.fullName)}` : ''}</span>
       </label>
       <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked> <span>Envoyer l'ordonnance par email</span>
+        <input type="checkbox" checked data-soon> <span>Envoyer l'ordonnance par email</span>
       </label>
       <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox"> <span>Programmer le RDV de recontrôle (J+14)</span>
+        <input type="checkbox" data-soon> <span>Programmer le RDV de recontrôle</span>
       </label>
       <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked> <span>Programmer rappel SMS J+13</span>
+        <input type="checkbox" checked data-soon> <span>Programmer rappel SMS</span>
       </label>
     `;
     const footer = `
@@ -1140,9 +1255,27 @@ export function init() {
     `;
     Modal.open({ title: 'Clôture de la consultation', body, footer });
     Modal.getEl('#close-confirm').addEventListener('click', () => {
+      const summary = Modal.getEl('#close-summary')?.value || '';
       Modal.close();
-      openConsultationClosedModal();
+      closeConsultation(summary);
     });
+  }
+
+  function closeConsultation(summary) {
+    SaveState.set('saving');
+    const body = new URLSearchParams();
+    body.append('summary', summary);
+    body.append('_token', document.getElementById('consultation-csrf')?.value || '');
+    fetch(EP.close, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body })
+      .then(response => {
+        if (!response.ok && response.status >= 400) throw new Error('close failed');
+        SaveState.set('saved');
+        openConsultationClosedModal();
+      })
+      .catch(() => {
+        SaveState.set('error');
+        Toast.error('La clôture a échoué — réessayez');
+      });
   }
 
   function openConsultationClosedModal() {
@@ -1153,19 +1286,22 @@ export function init() {
         </div>
         <div style="font-size:var(--text-lg);font-weight:var(--weight-medium);margin-bottom:var(--space-2)">Consultation clôturée</div>
         <div style="font-size:var(--text-md);color:var(--text-muted);line-height:var(--lh-loose)">
-          La facture et l'ordonnance ont été envoyées à Marie Lambert.<br>
-          Le rappel SMS sera envoyé le <strong style="color:var(--text-primary);font-weight:var(--weight-medium)">22 mai 2026</strong>.
+          Le dossier passe en lecture seule.${OWNER ? `<br>Les documents seront transmis à <strong style="color:var(--text-primary);font-weight:var(--weight-medium)">${escapeHtml(OWNER.fullName)}</strong>.` : ''}
         </div>
       </div>
     `;
     const footer = `
-      <button class="btn btn-ghost" data-close>Rester ici</button>
+      <button class="btn btn-ghost" id="stay-here">Rester ici</button>
       <button class="btn btn-primary" id="next-patient">Patient suivant →</button>
     `;
     Modal.open({ title: '', body, footer, width: 'narrow' });
+    Modal.getEl('#stay-here').addEventListener('click', () => {
+      Modal.close();
+      window.location.reload();
+    });
     Modal.getEl('#next-patient').addEventListener('click', () => {
       Modal.close();
-      Toast.success('Navigation vers le prochain patient en attente');
+      if (window.Turbo) window.Turbo.visit(EP.admissionQueue); else window.location.assign(EP.admissionQueue);
     });
   }
 
@@ -1186,67 +1322,26 @@ export function init() {
   //  WIRING — handlers attachés au DOM
   // ═══════════════════════════════════════════════
 
-  // Existing simple toggles (chips, exam cells, plan items)
+  // Motif chip: clicking it drops the motif from the consultation.
   function wireMotifChip(chip) {
-    chip.addEventListener('click', () => chip.classList.toggle('is-selected'));
-  }
-  document.querySelectorAll('.strip:first-child .chip:not(.chip-add)').forEach(wireMotifChip);
-
-  function wireExamCell(cell) {
-    cell.addEventListener('click', () => {
-      const status = cell.querySelector('.exam-status');
-      if (cell.classList.contains('is-normal')) {
-        cell.classList.remove('is-normal');
-        cell.classList.add('is-abnormal');
-        status.textContent = 'À noter';
-      } else if (cell.classList.contains('is-abnormal')) {
-        cell.classList.remove('is-abnormal');
-        cell.classList.add('is-untested');
-        status.textContent = '— non testé';
-      } else {
-        cell.classList.remove('is-untested');
-        cell.classList.add('is-normal');
-        status.textContent = 'RAS';
-      }
+    chip.addEventListener('click', () => {
+      const id = chip.dataset.motifId;
+      if (!id) return;
+      chip.classList.remove('is-selected');
+      save(EP.motifs, () => ({
+        labels: (SERVER.motifs || []).filter(m => m.id !== id).map(m => m.label),
+      }));
     });
   }
-  document.querySelectorAll('.exam-cell').forEach(wireExamCell);
-
-  function wirePlanItem(item) {
-    // s'assurer que la classe has-row-x est bien présente (cas des items existants)
-    if (!item.classList.contains('has-row-x')) item.classList.add('has-row-x');
-
-    item.addEventListener('click', e => {
-      // ignore les clics sur la croix ou sur le meta
-      if (e.target.closest('.row-x') || e.target.closest('.plan-meta')) return;
-      item.classList.toggle('is-done');
-      const cb = item.querySelector('.plan-checkbox');
-      if (item.classList.contains('is-done') && !cb.querySelector('svg')) {
-        cb.innerHTML = '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2"><path d="M3.5 8l3 3 6-6"/></svg>';
-      } else if (!item.classList.contains('is-done')) {
-        cb.innerHTML = '';
-      }
-    });
-
-    const xBtn = item.querySelector('.row-x');
-    if (xBtn) {
-      xBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const text = item.querySelector('.plan-text').textContent;
-        item.remove();
-        Toast.info(`Action retirée : ${text}`);
-      });
-    }
-  }
-  document.querySelectorAll('.plan-item').forEach(wirePlanItem);
 
   function wireVitalPill(pill) {
     pill.addEventListener('click', e => {
       // ignore click sur la croix
       if (e.target.closest('.row-x')) return;
-      // pour le poids, ouvrir l'éditeur dédié
-      if (!pill.dataset.vital || pill.dataset.vital === 'weight') {
-        // pas de data-vital sur le poids initial → considérer comme weight
+      // une consultation clôturée est en lecture seule
+      if (isClosed()) return;
+      // pour le poids et la température, ouvrir l'éditeur dédié
+      if (!pill.dataset.vital || pill.dataset.vital === 'weight' || pill.dataset.vital === 'temperature') {
         openEditWeightModal();
       } else {
         const vt = VITAL_TYPES.find(v => v.id === pill.dataset.vital);
@@ -1259,55 +1354,39 @@ export function init() {
       xBtn.addEventListener('click', e => {
         e.stopPropagation();
         const label = pill.querySelector('.vital-pill-label').textContent;
-        pill.remove();
-        Toast.info(`${label} retirée`);
+        save(EP.typedVitalRemove, { type: pill.dataset.vital }).then(payload => {
+          if (payload?.success) Toast.info(`${label} retirée`);
+        });
       });
     }
   }
-  document.querySelectorAll('.vital-pill').forEach(wireVitalPill);
 
-  function wireDxRemove(item) {
-    const btn = item.querySelector('.dx-remove');
-    if (!btn) return;
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const name = item.querySelector('.dx-label').textContent;
-      item.remove();
-      Toast.info(`Diagnostic retiré : ${name}`);
-    });
-  }
-  document.querySelectorAll('.dx-item').forEach(wireDxRemove);
-
-  function wireRxItem(item, med) {
+  function wireRxItem(item) {
     item.addEventListener('click', e => {
       // ignore les clics sur la croix
       if (e.target.closest('.row-x')) return;
-      const code = item.dataset.code;
-      const m = med || MEDICATIONS.find(x => x.code === code);
-      if (m) openMedicationPosologyModal(m);
+      const line = (SERVER.prescriptionLines || []).find(l => l.id === item.dataset.lineId);
+      if (!line || !line.articleId) return;
+      const cached = Catalog.find(line.code);
+      const med = cached || {
+        itemId: line.articleId,
+        name: line.label,
+        code: line.code || '',
+        basePriceMinorUnits: line.unitPriceMinorUnits,
+        currency: line.currency,
+        requiresPrescription: true,
+      };
+      openMedicationPosologyModal(med, line);
     });
 
     const xBtn = item.querySelector('.row-x');
     if (xBtn) {
       xBtn.addEventListener('click', e => {
         e.stopPropagation();
-        const code = item.dataset.code;
-        const name = item.querySelector('.rx-name').textContent;
-        item.remove();
-        // remove la bill-row liée
-        const billRow = document.querySelector(`.bill-row[data-code="${code}"]`);
-        if (billRow) billRow.remove();
-        // update counter
-        const list = document.querySelector('.rp-block .rx-list');
-        const titleEl = document.querySelector('.rp-block .rp-block-title');
-        const newCount = list.children.length;
-        titleEl.textContent = `Ordonnance · ${newCount} médicament${newCount > 1 ? 's' : ''}`;
-        recomputeBillTotal();
-        Toast.info(`${name} retiré de l'ordonnance`);
+        removeMedication(item.dataset.lineId);
       });
     }
   }
-  document.querySelectorAll('.rx-item').forEach(item => wireRxItem(item, null));
 
   // ─── Sidebar toggle (focus mode) ───
   const sidebarToggleBtn = document.getElementById('sidebar-toggle');
@@ -1325,70 +1404,52 @@ export function init() {
     });
   }
 
-  // ─── Sidebar nav ───
-  document.querySelectorAll('.sidebar .nav-item').forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      if (link.classList.contains('active')) return;
-      const label = link.textContent.trim().split('\n')[0].trim();
-      Toast.info(`Navigation vers "${label}"`);
-    });
-  });
-
-  // Sidebar clinic switcher
-  document.querySelector('.sb-clinic-btn')?.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'switch-1', icon: '<rect x="2" y="3" width="12" height="11" rx="1.5"/>', label: 'Clinique du Prado · Marseille' },
-      { action: 'switch-2', icon: '<rect x="2" y="3" width="12" height="11" rx="1.5"/>', label: 'Clinique de la Joliette' },
-      { divider: true },
-      { action: 'add-clinic', icon: '<circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/>', label: 'Ajouter une clinique' },
-    ], { align: 'left', onSelect: a => Toast.info(a === 'add-clinic' ? 'Ajout d\'une clinique' : 'Clinique active modifiée') });
-  });
-
-  // Sidebar settings
-  document.querySelector('.sb-settings')?.addEventListener('click', () => Toast.info('Ouverture des paramètres'));
-  document.querySelector('.sb-user')?.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'profile', icon: '<circle cx="8" cy="5.5" r="2.5"/><path d="M2.5 14c.5-3 3-4.5 5.5-4.5s5 1.5 5.5 4.5"/>', label: 'Mon profil' },
-      { action: 'prefs', icon: '<circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2"/>', label: 'Préférences' },
-      { divider: true },
-      { action: 'logout', icon: '<path d="M11 12l3-4-3-4M14 8H6M9 3H3v10h6"/>', label: 'Se déconnecter', danger: true },
-    ], { align: 'left', onSelect: a => Toast.info(a === 'logout' ? 'Déconnexion…' : 'Action: ' + a) });
-  });
-
   // ─── Topbar ───
   document.querySelector('.crumb a')?.addEventListener('click', e => {
     e.preventDefault();
+    const href = e.currentTarget.href;
     openConfirmModal({
       title: 'Quitter la consultation',
       message: 'La consultation est en brouillon. Vous pouvez la reprendre depuis l\'agenda.',
       confirmLabel: 'Quitter',
-      onConfirm: () => Toast.info('Retour à la liste des consultations'),
+      onConfirm: () => { window.Turbo ? window.Turbo.visit(href) : window.location.assign(href); },
     });
   });
 
   // Topbar buttons
-  const histBtn = [...document.querySelectorAll('.topbar .btn')].find(b => b.textContent.includes('Historique'));
-  if (histBtn) histBtn.addEventListener('click', openHistoryModal);
-  const printBtn = [...document.querySelectorAll('.topbar .btn')].find(b => b.textContent.includes('Imprimer'));
-  if (printBtn) printBtn.addEventListener('click', openPrintModal);
+  document.getElementById('btn-history')?.addEventListener('click', openHistoryModal);
+  document.getElementById('btn-print')?.addEventListener('click', openPrintModal);
 
   // ─── Patient bar ───
   document.querySelector('.pb-photo')?.addEventListener('click', () => Toast.info('Téléversement de photo (à implémenter)'));
   document.querySelector('.pb-owner')?.addEventListener('click', openOwnerModal);
-  // warnings
-  document.querySelectorAll('.pb-warn').forEach(warn => {
-    warn.addEventListener('click', () => {
-      if (warn.textContent.includes('pénicilline')) openAllergieInfoModal();
-      else Toast.info('Détails de la condition (à implémenter)');
-    });
-    warn.style.cursor = 'pointer';
+  // warnings — rendered from the animal's medical alerts
+  function renderPatientWarnings() {
+    const host = document.querySelector('.pb-warnings');
+    if (!host) return;
+    host.innerHTML = (SERVER.medicalAlerts || []).map(alert => {
+      const isAllergy = alert.kind === 'ALLERGY';
+      const icon = isAllergy
+        ? '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>'
+        : '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>';
+      return `<span class="pb-warn${isAllergy ? '' : ' is-info'}" data-alert-id="${escapeHtml(alert.id)}" style="cursor:pointer">${icon}${escapeHtml(isAllergy ? `Allergie ${alert.label}` : `Suivi ${alert.label}`)}</span>`;
+    }).join('');
+  }
+
+  onServerState(renderPatientWarnings);
+
+  document.querySelector('.pb-warnings')?.addEventListener('click', e => {
+    const warn = e.target.closest('[data-alert-id]');
+    if (!warn) return;
+    const alert = (SERVER.medicalAlerts || []).find(a => a.id === warn.dataset.alertId);
+    if (!alert) return;
+    if (alert.kind === 'ALLERGY') openAllergieInfoModal(alert);
+    else openConditionInfoModal(alert);
   });
   // dossier complet
-  const dossierBtn = [...document.querySelectorAll('.pb-actions .btn')].find(b => b.textContent.includes('Dossier'));
-  if (dossierBtn) dossierBtn.addEventListener('click', openPatientFileModal);
+  document.getElementById('btn-patient-file')?.addEventListener('click', openPatientFileModal);
   // ⋯ menu
-  const moreBtn = document.querySelectorAll('.pb-actions .btn-icon')[0];
+  const moreBtn = document.getElementById('btn-patient-more');
   if (moreBtn) moreBtn.addEventListener('click', e => {
     Dropdown.open(e.currentTarget, [
       { action: 'sms', icon: '<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 12l-1 2 4-2"/>', label: 'Envoyer un SMS au propriétaire' },
@@ -1397,12 +1458,15 @@ export function init() {
       { divider: true },
       { action: 'archive', icon: '<rect x="2" y="3" width="12" height="3"/><path d="M3 6v8h10V6M6 9h4"/>', label: 'Archiver le patient' },
       { action: 'transfer', icon: '<path d="M2 8h12M9 4l5 4-5 4"/>', label: 'Transférer vers une autre clinique', danger: true },
-    ], { onSelect: a => Toast.info(`Action : ${a}`) });
+    ], { onSelect: () => Toast.info('Fonctionnalité à venir') });
   });
 
   // ─── Save state click → details ───
-  document.querySelector('.save-state')?.addEventListener('click', () => {
-    Toast.info('Brouillon synchronisé · dernière sauvegarde il y a 4 s');
+  document.getElementById('save-state')?.addEventListener('click', () => {
+    const savedAt = SaveState.lastSavedAt;
+    Toast.info(savedAt
+      ? `Dernière sauvegarde à ${savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Aucune modification enregistrée pour le moment');
   });
 
   // ─── Motif strip ───
@@ -1429,9 +1493,14 @@ export function init() {
         span2.textContent = cancelled ? current : input.value;
         input.replaceWith(span2);
         wireStripTextEdit(span2);
-        if (!cancelled && input.value !== current) Toast.success('Motif mis à jour');
+        if (!cancelled && input.value !== current && input.value.trim() !== '') {
+          save(EP.chiefComplaint, { chiefComplaint: input.value }).then(payload => {
+            if (payload?.success) Toast.success('Motif mis à jour');
+          });
+        }
       };
       input.addEventListener('blur', () => finish(false));
+      input.dataset.persist = '1';
       input.addEventListener('keydown', e => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); finish(false); }
         if (e.key === 'Escape') { e.preventDefault(); finish(true); }
@@ -1450,105 +1519,118 @@ export function init() {
     setTimeout(() => Toast.success('Dictée transcrite'), 2000);
   });
 
-  // ─── SOAP O — tout RAS ───
-  const oQuad = document.querySelector('.quad[data-letter="O"]');
-  oQuad?.querySelector('.quad-action')?.addEventListener('click', () => {
-    oQuad.querySelectorAll('.exam-cell').forEach(c => {
-      c.classList.remove('is-abnormal', 'is-untested');
-      c.classList.add('is-normal');
-      c.querySelector('.exam-status').textContent = 'RAS';
-    });
-    Toast.success('Tous les systèmes marqués RAS');
-  });
-
-  // ─── SOAP A — suggérer ───
-  const aQuad = document.querySelector('.quad[data-letter="A"]');
-  aQuad?.querySelector('.quad-action')?.addEventListener('click', openSuggestDiagnosticModal);
-  aQuad?.querySelector('.add-row')?.addEventListener('click', openAddDiagnosticModal);
-  // marquer les dx initiaux avec data-code
-  aQuad?.querySelectorAll('.dx-item').forEach((item, i) => {
-    if (!item.dataset.code) {
-      const code = item.querySelector('.dx-code').textContent.trim();
-      item.dataset.code = code;
-    }
-  });
-
-  // ─── SOAP P — templates + add ───
-  const pQuad = document.querySelector('.quad[data-letter="P"]');
-  pQuad?.querySelector('.quad-action')?.addEventListener('click', openPlanTemplatesModal);
-  pQuad?.querySelector('.add-row')?.addEventListener('click', openAddPlanActionModal);
-
   // ─── Right panel ───
   // Print/view ordonnance
-  const rxPrintBtn = document.querySelector('.rp-block .btn-icon');
-  if (rxPrintBtn) rxPrintBtn.addEventListener('click', openPrintModal);
+  document.getElementById('btn-rx-print')?.addEventListener('click', openPrintModal);
 
   // Add medication button
-  const addMedBtn = document.querySelector('.rp-block .add-row');
-  if (addMedBtn) addMedBtn.addEventListener('click', openAddMedicationModal);
+  document.getElementById('btn-add-medication')?.addEventListener('click', openAddMedicationModal);
 
   // Bill draft badge → status menu
-  const draftBadge = document.querySelector('.rp-block:nth-of-type(2) .badge');
+  const draftBadge = document.getElementById('bill-status-badge');
   if (draftBadge) {
-    draftBadge.style.cursor = 'pointer';
+    // There is no invoice state in the domain yet, so the badge can only
+    // report what is known: a closed consultation is no longer a draft.
+    onServerState(() => {
+      draftBadge.textContent = isClosed() ? 'clôturée' : 'brouillon';
+      draftBadge.style.cursor = isClosed() ? 'default' : 'pointer';
+    });
     draftBadge.addEventListener('click', e => {
+      if (isClosed()) return;
       Dropdown.open(e.currentTarget, [
         { action: 'draft', label: '✏ Brouillon' },
         { action: 'pending', label: '⏳ À facturer' },
         { action: 'paid', label: '✓ Payée' },
-      ], { onSelect: a => Toast.info(`Statut: ${a}`) });
+      ], { onSelect: () => Toast.info('Fonctionnalité à venir') });
     });
   }
 
-  // Marquer les rx-items initiaux avec leur data-code
-  document.querySelectorAll('.rp-block .rx-item').forEach((item, i) => {
-    if (!item.dataset.code) {
-      const name = item.querySelector('.rx-name').textContent;
-      const med = MEDICATIONS.find(m => name.includes(m.name.split(' ')[0]));
-      if (med) item.dataset.code = med.code;
-    }
-  });
-
   // ─── Footer ───
   // Pause
-  const pauseBtn = [...document.querySelectorAll('.rp-foot .btn')].find(b => b.textContent.trim() === 'Pause');
+  const pauseBtn = document.getElementById('btn-pause');
   if (pauseBtn) pauseBtn.addEventListener('click', () => {
     openConfirmModal({
       title: 'Mettre la consultation en pause',
       message: 'La consultation reste accessible depuis l\'agenda. Vous pouvez la reprendre à tout moment.',
       confirmLabel: 'Mettre en pause',
-      onConfirm: () => Toast.success('Consultation mise en pause'),
+      onConfirm: () => {
+        if (window.Turbo) window.Turbo.visit(EP.admissionQueue); else window.location.assign(EP.admissionQueue);
+      },
     });
   });
 
   // Plus tard
-  const laterBtn = [...document.querySelectorAll('.rp-foot .btn')].find(b => b.textContent.trim() === 'Plus tard');
+  const laterBtn = document.getElementById('btn-later');
   if (laterBtn) laterBtn.addEventListener('click', () => {
     openConfirmModal({
       title: 'Reporter la consultation',
       message: 'Le brouillon sera conservé. Vous pourrez la reprendre depuis l\'agenda quand vous le souhaitez.',
       confirmLabel: 'Reporter',
-      onConfirm: () => Toast.success('Consultation reportée — brouillon sauvegardé'),
+      onConfirm: () => {
+        if (window.Turbo) window.Turbo.visit(EP.consultations); else window.location.assign(EP.consultations);
+      },
     });
   });
 
   // Clôturer
-  const closeBtn = [...document.querySelectorAll('.rp-foot .btn-primary')].find(b => b.textContent.includes('Clôturer'));
-  if (closeBtn) closeBtn.addEventListener('click', openCloseConsultationModal);
+  document.getElementById('btn-close-consultation')?.addEventListener('click', openCloseConsultationModal);
 
   // ─── Keyboard shortcuts ───
-  document.addEventListener('keydown', e => {
+  onDocument('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       openCloseConsultationModal();
     }
   });
 
-  // expose for debugging
-  window.VetOS = { Modal, Toast, Dropdown, state, MEDICATIONS, DIAGNOSTICS };
+  // ─── SOAP free texts (auto-save) ───
+  function wireAutoSave(selector, endpoint, field) {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    let timer = null;
+    el.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => save(endpoint, { [field]: el.value }), 700);
+    });
+    registerCleanup(() => clearTimeout(timer));
+    onServerState(() => {
+      if (el !== document.activeElement) el.value = SERVER[field === 'text' ? textField(endpoint) : field] || '';
+    });
+  }
 
-  // welcome toast
-  setTimeout(() => Toast.info('Tous les éléments sont interactifs · ⌘↵ pour clôturer'), 600);
+  function textField(endpoint) {
+    return endpoint === EP.subjective ? 'subjectiveText' : 'objectiveObservations';
+  }
+
+  wireAutoSave('#q-subjective', EP.subjective, 'text');
+  wireAutoSave('#q-objective', EP.objective, 'text');
+
+  // ─── Read-only mode ───
+  onServerState(() => {
+    document.body.classList.toggle('consultation-readonly', isClosed());
+    if (!isClosed()) return;
+    ['#q-subjective', '#q-objective', '#team-memo'].forEach(sel => {
+      document.querySelector(sel)?.setAttribute('readonly', 'readonly');
+    });
+    document.getElementById('btn-close-consultation')?.setAttribute('disabled', 'disabled');
+  });
+
+  // ─── Mémo équipe ───
+  const memoEl = document.getElementById('team-memo');
+  if (memoEl) {
+    let memoTimer = null;
+    memoEl.addEventListener('input', () => {
+      clearTimeout(memoTimer);
+      memoTimer = setTimeout(() => save(EP.teamMemo, { memo: memoEl.value }), 700);
+    });
+    registerCleanup(() => clearTimeout(memoTimer));
+  }
+
+  // Close any floating UI left open when Turbo caches the page
+  registerCleanup(() => { Modal.close(); Dropdown.close(); });
+
+  // First paint from the hydration payload.
+  renderFromServer();
 
 })();
 
@@ -1573,44 +1655,48 @@ const ICONS = {
   shell:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="9" ry="7"/><path d="M12 6v14M6 9l1 8M18 9l-1 8M9 7l-1 12M15 7l1 12"/></svg>',
 };
 
-const SYSTEM_DEFS = {
-  cardio:    { name:'Cardiovasculaire',     icon:'heart',   drilldown:'cardio' },
-  resp:      { name:'Respiratoire',         icon:'wind',    drilldown:null },
-  gi:        { name:'Digestif',             icon:'gi',      drilldown:null },
-  uro:       { name:'Urogénital',           icon:'droplet', drilldown:null },
-  loco:      { name:'Locomoteur',           icon:'bone',    drilldown:'loco' },
-  neuro:     { name:'Neurologique',         icon:'brain',   drilldown:null },
-  derma:     { name:'Cutané',               icon:'sparkle', drilldown:'derma' },
-  ophta:     { name:'Ophtalmologique',      icon:'eye',     drilldown:null },
-  dentaire:  { name:'Dentaire',             icon:'tooth',   drilldown:null },
-  tegument:  { name:'Tégument / Carapace',  icon:'shell',   drilldown:'derma' },
-};
+// Body systems and species templates are served by the server; the shapes below
+// are the ones the render and modal code already expected.
+const SYSTEM_DEFS = (REF.bodySystems || []).reduce((acc, sys) => {
+  acc[sys.id] = { name: sys.label, icon: sys.icon, drilldown: sys.drilldown };
+  return acc;
+}, {});
 
-const TEMPLATES = {
-  'chien':   { name:'Chien standard', emoji:'🐕', systems:['cardio','resp','gi','uro','loco','neuro','derma','ophta'], enabled:true },
-  'chat':    { name:'Chat standard',  emoji:'🐈', systems:['cardio','resp','gi','uro','loco','neuro','derma','ophta'], enabled:true },
-  'lapin':   { name:'Lapin',          emoji:'🐰', systems:['dentaire','gi','resp','cardio','uro','loco','derma'],      enabled:true },
-  'reptile': { name:'NAC reptile',    emoji:'🦎', systems:['tegument','resp','cardio','gi','uro','ophta'],             enabled:true },
-  'oiseau':  { name:'NAC oiseau',     emoji:'🦜', systems:['resp','cardio','derma','gi','loco','ophta'],               enabled:false },
-  'equin':   { name:'Équin',          emoji:'🐴', systems:['loco','cardio','resp','gi','dentaire','derma','ophta','neuro'], enabled:false },
-};
+const TEMPLATES = (REF.speciesTemplates || []).reduce((acc, tpl) => {
+  acc[tpl.id] = { name: tpl.name, emoji: tpl.emoji, systems: tpl.systems, enabled: tpl.enabled };
+  return acc;
+}, {});
 
-let currentTemplate = 'chien';
+let currentTemplate = (() => {
+  const species = (PATIENT.speciesLabel || '').toLowerCase();
+  if (species.startsWith('chat') && TEMPLATES.chat) return 'chat';
+  if (species.startsWith('nac') && TEMPLATES.reptile) return 'reptile';
+  return TEMPLATES.chien ? 'chien' : Object.keys(TEMPLATES)[0];
+})();
 
-const state = {
-  cardio:   { status:'normal',  notes:'', structured:{}, media:[] },
-  resp:     { status:'normal',  notes:'', structured:{}, media:[] },
-  gi:       { status:'normal',  notes:'', structured:{}, media:[] },
-  uro:      { status:'normal',  notes:'', structured:{}, media:[] },
-  loco:     { status:'anomaly', notes:'Boiterie grade 2/4 postérieur droit. Douleur à la flexion forcée du grasset. Tiroir antérieur négatif. Amyotrophie modérée du quadriceps droit.',
-              structured:{ limb:'PD', grade:2, type:'mechanical', region:'grasset' },
-              media:[{ type:'video', name:'Boiterie_12s.mp4' }] },
-  neuro:    { status:'normal',  notes:'', structured:{}, media:[] },
-  derma:    { status:'normal',  notes:'', structured:{}, media:[] },
-  ophta:    { status:'untested',notes:'', structured:{}, media:[] },
-  dentaire: { status:'untested',notes:'', structured:{}, media:[] },
-  tegument: { status:'untested',notes:'', structured:{}, media:[] },
-};
+const STATUS_FROM_SERVER = { NORMAL: 'normal', ANOMALY: 'anomaly', UNTESTED: 'untested' };
+const STATUS_TO_SERVER = { normal: 'NORMAL', anomaly: 'ANOMALY', untested: 'UNTESTED' };
+
+// Local mirror of the persisted exam, keyed like the layout expects.
+const state = {};
+
+function syncStateFromServer() {
+  Object.keys(SYSTEM_DEFS).forEach(id => {
+    state[id] = state[id] || { status: 'untested', notes: '', structured: {} };
+    state[id].status = 'untested';
+    state[id].notes = '';
+    state[id].structured = {};
+  });
+  (SERVER.examSystems || []).forEach(exam => {
+    state[exam.system] = {
+      status: STATUS_FROM_SERVER[exam.status] || 'untested',
+      notes: exam.notes || '',
+      structured: exam.structuredData || {},
+    };
+  });
+}
+
+syncStateFromServer();
 
 const STATUS_LABEL = { normal:'RAS', anomaly:'Anomalie', untested:'Non testé' };
 
@@ -1627,11 +1713,19 @@ function toast(msg) {
 
 function isFilled(s) {
   const hasStruct = s.structured && Object.values(s.structured).some(v => v !== '' && v !== null && v !== undefined);
-  return hasStruct || s.notes || (s.media && s.media.length > 0);
+  return hasStruct || s.notes;
 }
 
 function currentSystems() {
-  return TEMPLATES[currentTemplate].systems.map(id => ({ id, ...SYSTEM_DEFS[id] }));
+  const templateSystems = TEMPLATES[currentTemplate]?.systems || [];
+  // A system recorded under another template stays visible: hiding stored data
+  // would be worse than showing one extra row.
+  const recordedElsewhere = (SERVER.examSystems || [])
+    .map(exam => exam.system)
+    .filter(id => !templateSystems.includes(id));
+  return [...templateSystems, ...recordedElsewhere]
+    .filter(id => SYSTEM_DEFS[id])
+    .map(id => ({ id, ...SYSTEM_DEFS[id] }));
 }
 
 function stateToggleHTML(sysId, currentStatus) {
@@ -1710,12 +1804,12 @@ $('#qO-template-btn').addEventListener('click', e => {
   e.stopPropagation();
   openTemplateMenu();
 });
-document.addEventListener('click', e => {
+onDocument('click', e => {
   if (!e.target.closest('.template-menu') && !e.target.closest('#qO-template-btn')) {
     closeTemplateMenu();
   }
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeTemplateMenu();
 });
 
@@ -1750,17 +1844,19 @@ function renderList() {
         const wasAnomaly = state[sysId].status === 'anomaly';
         if (newState === 'anomaly') {
           if (!wasAnomaly) {
-            state[sysId].status = 'anomaly';
-            renderList();
-            toast(`${sysName} → Anomalie`);
+            persistSystem(sysId, 'anomaly').then(() => {
+              toast(`${sysName} → Anomalie`);
+              setTimeout(() => openModal(sysId), 100);
+            });
+            return;
           }
-          setTimeout(() => openModal(sysId), wasAnomaly ? 0 : 100);
+          openModal(sysId);
           return;
         }
         if (newState === state[sysId].status) return;
-        state[sysId].status = newState;
-        renderList();
-        toast(`${sysName} → ${STATUS_LABEL[newState]}`);
+        persistSystem(sysId, newState).then(payload => {
+          if (payload?.success) toast(`${sysName} → ${STATUS_LABEL[newState]}`);
+        });
       });
     });
   });
@@ -1769,6 +1865,16 @@ function renderList() {
     const sysId = row.dataset.sys;
     if (state[sysId].status !== 'anomaly') return;
     row.addEventListener('click', () => openModal(sysId));
+  });
+}
+
+function persistSystem(sysId, status, notes, structured) {
+  const current = state[sysId] || {};
+  return save(EP.examSystem, {
+    system: sysId,
+    status: STATUS_TO_SERVER[status] || 'UNTESTED',
+    notes: notes !== undefined ? notes : (current.notes || ''),
+    structuredData: structured !== undefined ? structured : (current.structured || {}),
   });
 }
 
@@ -1785,7 +1891,6 @@ function openModal(sysId) {
   workingCopy = {
     notes: s.notes || '',
     structured: { ...(s.structured || {}) },
-    media: [...(s.media || [])],
   };
   $('#qO-modal-icon').innerHTML = ICONS[sys.icon];
   $('#qO-modal-title').textContent = sys.name;
@@ -1874,30 +1979,11 @@ function openModal(sysId) {
       </div>`;
   }
 
-  const mediaHTML = workingCopy.media.map((m, i) => `
-    <span class="media-thumb">
-      <svg viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 13,8 3,14"/></svg>
-      ${m.name}
-      <button class="media-thumb-close" type="button" data-media-i="${i}" aria-label="Retirer">
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
-      </button>
-    </span>`).join('');
-
   $('#qO-modal-body').innerHTML = `
     ${structuredHTML}
     <div class="field-block">
       <label class="field-label-mini">Observations détaillées</label>
       <textarea class="modal-textarea" id="f-notes" rows="5" placeholder="Décris ce que tu observes…">${workingCopy.notes}</textarea>
-    </div>
-    <div class="field-block">
-      <label class="field-label-mini">Média</label>
-      <div class="media-bar" id="media-bar">
-        ${mediaHTML}
-        <button class="media-add" type="button" id="media-add">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
-          Joindre photo / vidéo
-        </button>
-      </div>
     </div>
   `;
 
@@ -1909,42 +1995,6 @@ function openModal(sysId) {
         btn.classList.add('is-active');
         workingCopy.structured.limb = btn.dataset.limb;
       });
-    });
-  }
-
-  $('#media-bar').addEventListener('click', e => {
-    const closeBtn = e.target.closest('.media-thumb-close');
-    if (closeBtn) {
-      const i = parseInt(closeBtn.dataset.mediaI);
-      workingCopy.media.splice(i, 1);
-      reRenderMedia();
-    }
-  });
-  $('#media-add').addEventListener('click', () => {
-    const n = workingCopy.media.length + 1;
-    workingCopy.media.push({ type: 'photo', name: `IMG_${n}.jpg` });
-    reRenderMedia();
-  });
-
-  function reRenderMedia() {
-    const bar = $('#media-bar');
-    const html = workingCopy.media.map((m, i) => `
-      <span class="media-thumb">
-        <svg viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2 13,8 3,14"/></svg>
-        ${m.name}
-        <button class="media-thumb-close" type="button" data-media-i="${i}" aria-label="Retirer">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
-        </button>
-      </span>`).join('');
-    bar.innerHTML = html + `
-      <button class="media-add" type="button" id="media-add">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
-        Joindre photo / vidéo
-      </button>`;
-    $('#media-add').addEventListener('click', () => {
-      const n = workingCopy.media.length + 1;
-      workingCopy.media.push({ type: 'photo', name: `IMG_${n}.jpg` });
-      reRenderMedia();
     });
   }
 
@@ -1971,12 +2021,11 @@ function saveModal() {
     struct.region = $('#f-region')?.value || '';
     struct.lesion = $('#f-lesion')?.value || '';
   }
-  s.structured = struct;
-  s.notes = $('#f-notes')?.value || '';
-  s.media = [...workingCopy.media];
+  const notes = $('#f-notes')?.value || '';
   closeModal();
-  renderList();
-  toast(`${sys.name} — détails enregistrés`);
+  persistSystem(sys.id, 'anomaly', notes, struct).then(payload => {
+    if (payload?.success) toast(`${sys.name} — détails enregistrés`);
+  });
 }
 
 function closeModal() {
@@ -1991,19 +2040,24 @@ $('#qO-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 $('#qO-modal-save').addEventListener('click', saveModal);
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
 $('#qO-ras-all').addEventListener('click', () => {
-  currentSystems().forEach(sy => { if (state[sy.id].status !== 'anomaly') state[sy.id].status = 'normal'; });
+  save(EP.examSystemsAllNormal, () => ({ systems: currentSystems().map(sy => sy.id) })).then(payload => {
+    if (payload?.success) toast('Tous les systèmes restants marqués RAS');
+  });
+});
+
+onServerState(() => {
+  syncStateFromServer();
+  renderTemplateLabel();
   renderList();
-  toast('Tous les systèmes restants marqués RAS');
 });
 
 renderTemplateLabel();
 renderList();
-// toast au démarrage retiré
 
 
 })();
@@ -2041,38 +2095,16 @@ const SOURCE_DEFS = {
   TEMPLATE: 'Appliqué via template',
 };
 
-const NOMENCLATURE = [
-  { code: 'M.LOC.21', name: 'Arthrose grasset, stade précoce', system: 'Locomoteur' },
-  { code: 'M.LOC.18', name: 'Rupture partielle ligament croisé', system: 'Locomoteur' },
-  { code: 'M.LOC.05', name: 'Dysplasie de la hanche', system: 'Locomoteur' },
-  { code: 'M.LOC.30', name: 'Tendinite calcanéenne', system: 'Locomoteur' },
-  { code: 'M.LOC.12', name: 'Hernie discale lombaire', system: 'Locomoteur' },
-  { code: 'M.CARDIO.05', name: 'Souffle cardiaque grade 2', system: 'Cardiovasculaire' },
-  { code: 'M.CARDIO.01', name: 'Insuffisance cardiaque congestive', system: 'Cardiovasculaire' },
-  { code: 'M.CARDIO.14', name: 'Fibrillation atriale', system: 'Cardiovasculaire' },
-  { code: 'M.DERMA.20', name: 'Dermatite par allergie aux puces (DAPP)', system: 'Cutané' },
-  { code: 'M.DERMA.05', name: 'Pyodermite superficielle', system: 'Cutané' },
-  { code: 'M.DERMA.11', name: 'Atopie canine', system: 'Cutané' },
-  { code: 'M.GI.10', name: 'Gastro-entérite alimentaire', system: 'Digestif' },
-  { code: 'M.GI.04', name: 'Pancréatite aiguë', system: 'Digestif' },
-  { code: 'M.URO.04', name: 'Cystite bactérienne', system: 'Urinaire' },
-  { code: 'M.URO.09', name: 'Insuffisance rénale chronique', system: 'Urinaire' },
-];
+const NOMENCLATURE = REF.nomenclature || [];
 
-let nextDxId = 1;
-function uid() { return 'dx-' + (nextDxId++); }
+// The diagnosis list is the server's; the fields already match the layout's.
+let diagnoses = [];
 
-let diagnoses = [
-  { id: uid(), code: 'M.LOC.21', label: 'Arthrose grasset droit, stade précoce',
-    certainty: 'PROBABLE', note: 'Race prédisposée (Beauceron) + âge 4 ans + boiterie chronique intermittente + amyotrophie quadriceps droit. À confirmer par radio.',
-    isPrimary: true, source: 'MANUAL' },
-  { id: uid(), code: 'M.LOC.18', label: 'Rupture partielle ligament croisé crânial',
-    certainty: 'EXCLUDED', note: 'Tiroir antérieur négatif à l\'examen. Pas de signes inflammatoires aigus.',
-    isPrimary: false, source: 'AI_SUGGESTION' },
-  { id: uid(), code: 'M.CARDIO.05', label: 'Souffle cardiaque grade 2',
-    certainty: 'POSSIBLE', note: 'Découverte fortuite à l\'auscultation. Demande échographie cardiaque pour caractériser.',
-    isPrimary: false, source: 'MANUAL' },
-];
+function syncDiagnosesFromServer() {
+  diagnoses = (SERVER.diagnoses || []).map(dx => ({ ...dx }));
+}
+
+syncDiagnosesFromServer();
 
 function $(s, r=document) { return r.querySelector(s); }
 function $$(s, r=document) { return [...r.querySelectorAll(s)]; }
@@ -2153,15 +2185,14 @@ function renderList() {
       e.stopPropagation();
       const id = btn.dataset.star;
       const dx = diagnoses.find(x => x.id === id);
-      if (dx.isPrimary) {
-        dx.isPrimary = false;
-        toast(`${dx.label.slice(0, 30)}… retiré comme principal`);
-      } else {
-        diagnoses.forEach(d => d.isPrimary = false);
-        dx.isPrimary = true;
-        toast(`${dx.label.slice(0, 30)}… défini comme principal`);
-      }
-      renderList();
+      if (!dx) return;
+      const wasPrimary = dx.isPrimary;
+      save(EP.diagnosisPrimary, { diagnosisId: wasPrimary ? '' : id }).then(payload => {
+        if (!payload?.success) return;
+        toast(wasPrimary
+          ? `${dx.label.slice(0, 30)}… retiré comme principal`
+          : `${dx.label.slice(0, 30)}… défini comme principal`);
+      });
     });
   });
   $$('[data-remove]').forEach(btn => {
@@ -2169,9 +2200,10 @@ function renderList() {
       e.stopPropagation();
       const id = btn.dataset.remove;
       const dx = diagnoses.find(x => x.id === id);
-      diagnoses = diagnoses.filter(x => x.id !== id);
-      renderList();
-      toast(`Retiré : ${dx.label.slice(0, 40)}${dx.label.length > 40 ? '…' : ''}`);
+      if (!dx) return;
+      save(EP.diagnosisRemove, { diagnosisId: id }).then(payload => {
+        if (payload?.success) toast(`Retiré : ${dx.label.slice(0, 40)}${dx.label.length > 40 ? '…' : ''}`);
+      });
     });
   });
 }
@@ -2278,18 +2310,33 @@ function renderQuickAddList() {
           toast(`Déjà en ${CERTAINTY_DEFS[cert].label}`);
           return;
         }
-        existing.certainty = cert;
-        toast(`${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} → ${CERTAINTY_DEFS[cert].label}`);
-      } else {
-        diagnoses.push({
-          id: uid(), code: nomEntry.code, label: nomEntry.name,
-          certainty: cert, note: '', isPrimary: false, source: 'MANUAL',
+        save(EP.diagnosisUpdate, {
+          diagnosisId: existing.id,
+          code: existing.code || '',
+          label: existing.label,
+          certainty: cert,
+          note: existing.note || '',
+        }).then(payload => {
+          if (!payload?.success) return;
+          renderQuickAddList();
+          updateQuickAddCount();
+          toast(`${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} → ${CERTAINTY_DEFS[cert].label}`);
         });
-        toast(`+ ${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} en ${CERTAINTY_DEFS[cert].label}`);
+        return;
       }
-      renderList();
-      renderQuickAddList();
-      updateQuickAddCount();
+      save(EP.diagnosisAdd, {
+        code: nomEntry.code,
+        label: nomEntry.name,
+        certainty: cert,
+        note: '',
+        isPrimary: 0,
+        source: 'MANUAL',
+      }).then(payload => {
+        if (!payload?.success) return;
+        renderQuickAddList();
+        updateQuickAddCount();
+        toast(`+ ${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} en ${CERTAINTY_DEFS[cert].label}`);
+      });
     });
   });
 
@@ -2299,11 +2346,12 @@ function renderQuickAddList() {
       const code = btn.dataset.removeCode;
       const dx = getDxByCode(code);
       if (!dx) return;
-      diagnoses = diagnoses.filter(d => d.code !== code);
-      toast(`Retiré : ${dx.label.slice(0, 35)}${dx.label.length > 35 ? '…' : ''}`);
-      renderList();
-      renderQuickAddList();
-      updateQuickAddCount();
+      save(EP.diagnosisRemove, { diagnosisId: dx.id }).then(payload => {
+        if (!payload?.success) return;
+        renderQuickAddList();
+        updateQuickAddCount();
+        toast(`Retiré : ${dx.label.slice(0, 35)}${dx.label.length > 35 ? '…' : ''}`);
+      });
     });
   });
 
@@ -2319,13 +2367,18 @@ function renderQuickAddList() {
           openEditModal(existing.id);
         } else {
           // Le dx n'est pas encore ajouté — l'ajouter en Probable puis ouvrir édition
-          const newDx = {
-            id: uid(), code: nomEntry.code, label: nomEntry.name,
-            certainty: 'PROBABLE', note: '', isPrimary: false, source: 'MANUAL',
-          };
-          diagnoses.push(newDx);
-          renderList();
-          openEditModal(newDx.id);
+          save(EP.diagnosisAdd, {
+            code: nomEntry.code,
+            label: nomEntry.name,
+            certainty: 'PROBABLE',
+            note: '',
+            isPrimary: 0,
+            source: 'MANUAL',
+          }).then(payload => {
+            if (!payload?.success) return;
+            const created = diagnoses.find(d => d.code === nomEntry.code);
+            if (created) openEditModal(created.id);
+          });
         }
       }, 150);
     });
@@ -2419,14 +2472,27 @@ function openEditModal(dxId) {
 
 function saveDx() {
   workingCopy.note = $('#f-note')?.value?.trim() || '';
-  const idx = diagnoses.findIndex(x => x.id === editingId);
-  diagnoses[idx] = { ...diagnoses[idx], ...workingCopy };
-  if (workingCopy.isPrimary) {
-    diagnoses.forEach(d => { if (d.id !== editingId) d.isPrimary = false; });
-  }
-  toast(`Modifié : ${workingCopy.label.slice(0, 40)}${workingCopy.label.length > 40 ? '…' : ''}`);
+  const id = editingId;
+  const wasPrimary = diagnoses.find(x => x.id === id)?.isPrimary === true;
+  const label = workingCopy.label;
   closeModal();
-  renderList();
+
+  save(EP.diagnosisUpdate, {
+    diagnosisId: id,
+    code: workingCopy.code || '',
+    label,
+    certainty: workingCopy.certainty,
+    note: workingCopy.note,
+  }).then(payload => {
+    if (!payload?.success) return;
+    if (workingCopy.isPrimary === wasPrimary) {
+      toast(`Modifié : ${label.slice(0, 40)}${label.length > 40 ? '…' : ''}`);
+      return;
+    }
+    save(EP.diagnosisPrimary, { diagnosisId: workingCopy.isPrimary ? id : '' }).then(() => {
+      toast(`Modifié : ${label.slice(0, 40)}${label.length > 40 ? '…' : ''}`);
+    });
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2478,14 +2544,17 @@ function openSuggestModal() {
           toast('Ce diagnostic est déjà dans la liste');
           return;
         }
-        diagnoses.push({
-          id: uid(), code: s.code, label: s.name,
-          certainty: 'PROBABLE', note: s.reason,
-          isPrimary: false, source: 'AI_SUGGESTION',
-        });
         closeModal();
-        renderList();
-        toast(`✨ ${s.name} ajouté en Probable`);
+        save(EP.diagnosisAdd, {
+          code: s.code,
+          label: s.name,
+          certainty: 'PROBABLE',
+          note: s.reason,
+          isPrimary: 0,
+          source: 'AI_SUGGESTION',
+        }).then(payload => {
+          if (payload?.success) toast(`✨ ${s.name} ajouté en Probable`);
+        });
       });
     });
   }, 700);
@@ -2507,15 +2576,19 @@ $('#qA-modal-close').addEventListener('click', closeModal);
 $('#qA-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
 $('#qA-add-btn').addEventListener('click', openQuickAddModal);
 $('#qA-suggest-btn').addEventListener('click', openSuggestModal);
 
+onServerState(() => {
+  syncDiagnosesFromServer();
+  renderList();
+});
+
 renderList();
-// toast au démarrage retiré
 
 
 })();
@@ -2564,95 +2637,41 @@ const KIND_DEFS = {
   },
 };
 
-// Suggestions par kind
+// Suggestions par kind — acts and medications come from the clinic's catalogue,
+// the follow-up / advice / other lists are server-side reference data.
 const SUGGESTIONS = {
-  PERFORMED_ACT: [
-    { code: 'A001', name: 'Vaccination CHPLR sous-cutanée', price: 28 },
-    { code: 'A002', name: 'Examen général', price: 15 },
-    { code: 'A003', name: 'Radio articulation (face + profil)', price: 45 },
-    { code: 'A004', name: 'Castration mâle chien', price: 180 },
-    { code: 'A005', name: 'Stérilisation femelle chien', price: 280 },
-    { code: 'A006', name: 'Échographie abdominale', price: 80 },
-    { code: 'A007', name: 'Bilan sanguin biochimie + NFS', price: 65 },
-    { code: 'A008', name: 'Détartrage', price: 120 },
-    { code: 'A009', name: 'Parage de plaie + antiseptique', price: 35 },
-  ],
-  MEDICATION_PRESCRIPTION: [
-    { code: 'RX001', name: 'AINS — Méloxicam',          posology: '0,1 mg/kg · 1×/j · PO',   durationDays: 7 },
-    { code: 'RX002', name: 'Antibio — Clavaseptin',     posology: '12,5 mg/kg · 2×/j · PO',  durationDays: 7 },
-    { code: 'RX003', name: 'Antalgique — Tramadol',     posology: '2 mg/kg · 2×/j · PO',     durationDays: 5 },
-    { code: 'RX004', name: 'Chondroprotecteur — cure',  posology: '3 mg/kg · 1×/sem · SC',   durationDays: 28 },
-    { code: 'RX005', name: 'Antiparasitaire externe',   posology: '1 pipette · 1×/mois',     durationDays: 30 },
-    { code: 'RX006', name: 'Vermifuge — spectre large', posology: '1 cp / 10 kg · unique',   durationDays: 1 },
-  ],
-  FOLLOW_UP_APPOINTMENT: [
-    { code: 'APT001', name: 'Recontrôle clinique', followUpDays: 7 },
-    { code: 'APT002', name: 'Recontrôle clinique', followUpDays: 14 },
-    { code: 'APT003', name: 'Recontrôle clinique', followUpDays: 30 },
-    { code: 'APT004', name: 'Contrôle post-op', followUpDays: 10 },
-    { code: 'APT005', name: 'Retrait des points', followUpDays: 10 },
-    { code: 'APT006', name: 'Recontrôle à 3 mois', followUpDays: 90 },
-    { code: 'APT007', name: 'Rappel vaccin annuel', followUpDays: 365 },
-  ],
-  ADVICE: [
-    { code: 'ADV001', name: 'Repos forcé / activité réduite' },
-    { code: 'ADV002', name: 'Promenades calmes en laisse uniquement' },
-    { code: 'ADV003', name: 'Pansement à changer tous les 2 jours' },
-    { code: 'ADV004', name: 'Surveiller température 2×/j' },
-    { code: 'ADV005', name: 'Transition alimentaire sur 7 j' },
-    { code: 'ADV006', name: 'Médication à jeun ou avec repas' },
-    { code: 'ADV007', name: 'Hydratation contrôlée, eau à volonté' },
-    { code: 'ADV008', name: 'Collerette obligatoire 10 j' },
-  ],
-  OTHER: [
-    { code: 'OTH001', name: 'Référer chez un spécialiste' },
-    { code: 'OTH002', name: 'Demander avis confrère' },
-    { code: 'OTH003', name: 'Programmer hospitalisation' },
-    { code: 'OTH004', name: 'Devis chirurgie à établir' },
-  ],
+  PERFORMED_ACT: [],
+  MEDICATION_PRESCRIPTION: [],
+  FOLLOW_UP_APPOINTMENT: (REF.planSuggestions || {}).FOLLOW_UP_APPOINTMENT || [],
+  ADVICE: (REF.planSuggestions || {}).ADVICE || [],
+  OTHER: (REF.planSuggestions || {}).OTHER || [],
 };
 
-const PLAN_TEMPLATES = {
-  'vacc-annuelle': {
-    name: 'Vaccination annuelle (chien)', emoji: '💉', desc: 'CHPLR + examen + rappel',
-    items: [
-      { kind: 'PERFORMED_ACT', description: 'Vaccination CHPLR sous-cutanée' },
-      { kind: 'PERFORMED_ACT', description: 'Examen général' },
-      { kind: 'FOLLOW_UP_APPOINTMENT', description: 'Rappel vaccin', followUpDays: 365 },
-    ],
-  },
-  'suivi-arthrose': {
-    name: 'Suivi arthrose', emoji: '🦴', desc: 'AINS + chondroprotecteur + recontrôle',
-    items: [
-      { kind: 'MEDICATION_PRESCRIPTION', description: 'AINS 7 j + repos forcé 10 j', posology: 'Méloxicam 0,1 mg/kg · 1×/j · 7 j · per os', durationDays: 7 },
-      { kind: 'MEDICATION_PRESCRIPTION', description: 'Chondroprotecteur cure 4 sem.', posology: 'Cartrophen 3 mg/kg · SC · 1×/sem · 4 sem', durationDays: 28 },
-      { kind: 'FOLLOW_UP_APPOINTMENT', description: 'Recontrôle clinique', followUpDays: 14 },
-    ],
-  },
-  'plaie-infectee': {
-    name: 'Plaie infectée', emoji: '🩹', desc: 'Parage + ATB + antalgique',
-    items: [
-      { kind: 'PERFORMED_ACT', description: 'Parage de plaie + antiseptique' },
-      { kind: 'MEDICATION_PRESCRIPTION', description: 'Antibiotique 7 j', posology: 'Clavaseptin · 12,5 mg/kg · 2×/j · 7 j', durationDays: 7 },
-      { kind: 'MEDICATION_PRESCRIPTION', description: 'Antalgique 5 j', posology: 'Tramadol · 2 mg/kg · 2×/j · 5 j', durationDays: 5 },
-      { kind: 'FOLLOW_UP_APPOINTMENT', description: 'Retrait des points', followUpDays: 10 },
-    ],
-  },
-};
+function syncCatalogSuggestions() {
+  SUGGESTIONS.PERFORMED_ACT = Catalog.acts.map(a => ({
+    code: a.code, name: a.name, price: a.basePriceMinorUnits / 100, itemId: a.itemId,
+  }));
+  SUGGESTIONS.MEDICATION_PRESCRIPTION = Catalog.articles.map(a => ({
+    code: a.code, name: a.name, itemId: a.itemId, posology: a.requiresPrescription ? 'sur ordonnance' : null,
+  }));
+}
+
+const PLAN_TEMPLATES = (REF.planTemplates || []).reduce((acc, tpl) => {
+  acc[tpl.id] = { name: tpl.name, emoji: tpl.emoji, desc: tpl.description, items: tpl.items };
+  return acc;
+}, {});
 
 // ════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════
-let nextItemId = 1;
-function uid() { return 'item-' + (nextItemId++); }
+// The plan is the server's; the field names already match the layout's.
+let planItems = [];
 
-let planItems = [
-  { id: uid(), kind: 'PERFORMED_ACT', description: 'Vaccination CHPLR sous-cutanée', catalogCode: 'A001' },
-  { id: uid(), kind: 'PERFORMED_ACT', description: 'Radio grasset D (face + profil)', catalogCode: 'A003' },
-  { id: uid(), kind: 'MEDICATION_PRESCRIPTION', description: 'AINS 7 j + repos forcé 10 j', posology: 'Méloxicam 0,1 mg/kg · 1×/j · 7 j · per os', durationDays: 7 },
-  { id: uid(), kind: 'FOLLOW_UP_APPOINTMENT', description: 'Recontrôle si persistance', followUpDays: 14 },
-  { id: uid(), kind: 'ADVICE', description: 'Conseil nutritionnel : transition joints care' },
-];
+function syncPlanFromServer() {
+  planItems = (SERVER.planActions || []).map(item => ({ ...item }));
+}
+
+syncPlanFromServer();
 
 function $(s, r=document) { return r.querySelector(s); }
 function $$(s, r=document) { return [...r.querySelectorAll(s)]; }
@@ -2714,9 +2733,10 @@ function renderList() {
       e.stopPropagation();
       const id = btn.dataset.remove;
       const item = planItems.find(x => x.id === id);
-      planItems = planItems.filter(x => x.id !== id);
-      renderList();
-      toast(`Retiré : ${item.description.slice(0, 40)}${item.description.length > 40 ? '…' : ''}`);
+      if (!item) return;
+      save(EP.planActionRemove, { planActionId: id }).then(payload => {
+        if (payload?.success) toast(`Retiré : ${item.description.slice(0, 40)}${item.description.length > 40 ? '…' : ''}`);
+      });
     });
   });
 }
@@ -2730,6 +2750,13 @@ const KIND_ORDER = ['PERFORMED_ACT', 'MEDICATION_PRESCRIPTION', 'FOLLOW_UP_APPOI
 function openQuickAddModal() {
   quickAddInitialCount = planItems.length;
 
+  // The catalogue is fetched once per opening, then filtered client-side so the
+  // search stays instant.
+  Catalog.load('').then(() => {
+    syncCatalogSuggestions();
+    if ($('#qa-main-list')) renderMainList();
+  });
+
   $('#qP-modal').classList.add('modal--xwide');
   $('#qP-modal-icon').className = 'modal-head-icon is-quickadd';
   $('#qP-modal-icon').innerHTML = ICONS.search;
@@ -2741,7 +2768,7 @@ function openQuickAddModal() {
   $('#qP-modal-body').innerHTML = `
     <div class="qa-search-wrap">
       <span class="qa-search-icon">${ICONS.search}</span>
-      <input type="text" class="qa-search" id="qa-search-input" placeholder="Rechercher dans le catalogue (1234 actes, 567 médicaments)…" autocomplete="off">
+      <input type="text" class="qa-search" id="qa-search-input" placeholder="Rechercher dans le catalogue de la clinique…" autocomplete="off">
     </div>
     <div class="qa-split">
       <div class="qa-main-area">
@@ -2776,9 +2803,24 @@ function openQuickAddModal() {
   `;
   $('[data-modal-close]').addEventListener('click', closeModal);
 
-  // Search wiring
+  // Search wiring — filters the loaded page instantly, and re-queries the
+  // catalogue server-side once the local page runs out of matches.
   const searchInput = $('#qa-search-input');
-  searchInput.addEventListener('input', () => { renderMainList(); renderSidePresets(); });
+  let catalogTimer = null;
+  searchInput.addEventListener('input', () => {
+    renderMainList();
+    renderSidePresets();
+    clearTimeout(catalogTimer);
+    const term = searchInput.value.trim();
+    if (term.length < 2) return;
+    catalogTimer = setTimeout(() => {
+      Catalog.load(term).then(() => {
+        syncCatalogSuggestions();
+        if ($('#qa-main-list')) renderMainList();
+      });
+    }, 250);
+  });
+  registerCleanup(() => clearTimeout(catalogTimer));
 
   // Free-text wiring
   const ftInput = $('#qa-ft-input');
@@ -2801,21 +2843,18 @@ function openQuickAddModal() {
   const triggerAddLibre = (kind) => {
     const text = ftInput.value.trim();
     if (!text) return;
-    const item = { id: uid(), kind, description: text };
-    if (kind === 'FOLLOW_UP_APPOINTMENT') {
-      const days = parseInt(aptDaysInput.value) || 14;
-      item.followUpDays = days;
-    }
-    planItems.push(item);
+    const followUpDays = kind === 'FOLLOW_UP_APPOINTMENT' ? (parseInt(aptDaysInput.value, 10) || 14) : '';
     ftInput.value = '';
     updateFtState();
     ftInput.focus();
-    renderList();
-    renderMainList();
-    renderSidePresets();
-    updateQuickAddCount();
-    const metaLabel = item.followUpDays ? ` (J+${item.followUpDays})` : '';
-    toast(`+ ${text.slice(0, 35)}${text.length > 35 ? '…' : ''} en ${KIND_DEFS[kind].label}${metaLabel}`);
+    persistPlanAction({ kind, description: text, followUpDays }).then(payload => {
+      if (!payload?.success) return;
+      if ($('#qa-main-list')) renderMainList();
+      if ($('#qa-side-area')) renderSidePresets();
+      updateQuickAddCount();
+      const metaLabel = followUpDays ? ` (J+${followUpDays})` : '';
+      toast(`+ ${text.slice(0, 35)}${text.length > 35 ? '…' : ''} en ${KIND_DEFS[kind].label}${metaLabel}`);
+    });
   };
 
   ftChips.forEach(chip => {
@@ -2957,12 +2996,14 @@ function renderMainList() {
       // Retire le dernier item ajouté avec ce code
       for (let i = planItems.length - 1; i >= 0; i--) {
         if (planItems[i].catalogCode === code) {
-          const removed = planItems.splice(i, 1)[0];
-          renderList();
-          renderMainList();
-          renderSidePresets();
-          updateQuickAddCount();
-          toast(`Retiré : ${removed.description.slice(0, 40)}${removed.description.length > 40 ? '…' : ''}`);
+          const removed = planItems[i];
+          save(EP.planActionRemove, { planActionId: removed.id }).then(payload => {
+            if (!payload?.success) return;
+            if ($('#qa-main-list')) renderMainList();
+            if ($('#qa-side-area')) renderSidePresets();
+            updateQuickAddCount();
+            toast(`Retiré : ${removed.description.slice(0, 40)}${removed.description.length > 40 ? '…' : ''}`);
+          });
           return;
         }
       }
@@ -3080,13 +3121,23 @@ function renderSidePresets() {
   });
 }
 
-// Close any open selector on outside click (once globally)
-if (!window.__qaSelectorCloseHandler) {
-  window.__qaSelectorCloseHandler = true;
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.qa-selector')) {
-      document.querySelectorAll('.qa-selector.is-open').forEach(s => s.classList.remove('is-open'));
-    }
+// Close any open selector on outside click (removed again by cleanup())
+onDocument('click', (e) => {
+  if (!e.target.closest('.qa-selector')) {
+    document.querySelectorAll('.qa-selector.is-open').forEach(s => s.classList.remove('is-open'));
+  }
+});
+
+function persistPlanAction(item) {
+  return save(EP.planActionAdd, {
+    kind: item.kind,
+    description: item.description,
+    catalogItemId: item.catalogItemId || '',
+    catalogCode: item.catalogCode || '',
+    posology: item.posology || '',
+    durationDays: item.durationDays || '',
+    followUpDays: item.followUpDays || '',
+    quantity: item.quantity || 1,
   });
 }
 
@@ -3094,19 +3145,22 @@ function addFromSuggestion(kind, code) {
   const s = (SUGGESTIONS[kind] || []).find(x => x.code === code);
   if (!s) return;
 
-  const item = { id: uid(), kind, description: s.name, catalogCode: s.code };
-  if (s.posology) item.posology = s.posology;
-  if (s.durationDays) item.durationDays = s.durationDays;
-  if (s.followUpDays) item.followUpDays = s.followUpDays;
-  if (s.price != null) item.price = s.price;
-
-  planItems.push(item);
-  renderList();
-  if ($('#qa-main-list')) renderMainList();
-  if ($('#qa-side-area')) renderSidePresets();
-  updateQuickAddCount();
-  const metaLabel = item.followUpDays ? ` (J+${item.followUpDays})` : '';
-  toast(`+ ${s.name.slice(0, 35)}${s.name.length > 35 ? '…' : ''}${metaLabel}`);
+  persistPlanAction({
+    kind,
+    description: s.name,
+    catalogItemId: s.itemId,
+    catalogCode: s.code,
+    posology: s.posology,
+    durationDays: s.durationDays,
+    followUpDays: s.followUpDays,
+  }).then(payload => {
+    if (!payload?.success) return;
+    if ($('#qa-main-list')) renderMainList();
+    if ($('#qa-side-area')) renderSidePresets();
+    updateQuickAddCount();
+    const metaLabel = s.followUpDays ? ` (J+${s.followUpDays})` : '';
+    toast(`+ ${s.name.slice(0, 35)}${s.name.length > 35 ? '…' : ''}${metaLabel}`);
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3241,11 +3295,18 @@ function saveItem() {
   if (workingCopy.kind === 'FOLLOW_UP_APPOINTMENT') {
     item.followUpDays = parseInt($('#f-followup-days')?.value) || null;
   }
-  const idx = planItems.findIndex(x => x.id === editingId);
-  planItems[idx] = item;
-  toast(`Modifié : ${desc.slice(0, 40)}${desc.length > 40 ? '…' : ''}`);
+  const id = editingId;
   closeModal();
-  renderList();
+  save(EP.planActionUpdate, {
+    planActionId: id,
+    description: desc,
+    posology: item.posology || '',
+    durationDays: item.durationDays || '',
+    followUpDays: item.followUpDays || '',
+    quantity: item.quantity || 1,
+  }).then(payload => {
+    if (payload?.success) toast(`Modifié : ${desc.slice(0, 40)}${desc.length > 40 ? '…' : ''}`);
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3266,7 +3327,7 @@ $('#qP-modal-close').addEventListener('click', closeModal);
 $('#qP-modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
-document.addEventListener('keydown', e => {
+onDocument('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeTemplateMenu(); }
 });
 
@@ -3306,18 +3367,31 @@ function openTemplateMenu() {
     const tplId = item.dataset.tpl;
     const tpl = PLAN_TEMPLATES[tplId];
     closeTemplateMenu();
-    tpl.items.forEach(it => planItems.push({ id: uid(), ...it }));
-    renderList();
-    toast(`Template "${tpl.name}" appliqué (+${tpl.items.length} actions)`);
+    let added = 0;
+    tpl.items
+      .reduce(
+        (chain, it) => chain.then(() => persistPlanAction(it).then(payload => { if (payload?.success) added += 1; })),
+        Promise.resolve(),
+      )
+      .then(() => {
+        toast(added === tpl.items.length
+          ? `Template "${tpl.name}" appliqué (+${added} actions)`
+          : `Template "${tpl.name}" partiellement appliqué (${added}/${tpl.items.length})`);
+      });
   });
 }
 
 $('#qP-template-btn').addEventListener('click', e => { e.stopPropagation(); openTemplateMenu(); });
-document.addEventListener('click', e => {
+onDocument('click', e => {
   if (!e.target.closest('.template-menu') && !e.target.closest('#qP-template-btn')) closeTemplateMenu();
 });
 
 $('#qP-add-btn').addEventListener('click', openQuickAddModal);
+
+onServerState(() => {
+  syncPlanFromServer();
+  renderList();
+});
 
 renderList();
 // toast au démarrage retiré
@@ -3347,6 +3421,7 @@ renderList();
     }
   });
   observer.observe(document.body, { childList: true });
+  registerCleanup(() => observer.disconnect());
 })();
 
 
@@ -3360,6 +3435,9 @@ renderList();
 
 export function cleanup() {
   _mounted = false;
-  // Vanilla JS state is local to init's IIFEs; reload via Turbo replaces
-  // the document body so DOM-bound state is naturally garbage-collected.
+  // Remove document-level listeners, intervals and observers registered
+  // during init(); element-bound listeners die with the body swap.
+  _cleanups.splice(0).forEach(fn => {
+    try { fn(); } catch { /* never block teardown */ }
+  });
 }

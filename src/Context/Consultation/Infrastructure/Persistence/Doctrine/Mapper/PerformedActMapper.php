@@ -10,9 +10,12 @@ use Symfony\Component\Uid\Uuid;
 
 final class PerformedActMapper
 {
-    public function toEntity(PerformedActRecord $act, string $consultationIdBinary): PerformedActEntity
-    {
-        $entity = new PerformedActEntity();
+    public function toEntity(
+        PerformedActRecord $act,
+        string $consultationIdBinary,
+        ?PerformedActEntity $entity = null,
+    ): PerformedActEntity {
+        $entity ??= new PerformedActEntity();
         $entity->setId(Uuid::fromString($act->getId())->toBinary());
         $entity->setConsultationId($consultationIdBinary);
         $entity->setLabel($act->getLabel());

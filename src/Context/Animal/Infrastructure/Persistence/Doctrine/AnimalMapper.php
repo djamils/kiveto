@@ -10,9 +10,11 @@ use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
+use App\Context\Animal\Domain\ValueObject\MedicalAlert;
 use App\Context\Animal\Domain\ValueObject\Ownership;
 use App\Context\Animal\Domain\ValueObject\Transfer;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
+use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\MedicalAlertEntity;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\OwnershipEntity;
 use Symfony\Component\Uid\Uuid;
 
@@ -74,6 +76,17 @@ final class AnimalMapper
             );
         }
 
+        // Map medical alerts
+        $medicalAlerts = [];
+        foreach ($entity->getMedicalAlerts() as $alertEntity) {
+            $medicalAlerts[] = MedicalAlert::reconstitute(
+                id: $alertEntity->getId()->toString(),
+                kind: $alertEntity->getKind(),
+                label: $alertEntity->getLabel(),
+                note: $alertEntity->getNote(),
+            );
+        }
+
         return Animal::reconstituteFromPersistence(
             id: AnimalId::fromString($entity->getId()->toString()),
             clinicId: ClinicId::fromString($entity->getClinicId()->toString()),
@@ -94,6 +107,7 @@ final class AnimalMapper
             status: $entity->getStatus(),
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
+            medicalAlerts: $medicalAlerts,
         );
     }
 
@@ -160,6 +174,16 @@ final class AnimalMapper
             $ownershipEntity->setStartedAt($ownership->startedAt);
             $ownershipEntity->setEndedAt($ownership->endedAt);
             $entity->addOwnership($ownershipEntity);
+        }
+
+        // Map medical alerts
+        foreach ($animal->medicalAlerts() as $alert) {
+            $alertEntity = new MedicalAlertEntity();
+            $alertEntity->setId(Uuid::fromString($alert->id));
+            $alertEntity->setKind($alert->kind);
+            $alertEntity->setLabel($alert->label);
+            $alertEntity->setNote($alert->note);
+            $entity->addMedicalAlert($alertEntity);
         }
 
         return $entity;

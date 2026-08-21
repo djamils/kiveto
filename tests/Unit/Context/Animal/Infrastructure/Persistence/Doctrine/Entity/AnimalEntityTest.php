@@ -88,6 +88,17 @@ final class AnimalEntityTest extends TestCase
         self::assertSame($updatedAt, $entity->getUpdatedAt());
     }
 
+    public function testVersionRoundTrips(): void
+    {
+        $entity = new AnimalEntity();
+
+        self::assertSame(1, $entity->getVersion());
+
+        $entity->setVersion(7);
+
+        self::assertSame(7, $entity->getVersion());
+    }
+
     public function testOwnershipsCollection(): void
     {
         $animal    = new AnimalEntity();

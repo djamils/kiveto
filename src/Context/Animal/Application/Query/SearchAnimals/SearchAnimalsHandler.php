@@ -33,6 +33,11 @@ final readonly class SearchAnimalsHandler
             ownerClientId: $query->ownerClientId,
             page: $query->page,
             limit: $query->limit,
+            speciesList: $query->speciesList,
+            lifeStatuses: $query->lifeStatuses,
+            restrictToIds: $query->restrictToIds,
+            sort: $query->sort,
+            direction: $query->direction,
         );
 
         return $this->readRepository->search($clinicId, $criteria);

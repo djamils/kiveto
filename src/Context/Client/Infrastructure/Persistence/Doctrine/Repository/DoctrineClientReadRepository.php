@@ -72,11 +72,11 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
     {
         $conn = $this->em->getConnection();
 
-        [$whereClause, $params] = $this->buildSearchWhereClause($clinicId, $criteria);
+        [$whereClause, $params, $types] = $this->buildSearchWhereClause($clinicId, $criteria);
 
         // Count total results
         $countSql = "SELECT COUNT(*) FROM client__clients c WHERE {$whereClause}";
-        $count    = $conn->fetchOne($countSql, $params);
+        $count    = $conn->fetchOne($countSql, $params, $types);
         \assert(is_numeric($count));
         $total = (int) $count;
 
@@ -92,6 +92,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 c.last_name as lastName,
                 c.status,
                 c.created_at as createdAt,
+                c.postal_address_city as city,
                 (
                     SELECT cm.value 
                     FROM client__contact_methods cm
@@ -108,11 +109,11 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 ) as primaryEmail
             FROM client__clients c
             WHERE {$whereClause}
-            ORDER BY c.last_name ASC, c.first_name ASC
+            ORDER BY {$this->buildSearchOrderBy($criteria)}
             LIMIT {$criteria->limit} OFFSET {$criteria->offset()}
         ";
 
-        $results = $conn->fetchAllAssociative($sql, $params);
+        $results = $conn->fetchAllAssociative($sql, $params, $types);
 
         $items = array_map(
             static function (array $row): ClientListItemView {
@@ -130,6 +131,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                     primaryPhone: \is_string($row['primaryPhone'] ?? null) ? $row['primaryPhone'] : null,
                     primaryEmail: \is_string($row['primaryEmail'] ?? null) ? $row['primaryEmail'] : null,
                     createdAt: (new \DateTimeImmutable($row['createdAt']))->format('c'),
+                    city: \is_string($row['city'] ?? null) && '' !== $row['city'] ? $row['city'] : null,
                 );
             },
             $results
@@ -165,13 +167,29 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
     {
         $conn = $this->em->getConnection();
 
-        [$whereClause, $params] = $this->buildSearchWhereClause($clinicId, $criteria);
+        [$whereClause, $params, $types] = $this->buildSearchWhereClause($clinicId, $criteria);
 
         $sql   = "SELECT COUNT(*) FROM client__clients c WHERE {$whereClause}";
-        $count = $conn->fetchOne($sql, $params);
+        $count = $conn->fetchOne($sql, $params, $types);
         \assert(is_numeric($count));
 
         return (int) $count;
+    }
+
+    public function listCities(ClinicId $clinicId): array
+    {
+        $rows = $this->em->getConnection()->fetchFirstColumn(
+            "SELECT DISTINCT postal_address_city
+             FROM client__clients
+             WHERE clinic_id = :clinicId AND postal_address_city IS NOT NULL AND postal_address_city <> ''
+             ORDER BY postal_address_city ASC",
+            ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()],
+        );
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $city): string => \is_string($city) ? $city : '', $rows),
+            static fn (string $city): bool => '' !== $city,
+        ));
     }
 
     public function findFullNamesByIds(ClinicId $clinicId, array $clientIds): array
@@ -222,22 +240,64 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
      *
      * @return array{0: string, 1: array<string, string>}
      */
+    /**
+     * @return array{0: string, 1: array<string, mixed>, 2: array<string, ArrayParameterType>}
+     */
     private function buildSearchWhereClause(ClinicId $clinicId, SearchClientsCriteria $criteria): array
     {
         $where  = ['c.clinic_id = :clinicId'];
         $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+        /** @var array<string, ArrayParameterType> $types */
+        $types = [];
 
         if (null !== $criteria->status) {
             $where[]          = 'c.status = :status';
             $params['status'] = $criteria->status;
         }
 
+        if ([] !== $criteria->statuses) {
+            $where[]            = 'c.status IN (:statuses)';
+            $params['statuses'] = $criteria->statuses;
+            $types['statuses']  = ArrayParameterType::STRING;
+        }
+
+        if ([] !== $criteria->cities) {
+            $where[]          = 'c.postal_address_city IN (:cities)';
+            $params['cities'] = $criteria->cities;
+            $types['cities']  = ArrayParameterType::STRING;
+        }
+
         if (null !== $criteria->searchTerm && '' !== trim($criteria->searchTerm)) {
-            $where[]          = '(c.first_name LIKE :search OR c.last_name LIKE :search)';
+            // The directory offers one box for the whole client card, so the
+            // term has to reach the contact methods as well as the identity.
+            $where[] = '('
+                . 'c.first_name LIKE :search OR c.last_name LIKE :search'
+                . ' OR c.postal_address_city LIKE :search'
+                . ' OR EXISTS ('
+                . 'SELECT 1 FROM client__contact_methods cm'
+                . ' WHERE cm.client_id = c.id AND cm.value LIKE :search'
+                . ')'
+                . ')';
             $params['search'] = '%' . $criteria->searchTerm . '%';
         }
 
-        return [implode(' AND ', $where), $params];
+        return [implode(' AND ', $where), $params, $types];
+    }
+
+    /**
+     * Whitelisted ORDER BY, with the name as a stable tie-break.
+     */
+    private function buildSearchOrderBy(SearchClientsCriteria $criteria): string
+    {
+        $direction = 'desc' === $criteria->direction ? 'DESC' : 'ASC';
+
+        $column = match ($criteria->sort) {
+            SearchClientsCriteria::SORT_CITY    => 'c.postal_address_city',
+            SearchClientsCriteria::SORT_CREATED => 'c.created_at',
+            default                             => 'c.last_name',
+        };
+
+        return $column . ' ' . $direction . ', c.last_name ASC, c.first_name ASC';
     }
 
     private function buildPostalAddressDto(ClientEntity $entity): ?PostalAddressDto

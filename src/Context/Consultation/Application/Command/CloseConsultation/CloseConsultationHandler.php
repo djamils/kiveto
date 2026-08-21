@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Application\Command\CloseConsultation;
 
+use App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface;
+use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
@@ -16,7 +18,9 @@ final readonly class CloseConsultationHandler
 {
     public function __construct(
         private ConsultationRepositoryInterface $consultations,
+        private ConsultationReadRepositoryInterface $consultationsRead,
         private SchedulingServiceCoordinatorInterface $schedulingCoordinator,
+        private AdmissionServiceCoordinatorInterface $admissionCoordinator,
         private ClockInterface $clock,
     ) {
     }
@@ -43,6 +47,21 @@ final readonly class CloseConsultationHandler
         // If linked to appointment => complete appointment
         if ($appointmentId = $consultation->getAppointmentId()) {
             $this->schedulingCoordinator->completeAppointment($appointmentId, $closedByUserId);
+        }
+
+        // The patient goes back to the desk to be charged, unless another
+        // consultation of the same visit is still running.
+        $stillRunning = $this->consultationsRead->hasOpenConsultationForAdmission(
+            $consultation->getAdmissionId(),
+            $consultation->getClinicId(),
+            $consultationId,
+        );
+
+        if (!$stillRunning) {
+            $this->admissionCoordinator->sendToReception(
+                $consultation->getAdmissionId()->toString(),
+                $consultation->getClinicId()->toString(),
+            );
         }
     }
 }

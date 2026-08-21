@@ -53,6 +53,7 @@ final class RecordChiefComplaintHandlerTest extends TestCase
 
         ($this->handler)(new RecordChiefComplaint(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             chiefComplaint: 'Limping for 3 days',
         ));
     }
@@ -67,6 +68,7 @@ final class RecordChiefComplaintHandlerTest extends TestCase
 
         ($this->handler)(new RecordChiefComplaint(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             chiefComplaint: 'Limping',
         ));
     }

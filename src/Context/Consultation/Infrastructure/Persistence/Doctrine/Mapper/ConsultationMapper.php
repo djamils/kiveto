@@ -13,9 +13,16 @@ use App\Context\Consultation\Domain\ValueObject\ConsultationStatus;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\BillingLineEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ConsultationEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\DiagnosisEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ExamSystemEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\MotifEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\PerformedActEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\PlanActionEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\PrescriptionLineEntity;
+use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\TypedVitalEntity;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ConsultationMapper
@@ -23,6 +30,13 @@ final readonly class ConsultationMapper
     public function __construct(
         private ClinicalNoteMapper $noteMapper,
         private PerformedActMapper $actMapper,
+        private MotifMapper $motifMapper,
+        private TypedVitalMapper $typedVitalMapper,
+        private ExamSystemMapper $examSystemMapper,
+        private DiagnosisMapper $diagnosisMapper,
+        private PlanActionMapper $planActionMapper,
+        private PrescriptionLineMapper $prescriptionLineMapper,
+        private BillingLineMapper $billingLineMapper,
     ) {
     }
 
@@ -42,6 +56,9 @@ final readonly class ConsultationMapper
         $entity->setStatus($consultation->getStatus()->value);
         $entity->setChiefComplaint($consultation->getChiefComplaint());
         $entity->setSummary($consultation->getSummary());
+        $entity->setSubjectiveText($consultation->getSubjectiveText());
+        $entity->setObjectiveObservations($consultation->getObjectiveObservations());
+        $entity->setTeamMemo($consultation->getTeamMemo());
 
         $vitals = $consultation->getVitals();
         $entity->setWeightKg(null !== $vitals?->getWeightKg() ? (string) $vitals->getWeightKg() : null);
@@ -56,14 +73,28 @@ final readonly class ConsultationMapper
     }
 
     /**
-     * @param array<ClinicalNoteEntity> $noteEntities
-     * @param array<PerformedActEntity> $actEntities
+     * @param array<ClinicalNoteEntity>     $noteEntities
+     * @param array<PerformedActEntity>     $actEntities
+     * @param array<MotifEntity>            $motifEntities
+     * @param array<TypedVitalEntity>       $typedVitalEntities
+     * @param array<ExamSystemEntity>       $examSystemEntities
+     * @param array<DiagnosisEntity>        $diagnosisEntities
+     * @param array<PlanActionEntity>       $planActionEntities
+     * @param array<PrescriptionLineEntity> $prescriptionLineEntities
+     * @param array<BillingLineEntity>      $billingLineEntities
      */
-    public function toDomain(ConsultationEntity $entity, array $noteEntities, array $actEntities): Consultation
-    {
-        $notes = array_values(array_map($this->noteMapper->toDomain(...), $noteEntities));
-        $acts  = array_values(array_map($this->actMapper->toDomain(...), $actEntities));
-
+    public function toDomain(
+        ConsultationEntity $entity,
+        array $noteEntities,
+        array $actEntities,
+        array $motifEntities = [],
+        array $typedVitalEntities = [],
+        array $examSystemEntities = [],
+        array $diagnosisEntities = [],
+        array $planActionEntities = [],
+        array $prescriptionLineEntities = [],
+        array $billingLineEntities = [],
+    ): Consultation {
         $vitals = null;
         if (null !== $entity->getWeightKg() || null !== $entity->getTemperatureC()) {
             $vitals = Vitals::create(
@@ -89,8 +120,20 @@ final readonly class ConsultationMapper
             closedAtUtc: $entity->getClosedAtUtc(),
             createdAtUtc: $entity->getCreatedAtUtc(),
             updatedAtUtc: $entity->getUpdatedAtUtc(),
-            notes: $notes,
-            acts: $acts,
+            notes: array_values(array_map($this->noteMapper->toDomain(...), $noteEntities)),
+            acts: array_values(array_map($this->actMapper->toDomain(...), $actEntities)),
+            subjectiveText: $entity->getSubjectiveText(),
+            objectiveObservations: $entity->getObjectiveObservations(),
+            teamMemo: $entity->getTeamMemo(),
+            motifs: array_values(array_map($this->motifMapper->toDomain(...), $motifEntities)),
+            typedVitals: array_values(array_map($this->typedVitalMapper->toDomain(...), $typedVitalEntities)),
+            examSystems: array_values(array_map($this->examSystemMapper->toDomain(...), $examSystemEntities)),
+            diagnoses: array_values(array_map($this->diagnosisMapper->toDomain(...), $diagnosisEntities)),
+            planActions: array_values(array_map($this->planActionMapper->toDomain(...), $planActionEntities)),
+            prescriptionLines: array_values(
+                array_map($this->prescriptionLineMapper->toDomain(...), $prescriptionLineEntities),
+            ),
+            billingLines: array_values(array_map($this->billingLineMapper->toDomain(...), $billingLineEntities)),
         );
     }
 }

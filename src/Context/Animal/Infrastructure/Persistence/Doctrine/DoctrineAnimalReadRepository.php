@@ -20,6 +20,7 @@ use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -53,6 +54,10 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
 
     public function search(ClinicId $clinicId, SearchAnimalsCriteria $criteria): array
     {
+        if ($criteria->isImpossible()) {
+            return ['items' => [], 'total' => 0];
+        }
+
         $clinicUuid = Uuid::fromString($clinicId->toString());
         $qb         = $this->entityManager->createQueryBuilder();
         $qb->select('a')
@@ -69,9 +74,19 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         $total = (int) $countQb->getQuery()->getSingleScalarResult();
 
         // Pagination
-        $qb->setFirstResult(($criteria->page - 1) * $criteria->limit)
+        $direction = 'desc' === $criteria->direction ? 'DESC' : 'ASC';
+        $column    = match ($criteria->sort) {
+            SearchAnimalsCriteria::SORT_SPECIES => 'a.species',
+            SearchAnimalsCriteria::SORT_STATUS  => 'a.lifeStatus',
+            SearchAnimalsCriteria::SORT_CREATED => 'a.createdAt',
+            default                             => 'a.name',
+        };
+
+        $qb->setFirstResult($criteria->offset())
             ->setMaxResults($criteria->limit)
-            ->orderBy('a.createdAt', 'DESC')
+            ->orderBy($column, $direction)
+            // Stable tie-break so paging never repeats or skips a row.
+            ->addOrderBy('a.id', 'ASC')
         ;
 
         $entities = $qb->getQuery()->getResult();
@@ -87,6 +102,10 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
 
     public function countBy(ClinicId $clinicId, SearchAnimalsCriteria $criteria): int
     {
+        if ($criteria->isImpossible()) {
+            return 0;
+        }
+
         $clinicUuid = Uuid::fromString($clinicId->toString());
         $qb         = $this->entityManager->createQueryBuilder();
         $qb->select('COUNT(DISTINCT a.id)')
@@ -98,6 +117,31 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         $this->applySearchCriteria($qb, $criteria);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function findIdsMatching(ClinicId $clinicId, ?string $searchTerm, ?string $species): array
+    {
+        $sql        = 'SELECT id FROM animal__search_entries WHERE clinic_id = :clinicId';
+        $parameters = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+
+        if (null !== $species && '' !== $species) {
+            $sql .= ' AND species = :species';
+            $parameters['species'] = $species;
+        }
+
+        if (null !== $searchTerm && '' !== $searchTerm) {
+            // The search entry denormalises the animal, its owner and its breed,
+            // so one LIKE covers the whole "patient or owner" search box.
+            $sql .= ' AND (search_name LIKE :term OR search_owner_name LIKE :term OR breed_name LIKE :term)';
+            $parameters['term'] = '%' . $searchTerm . '%';
+        }
+
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative($sql, $parameters);
+
+        return array_map(
+            static fn (array $row): string => RowAccessor::uuid($row, 'id'),
+            $rows,
+        );
     }
 
     public function listAnimalSummariesByPrimaryOwnerClientIds(
@@ -211,9 +255,38 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
             ;
         }
 
+        if ([] !== $criteria->speciesList) {
+            $qb->andWhere('a.species IN (:speciesList)')
+                ->setParameter('speciesList', $criteria->speciesList)
+            ;
+        }
+
         if (null !== $criteria->lifeStatus) {
             $qb->andWhere('a.lifeStatus = :lifeStatus')
                 ->setParameter('lifeStatus', $criteria->lifeStatus)
+            ;
+        }
+
+        if ([] !== $criteria->lifeStatuses) {
+            $qb->andWhere('a.lifeStatus IN (:lifeStatuses)')
+                ->setParameter('lifeStatuses', $criteria->lifeStatuses)
+            ;
+        }
+
+        if (null !== $criteria->restrictToIds) {
+            // Free text is resolved to identifiers by the caller, so the search
+            // can span the owner name without this context joining to Client.
+            // Binary, explicitly typed: an array of Uuid objects is not
+            // converted for an IN clause and would silently match nothing.
+            $qb->andWhere('a.id IN (:restrictToIds)')
+                ->setParameter(
+                    'restrictToIds',
+                    array_map(
+                        static fn (string $id): string => Uuid::fromString($id)->toBinary(),
+                        $criteria->restrictToIds,
+                    ),
+                    ArrayParameterType::BINARY,
+                )
             ;
         }
 

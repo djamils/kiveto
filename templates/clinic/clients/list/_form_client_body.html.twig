@@ -8,27 +8,53 @@
     {{ form_errors(form) }}
 
     <div class="form-grid">
-      <div class="field">
-        {{ form_label(form.firstName, 'Prénom') }}
+      <div class="form-row">
+        {{ form_label(form.firstName, 'Prénom', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.firstName, {'attr': {'class': 'form-input', 'placeholder': 'Sophie'}}) }}
         {{ form_errors(form.firstName) }}
       </div>
-      <div class="field">
-        {{ form_label(form.lastName, 'Nom') }}
+      <div class="form-row">
+        {{ form_label(form.lastName, 'Nom', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.lastName, {'attr': {'class': 'form-input', 'placeholder': 'Dubois'}}) }}
         {{ form_errors(form.lastName) }}
       </div>
-      <div class="field form-col-2">
-        {{ form_label(form.email, 'Email') }}
+    </div>
+
+    <div class="form-grid">
+      <div class="form-row">
+        {{ form_label(form.phone, 'Téléphone', {'label_attr': {'class': 'form-label'}, 'required': true}) }}
+        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '06 12 34 56 78'}}) }}
+        {{ form_errors(form.phone) }}
+      </div>
+      <div class="form-row">
+        {{ form_label(form.email, 'Email', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.email, {'attr': {'class': 'form-input', 'placeholder': 'sophie.dubois@email.fr'}}) }}
         {{ form_errors(form.email) }}
       </div>
-      <div class="field">
-        {{ form_label(form.phone, 'Téléphone') }}
-        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '+33 6 12 34 56 78'}}) }}
-        {{ form_errors(form.phone) }}
-      </div>
     </div>
+
+    {# The domain has no notes field yet. #}
+    <div class="form-row">
+      <span class="form-label">Notes</span>
+      <textarea class="form-input" disabled placeholder="Bientôt disponible"
+                title="Les notes client ne sont pas encore gérées"></textarea>
+    </div>
+
+    {#
+     # Real toggle: when it is on, the directory reopens the animal modal on the
+     # client that was just created. The input is written by hand so the label
+     # of the theme does not land beside the styled box.
+     #}
+    {% do form._thenAddAnimal.setRendered %}
+    <label class="checkbox-inline" for="{{ form._thenAddAnimal.vars.id }}">
+      <input type="checkbox" id="{{ form._thenAddAnimal.vars.id }}"
+             name="{{ form._thenAddAnimal.vars.full_name }}" value="1"
+             {{ form._thenAddAnimal.vars.checked ? 'checked' : '' }}>
+      <span class="check-mini">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+      </span>
+      Ajouter un premier animal juste après
+    </label>
 
     {{ form_widget(form._returnTo) }}
   {{ form_end(form) }}

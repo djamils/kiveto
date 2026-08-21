@@ -10,6 +10,7 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PricingContext;
 use App\Context\Catalog\Domain\Pricing\ValueObject\ResolvedPrice;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -27,7 +28,8 @@ final class ResolvePriceHandler
         $itemRef = CatalogItemRef::fromPrimitives($query->itemType, $query->itemId);
 
         $context = new PricingContext(
-            priceListId: PriceListId::fromString($query->priceListId),
+            clinicId: ClinicId::fromString($query->clinicId),
+            priceListId: null !== $query->priceListId ? PriceListId::fromString($query->priceListId) : null,
             isUrgency: $query->isUrgency,
             animalSize: null !== $query->animalSize ? AnimalSizeCategory::from($query->animalSize) : null,
             speciesGroup: $query->speciesGroup,

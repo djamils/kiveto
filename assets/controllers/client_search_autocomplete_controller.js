@@ -1,6 +1,22 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
+ * Same palette and same derivation as the directory's client rows, so one
+ * client keeps one colour wherever their avatar appears.
+ */
+const AVATAR_COLORS = [
+  '#4338ca', '#0891b2', '#ea580c', '#16a34a', '#dc2626',
+  '#7c3aed', '#0284c7', '#c2410c', '#059669', '#b91c1c',
+];
+
+function avatarColor(name) {
+  let sum = 0;
+  for (const char of String(name)) sum += char.charCodeAt(0);
+
+  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+}
+
+/**
  * Kiveto — assets/controllers/client_search_autocomplete_controller.js
  * ─────────────────────────────────────────────────────────────────────
  * Accessible client autocomplete combobox.
@@ -12,21 +28,26 @@ import { Controller } from '@hotwired/stimulus';
  *   hiddenInput   – hidden form input that receives the selected client id
  *
  * Values:
- *   url        – API endpoint (default: /api/clinic/clients/search)
- *   minChars   – minimum chars before fetching (default: 2)
- *   debounce   – debounce window in ms (default: 300)
+ *   url         – API endpoint (default: /api/clinic/clients/search)
+ *   minChars    – minimum chars before fetching (default: 2, 0 opens on focus)
+ *   debounce    – debounce window in ms (default: 300)
+ *   createLabel – when set, appends a row offering to create a client; picking
+ *                 it fires a `client-search-autocomplete:create` event instead
+ *                 of selecting anything
  */
 export default class extends Controller {
   static targets = ['input', 'dropdown', 'liveRegion', 'hiddenInput'];
   static values  = {
-    url:      { type: String, default: '/api/clinic/clients/search' },
-    minChars: { type: Number, default: 2 },
-    debounce: { type: Number, default: 300 },
+    url:         { type: String, default: '/api/clinic/clients/search' },
+    minChars:    { type: Number, default: 2 },
+    debounce:    { type: Number, default: 300 },
+    createLabel: { type: String, default: '' },
   };
 
-  _debounceTimer = null;
-  _activeIndex   = -1;
-  _items         = [];
+  _debounceTimer   = null;
+  _activeIndex     = -1;
+  _items           = [];
+  _onDocumentClick = null;
 
   connect() {
     if (this.hasInputTarget) {
@@ -34,12 +55,27 @@ export default class extends Controller {
       this.inputTarget.setAttribute('aria-autocomplete', 'list');
       this.inputTarget.setAttribute('aria-expanded', 'false');
     }
+
+    // Clicking anywhere else dismisses the list, selection or not.
+    this._onDocumentClick = (event) => {
+      if (!this.element.contains(event.target)) this._closeDropdown();
+    };
+    document.addEventListener('click', this._onDocumentClick);
   }
 
   disconnect() {
+    document.removeEventListener('click', this._onDocumentClick);
+
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
     }
+  }
+
+  /** Opens the list straight away when no minimum is required. */
+  onFocus() {
+    if (this.minCharsValue > 0) return;
+
+    this._fetch((this.inputTarget.value || '').trim());
   }
 
   onInput(event) {
@@ -53,6 +89,10 @@ export default class extends Controller {
       this._closeDropdown();
       return;
     }
+
+    // A fresh keystroke invalidates whatever was picked before.
+    const ownerInput = document.getElementById('animal_form_primaryOwnerClientId');
+    if (ownerInput) ownerInput.value = '';
 
     this._debounceTimer = setTimeout(() => {
       this._fetch(value);
@@ -134,21 +174,25 @@ export default class extends Controller {
     if (!this.hasDropdownTarget) return;
 
     if (items.length === 0) {
-      this.dropdownTarget.innerHTML = '<li class="autocomplete-empty" role="option">Aucun résultat</li>';
+      this.dropdownTarget.innerHTML = '<li class="autocomplete-empty">Aucun résultat</li>' + this._createRow();
       this._announce('Aucun résultat');
+      this._wireCreateRow();
     } else {
       const html = items.map((item, index) => {
         const id    = `ac-opt-${index}`;
         const label = item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
-        const meta  = item.primaryEmail || item.primaryPhone || '';
+        const meta  = item.primaryEmail || item.primaryPhoneDisplay || item.primaryPhone || '';
+        const initials = `${(item.firstName || label)[0] || ''}${(item.lastName || '')[0] || ''}`.toUpperCase();
         return `
           <li id="${id}" role="option" aria-selected="false" data-index="${index}">
+            <span class="avatar-mini" style="background:${avatarColor(label)}">${this._escape(initials)}</span>
             <span class="autocomplete-option-label">${this._escape(label)}</span>
             ${meta ? `<span class="autocomplete-option-meta">${this._escape(meta)}</span>` : ''}
           </li>
         `;
       }).join('');
-      this.dropdownTarget.innerHTML = html;
+      this.dropdownTarget.innerHTML = html + this._createRow();
+      this._wireCreateRow();
 
       this.dropdownTarget.querySelectorAll('li[role="option"]').forEach((li) => {
         li.addEventListener('mousedown', (e) => {
@@ -162,6 +206,32 @@ export default class extends Controller {
 
     this.dropdownTarget.classList.remove('hidden');
     this.inputTarget.setAttribute('aria-expanded', 'true');
+  }
+
+  /**
+   * The "create a client" row of the layout, shown under the results and under
+   * "Aucun résultat" alike.
+   */
+  _createRow() {
+    if ('' === this.createLabelValue) return '';
+
+    return `
+      <li class="autocomplete-new" data-autocomplete-create>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ${this._escape(this.createLabelValue)}
+      </li>
+    `;
+  }
+
+  _wireCreateRow() {
+    const row = this.dropdownTarget.querySelector('[data-autocomplete-create]');
+    if (!row) return;
+
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this._closeDropdown();
+      this.dispatch('create', { detail: { query: (this.inputTarget.value || '').trim() } });
+    });
   }
 
   _renderAuthError() {

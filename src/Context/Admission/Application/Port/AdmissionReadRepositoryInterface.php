@@ -19,5 +19,15 @@ interface AdmissionReadRepositoryInterface
      */
     public function findAllActiveForClinic(string $clinicId): array;
 
+    /**
+     * Admissions closed since a point in time, most recent first.
+     *
+     * Feeds the "Sortie" column of the Flux du jour view, which shows the
+     * patients discharged today.
+     *
+     * @return list<WaitingRoomItemDto>
+     */
+    public function findClosedForClinicSince(string $clinicId, \DateTimeImmutable $since): array;
+
     public function getAdmissionContext(string $admissionId): AdmissionContextDto;
 }

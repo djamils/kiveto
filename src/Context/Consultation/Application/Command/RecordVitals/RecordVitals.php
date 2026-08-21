@@ -10,6 +10,7 @@ final readonly class RecordVitals implements CommandInterface
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
         public ?float $weightKg,
         public ?float $temperatureC,
     ) {

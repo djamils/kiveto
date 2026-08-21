@@ -45,6 +45,18 @@ final class ClinicStaffProfileDataStory extends Story
             ->create()
         ;
 
+        $lyonVet = ClinicUserFactory::new()
+            ->withEmail('vet.lyon@kiveto.local')
+            ->withPlainPassword('vetlyon')
+            ->create()
+        ;
+
+        $lyonAssistant = ClinicUserFactory::new()
+            ->withEmail('assistant.lyon@kiveto.local')
+            ->withPlainPassword('assistantlyon')
+            ->create()
+        ;
+
         // Onboard veterinarian to Paris clinic with credentials
         $this->commandBus->dispatch(new OnboardStaffMember(
             clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
@@ -107,6 +119,37 @@ final class ClinicStaffProfileDataStory extends Story
             validUntil: $validUntil,
             registrationNumber: 'FR-67890',
             professionalTitle: ProfessionalTitle::DR,
+        ));
+
+        // Second Lyon veterinarian, so the agenda and the consultation filters
+        // have more than one practitioner to sort on outside Paris.
+        $this->commandBus->dispatch(new OnboardStaffMember(
+            clinicId: ClinicDataStory::GROUP_CLINIC_ID,
+            userId: $lyonVet->getId()->toRfc4122(),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Sarah',
+            lastName: 'Lemoine',
+            displayName: 'Lemoine',
+            agendaColor: '#8f6dbe',
+            sortOrder: 1,
+            isVisibleInAgenda: true,
+            registrationNumber: 'FR-24680',
+            professionalTitle: ProfessionalTitle::DR,
+        ));
+
+        // Lyon assistant (no credentials)
+        $this->commandBus->dispatch(new OnboardStaffMember(
+            clinicId: ClinicDataStory::GROUP_CLINIC_ID,
+            userId: $lyonAssistant->getId()->toRfc4122(),
+            role: ClinicMemberRole::VETERINARY_ASSISTANT,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Karim',
+            lastName: 'Benali',
+            displayName: 'Karim Benali',
+            agendaColor: '#d9a441',
+            sortOrder: 2,
+            isVisibleInAgenda: true,
         ));
 
         // Third Paris veterinarian — intentionally has NO appointments.

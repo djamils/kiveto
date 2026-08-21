@@ -11,13 +11,18 @@ use App\Context\Animal\Domain\Event\AnimalIdentityChanged;
 use App\Context\Animal\Domain\Event\AnimalNameChanged;
 use App\Context\Animal\Domain\Event\AnimalOwnersReplaced;
 use App\Context\Animal\Domain\Exception\AnimalAlreadyArchivedException;
+use App\Context\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException;
 use App\Context\Animal\Domain\Exception\AnimalMustHavePrimaryOwnerException;
+use App\Context\Animal\Domain\Exception\DuplicateMedicalAlertException;
+use App\Context\Animal\Domain\Exception\MedicalAlertNotFoundException;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
+use App\Context\Animal\Domain\ValueObject\MedicalAlert;
+use App\Context\Animal\Domain\ValueObject\MedicalAlertKind;
 use App\Context\Animal\Domain\ValueObject\Ownership;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
@@ -319,7 +324,7 @@ final class AnimalTest extends TestCase
 
         $animal->archive($now);
 
-        $this->expectException(\App\Context\Animal\Domain\Exception\AnimalArchivedCannotBeModifiedException::class);
+        $this->expectException(AnimalArchivedCannotBeModifiedException::class);
 
         $animal->updateIdentity(
             name: 'Max',
@@ -914,6 +919,153 @@ final class AnimalTest extends TestCase
         $payload = $events[0]->payload();
         self::assertSame('client-new-primary', $payload['primaryOwnerClientId']);
         self::assertSame(['client-secondary-1'], $payload['secondaryOwnerClientIds']);
+    }
+
+    public function testAddMedicalAlert(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $alert = MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline', 'Choc en 2023');
+
+        $animal->addMedicalAlert($alert, $now);
+
+        self::assertCount(1, $animal->medicalAlerts());
+        self::assertSame($alert, $animal->medicalAlerts()[0]);
+        self::assertSame($now, $animal->updatedAt());
+    }
+
+    public function testAddMedicalAlertAcceptsSameLabelOnAnotherKind(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline'), $now);
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::CHRONIC_CONDITION, 'Pénicilline'), $now);
+
+        self::assertCount(2, $animal->medicalAlerts());
+        self::assertSame(MedicalAlertKind::ALLERGY, $animal->medicalAlerts()[0]->kind);
+        self::assertSame(MedicalAlertKind::CHRONIC_CONDITION, $animal->medicalAlerts()[1]->kind);
+    }
+
+    public function testAddMedicalAlertThrowsOnCaseInsensitiveDuplicate(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline'), $now);
+
+        $this->expectException(DuplicateMedicalAlertException::class);
+
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::ALLERGY, 'PÉNICILLINE'), $now);
+    }
+
+    public function testAddMedicalAlertThrowsWhenArchived(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->archive($now);
+
+        $this->expectException(AnimalArchivedCannotBeModifiedException::class);
+
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline'), $now);
+    }
+
+    public function testRemoveMedicalAlert(): void
+    {
+        $animal    = $this->createMinimalAnimal();
+        $addedAt   = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+        $removedAt = new \DateTimeImmutable('2024-07-01T10:00:00+00:00');
+
+        $kept    = MedicalAlert::create(MedicalAlertKind::CHRONIC_CONDITION, 'Diabète');
+        $removed = MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline');
+
+        $animal->addMedicalAlert($kept, $addedAt);
+        $animal->addMedicalAlert($removed, $addedAt);
+
+        $animal->removeMedicalAlert($removed->id, $removedAt);
+
+        self::assertCount(1, $animal->medicalAlerts());
+        self::assertSame($kept, $animal->medicalAlerts()[0]);
+        self::assertSame($removedAt, $animal->updatedAt());
+    }
+
+    public function testRemoveMedicalAlertThrowsWhenAlertIsUnknown(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $animal->addMedicalAlert(MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline'), $now);
+
+        $this->expectException(MedicalAlertNotFoundException::class);
+
+        $animal->removeMedicalAlert('01234567-89ab-cdef-0123-456789abcdef', $now);
+    }
+
+    public function testRemoveMedicalAlertThrowsWhenArchived(): void
+    {
+        $animal = $this->createMinimalAnimal();
+        $now    = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
+
+        $alert = MedicalAlert::create(MedicalAlertKind::ALLERGY, 'Pénicilline');
+        $animal->addMedicalAlert($alert, $now);
+        $animal->archive($now);
+
+        $this->expectException(AnimalArchivedCannotBeModifiedException::class);
+
+        $animal->removeMedicalAlert($alert->id, $now);
+    }
+
+    public function testReconstituteRestoresMedicalAlerts(): void
+    {
+        $now   = new \DateTimeImmutable('2024-01-01T10:00:00+00:00');
+        $alert = MedicalAlert::reconstitute(
+            id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            kind: MedicalAlertKind::ALLERGY,
+            label: 'Pénicilline',
+            note: 'Choc en 2023',
+        );
+
+        $animal = Animal::reconstituteFromPersistence(
+            id: AnimalId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
+            clinicId: ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0'),
+            name: 'Rex',
+            species: Species::DOG,
+            sex: Sex::MALE,
+            reproductiveStatus: ReproductiveStatus::INTACT,
+            isMixedBreed: false,
+            breedName: null,
+            birthDate: null,
+            color: null,
+            photoUrl: null,
+            identification: Identification::createEmpty(),
+            lifeCycle: LifeCycle::alive(),
+            transfer: Transfer::none(),
+            auxiliaryContact: null,
+            status: AnimalStatus::ACTIVE,
+            ownerships: [
+                new Ownership(
+                    clientId: 'client-123',
+                    role: OwnershipRole::PRIMARY,
+                    status: OwnershipStatus::ACTIVE,
+                    startedAt: $now,
+                    endedAt: null
+                ),
+            ],
+            createdAt: $now,
+            updatedAt: $now,
+            medicalAlerts: [$alert],
+        );
+
+        self::assertSame([$alert], $animal->medicalAlerts());
+    }
+
+    public function testReconstituteDefaultsToNoMedicalAlerts(): void
+    {
+        $animal = $this->createMinimalAnimal();
+
+        self::assertSame([], $animal->medicalAlerts());
     }
 
     private function createMinimalAnimal(): Animal

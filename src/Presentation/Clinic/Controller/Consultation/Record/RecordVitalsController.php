@@ -5,43 +5,37 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Consultation\Record;
 
 use App\Context\Consultation\Application\Command\RecordVitals\RecordVitals;
-use App\Shared\Application\Bus\CommandBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 final class RecordVitalsController extends AbstractController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
+        private readonly CockpitEndpoint $endpoint,
     ) {
     }
 
     #[Route('/clinic/consultations/{id}/vitals', name: 'clinic_consultation_record_vitals', methods: ['POST'])]
-    public function __invoke(string $id, Request $request): Response
+    public function __invoke(string $id, Request $request): JsonResponse
     {
-        $weightKg     = $request->request->get('weightKg');
-        $temperatureC = $request->request->get('temperatureC');
+        return $this->endpoint->run(
+            $request,
+            $id,
+            static fn (string $clinicId, string $userId): RecordVitals => new RecordVitals(
+                consultationId: $id,
+                clinicId: $clinicId,
+                weightKg: self::optionalFloat($request, 'weightKg'),
+                temperatureC: self::optionalFloat($request, 'temperatureC'),
+            ),
+        );
+    }
 
-        // Convertir empty string en null
-        $weightKg     = !empty($weightKg) ? (float) $weightKg : null;
-        $temperatureC = !empty($temperatureC) ? (float) $temperatureC : null;
+    private static function optionalFloat(Request $request, string $key): ?float
+    {
+        $raw = trim($request->request->getString($key));
 
-        try {
-            $this->commandBus->dispatch(
-                new RecordVitals(
-                    consultationId: $id,
-                    weightKg: $weightKg,
-                    temperatureC: $temperatureC,
-                )
-            );
-
-            $this->addFlash('success', 'Constantes vitales enregistrées.');
-        } catch (\Exception $e) {
-            $this->addFlash('error', 'Erreur : ' . $e->getMessage());
-        }
-
-        return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
+        return '' !== $raw ? (float) $raw : null;
     }
 }
