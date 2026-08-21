@@ -15,6 +15,23 @@ final class AnimalDataStory extends Story
     public const ANIMAL_REX_ID   = '01936e1a-1111-7000-8000-000000000001';
     public const ANIMAL_MINOU_ID = '01936e1a-2222-7000-8000-000000000002';
     public const ANIMAL_BELLA_ID = '01936e1a-3333-7000-8000-000000000003';
+    public const ANIMAL_MAX_ID   = '01936e1a-4444-7000-8000-000000000004';
+    public const ANIMAL_LUNA_ID  = '01936e1a-5555-7000-8000-000000000005';
+    public const ANIMAL_ROCKY_ID = '01936e1a-6666-7000-8000-000000000006';
+
+    public const ANIMAL_PEPERE_ID     = '01936e1a-cccc-7000-8000-00000000000c';
+    public const ANIMAL_FILOU_ID      = '01936e1a-dddd-7000-8000-00000000000d';
+    public const ANIMAL_CARAMEL_ID    = '01936e1a-eeee-7000-8000-00000000000e';
+    public const ANIMAL_NOISETTE_ID   = '01936e1a-ffff-7000-8000-00000000000f';
+    public const ANIMAL_NALA_ID       = '01936e1a-1010-7000-8000-000000000010';
+    public const ANIMAL_GRIBOUILLE_ID = '01936e1a-1111-7000-8000-000000000011';
+    public const ANIMAL_SUSHI_ID      = '01936e1a-1212-7000-8000-000000000012';
+    public const ANIMAL_JAVA_ID       = '01936e1a-1313-7000-8000-000000000013';
+
+    public const ANIMAL_FELIX_ID   = '01936e1a-7777-7000-8000-000000000007';
+    public const ANIMAL_COCO_ID    = '01936e1a-8888-7000-8000-000000000008';
+    public const ANIMAL_MOKA_ID    = '01936e1a-9999-7000-8000-000000000009';
+    public const ANIMAL_CHARLIE_ID = '01936e1a-aaaa-7000-8000-00000000000a';
 
     public function build(): void
     {
@@ -103,6 +120,7 @@ final class AnimalDataStory extends Story
 
         // 4. Max - Golden Retriever mâle de Sophie (PRIMARY) et Marc (SECONDARY)
         $animal4 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_MAX_ID)
             ->withClinicId($parisClinicId)
             ->withName('Max')
             ->withBreed('Golden Retriever', \App\Context\Animal\Domain\ValueObject\Species::DOG)
@@ -133,6 +151,7 @@ final class AnimalDataStory extends Story
 
         // 5. Luna - Chat Persan femelle de Claire (PRIMARY uniquement)
         $animal5 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_LUNA_ID)
             ->withClinicId($parisClinicId)
             ->withName('Luna')
             ->withBreed('Persan', \App\Context\Animal\Domain\ValueObject\Species::CAT)
@@ -155,6 +174,7 @@ final class AnimalDataStory extends Story
 
         // 6. Rocky - Beagle mâle de Sophie (PRIMARY uniquement)
         $animal6 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_ROCKY_ID)
             ->withClinicId($parisClinicId)
             ->withName('Rocky')
             ->withBreed('Beagle', \App\Context\Animal\Domain\ValueObject\Species::DOG)
@@ -176,11 +196,12 @@ final class AnimalDataStory extends Story
         ;
 
         // ===========================
-        // ANIMAUX LYON (5 animaux)
+        // ANIMAUX LYON (9 animaux)
         // ===========================
 
         // 7. Felix - Chat Siamois mâle d'Émilie (PRIMARY)
         $animal7 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_FELIX_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Felix')
             ->withBreed('Siamois', \App\Context\Animal\Domain\ValueObject\Species::CAT)
@@ -224,6 +245,7 @@ final class AnimalDataStory extends Story
 
         // 9. Coco - Caniche femelle de Nathalie (PRIMARY) et Émilie (SECONDARY)
         $animal9 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_COCO_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Coco')
             ->withBreed('Caniche', \App\Context\Animal\Domain\ValueObject\Species::DOG)
@@ -254,6 +276,7 @@ final class AnimalDataStory extends Story
 
         // 10. Moka - Chat Maine Coon femelle de Nathalie (PRIMARY)
         $animal10 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_MOKA_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Moka')
             ->withBreed('Maine Coon', \App\Context\Animal\Domain\ValueObject\Species::CAT)
@@ -276,6 +299,7 @@ final class AnimalDataStory extends Story
 
         // 11. Charlie - Berger Allemand mâle d'Émilie (PRIMARY uniquement)
         $animal11 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_CHARLIE_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Charlie')
             ->withBreed('Berger Allemand', \App\Context\Animal\Domain\ValueObject\Species::DOG)
@@ -296,6 +320,97 @@ final class AnimalDataStory extends Story
             ->create()
         ;
 
+        // 12. Nala - Chat Chartreux femelle de Laurent (PRIMARY uniquement)
+        $animal12 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_NALA_ID)
+            ->withClinicId($lyonClinicId)
+            ->withName('Nala')
+            ->withBreed('Chartreux', \App\Context\Animal\Domain\ValueObject\Species::CAT)
+            ->female()
+            ->neutered()
+            ->withMicrochip('250269801234576')
+            ->withColor('Gris bleu')
+            ->active()
+            ->alive()
+            ->create()
+        ;
+
+        OwnershipEntityFactory::new()
+            ->withAnimalId($animal12->getId()->toString())
+            ->withClientId(ClientDataStory::CLIENT_LAURENT_ID)
+            ->primary()
+            ->active()
+            ->create()
+        ;
+
+        // 13. Gribouille - Lapin nain mâle d'Émilie (PRIMARY uniquement)
+        $animal13 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_GRIBOUILLE_ID)
+            ->withClinicId($lyonClinicId)
+            ->withName('Gribouille')
+            ->withBreed('Lapin nain', \App\Context\Animal\Domain\ValueObject\Species::NAC)
+            ->male()
+            ->intact()
+            ->withColor('Blanc et gris')
+            ->active()
+            ->alive()
+            ->create()
+        ;
+
+        OwnershipEntityFactory::new()
+            ->withAnimalId($animal13->getId()->toString())
+            ->withClientId(ClientDataStory::CLIENT_EMILIE_ID)
+            ->primary()
+            ->active()
+            ->create()
+        ;
+
+        // 14. Sushi - Chat Bengal mâle de Nathalie (PRIMARY uniquement)
+        $animal14 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_SUSHI_ID)
+            ->withClinicId($lyonClinicId)
+            ->withName('Sushi')
+            ->withBreed('Bengal', \App\Context\Animal\Domain\ValueObject\Species::CAT)
+            ->male()
+            ->intact()
+            ->withMicrochip('250269801234577')
+            ->withColor('Rosetté brun')
+            ->active()
+            ->alive()
+            ->create()
+        ;
+
+        OwnershipEntityFactory::new()
+            ->withAnimalId($animal14->getId()->toString())
+            ->withClientId(ClientDataStory::CLIENT_NATHALIE_ID)
+            ->primary()
+            ->active()
+            ->create()
+        ;
+
+        // 15. Java - Border Collie femelle d'Émilie (PRIMARY uniquement)
+        $animal15 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_JAVA_ID)
+            ->withClinicId($lyonClinicId)
+            ->withName('Java')
+            ->withBreed('Border Collie', \App\Context\Animal\Domain\ValueObject\Species::DOG)
+            ->female()
+            ->neutered()
+            ->withMicrochip('250269801234578')
+            ->withColor('Noir et blanc')
+            ->active()
+            ->alive()
+            ->create()
+        ;
+
+        OwnershipEntityFactory::new()
+            ->withAnimalId($animal15->getId()->toString())
+            ->withClientId(ClientDataStory::CLIENT_EMILIE_ID)
+            ->primary()
+            ->active()
+            ->create()
+        ;
+
         // ==========================================
         // UI EDGE-CASE FIXTURES — PARIS (7 animaux)
         // ==========================================
@@ -304,17 +419,19 @@ final class AnimalDataStory extends Story
         // (threshold: more than 4 active primary-owned animals).
 
         // Seven active animals for Aurélie — mix of dogs and cats covering the "+N" badge threshold.
+        // The first three carry fixed ids: the admission board uses them to fill
+        // its surgery, hospitalisation and checkout columns.
         $aurelieAnimals = [
-            ['Pépère', 'dog', null, 'Beige'],
-            ['Filou', 'cat', null, 'Roux'],
-            ['Caramel', 'dog', 'Teckel', 'Marron'],
-            ['Noisette', 'cat', 'Européen', 'Tigré'],
-            ['Cannelle', 'dog', null, 'Fauve'],
-            ['Doudou', 'cat', 'Angora', 'Blanc'],
-            ['Bisou', 'cat', 'Ragdoll', 'Bicolore'],
+            ['Pépère', 'dog', null, 'Beige', self::ANIMAL_PEPERE_ID],
+            ['Filou', 'cat', null, 'Roux', self::ANIMAL_FILOU_ID],
+            ['Caramel', 'dog', 'Teckel', 'Marron', self::ANIMAL_CARAMEL_ID],
+            ['Noisette', 'cat', 'Européen', 'Tigré', self::ANIMAL_NOISETTE_ID],
+            ['Cannelle', 'dog', null, 'Fauve', null],
+            ['Doudou', 'cat', 'Angora', 'Blanc', null],
+            ['Bisou', 'cat', 'Ragdoll', 'Bicolore', null],
         ];
 
-        foreach ($aurelieAnimals as [$animalName, $species, $breed, $color]) {
+        foreach ($aurelieAnimals as [$animalName, $species, $breed, $color, $animalId]) {
             $factory = AnimalEntityFactory::new()
                 ->withClinicId($parisClinicId)
                 ->withName($animalName)
@@ -324,6 +441,10 @@ final class AnimalDataStory extends Story
                 ->active()
                 ->alive()
             ;
+
+            if (null !== $animalId) {
+                $factory = $factory->withId($animalId);
+            }
 
             $factory = null !== $breed
                 ? $factory->withBreed($breed, \App\Context\Animal\Domain\ValueObject\Species::from($species))
