@@ -1,6 +1,22 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
+ * Same palette and same derivation as the directory's client rows, so one
+ * client keeps one colour wherever their avatar appears.
+ */
+const AVATAR_COLORS = [
+  '#4338ca', '#0891b2', '#ea580c', '#16a34a', '#dc2626',
+  '#7c3aed', '#0284c7', '#c2410c', '#059669', '#b91c1c',
+];
+
+function avatarColor(name) {
+  let sum = 0;
+  for (const char of String(name)) sum += char.charCodeAt(0);
+
+  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+}
+
+/**
  * Kiveto — assets/controllers/client_search_autocomplete_controller.js
  * ─────────────────────────────────────────────────────────────────────
  * Accessible client autocomplete combobox.
@@ -157,8 +173,10 @@ export default class extends Controller {
         const id    = `ac-opt-${index}`;
         const label = item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
         const meta  = item.primaryEmail || item.primaryPhone || '';
+        const initials = `${(item.firstName || label)[0] || ''}${(item.lastName || '')[0] || ''}`.toUpperCase();
         return `
           <li id="${id}" role="option" aria-selected="false" data-index="${index}">
+            <span class="avatar-mini" style="background:${avatarColor(label)}">${this._escape(initials)}</span>
             <span class="autocomplete-option-label">${this._escape(label)}</span>
             ${meta ? `<span class="autocomplete-option-meta">${this._escape(meta)}</span>` : ''}
           </li>

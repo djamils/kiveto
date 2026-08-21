@@ -54,9 +54,9 @@ final class ListClientsController extends AbstractController
     private const array SPECIES = ['dog', 'cat', 'nac', 'other'];
 
     /**
-     * Avatar palette. A client keeps the same colour wherever the row appears,
-     * because the colour is derived from the identifier rather than the
-     * position on the page.
+     * Avatar palette. The colour comes from the name rather than the position
+     * on the page, so a client keeps it wherever their avatar appears — the
+     * owner picker derives it the same way.
      */
     private const array AVATAR_COLORS = [
         '#4338ca', '#0891b2', '#ea580c', '#16a34a', '#dc2626',
@@ -406,8 +406,8 @@ final class ListClientsController extends AbstractController
         foreach ($clients as $client) {
             $sum = 0;
 
-            foreach (str_split(str_replace('-', '', $client->id)) as $character) {
-                $sum += \ord($character);
+            foreach (mb_str_split($client->fullName()) as $character) {
+                $sum += mb_ord($character);
             }
 
             $colors[$client->id] = self::AVATAR_COLORS[$sum % \count(self::AVATAR_COLORS)];

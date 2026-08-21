@@ -437,8 +437,8 @@
     .modal-close svg { width: 16px; height: 16px; }
     .modal-head-title {
       flex: 1;
-      font-size: var(--text-lg); font-weight: var(--weight-medium);
-      color: var(--text-primary); letter-spacing: -.2px;
+      font-size: var(--text-lg); font-weight: var(--weight-semibold);
+      color: var(--text-primary);
     }
     .modal-head-sub {
       font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-normal);
@@ -558,15 +558,21 @@
     }
     .autocomplete-listbox li:hover,
     .autocomplete-listbox li[aria-selected="true"] { background: var(--surface-hover); }
+    .autocomplete-listbox .avatar-mini {
+      width: 22px; height: 22px; border-radius: 50%; color: #fff;
+      font-size: 10px; font-weight: var(--weight-semibold);
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
     .autocomplete-option-label { font-weight: var(--weight-medium); }
     .autocomplete-option-meta { margin-left: auto; font-size: var(--text-xs); color: var(--text-muted); }
     .autocomplete-empty { color: var(--text-subtle); font-style: italic; cursor: default; }
     .autocomplete-empty:hover { background: transparent; }
-    .autocomplete-new {
+    .autocomplete-listbox li.autocomplete-new {
       border-top: 1px solid var(--border-light); margin-top: 4px; padding-top: 8px;
       color: var(--brand-700); font-weight: var(--weight-medium);
     }
-    .autocomplete-new:hover { background: var(--brand-50); }
+    .autocomplete-listbox li.autocomplete-new:hover { background: var(--brand-50); }
     .autocomplete-new svg { width: 12px; height: 12px; }
   }
 }
