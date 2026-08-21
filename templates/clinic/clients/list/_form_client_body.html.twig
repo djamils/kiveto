@@ -33,34 +33,28 @@
       </div>
     </div>
 
-    {#
-     # Storing an address needs a street and a country, which this form does not
-     # ask for; the status of a new client is always "actif"; and the domain has
-     # no notes field. All three are shown and disabled rather than faked.
-     #}
-    <div class="form-grid">
-      <div class="form-row">
-        <span class="form-label">Ville</span>
-        <input class="form-input" disabled placeholder="Depuis la fiche client"
-               title="L'adresse se renseigne depuis la fiche client">
-      </div>
-      <div class="form-row">
-        <span class="form-label">Statut</span>
-        <input class="form-input" disabled value="Actif" title="Un nouveau client est toujours actif">
-      </div>
-    </div>
+    {# The domain has no notes field yet. #}
     <div class="form-row">
       <span class="form-label">Notes</span>
       <textarea class="form-input" disabled placeholder="Bientôt disponible"
                 title="Les notes client ne sont pas encore gérées"></textarea>
     </div>
 
-    <span class="checkbox-inline is-disabled" title="Bientôt disponible">
+    {#
+     # Real toggle: when it is on, the directory reopens the animal modal on the
+     # client that was just created. The input is written by hand so the label
+     # of the theme does not land beside the styled box.
+     #}
+    {% do form._thenAddAnimal.setRendered %}
+    <label class="checkbox-inline" for="{{ form._thenAddAnimal.vars.id }}">
+      <input type="checkbox" id="{{ form._thenAddAnimal.vars.id }}"
+             name="{{ form._thenAddAnimal.vars.full_name }}" value="1"
+             {{ form._thenAddAnimal.vars.checked ? 'checked' : '' }}>
       <span class="check-mini">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
       </span>
       Ajouter un premier animal juste après
-    </span>
+    </label>
 
     {{ form_widget(form._returnTo) }}
   {{ form_end(form) }}

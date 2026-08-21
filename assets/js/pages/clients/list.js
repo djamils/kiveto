@@ -18,6 +18,7 @@ let searchTimer = null;
 
 export function init() {
   selected.clear();
+  resumeAnimalCreation();
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
@@ -42,6 +43,34 @@ export function cleanup() {
   selected.clear();
 }
 
+// ── Chained creation ──
+
+/**
+ * Picks up where "Ajouter un premier animal juste après" left off: the client
+ * was created on the server, so reopen the animal modal already pointed at it.
+ */
+function resumeAnimalCreation() {
+  const payload = document.querySelector('[data-chain-animal]');
+  if (!payload) return;
+
+  let owner;
+  try {
+    owner = JSON.parse(payload.textContent);
+  } catch {
+    return;
+  }
+  payload.remove();
+
+  if (!owner?.id) return;
+
+  const search = document.getElementById('na-owner-search');
+  const hidden = document.querySelector('input[name$="[primaryOwnerClientId]"]');
+  if (search) search.value = owner.name ?? '';
+  if (hidden) hidden.value = owner.id;
+
+  import('kiveto/modal').then(({ modal }) => modal.open('modal-new-animal'));
+}
+
 // ── Owner picker: "Créer un nouveau client" ──
 
 /**
@@ -61,6 +90,9 @@ function onCreateClientFromOwnerPicker(e) {
       first.value = parts.shift() ?? '';
       last.value = parts.join(' ');
     }
+
+    const chain = document.querySelector('#modal-new-client input[name$="[_thenAddAnimal]"]');
+    if (chain) chain.checked = true;
 
     // Let the closing animation finish before the next one opens.
     window.setTimeout(() => modal.open('modal-new-client'), 180);

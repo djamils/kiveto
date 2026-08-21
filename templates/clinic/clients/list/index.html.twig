@@ -357,6 +357,14 @@
 {% endblock %}
 
 {% block modals %}
+  {#
+   # Handover payload of "Ajouter un premier animal juste après": read once by
+   # the page module, which reopens the animal modal on the new owner.
+   #}
+  {% for payload in app.flashes('add_animal_for') %}
+    <script type="application/json" data-chain-animal>{{ payload|raw }}</script>
+  {% endfor %}
+
   {{ include('clinic/clients/list/_modal_new_client.html.twig') }}
   {{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
 {% endblock %}

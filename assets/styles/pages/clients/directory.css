@@ -508,17 +508,21 @@
       display: flex; align-items: center; gap: 8px;
       padding: 10px 12px; background: var(--brand-50);
       border: 1px solid var(--brand-100); border-radius: var(--radius-md);
-      font-size: var(--text-sm); color: var(--brand-800);
-      margin-top: var(--space-2);
+      font-size: var(--text-sm); color: var(--brand-800); cursor: pointer;
+      transition: var(--t-fast); margin-top: var(--space-2);
     }
+    .checkbox-inline:hover { background: var(--brand-100); }
+    .checkbox-inline input[type="checkbox"] { position: absolute; opacity: 0; pointer-events: none; }
     .checkbox-inline .check-mini {
       width: 16px; height: 16px; border-radius: 3px;
       border: 1px solid var(--brand-400); background: var(--surface-card);
       display: inline-flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    .checkbox-inline.is-disabled { background: var(--surface-subtle); border-color: var(--border-light); color: var(--text-disabled); }
-    .checkbox-inline.is-disabled .check-mini { border-color: var(--border-medium); }
+    .checkbox-inline .check-mini svg { width: 12px; height: 12px; opacity: 0; color: #fff; }
+    .checkbox-inline:has(input:checked) .check-mini { background: var(--brand-700); border-color: var(--brand-700); }
+    .checkbox-inline:has(input:checked) .check-mini svg { opacity: 1; }
+    .checkbox-inline:has(input:focus-visible) { box-shadow: var(--shadow-focus); }
 
     /* Owner combobox of the animal modal */
     .combobox { position: relative; }

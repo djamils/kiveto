@@ -181,7 +181,7 @@ export default class extends Controller {
       const html = items.map((item, index) => {
         const id    = `ac-opt-${index}`;
         const label = item.fullName || `${item.firstName || ''} ${item.lastName || ''}`.trim();
-        const meta  = item.primaryEmail || item.primaryPhone || '';
+        const meta  = item.primaryEmail || item.primaryPhoneDisplay || item.primaryPhone || '';
         const initials = `${(item.firstName || label)[0] || ''}${(item.lastName || '')[0] || ''}`.toUpperCase();
         return `
           <li id="${id}" role="option" aria-selected="false" data-index="${index}">

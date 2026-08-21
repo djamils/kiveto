@@ -8,6 +8,7 @@ use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Presentation\Twig\PhoneFormatRuntime;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,6 +28,7 @@ final class SearchClientsApiController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly RateLimiterFactoryInterface $apiClinicSearchLimiter,
+        private readonly PhoneFormatRuntime $phoneFormat,
     ) {
     }
 
@@ -88,6 +90,9 @@ final class SearchClientsApiController extends AbstractController
                 'fullName'     => $row->fullName(),
                 'primaryEmail' => $row->primaryEmail,
                 'primaryPhone' => $row->primaryPhone,
+                // Grouped by country the way the rest of the app shows numbers,
+                // so a picker does not have to render one long digit string.
+                'primaryPhoneDisplay' => $this->phoneFormat->phoneDisplay($row->primaryPhone, false, false),
             ];
         }
 

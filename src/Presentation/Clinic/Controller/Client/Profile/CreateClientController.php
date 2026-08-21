@@ -79,7 +79,7 @@ final class CreateClientController extends AbstractController
                 }
 
                 try {
-                    $this->commandBus->dispatch(new CreateClient(
+                    $clientId = $this->commandBus->dispatch(new CreateClient(
                         clinicId: $currentClinicId->toString(),
                         firstName: $firstName,
                         lastName: $lastName,
@@ -103,6 +103,15 @@ final class CreateClientController extends AbstractController
                     $firstName,
                     $lastName,
                 ));
+
+                // "Ajouter un premier animal juste après": the directory reads
+                // this back and reopens the animal modal on the new owner.
+                if (true === $form->get('_thenAddAnimal')->getData() && \is_string($clientId)) {
+                    $this->addFlash('add_animal_for', json_encode([
+                        'id'   => $clientId,
+                        'name' => trim($firstName . ' ' . $lastName),
+                    ], \JSON_THROW_ON_ERROR));
+                }
 
                 return $this->redirect($targetUrl, Response::HTTP_SEE_OTHER);
             }

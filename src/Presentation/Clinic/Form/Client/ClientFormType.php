@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Form\Client;
 
 use App\Shared\Presentation\Form\Type\PhoneType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -43,6 +44,10 @@ final class ClientFormType extends AbstractType
             ->add('phone', PhoneType::class, [
                 'required'   => false,
                 'empty_data' => '',
+            ])
+            ->add('_thenAddAnimal', CheckboxType::class, [
+                'mapped'   => false,
+                'required' => false,
             ])
             ->add('_returnTo', HiddenType::class, [
                 'mapped'   => false,
