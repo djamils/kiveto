@@ -1,14 +1,489 @@
+{#
+ # Kiveto — templates/clinic/consultation/index.html.twig
+ # ─────────────────────────────────────────────────────
+ # Consultations — clinic-wide list, ported from
+ # docs/frontend-theme/vetsaas-layouts/vetos-consultations-list.html.
+ #
+ # Filtering, sorting and pagination are server-side: every control is a link
+ # carrying the current query string, so Turbo navigation keeps the URL
+ # shareable and the back button meaningful.
+ #
+ # Variables:
+ #   consultations   ConsultationListItemView[]  One page of rows
+ #   patients        array                       patientId => {label, species, breed, birthDate, ownerName}
+ #   practitioners   ClinicVeterinarianItem[]    Roster, for the vet column and filter
+ #   pagination      array                       Page view model
+ #   filters         array                       Active filter values
+ #   sort, direction string                      Active sort
+ #}
 {% extends 'clinic/base.html.twig' %}
 
 {% block title %}Consultations{% endblock %}
-{% block page_icon %}<i data-lucide="stethoscope"></i>{% endblock %}
-{% block page_title %}Consultations{% endblock %}
+{% block show_topbar %}false{% endblock %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('styles/pages/consultations.css') }}"/>
+{% endblock %}
+
+{% set STATUS_LABELS = { 'OPEN': 'En cours', 'CLOSED': 'Terminée' } %}
+{% set PERIOD_LABELS = { 'today': "Aujourd'hui", 'week': 'Cette semaine', 'month': 'Ce mois' } %}
+{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
+{% set SPECIES_ICONS = { 'dog': '🐕', 'cat': '🐈', 'nac': '🐇', 'other': '🐾' } %}
+{% set MONTHS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'] %}
+
+{# Lookup: practitioner user id → roster entry #}
+{% set vetById = {} %}
+{% for vet in practitioners %}
+  {% set vetById = vetById|merge({ (vet.userId): vet }) %}
+{% endfor %}
+
+{# Current query string, rebuilt for every link so filters compose #}
+{% set qs = {} %}
+{% if filters.q %}{% set qs = qs|merge({ q: filters.q }) %}{% endif %}
+{% if filters.period %}{% set qs = qs|merge({ period: filters.period }) %}{% endif %}
+{% if filters.status %}{% set qs = qs|merge({ status: filters.status }) %}{% endif %}
+{% if filters.vet %}{% set qs = qs|merge({ vet: filters.vet }) %}{% endif %}
+{% if filters.species %}{% set qs = qs|merge({ species: filters.species }) %}{% endif %}
+{% if sort != 'datetime' or direction != 'desc' %}{% set qs = qs|merge({ sort: sort, dir: direction }) %}{% endif %}
+{% if pagination.limit != 25 %}{% set qs = qs|merge({ per_page: pagination.limit }) %}{% endif %}
+
+{# Sortable column header: clicking flips the direction, or starts a new sort #}
+{% macro sortHead(column, label, cssClass, sort, direction, qs, align) %}
+  {% set active = sort == column %}
+  {% set nextDir = active and direction == 'desc' ? 'asc' : (active ? 'desc' : (column in ['status', 'vet'] ? 'asc' : 'desc')) %}
+  <th class="{{ cssClass }} sortable{{ active ? (direction == 'asc' ? ' is-sorted-asc' : ' is-sorted-desc') : '' }}"{% if align %} style="text-align:{{ align }}"{% endif %}>
+    <a href="{{ path('clinic_consultations', qs|merge({ sort: column, dir: nextDir })) }}">
+      {{ label }} <span class="sort-icon">▼</span>
+    </a>
+  </th>
+{% endmacro %}
 
 {% block content %}
-<div style="display:flex;align-items:center;justify-content:center;min-height:400px;">
-  {{ include('components/ui/empty_state.html.twig', {
-    title: 'Bientôt disponible',
-    subtitle: 'La liste des consultations sera disponible prochainement.',
-  }) }}
+<div class="cl-root">
+
+  {# ── Topbar ── #}
+  <header class="topbar">
+    <button class="tb-toggle show-mobile" type="button" aria-label="Menu" data-action="click->sidebar#toggle">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="tb-title">
+      <span class="topbar-icon" aria-hidden="true"><i data-lucide="stethoscope"></i></span>
+      <h1 class="topbar-title">Consultations</h1>
+      <span class="tb-title-count">{{ pagination.totalItems }}</span>
+    </div>
+    <div class="tb-spacer"></div>
+    {#
+     # The input lives outside the frame on purpose: only the results are
+     # swapped, so the caret and focus survive every keystroke. The page module
+     # sets data-turbo-action on this form as you type.
+     #}
+    <form class="tb-search" method="GET" action="{{ path('clinic_consultations') }}" role="search"
+          data-turbo-frame="consultations-results" data-live-search>
+      <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" name="q" id="search-input" value="{{ filters.q }}"
+             placeholder="Rechercher un patient, propriétaire, motif, diagnostic…"
+             autocomplete="off">
+      {#
+       # Searching keeps the other filters but restarts at page 1. The form sits
+       # outside the frame, so the page module rewrites these from the address
+       # bar after every swap — otherwise they would still hold the filters of
+       # the first render.
+       #}
+      {% for key, value in qs %}
+        {% if key != 'q' %}
+          {% if value is iterable %}
+            {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}" data-search-carry>{% endfor %}
+          {% else %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}" data-search-carry>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </form>
+    <button class="btn btn-ghost btn-sm" type="button" disabled title="Export CSV — bientôt disponible">
+      <i data-lucide="download"></i>
+      Exporter
+    </button>
+    <a class="btn btn-primary btn-sm" href="{{ path('clinic_admission_queue') }}"
+       title="Une consultation démarre depuis une admission du Flux du jour">
+      <i data-lucide="plus"></i>
+      Nouvelle consultation
+    </a>
+  </header>
+
+  {#
+   # Filters, table and pagination are swapped together: the chips and the
+   # links of the filter bar carry the active search term, so they would go
+   # stale if only the table were replaced.
+   #}
+  <turbo-frame id="consultations-results" data-turbo-action="advance">
+
+  {# Read back by the page module to keep the topbar counter in sync #}
+  <span hidden data-results-total>{{ pagination.totalItems }}</span>
+
+  {# ── Filters ── #}
+  <section class="filters">
+    <span class="filter-label">Filtres</span>
+
+    {# Active filters, as removable chips #}
+    {% if filters.period %}
+      <span class="filter-chip">
+        <span class="chip-key">Période :</span>
+        <span>{{ PERIOD_LABELS[filters.period] }}</span>
+        <a class="chip-x" href="{{ path('clinic_consultations', qs|merge({ period: null })) }}" aria-label="Retirer">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </a>
+      </span>
+    {% endif %}
+    {% for value in filters.status %}
+      <span class="filter-chip">
+        <span class="chip-key">Statut :</span>
+        <span>{{ STATUS_LABELS[value] ?? value }}</span>
+        <a class="chip-x" href="{{ path('clinic_consultations', qs|merge({ status: filters.status|filter(v => v != value) })) }}" aria-label="Retirer">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </a>
+      </span>
+    {% endfor %}
+    {% for value in filters.vet %}
+      <span class="filter-chip">
+        <span class="chip-key">Vétérinaire :</span>
+        <span>{{ vetById[value].displayName ?? value }}</span>
+        <a class="chip-x" href="{{ path('clinic_consultations', qs|merge({ vet: filters.vet|filter(v => v != value) })) }}" aria-label="Retirer">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </a>
+      </span>
+    {% endfor %}
+    {% for value in filters.species %}
+      <span class="filter-chip">
+        <span class="chip-key">Espèce :</span>
+        <span>{{ SPECIES_LABELS[value] ?? value }}</span>
+        <a class="chip-x" href="{{ path('clinic_consultations', qs|merge({ species: filters.species|filter(v => v != value) })) }}" aria-label="Retirer">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </a>
+      </span>
+    {% endfor %}
+
+    {# Période #}
+    <span class="filter-add-wrap">
+      <button class="filter-add{{ filters.period ? ' is-active' : '' }}" type="button" data-filter-toggle="period">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Période
+      </button>
+      <div class="filter-menu" data-filter-menu="period">
+        <div class="filter-menu-title">Période</div>
+        {% for value, label in PERIOD_LABELS %}
+          <a class="filter-menu-item{{ filters.period == value ? ' is-checked' : '' }}"
+             href="{{ path('clinic_consultations', qs|merge({ period: filters.period == value ? null : value })) }}">
+            <span style="flex:1">{{ label }}</span>
+            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </a>
+        {% endfor %}
+      </div>
+    </span>
+
+    {# Statut #}
+    <span class="filter-add-wrap">
+      <button class="filter-add{{ filters.status ? ' is-active' : '' }}" type="button" data-filter-toggle="status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Statut
+      </button>
+      <div class="filter-menu" data-filter-menu="status">
+        <div class="filter-menu-title">Statut</div>
+        {% for value, label in STATUS_LABELS %}
+          {% set checked = value in filters.status %}
+          <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+             href="{{ path('clinic_consultations', qs|merge({ status: checked ? filters.status|filter(v => v != value) : filters.status|merge([value]) })) }}">
+            <span style="flex:1">{{ label }}</span>
+            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </a>
+        {% endfor %}
+        {# The domain has no draft consultation yet — a consultation exists from the moment it starts #}
+        <span class="filter-menu-item is-disabled" title="Pas de statut brouillon pour l'instant">
+          <span style="flex:1">Brouillon</span>
+        </span>
+      </div>
+    </span>
+
+    {# Vétérinaire #}
+    <span class="filter-add-wrap">
+      <button class="filter-add{{ filters.vet ? ' is-active' : '' }}" type="button" data-filter-toggle="vet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Vétérinaire
+      </button>
+      <div class="filter-menu" data-filter-menu="vet">
+        <div class="filter-menu-title">Vétérinaire</div>
+        {% for vet in practitioners %}
+          {% set checked = vet.userId in filters.vet %}
+          <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+             href="{{ path('clinic_consultations', qs|merge({ vet: checked ? filters.vet|filter(v => v != vet.userId) : filters.vet|merge([vet.userId]) })) }}">
+            <span style="flex:1">{{ vet.displayName ?? 'Praticien' }}</span>
+            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </a>
+        {% else %}
+          <span class="filter-menu-item is-disabled"><span style="flex:1">Aucun praticien configuré</span></span>
+        {% endfor %}
+      </div>
+    </span>
+
+    {# Espèce #}
+    <span class="filter-add-wrap">
+      <button class="filter-add{{ filters.species ? ' is-active' : '' }}" type="button" data-filter-toggle="species">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Espèce
+      </button>
+      <div class="filter-menu" data-filter-menu="species">
+        <div class="filter-menu-title">Espèce</div>
+        {% for value in speciesOptions %}
+          {% set checked = value in filters.species %}
+          <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+             href="{{ path('clinic_consultations', qs|merge({ species: checked ? filters.species|filter(v => v != value) : filters.species|merge([value]) })) }}">
+            <span style="flex:1">{{ SPECIES_LABELS[value] ?? value }}</span>
+            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </a>
+        {% endfor %}
+      </div>
+    </span>
+
+    {% if filters.q or filters.period or filters.status or filters.vet or filters.species %}
+      <a class="filter-clear" href="{{ path('clinic_consultations') }}">Tout effacer</a>
+    {% endif %}
+  </section>
+
+  {# ── Table ── #}
+  <section class="table-wrapper">
+    {% if consultations|length > 0 %}
+      <table class="consult-table">
+        <thead>
+          <tr>
+            <th class="col-check">
+              <div class="check" id="check-all" role="checkbox" aria-checked="false" tabindex="0" title="Tout sélectionner">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+              </div>
+            </th>
+            {{ _self.sortHead('datetime', 'Date', 'col-date', sort, direction, qs, null) }}
+            <th class="col-patient">Patient</th>
+            <th class="col-owner">Propriétaire</th>
+            <th class="col-motif">Motif</th>
+            {{ _self.sortHead('vet', 'Vétérinaire', 'col-vet', sort, direction, qs, null) }}
+            {{ _self.sortHead('status', 'Statut', 'col-status', sort, direction, qs, null) }}
+            {{ _self.sortHead('amount', 'Total', 'col-amount', sort, direction, qs, 'right') }}
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in consultations %}
+            {% set patient = patients[c.patientId] ?? {} %}
+            {% set vet = vetById[c.practitionerUserId] ?? null %}
+            {% set startedAt = date(c.startedAtUtc ~ ' UTC') %}
+            {% set localDay = startedAt|date('Y-m-d', 'Europe/Paris') %}
+            {% set days = date('today', 'Europe/Paris').diff(date(localDay ~ ' 00:00:00', 'Europe/Paris')).days %}
+            {% if days == 0 %}
+              {% set datePrimary = "Aujourd'hui" %}
+            {% elseif days == 1 %}
+              {% set datePrimary = 'Hier' %}
+            {% elseif days < 7 %}
+              {% set datePrimary = 'il y a ' ~ days ~ ' j' %}
+            {% elseif days < 30 %}
+              {% set datePrimary = 'il y a ' ~ (days // 7) ~ ' sem' %}
+            {% else %}
+              {% set datePrimary = startedAt|date('d', 'Europe/Paris') ~ ' ' ~ MONTHS[startedAt|date('n', 'Europe/Paris') - 1] %}
+            {% endif %}
+            {% set speciesKey = patient.species ?? '' %}
+            {% set patientMeta = [SPECIES_LABELS[speciesKey] ?? null, patient.breed ?? null]|filter(v => v)|join(' · ') %}
+            {% if patient.birthDate ?? false %}
+              {% set ageYears = date(patient.birthDate).diff(date()).y %}
+              {% set patientMeta = [patientMeta, ageYears > 0 ? ageYears ~ ' an' ~ (ageYears > 1 ? 's' : '') : '< 1 an']|filter(v => v)|join(' · ') %}
+            {% endif %}
+            <tr data-id="{{ c.consultationId }}" data-url="{{ path('clinic_consultation_details', { id: c.consultationId }) }}">
+              <td class="col-check">
+                <div class="check" role="checkbox" aria-checked="false" data-check="{{ c.consultationId }}">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+                </div>
+              </td>
+              <td class="col-date">
+                <div class="cell-date">
+                  <span class="cell-date-primary">{{ datePrimary }}</span>
+                  <span class="cell-date-secondary">{{ startedAt|date('H:i', 'Europe/Paris') }}</span>
+                </div>
+              </td>
+              <td class="col-patient">
+                <div class="cell-patient">
+                  <div class="patient-avatar">{{ SPECIES_ICONS[speciesKey] ?? '🐾' }}</div>
+                  <div class="patient-info">
+                    <span class="patient-name">{{ patient.label ?? '—' }}</span>
+                    {% if patientMeta %}<span class="patient-meta">{{ patientMeta }}</span>{% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="col-owner"><span class="cell-owner">{{ patient.ownerName ?? '—' }}</span></td>
+              <td class="col-motif">
+                <div class="cell-motif">
+                  {% set labels = c.motifs|length > 0 ? c.motifs : (c.chiefComplaint ? [c.chiefComplaint] : []) %}
+                  {% for label in labels|slice(0, 2) %}
+                    <span class="motif-chip">{{ label }}</span>
+                  {% else %}
+                    <span class="motif-more">—</span>
+                  {% endfor %}
+                  {% if labels|length > 2 %}<span class="motif-more">+{{ labels|length - 2 }}</span>{% endif %}
+                </div>
+              </td>
+              <td class="col-vet">
+                {% if vet %}
+                  {% set vetName = vet.displayName ?? 'Praticien' %}
+                  <div class="cell-vet">
+                    <div class="vet-dot" style="background:{{ vet.agendaColor ?? '#4338ca' }}">
+                      {{ vetName|replace({'Dr. ': '', 'Dr ': ''})|split(' ')|last|slice(0, 2)|upper }}
+                    </div>
+                    <span class="vet-name">{{ vetName|replace({'Dr. ': '', 'Dr ': ''}) }}</span>
+                  </div>
+                {% else %}
+                  <span class="vet-name">—</span>
+                {% endif %}
+              </td>
+              <td class="col-status">
+                <span class="status-badge status-{{ c.status }}">
+                  <span class="status-dot"></span>{{ STATUS_LABELS[c.status] ?? c.status }}
+                </span>
+              </td>
+              <td class="col-amount">
+                <div class="cell-amount{{ c.totalTtcMinorUnits == 0 ? ' is-empty' : '' }}">
+                  {{ c.totalTtcMinorUnits == 0 ? '—' : c.totalTtcMinorUnits|money(c.currency) }}
+                </div>
+              </td>
+              <td class="col-actions" style="position:relative">
+                <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+                <div class="row-menu" data-row-menu>
+                  {# data-turbo-frame="_top": these leave the list for a full page #}
+                  <a class="row-menu-item" data-turbo-frame="_top"
+                     href="{{ path('clinic_consultation_details', { id: c.consultationId }) }}">
+                    <i data-lucide="external-link"></i> Ouvrir
+                  </a>
+                  {% if c.status == 'OPEN' %}
+                    <a class="row-menu-item" data-turbo-frame="_top"
+                       href="{{ path('clinic_consultation_details', { id: c.consultationId }) }}">
+                      <i data-lucide="pencil"></i> Reprendre
+                    </a>
+                  {% endif %}
+                  <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                    <i data-lucide="printer"></i> Imprimer le CR
+                  </span>
+                  <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                    <i data-lucide="copy"></i> Dupliquer
+                  </span>
+                  {% if c.status == 'CLOSED' %}
+                    <div class="row-menu-sep"></div>
+                    <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                      <i data-lucide="plus"></i> Ajouter un addendum
+                    </span>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="empty-title">Aucune consultation trouvée</div>
+        <div class="empty-sub">Ajustez les filtres, ou démarrez une consultation depuis le Flux du jour.</div>
+        <a class="btn btn-primary btn-sm" data-turbo-frame="_top"
+           href="{{ path('clinic_admission_queue') }}" style="margin-top:12px">
+          <i data-lucide="plus"></i>
+          Nouvelle consultation
+        </a>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ── Pagination ── #}
+  <footer class="pagination">
+    <span class="pag-info">
+      {% if pagination.totalItems == 0 %}
+        Aucun résultat
+      {% else %}
+        {{ pagination.firstItem }}–{{ pagination.lastItem }} sur {{ pagination.totalItems }}
+      {% endif %}
+    </span>
+    <div class="pag-spacer"></div>
+    <form class="pag-size" method="GET" action="{{ path('clinic_consultations') }}">
+      <span>Par page :</span>
+      <select name="per_page" data-auto-submit>
+        {% for size in pageSizes %}
+          <option value="{{ size }}"{{ size == pagination.limit ? ' selected' : '' }}>{{ size }}</option>
+        {% endfor %}
+      </select>
+      {% for key, value in qs %}
+        {% if key != 'per_page' %}
+          {% if value is iterable %}
+            {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
+          {% else %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </form>
+    <div class="pag-controls">
+      {% if pagination.hasPreviousPage %}
+        <a class="pag-btn" href="{{ path('clinic_consultations', qs|merge({ page: pagination.previousPage })) }}" aria-label="Précédent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </a>
+      {% else %}
+        <button class="pag-btn" type="button" disabled aria-label="Précédent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      {% endif %}
+
+      {# First, last and the current page's neighbours, with gaps collapsed to an ellipsis #}
+      {% set shown = [1, pagination.totalPages, pagination.currentPage, pagination.currentPage - 1, pagination.currentPage + 1]|filter(p => p >= 1 and p <= pagination.totalPages)|sort %}
+      {% for p in shown %}
+        {% set previous = loop.first ? 0 : shown[loop.index0 - 1] %}
+        {% if p != previous %}
+          {% if p - previous > 1 and not loop.first %}<span class="pag-ellipsis">…</span>{% endif %}
+          {% if p == pagination.currentPage %}
+            <span class="pag-btn is-active">{{ p }}</span>
+          {% else %}
+            <a class="pag-btn" href="{{ path('clinic_consultations', qs|merge({ page: p })) }}">{{ p }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.hasNextPage %}
+        <a class="pag-btn" href="{{ path('clinic_consultations', qs|merge({ page: pagination.nextPage })) }}" aria-label="Suivant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      {% else %}
+        <button class="pag-btn" type="button" disabled aria-label="Suivant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      {% endif %}
+    </div>
+  </footer>
+
+  </turbo-frame>
+
+</div>{# /cl-root #}
+
+{# ── Bulk actions — selection is live, the actions have no backend yet ── #}
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count" id="bulk-count">0</span>
+  <span>sélectionnée·s</span>
+  <span class="bulk-divider"></span>
+  <button class="bulk-btn" type="button" disabled title="Bientôt disponible">
+    <i data-lucide="printer"></i> Imprimer
+  </button>
+  <button class="bulk-btn" type="button" disabled title="Bientôt disponible">
+    <i data-lucide="download"></i> Exporter
+  </button>
+  <button class="bulk-btn" type="button" disabled title="Bientôt disponible">
+    <i data-lucide="receipt"></i> Marquer facturé
+  </button>
+  <span class="bulk-divider"></span>
+  <button class="bulk-btn" type="button" id="bulk-clear">Annuler</button>
 </div>
 {% endblock %}

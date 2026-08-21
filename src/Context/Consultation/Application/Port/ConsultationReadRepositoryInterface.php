@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Consultation\Application\Port;
 
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
+use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 
@@ -37,4 +39,11 @@ interface ConsultationReadRepositoryInterface
         ClinicId $clinicId,
         ?ConsultationId $excludeId = null,
     ): array;
+
+    /**
+     * One page of the clinic-wide consultation list, plus the unpaginated total.
+     *
+     * @return array{items: list<ConsultationListRow>, total: int}
+     */
+    public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array;
 }

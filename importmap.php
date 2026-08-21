@@ -69,6 +69,9 @@ return [
     'pages/consultation' => [
         'path' => './assets/js/pages/consultation.js',
     ],
+    'pages/consultations' => [
+        'path' => './assets/js/pages/consultations.js',
+    ],
     'pages/select-clinic' => [
         'path' => './assets/js/pages/select-clinic.js',
     ],

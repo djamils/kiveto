@@ -20,6 +20,7 @@ use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\OwnershipRole;
 use App\Context\Animal\Domain\ValueObject\OwnershipStatus;
 use App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity\AnimalEntity;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -98,6 +99,31 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
         $this->applySearchCriteria($qb, $criteria);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    public function findIdsMatching(ClinicId $clinicId, ?string $searchTerm, ?string $species): array
+    {
+        $sql        = 'SELECT id FROM animal__search_entries WHERE clinic_id = :clinicId';
+        $parameters = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+
+        if (null !== $species && '' !== $species) {
+            $sql .= ' AND species = :species';
+            $parameters['species'] = $species;
+        }
+
+        if (null !== $searchTerm && '' !== $searchTerm) {
+            // The search entry denormalises the animal, its owner and its breed,
+            // so one LIKE covers the whole "patient or owner" search box.
+            $sql .= ' AND (search_name LIKE :term OR search_owner_name LIKE :term OR breed_name LIKE :term)';
+            $parameters['term'] = '%' . $searchTerm . '%';
+        }
+
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative($sql, $parameters);
+
+        return array_map(
+            static fn (array $row): string => RowAccessor::uuid($row, 'id'),
+            $rows,
+        );
     }
 
     public function listAnimalSummariesByPrimaryOwnerClientIds(

@@ -6,6 +6,8 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repositor
 
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
+use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
@@ -140,6 +142,264 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 'weightKg'       => RowAccessor::nullableString($row, 'weight_kg'),
             ],
             $rows,
+        );
+    }
+
+    public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array
+    {
+        if ($criteria->isImpossible()) {
+            return ['items' => [], 'total' => 0];
+        }
+
+        $filter = $this->buildSearchFilter($clinicId, $criteria);
+
+        $totalRaw = $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM consultation__consultations c WHERE ' . $filter['where'],
+            $filter['params'],
+            $filter['types'],
+        );
+        $total = is_numeric($totalRaw) ? (int) $totalRaw : 0;
+
+        if (0 === $total) {
+            return ['items' => [], 'total' => 0];
+        }
+
+        $order  = $this->buildSearchOrder($criteria, $filter['params'], $filter['types']);
+        $params = $filter['params'];
+        $types  = $filter['types'];
+
+        // The pre-tax sum is joined for ordering only; the per-category
+        // breakdown each row needs is batched separately below.
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT c.id, c.patient_id, c.practitioner_user_id, c.status,
+                    c.started_at_utc, c.closed_at_utc, c.chief_complaint
+             FROM consultation__consultations c
+             LEFT JOIN (
+                 SELECT consultation_id, SUM(quantity * unit_price_minor_units) AS total_ht
+                 FROM consultation__billing_lines GROUP BY consultation_id
+             ) bl ON bl.consultation_id = c.id
+             WHERE ' . $filter['where'] . '
+             ORDER BY ' . $order . '
+             LIMIT ' . $criteria->limit . ' OFFSET ' . $criteria->offset(),
+            $params,
+            $types,
+        );
+
+        $binaryIds = array_map(
+            /** @param array<string, mixed> $row */
+            static fn (array $row): string => RowAccessor::string($row, 'id'),
+            $rows,
+        );
+
+        $motifs  = $this->fetchMotifsFor($binaryIds);
+        $amounts = $this->fetchAmountsFor($binaryIds);
+
+        $items = [];
+
+        foreach ($rows as $row) {
+            $binaryId = RowAccessor::string($row, 'id');
+            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'currency' => ''];
+
+            $items[] = new ConsultationListRow(
+                consultationId: RowAccessor::uuid($row, 'id'),
+                patientId: RowAccessor::uuid($row, 'patient_id'),
+                practitionerUserId: RowAccessor::uuid($row, 'practitioner_user_id'),
+                status: RowAccessor::string($row, 'status'),
+                startedAtUtc: RowAccessor::string($row, 'started_at_utc'),
+                closedAtUtc: RowAccessor::nullableString($row, 'closed_at_utc'),
+                chiefComplaint: RowAccessor::nullableString($row, 'chief_complaint'),
+                motifs: $motifs[$binaryId] ?? [],
+                htByTaxCategory: $amount['htByTaxCategory'],
+                currency: $amount['currency'],
+            );
+        }
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    /**
+     * @return array{
+     *     where: string,
+     *     params: array<string, mixed>,
+     *     types: array<string, ArrayParameterType>
+     * }
+     */
+    private function buildSearchFilter(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array
+    {
+        $where  = ['c.clinic_id = :clinicId'];
+        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+        /** @var array<string, ArrayParameterType> $types */
+        $types = [];
+
+        if (null !== $criteria->startedAfterUtc) {
+            $where[]                = 'c.started_at_utc >= :startedAfter';
+            $params['startedAfter'] = $criteria->startedAfterUtc->format('Y-m-d H:i:s');
+        }
+
+        if ([] !== $criteria->statuses) {
+            $where[]            = 'c.status IN (:statuses)';
+            $params['statuses'] = $criteria->statuses;
+            $types['statuses']  = ArrayParameterType::STRING;
+        }
+
+        if ([] !== $criteria->practitionerUserIds) {
+            $where[]                   = 'c.practitioner_user_id IN (:practitionerIds)';
+            $params['practitionerIds'] = self::toBinaryIds($criteria->practitionerUserIds);
+            $types['practitionerIds']  = ArrayParameterType::BINARY;
+        }
+
+        if (null !== $criteria->restrictToPatientIds) {
+            $where[]                      = 'c.patient_id IN (:restrictPatientIds)';
+            $params['restrictPatientIds'] = self::toBinaryIds($criteria->restrictToPatientIds);
+            $types['restrictPatientIds']  = ArrayParameterType::BINARY;
+        }
+
+        $term = $criteria->searchTerm;
+
+        if (null !== $term && '' !== $term) {
+            // Free text spans this context's own fields plus the patients the
+            // caller matched by animal or owner name.
+            $clauses = [
+                'c.chief_complaint LIKE :term',
+                'c.summary LIKE :term',
+                'EXISTS (SELECT 1 FROM consultation__motifs m WHERE m.consultation_id = c.id AND m.label LIKE :term)',
+                'EXISTS (SELECT 1 FROM consultation__diagnoses d WHERE d.consultation_id = c.id AND d.label LIKE :term)',
+            ];
+            $params['term'] = '%' . $term . '%';
+
+            if ([] !== $criteria->textMatchPatientIds) {
+                $clauses[]                = 'c.patient_id IN (:textPatientIds)';
+                $params['textPatientIds'] = self::toBinaryIds($criteria->textMatchPatientIds);
+                $types['textPatientIds']  = ArrayParameterType::BINARY;
+            }
+
+            $where[] = '(' . implode(' OR ', $clauses) . ')';
+        }
+
+        return ['where' => implode(' AND ', $where), 'params' => $params, 'types' => $types];
+    }
+
+    /**
+     * Builds the ORDER BY clause from the whitelisted sort column.
+     *
+     * Ordering on the vet column relies on the caller supplying the
+     * practitioners in display order: this context stores a user id and has no
+     * idea how a practitioner is named. Ordering on the amount uses the
+     * pre-tax sum — with a single VAT rate it matches the displayed total, and
+     * it keeps the sort inside the database.
+     *
+     * @param array<string, mixed>              $params
+     * @param array<string, ArrayParameterType> $types
+     */
+    private function buildSearchOrder(SearchConsultationsCriteria $criteria, array &$params, array &$types): string
+    {
+        $direction = 'asc' === $criteria->direction ? 'ASC' : 'DESC';
+
+        $column = match ($criteria->sort) {
+            SearchConsultationsCriteria::SORT_STATUS => 'c.status',
+            SearchConsultationsCriteria::SORT_AMOUNT => 'COALESCE(bl.total_ht, 0)',
+            SearchConsultationsCriteria::SORT_VET    => $this->practitionerOrderExpression($criteria, $params, $types),
+            default                                  => 'c.started_at_utc',
+        };
+
+        // started_at_utc breaks ties so paging stays stable across requests.
+        return $column . ' ' . $direction . ', c.started_at_utc DESC';
+    }
+
+    /**
+     * @param array<string, mixed>              $params
+     * @param array<string, ArrayParameterType> $types
+     */
+    private function practitionerOrderExpression(
+        SearchConsultationsCriteria $criteria,
+        array &$params,
+        array &$types,
+    ): string {
+        if ([] === $criteria->practitionerOrder) {
+            return 'c.practitioner_user_id';
+        }
+
+        $params['practitionerOrder'] = self::toBinaryIds($criteria->practitionerOrder);
+        $types['practitionerOrder']  = ArrayParameterType::BINARY;
+
+        return 'FIELD(c.practitioner_user_id, :practitionerOrder)';
+    }
+
+    /**
+     * @param list<string> $binaryConsultationIds
+     *
+     * @return array<string, list<string>>
+     */
+    private function fetchMotifsFor(array $binaryConsultationIds): array
+    {
+        if ([] === $binaryConsultationIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT consultation_id, label FROM consultation__motifs
+             WHERE consultation_id IN (:ids) ORDER BY position ASC',
+            ['ids' => $binaryConsultationIds],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $motifs = [];
+
+        foreach ($rows as $row) {
+            $motifs[RowAccessor::string($row, 'consultation_id')][] = RowAccessor::string($row, 'label');
+        }
+
+        return $motifs;
+    }
+
+    /**
+     * Pre-tax total per tax category for each consultation, in one query.
+     *
+     * @param list<string> $binaryConsultationIds
+     *
+     * @return array<string, array{htByTaxCategory: array<string, int>, currency: string}>
+     */
+    private function fetchAmountsFor(array $binaryConsultationIds): array
+    {
+        if ([] === $binaryConsultationIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT consultation_id, COALESCE(tax_category_code, '') AS tax_category_code,
+                    currency, SUM(quantity * unit_price_minor_units) AS total_ht
+             FROM consultation__billing_lines
+             WHERE consultation_id IN (:ids)
+             GROUP BY consultation_id, tax_category_code, currency",
+            ['ids' => $binaryConsultationIds],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $amounts = [];
+
+        foreach ($rows as $row) {
+            $consultationId = RowAccessor::string($row, 'consultation_id');
+            $category       = RowAccessor::string($row, 'tax_category_code');
+
+            $amounts[$consultationId]['htByTaxCategory'][$category] = (int) round(
+                (float) RowAccessor::string($row, 'total_ht')
+            );
+            $amounts[$consultationId]['currency'] = RowAccessor::string($row, 'currency');
+        }
+
+        return $amounts;
+    }
+
+    /**
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    private static function toBinaryIds(array $ids): array
+    {
+        return array_map(
+            static fn (string $id): string => Uuid::fromString($id)->toBinary(),
+            $ids,
         );
     }
 

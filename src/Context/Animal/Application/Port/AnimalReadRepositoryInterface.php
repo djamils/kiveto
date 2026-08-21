@@ -24,6 +24,16 @@ interface AnimalReadRepositoryInterface
     public function countBy(ClinicId $clinicId, SearchAnimalsCriteria $criteria): int;
 
     /**
+     * Identifiers of the animals matching a free-text term and/or a species.
+     *
+     * Unpaginated on purpose: callers use it to narrow a paginated query they
+     * own, so a truncated list would silently drop results.
+     *
+     * @return list<string>
+     */
+    public function findIdsMatching(ClinicId $clinicId, ?string $searchTerm, ?string $species): array;
+
+    /**
      * @param list<string> $clientIds UUID strings
      *
      * @return array<string, list<AnimalSummary>> clientId => summaries (capped at $limit per client, alphabetical)

@@ -70,6 +70,45 @@ final class DbalPatientIdsProviderTest extends KernelTestCase
         self::assertSame([], $this->provider->findPatientIdsForAnimal(self::ANIMAL_ID, 'not-a-uuid'));
     }
 
+    public function testBatchResolvesEveryPatientOfTheClinicForTheGivenAnimals(): void
+    {
+        $this->createPatient(self::PATIENT_A, self::CLINIC_ID, self::ANIMAL_ID);
+        $this->createPatient(self::PATIENT_B, self::CLINIC_ID, self::ANIMAL_ID);
+        $this->createPatient(self::PATIENT_C, self::CLINIC_ID, self::OTHER_ANIMAL_ID);
+        $this->createPatient(self::PATIENT_D, self::OTHER_CLINIC_ID, self::ANIMAL_ID);
+
+        $patientIds = $this->provider->findPatientIdsForAnimals(
+            [self::ANIMAL_ID, self::OTHER_ANIMAL_ID],
+            self::CLINIC_ID,
+        );
+        sort($patientIds);
+
+        self::assertSame([self::PATIENT_A, self::PATIENT_B, self::PATIENT_C], $patientIds);
+    }
+
+    public function testBatchIgnoresIdentifiersThatAreNotUuids(): void
+    {
+        $this->createPatient(self::PATIENT_A, self::CLINIC_ID, self::ANIMAL_ID);
+
+        self::assertSame(
+            [self::PATIENT_A],
+            $this->provider->findPatientIdsForAnimals(['not-a-uuid', self::ANIMAL_ID], self::CLINIC_ID),
+        );
+    }
+
+    public function testBatchReturnsEmptyArrayWhenNoAnimalIdIsUsable(): void
+    {
+        $this->createPatient(self::PATIENT_A, self::CLINIC_ID, self::ANIMAL_ID);
+
+        self::assertSame([], $this->provider->findPatientIdsForAnimals([], self::CLINIC_ID));
+        self::assertSame([], $this->provider->findPatientIdsForAnimals(['not-a-uuid'], self::CLINIC_ID));
+    }
+
+    public function testBatchReturnsEmptyArrayForANonUuidClinicId(): void
+    {
+        self::assertSame([], $this->provider->findPatientIdsForAnimals([self::ANIMAL_ID], 'not-a-uuid'));
+    }
+
     private function createPatient(string $patientId, string $clinicId, string $animalId): void
     {
         PatientEntityFactory::new()
