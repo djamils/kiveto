@@ -16,6 +16,13 @@
       position: relative;
     }
 
+    /* Amount to collect, on the checkout cards of the Sortie column */
+    .card-amount {
+      font-size: var(--text-md); font-weight: var(--weight-semibold);
+      color: var(--text-primary); font-variant-numeric: tabular-nums;
+    }
+    .scard.is-done { opacity: .7; }
+
     /* ── Icon size utilities (kept for modal compatibility) ── */
     .wr-icon-xxs { width: 10px; height: 10px; }
     .wr-icon-xs  { width: 11px; height: 11px; }

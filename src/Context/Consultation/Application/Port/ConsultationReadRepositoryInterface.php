@@ -7,6 +7,7 @@ namespace App\Context\Consultation\Application\Port;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 
@@ -39,6 +40,30 @@ interface ConsultationReadRepositoryInterface
         ClinicId $clinicId,
         ?ConsultationId $excludeId = null,
     ): array;
+
+    /**
+     * Whether the admission still has a consultation running, ignoring one.
+     *
+     * A visit can carry several consultations; it is only over for the
+     * practitioner once the last of them is closed.
+     */
+    public function hasOpenConsultationForAdmission(
+        AdmissionId $admissionId,
+        ClinicId $clinicId,
+        ConsultationId $excluding,
+    ): bool;
+
+    /**
+     * Pre-tax billing totals per visit, broken down by tax category.
+     *
+     * Same shape as the list rows and for the same reason: this repository
+     * stays bus-free, so the VAT is applied by the handler.
+     *
+     * @param list<string> $admissionIds
+     *
+     * @return array<string, array{htByTaxCategory: array<string, int>, currency: string}>
+     */
+    public function totalsForAdmissions(ClinicId $clinicId, array $admissionIds): array;
 
     /**
      * One page of the clinic-wide consultation list, plus the unpaginated total.

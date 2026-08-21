@@ -40,6 +40,7 @@ final class DbalAdmissionContextProviderTest extends KernelTestCase
         self::assertSame(self::PATIENT_ID, $context->patientId);
         self::assertSame(self::CLINIC_ID, $context->clinicId);
         self::assertTrue($context->isOpen);
+        self::assertSame('in_waiting_room', $context->locationStatus);
     }
 
     public function testAClosedAdmissionIsReportedAsOver(): void

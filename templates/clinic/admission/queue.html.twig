@@ -37,7 +37,9 @@
 } %}
 
 {% set urgCount = entries|filter(e => e.triageLevel in ['emergency','vital_emergency'])|length %}
-{% set waitEntries = entries|filter(e => e.locationStatus in ['in_waiting_room','at_reception']) %}
+{% set waitEntries = entries|filter(e => e.locationStatus == 'in_waiting_room') %}
+{# Seen, back at the desk, waiting to be charged before the visit is closed #}
+{% set checkoutEntries = entries|filter(e => e.locationStatus == 'at_reception') %}
 {% set consultEntries = entries|filter(e => e.locationStatus == 'in_consultation_room') %}
 {% set surgeryEntries = entries|filter(e => e.locationStatus == 'in_surgery') %}
 {% set hospiEntries = entries|filter(e => e.locationStatus == 'in_hospitalization') %}
@@ -182,7 +184,8 @@
           <div>
             <div class="col-title-l">Sortie</div>
             <div class="col-title-meta">
-              {{ dischargedToday|length }} patient{{ dischargedToday|length > 1 ? 's' : '' }}
+              {{ checkoutEntries|length }} à encaisser
+              {%- if dischargedToday|length %} · {{ dischargedToday|length }} parti{{ dischargedToday|length > 1 ? 's' : '' }}{% endif -%}
             </div>
           </div>
         </div>
@@ -485,14 +488,58 @@
           </div>
         </div>
 
-        {# Sortie (REAL — admissions closed today) #}
+        {# Sortie — waiting to be charged, then today's departures #}
         <div class="kcol">
           <div class="kcol-scroll">
+            {% if checkoutEntries|length > 0 %}
+              <div class="col-section-l">À encaisser <span class="col-section-cnt">{{ checkoutEntries|length }}</span></div>
+              {% for entry in checkoutEntries %}
+                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
+                {% set total = checkoutTotals[entry.admissionId] ?? null %}
+                <div class="scard stripe-sortie" data-admission-id="{{ entry.admissionId }}"
+                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
+                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
+                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
+                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
+                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
+                  data-owner-name="{{ enr.ownerName ?? '' }}"
+                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
+                  data-vet="{{ entry.practitionerLabel ?? '' }}">
+                  <div class="card-top">
+                    <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">{{ entry.displayLabel }}</span></span>
+                    <span class="card-amount">
+                      {%- if total %}{{ total.totalTtcMinorUnits|money(total.currency) }}{% else %}—{% endif -%}
+                    </span>
+                  </div>
+                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
+                  {% if motif or (enr.ownerName ?? false) %}
+                    <div class="card-meta">{{ motif }}{% if motif and (enr.ownerName ?? false) %} · {% endif %}{{ enr.ownerName ?? '' }}</div>
+                  {% endif %}
+                  <div class="card-foot">
+                    {% if entry.practitionerLabel %}
+                      <span class="card-vet"><span class="card-vet-dot">{{ entry.practitionerLabel|split(' ')|last|slice(0, 2)|upper }}</span>{{ entry.practitionerLabel }}</span>
+                    {% else %}
+                      <span class="card-vet"></span>
+                    {% endif %}
+                    {#
+                     # Ends the visit. No payment is recorded: the clinic has no
+                     # invoicing yet, so this marks the patient as gone.
+                     #}
+                    <form method="post" action="{{ path('clinic_admission_close', { admissionId: entry.admissionId }) }}">
+                      <input type="hidden" name="_token" value="{{ csrf_token('admission_close_' ~ entry.admissionId) }}">
+                      <input type="hidden" name="closure_reason" value="consultation_completed">
+                      <button class="btn btn-primary btn-xs" type="submit">Encaisser</button>
+                    </form>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+
             {% if dischargedToday|length > 0 %}
-              <div class="col-section-l done">Sortie <span class="col-section-cnt">{{ dischargedToday|length }}</span></div>
+              <div class="col-section-l done">Parti{{ dischargedToday|length > 1 ? 's' : '' }} <span class="col-section-cnt">{{ dischargedToday|length }}</span></div>
               {% for entry in dischargedToday %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="scard stripe-sortie" data-admission-id="{{ entry.admissionId }}"
+                <div class="scard stripe-sortie is-done" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
@@ -520,7 +567,9 @@
                   </div>
                 </div>
               {% endfor %}
-            {% else %}
+            {% endif %}
+
+            {% if checkoutEntries|length == 0 and dischargedToday|length == 0 %}
               <div class="col-empty">Aucune sortie aujourd'hui</div>
             {% endif %}
           </div>

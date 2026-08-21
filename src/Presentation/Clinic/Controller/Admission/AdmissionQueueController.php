@@ -8,6 +8,7 @@ use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
 use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
+use App\Context\Consultation\Application\Query\GetConsultationTotalsForAdmissions\GetConsultationTotalsForAdmissions;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -86,6 +87,17 @@ final class AdmissionQueueController extends AbstractController
         // ── Open consultation per admission (for "Pris en charge" cards) ───
         $consultationIdByAdmission = $this->findOpenConsultationIds($entries, $clinicId);
 
+        // ── What each patient waiting at the desk owes ─────────────────────
+        $checkoutIds = [];
+        foreach ($entries as $entry) {
+            if ('at_reception' === $entry->locationStatus) {
+                $checkoutIds[] = $entry->admissionId;
+            }
+        }
+
+        $totals = $this->queryBus->ask(new GetConsultationTotalsForAdmissions($clinicId, $checkoutIds));
+        \assert(\is_array($totals));
+
         return $this->render('clinic/admission/queue.html.twig', [
             'entries'                   => $entries,
             'dischargedToday'           => $dischargedToday,
@@ -94,6 +106,7 @@ final class AdmissionQueueController extends AbstractController
             'appointments'              => $plannedAppointments,
             'animalEnrichment'          => $animalEnrichment,
             'consultationIdByAdmission' => $consultationIdByAdmission,
+            'checkoutTotals'            => $totals,
         ]);
     }
 

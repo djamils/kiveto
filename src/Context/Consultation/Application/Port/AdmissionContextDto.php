@@ -15,6 +15,10 @@ final readonly class AdmissionContextDto
          * visit that the first one already ended.
          */
         public bool $isOpen = true,
+        /**
+         * Where the patient is right now, as the Admission context records it.
+         */
+        public string $locationStatus = '',
     ) {
     }
 }

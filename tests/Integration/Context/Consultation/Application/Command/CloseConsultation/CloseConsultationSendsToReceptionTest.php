@@ -6,7 +6,6 @@ namespace App\Tests\Integration\Context\Consultation\Application\Command\CloseCo
 
 use App\Context\Admission\Application\Command\OpenAdmissionForWalkIn\OpenAdmissionForWalkIn;
 use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
-use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Consultation\Application\Command\CloseConsultation\CloseConsultation;
 use App\Context\Consultation\Application\Command\StartConsultationFromAdmission\StartConsultationFromAdmission;
 use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
@@ -16,11 +15,11 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * Closing a consultation has to end the visit behind it, otherwise the patient
- * stays forever in the "Pris en charge" column of the Flux du jour instead of
- * moving to "Sortie".
+ * Closing a consultation sends the patient back to the desk, where the Flux du
+ * jour lists them as waiting to be charged. The visit itself is closed later,
+ * by the checkout.
  */
-final class CloseConsultationEndsTheVisitTest extends KernelTestCase
+final class CloseConsultationSendsToReceptionTest extends KernelTestCase
 {
     use Factories;
 
@@ -53,16 +52,12 @@ final class CloseConsultationEndsTheVisitTest extends KernelTestCase
         ;
     }
 
-    public function testTheVisitIsOverOnceTheConsultationIsClosed(): void
+    public function testThePatientGoesBackToTheDeskOnceTheConsultationIsClosed(): void
     {
         $admissionId    = $this->openAdmission('Luna');
         $consultationId = $this->startConsultation($admissionId);
 
-        self::assertContains(
-            $admissionId,
-            $this->activeAdmissionIds(),
-            'the patient is on the board while the consultation runs',
-        );
+        self::assertSame('in_consultation_room', $this->locationOf($admissionId));
 
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
@@ -70,27 +65,11 @@ final class CloseConsultationEndsTheVisitTest extends KernelTestCase
             summary: null,
         ));
 
-        self::assertNotContains($admissionId, $this->activeAdmissionIds());
-
-        $discharged = $this->admissions->findClosedForClinicSince(
-            self::CLINIC_ID,
-            new \DateTimeImmutable('-1 hour'),
-        );
-
-        $closed = null;
-
-        foreach ($discharged as $item) {
-            if ($item->admissionId === $admissionId) {
-                $closed = $item;
-            }
-        }
-
-        self::assertNotNull($closed, 'the patient shows up as discharged');
-        self::assertSame('consultation_completed', $closed->closureReason);
-        self::assertNotNull($closed->closedAt);
+        // Still on the board — the visit ends at the checkout, not here.
+        self::assertSame('at_reception', $this->locationOf($admissionId));
     }
 
-    public function testASecondConsultationOnTheSameVisitCanStillBeClosed(): void
+    public function testAVisitWithAnotherRunningConsultationStaysInTheRoom(): void
     {
         $admissionId = $this->openAdmission('Milou');
 
@@ -98,23 +77,21 @@ final class CloseConsultationEndsTheVisitTest extends KernelTestCase
         $second = $this->startConsultation($admissionId);
 
         $this->commandBus->dispatch(new CloseConsultation($first, self::VET_ID, null));
+        self::assertSame('in_consultation_room', $this->locationOf($admissionId));
 
-        // The visit is already over; closing the other consultation must not
-        // blow up on an admission that cannot be closed twice.
         $this->commandBus->dispatch(new CloseConsultation($second, self::VET_ID, null));
-
-        self::assertNotContains($admissionId, $this->activeAdmissionIds());
+        self::assertSame('at_reception', $this->locationOf($admissionId));
     }
 
-    /**
-     * @return list<string>
-     */
-    private function activeAdmissionIds(): array
+    private function locationOf(string $admissionId): ?string
     {
-        return array_map(
-            static fn (WaitingRoomItemDto $item): string => $item->admissionId,
-            $this->admissions->findAllActiveForClinic(self::CLINIC_ID),
-        );
+        foreach ($this->admissions->findAllActiveForClinic(self::CLINIC_ID) as $item) {
+            if ($item->admissionId === $admissionId) {
+                return $item->locationStatus;
+            }
+        }
+
+        return null;
     }
 
     private function openAdmission(string $animalName): string

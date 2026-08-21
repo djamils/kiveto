@@ -8,6 +8,7 @@ use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterfac
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
+use App\Context\Consultation\Domain\ValueObject\AdmissionId;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
@@ -143,6 +144,61 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
             ],
             $rows,
         );
+    }
+
+    public function hasOpenConsultationForAdmission(
+        AdmissionId $admissionId,
+        ClinicId $clinicId,
+        ConsultationId $excluding,
+    ): bool {
+        $count = $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM consultation__consultations
+             WHERE clinic_id = :clinicId AND admission_id = :admissionId
+               AND id <> :excluding AND status = 'OPEN'",
+            [
+                'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+                'admissionId' => Uuid::fromString($admissionId->toString())->toBinary(),
+                'excluding'   => Uuid::fromString($excluding->toString())->toBinary(),
+            ],
+        );
+
+        return is_numeric($count) && (int) $count > 0;
+    }
+
+    public function totalsForAdmissions(ClinicId $clinicId, array $admissionIds): array
+    {
+        if ([] === $admissionIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT BIN_TO_UUID(c.admission_id) AS admission_id,
+                    COALESCE(bl.tax_category_code, '') AS tax_category_code,
+                    bl.currency, SUM(bl.quantity * bl.unit_price_minor_units) AS total_ht
+             FROM consultation__consultations c
+             INNER JOIN consultation__billing_lines bl ON bl.consultation_id = c.id
+             WHERE c.clinic_id = :clinicId AND c.admission_id IN (:admissionIds)
+             GROUP BY c.admission_id, bl.tax_category_code, bl.currency",
+            [
+                'clinicId'     => Uuid::fromString($clinicId->toString())->toBinary(),
+                'admissionIds' => self::toBinaryIds($admissionIds),
+            ],
+            ['admissionIds' => ArrayParameterType::BINARY],
+        );
+
+        $totals = [];
+
+        foreach ($rows as $row) {
+            $admissionId = RowAccessor::string($row, 'admission_id');
+            $category    = RowAccessor::string($row, 'tax_category_code');
+
+            $totals[$admissionId]['htByTaxCategory'][$category] = (int) round(
+                (float) RowAccessor::string($row, 'total_ht')
+            );
+            $totals[$admissionId]['currency'] = RowAccessor::string($row, 'currency');
+        }
+
+        return $totals;
     }
 
     public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array

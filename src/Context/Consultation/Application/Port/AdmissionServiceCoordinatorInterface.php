@@ -17,15 +17,12 @@ interface AdmissionServiceCoordinatorInterface
     ): void;
 
     /**
-     * Ends the visit the consultation belonged to, so the patient leaves the
-     * board and lands in the discharged column.
+     * Sends the patient back to the desk once the consultation is over, where
+     * they wait to be charged before the visit is closed.
      *
-     * A no-op when the visit is already over: several consultations can share
-     * one admission and only the first of them ends it.
+     * A no-op unless the visit is running and the patient is still in the
+     * consultation room: someone taken to surgery or to a ward has not
+     * finished their visit, and neither has a closed one.
      */
-    public function closeAdmission(
-        string $admissionId,
-        string $clinicId,
-        string $closureReason,
-    ): void;
+    public function sendToReception(string $admissionId, string $clinicId): void;
 }

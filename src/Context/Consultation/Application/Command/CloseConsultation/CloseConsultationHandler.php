@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Consultation\Application\Command\CloseConsultation;
 
 use App\Context\Consultation\Application\Port\AdmissionServiceCoordinatorInterface;
+use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\SchedulingServiceCoordinatorInterface;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
@@ -15,14 +16,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class CloseConsultationHandler
 {
-    /**
-     * Why the visit ends: the reason the Admission context records for a
-     * patient who leaves after being seen.
-     */
-    private const string CLOSURE_REASON = 'consultation_completed';
-
     public function __construct(
         private ConsultationRepositoryInterface $consultations,
+        private ConsultationReadRepositoryInterface $consultationsRead,
         private SchedulingServiceCoordinatorInterface $schedulingCoordinator,
         private AdmissionServiceCoordinatorInterface $admissionCoordinator,
         private ClockInterface $clock,
@@ -53,12 +49,19 @@ final readonly class CloseConsultationHandler
             $this->schedulingCoordinator->completeAppointment($appointmentId, $closedByUserId);
         }
 
-        // The visit ends with the consultation: the patient leaves the board
-        // and shows up as discharged.
-        $this->admissionCoordinator->closeAdmission(
-            $consultation->getAdmissionId()->toString(),
-            $consultation->getClinicId()->toString(),
-            self::CLOSURE_REASON,
+        // The patient goes back to the desk to be charged, unless another
+        // consultation of the same visit is still running.
+        $stillRunning = $this->consultationsRead->hasOpenConsultationForAdmission(
+            $consultation->getAdmissionId(),
+            $consultation->getClinicId(),
+            $consultationId,
         );
+
+        if (!$stillRunning) {
+            $this->admissionCoordinator->sendToReception(
+                $consultation->getAdmissionId()->toString(),
+                $consultation->getClinicId()->toString(),
+            );
+        }
     }
 }
