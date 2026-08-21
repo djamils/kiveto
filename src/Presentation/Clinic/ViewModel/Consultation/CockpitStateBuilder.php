@@ -79,6 +79,31 @@ final readonly class CockpitStateBuilder
         ];
     }
 
+    /**
+     * Allergy labels of the animal behind a consultation, used by the catalogue
+     * search to grey out incompatible medications.
+     *
+     * @return list<string>
+     */
+    public function allergyLabelsFor(string $patientId, string $clinicId): array
+    {
+        $link = $this->queryBus->ask(new GetPatientAnimalLink($patientId, $clinicId));
+
+        if (!$link instanceof PatientAnimalLinkDto || null === $link->animalId) {
+            return [];
+        }
+
+        $labels = [];
+
+        foreach ($this->medicalAlerts($link->animalId, $clinicId) as $alert) {
+            if ('ALLERGY' === $alert['kind']) {
+                $labels[] = $alert['label'];
+            }
+        }
+
+        return $labels;
+    }
+
     private function animalLink(ConsultationDetailsDTO $details): ?PatientAnimalLinkDto
     {
         $link = $this->queryBus->ask(new GetPatientAnimalLink($details->patientId, $details->clinicId));

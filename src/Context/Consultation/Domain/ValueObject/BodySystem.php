@@ -28,7 +28,7 @@ enum BodySystem: string
             self::CARDIOVASCULAR => 'Cardiovasculaire',
             self::RESPIRATORY    => 'Respiratoire',
             self::DIGESTIVE      => 'Digestif',
-            self::URINARY        => 'Urinaire',
+            self::URINARY        => 'Urogénital',
             self::LOCOMOTOR      => 'Locomoteur',
             self::NEUROLOGICAL   => 'Neurologique',
             self::SKIN           => 'Cutané',
@@ -38,28 +38,12 @@ enum BodySystem: string
         };
     }
 
-    public function shortLabel(): string
-    {
-        return match ($this) {
-            self::CARDIOVASCULAR => 'Cardio',
-            self::RESPIRATORY    => 'Respi',
-            self::DIGESTIVE      => 'Digestif',
-            self::URINARY        => 'Urinaire',
-            self::LOCOMOTOR      => 'Loco',
-            self::NEUROLOGICAL   => 'Neuro',
-            self::SKIN           => 'Cutané',
-            self::OPHTHALMIC     => 'Ophta',
-            self::DENTAL         => 'Dentaire',
-            self::INTEGUMENT     => 'Tégument',
-        };
-    }
-
     public function icon(): string
     {
         return match ($this) {
             self::CARDIOVASCULAR => 'heart',
-            self::RESPIRATORY    => 'lungs',
-            self::DIGESTIVE      => 'stomach',
+            self::RESPIRATORY    => 'wind',
+            self::DIGESTIVE      => 'gi',
             self::URINARY        => 'droplet',
             self::LOCOMOTOR      => 'bone',
             self::NEUROLOGICAL   => 'brain',

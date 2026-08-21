@@ -24,36 +24,13 @@ final class BodySystemTest extends TestCase
         yield 'cardiovascular' => [BodySystem::CARDIOVASCULAR, 'Cardiovasculaire'];
         yield 'respiratory' => [BodySystem::RESPIRATORY, 'Respiratoire'];
         yield 'digestive' => [BodySystem::DIGESTIVE, 'Digestif'];
-        yield 'urinary' => [BodySystem::URINARY, 'Urinaire'];
+        yield 'urinary' => [BodySystem::URINARY, 'Urogénital'];
         yield 'locomotor' => [BodySystem::LOCOMOTOR, 'Locomoteur'];
         yield 'neurological' => [BodySystem::NEUROLOGICAL, 'Neurologique'];
         yield 'skin' => [BodySystem::SKIN, 'Cutané'];
         yield 'ophthalmic' => [BodySystem::OPHTHALMIC, 'Ophtalmologique'];
         yield 'dental' => [BodySystem::DENTAL, 'Dentaire'];
         yield 'integument' => [BodySystem::INTEGUMENT, 'Tégument / Carapace'];
-    }
-
-    #[DataProvider('provideShortLabelCases')]
-    public function testShortLabel(BodySystem $system, string $expected): void
-    {
-        self::assertSame($expected, $system->shortLabel());
-    }
-
-    /**
-     * @return iterable<string, array{BodySystem, string}>
-     */
-    public static function provideShortLabelCases(): iterable
-    {
-        yield 'cardiovascular' => [BodySystem::CARDIOVASCULAR, 'Cardio'];
-        yield 'respiratory' => [BodySystem::RESPIRATORY, 'Respi'];
-        yield 'digestive' => [BodySystem::DIGESTIVE, 'Digestif'];
-        yield 'urinary' => [BodySystem::URINARY, 'Urinaire'];
-        yield 'locomotor' => [BodySystem::LOCOMOTOR, 'Loco'];
-        yield 'neurological' => [BodySystem::NEUROLOGICAL, 'Neuro'];
-        yield 'skin' => [BodySystem::SKIN, 'Cutané'];
-        yield 'ophthalmic' => [BodySystem::OPHTHALMIC, 'Ophta'];
-        yield 'dental' => [BodySystem::DENTAL, 'Dentaire'];
-        yield 'integument' => [BodySystem::INTEGUMENT, 'Tégument'];
     }
 
     #[DataProvider('provideIconCases')]
@@ -68,8 +45,8 @@ final class BodySystemTest extends TestCase
     public static function provideIconCases(): iterable
     {
         yield 'cardiovascular' => [BodySystem::CARDIOVASCULAR, 'heart'];
-        yield 'respiratory' => [BodySystem::RESPIRATORY, 'lungs'];
-        yield 'digestive' => [BodySystem::DIGESTIVE, 'stomach'];
+        yield 'respiratory' => [BodySystem::RESPIRATORY, 'wind'];
+        yield 'digestive' => [BodySystem::DIGESTIVE, 'gi'];
         yield 'urinary' => [BodySystem::URINARY, 'droplet'];
         yield 'locomotor' => [BodySystem::LOCOMOTOR, 'bone'];
         yield 'neurological' => [BodySystem::NEUROLOGICAL, 'brain'];
@@ -106,7 +83,6 @@ final class BodySystemTest extends TestCase
     public function testEveryCaseExposesMetadata(BodySystem $system): void
     {
         self::assertNotSame('', $system->label());
-        self::assertNotSame('', $system->shortLabel());
         self::assertNotSame('', $system->icon());
     }
 

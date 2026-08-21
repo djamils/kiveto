@@ -1,7 +1,4 @@
-{#
- # SOAP grid 2×2 — S Subjectif · O Objectif · A Diagnostic · P Plan.
- # Textareas and lists are filled client-side from the hydration payload.
- #}
+{# SOAP grid 2×2 — S Subjectif · O Objectif · A Diagnostic · P Plan (ported from layout) #}
 <div class="soap-grid">
 
   {# ── S — Subjectif ── #}
@@ -16,7 +13,7 @@
       </span>
     </div>
     <div class="quad-body">
-      <textarea class="quad-textarea" id="q-subjective" placeholder="Ce que rapporte le propriétaire…"></textarea>
+      <textarea class="quad-textarea" id="q-subjective" placeholder="Ce que rapporte le propriétaire…">{{ consultation.subjectiveText }}</textarea>
     </div>
   </div>
 
@@ -43,12 +40,12 @@
       <div class="listF" id="qO-listF"></div>
       <div class="observations-block">
         <span class="observations-label">Observations détaillées</span>
-        <textarea class="quad-textarea" id="q-objective" placeholder="État général, démarche, comportement, contexte, observations libres du vet…"></textarea>
+        <textarea class="quad-textarea" id="q-objective" placeholder="État général, démarche, comportement, contexte, observations libres du vet…">{{ consultation.objectiveObservations }}</textarea>
       </div>
     </div>
   </div>
 
-  {# ── A — Diagnostic ── #}
+  {# ── A — Diagnostic (Quick-Add v3) ── #}
   <div class="quad" data-letter="A">
     <div class="quad-head">
       <span class="quad-letter">A</span>
@@ -71,7 +68,7 @@
     </div>
   </div>
 
-  {# ── P — Plan ── #}
+  {# ── P — Plan (Proposition B-v2 : 2 zones asymétriques) ── #}
   <div class="quad" data-letter="P">
     <div class="quad-head">
       <span class="quad-letter">P</span>

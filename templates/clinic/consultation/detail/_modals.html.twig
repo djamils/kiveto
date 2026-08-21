@@ -1,10 +1,65 @@
-{#
- # Cockpit overlays.
- #
- # Modals themselves are built by assets/js/pages/consultation.js (they are
- # data-driven, so a static shell would only duplicate their markup). What stays
- # here are the three inline annotation slots each SOAP quad writes into.
- #}
+{# SOAP modals (qO Objectif, qA Diagnostic, qP Plan) — ported from layout #}
+
+{# ── Modale d'édition Quad O (Objectif) ── #}
+<div class="modal-overlay" id="qO-modal-overlay" style="opacity:0;visibility:hidden;">
+  <div class="modal" id="qO-modal">
+    <header class="modal-head">
+      <div class="modal-head-icon" id="qO-modal-icon"></div>
+      <div>
+        <div class="modal-head-title" id="qO-modal-title">Système</div>
+        <div class="modal-head-sub">Détails de l'anomalie</div>
+      </div>
+      <button class="modal-close" id="qO-modal-close" aria-label="Fermer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </button>
+    </header>
+    <div class="modal-body" id="qO-modal-body"></div>
+    <footer class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="qO-modal-cancel">Annuler</button>
+      <button class="btn btn-primary btn-sm" id="qO-modal-save">Enregistrer</button>
+    </footer>
+  </div>
+</div>
+
+{# ── Modale Quick-Add Quad A (Diagnostic) ── #}
+<div class="modal-overlay" id="qA-modal-overlay" style="opacity:0;visibility:hidden;">
+  <div class="modal" id="qA-modal">
+    <header class="modal-head">
+      <div class="modal-head-icon" id="qA-modal-icon"></div>
+      <div>
+        <div class="modal-head-title" id="qA-modal-title">Modale</div>
+        <div class="modal-head-sub" id="qA-modal-sub"></div>
+      </div>
+      <span class="modal-head-count" id="qA-modal-head-count" style="display:none"></span>
+      <button class="modal-close" id="qA-modal-close" aria-label="Fermer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </button>
+    </header>
+    <div class="modal-body" id="qA-modal-body"></div>
+    <footer class="modal-foot" id="qA-modal-foot"></footer>
+  </div>
+</div>
+
+{# ── Modale Quick-Add Quad P (Plan) ── #}
+<div class="modal-overlay" id="qP-modal-overlay" style="opacity:0;visibility:hidden;">
+  <div class="modal" id="qP-modal">
+    <header class="modal-head">
+      <div class="modal-head-icon" id="qP-modal-icon"></div>
+      <div>
+        <div class="modal-head-title" id="qP-modal-title">Modale</div>
+        <div class="modal-head-sub" id="qP-modal-sub"></div>
+      </div>
+      <span class="modal-head-count" id="qP-modal-head-count" style="display:none"></span>
+      <button class="modal-close" id="qP-modal-close" aria-label="Fermer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </button>
+    </header>
+    <div class="modal-body" id="qP-modal-body"></div>
+    <footer class="modal-foot" id="qP-modal-foot"></footer>
+  </div>
+</div>
+
+{# ── Toast annotations (3 quads) ── #}
 <div class="annotation" id="qO-annotation"></div>
 <div class="annotation" id="qA-annotation"></div>
 <div class="annotation" id="qP-annotation"></div>

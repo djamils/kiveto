@@ -275,7 +275,7 @@ final class CockpitReferenceData
     /**
      * @return array{
      *     vitalTypes: list<array{id: string, label: string, unit: string, range: string, default: string, numeric: bool, min: ?float, max: ?float}>,
-     *     bodySystems: list<array{id: string, label: string, shortLabel: string, icon: string, drilldown: ?string}>,
+     *     bodySystems: list<array{id: string, label: string, icon: string, drilldown: ?string}>,
      *     examStatuses: list<array{id: string, label: string}>,
      *     diagnosisCertainties: list<array{id: string, label: string, shortLabel: string}>,
      *     diagnosisSources: list<array{id: string, label: string}>,
@@ -325,17 +325,16 @@ final class CockpitReferenceData
     }
 
     /**
-     * @return list<array{id: string, label: string, shortLabel: string, icon: string, drilldown: ?string}>
+     * @return list<array{id: string, label: string, icon: string, drilldown: ?string}>
      */
     private function bodySystems(): array
     {
         return array_map(
             static fn (BodySystem $system): array => [
-                'id'         => $system->value,
-                'label'      => $system->label(),
-                'shortLabel' => $system->shortLabel(),
-                'icon'       => $system->icon(),
-                'drilldown'  => $system->drilldown(),
+                'id'        => $system->value,
+                'label'     => $system->label(),
+                'icon'      => $system->icon(),
+                'drilldown' => $system->drilldown(),
             ],
             BodySystem::cases(),
         );
