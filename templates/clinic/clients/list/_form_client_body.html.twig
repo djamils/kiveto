@@ -22,7 +22,7 @@
 
     <div class="form-grid">
       <div class="form-row">
-        {{ form_label(form.phone, 'Téléphone', {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_label(form.phone, 'Téléphone', {'label_attr': {'class': 'form-label'}, 'required': true}) }}
         {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '06 12 34 56 78'}}) }}
         {{ form_errors(form.phone) }}
       </div>
@@ -32,14 +32,13 @@
         {{ form_errors(form.email) }}
       </div>
     </div>
-    <p class="form-hint">Le téléphone ou l'email est obligatoire.</p>
 
     {#
      # Storing an address needs a street and a country, which this form does not
      # ask for; the status of a new client is always "actif"; and the domain has
      # no notes field. All three are shown and disabled rather than faked.
      #}
-    <div class="form-grid" style="margin-top:var(--space-3)">
+    <div class="form-grid">
       <div class="form-row">
         <span class="form-label">Ville</span>
         <input class="form-input" disabled placeholder="Depuis la fiche client"
@@ -55,6 +54,13 @@
       <textarea class="form-input" disabled placeholder="Bientôt disponible"
                 title="Les notes client ne sont pas encore gérées"></textarea>
     </div>
+
+    <span class="checkbox-inline is-disabled" title="Bientôt disponible">
+      <span class="check-mini">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+      </span>
+      Ajouter un premier animal juste après
+    </span>
 
     {{ form_widget(form._returnTo) }}
   {{ form_end(form) }}

@@ -25,7 +25,6 @@ final class AnimalFormTypeTest extends TypeTestCase
             'reproductiveStatus'   => 'neutered',
             'breedName'            => 'Berger',
             'birthDate'            => '2020-05-12',
-            'microchipNumber'      => '250269801234567',
             'primaryOwnerClientId' => '12345678-1234-4abc-9def-1234567890ab',
         ]);
 
@@ -38,7 +37,6 @@ final class AnimalFormTypeTest extends TypeTestCase
         self::assertSame('dog', $data['species']);
         self::assertSame('male', $data['sex']);
         self::assertSame('neutered', $data['reproductiveStatus']);
-        self::assertSame('250269801234567', $data['microchipNumber']);
     }
 
     public function testTheSpeciesChoicesMatchTheDomain(): void

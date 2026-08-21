@@ -77,7 +77,7 @@ final class CreateAnimalController extends AbstractController
                     birthDate: $birthDate,
                     color: null,
                     photoUrl: null,
-                    microchipNumber: $this->stringValue($data, 'microchipNumber'),
+                    microchipNumber: null,
                     tattooNumber: null,
                     passportNumber: null,
                     registryType: 'none',

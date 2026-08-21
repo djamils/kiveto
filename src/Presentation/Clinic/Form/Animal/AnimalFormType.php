@@ -65,12 +65,6 @@ final class AnimalFormType extends AbstractType
             ->add('breedName', TextType::class, [
                 'required' => false,
             ])
-            ->add('microchipNumber', TextType::class, [
-                'required'    => false,
-                'constraints' => [
-                    new Length(max: 50, maxMessage: 'Le numéro de puce ne peut pas dépasser 50 caractères.'),
-                ],
-            ])
             ->add('birthDate', DateType::class, [
                 'required' => false,
                 'widget'   => 'single_text',

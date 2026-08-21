@@ -1,6 +1,4 @@
-{#
- # Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>.
- #}
+{# Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>. #}
 
 {#
  # Radio inputs written by hand: the form theme renders its own label next to
@@ -45,6 +43,8 @@
         {{ form_errors(form.breedName) }}
       </div>
       <div class="form-row">
+        {# The layout asks for a birth year; a full date is stored, so the
+           picker stays. #}
         {{ form_label(form.birthDate, 'Date de naissance', {'label_attr': {'class': 'form-label'}}) }}
         {{ form_widget(form.birthDate, {'attr': {'class': 'form-input'}}) }}
         {{ form_errors(form.birthDate) }}
@@ -68,26 +68,21 @@
       </div>
     </div>
 
+    {#
+     # The animal carries no weight of its own — it is measured at a
+     # consultation — and no practitioner is assigned to a patient.
+     #}
     <div class="form-grid">
-      <div class="form-row">
-        {{ form_label(form.microchipNumber, 'Puce électronique', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.microchipNumber, {'attr': {'class': 'form-input', 'placeholder': '250269801234567'}}) }}
-        {{ form_errors(form.microchipNumber) }}
-      </div>
-      {#
-       # The animal carries no weight of its own — it is measured at a
-       # consultation — and no practitioner is assigned to a patient.
-       #}
       <div class="form-row">
         <span class="form-label">Poids (kg)</span>
         <input class="form-input" disabled placeholder="Relevé en consultation"
                title="Le poids est relevé lors d'une consultation">
       </div>
-    </div>
-    <div class="form-row">
-      <span class="form-label">Vétérinaire de suivi</span>
-      <input class="form-input" disabled placeholder="Bientôt disponible"
-             title="Le vétérinaire de suivi n'est pas encore géré">
+      <div class="form-row">
+        <span class="form-label">Vétérinaire de suivi</span>
+        <input class="form-input" disabled placeholder="Bientôt disponible"
+               title="Le vétérinaire de suivi n'est pas encore géré">
+      </div>
     </div>
 
     {{ form_widget(form.primaryOwnerClientId) }}
