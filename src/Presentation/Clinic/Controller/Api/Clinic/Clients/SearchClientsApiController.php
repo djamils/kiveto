@@ -55,7 +55,10 @@ final class SearchClientsApiController extends AbstractController
 
         $query = trim((string) $request->query->get('q', ''));
 
-        if (mb_strlen($query) < self::MIN_QUERY_LENGTH) {
+        // An empty box lists the first clients, which is what a picker opening
+        // on focus needs. A one-character query stays empty: too broad to be
+        // useful, and the minimum exists to keep the endpoint cheap.
+        if ('' !== $query && mb_strlen($query) < self::MIN_QUERY_LENGTH) {
             return $this->envelope([]);
         }
 
@@ -67,7 +70,7 @@ final class SearchClientsApiController extends AbstractController
 
         $result = $this->queryBus->ask(new SearchClients(
             clinicId: $currentClinicId->toString(),
-            searchTerm: $query,
+            searchTerm: '' !== $query ? $query : null,
             page: 1,
             limit: $cappedLimit,
         ));

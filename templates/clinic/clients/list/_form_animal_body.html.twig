@@ -69,20 +69,13 @@
     </div>
 
     {#
-     # The animal carries no weight of its own — it is measured at a
-     # consultation — and no practitioner is assigned to a patient.
+     # No practitioner is assigned to a patient yet. The weight of the layout is
+     # not asked for at all: it belongs to a consultation, not to the animal.
      #}
-    <div class="form-grid">
-      <div class="form-row">
-        <span class="form-label">Poids (kg)</span>
-        <input class="form-input" disabled placeholder="Relevé en consultation"
-               title="Le poids est relevé lors d'une consultation">
-      </div>
-      <div class="form-row">
-        <span class="form-label">Vétérinaire de suivi</span>
-        <input class="form-input" disabled placeholder="Bientôt disponible"
-               title="Le vétérinaire de suivi n'est pas encore géré">
-      </div>
+    <div class="form-row">
+      <span class="form-label">Vétérinaire de suivi</span>
+      <input class="form-input" disabled placeholder="Bientôt disponible"
+             title="Le vétérinaire de suivi n'est pas encore géré">
     </div>
 
     {{ form_widget(form.primaryOwnerClientId) }}

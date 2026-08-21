@@ -25,6 +25,7 @@ export function init() {
   document.addEventListener('submit', onSubmit, true);
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('turbo:frame-load', onFrameLoad);
+  document.addEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker);
   renderSelection();
 }
 
@@ -35,9 +36,35 @@ export function cleanup() {
   document.removeEventListener('submit', onSubmit, true);
   document.removeEventListener('keydown', onKeydown);
   document.removeEventListener('turbo:frame-load', onFrameLoad);
+  document.removeEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker);
   window.clearTimeout(searchTimer);
   searchTimer = null;
   selected.clear();
+}
+
+// ── Owner picker: "Créer un nouveau client" ──
+
+/**
+ * Hands the visitor over to the client modal, carrying what they had typed
+ * into the owner box so they do not retype the name.
+ */
+function onCreateClientFromOwnerPicker(e) {
+  import('kiveto/modal').then(({ modal }) => {
+    modal.close('modal-new-animal');
+
+    const typed = (e.detail?.query || '').trim();
+    const first = document.querySelector('#modal-new-client input[name$="[firstName]"]');
+    const last = document.querySelector('#modal-new-client input[name$="[lastName]"]');
+
+    if (typed && first && last) {
+      const parts = typed.split(/\s+/);
+      first.value = parts.shift() ?? '';
+      last.value = parts.join(' ');
+    }
+
+    // Let the closing animation finish before the next one opens.
+    window.setTimeout(() => modal.open('modal-new-client'), 180);
+  });
 }
 
 // ── Live search ──

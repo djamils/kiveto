@@ -18,8 +18,8 @@
         Nouvel animal
         <span class="modal-head-sub">Créer une fiche patient</span>
       </div>
-      <button class="btn btn-ghost btn-icon btn-sm" type="button" aria-label="Fermer" data-modal-close>
-        <i data-lucide="x"></i>
+      <button class="modal-close" type="button" aria-label="Fermer" data-modal-close>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
       </button>
     </div>
 
@@ -28,6 +28,8 @@
         class="form-row combobox"
         data-controller="client-search-autocomplete"
         data-client-search-autocomplete-url-value="{{ path('api_clinic_clients_search') }}"
+        data-client-search-autocomplete-min-chars-value="0"
+        data-client-search-autocomplete-create-label-value="Créer un nouveau client"
       >
         <label class="form-label" for="na-owner-search">Propriétaire <span class="req">*</span></label>
         <input
@@ -41,7 +43,7 @@
           aria-controls="na-owner-listbox"
           autocomplete="off"
           data-client-search-autocomplete-target="input"
-          data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown"
+          data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown focus->client-search-autocomplete#onFocus"
         />
         <ul
           id="na-owner-listbox"

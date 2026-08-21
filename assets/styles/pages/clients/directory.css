@@ -427,10 +427,18 @@
       flex-shrink: 0;
     }
     .modal-head-icon svg, .modal-head-icon i { width: 18px; height: 18px; }
+    .modal-close {
+      width: 30px; height: 30px; border-radius: var(--radius-sm);
+      background: transparent; border: none; color: var(--text-muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: var(--t-fast); flex-shrink: 0;
+    }
+    .modal-close:hover { background: var(--surface-hover); color: var(--text-primary); }
+    .modal-close svg { width: 16px; height: 16px; }
     .modal-head-title {
       flex: 1;
-      font-size: var(--text-lg); font-weight: var(--weight-semibold);
-      color: var(--text-primary);
+      font-size: var(--text-lg); font-weight: var(--weight-medium);
+      color: var(--text-primary); letter-spacing: -.2px;
     }
     .modal-head-sub {
       font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-normal);
@@ -461,9 +469,15 @@
     .form-input::placeholder { color: var(--text-subtle); }
     .form-input:disabled { background: var(--surface-subtle); color: var(--text-disabled); cursor: not-allowed; }
     .form-hint { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
-    /* The select component brings its own box; line it up with the inputs. */
-    .ki-select.form-input { height: 34px; padding: 0; }
-    .ki-select.form-input .ki-select-trigger { height: 34px; border-radius: var(--radius-md); }
+    /* The select component owns its own box: drop the input chrome, keep the size. */
+    .ki-select.form-input {
+      height: 34px; padding: 0;
+      border: none; background: transparent; box-shadow: none;
+    }
+    .ki-select.form-input .ki-select-trigger {
+      height: 34px; border-radius: var(--radius-md);
+      border: 1px solid var(--border-medium); background: var(--surface-card);
+    }
 
     select.form-input {
       appearance: none;
@@ -548,5 +562,11 @@
     .autocomplete-option-meta { margin-left: auto; font-size: var(--text-xs); color: var(--text-muted); }
     .autocomplete-empty { color: var(--text-subtle); font-style: italic; cursor: default; }
     .autocomplete-empty:hover { background: transparent; }
+    .autocomplete-new {
+      border-top: 1px solid var(--border-light); margin-top: 4px; padding-top: 8px;
+      color: var(--brand-700); font-weight: var(--weight-medium);
+    }
+    .autocomplete-new:hover { background: var(--brand-50); }
+    .autocomplete-new svg { width: 12px; height: 12px; }
   }
 }

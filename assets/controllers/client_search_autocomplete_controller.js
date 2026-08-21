@@ -12,16 +12,20 @@ import { Controller } from '@hotwired/stimulus';
  *   hiddenInput   – hidden form input that receives the selected client id
  *
  * Values:
- *   url        – API endpoint (default: /api/clinic/clients/search)
- *   minChars   – minimum chars before fetching (default: 2)
- *   debounce   – debounce window in ms (default: 300)
+ *   url         – API endpoint (default: /api/clinic/clients/search)
+ *   minChars    – minimum chars before fetching (default: 2, 0 opens on focus)
+ *   debounce    – debounce window in ms (default: 300)
+ *   createLabel – when set, appends a row offering to create a client; picking
+ *                 it fires a `client-search-autocomplete:create` event instead
+ *                 of selecting anything
  */
 export default class extends Controller {
   static targets = ['input', 'dropdown', 'liveRegion', 'hiddenInput'];
   static values  = {
-    url:      { type: String, default: '/api/clinic/clients/search' },
-    minChars: { type: Number, default: 2 },
-    debounce: { type: Number, default: 300 },
+    url:         { type: String, default: '/api/clinic/clients/search' },
+    minChars:    { type: Number, default: 2 },
+    debounce:    { type: Number, default: 300 },
+    createLabel: { type: String, default: '' },
   };
 
   _debounceTimer = null;
@@ -42,6 +46,13 @@ export default class extends Controller {
     }
   }
 
+  /** Opens the list straight away when no minimum is required. */
+  onFocus() {
+    if (this.minCharsValue > 0) return;
+
+    this._fetch((this.inputTarget.value || '').trim());
+  }
+
   onInput(event) {
     const value = (event.target.value || '').trim();
 
@@ -53,6 +64,10 @@ export default class extends Controller {
       this._closeDropdown();
       return;
     }
+
+    // A fresh keystroke invalidates whatever was picked before.
+    const ownerInput = document.getElementById('animal_form_primaryOwnerClientId');
+    if (ownerInput) ownerInput.value = '';
 
     this._debounceTimer = setTimeout(() => {
       this._fetch(value);
@@ -134,8 +149,9 @@ export default class extends Controller {
     if (!this.hasDropdownTarget) return;
 
     if (items.length === 0) {
-      this.dropdownTarget.innerHTML = '<li class="autocomplete-empty" role="option">Aucun résultat</li>';
+      this.dropdownTarget.innerHTML = '<li class="autocomplete-empty">Aucun résultat</li>' + this._createRow();
       this._announce('Aucun résultat');
+      this._wireCreateRow();
     } else {
       const html = items.map((item, index) => {
         const id    = `ac-opt-${index}`;
@@ -148,7 +164,8 @@ export default class extends Controller {
           </li>
         `;
       }).join('');
-      this.dropdownTarget.innerHTML = html;
+      this.dropdownTarget.innerHTML = html + this._createRow();
+      this._wireCreateRow();
 
       this.dropdownTarget.querySelectorAll('li[role="option"]').forEach((li) => {
         li.addEventListener('mousedown', (e) => {
@@ -162,6 +179,32 @@ export default class extends Controller {
 
     this.dropdownTarget.classList.remove('hidden');
     this.inputTarget.setAttribute('aria-expanded', 'true');
+  }
+
+  /**
+   * The "create a client" row of the layout, shown under the results and under
+   * "Aucun résultat" alike.
+   */
+  _createRow() {
+    if ('' === this.createLabelValue) return '';
+
+    return `
+      <li class="autocomplete-new" data-autocomplete-create>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ${this._escape(this.createLabelValue)}
+      </li>
+    `;
+  }
+
+  _wireCreateRow() {
+    const row = this.dropdownTarget.querySelector('[data-autocomplete-create]');
+    if (!row) return;
+
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this._closeDropdown();
+      this.dispatch('create', { detail: { query: (this.inputTarget.value || '').trim() } });
+    });
   }
 
   _renderAuthError() {
