@@ -1,110 +1,139 @@
-{# Animaux tab — server-rendered table wired to SearchAnimals query results. #}
+{#
+ # Kiveto — templates/clinic/clients/list/_tab_animals.html.twig
+ # ────────────────────────────────────────────────────────────
+ # Animaux mode of the directory. Included by index.html.twig, which owns the
+ # label maps and the query-string helper.
+ #}
+{% import 'clinic/clients/list/_macros.html.twig' as ui %}
 
-{% set avatarPalette = [
-  {bg: '#eef2ff', color: '#4338ca'},
-  {bg: '#ecfeff', color: '#0891b2'},
-  {bg: '#ecfdf5', color: '#059669'},
-  {bg: '#f5f3ff', color: '#7c3aed'},
-  {bg: '#fdf2f8', color: '#db2777'},
-  {bg: '#fef3c7', color: '#b45309'},
-] %}
-{% set _hexMap = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'a':10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15} %}
-
-{# ── Table ── #}
-<div class="data-card-table">
-    <table class="data-grid">
-      <thead>
-        <tr>
-          <th class="dg-th-checkbox">
-            <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Tout sélectionner"/>
-          </th>
-          <th>Nom</th>
-          <th>Espèce</th>
-          <th>Race</th>
-          <th>Sexe</th>
-          <th>Âge</th>
-          <th>Propriétaire</th>
-          <th>Statut</th>
-          <th class="dg-th-actions"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if animals is null or animals.items is empty %}
-          <tr>
-            <td colspan="9" class="data-grid-empty">
-              {% if search %}
-                Aucun animal ne correspond à « {{ search }} ».
-              {% else %}
-                Aucun animal enregistré pour cette clinique.
-              {% endif %}
-            </td>
-          </tr>
-        {% else %}
-          {% for animal in animals.items %}
-            {% set initials = (animal.name|first)|upper %}
-            {% set _hashSum = 0 %}
-            {% for _ch in (animal.id|replace({'-': ''})|slice(0, 8))|split('') %}
-              {% set _hashSum = _hashSum + (_hexMap[_ch|lower] ?? 0) %}
-            {% endfor %}
-            {% set avatar = avatarPalette[_hashSum % (avatarPalette|length)] %}
-            <tr>
-              <td class="dg-td-checkbox">
-                <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Sélectionner cet animal"/>
-              </td>
-              <td>
-                <div class="dg-name-cell">
-                  <span class="dg-avatar" style="background:{{ avatar.bg }};color:{{ avatar.color }};">{{ initials }}</span>
-                  <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="dg-name-link" data-turbo-frame="_top">{{ animal.name }}</a>
-                </div>
-              </td>
-              <td>{{ animal.species }}</td>
-              <td>{{ animal.breedName|default('—') }}</td>
-              <td>{{ animal.sex }}</td>
-              <td>{{ animal.ageLabel() ?? '—' }}</td>
-              <td>{{ animal.primaryOwnerClientId and ownerNamesByClientId[animal.primaryOwnerClientId] is defined ? ownerNamesByClientId[animal.primaryOwnerClientId] : '—' }}</td>
-              <td>
-                <span class="badge {{ animal.status == 'active' ? 'b-ok' : 'b-grey' }}">
-                  {{ animal.status == 'active' ? 'Actif' : 'Archivé' }}
+{% if animals|length > 0 %}
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th class="col-check">
+          <div class="check" id="check-all" role="checkbox" aria-checked="false" tabindex="0" title="Tout sélectionner">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </div>
+        </th>
+        {{ ui.sortHead('name', 'Animal', 'col-patient-name', sort, direction, qs) }}
+        {{ ui.sortHead('species', 'Race / âge', 'col-breed', sort, direction, qs) }}
+        <th class="col-owner">Propriétaire</th>
+        {# No animal↔practitioner assignment exists in the domain #}
+        <th class="col-owner" title="Bientôt disponible">Suivi</th>
+        <th class="col-alerts">Alertes</th>
+        {# No due-date schedule exists in the domain #}
+        <th class="col-owner" title="Bientôt disponible">Prochaine échéance</th>
+        {{ ui.sortHead('status', 'Statut', 'col-patient-status', sort, direction, qs) }}
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for animal in animals %}
+        {% set alerts = enrichment[animal.id] ?? [] %}
+        {% set lifeClass = LIFE_CLASSES[animal.lifeStatus] ?? 'archived' %}
+        <tr data-id="{{ animal.id }}" data-url="{{ path('clinic_animals_view', { id: animal.id }) }}"
+            class="{{ animal.lifeStatus != 'alive' ? 'is-gone' : '' }}">
+          <td class="col-check">
+            <div class="check" role="checkbox" aria-checked="false" data-check="{{ animal.id }}">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+            </div>
+          </td>
+          <td class="col-patient-name">
+            <div class="cell-flex">
+              <div class="avatar-species">{{ SPECIES_ICONS[animal.species] ?? '🐾' }}</div>
+              <div class="cell-stack">
+                <span class="cell-primary">{{ animal.name }}</span>
+                <span class="cell-secondary">{{ SEX_GLYPHS[animal.sex] ?? animal.sex }}</span>
+              </div>
+            </div>
+          </td>
+          <td class="col-breed">
+            <div class="cell-breed">
+              <span class="cell-breed-line">
+                {{ animal.breedName ?? SPECIES_LABELS[animal.species] ?? animal.species }}
+              </span>
+              <span class="cell-breed-meta">
+                {{ animal.ageLabel() ?? 'Âge inconnu' }}
+                {%- if animal.microchipNumber %} · puce {{ animal.microchipNumber }}{% endif -%}
+              </span>
+            </div>
+          </td>
+          <td class="col-owner">
+            {% if animal.primaryOwnerClientId and ownerNames[animal.primaryOwnerClientId] is defined %}
+              <a class="cell-owner-link" data-turbo-frame="_top"
+                 href="{{ path('clinic_clients_view', { id: animal.primaryOwnerClientId }) }}">
+                {{ ownerNames[animal.primaryOwnerClientId] }}
+              </a>
+            {% else %}
+              <span class="cell-none">Sans propriétaire</span>
+            {% endif %}
+          </td>
+          <td class="col-owner"><span class="cell-none">—</span></td>
+          <td class="col-alerts">
+            <div class="cell-alerts">
+              {% for alert in alerts|slice(0, 3) %}
+                <span class="alert-badge alert-{{ alert.kind }}" title="{{ ALERT_LABELS[alert.kind] ?? alert.kind }} : {{ alert.label }}">
+                  <i data-lucide="{{ alert.kind == 'ALLERGY' ? 'triangle-alert' : 'heart-pulse' }}"></i>
+                  {{ alert.label }}
                 </span>
-              </td>
-              <td class="dg-td-actions">
-                <a href="{{ path('clinic_animals_view', {id: animal.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir" data-turbo-frame="_top">
-                  <i data-lucide="eye"></i>
+              {% else %}
+                <span class="cell-none">—</span>
+              {% endfor %}
+              {% if alerts|length > 3 %}
+                <span class="animal-more-inline">+{{ alerts|length - 3 }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="col-owner"><span class="cell-none">—</span></td>
+          <td class="col-patient-status">
+            <span class="status-badge status-{{ lifeClass }}">
+              <span class="status-dot"></span>{{ LIFE_LABELS[animal.lifeStatus] ?? animal.lifeStatus }}
+            </span>
+          </td>
+          <td class="col-actions" style="position:relative">
+            <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+            <div class="row-menu" data-row-menu>
+              {# data-turbo-frame="_top": these leave the list for a full page #}
+              <a class="row-menu-item" data-turbo-frame="_top" href="{{ path('clinic_animals_view', { id: animal.id }) }}">
+                <i data-lucide="external-link"></i> Ouvrir le dossier
+              </a>
+              <a class="row-menu-item" data-turbo-frame="_top" href="{{ path('clinic_animals_edit', { id: animal.id }) }}">
+                <i data-lucide="pencil"></i> Modifier
+              </a>
+              {% if animal.primaryOwnerClientId %}
+                <a class="row-menu-item" data-turbo-frame="_top" href="{{ path('clinic_clients_view', { id: animal.primaryOwnerClientId }) }}">
+                  <i data-lucide="user"></i> Voir le propriétaire
                 </a>
-              </td>
-            </tr>
-          {% endfor %}
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-
-  {% if animals is not null and animals.totalPages > 1 %}
-    <div class="data-card-foot">
-      <div class="data-pagination-right">
-        <span class="data-pagination-info">
-          Page {{ animals.currentPage }} sur {{ animals.totalPages }} ({{ animals.totalItems }} animaux)
-        </span>
-        <div class="data-pagination-buttons">
-          {% if animals.hasPreviousPage %}
-            <a href="{{ path('clinic_clients_list', {tab: 'animals', search: search, page: animals.previousPage}) }}" class="data-pagination-btn" aria-label="Précédent">
-              <i data-lucide="chevron-left"></i>
-            </a>
-          {% else %}
-            <button type="button" class="data-pagination-btn" disabled aria-label="Précédent">
-              <i data-lucide="chevron-left"></i>
-            </button>
-          {% endif %}
-          {% if animals.hasNextPage %}
-            <a href="{{ path('clinic_clients_list', {tab: 'animals', search: search, page: animals.nextPage}) }}" class="data-pagination-btn" aria-label="Suivant">
-              <i data-lucide="chevron-right"></i>
-            </a>
-          {% else %}
-            <button type="button" class="data-pagination-btn" disabled aria-label="Suivant">
-              <i data-lucide="chevron-right"></i>
-            </button>
-          {% endif %}
-        </div>
-      </div>
+              {% endif %}
+              <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                <i data-lucide="clock"></i> Historique consultations
+              </span>
+              {% if animal.status == 'active' %}
+                <div class="row-menu-sep"></div>
+                <form method="post" action="{{ path('clinic_animals_archive', { id: animal.id }) }}" data-turbo-frame="_top">
+                  <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+                  <button class="row-menu-item is-danger" type="submit">
+                    <i data-lucide="archive"></i> Archiver
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
-  {% endif %}
+    <div class="empty-title">Aucun animal trouvé</div>
+    <div class="empty-sub">Ajustez les filtres, ou créez une fiche patient pour démarrer.</div>
+    <button class="btn btn-primary btn-sm" type="button" data-modal-open="modal-new-animal" style="margin-top:12px">
+      <i data-lucide="plus"></i> Nouvel animal
+    </button>
+  </div>
+{% endif %}

@@ -1,157 +1,246 @@
 /**
- * Page module — Clients & Animaux
+ * Page module — Répertoire (clients & animals).
  * Loaded by app.js dispatcher on turbo:load.
  *
- * Tabs, search bar and counts live outside the turbo-frame and never swap.
- * Only the table + pagination inside <turbo-frame id="clients-tab-content">
- * gets replaced, with a directional slide-fade transition.
+ * Filtering, sorting, the mode toggle and pagination are plain links handled
+ * by the server, so this module only covers what needs a client: live search,
+ * opening the dropdowns, row selection and its bulk bar, and Escape.
  */
 
-const FRAME_ID    = 'clients-tab-content';
-const OUT_MS      = 80;
-const IN_MS       = 140;
-const SHIFT_PX    = 24;
-const MIN_OPACITY = '0.55';
+const FRAME_ID = 'directory-results';
 
-let _direction = null; // 'next' (→ animals) | 'prev' (→ clients) | null
+/** Idle time before a keystroke turns into a request. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+const selected = new Set();
+
+let searchTimer = null;
 
 export function init() {
-  document.addEventListener('click', onTabClick);
-  document.addEventListener('turbo:before-frame-render', onBeforeFrameRender);
-  document.addEventListener('turbo:frame-render', onFrameRender);
+  selected.clear();
+  document.addEventListener('click', onClick);
+  document.addEventListener('change', onChange);
+  document.addEventListener('input', onInput);
+  // Capture: Turbo stops the propagation of submit before it bubbles here.
+  document.addEventListener('submit', onSubmit, true);
+  document.addEventListener('keydown', onKeydown);
   document.addEventListener('turbo:frame-load', onFrameLoad);
+  renderSelection();
 }
 
 export function cleanup() {
-  document.removeEventListener('click', onTabClick);
-  document.removeEventListener('turbo:before-frame-render', onBeforeFrameRender);
-  document.removeEventListener('turbo:frame-render', onFrameRender);
+  document.removeEventListener('click', onClick);
+  document.removeEventListener('change', onChange);
+  document.removeEventListener('input', onInput);
+  document.removeEventListener('submit', onSubmit, true);
+  document.removeEventListener('keydown', onKeydown);
   document.removeEventListener('turbo:frame-load', onFrameLoad);
+  window.clearTimeout(searchTimer);
+  searchTimer = null;
+  selected.clear();
 }
 
-// ── Tab click: update active state + search bar immediately ──
+// ── Live search ──
 
-function onTabClick(e) {
-  const a = e.target.closest?.('#ca-tabs a.tab-line');
-  if (!a) return;
+function onInput(e) {
+  const form = e.target.closest?.('[data-live-search]');
+  if (!form) return;
 
-  const tab = a.dataset.tab;
-  if (!tab) return;
+  // Entering a search is a step of its own, refining one is not: the first
+  // keystroke pushes a history entry, the following ones overwrite it. The
+  // back button then leaves the search instead of unspelling it letter by
+  // letter, without swallowing the sort or filter the visitor came from.
+  form.dataset.turboAction = new URLSearchParams(window.location.search).has('q') ? 'replace' : 'advance';
 
-  // Direction for animation
-  _direction = tab === 'animals' ? 'next' : 'prev';
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => form.requestSubmit(), SEARCH_DEBOUNCE_MS);
+}
 
-  // Switch active tab immediately (no waiting for server)
-  document.querySelectorAll('#ca-tabs .tab-line').forEach(el => {
-    el.classList.toggle('is-active', el.dataset.tab === tab);
+/** Enter beats the timer: without this the form would be sent twice. */
+function onSubmit(e) {
+  if (!e.target?.matches?.('[data-live-search]')) return;
+
+  window.clearTimeout(searchTimer);
+  searchTimer = null;
+}
+
+/**
+ * Rebuilds the filters the search form carries from the current address bar.
+ *
+ * The form lives outside the frame so typing never steals the caret, which
+ * also means its hidden inputs are never re-rendered: without this the next
+ * search would submit the filters of the first page load.
+ */
+function syncSearchForm() {
+  const form = document.querySelector('[data-live-search]');
+  if (!form) return;
+
+  form.querySelectorAll('[data-search-carry]').forEach(input => input.remove());
+
+  const params = new URLSearchParams(window.location.search);
+
+  // Follow the address bar only when the visitor is not typing — a link such as
+  // "Tout effacer" has to empty the box, a keystroke must never be overwritten.
+  const box = form.querySelector('input[name="q"]');
+  if (box && document.activeElement !== box) box.value = params.get('q') ?? '';
+
+  params.delete('q');
+  params.delete('page');
+
+  params.forEach((value, name) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    input.setAttribute('data-search-carry', '');
+    form.appendChild(input);
   });
-
-  // Update search bar
-  const hiddenTab = document.getElementById('ca-search-tab');
-  if (hiddenTab) hiddenTab.value = tab;
-
-  const searchInput = document.getElementById('ca-search-input');
-  if (searchInput) {
-    searchInput.placeholder = tab === 'clients'
-      ? 'Rechercher un client…'
-      : 'Rechercher un animal…';
-  }
 }
 
-// ── Slide-fade out before Turbo swaps the frame ──
-
-function onBeforeFrameRender(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== FRAME_ID) return;
-
-  e.preventDefault();
-
-  const outX = _direction === 'next' ? `-${SHIFT_PX}px`
-    : _direction === 'prev' ? `${SHIFT_PX}px`
-    : '0px';
-
-  frame.style.willChange = 'opacity, transform';
-  frame.style.transition = `opacity ${OUT_MS}ms ease-out, transform ${OUT_MS}ms ease-out`;
-  frame.style.opacity    = MIN_OPACITY;
-  frame.style.transform  = `translateX(${outX})`;
-
-  window.setTimeout(() => {
-    if (e.detail && typeof e.detail.resume === 'function') e.detail.resume();
-  }, OUT_MS + 10);
-}
-
-// ── Slide-fade in after Turbo mounts new DOM ──
-
-function onFrameRender(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== FRAME_ID) return;
-
-  const inX = _direction === 'next' ? `${SHIFT_PX}px`
-    : _direction === 'prev' ? `-${SHIFT_PX}px`
-    : '0px';
-
-  // Jump to entering position without transition
-  frame.style.transition = 'none';
-  frame.style.opacity    = MIN_OPACITY;
-  frame.style.transform  = `translateX(${inX})`;
-  // Force reflow
-  // eslint-disable-next-line no-unused-expressions
-  frame.offsetHeight;
-
-  // Animate to resting position
-  frame.style.transition = `opacity ${IN_MS}ms ease-out, transform ${IN_MS}ms ease-out`;
-  frame.style.opacity    = '1';
-  frame.style.transform  = 'translateX(0)';
-
-  const onEnd = () => {
-    frame.style.transition = '';
-    frame.style.transform  = '';
-    frame.style.opacity    = '';
-    frame.style.willChange = '';
-    _direction = null;
-    frame.removeEventListener('transitionend', onEnd);
-  };
-  frame.addEventListener('transitionend', onEnd);
-}
-
-// ── After frame loads: sync counts + tab state from embedded JSON ──
+// ── After the results frame is swapped ──
 
 function onFrameLoad(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== FRAME_ID) return;
+  if (e.target?.id !== FRAME_ID) return;
 
-  const script = document.getElementById('ca-tab-meta');
-  if (!script) return;
-
-  let meta;
-  try { meta = JSON.parse(script.textContent); } catch { return; }
-
-  const { activeTab, clientCount, animalCount } = meta;
-
-  if (clientCount != null) {
-    const el = document.querySelector('[data-tab-count="clients"]');
-    if (el) el.textContent = clientCount;
+  // The mode toggle sits in the topbar, outside the frame.
+  const counts = document.querySelector('[data-results-clients]');
+  if (counts) {
+    const clients = document.querySelector('[data-count-clients]');
+    const animals = document.querySelector('[data-count-animals]');
+    if (clients) clients.textContent = counts.dataset.resultsClients;
+    if (animals) animals.textContent = counts.dataset.resultsAnimals;
   }
 
-  if (animalCount != null) {
-    const el = document.querySelector('[data-tab-count="animals"]');
-    if (el) el.textContent = animalCount;
+  // Rows the new page no longer holds cannot stay selected.
+  const ids = new Set(rowIds());
+  selected.forEach(id => {
+    if (!ids.has(id)) selected.delete(id);
+  });
+  renderSelection();
+  syncSearchForm();
+
+  document.dispatchEvent(new CustomEvent('kiveto:icons-refresh'));
+}
+
+// ── Dropdowns ──
+
+function closeMenus(except) {
+  document.querySelectorAll('.filter-menu.is-open, .row-menu.is-open').forEach(menu => {
+    if (menu !== except) menu.classList.remove('is-open');
+  });
+}
+
+function onClick(e) {
+  const filterToggle = e.target.closest?.('[data-filter-toggle]');
+  if (filterToggle) {
+    const menu = filterToggle.parentElement?.querySelector('[data-filter-menu]');
+    const wasOpen = menu?.classList.contains('is-open');
+    closeMenus();
+    if (menu && !wasOpen) menu.classList.add('is-open');
+    return;
   }
 
-  // Sync tab active state (back/forward navigation)
-  if (activeTab) {
-    document.querySelectorAll('#ca-tabs .tab-line').forEach(el => {
-      el.classList.toggle('is-active', el.dataset.tab === activeTab);
-    });
+  const rowToggle = e.target.closest?.('[data-row-menu-toggle]');
+  if (rowToggle) {
+    e.stopPropagation();
+    const menu = rowToggle.parentElement?.querySelector('[data-row-menu]');
+    const wasOpen = menu?.classList.contains('is-open');
+    closeMenus();
+    if (menu && !wasOpen) menu.classList.add('is-open');
+    return;
+  }
 
-    const hiddenTab = document.getElementById('ca-search-tab');
-    if (hiddenTab) hiddenTab.value = activeTab;
+  // A click inside an open menu is a navigation, leave it alone
+  if (e.target.closest?.('.filter-menu, .row-menu')) return;
 
-    const searchInput = document.getElementById('ca-search-input');
-    if (searchInput) {
-      searchInput.placeholder = activeTab === 'clients'
-        ? 'Rechercher un client…'
-        : 'Rechercher un animal…';
+  closeMenus();
+
+  const checkAll = e.target.closest?.('#check-all');
+  if (checkAll) {
+    toggleAll();
+    return;
+  }
+
+  const check = e.target.closest?.('[data-check]');
+  if (check) {
+    e.stopPropagation();
+    toggle(check.dataset.check);
+    return;
+  }
+
+  if (e.target.closest?.('#bulk-clear')) {
+    selected.clear();
+    renderSelection();
+    return;
+  }
+
+  // Anywhere else on a row opens the consultation
+  const row = e.target.closest?.('tr[data-url]');
+  if (row) window.Turbo ? window.Turbo.visit(row.dataset.url) : (window.location.href = row.dataset.url);
+}
+
+// ── Page size selector submits its own form ──
+
+function onChange(e) {
+  const select = e.target.closest?.('[data-auto-submit]');
+  if (select) select.form?.requestSubmit();
+}
+
+// ── Selection ──
+
+function rowIds() {
+  return [...document.querySelectorAll('tr[data-id]')].map(row => row.dataset.id);
+}
+
+function toggle(id) {
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  renderSelection();
+}
+
+function toggleAll() {
+  const ids = rowIds();
+  const allSelected = ids.length > 0 && ids.every(id => selected.has(id));
+  ids.forEach(id => (allSelected ? selected.delete(id) : selected.add(id)));
+  renderSelection();
+}
+
+function renderSelection() {
+  const ids = rowIds();
+
+  document.querySelectorAll('tr[data-id]').forEach(row => {
+    const isSelected = selected.has(row.dataset.id);
+    row.classList.toggle('is-selected', isSelected);
+    const check = row.querySelector('[data-check]');
+    if (check) {
+      check.classList.toggle('is-checked', isSelected);
+      check.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+    }
+  });
+
+  const inPage = ids.filter(id => selected.has(id)).length;
+  const checkAll = document.getElementById('check-all');
+  if (checkAll) {
+    checkAll.classList.toggle('is-checked', ids.length > 0 && inPage === ids.length);
+    checkAll.classList.toggle('is-partial', inPage > 0 && inPage < ids.length);
+    checkAll.setAttribute('aria-checked', inPage === ids.length && ids.length > 0 ? 'true' : 'false');
+  }
+
+  const bar = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  if (count) count.textContent = String(selected.size);
+  if (bar) bar.classList.toggle('is-visible', selected.size > 0);
+}
+
+// ── Keyboard ──
+
+// Ctrl/Cmd+K is the global search modal's shortcut — this page must not take it.
+function onKeydown(e) {
+  if (e.key === 'Escape') {
+    closeMenus();
+    if (selected.size > 0) {
+      selected.clear();
+      renderSelection();
     }
   }
 }

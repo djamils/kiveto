@@ -28,6 +28,10 @@ final readonly class SearchClientsHandler
             status: $query->status,
             page: $query->page,
             limit: $query->limit,
+            statuses: $query->statuses,
+            cities: $query->cities,
+            sort: $query->sort,
+            direction: $query->direction,
         );
 
         return $this->clientReadRepository->search($clinicId, $criteria);

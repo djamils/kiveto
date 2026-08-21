@@ -97,7 +97,7 @@
   { key: 'clinic_admission_queue', label: 'Salle d\'attente',  icon: icon_clock,       route: 'clinic_admission_queue' },
 
   { section: 'Médical' },
-  { key: 'clinic_clients_list',           label: 'Clients & Patients', icon: icon_users,       route: 'clinic_clients_list' },
+  { key: 'clinic_clients_list',           label: 'Répertoire',         icon: icon_users,       route: 'clinic_clients_list', matches: ['clinic_clients_view', 'clinic_animals_view'] },
   { key: 'clinic_consultations',           label: 'Consultations',      icon: icon_stethoscope, route: 'clinic_consultations', matches: ['clinic_consultation_details'] },
   { key: 'clinic_hospitalisations',       label: 'Hospitalisations',   icon: icon_bed,         route: 'clinic_hospitalisations' },
 

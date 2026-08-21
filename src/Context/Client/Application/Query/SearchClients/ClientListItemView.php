@@ -14,6 +14,7 @@ final readonly class ClientListItemView
         public ?string $primaryPhone,
         public ?string $primaryEmail,
         public string $createdAt,
+        public ?string $city = null,
     ) {
     }
 

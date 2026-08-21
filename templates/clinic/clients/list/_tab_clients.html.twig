@@ -1,127 +1,166 @@
-{# Clients tab — server-rendered table wired to SearchClients query results. #}
+{#
+ # Kiveto — templates/clinic/clients/list/_tab_clients.html.twig
+ # ────────────────────────────────────────────────────────────
+ # Clients mode of the directory. Included by index.html.twig, which owns the
+ # label maps, the query-string helper and the sortHead macro.
+ #}
+{% import 'clinic/clients/list/_macros.html.twig' as ui %}
 
-{# Avatar palette — matched to the historical mock data. Picked deterministically
-   from the client id so a given client always keeps the same colour. #}
-{% set avatarPalette = [
-  {bg: '#eef2ff', color: '#4338ca'},
-  {bg: '#ecfeff', color: '#0891b2'},
-  {bg: '#ecfdf5', color: '#059669'},
-  {bg: '#f5f3ff', color: '#7c3aed'},
-  {bg: '#fdf2f8', color: '#db2777'},
-  {bg: '#fef3c7', color: '#b45309'},
-] %}
-
-{# ── Table ── #}
-<div class="data-card-table">
-    <table class="data-grid">
-      <thead>
-        <tr>
-          <th class="dg-th-checkbox">
-            <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Tout sélectionner"/>
-          </th>
-          <th>Nom</th>
-          <th class="col-email">Email</th>
-          <th class="col-phone">Téléphone</th>
-          <th class="col-animals">Animaux</th>
-          <th>Statut</th>
-          <th class="dg-th-actions"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if clients is null or clients.items is empty %}
-          <tr>
-            <td colspan="7" class="data-grid-empty">
-              {% if search %}
-                Aucun client ne correspond à « {{ search }} ».
-              {% else %}
-                Aucun client enregistré pour cette clinique.
-              {% endif %}
-            </td>
-          </tr>
-        {% else %}
-          {% for client in clients.items %}
-            {% set initials = (client.firstName|first ~ client.lastName|first)|upper %}
-            {# Stable hash from the uuid so the same client always gets the same colour. #}
-            {% set _hexMap = {'0':0, '1':1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, 'a':10, 'b':11, 'c':12, 'd':13, 'e':14, 'f':15} %}
-            {% set _hashSum = 0 %}
-            {% for _ch in (client.id|replace({'-': ''})|slice(0, 8))|split('') %}
-              {% set _hashSum = _hashSum + (_hexMap[_ch|lower] ?? 0) %}
-            {% endfor %}
-            {% set avatar = avatarPalette[_hashSum % (avatarPalette|length)] %}
-            <tr>
-              <td class="dg-td-checkbox">
-                <input type="checkbox" class="ki-checkbox dg-checkbox" aria-label="Sélectionner ce client"/>
-              </td>
-              <td>
-                <div class="dg-name-cell">
-                  <span class="dg-avatar" style="background:{{ avatar.bg }};color:{{ avatar.color }};">{{ initials }}</span>
-                  <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="dg-name-link" data-turbo-frame="_top">{{ client.fullName }}</a>
-                </div>
-              </td>
-              <td class="col-email">{{ client.primaryEmail|default('—') }}</td>
-              <td class="col-phone">{{ client.primaryPhone ? client.primaryPhone|phone_display(true) : '—' }}</td>
-              <td class="col-animals">
-                {% set summaries = animalSummariesByClientId[client.id] ?? [] %}
-                {% if summaries is empty %}
-                  <span class="text-muted">—</span>
-                {% else %}
-                  {% set speciesClass = {'dog': 'b-dog', 'cat': 'b-cat', 'nac': 'b-feline', 'other': 'b-other'} %}
-                  <div class="dg-animal-badges">
-                    {% for animal in summaries|slice(0, 4) %}
-                      <a href="{{ path('clinic_animals_view', {id: animal.id}) }}"
-                         class="badge {{ speciesClass[animal.species] ?? 'b-grey' }}">{{ animal.name }}</a>
-                    {% endfor %}
-                    {% if summaries|length >= 5 %}
-                      <a href="{{ path('clinic_clients_view', {id: client.id}) }}"
-                         class="badge b-grey" data-turbo-frame="_top">+</a>
-                    {% endif %}
-                  </div>
-                {% endif %}
-              </td>
-              <td>
-                <span class="badge {{ client.status == 'active' ? 'b-ok' : 'b-grey' }}">
-                  {{ client.status == 'active' ? 'Actif' : 'Archivé' }}
+{% if clients|length > 0 %}
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th class="col-check">
+          <div class="check" id="check-all" role="checkbox" aria-checked="false" tabindex="0" title="Tout sélectionner">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </div>
+        </th>
+        {{ ui.sortHead('name', 'Client', 'col-client-name', sort, direction, qs) }}
+        <th class="col-contact">Coordonnées</th>
+        <th class="col-animals">Animaux</th>
+        <th class="col-lastvisit">Dernière visite</th>
+        {# No invoice, payment or balance table exists yet #}
+        <th class="col-lastvisit" title="Bientôt disponible">Encours facturation</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for client in clients %}
+        {% set initials = (client.firstName|slice(0, 1) ~ client.lastName|slice(0, 1))|upper %}
+        {% set avatarColor = avatarColors[client.id] ?? AVATAR_COLORS[0] %}
+        {% set summaries = animalSummaries[client.id] ?? [] %}
+        {% set lastVisit = enrichment[client.id] ?? null %}
+        <tr data-id="{{ client.id }}" data-url="{{ path('clinic_clients_view', { id: client.id }) }}">
+          <td class="col-check">
+            <div class="check" role="checkbox" aria-checked="false" data-check="{{ client.id }}">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+            </div>
+          </td>
+          <td class="col-client-name">
+            <div class="cell-flex">
+              <div class="avatar-initials" style="background:{{ avatarColor }}">{{ initials }}</div>
+              <div class="cell-stack">
+                <span class="cell-primary">
+                  {{ client.fullName }}
+                  {% if client.status != 'active' %}
+                    <span class="status-badge status-{{ client.status }}" style="margin-left:6px">
+                      <span class="status-dot"></span>{{ STATUS_LABELS[client.status] ?? client.status }}
+                    </span>
+                  {% endif %}
                 </span>
-              </td>
-              <td class="dg-td-actions">
-                <a href="{{ path('clinic_clients_view', {id: client.id}) }}" class="btn btn-ghost btn-icon btn-sm" aria-label="Voir" data-turbo-frame="_top">
-                  <i data-lucide="eye"></i>
+                {% if client.city %}
+                  <span class="cell-secondary">{{ client.city }}</span>
+                {% else %}
+                  <span class="cell-secondary cell-none">Ville non renseignée</span>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="col-contact">
+            <div class="cell-contact">
+              {% if client.primaryPhone %}
+                <div class="cell-contact-line">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  {{ client.primaryPhone|phone_display(false, false) }}
+                </div>
+              {% endif %}
+              {% if client.primaryEmail %}
+                <div class="cell-contact-line is-muted">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  {{ client.primaryEmail }}
+                </div>
+              {% endif %}
+              {% if not client.primaryPhone and not client.primaryEmail %}
+                <span class="cell-none">Aucune coordonnée</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="col-animals">
+            <div class="cell-animals">
+              {% for animal in summaries|slice(0, 3) %}
+                <a class="animal-chip" href="{{ path('clinic_animals_view', { id: animal.id }) }}"
+                   data-turbo-frame="_top" title="{{ animal.name }} · {{ SPECIES_LABELS[animal.species] ?? animal.species }}">
+                  <span class="animal-chip-icon">{{ SPECIES_ICONS[animal.species] ?? '🐾' }}</span>
+                  <span class="animal-chip-name">{{ animal.name }}</span>
                 </a>
-              </td>
-            </tr>
-          {% endfor %}
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-
-  {# ── Pagination footer ── #}
-  {% if clients is not null and clients.totalPages > 1 %}
-    <div class="data-card-foot">
-      <div class="data-pagination-right">
-        <span class="data-pagination-info">
-          Page {{ clients.currentPage }} sur {{ clients.totalPages }} ({{ clients.totalItems }} clients)
-        </span>
-        <div class="data-pagination-buttons">
-          {% if clients.hasPreviousPage %}
-            <a href="{{ path('clinic_clients_list', {tab: 'clients', search: search, page: clients.previousPage}) }}" class="data-pagination-btn" aria-label="Précédent">
-              <i data-lucide="chevron-left"></i>
-            </a>
-          {% else %}
-            <button type="button" class="data-pagination-btn" disabled aria-label="Précédent">
-              <i data-lucide="chevron-left"></i>
+              {% else %}
+                <span class="animals-empty">Aucun animal</span>
+              {% endfor %}
+              {% if summaries|length > 3 %}
+                <span class="animal-more-inline">+{{ summaries|length - 3 }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="col-lastvisit">
+            {% if lastVisit %}
+              {% set visitedAt = date(lastVisit.startedAt ~ ' UTC') %}
+              {% set days = date('today', 'Europe/Paris').diff(date(visitedAt|date('Y-m-d', 'Europe/Paris') ~ ' 00:00:00', 'Europe/Paris')).days %}
+              <div class="cell-lastvisit">
+                <span class="cell-lastvisit-date">
+                  {%- if days == 0 -%}Aujourd'hui
+                  {%- elseif days == 1 -%}Hier
+                  {%- elseif days < 7 -%}il y a {{ days }} j
+                  {%- elseif days < 30 -%}il y a {{ days // 7 }} sem
+                  {%- elseif days < 365 -%}il y a {{ days // 30 }} mois
+                  {%- else -%}il y a {{ days // 365 }} an{{ days // 365 > 1 ? 's' : '' }}
+                  {%- endif -%}
+                </span>
+                <span class="cell-lastvisit-context">{{ lastVisit.animalName }}</span>
+              </div>
+            {% else %}
+              <span class="cell-none">Jamais</span>
+            {% endif %}
+          </td>
+          <td class="col-lastvisit"><span class="cell-none">—</span></td>
+          <td class="col-actions" style="position:relative">
+            <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </button>
-          {% endif %}
-          {% if clients.hasNextPage %}
-            <a href="{{ path('clinic_clients_list', {tab: 'clients', search: search, page: clients.nextPage}) }}" class="data-pagination-btn" aria-label="Suivant">
-              <i data-lucide="chevron-right"></i>
-            </a>
-          {% else %}
-            <button type="button" class="data-pagination-btn" disabled aria-label="Suivant">
-              <i data-lucide="chevron-right"></i>
-            </button>
-          {% endif %}
-        </div>
-      </div>
+            <div class="row-menu" data-row-menu>
+              {# data-turbo-frame="_top": these leave the list for a full page #}
+              <a class="row-menu-item" data-turbo-frame="_top" href="{{ path('clinic_clients_view', { id: client.id }) }}">
+                <i data-lucide="external-link"></i> Ouvrir la fiche
+              </a>
+              <a class="row-menu-item" data-turbo-frame="_top" href="{{ path('clinic_clients_edit', { id: client.id }) }}">
+                <i data-lucide="pencil"></i> Modifier
+              </a>
+              <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                <i data-lucide="mail"></i> Envoyer email
+              </span>
+              <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                <i data-lucide="receipt"></i> Historique facturation
+              </span>
+              <div class="row-menu-sep"></div>
+              {% if client.status == 'active' %}
+                <form method="post" action="{{ path('clinic_clients_archive', { id: client.id }) }}" data-turbo-frame="_top">
+                  <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+                  <button class="row-menu-item is-danger" type="submit">
+                    <i data-lucide="archive"></i> Archiver
+                  </button>
+                </form>
+              {% else %}
+                <form method="post" action="{{ path('clinic_clients_unarchive', { id: client.id }) }}" data-turbo-frame="_top">
+                  <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+                  <button class="row-menu-item" type="submit">
+                    <i data-lucide="archive-restore"></i> Réactiver
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty">
+    <div class="empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
-  {% endif %}
+    <div class="empty-title">Aucun client trouvé</div>
+    <div class="empty-sub">Ajustez les filtres, ou créez une fiche propriétaire pour démarrer.</div>
+    <button class="btn btn-primary btn-sm" type="button" data-modal-open="modal-new-client" style="margin-top:12px">
+      <i data-lucide="plus"></i> Nouveau client
+    </button>
+  </div>
+{% endif %}
