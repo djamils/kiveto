@@ -535,6 +535,80 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         ));
     }
 
+    public function testTheMedicinesOfAConsultationComeBackInOrder(): void
+    {
+        $consultation = $this->startConsultation(
+            self::CONSULTATION_1,
+            self::CLINIC_ID,
+            self::PATIENT_ID,
+            new \DateTimeImmutable('2026-04-10 09:00:00'),
+        );
+
+        $consultation->addPrescriptionLine(
+            self::ARTICLE_ID,
+            'MED-OTO',
+            'Otomax',
+            '2 gouttes',
+            '2×/j',
+            7,
+            'auriculaire',
+            1.0,
+            1850,
+            'EUR',
+            'TVA20',
+            UserId::fromString(self::USER_ID),
+            new \DateTimeImmutable('2026-04-10 09:05:00'),
+        );
+
+        $this->writeRepository->save($consultation);
+
+        $lines = $this->readRepository->prescriptionLinesForConsultation(
+            ClinicId::fromString(self::CLINIC_ID),
+            ConsultationId::fromString(self::CONSULTATION_1),
+        );
+
+        self::assertCount(1, $lines);
+        self::assertSame('Otomax', $lines[0]['label']);
+        self::assertSame('MED-OTO', $lines[0]['code']);
+        self::assertSame(self::ARTICLE_ID, $lines[0]['articleId']);
+        self::assertSame('2 gouttes', $lines[0]['dose']);
+        self::assertSame('2×/j', $lines[0]['frequency']);
+        self::assertSame(7, $lines[0]['durationDays']);
+        self::assertSame('auriculaire', $lines[0]['route']);
+        self::assertSame('1.00', $lines[0]['quantity']);
+    }
+
+    public function testTheMedicinesOfAnotherClinicAreInvisible(): void
+    {
+        $consultation = $this->startConsultation(
+            self::CONSULTATION_1,
+            self::CLINIC_ID,
+            self::PATIENT_ID,
+            new \DateTimeImmutable('2026-04-10 09:00:00'),
+        );
+        $consultation->addPrescriptionLine(
+            null,
+            null,
+            'Otomax',
+            null,
+            null,
+            null,
+            null,
+            1.0,
+            1850,
+            'EUR',
+            null,
+            UserId::fromString(self::USER_ID),
+            new \DateTimeImmutable('2026-04-10 09:05:00'),
+        );
+        $this->writeRepository->save($consultation);
+
+        self::assertSame([], $this->readRepository->prescriptionLinesForConsultation(
+            ClinicId::fromString(self::OTHER_CLINIC_ID),
+            ConsultationId::fromString(self::CONSULTATION_1),
+        ));
+    }
+
     private function insertExamSystemRow(string $system, string $structuredData, int $position): void
     {
         $connection = self::getContainer()->get('doctrine.dbal.default_connection');

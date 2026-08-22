@@ -85,6 +85,26 @@ interface ConsultationReadRepositoryInterface
     public function billingLinesForAdmission(ClinicId $clinicId, AdmissionId $admissionId): array;
 
     /**
+     * The medicines recorded on one consultation, in the order they were added.
+     *
+     * The Prescription BC snapshots these into an ordonnance; the rows stay a
+     * plain shape so no Consultation type leaks across the boundary.
+     *
+     * @return list<array{
+     *     sourceLineId: string,
+     *     articleId: ?string,
+     *     code: ?string,
+     *     label: string,
+     *     dose: ?string,
+     *     frequency: ?string,
+     *     durationDays: ?int,
+     *     route: ?string,
+     *     quantity: string
+     * }>
+     */
+    public function prescriptionLinesForConsultation(ClinicId $clinicId, ConsultationId $consultationId): array;
+
+    /**
      * One page of the clinic-wide consultation list, plus the unpaginated total.
      *
      * @return array{items: list<ConsultationListRow>, total: int}

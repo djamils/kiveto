@@ -1,0 +1,266 @@
+{#
+ # Kiveto — templates/clinic/prescription/detail/index.html.twig
+ # ────────────────────────────────────────────────────────────
+ # One ordonnance: what it prescribes, for whom, and the two acts that remain
+ # open on it — signing a draft, renewing or cancelling a signed one.
+ #
+ # Variables:
+ #   prescription  PrescriptionDetails
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}{{ prescription.number ?? 'Ordonnance' }}{% endblock %}
+{% block show_topbar %}false{% endblock %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('styles/pages/prescription.css') }}"/>
+{% endblock %}
+
+{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
+
+{% block content %}
+<div class="pd-root">
+
+  {# ── Topbar ── #}
+  <header class="topbar">
+    <a class="tb-back" href="{{ path('clinic_prescriptions') }}" aria-label="Retour aux ordonnances">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <div class="tb-title">
+      <span class="topbar-icon" aria-hidden="true"><i data-lucide="pill"></i></span>
+      <h1 class="topbar-title">{{ prescription.number ?? 'Brouillon' }}</h1>
+      {% if prescription.isExpired %}
+        <span class="status-badge status-EXPIRED"><span class="status-dot"></span>Expirée</span>
+      {% else %}
+        <span class="status-badge status-{{ prescription.status }}">
+          <span class="status-dot"></span>{{ prescription.statusLabel }}
+        </span>
+      {% endif %}
+      {% if prescription.carriesControlledSubstance %}
+        <span class="controlled-badge is-inline" title="Contient une substance contrôlée">
+          <i data-lucide="shield-alert"></i> Substance contrôlée
+        </span>
+      {% endif %}
+    </div>
+    <div class="tb-spacer"></div>
+    {% if prescription.number %}
+      <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener"
+         href="{{ path('clinic_prescription_print', { prescriptionId: prescription.id }) }}">
+        <i data-lucide="printer"></i>
+        Imprimer
+      </a>
+    {% endif %}
+    <a class="btn btn-ghost btn-sm" href="{{ path('clinic_consultation_details', { id: prescription.consultationId }) }}">
+      <i data-lucide="stethoscope"></i>
+      Consultation
+    </a>
+  </header>
+
+  <div class="pd-body">
+
+    {# ── Left column: the ordonnance itself ── #}
+    <section class="pd-main">
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Médicaments</span>
+          <span class="card-meta">{{ prescription.lines|length }} ligne{{ prescription.lines|length > 1 ? 's' : '' }}</span>
+        </div>
+
+        {% if prescription.lines|length > 0 %}
+          <ol class="med-list">
+            {% for line in prescription.lines %}
+              <li class="med-row{{ line.isControlled ? ' is-controlled' : '' }}">
+                <div class="med-head">
+                  <span class="med-name">{{ line.label }}</span>
+                  {% if line.pharmaceuticalForm %}
+                    <span class="med-form">{{ line.pharmaceuticalForm }}</span>
+                  {% endif %}
+                  {% if line.isControlled %}
+                    <span class="med-class">{{ line.prescriptionClassLabel }}</span>
+                  {% endif %}
+                </div>
+                {% if line.activeSubstances|length > 0 %}
+                  <div class="med-substances">{{ line.activeSubstances|join(', ') }}</div>
+                {% endif %}
+                <div class="med-posology">
+                  {{ line.posology ?: 'Posologie non précisée' }}
+                  <span class="med-qty">· {{ line.quantity|number_format(line.quantity == line.quantity|round ? 0 : 2, ',', ' ') }} unité{{ line.quantity > 1 ? 's' : '' }}</span>
+                </div>
+                {% if line.instructions %}
+                  <div class="med-instructions">{{ line.instructions }}</div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <div class="med-empty">
+            Aucun médicament n'a été relevé sur cette consultation. Ajoutez-les au bloc Ordonnance du cockpit,
+            puis rouvrez cette page.
+          </div>
+        {% endif %}
+
+        {% if prescription.notes %}
+          <div class="pd-notes">
+            <span class="pd-notes-label">Recommandations</span>
+            <p>{{ prescription.notes|nl2br }}</p>
+          </div>
+        {% endif %}
+      </div>
+
+      {# ── Signing a draft ── #}
+      {% if prescription.status == 'DRAFT' %}
+        <div class="card">
+          <div class="card-head"><span class="card-title">Signer l'ordonnance</span></div>
+          <form class="issue-form" method="POST"
+                action="{{ path('clinic_prescription_issue', { prescriptionId: prescription.id }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('prescription_issue_' ~ prescription.id) }}">
+
+            <label class="field">
+              <span class="field-label">Renouvellements autorisés</span>
+              <select class="form-input" name="renewals"{{ prescription.carriesControlledSubstance ? ' disabled' : '' }}>
+                {% for n in 0..6 %}
+                  <option value="{{ n }}">{{ n == 0 ? 'Aucun' : n ~ ' fois' }}</option>
+                {% endfor %}
+              </select>
+              <span class="field-hint">
+                {% if prescription.carriesControlledSubstance %}
+                  Une ordonnance portant une substance contrôlée n'est pas renouvelable et vaut
+                  {{ prescription.validityDays }} jours.
+                {% else %}
+                  Sans renouvellement, l'ordonnance vaut {{ prescription.validityDays }} jours à compter de la signature.
+                {% endif %}
+              </span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Recommandations <span class="field-optional">(facultatif)</span></span>
+              <textarea class="form-input form-textarea" name="notes" rows="3"
+                        placeholder="Conseils au propriétaire, précautions d'administration…"></textarea>
+            </label>
+
+            <button class="btn btn-primary btn-block" type="submit"
+                    {{ prescription.lines|length == 0 ? 'disabled' : '' }}>
+              <i data-lucide="pen-line"></i>
+              Signer et émettre
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </section>
+
+    {# ── Right column: who, for whom, until when ── #}
+    <aside class="pd-side">
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Patient</span></div>
+        <div class="party-block">
+          <span class="party-name">{{ prescription.patientName }}</span>
+          {% set meta = [SPECIES_LABELS[prescription.patientSpecies] ?? null, prescription.patientBreed]|filter(v => v)|join(' · ') %}
+          {% if meta %}<span class="party-meta">{{ meta }}</span>{% endif %}
+          {% if prescription.patientBirthDate %}
+            {% set age = prescription.patientBirthDate.diff(date()).y %}
+            <span class="party-meta">{{ age > 0 ? age ~ ' an' ~ (age > 1 ? 's' : '') : 'moins d\'un an' }}</span>
+          {% endif %}
+          {% if prescription.patientMicrochipNumber %}
+            <span class="party-meta">Puce {{ prescription.patientMicrochipNumber }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Détenteur</span></div>
+        <div class="party-block">
+          <span class="party-name">{{ prescription.ownerName }}</span>
+          {% for line in prescription.ownerAddressLines %}
+            <span class="party-meta">{{ line }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Prescripteur</span></div>
+        <div class="party-block">
+          <span class="party-name">{{ prescription.prescriberName }}</span>
+          {% if prescription.prescriberRegistrationNumber %}
+            <span class="party-meta">N° ordinal {{ prescription.prescriberRegistrationNumber }}</span>
+          {% else %}
+            <span class="party-warning">
+              Aucun numéro ordinal : ce praticien ne peut pas signer d'ordonnance.
+            </span>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if prescription.validUntil %}
+        <div class="card validity-card{{ prescription.isExpired ? ' is-expired' : ' is-valid' }}">
+          <span class="validity-label">{{ prescription.isExpired ? 'Expirée depuis le' : 'Valable jusqu\'au' }}</span>
+          <span class="validity-value">{{ prescription.validUntil|date('d/m/Y', 'Europe/Paris') }}</span>
+          <span class="validity-sub">
+            Émise le {{ prescription.issuedAt|date('d/m/Y', 'Europe/Paris') }} ·
+            {{ prescription.renewalsUsed }}/{{ prescription.renewalsAllowed }} renouvellement{{ prescription.renewalsAllowed > 1 ? 's' : '' }}
+          </span>
+        </div>
+      {% endif %}
+
+      {% if prescription.renewals|length > 0 %}
+        <div class="card">
+          <div class="card-head"><span class="card-title">Renouvellements</span></div>
+          <ul class="renewal-list">
+            {% for renewal in prescription.renewals %}
+              <li class="renewal-row">
+                <span>{{ renewal.renewedAt|date('d/m/Y', 'Europe/Paris') }}</span>
+                <span class="renewal-until">→ {{ renewal.newValidUntil|date('d/m/Y', 'Europe/Paris') }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if prescription.status == 'ISSUED' and not prescription.isExpired and prescription.renewalsRemaining > 0 %}
+        <div class="card">
+          <div class="card-head"><span class="card-title">Renouveler</span></div>
+          <p class="side-empty">
+            {{ prescription.renewalsRemaining }} renouvellement{{ prescription.renewalsRemaining > 1 ? 's' : '' }}
+            restant{{ prescription.renewalsRemaining > 1 ? 's' : '' }}. Chacun repousse la validité de
+            {{ prescription.validityDays }} jours.
+          </p>
+          <form method="POST" action="{{ path('clinic_prescription_renew', { prescriptionId: prescription.id }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('prescription_renew_' ~ prescription.id) }}">
+            <button class="btn btn-secondary btn-block" type="submit">
+              <i data-lucide="refresh-cw"></i>
+              Renouveler
+            </button>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if prescription.status != 'CANCELLED' %}
+        <div class="card">
+          <div class="card-head"><span class="card-title">Annuler</span></div>
+          <p class="side-empty">
+            Une ordonnance annulée ne peut plus être présentée. Elle reste consultable, avec son motif.
+          </p>
+          <form method="POST" action="{{ path('clinic_prescription_cancel', { prescriptionId: prescription.id }) }}"
+                data-confirm="Annuler définitivement cette ordonnance ?">
+            <input type="hidden" name="_token" value="{{ csrf_token('prescription_cancel_' ~ prescription.id) }}">
+            <input class="form-input" type="text" name="reason" placeholder="Motif de l'annulation" required>
+            <button class="btn btn-danger btn-block" type="submit" style="margin-top:var(--space-3)">
+              <i data-lucide="x-circle"></i>
+              Annuler l'ordonnance
+            </button>
+          </form>
+        </div>
+      {% elseif prescription.cancellationReason %}
+        <div class="card">
+          <div class="card-head"><span class="card-title">Annulation</span></div>
+          <p class="side-empty">
+            {{ prescription.cancellationReason }}
+            {% if prescription.cancelledAt %}<br>Le {{ prescription.cancelledAt|date('d/m/Y à H:i', 'Europe/Paris') }}{% endif %}
+          </p>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

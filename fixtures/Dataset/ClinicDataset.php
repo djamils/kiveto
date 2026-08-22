@@ -12,6 +12,7 @@ use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
+use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
@@ -77,6 +78,9 @@ final class ClinicDataset extends Story
         // Seed admissions + consultations in varied cockpit states (needs the
         // catalog and the animals above)
         ConsultationDemoStory::load();
+
+        // Write the ordonnances of the consultations that prescribed something
+        PrescriptionDemoStory::load();
 
         // Invoice the visits that are over (needs their consultations)
         BillingDemoStory::load();

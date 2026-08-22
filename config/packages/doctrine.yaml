@@ -123,6 +123,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Billing/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Billing
+            Prescription:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Prescription/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Prescription\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Prescription
         controller_resolver:
             auto_mapping: false
 
