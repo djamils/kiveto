@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Presentation\Clinic\Controller\Billing;
+namespace App\Presentation\Clinic\Form\Shared;
 
 /**
- * Reads the amount typed at the desk.
+ * Reads a price or an amount typed into a form.
  *
  * The field is a plain text input so a receptionist can type "45,50" as
- * naturally as "45.50"; anything else is rejected rather than silently
- * rounded to something the client did not agree to.
+ * naturally as "45.50"; anything else is rejected rather than silently rounded
+ * to something nobody agreed to.
  */
 final class AmountParser
 {

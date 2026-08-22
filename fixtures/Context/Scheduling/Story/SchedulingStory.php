@@ -67,7 +67,7 @@ final class SchedulingStory extends Story
             [3, 8,  30, $paris, $vetUserId,        30, 'Bilan annuel',                      false],
             [3, 11, 0,  $paris, $contractorUserId, 20, 'Vaccin',                            false],
             [4, 11, 0,  $lyon,  $vetUserId,        15, 'Suivi post-op J+7',                 false],
-            [5, 10, 0,  $paris, $vetUserId,        30, "Vaccination d'Artagnan",            true],
+            [5, 10, 0,  $paris, $vetUserId,        30, "Vaccination d'Artagnan",            false],
             [6, 15, 0,  $lyon,  $vetUserId,        20, 'Contrôle poids',                    false],
         ];
 
@@ -90,7 +90,7 @@ final class SchedulingStory extends Story
             [9,  15, $paris, $contractorUserId, 20, 'Contrôle post-opératoire',  false],
             [11, 0,  $paris, $vetUserId,        30, 'Bilan annuel',              false],
             [14, 30, $paris, $contractorUserId, 45, 'Détartrage',                false],
-            [16, 0,  $paris, $vetUserId,        20, 'Vaccin',                    true],
+            [16, 0,  $paris, $vetUserId,        20, 'Vaccin',                    false],
             [9,  0,  $lyon,  $vetUserId,        30, 'Consultation',              false],
             [10, 30, $lyon,  $lyonVetUserId,    60, 'Chirurgie de convenance',   false],
             [15, 0,  $lyon,  $lyonVetUserId,    20, 'Contrôle de poids',         false],
@@ -108,6 +108,30 @@ final class SchedulingStory extends Story
                 $cancelled,
             );
         }
+
+        // A cancelled appointment, so the agenda and the board both show that
+        // state. It is placed relative to the clock rather than at a fixed hour:
+        // the domain refuses to cancel an appointment that has already passed,
+        // and the fixtures are loaded at any time of day.
+        $this->schedule(
+            $paris,
+            $vetUserId,
+            $now->modify('+90 minutes'),
+            $utcTz,
+            20,
+            "Vaccination d'Artagnan (annulé)",
+            true,
+        );
+
+        $this->schedule(
+            $lyon,
+            $lyonVetUserId,
+            $now->modify('+3 hours'),
+            $utcTz,
+            30,
+            'Contrôle annulé par le propriétaire',
+            true,
+        );
     }
 
     private function schedule(

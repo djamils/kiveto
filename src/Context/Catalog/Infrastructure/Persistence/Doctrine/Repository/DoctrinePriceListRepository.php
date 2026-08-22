@@ -47,23 +47,51 @@ final readonly class DoctrinePriceListRepository implements PriceListRepositoryI
             $this->mapper->toEntity($priceList, $itemEntities, $ruleEntities, $existing);
         }
 
-        // Sync items: remove all and re-insert
-        foreach ($itemEntities as $itemEntity) {
-            $this->em->remove($itemEntity);
-        }
+        // Items and rules keep their identity across saves, so each one is
+        // updated where it stands; wiping the rows and re-inserting them under
+        // the same ids collides with what the identity map already holds.
+        $knownItems = [];
 
-        foreach ($ruleEntities as $ruleEntity) {
-            $this->em->remove($ruleEntity);
+        foreach ($itemEntities as $itemEntity) {
+            $knownItems[$itemEntity->getId()->toString()] = $itemEntity;
         }
 
         foreach ($priceList->items() as $item) {
-            $itemEntity = $this->itemMapper->toEntity($item, $priceList->id(), null);
-            $this->em->persist($itemEntity);
+            $itemId       = $item->id()->toString();
+            $existingItem = $knownItems[$itemId] ?? null;
+            $itemEntity   = $this->itemMapper->toEntity($item, $priceList->id(), $existingItem);
+
+            if (null === $existingItem) {
+                $this->em->persist($itemEntity);
+            }
+
+            unset($knownItems[$itemId]);
+        }
+
+        foreach ($knownItems as $orphan) {
+            $this->em->remove($orphan);
+        }
+
+        $knownRules = [];
+
+        foreach ($ruleEntities as $ruleEntity) {
+            $knownRules[$ruleEntity->getId()->toString()] = $ruleEntity;
         }
 
         foreach ($priceList->rules() as $rule) {
-            $ruleEntity = $this->ruleMapper->toEntity($rule, $priceList->id(), null);
-            $this->em->persist($ruleEntity);
+            $ruleId       = $rule->id()->toString();
+            $existingRule = $knownRules[$ruleId] ?? null;
+            $ruleEntity   = $this->ruleMapper->toEntity($rule, $priceList->id(), $existingRule);
+
+            if (null === $existingRule) {
+                $this->em->persist($ruleEntity);
+            }
+
+            unset($knownRules[$ruleId]);
+        }
+
+        foreach ($knownRules as $orphan) {
+            $this->em->remove($orphan);
         }
 
         $this->em->flush();

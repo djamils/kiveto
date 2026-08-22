@@ -1,0 +1,283 @@
+{#
+ # Kiveto — templates/clinic/catalog/acts.html.twig
+ # ───────────────────────────────────────────────
+ # The acts the clinic bills: consultations, surgeries, imaging, and the rest.
+ #
+ # Variables:
+ #   acts           list<ActListRow>
+ #   page           CatalogPage
+ #   criteria       CatalogListCriteria
+ #   counters       CatalogCounters
+ #   categories     list<string>
+ #   taxCategories  list<{code, label}>
+ #   pageSizes      list<int>
+ #   queryState     array
+ #}
+{% extends 'clinic/catalog/_shell.html.twig' %}
+
+{# The codes are namespaced and unreadable on a screen; the label is what the
+   Taxation context calls them. #}
+{% set TAX_LABELS = {} %}
+{% for category in taxCategories %}
+  {% set TAX_LABELS = TAX_LABELS|merge({ (category.code): category.label }) %}
+{% endfor %}
+
+{% set CATEGORY_LABELS = {
+  'CONSULTATION': 'Consultation', 'SURGERY': 'Chirurgie', 'IMAGING': 'Imagerie',
+  'LABORATORY': 'Laboratoire', 'HOSPITALIZATION': 'Hospitalisation',
+  'VACCINATION': 'Vaccination', 'PREVENTION': 'Prévention', 'OTHER': 'Autre'
+} %}
+{% set CATEGORY_OPTIONS = {} %}
+{% for category in categories %}
+  {% set CATEGORY_OPTIONS = CATEGORY_OPTIONS|merge({ (category): CATEGORY_LABELS[category]|default(category) }) %}
+{% endfor %}
+
+{# Sortable column header: clicking flips the direction, or starts a new sort #}
+{% macro sortHead(column, label, cssClass, criteria, queryState) %}
+  {% set active = criteria.sortBy == column %}
+  {% set nextDir = active and not criteria.sortDescending ? 'desc' : 'asc' %}
+  <th class="{{ cssClass }} sortable{{ active ? (criteria.sortDescending ? ' is-sorted-desc' : ' is-sorted-asc') : '' }}">
+    <a href="{{ path('clinic_catalogue', queryState|merge({ sort: column, dir: nextDir })) }}">
+      {{ label }} <span class="sort-icon">▼</span>
+    </a>
+  </th>
+{% endmacro %}
+
+{% block catalogue_title %}Catalogue{% endblock %}
+{% block catalogue_count %}{{ page.total }} acte{{ page.total > 1 ? 's' : '' }}{% endblock %}
+
+{% block catalogue_search %}
+  <form class="tb-search" method="GET" action="{{ path('clinic_catalogue') }}" role="search">
+    <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" name="q" value="{{ criteria.term }}" placeholder="Rechercher un acte, un code…" autocomplete="off">
+    {% for key, value in queryState %}
+      {% if key != 'q' %}
+        {% if value is iterable %}
+          {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
+        {% else %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </form>
+{% endblock %}
+
+{% block catalogue_actions %}
+  <button class="btn btn-primary btn-sm" type="button" data-modal-open="act-create-modal">
+    <i data-lucide="plus"></i>
+    Nouvel acte
+  </button>
+{% endblock %}
+
+{% block catalogue_body %}
+
+  <section class="filters">
+    {{ include('clinic/catalog/_filters.html.twig', {
+      route: 'clinic_catalogue',
+      kindLabel: 'Catégorie',
+      kindOptions: CATEGORY_OPTIONS,
+    }) }}
+    {% if criteria.term or criteria.kinds is not empty or criteria.status != 'ACTIVE' %}
+      <a class="filter-clear" href="{{ path('clinic_catalogue') }}">Tout effacer</a>
+    {% endif %}
+  </section>
+
+  <section class="table-wrapper">
+    {% if acts|length > 0 %}
+      <table class="cat-table">
+        <thead>
+          <tr>
+            {{ _self.sortHead('code', 'Code', 'col-code', criteria, queryState) }}
+            {{ _self.sortHead('name', 'Libellé', 'col-name', criteria, queryState) }}
+            {{ _self.sortHead('category', 'Catégorie', 'col-kind', criteria, queryState) }}
+            <th class="col-meta">Durée</th>
+            <th class="col-tax">TVA</th>
+            {{ _self.sortHead('price', 'Tarif', 'col-price', criteria, queryState) }}
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for act in acts %}
+            <tr class="{{ act.isArchived ? 'is-archived' : '' }}"
+                data-act-id="{{ act.id }}"
+                data-name="{{ act.name }}"
+                data-price="{{ (act.basePriceMinorUnits / 100)|number_format(2, ',', '') }}"
+                data-tax="{{ act.taxCategoryCode }}">
+              <td class="col-code"><span class="cell-code">{{ act.code }}</span></td>
+              <td class="col-name">
+                <span class="cell-name">{{ act.name }}</span>
+                {% if act.description %}<span class="cell-sub">{{ act.description }}</span>{% endif %}
+              </td>
+              <td class="col-kind">
+                <span class="tag">{{ CATEGORY_LABELS[act.category]|default(act.category) }}</span>
+                {% if act.requiresAnesthesia %}
+                  <span class="tag is-controlled" title="Sous anesthésie">
+                    <i data-lucide="syringe"></i> AG
+                  </span>
+                {% endif %}
+              </td>
+              <td class="col-meta"><span class="cell-meta">{{ act.estimatedDurationMinutes }} min</span></td>
+              <td class="col-tax"><span class="cell-tax" title="{{ act.taxCategoryCode }}">{{ TAX_LABELS[act.taxCategoryCode]|default(act.taxCategoryCode) }}</span></td>
+              <td class="col-price">
+                <span class="cell-price">{{ act.basePriceMinorUnits|money(act.currency) }}</span>
+              </td>
+              <td class="col-actions" style="position:relative">
+                <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+                <div class="row-menu" data-row-menu>
+                  {% if not act.isArchived %}
+                    <button class="row-menu-item" type="button" data-edit-act="{{ act.id }}">
+                      <i data-lucide="pencil"></i> Modifier
+                    </button>
+                    <div class="row-menu-sep"></div>
+                    <form method="POST" action="{{ path('clinic_catalogue_act_archive', { actId: act.id }) }}">
+                      <button class="row-menu-item is-danger" type="submit">
+                        <i data-lucide="archive"></i> Archiver
+                      </button>
+                    </form>
+                  {% else %}
+                    <form method="POST" action="{{ path('clinic_catalogue_act_restore', { actId: act.id }) }}">
+                      <button class="row-menu-item" type="submit">
+                        <i data-lucide="archive-restore"></i> Remettre au catalogue
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i data-lucide="stethoscope"></i></div>
+        <div class="empty-title">Aucun acte</div>
+        <div class="empty-sub">
+          {% if criteria.term or criteria.kinds is not empty %}
+            Aucun acte ne correspond à cette recherche.
+          {% else %}
+            Les actes sont les prestations que la clinique facture : consultations, chirurgies, imagerie.
+          {% endif %}
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-modal-open="act-create-modal" style="margin-top:12px">
+          <i data-lucide="plus"></i> Nouvel acte
+        </button>
+      </div>
+    {% endif %}
+  </section>
+
+  {{ include('clinic/catalog/_pagination.html.twig', { route: 'clinic_catalogue' }) }}
+
+{% endblock %}
+
+{% block catalogue_modals %}
+
+  {# ── Nouvel acte ── #}
+  <div class="modal-overlay hidden" id="act-create-modal">
+    <div class="modal modal-wide">
+      <form method="POST" action="{{ path('clinic_catalogue_act_create') }}">
+        <div class="modal-head">
+          <h2 class="modal-title">Nouvel acte</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="cat-form-grid">
+            <div class="field">
+              <label class="field-label" for="act-code">Code</label>
+              <input class="form-input" id="act-code" name="code" required maxlength="20"
+                     placeholder="CONS_STD" pattern="[A-Za-z0-9_\-]{2,20}">
+              <span class="cat-form-hint">Lettres, chiffres, tiret et souligné. Unique dans la clinique.</span>
+            </div>
+            <div class="field">
+              <label class="field-label" for="act-name">Libellé</label>
+              <input class="form-input" id="act-name" name="name" required maxlength="150"
+                     placeholder="Consultation standard">
+            </div>
+            <div class="field span-2">
+              <label class="field-label" for="act-description">Description <span class="field-optional">(facultatif)</span></label>
+              <input class="form-input" id="act-description" name="description" maxlength="255">
+            </div>
+            <div class="field">
+              <label class="field-label" for="act-category">Catégorie</label>
+              <select class="form-input" id="act-category" name="category" required>
+                {% for value, label in CATEGORY_OPTIONS %}
+                  <option value="{{ value }}"{{ value == 'CONSULTATION' ? ' selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="act-tax">Catégorie de TVA</label>
+              <select class="form-input" id="act-tax" name="tax_category" required>
+                {% for category in taxCategories %}
+                  <option value="{{ category.code }}">{{ category.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="act-price">Tarif TTC</label>
+              <input class="form-input" id="act-price" name="base_price" required inputmode="decimal"
+                     placeholder="45,00">
+            </div>
+            <div class="field">
+              <label class="field-label" for="act-duration">Durée estimée (min)</label>
+              <input class="form-input" id="act-duration" name="duration" type="number" min="0" max="1440" value="20">
+            </div>
+            <div class="field span-2">
+              <label class="cat-check">
+                <input type="checkbox" name="requires_anesthesia" value="1">
+                Cet acte se pratique sous anesthésie générale
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Ajouter au catalogue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modifier un acte ── #}
+  <div class="modal-overlay hidden" id="act-edit-modal">
+    <div class="modal">
+      <form method="POST" action="{{ path('clinic_catalogue') }}" id="act-edit-form">
+        <div class="modal-head">
+          <h2 class="modal-title">Modifier l’acte</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label class="field-label" for="act-edit-name">Libellé</label>
+            <input class="form-input" id="act-edit-name" name="name" required maxlength="150">
+          </div>
+          <div class="field" style="margin-top:var(--space-4)">
+            <label class="field-label" for="act-edit-tax">Catégorie de TVA</label>
+            <select class="form-input" id="act-edit-tax" name="tax_category" required>
+              {% for category in taxCategories %}
+                <option value="{{ category.code }}">{{ category.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin-top:var(--space-4)">
+            <label class="field-label" for="act-edit-price">Tarif TTC</label>
+            <input class="form-input" id="act-edit-price" name="base_price" required inputmode="decimal">
+            <span class="cat-form-hint">
+              Le nouveau tarif ne touche pas les consultations déjà facturées : elles gardent le prix du jour.
+            </span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}
