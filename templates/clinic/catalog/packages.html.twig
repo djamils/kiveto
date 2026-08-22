@@ -25,6 +25,7 @@
 {% endfor %}
 
 {% set MODE_LABELS = { 'FIXED_PRICE': 'Tarif forfaitaire', 'SUM_OF_COMPONENTS': 'Somme des prestations' } %}
+{% set MODE_TONES = { 'FIXED_PRICE': 'indigo', 'SUM_OF_COMPONENTS': 'teal' } %}
 {% set MODE_OPTIONS = {} %}
 {% for mode in modes %}
   {% set MODE_OPTIONS = MODE_OPTIONS|merge({ (mode): MODE_LABELS[mode]|default(mode) }) %}
@@ -73,6 +74,7 @@
       route: 'clinic_catalogue_packages',
       kindLabel: 'Tarification',
       kindOptions: MODE_OPTIONS,
+      kindTones: MODE_TONES,
     }) }}
     {% if criteria.term or criteria.kinds is not empty or criteria.status != 'ACTIVE' %}
       <a class="filter-clear" href="{{ path('clinic_catalogue_packages') }}">Tout effacer</a>
@@ -108,7 +110,9 @@
                 </span>
               </td>
               <td class="col-kind">
-                <span class="tag">{{ MODE_LABELS[package.pricingMode]|default(package.pricingMode) }}</span>
+                <span class="tag tone-{{ MODE_TONES[package.pricingMode]|default('slate') }}">
+                  {{- MODE_LABELS[package.pricingMode]|default(package.pricingMode) -}}
+                </span>
               </td>
               <td class="col-tax"><span class="cell-tax" title="{{ package.taxCategoryCode }}">{{ TAX_LABELS[package.taxCategoryCode]|default(package.taxCategoryCode) }}</span></td>
               <td class="col-price">

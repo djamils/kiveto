@@ -27,6 +27,13 @@
   'LABORATORY': 'Laboratoire', 'HOSPITALIZATION': 'Hospitalisation',
   'VACCINATION': 'Vaccination', 'PREVENTION': 'Prévention', 'OTHER': 'Autre'
 } %}
+{# A tone per category, so a column of them is read at a glance rather than
+   word by word. #}
+{% set CATEGORY_TONES = {
+  'CONSULTATION': 'indigo', 'SURGERY': 'amber', 'IMAGING': 'blue',
+  'LABORATORY': 'teal', 'HOSPITALIZATION': 'red', 'VACCINATION': 'green',
+  'PREVENTION': 'violet', 'OTHER': 'slate'
+} %}
 {% set CATEGORY_OPTIONS = {} %}
 {% for category in categories %}
   {% set CATEGORY_OPTIONS = CATEGORY_OPTIONS|merge({ (category): CATEGORY_LABELS[category]|default(category) }) %}
@@ -76,6 +83,7 @@
       route: 'clinic_catalogue',
       kindLabel: 'Catégorie',
       kindOptions: CATEGORY_OPTIONS,
+      kindTones: CATEGORY_TONES,
     }) }}
     {% if criteria.term or criteria.kinds is not empty or criteria.status != 'ACTIVE' %}
       <a class="filter-clear" href="{{ path('clinic_catalogue') }}">Tout effacer</a>
@@ -109,9 +117,11 @@
                 {% if act.description %}<span class="cell-sub">{{ act.description }}</span>{% endif %}
               </td>
               <td class="col-kind">
-                <span class="tag">{{ CATEGORY_LABELS[act.category]|default(act.category) }}</span>
+                <span class="tag tone-{{ CATEGORY_TONES[act.category]|default('slate') }}">
+                  {{- CATEGORY_LABELS[act.category]|default(act.category) -}}
+                </span>
                 {% if act.requiresAnesthesia %}
-                  <span class="tag is-controlled" title="Sous anesthésie">
+                  <span class="tag is-anesthesia" title="Se pratique sous anesthésie générale">
                     <i data-lucide="syringe"></i> AG
                   </span>
                 {% endif %}

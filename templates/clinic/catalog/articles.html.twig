@@ -29,6 +29,9 @@
   'NONE': 'Sans ordonnance', 'RX': 'Sur ordonnance',
   'RX_CONTROLLED': 'Substance contrôlée', 'RX_NARCOTIC': 'Stupéfiant'
 } %}
+{# A tone per kind. The prescription flags keep their own colours next to it:
+   they say what the article requires, not what it is. #}
+{% set KIND_TONES = { 'DRUG': 'violet', 'CONSUMABLE': 'blue', 'FOOD': 'green', 'EQUIPMENT': 'slate' } %}
 {% set KIND_OPTIONS = {} %}
 {% for kind in kinds %}
   {% set KIND_OPTIONS = KIND_OPTIONS|merge({ (kind): KIND_LABELS[kind]|default(kind) }) %}
@@ -77,6 +80,7 @@
       route: 'clinic_catalogue_articles',
       kindLabel: 'Type',
       kindOptions: KIND_OPTIONS,
+      kindTones: KIND_TONES,
     }) }}
 
     <a class="filter-add{{ criteria.requiresPrescription is same as(true) ? ' is-active' : '' }}"
@@ -124,7 +128,9 @@
                 {% if article.gtin %}<span class="cell-sub">GTIN {{ article.gtin }}</span>{% endif %}
               </td>
               <td class="col-kind">
-                <span class="tag">{{ KIND_LABELS[article.kind]|default(article.kind) }}</span>
+                <span class="tag tone-{{ KIND_TONES[article.kind]|default('slate') }}">
+                  {{- KIND_LABELS[article.kind]|default(article.kind) -}}
+                </span>
                 {% if article.isControlledSubstance %}
                   <span class="tag is-controlled" title="{{ RX_LABELS[article.prescriptionClass]|default('Substance contrôlée') }}">
                     <i data-lucide="shield-alert"></i>

@@ -106,7 +106,12 @@
                         {% endif %}
                       </td>
                       <td class="col-kind">
-                        <span class="tag">{{ entry.itemType == 'ACT' ? 'Acte' : 'Article' }}</span>
+                        {# An acte carries the tone of the consultation category,
+                           an article that of a medicine: the two families keep
+                           the same colours from one tab to the next. #}
+                        <span class="tag tone-{{ entry.itemType == 'ACT' ? 'indigo' : 'violet' }}">
+                          {{- entry.itemType == 'ACT' ? 'Acte' : 'Article' -}}
+                        </span>
                       </td>
                       <td class="col-price">
                         <span class="cell-price is-muted">
