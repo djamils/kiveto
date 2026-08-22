@@ -441,19 +441,19 @@ php-cs-fixer.dry-run:
 test:
 	@$(call step,Running PHPUnit (full)...)
 	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
-		bin/phpunit --colors=always
+		php -d memory_limit=512M bin/phpunit --colors=always
 	@$(call ok,Tests passed)
 
 test-unit:
 	@$(call step,Running PHPUnit (unit)...)
 	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
-		bin/phpunit --colors=always --testsuite=unit
+		php -d memory_limit=512M bin/phpunit --colors=always --testsuite=unit
 	@$(call ok,Unit tests passed)
 
 test-integration:
 	@$(call step,Running PHPUnit (integration)...)
 	$(Q)$(EXEC_PHP) env XDEBUG_MODE=off SYMFONY_DEPRECATIONS_HELPER=disabled \
-		bin/phpunit --colors=always --testsuite=integration --order-by=duration --reverse-order
+		php -d memory_limit=512M bin/phpunit --colors=always --testsuite=integration --order-by=duration --reverse-order
 	@$(call ok,Integration tests passed)
 
 test-coverage:
