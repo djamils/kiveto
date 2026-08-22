@@ -1,0 +1,85 @@
+{#
+ # Kiveto — templates/clinic/catalog/_filters.html.twig
+ # ───────────────────────────────────────────────────
+ # The filter controls the three listing tabs share: the kind of the family and
+ # the status. The tab wraps them in its own <section class="filters"> so it can
+ # append controls of its own.
+ #
+ # Variables:
+ #   criteria    CatalogListCriteria
+ #   route       string             The tab's own route
+ #   queryState  array              The filters as they came in
+ #   kindLabel   string             What the kind filter is called here
+ #   kindOptions map                value => label
+ #   kindTones   map                value => tone, so the filter shows the colour
+ #                                  the table will use
+ #}
+{% set STATUS_LABELS = { 'ACTIVE': 'Au catalogue', 'ARCHIVED': 'Archivés', 'ALL': 'Tous' } %}
+{% set currentStatus = criteria.status ?? 'ALL' %}
+
+<span class="filter-label">Filtres</span>
+
+  {% for kind in criteria.kinds %}
+    <span class="filter-chip">
+      <span class="chip-key">{{ kindLabel }} :</span>
+      {% if kindTones is defined and kindTones[kind] is defined %}
+        <span class="tone-dot tone-{{ kindTones[kind] }}"></span>
+      {% endif %}
+      <span>{{ kindOptions[kind]|default(kind) }}</span>
+      <a class="chip-x" href="{{ path(route, queryState|merge({ kind: criteria.kinds|filter(k => k != kind) })) }}"
+         aria-label="Retirer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </a>
+    </span>
+  {% endfor %}
+
+  {% if currentStatus != 'ACTIVE' %}
+    <span class="filter-chip">
+      <span class="chip-key">Statut :</span>
+      <span>{{ STATUS_LABELS[currentStatus] }}</span>
+      <a class="chip-x" href="{{ path(route, queryState|merge({ status: null })) }}" aria-label="Retirer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+      </a>
+    </span>
+  {% endif %}
+
+  {# Kind #}
+  <span class="filter-add-wrap">
+    <button class="filter-add{{ criteria.kinds is not empty ? ' is-active' : '' }}" type="button" data-filter-toggle="kind">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      {{ kindLabel }}
+    </button>
+    <div class="filter-menu" data-filter-menu="kind">
+      <div class="filter-menu-title">{{ kindLabel }}</div>
+      {% for value, label in kindOptions %}
+        {% set checked = value in criteria.kinds %}
+        <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+           href="{{ path(route, queryState|merge({ kind: checked ? criteria.kinds|filter(k => k != value) : criteria.kinds|merge([value]) })) }}">
+          {% if kindTones is defined and kindTones[value] is defined %}
+            <span class="tone-dot tone-{{ kindTones[value] }}"></span>
+          {% endif %}
+          <span style="flex:1">{{ label }}</span>
+          <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+        </a>
+      {% endfor %}
+    </div>
+  </span>
+
+  {# Status #}
+  <span class="filter-add-wrap">
+    <button class="filter-add{{ currentStatus != 'ACTIVE' ? ' is-active' : '' }}" type="button" data-filter-toggle="status">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Statut
+    </button>
+    <div class="filter-menu" data-filter-menu="status">
+      <div class="filter-menu-title">Statut</div>
+      {% for value, label in STATUS_LABELS %}
+        <a class="filter-menu-item{{ currentStatus == value ? ' is-checked' : '' }}"
+           href="{{ path(route, queryState|merge({ status: value == 'ACTIVE' ? null : value })) }}">
+          <span style="flex:1">{{ label }}</span>
+          <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+        </a>
+      {% endfor %}
+    </div>
+  </span>
+

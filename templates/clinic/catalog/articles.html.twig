@@ -1,0 +1,326 @@
+{#
+ # Kiveto — templates/clinic/catalog/articles.html.twig
+ # ───────────────────────────────────────────────────
+ # The goods the clinic hands over: medicines, consumables, food, equipment.
+ #
+ # Variables:
+ #   articles       list<ArticleListRow>
+ #   page           CatalogPage
+ #   criteria       CatalogListCriteria
+ #   counters       CatalogCounters
+ #   kinds          list<string>
+ #   taxCategories  list<{code, label}>
+ #   pageSizes      list<int>
+ #   queryState     array
+ #}
+{% extends 'clinic/catalog/_shell.html.twig' %}
+
+{# The codes are namespaced and unreadable on a screen; the label is what the
+   Taxation context calls them. #}
+{% set TAX_LABELS = {} %}
+{% for category in taxCategories %}
+  {% set TAX_LABELS = TAX_LABELS|merge({ (category.code): category.label }) %}
+{% endfor %}
+
+{% set KIND_LABELS = {
+  'DRUG': 'Médicament', 'CONSUMABLE': 'Consommable', 'FOOD': 'Alimentation', 'EQUIPMENT': 'Matériel'
+} %}
+{% set RX_LABELS = {
+  'NONE': 'Sans ordonnance', 'RX': 'Sur ordonnance',
+  'RX_CONTROLLED': 'Substance contrôlée', 'RX_NARCOTIC': 'Stupéfiant'
+} %}
+{# A tone per kind. The prescription flags keep their own colours next to it:
+   they say what the article requires, not what it is. #}
+{% set KIND_TONES = { 'DRUG': 'violet', 'CONSUMABLE': 'blue', 'FOOD': 'green', 'EQUIPMENT': 'slate' } %}
+{% set KIND_OPTIONS = {} %}
+{% for kind in kinds %}
+  {% set KIND_OPTIONS = KIND_OPTIONS|merge({ (kind): KIND_LABELS[kind]|default(kind) }) %}
+{% endfor %}
+
+{% macro sortHead(column, label, cssClass, criteria, queryState) %}
+  {% set active = criteria.sortBy == column %}
+  {% set nextDir = active and not criteria.sortDescending ? 'desc' : 'asc' %}
+  <th class="{{ cssClass }} sortable{{ active ? (criteria.sortDescending ? ' is-sorted-desc' : ' is-sorted-asc') : '' }}">
+    <a href="{{ path('clinic_catalogue_articles', queryState|merge({ sort: column, dir: nextDir })) }}">
+      {{ label }} <span class="sort-icon">▼</span>
+    </a>
+  </th>
+{% endmacro %}
+
+{% block catalogue_title %}Catalogue{% endblock %}
+{% block catalogue_count %}{{ page.total }} article{{ page.total > 1 ? 's' : '' }}{% endblock %}
+
+{% block catalogue_search %}
+  <form class="tb-search" method="GET" action="{{ path('clinic_catalogue_articles') }}" role="search">
+    <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" name="q" value="{{ criteria.term }}" placeholder="Rechercher un article, un code…" autocomplete="off">
+    {% for key, value in queryState %}
+      {% if key != 'q' %}
+        {% if value is iterable %}
+          {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
+        {% else %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </form>
+{% endblock %}
+
+{% block catalogue_actions %}
+  <button class="btn btn-primary btn-sm" type="button" data-modal-open="article-create-modal">
+    <i data-lucide="plus"></i>
+    Nouvel article
+  </button>
+{% endblock %}
+
+{% block catalogue_body %}
+
+  <section class="filters">
+    {{ include('clinic/catalog/_filters.html.twig', {
+      route: 'clinic_catalogue_articles',
+      kindLabel: 'Type',
+      kindOptions: KIND_OPTIONS,
+      kindTones: KIND_TONES,
+    }) }}
+
+    <a class="filter-add{{ criteria.requiresPrescription is same as(true) ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue_articles', queryState|merge({ rx: criteria.requiresPrescription is same as(true) ? null : '1' })) }}">
+      <i data-lucide="file-text"></i>
+      Sur ordonnance
+    </a>
+    <a class="filter-add{{ criteria.controlledOnly ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue_articles', queryState|merge({ controlled: criteria.controlledOnly ? null : '1' })) }}">
+      <i data-lucide="shield-alert"></i>
+      Substances contrôlées
+    </a>
+
+    {% if criteria.term or criteria.kinds is not empty or criteria.status != 'ACTIVE' or criteria.requiresPrescription is not null or criteria.controlledOnly %}
+      <a class="filter-clear" href="{{ path('clinic_catalogue_articles') }}">Tout effacer</a>
+    {% endif %}
+  </section>
+
+  <section class="table-wrapper">
+    {% if articles|length > 0 %}
+      <table class="cat-table">
+        <thead>
+          <tr>
+            {{ _self.sortHead('code', 'Code', 'col-code', criteria, queryState) }}
+            {{ _self.sortHead('name', 'Libellé', 'col-name', criteria, queryState) }}
+            {{ _self.sortHead('category', 'Type', 'col-kind', criteria, queryState) }}
+            <th class="col-meta">Unité</th>
+            <th class="col-tax">TVA</th>
+            {{ _self.sortHead('price', 'Tarif', 'col-price', criteria, queryState) }}
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for article in articles %}
+            <tr class="{{ article.isArchived ? 'is-archived' : '' }}"
+                data-article-id="{{ article.id }}"
+                data-name="{{ article.name }}"
+                data-price="{{ (article.basePriceMinorUnits / 100)|number_format(2, ',', '') }}"
+                data-tax="{{ article.taxCategoryCode }}"
+                data-kind="{{ article.kind }}"
+                data-rx="{{ article.prescriptionClass ?? 'NONE' }}">
+              <td class="col-code"><span class="cell-code">{{ article.code }}</span></td>
+              <td class="col-name">
+                <span class="cell-name">{{ article.name }}</span>
+                {% if article.gtin %}<span class="cell-sub">GTIN {{ article.gtin }}</span>{% endif %}
+              </td>
+              <td class="col-kind">
+                <span class="tag tone-{{ KIND_TONES[article.kind]|default('slate') }}">
+                  {{- KIND_LABELS[article.kind]|default(article.kind) -}}
+                </span>
+                {% if article.isControlledSubstance %}
+                  <span class="tag is-controlled" title="{{ RX_LABELS[article.prescriptionClass]|default('Substance contrôlée') }}">
+                    <i data-lucide="shield-alert"></i>
+                  </span>
+                {% elseif article.requiresPrescription %}
+                  <span class="tag is-rx" title="Sur ordonnance">Rx</span>
+                {% endif %}
+              </td>
+              <td class="col-meta"><span class="cell-meta">{{ article.unitOfMeasure|lower }}</span></td>
+              <td class="col-tax"><span class="cell-tax" title="{{ article.taxCategoryCode }}">{{ TAX_LABELS[article.taxCategoryCode]|default(article.taxCategoryCode) }}</span></td>
+              <td class="col-price">
+                <span class="cell-price">{{ article.basePriceMinorUnits|money(article.currency) }}</span>
+              </td>
+              <td class="col-actions" style="position:relative">
+                <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+                <div class="row-menu" data-row-menu>
+                  {% if not article.isArchived %}
+                    <button class="row-menu-item" type="button" data-edit-article="{{ article.id }}"
+                            data-action="{{ path('clinic_catalogue_article_update', { articleId: article.id }) }}">
+                      <i data-lucide="pencil"></i> Modifier
+                    </button>
+                    <div class="row-menu-sep"></div>
+                    <form method="POST" action="{{ path('clinic_catalogue_article_archive', { articleId: article.id }) }}">
+                      <button class="row-menu-item is-danger" type="submit">
+                        <i data-lucide="archive"></i> Archiver
+                      </button>
+                    </form>
+                  {% else %}
+                    <form method="POST" action="{{ path('clinic_catalogue_article_restore', { articleId: article.id }) }}">
+                      <button class="row-menu-item" type="submit">
+                        <i data-lucide="archive-restore"></i> Remettre au catalogue
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i data-lucide="pill"></i></div>
+        <div class="empty-title">Aucun article</div>
+        <div class="empty-sub">
+          {% if criteria.term or criteria.kinds is not empty %}
+            Aucun article ne correspond à cette recherche.
+          {% else %}
+            Les articles sont ce que la clinique délivre : médicaments, consommables, alimentation, matériel.
+          {% endif %}
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-modal-open="article-create-modal" style="margin-top:12px">
+          <i data-lucide="plus"></i> Nouvel article
+        </button>
+      </div>
+    {% endif %}
+  </section>
+
+  {{ include('clinic/catalog/_pagination.html.twig', { route: 'clinic_catalogue_articles' }) }}
+
+{% endblock %}
+
+{% block catalogue_modals %}
+
+  {# ── Nouvel article ── #}
+  <div class="modal-overlay hidden" id="article-create-modal">
+    <div class="modal modal-wide">
+      <form method="POST" action="{{ path('clinic_catalogue_article_create') }}">
+        <div class="modal-head">
+          <h2 class="modal-title">Nouvel article</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="cat-form-grid">
+            <div class="field">
+              <label class="field-label" for="article-kind">Type</label>
+              <select class="form-input" id="article-kind" name="kind" required data-article-kind>
+                {% for value, label in KIND_OPTIONS %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="article-code">Code</label>
+              <input class="form-input" id="article-code" name="code" required maxlength="20"
+                     placeholder="AMOX-250" pattern="[A-Za-z0-9_\-]{2,20}">
+            </div>
+            <div class="field span-2">
+              <label class="field-label" for="article-name">Libellé</label>
+              <input class="form-input" id="article-name" name="name" required maxlength="150"
+                     placeholder="Amoxicilline 250 mg — boîte de 10">
+            </div>
+            <div class="field">
+              <label class="field-label" for="article-tax">Catégorie de TVA</label>
+              <select class="form-input" id="article-tax" name="tax_category" required>
+                {% for category in taxCategories %}
+                  <option value="{{ category.code }}">{{ category.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="article-price">Tarif TTC</label>
+              <input class="form-input" id="article-price" name="base_price" required inputmode="decimal"
+                     placeholder="12,50">
+            </div>
+            <div class="field">
+              <label class="field-label" for="article-unit">Unité</label>
+              <input class="form-input" id="article-unit" name="unit_of_measure" maxlength="20"
+                     placeholder="UNIT" value="UNIT">
+            </div>
+            <div class="field">
+              <label class="field-label" for="article-gtin">Code-barres <span class="field-optional">(facultatif)</span></label>
+              <input class="form-input" id="article-gtin" name="gtin" maxlength="14" inputmode="numeric">
+            </div>
+            <div class="field span-2" data-drug-only>
+              <label class="field-label" for="article-rx">Délivrance</label>
+              <select class="form-input" id="article-rx" name="prescription_class">
+                {% for value, label in RX_LABELS %}
+                  <option value="{{ value }}"{{ value == 'RX' ? ' selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <span class="cat-form-hint">
+                Une substance contrôlée limite l’ordonnance à 28 jours et interdit son renouvellement.
+              </span>
+            </div>
+            <div class="field span-2">
+              <label class="cat-check">
+                <input type="checkbox" name="track_stock" value="1" checked>
+                Suivre le stock de cet article
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Ajouter au catalogue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modifier un article ── #}
+  <div class="modal-overlay hidden" id="article-edit-modal">
+    <div class="modal">
+      <form method="POST" action="{{ path('clinic_catalogue_articles') }}" id="article-edit-form">
+        <div class="modal-head">
+          <h2 class="modal-title">Modifier l’article</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label class="field-label" for="article-edit-name">Libellé</label>
+            <input class="form-input" id="article-edit-name" name="name" required maxlength="150">
+          </div>
+          <div class="field" style="margin-top:var(--space-4)">
+            <label class="field-label" for="article-edit-tax">Catégorie de TVA</label>
+            <select class="form-input" id="article-edit-tax" name="tax_category" required>
+              {% for category in taxCategories %}
+                <option value="{{ category.code }}">{{ category.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field" style="margin-top:var(--space-4)">
+            <label class="field-label" for="article-edit-price">Tarif TTC</label>
+            <input class="form-input" id="article-edit-price" name="base_price" required inputmode="decimal">
+          </div>
+          <div class="field" style="margin-top:var(--space-4)" data-drug-only>
+            <label class="field-label" for="article-edit-rx">Délivrance</label>
+            <select class="form-input" id="article-edit-rx" name="prescription_class">
+              {% for value, label in RX_LABELS %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <span class="cat-form-hint">
+              Le registre pharmaceutique met ces mentions à jour de lui-même sur les médicaments qu’il connaît.
+            </span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}

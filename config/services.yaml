@@ -576,6 +576,9 @@ services:
     App\Context\Catalog\Application\Port\CatalogSearchRepositoryInterface:
         class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineCatalogSearchRepository
 
+    App\Context\Catalog\Application\Port\CatalogListReadRepositoryInterface:
+        class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DbalCatalogListReadRepository
+
     # ============================================================================
     # BOUNDED CONTEXT: INVENTORY
     # ============================================================================
@@ -878,6 +881,11 @@ when@test:
 
         App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface:
             class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePackageRepository
+            public: true
+            autowire: true
+
+        App\Context\Catalog\Application\Port\CatalogListReadRepositoryInterface:
+            class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DbalCatalogListReadRepository
             public: true
             autowire: true
 

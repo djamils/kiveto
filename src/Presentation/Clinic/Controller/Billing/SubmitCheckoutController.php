@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Billing;
 
 use App\Context\Billing\Application\Command\ApplyInvoiceDiscount\ApplyInvoiceDiscount;
 use App\Context\Billing\Application\Command\CheckoutAdmission\CheckoutAdmission;
+use App\Presentation\Clinic\Form\Shared\AmountParser;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;

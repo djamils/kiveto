@@ -20,6 +20,10 @@ const PAGE_MODULES = {
   clinic_invoices:               'pages/billing/list',
   clinic_checkout:               'pages/billing/checkout',
   clinic_prescriptions:          'pages/prescription/list',
+  clinic_catalogue:              'pages/catalog',
+  clinic_catalogue_articles:     'pages/catalog',
+  clinic_catalogue_packages:     'pages/catalog',
+  clinic_catalogue_price_lists:  'pages/catalog',
   clinic_select_clinic:          'pages/select-clinic',
 };
 

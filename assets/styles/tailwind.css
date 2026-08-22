@@ -60,6 +60,14 @@
   --color-purple-bg: #f5f3ff;
   --color-purple-text: #7c3aed;
   --color-purple-border: #ddd6fe;
+  /* Two more families so a column of categories can be told apart at a glance:
+     six semantic tones were not enough to give each one its own colour. */
+  --color-teal-bg: #f0fdfa;
+  --color-teal-text: #0f766e;
+  --color-teal-border: #99f6e4;
+  --color-pink-bg: #fdf2f8;
+  --color-pink-text: #be185d;
+  --color-pink-border: #fbcfe8;
 
   --color-surface-page: #f1f5f9;
   --color-surface-card: #ffffff;

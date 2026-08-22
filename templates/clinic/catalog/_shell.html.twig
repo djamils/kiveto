@@ -1,0 +1,74 @@
+{#
+ # Kiveto — templates/clinic/catalog/_shell.html.twig
+ # ─────────────────────────────────────────────────
+ # The shell the four tabs of the catalogue share: the topbar, the tab bar with
+ # its counters, and the slots underneath.
+ #
+ # Variables:
+ #   counters  CatalogCounters   What each tab holds
+ #
+ # Blocks:
+ #   catalogue_title    the word in the topbar
+ #   catalogue_count    what is counted next to it
+ #   catalogue_search   the search form, when the tab has one
+ #   catalogue_actions  the buttons on the right of the topbar
+ #   catalogue_body     filters, table and pagination
+ #   catalogue_modals   the forms, kept out of the scrolling area
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Catalogue{% endblock %}
+{% block show_topbar %}false{% endblock %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('styles/pages/catalog.css') }}"/>
+{% endblock %}
+
+{% block content %}
+<div class="cat-root">
+
+  <header class="topbar">
+    <button class="tb-toggle show-mobile" type="button" aria-label="Menu" data-action="click->sidebar#toggle">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="tb-title">
+      <span class="topbar-icon" aria-hidden="true"><i data-lucide="package"></i></span>
+      <h1 class="topbar-title">{% block catalogue_title %}Catalogue{% endblock %}</h1>
+      <span class="tb-title-count">{% block catalogue_count %}{% endblock %}</span>
+    </div>
+    <div class="tb-spacer"></div>
+    {% block catalogue_search %}{% endblock %}
+    {% block catalogue_actions %}{% endblock %}
+  </header>
+
+  <nav class="cat-tabs" aria-label="Familles du catalogue">
+    <a class="cat-tab{{ app.request.attributes.get('_route') == 'clinic_catalogue' ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue') }}">
+      Actes
+      <span class="cat-tab-count">{{ counters.activeActs }}</span>
+    </a>
+    <a class="cat-tab{{ app.request.attributes.get('_route') == 'clinic_catalogue_articles' ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue_articles') }}">
+      Articles
+      <span class="cat-tab-count">{{ counters.activeArticles }}</span>
+    </a>
+    <a class="cat-tab{{ app.request.attributes.get('_route') == 'clinic_catalogue_packages' ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue_packages') }}">
+      Forfaits
+      <span class="cat-tab-count">{{ counters.activePackages }}</span>
+    </a>
+    <a class="cat-tab{{ app.request.attributes.get('_route') == 'clinic_catalogue_price_lists' ? ' is-active' : '' }}"
+       href="{{ path('clinic_catalogue_price_lists') }}">
+      Tarifs
+      <span class="cat-tab-count">{{ counters.priceLists }}</span>
+    </a>
+  </nav>
+
+  {% block catalogue_body %}{% endblock %}
+
+</div>
+
+{% block catalogue_modals %}{% endblock %}
+{% endblock %}

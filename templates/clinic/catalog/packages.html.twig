@@ -1,0 +1,334 @@
+{#
+ # Kiveto — templates/clinic/catalog/packages.html.twig
+ # ───────────────────────────────────────────────────
+ # The forfaits: acts and articles sold together, at a fixed price or at the sum
+ # of what they hold.
+ #
+ # Variables:
+ #   packages       list<PackageListRow>
+ #   components     map packageId => list<PackageComponentRow>
+ #   page           CatalogPage
+ #   criteria       CatalogListCriteria
+ #   counters       CatalogCounters
+ #   modes          list<string>
+ #   taxCategories  list<{code, label}>
+ #   pageSizes      list<int>
+ #   queryState     array
+ #}
+{% extends 'clinic/catalog/_shell.html.twig' %}
+
+{# The codes are namespaced and unreadable on a screen; the label is what the
+   Taxation context calls them. #}
+{% set TAX_LABELS = {} %}
+{% for category in taxCategories %}
+  {% set TAX_LABELS = TAX_LABELS|merge({ (category.code): category.label }) %}
+{% endfor %}
+
+{% set MODE_LABELS = { 'FIXED_PRICE': 'Tarif forfaitaire', 'SUM_OF_COMPONENTS': 'Somme des prestations' } %}
+{% set MODE_TONES = { 'FIXED_PRICE': 'indigo', 'SUM_OF_COMPONENTS': 'teal' } %}
+{% set MODE_OPTIONS = {} %}
+{% for mode in modes %}
+  {% set MODE_OPTIONS = MODE_OPTIONS|merge({ (mode): MODE_LABELS[mode]|default(mode) }) %}
+{% endfor %}
+
+{% macro sortHead(column, label, cssClass, criteria, queryState) %}
+  {% set active = criteria.sortBy == column %}
+  {% set nextDir = active and not criteria.sortDescending ? 'desc' : 'asc' %}
+  <th class="{{ cssClass }} sortable{{ active ? (criteria.sortDescending ? ' is-sorted-desc' : ' is-sorted-asc') : '' }}">
+    <a href="{{ path('clinic_catalogue_packages', queryState|merge({ sort: column, dir: nextDir })) }}">
+      {{ label }} <span class="sort-icon">▼</span>
+    </a>
+  </th>
+{% endmacro %}
+
+{% block catalogue_title %}Catalogue{% endblock %}
+{% block catalogue_count %}{{ page.total }} forfait{{ page.total > 1 ? 's' : '' }}{% endblock %}
+
+{% block catalogue_search %}
+  <form class="tb-search" method="GET" action="{{ path('clinic_catalogue_packages') }}" role="search">
+    <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" name="q" value="{{ criteria.term }}" placeholder="Rechercher un forfait…" autocomplete="off">
+    {% for key, value in queryState %}
+      {% if key != 'q' %}
+        {% if value is iterable %}
+          {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
+        {% else %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </form>
+{% endblock %}
+
+{% block catalogue_actions %}
+  <button class="btn btn-primary btn-sm" type="button" data-modal-open="package-create-modal">
+    <i data-lucide="plus"></i>
+    Nouveau forfait
+  </button>
+{% endblock %}
+
+{% block catalogue_body %}
+
+  <section class="filters">
+    {{ include('clinic/catalog/_filters.html.twig', {
+      route: 'clinic_catalogue_packages',
+      kindLabel: 'Tarification',
+      kindOptions: MODE_OPTIONS,
+      kindTones: MODE_TONES,
+    }) }}
+    {% if criteria.term or criteria.kinds is not empty or criteria.status != 'ACTIVE' %}
+      <a class="filter-clear" href="{{ path('clinic_catalogue_packages') }}">Tout effacer</a>
+    {% endif %}
+  </section>
+
+  <section class="table-wrapper">
+    {% if packages|length > 0 %}
+      <table class="cat-table">
+        <thead>
+          <tr>
+            {{ _self.sortHead('code', 'Code', 'col-code', criteria, queryState) }}
+            {{ _self.sortHead('name', 'Libellé', 'col-name', criteria, queryState) }}
+            {{ _self.sortHead('category', 'Tarification', 'col-kind', criteria, queryState) }}
+            <th class="col-tax">TVA</th>
+            {{ _self.sortHead('price', 'Tarif', 'col-price', criteria, queryState) }}
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for package in packages %}
+            {% set lines = components[package.id]|default([]) %}
+            <tr class="{{ package.isArchived ? 'is-archived' : '' }}"
+                data-package-id="{{ package.id }}"
+                data-name="{{ package.name }}"
+                data-price="{{ package.fixedPriceMinorUnits ? (package.fixedPriceMinorUnits / 100)|number_format(2, ',', '') : '' }}"
+                data-mode="{{ package.pricingMode }}">
+              <td class="col-code"><span class="cell-code">{{ package.code }}</span></td>
+              <td class="col-name">
+                <span class="cell-name">{{ package.name }}</span>
+                <span class="cell-sub">
+                  {{ package.componentCount }} prestation{{ package.componentCount > 1 ? 's' : '' }}
+                </span>
+              </td>
+              <td class="col-kind">
+                <span class="tag tone-{{ MODE_TONES[package.pricingMode]|default('slate') }}">
+                  {{- MODE_LABELS[package.pricingMode]|default(package.pricingMode) -}}
+                </span>
+              </td>
+              <td class="col-tax"><span class="cell-tax" title="{{ package.taxCategoryCode }}">{{ TAX_LABELS[package.taxCategoryCode]|default(package.taxCategoryCode) }}</span></td>
+              <td class="col-price">
+                <span class="cell-price">
+                  {{ package.effectivePriceMinorUnits|money(package.currency) }}
+                  {% if package.isFixedPrice and package.componentsTotalMinorUnits > 0 %}
+                    <span class="price-sub">
+                      {{ package.componentsTotalMinorUnits|money(package.currency) }} au détail
+                    </span>
+                  {% endif %}
+                </span>
+              </td>
+              <td class="col-actions" style="position:relative">
+                <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+                <div class="row-menu" data-row-menu>
+                  {% if not package.isArchived %}
+                    {% if package.isFixedPrice %}
+                      <button class="row-menu-item" type="button" data-edit-package="{{ package.id }}"
+                              data-action="{{ path('clinic_catalogue_package_update', { packageId: package.id }) }}">
+                        <i data-lucide="pencil"></i> Modifier le tarif
+                      </button>
+                    {% endif %}
+                    <button class="row-menu-item" type="button"
+                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}"
+                            data-action="{{ path('clinic_catalogue_package_component_add', { packageId: package.id }) }}">
+                      <i data-lucide="plus"></i> Ajouter une prestation
+                    </button>
+                    <div class="row-menu-sep"></div>
+                    <form method="POST" action="{{ path('clinic_catalogue_package_archive', { packageId: package.id }) }}">
+                      <button class="row-menu-item is-danger" type="submit">
+                        <i data-lucide="archive"></i> Archiver
+                      </button>
+                    </form>
+                  {% else %}
+                    <form method="POST" action="{{ path('clinic_catalogue_package_restore', { packageId: package.id }) }}">
+                      <button class="row-menu-item" type="submit">
+                        <i data-lucide="archive-restore"></i> Remettre au catalogue
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="6" style="padding:0">
+                <div class="composition">
+                  <div class="composition-title">Composition</div>
+                  {% if lines is not empty %}
+                    <ul class="composition-list">
+                      {% for line in lines %}
+                        <li class="composition-row">
+                          <span class="comp-qty">{{ line.quantity }}×</span>
+                          <span class="comp-name{{ line.isDangling ? ' is-dangling' : '' }}">
+                            {%- if line.isDangling -%}
+                              Prestation supprimée du catalogue
+                            {%- else -%}
+                              {{ line.itemName }} <span class="cell-code">{{ line.itemCode }}</span>
+                            {%- endif -%}
+                          </span>
+                          <span class="comp-total">{{ line.lineTotalMinorUnits|money(line.currency) }}</span>
+                          {% if not package.isArchived %}
+                            <form method="POST"
+                                  action="{{ path('clinic_catalogue_package_component_remove', { packageId: package.id, componentId: line.id }) }}">
+                              <button class="comp-remove" type="submit" title="Retirer" aria-label="Retirer">
+                                <i data-lucide="x"></i>
+                              </button>
+                            </form>
+                          {% endif %}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p class="rules-empty">
+                      Ce forfait ne contient encore aucune prestation.
+                      {% if package.isFixedPrice %}Il se facture tout de même à son tarif forfaitaire.{% endif %}
+                    </p>
+                  {% endif %}
+                  {% if not package.isArchived %}
+                    <button class="composition-add" type="button"
+                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}"
+                            data-action="{{ path('clinic_catalogue_package_component_add', { packageId: package.id }) }}">
+                      <i data-lucide="plus"></i> Ajouter une prestation
+                    </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i data-lucide="package"></i></div>
+        <div class="empty-title">Aucun forfait</div>
+        <div class="empty-sub">
+          Un forfait réunit des actes et des articles vendus ensemble — stérilisation, bilan gériatrique,
+          vaccination annuelle.
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-modal-open="package-create-modal" style="margin-top:12px">
+          <i data-lucide="plus"></i> Nouveau forfait
+        </button>
+      </div>
+    {% endif %}
+  </section>
+
+  {{ include('clinic/catalog/_pagination.html.twig', { route: 'clinic_catalogue_packages' }) }}
+
+{% endblock %}
+
+{% block catalogue_modals %}
+
+  {# ── Nouveau forfait ── #}
+  <div class="modal-overlay hidden" id="package-create-modal">
+    <div class="modal modal-wide">
+      <form method="POST" action="{{ path('clinic_catalogue_package_create') }}">
+        <div class="modal-head">
+          <h2 class="modal-title">Nouveau forfait</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="cat-form-grid">
+            <div class="field">
+              <label class="field-label" for="package-code">Code</label>
+              <input class="form-input" id="package-code" name="code" required maxlength="20"
+                     placeholder="PKG-STERIL" pattern="[A-Za-z0-9_\-]{2,20}">
+            </div>
+            <div class="field">
+              <label class="field-label" for="package-name">Libellé</label>
+              <input class="form-input" id="package-name" name="name" required maxlength="150"
+                     placeholder="Forfait stérilisation">
+            </div>
+            <div class="field">
+              <label class="field-label" for="package-mode">Tarification</label>
+              <select class="form-input" id="package-mode" name="pricing_mode" required data-package-mode>
+                {% for value, label in MODE_OPTIONS %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="package-tax">Catégorie de TVA</label>
+              <select class="form-input" id="package-tax" name="tax_category" required>
+                {% for category in taxCategories %}
+                  <option value="{{ category.code }}">{{ category.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field span-2" data-fixed-price-only>
+              <label class="field-label" for="package-price">Tarif forfaitaire TTC</label>
+              <input class="form-input" id="package-price" name="fixed_price" inputmode="decimal" placeholder="250,00">
+              <span class="cat-form-hint">
+                Les prestations s’ajoutent ensuite : elles décrivent le forfait sans en changer le prix.
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Créer le forfait</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modifier le tarif d'un forfait ── #}
+  <div class="modal-overlay hidden" id="package-edit-modal">
+    <div class="modal modal-narrow">
+      <form method="POST" action="{{ path('clinic_catalogue_packages') }}" id="package-edit-form">
+        <div class="modal-head">
+          <h2 class="modal-title">Tarif du forfait</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label class="field-label" for="package-edit-price">Tarif forfaitaire TTC</label>
+            <input class="form-input" id="package-edit-price" name="fixed_price" required inputmode="decimal">
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Ajouter une prestation ── #}
+  <div class="modal-overlay hidden" id="component-add-modal">
+    <div class="modal">
+      <form method="POST" action="{{ path('clinic_catalogue_packages') }}" id="component-add-form">
+        <div class="modal-head">
+          <h2 class="modal-title">Ajouter une prestation</h2>
+          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="cat-form-hint" style="margin-bottom:var(--space-4)" data-component-target></p>
+          {{ include('clinic/catalog/_item_picker.html.twig', { pickerId: 'component' }) }}
+          <div class="field" style="margin-top:var(--space-4)">
+            <label class="field-label" for="component-quantity">Quantité</label>
+            <input class="form-input" id="component-quantity" name="quantity" type="number" min="1" value="1">
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}

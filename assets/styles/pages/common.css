@@ -20,6 +20,10 @@
   main.app-body[data-page="clinic_invoice_details"],
   main.app-body[data-page="clinic_checkout"],
   main.app-body[data-page="clinic_prescriptions"],
+  main.app-body[data-page="clinic_catalogue"],
+  main.app-body[data-page="clinic_catalogue_articles"],
+  main.app-body[data-page="clinic_catalogue_packages"],
+  main.app-body[data-page="clinic_catalogue_price_lists"],
   main.app-body[data-page="clinic_prescription_details"],
   main.app-body[data-page="clinic_select_clinic"] {
     padding: 0 !important;
@@ -40,6 +44,10 @@
   .app-scroll:has(> main[data-page="clinic_invoice_details"]),
   .app-scroll:has(> main[data-page="clinic_checkout"]),
   .app-scroll:has(> main[data-page="clinic_prescriptions"]),
+  .app-scroll:has(> main[data-page="clinic_catalogue"]),
+  .app-scroll:has(> main[data-page="clinic_catalogue_articles"]),
+  .app-scroll:has(> main[data-page="clinic_catalogue_packages"]),
+  .app-scroll:has(> main[data-page="clinic_catalogue_price_lists"]),
   .app-scroll:has(> main[data-page="clinic_prescription_details"]),
   .app-scroll:has(> main[data-page="clinic_select_clinic"]) {
     overflow: hidden !important;

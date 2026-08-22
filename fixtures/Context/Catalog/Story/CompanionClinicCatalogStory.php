@@ -14,6 +14,7 @@ use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ActEntity;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
 use App\Fixtures\Context\Catalog\Factory\ActEntityFactory;
 use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
+use App\Fixtures\Context\Catalog\Factory\PackageComponentEntityFactory;
 use App\Fixtures\Context\Catalog\Factory\PackageEntityFactory;
 use App\Fixtures\Context\Catalog\Factory\PriceListEntityFactory;
 use App\Fixtures\Context\Catalog\Factory\PriceListItemEntityFactory;
@@ -49,8 +50,8 @@ final class CompanionClinicCatalogStory extends Story
         $acts     = $this->createActs($clinicUuid);
         $articles = $this->createDrugArticles($clinicUuid);
 
-        $this->createNonDrugArticles($clinicUuid);
-        $this->createPackages($clinicUuid);
+        $consumables = $this->createNonDrugArticles($clinicUuid);
+        $this->createPackages($clinicUuid, $acts, $articles + $consumables);
         $this->createPriceLists($clinicUuid, $acts, $articles);
     }
 
@@ -174,8 +175,10 @@ final class CompanionClinicCatalogStory extends Story
     /**
      * Consumables, therapeutic food and equipment — the three non-drug kinds a
      * practitioner bills alongside an act.
+     *
+     * @return array<string, ArticleEntity>
      */
-    private function createNonDrugArticles(Uuid $clinicUuid): void
+    private function createNonDrugArticles(Uuid $clinicUuid): array
     {
         $definitions = [
             ['code' => 'COLLAR-E', 'name' => 'Collerette élisabéthaine', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 800, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
@@ -192,8 +195,10 @@ final class CompanionClinicCatalogStory extends Story
             ['code' => 'OLD-COLLAR', 'name' => 'Collerette souple (ancien modèle)', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 650, 'unit' => 'UNIT', 'status' => ArticleStatus::ARCHIVED],
         ];
 
+        $created = [];
+
         foreach ($definitions as $definition) {
-            ArticleEntityFactory::createOne([
+            $created[$definition['code']] = ArticleEntityFactory::createOne([
                 'tenantId'            => $clinicUuid,
                 'code'                => $definition['code'],
                 'name'                => $definition['name'],
@@ -206,11 +211,21 @@ final class CompanionClinicCatalogStory extends Story
                 'status'              => $definition['status'],
             ]);
         }
+
+        return $created;
     }
 
-    private function createPackages(Uuid $clinicUuid): void
+    /**
+     * A forfait without its prestations is a price with nothing behind it, so
+     * each demo package is composed — the catalogue page shows what it holds and
+     * what it would cost at the counter.
+     *
+     * @param array<string, ActEntity>     $acts
+     * @param array<string, ArticleEntity> $items
+     */
+    private function createPackages(Uuid $clinicUuid, array $acts, array $items): void
     {
-        PackageEntityFactory::createOne([
+        $sterilisation = PackageEntityFactory::createOne([
             'tenantId'             => $clinicUuid,
             'code'                 => 'PKG-STERIL-F',
             'name'                 => 'Pack stérilisation femelle complète',
@@ -221,7 +236,15 @@ final class CompanionClinicCatalogStory extends Story
             'status'               => PackageStatus::ACTIVE,
         ]);
 
-        PackageEntityFactory::createOne([
+        $this->compose($sterilisation->getId(), [
+            ['type' => 'ACT', 'id' => $acts['STERIL_FEMELLE']->getId(), 'quantity' => 1],
+            ['type' => 'ACT', 'id' => $acts['CONS_SUIVI']->getId(), 'quantity' => 1],
+            ['type' => 'ARTICLE', 'id' => $items['MELOXIDYL-1']->getId(), 'quantity' => 1],
+            ['type' => 'ARTICLE', 'id' => $items['COLLAR-E']->getId(), 'quantity' => 1],
+            ['type' => 'ARTICLE', 'id' => $items['FIL-SUT-30']->getId(), 'quantity' => 2],
+        ]);
+
+        $puppy = PackageEntityFactory::createOne([
             'tenantId'             => $clinicUuid,
             'code'                 => 'PKG-CHIOT',
             'name'                 => 'Pack chiot première année',
@@ -232,7 +255,16 @@ final class CompanionClinicCatalogStory extends Story
             'status'               => PackageStatus::ACTIVE,
         ]);
 
-        PackageEntityFactory::createOne([
+        $this->compose($puppy->getId(), [
+            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'quantity' => 2],
+            ['type' => 'ACT', 'id' => $acts['VACC_CHPPIL']->getId(), 'quantity' => 2],
+            ['type' => 'ACT', 'id' => $acts['VACC_RAGE']->getId(), 'quantity' => 1],
+            ['type' => 'ARTICLE', 'id' => $items['FOOD-JUNIOR']->getId(), 'quantity' => 1],
+        ]);
+
+        // Sold at the sum of what it holds: the page has to add it up rather
+        // than read a stored price.
+        $checkup = PackageEntityFactory::createOne([
             'tenantId'        => $clinicUuid,
             'code'            => 'PKG-BILAN',
             'name'            => 'Pack bilan annuel',
@@ -241,7 +273,13 @@ final class CompanionClinicCatalogStory extends Story
             'status'          => PackageStatus::ACTIVE,
         ]);
 
-        PackageEntityFactory::createOne([
+        $this->compose($checkup->getId(), [
+            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'quantity' => 1],
+            ['type' => 'ACT', 'id' => $acts['BILAN_SANG']->getId(), 'quantity' => 1],
+            ['type' => 'ACT', 'id' => $acts['ANALYSE_URINE']->getId(), 'quantity' => 1],
+        ]);
+
+        $archived = PackageEntityFactory::createOne([
             'tenantId'        => $clinicUuid,
             'code'            => 'PKG-OLD-DENT',
             'name'            => 'Ancien pack dentaire',
@@ -249,6 +287,26 @@ final class CompanionClinicCatalogStory extends Story
             'pricingMode'     => PackagePricingMode::SUM_OF_COMPONENTS,
             'status'          => PackageStatus::ARCHIVED,
         ]);
+
+        $this->compose($archived->getId(), [
+            ['type' => 'ACT', 'id' => $acts['DETARTRAGE']->getId(), 'quantity' => 1],
+        ]);
+    }
+
+    /**
+     * @param list<array{type: string, id: Uuid, quantity: int}> $components
+     */
+    private function compose(Uuid $packageId, array $components): void
+    {
+        foreach ($components as $weight => $component) {
+            PackageComponentEntityFactory::createOne([
+                'packageId' => $packageId,
+                'itemType'  => $component['type'],
+                'itemId'    => $component['id']->toRfc4122(),
+                'quantity'  => $component['quantity'],
+                'weight'    => $weight,
+            ]);
+        }
     }
 
     /**
