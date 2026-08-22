@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface;
+use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
@@ -12,6 +13,7 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\PaymentView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\Discount;
 use App\Context\Billing\Domain\ValueObject\DiscountKind;
@@ -204,6 +206,39 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         }
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    public function forAdmission(ClinicId $clinicId, AdmissionId $admissionId): ?AdmissionInvoiceRow
+    {
+        $row = $this->connection->fetchAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(i.id) AS id, i.number, i.status, i.currency,
+                        i.discount_kind, i.discount_value,
+                        %s AS total_net, %s AS total_tax
+                 FROM billing__invoices i
+                 WHERE i.clinic_id = :clinicId AND i.admission_id = :admissionId
+                 ORDER BY i.created_at DESC
+                 LIMIT 1',
+                $this->netExpression(),
+                $this->taxExpression(),
+            ),
+            [
+                'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+                'admissionId' => Uuid::fromString($admissionId->toString())->toBinary(),
+            ],
+        );
+
+        if (false === $row) {
+            return null;
+        }
+
+        return new AdmissionInvoiceRow(
+            id: RowAccessor::string($row, 'id'),
+            number: RowAccessor::nullableString($row, 'number'),
+            status: RowAccessor::string($row, 'status'),
+            totalGrossMinorUnits: $this->grossAfterDiscount($row),
+            currency: RowAccessor::string($row, 'currency'),
+        );
     }
 
     public function stats(ClinicId $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $to): BillingStats

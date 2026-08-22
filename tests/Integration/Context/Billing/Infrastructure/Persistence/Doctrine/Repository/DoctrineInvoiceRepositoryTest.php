@@ -192,6 +192,57 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         );
     }
 
+    public function testTheReadSideFindsTheInvoiceOfAVisitWithItsTotal(): void
+    {
+        $invoice = $this->draft();
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 41), $this->now());
+        $this->invoices->save($invoice);
+
+        $row = $this->read->forAdmission($this->clinic(), AdmissionId::fromString(self::ADMISSION_ID));
+
+        self::assertNotNull($row);
+        self::assertSame($invoice->id()->toString(), $row->id);
+        self::assertSame('FAC-2026-000041', $row->number);
+        self::assertSame('ISSUED', $row->status);
+        self::assertSame(6000, $row->totalGrossMinorUnits);
+        self::assertSame('EUR', $row->currency);
+        self::assertTrue($row->isPrintable());
+    }
+
+    public function testTheReadSideReportsADraftAsNotPrintable(): void
+    {
+        $invoice = $this->draft();
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+        $this->invoices->save($invoice);
+
+        $row = $this->read->forAdmission($this->clinic(), AdmissionId::fromString(self::ADMISSION_ID));
+
+        self::assertNotNull($row);
+        self::assertNull($row->number);
+        self::assertFalse($row->isPrintable());
+    }
+
+    public function testTheReadSideKeepsTheInvoiceOfAnotherClinicOut(): void
+    {
+        $invoice = $this->draft();
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+        $this->invoices->save($invoice);
+
+        self::assertNull($this->read->forAdmission(
+            ClinicId::fromString(self::OTHER_CLINIC),
+            AdmissionId::fromString(self::ADMISSION_ID),
+        ));
+    }
+
+    public function testAVisitThatWasNeverInvoicedHasNoRow(): void
+    {
+        self::assertNull($this->read->forAdmission(
+            $this->clinic(),
+            AdmissionId::fromString($this->uuids->generate()),
+        ));
+    }
+
     public function testTheNumberSequenceHandsOutConsecutiveNumbers(): void
     {
         $generator = self::getContainer()->get(InvoiceNumberGeneratorInterface::class);

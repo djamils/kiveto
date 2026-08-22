@@ -45,7 +45,7 @@
     <div class="tb-spacer"></div>
     {% if prescription.number %}
       <a class="btn btn-secondary btn-sm" target="_blank" rel="noopener"
-         href="{{ path('clinic_prescription_print', { prescriptionId: prescription.id }) }}">
+         href="{{ path('clinic_prescription_pdf', { prescriptionId: prescription.id }) }}">
         <i data-lucide="printer"></i>
         Imprimer
       </a>

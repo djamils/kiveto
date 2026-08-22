@@ -232,6 +232,7 @@ export function init() {
   const PATIENT = HYDRATION.patient || {};
   const OWNER = HYDRATION.owner || null;
   const HISTORY = HYDRATION.history || [];
+  const DOCUMENTS = HYDRATION.documents || { report: null, bundle: null, prescriptions: [], invoice: null };
 
   let SERVER = HYDRATION.consultation || {};
   const serverRenderers = [];
@@ -1001,48 +1002,63 @@ export function init() {
   }
 
   // — Print —
+  // Every document is a PDF rendered server-side; the modal only opens them.
   function openPrintModal() {
+    const prescriptions = DOCUMENTS.prescriptions || [];
+    const invoice = DOCUMENTS.invoice;
+    const hasExtra = prescriptions.length > 0 || invoice;
+
+    const card = (doc, icon, title, meta, disabled) => `
+      <button class="print-card" data-doc="${doc}"${disabled ? ' disabled' : ''}>
+        <span class="print-card-title">${icon} ${title}</span>
+        <span class="print-card-meta">${meta}</span>
+      </button>
+    `;
+
     const body = `
       <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-        Sélectionnez les documents à imprimer ou télécharger.
+        Chaque document s'ouvre en PDF, prêt à imprimer ou à enregistrer.
       </div>
       <div class="print-grid">
-        <button class="print-card" data-doc="cr">
-          <span class="print-card-title">📋 Compte-rendu de consultation</span>
-          <span class="print-card-meta">Synthèse SOAP complète · 1 page</span>
-        </button>
-        <button class="print-card" data-doc="ordo">
-          <span class="print-card-title">💊 Ordonnance</span>
-          <span class="print-card-meta">${(SERVER.prescriptionLines || []).length} médicament(s) · format légal FR</span>
-        </button>
-        <button class="print-card" data-doc="facture">
-          <span class="print-card-title">🧾 Facture</span>
-          <span class="print-card-meta">Total ${money((SERVER.totals || {}).totalTtcMinorUnits || 0, (SERVER.totals || {}).currency)} TTC · NF525</span>
-        </button>
-        <button class="print-card" data-doc="all">
-          <span class="print-card-title">📦 Tout</span>
-          <span class="print-card-meta">CR + ordonnance + facture</span>
-        </button>
+        ${card('report', '📋', 'Compte rendu de consultation', 'Synthèse SOAP, en-tête de la clinique', false)}
+        ${prescriptions.length
+          ? prescriptions.map((p, i) => card(
+              'prescription:' + i, '💊', 'Ordonnance ' + p.number,
+              p.lineCount + ' médicament' + (p.lineCount > 1 ? 's' : '') + ' · format légal FR', false,
+            )).join('')
+          : card('none-prescription', '💊', 'Ordonnance',
+              'Aucune ordonnance signée — créez-la depuis le bloc Ordonnance', true)}
+        ${invoice
+          ? card('invoice', '🧾', 'Facture ' + invoice.number, 'Détail des prestations et règlement', false)
+          : card('none-invoice', '🧾', 'Facture',
+              'Aucune facture émise — passez par l\'encaissement', true)}
+        ${card('bundle', '📦', 'Dossier complet',
+          hasExtra ? 'Compte rendu, ordonnances et facture en un seul PDF' : 'Compte rendu seul pour le moment', false)}
       </div>
     `;
+
     Modal.open({ title: 'Imprimer / Télécharger', body });
     Modal.getEl('.print-grid').addEventListener('click', e => {
       const card = e.target.closest('.print-card');
-      if (!card) return;
-      // The print stylesheet keys off body[data-print-mode].
-      const modes = { cr: 'compte-rendu', ordo: 'ordonnance', facture: 'facture', all: 'tout' };
+      if (!card || card.disabled) return;
+
+      const doc = card.dataset.doc;
+      let url = null;
+
+      if (doc === 'report') url = DOCUMENTS.report;
+      else if (doc === 'bundle') url = DOCUMENTS.bundle;
+      else if (doc === 'invoice') url = invoice && invoice.url;
+      else if (doc.startsWith('prescription:')) {
+        const chosen = prescriptions[Number(doc.split(':')[1])];
+        url = chosen && chosen.url;
+      }
+
+      if (!url) return;
+
       Modal.close();
-      document.body.dataset.printMode = modes[card.dataset.doc];
-      window.print();
+      window.open(url, '_blank', 'noopener');
     });
   }
-
-  const restorePrintMode = () => { delete document.body.dataset.printMode; };
-  window.addEventListener('afterprint', restorePrintMode);
-  registerCleanup(() => {
-    window.removeEventListener('afterprint', restorePrintMode);
-    restorePrintMode();
-  });
 
   // — Historique —
   function openHistoryModal() {

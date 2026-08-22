@@ -40,8 +40,20 @@ services:
       - ./docker/php-fpm/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
     environment:
       - DATABASE_URL=mysql://root:k!v3t0@db/kiveto?serverVersion=8.4.7
+      - GOTENBERG_URL=http://gotenberg:3000
     depends_on:
       - db
+      - gotenberg
+    networks:
+      - kiveto-network
+
+  # Chromium behind an HTTP API: turns the document templates into PDF.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    # Only php-fpm talks to it, over the compose network. 3001 is published so a
+    # failing render can be reproduced with curl from the host.
+    ports:
+      - "3001:3000"
     networks:
       - kiveto-network
 

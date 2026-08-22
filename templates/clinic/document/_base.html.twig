@@ -1,0 +1,67 @@
+{#
+ # Kiveto — templates/clinic/document/_base.html.twig
+ # ─────────────────────────────────────────────────
+ # The shell of every document the clinic hands to a client: the stylesheet, the
+ # letterhead, and the space underneath for the document itself.
+ #
+ # It is rendered on its own and posted to Gotenberg, so it must be a complete
+ # HTML page with nothing pointing back at the application.
+ #
+ # Variables:
+ #   clinic      ClinicDto|null   The current clinic (name, letterhead)
+ #
+ # Blocks:
+ #   doc_title   <title>, also the name suggested when the PDF is saved
+ #   doc_kind    the big violet word top right
+ #   doc_meta    the lines under it
+ #   content     the document
+ #}
+{% set letterhead = clinic is not null ? clinic.letterhead : null %}
+{% set clinicName = clinic is not null ? clinic.name : '' %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>{% block doc_title %}Document{% endblock %}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap"/>
+  <style>{% include 'clinic/document/_styles.html.twig' %}</style>
+</head>
+<body>
+
+<table class="lh"><tr>
+  <td style="width:60%;">
+    <table style="border-collapse:collapse;"><tr>
+      <td style="width:11mm;"><div class="mark">{{ clinicName|slice(0, 1)|upper|default('K') }}</div></td>
+      <td style="padding-left:1mm;">
+        <p class="clinic-name">{{ letterhead is not null and letterhead.legalName is not null ? letterhead.legalName : clinicName }}</p>
+      </td>
+    </tr></table>
+    {% if letterhead is not null %}
+      <p class="clinic-sub">
+        {% if letterhead.addressLines is not empty %}{{ letterhead.addressLines|join(', ') }}<br/>{% endif %}
+        {% set contact = [] %}
+        {% if letterhead.phone %}{% set contact = contact|merge([letterhead.phone|phone_display(false, false)]) %}{% endif %}
+        {% if letterhead.email %}{% set contact = contact|merge([letterhead.email]) %}{% endif %}
+        {% if letterhead.website %}{% set contact = contact|merge([letterhead.website]) %}{% endif %}
+        {% if contact is not empty %}{{ contact|join(' · ') }}<br/>{% endif %}
+        {% set identifiers = [] %}
+        {% if letterhead.formattedSiret %}{% set identifiers = identifiers|merge(['SIRET ' ~ letterhead.formattedSiret]) %}{% endif %}
+        {% if letterhead.vatNumber %}{% set identifiers = identifiers|merge(['TVA ' ~ letterhead.vatNumber]) %}{% endif %}
+        {% if identifiers is not empty %}{{ identifiers|join(' · ') }}<br/>{% endif %}
+        {% if letterhead.ordinalNumber %}
+          Établissement inscrit à l’Ordre des vétérinaires sous le n° {{ letterhead.ordinalNumber }}
+        {% endif %}
+      </p>
+    {% endif %}
+  </td>
+  <td style="width:40%;">
+    <p class="doc-kind">{% block doc_kind %}{% endblock %}</p>
+    <p class="doc-meta">{% block doc_meta %}{% endblock %}</p>
+  </td>
+</tr></table>
+<div class="rule"></div>
+
+{% block content %}{% endblock %}
+
+</body>
+</html>

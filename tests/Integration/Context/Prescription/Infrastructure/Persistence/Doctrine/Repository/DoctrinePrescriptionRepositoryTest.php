@@ -203,6 +203,52 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         ));
     }
 
+    public function testTheReadSideListsEveryOrdonnanceOfAConsultation(): void
+    {
+        $consultationId = $this->uuids->generate();
+
+        $signed = $this->draft($consultationId);
+        $signed->addLine($this->line('Meloxidyl'), $this->now());
+        $signed->addLine($this->line('Synulox'), $this->now());
+        $signed->issue(PrescriptionNumber::of(2026, 12), $this->now());
+        $this->prescriptions->save($signed);
+
+        $draft = $this->draft($consultationId);
+        $draft->addLine($this->line('Rilexine'), $this->now());
+        $this->prescriptions->save($draft);
+
+        // Another consultation's ordonnance must not show up here.
+        $elsewhere = $this->draft();
+        $elsewhere->addLine($this->line('Meloxidyl'), $this->now());
+        $this->prescriptions->save($elsewhere);
+
+        $rows = $this->read->forConsultation(
+            $this->clinic(),
+            ConsultationId::fromString($consultationId),
+        );
+
+        self::assertCount(2, $rows);
+        self::assertSame('ORD-2026-000012', $rows[0]->number);
+        self::assertSame('ISSUED', $rows[0]->status);
+        self::assertSame(2, $rows[0]->lineCount);
+        self::assertTrue($rows[0]->isPrintable());
+        self::assertNull($rows[1]->number);
+        self::assertSame(1, $rows[1]->lineCount);
+        self::assertFalse($rows[1]->isPrintable());
+    }
+
+    public function testTheReadSideKeepsTheOrdonnancesOfAnotherClinicOut(): void
+    {
+        $prescription = $this->draft();
+        $prescription->addLine($this->line('Meloxidyl'), $this->now());
+        $this->prescriptions->save($prescription);
+
+        self::assertSame([], $this->read->forConsultation(
+            ClinicId::fromString(self::OTHER_CLINIC),
+            ConsultationId::fromString(self::CONSULTATION_ID),
+        ));
+    }
+
     public function testAConsultationWithoutAPrescriptionFindsNothing(): void
     {
         self::assertNull($this->prescriptions->findForConsultation(

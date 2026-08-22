@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity;
 
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -47,6 +48,9 @@ class ClinicEntity
     #[ORM\Column(name: 'currency_code', type: 'string', length: 3)]
     private string $currencyCode;
 
+    #[ORM\Embedded(class: LetterheadEmbeddable::class, columnPrefix: false)]
+    private LetterheadEmbeddable $letterhead;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $version = 1;
@@ -56,6 +60,11 @@ class ClinicEntity
 
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
+
+    public function __construct()
+    {
+        $this->letterhead = new LetterheadEmbeddable();
+    }
 
     public function getId(): Uuid
     {
@@ -165,6 +174,16 @@ class ClinicEntity
     public function setCurrencyCode(string $currencyCode): void
     {
         $this->currencyCode = $currencyCode;
+    }
+
+    public function getLetterhead(): LetterheadEmbeddable
+    {
+        return $this->letterhead;
+    }
+
+    public function setLetterhead(LetterheadEmbeddable $letterhead): void
+    {
+        $this->letterhead = $letterhead;
     }
 
     public function getVersion(): int

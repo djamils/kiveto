@@ -1,0 +1,221 @@
+{#
+ # Kiveto — templates/clinic/document/prescription.html.twig
+ # ────────────────────────────────────────────────────────
+ # The ordonnance as it is handed to the client and presented at a pharmacy.
+ # Ported from docs/frontend-theme/vetsaas-layouts/vetos-doc-ordonnance.html.
+ #
+ # Everything printed here is the snapshot taken when the ordonnance was signed:
+ # the catalog, the price and the plan may all have moved since, the document may
+ # not.
+ #
+ # Variables:
+ #   prescription  PrescriptionDetails
+ #   clinic        ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
+{% set issuedAt = prescription.issuedAt ?? prescription.createdAt %}
+{% set city = clinic is not null and clinic.letterhead is not null ? clinic.letterhead.city : null %}
+
+{% block doc_title %}Ordonnance {{ prescription.number ?? 'brouillon' }}{% endblock %}
+
+{% block doc_kind %}Ordonnance{% endblock %}
+
+{% block doc_meta %}
+  {% if prescription.number %}<b>N° {{ prescription.number }}</b><br/>{% endif %}
+  Établie{% if city %} à {{ city }}{% endif %}, le {{ doc.longDate(issuedAt) }}<br/>
+  {% if prescription.validUntil %}
+    Valable jusqu’au {{ prescription.validUntil|date('d/m/Y', 'Europe/Paris') }}
+    ({{ prescription.validityDays }} jours)<br/>
+  {% endif %}
+  {% if prescription.renewalsAllowed > 0 %}
+    Renouvellements : {{ prescription.renewalsUsed }} / {{ prescription.renewalsAllowed }} utilisés
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+  {% if prescription.cancelledAt %}
+    <div class="box crit" style="margin-top:3.5mm;">
+      <p class="box-t">Ordonnance annulée</p>
+      <p>
+        Annulée le {{ prescription.cancelledAt|date('d/m/Y', 'Europe/Paris') }}
+        {%- if prescription.cancellationReason %} — {{ prescription.cancellationReason }}{% endif %}.
+        Elle ne peut plus donner lieu à délivrance.
+      </p>
+    </div>
+  {% endif %}
+
+  <table class="parties"><tr>
+    <td>
+      <p class="plabel">Prescripteur</p>
+      <p class="pname">{{ prescription.prescriberName }}</p>
+      <table class="pgrid">
+        <tr><td>Qualité</td><td>Docteur vétérinaire</td></tr>
+        {% if prescription.prescriberRegistrationNumber %}
+          <tr><td>N° Ordre</td><td>{{ prescription.prescriberRegistrationNumber }}</td></tr>
+        {% endif %}
+        {% if clinic is not null %}
+          <tr><td>Exercice</td><td>{{ clinic.name }}</td></tr>
+        {% endif %}
+        {% if clinic is not null and clinic.letterhead is not null and clinic.letterhead.phone %}
+          <tr><td>Téléphone</td><td>{{ clinic.letterhead.phone|phone_display(false, false) }}</td></tr>
+        {% endif %}
+      </table>
+    </td>
+    <td>
+      <p class="plabel">Détenteur et animal</p>
+      <p class="pname">
+        {{ prescription.patientName }}
+        <span class="pname-sub">— {{ prescription.ownerName }}</span>
+      </p>
+      <table class="pgrid">
+        <tr>
+          <td>Espèce, race</td>
+          <td>
+            {{ SPECIES_LABELS[prescription.patientSpecies]|default('Espèce non précisée') }}
+            {%- if prescription.patientBreed %}, {{ prescription.patientBreed }}{% endif %}
+          </td>
+        </tr>
+        {% if prescription.patientBirthDate %}
+          <tr>
+            <td>Naissance</td>
+            <td>{{ prescription.patientBirthDate|date('d/m/Y', 'Europe/Paris') }}</td>
+          </tr>
+        {% endif %}
+        {% if prescription.patientMicrochipNumber %}
+          <tr><td>Identification</td><td>{{ prescription.patientMicrochipNumber }}</td></tr>
+        {% endif %}
+        {% if prescription.ownerAddressLines is not empty %}
+          <tr><td>Adresse</td><td>{{ prescription.ownerAddressLines|join(', ') }}</td></tr>
+        {% endif %}
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="h2"><tr>
+    <td>Prescription</td>
+    <td class="r">
+      {{ prescription.lines|length }} médicament{{ prescription.lines|length > 1 ? 's' : '' }}
+    </td>
+  </tr></table>
+
+  {% for line in prescription.lines %}
+    <div class="rx">
+      <div class="rx-h">
+        <p class="rx-n">
+          {{ loop.index }}. {{ line.label }}
+          {%- if line.isControlled %}
+            &nbsp;<span class="pill abx">{{ line.prescriptionClassLabel }}</span>
+          {% endif %}
+        </p>
+        {% set descriptors = [] %}
+        {% if line.pharmaceuticalForm %}{% set descriptors = descriptors|merge([line.pharmaceuticalForm]) %}{% endif %}
+        {% if line.activeSubstances is not empty %}{% set descriptors = descriptors|merge([line.activeSubstances|join(', ')]) %}{% endif %}
+        {% if line.code %}{% set descriptors = descriptors|merge(['réf. ' ~ line.code]) %}{% endif %}
+        {% if descriptors is not empty %}
+          <p class="rx-f">{{ descriptors|join(' · ') }} · <b>{{ line.quantity }}</b></p>
+        {% else %}
+          <p class="rx-f"><b>{{ line.quantity }}</b></p>
+        {% endif %}
+      </div>
+      <div class="rx-b"><table>
+        <tr><td>Posologie</td><td>{{ line.posology }}</td></tr>
+        {% if line.route %}<tr><td>Voie</td><td>{{ line.route }}</td></tr>{% endif %}
+        {% if line.durationDays %}
+          <tr><td>Durée</td><td>{{ line.durationDays }} jour{{ line.durationDays > 1 ? 's' : '' }}</td></tr>
+        {% endif %}
+        <tr>
+          <td>Renouvellement</td>
+          <td>
+            {%- if line.isControlled -%}
+              <b>Non renouvelable</b> — substance réglementée
+            {%- elseif prescription.renewalsAllowed > 0 -%}
+              Renouvelable {{ prescription.renewalsAllowed }} fois
+              ({{ prescription.renewalsRemaining }} restant{{ prescription.renewalsRemaining > 1 ? 's' : '' }})
+            {%- else -%}
+              <b>Non renouvelable</b>
+            {%- endif -%}
+          </td>
+        </tr>
+        {% if line.instructions %}
+          <tr><td>Précautions</td><td>{{ line.instructions }}</td></tr>
+        {% endif %}
+      </table></div>
+    </div>
+  {% else %}
+    <p class="muted" style="margin-top:2.5mm;">Aucun médicament n’est prescrit sur cette ordonnance.</p>
+  {% endfor %}
+
+  {% if prescription.notes %}
+    <div class="box">
+      <p class="box-t">Remarques du prescripteur</p>
+      <p>{{ prescription.notes|nl2br }}</p>
+    </div>
+  {% endif %}
+
+  <div class="box{{ prescription.carriesControlledSubstance ? ' warn' : '' }}">
+    <p class="box-t">Mentions réglementaires</p>
+    <table class="pgrid" style="margin-top:0;">
+      <tr>
+        <td style="width:44mm;">Temps d’attente</td>
+        <td style="font-weight:500;">Sans objet — animal de compagnie non destiné à la consommation humaine</td>
+      </tr>
+      <tr>
+        <td>Substances réglementées</td>
+        <td style="font-weight:500;">
+          {%- if prescription.carriesControlledSubstance -%}
+            Cette ordonnance comporte une substance réglementée : validité limitée à
+            {{ prescription.validityDays }} jours, non renouvelable, délivrance en une seule fois
+          {%- else -%}
+            Aucune substance vénéneuse ni stupéfiant
+          {%- endif -%}
+        </td>
+      </tr>
+      <tr>
+        <td>Durée de validité</td>
+        <td style="font-weight:500;">
+          {{ prescription.validityDays }} jours à compter de la date d’établissement
+          {%- if prescription.validUntil %}, soit jusqu’au {{ prescription.validUntil|date('d/m/Y', 'Europe/Paris') }}{% endif %}
+        </td>
+      </tr>
+      {% if prescription.renewals is not empty %}
+        <tr>
+          <td>Renouvellements effectués</td>
+          <td style="font-weight:500;">
+            {% for renewal in prescription.renewals %}
+              {{ renewal.renewedAt|date('d/m/Y', 'Europe/Paris') }}
+              (valable jusqu’au {{ renewal.newValidUntil|date('d/m/Y', 'Europe/Paris') }}){{ loop.last ? '' : ' · ' }}
+            {% endfor %}
+          </td>
+        </tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <table class="sign"><tr>
+    <td style="width:60%;">
+      <p class="sign-place">Fait{% if city %} à {{ city }}{% endif %}, le {{ issuedAt|date('d/m/Y', 'Europe/Paris') }}</p>
+      <p class="sign-name">{{ prescription.prescriberName }}</p>
+      <p class="sign-qual">
+        Docteur vétérinaire
+        {%- if prescription.prescriberRegistrationNumber %} · N° Ordre {{ prescription.prescriberRegistrationNumber }}{% endif %}
+      </p>
+    </td>
+    <td><div class="sign-box"><i>Signature et cachet du vétérinaire</i></div></td>
+  </tr></table>
+
+  <p class="legal">
+    <b>Délivrance.</b> À présenter à la pharmacie de la clinique, en officine ou auprès d’un ayant droit
+    habilité. La délivrance ne peut excéder les quantités prescrites ; toute rature non contresignée rend
+    l’ordonnance nulle.<br/>
+    <b>Conservation.</b> Le détenteur conserve cette ordonnance cinq ans ; un exemplaire est archivé au
+    dossier médical de l’animal.<br/>
+    <b>Bon usage.</b> Respecter strictement les doses, la voie et la durée indiquées. Ne jamais administrer
+    à un autre animal. Tenir hors de portée des enfants. Rapporter les médicaments non utilisés à la
+    clinique. Signaler tout effet indésirable au prescripteur.
+  </p>
+
+{% endblock %}
