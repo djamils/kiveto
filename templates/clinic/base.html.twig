@@ -11,6 +11,7 @@
  #   topbar_search — bool: show search (default: false)
  #   topbar_actions — Topbar buttons
  #   breadcrumb    — Breadcrumb trail
+ #   content_header — Full-width band above the work area (optional)
  #   content       — Main content (required)
  #   rpanel        — Optional right panel
  #   modals        — Page modals
@@ -59,6 +60,10 @@
         topbar_actions: block('topbar_actions') is defined ? block('topbar_actions') : '',
       }) }}
     {% endif %}
+
+    {# Full-width band above the work area — a page that needs a banner reaching
+       over the right panel puts it here rather than inside the scroll #}
+    {% block content_header %}{% endblock %}
 
     {# Flex row: scroll area + optional right panel #}
     <div class="app-main-wrap">

@@ -358,6 +358,10 @@ export function init() {
 
   const PRESET_MOTIFS = REF.presetMotifs || [];
 
+  // How many pills the constants card shows before the empty slots stop being
+  // laid out: past that, the row is full and the add button is enough.
+  const SLOTTED_UP_TO = 3;
+
   const HISTORY_DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
   function fmtHistoryDate(value) {
@@ -480,6 +484,38 @@ export function init() {
     if (subEl) {
       subEl.textContent = `HT ${money(totals.totalHtMinorUnits || 0, currency)} · TVA ${money(totals.totalTvaMinorUnits || 0, currency)}`;
     }
+    renderClosureNote();
+  }
+
+  // What closing is about to produce, said before the button is pressed.
+  function renderClosureNote() {
+    const note = document.getElementById('closure-note');
+    if (!note) return;
+
+    const lines = (SERVER.billingLines || []).length;
+    const drugs = (SERVER.prescriptionLines || []).length;
+
+    const parts = [];
+    if (lines > 0) parts.push(`<strong>${lines} ligne${lines > 1 ? 's' : ''} facturée${lines > 1 ? 's' : ''}</strong>`);
+    if (drugs > 0) parts.push(`${drugs} médicament${drugs > 1 ? 's' : ''} délivré${drugs > 1 ? 's' : ''}`);
+
+    // A closed consultation has nothing left to announce: it states what it
+    // produced, in the past.
+    if (isClosed()) {
+      note.innerHTML = parts.length ? `${parts.join(' · ')}.` : '';
+      return;
+    }
+
+    if (lines === 0 && drugs === 0) {
+      note.innerHTML = 'La clôture génère le compte rendu de la consultation.';
+      return;
+    }
+
+    const documents = drugs > 0
+      ? 'la facture, l’ordonnance et le compte rendu'
+      : 'la facture et le compte rendu';
+
+    note.innerHTML = `${parts.join(' · ')} — la clôture génère ${documents}.`;
   }
   function highlightNew(el) {
     el.classList.add('is-just-added');
@@ -493,7 +529,7 @@ export function init() {
   // Chips are inserted before the "+ ajouter" chip so they stay direct flex
   // children of .strip-content, exactly as in the layout.
   function renderMotifStrip() {
-    const strip = document.querySelector('.strip:first-child .strip-content');
+    const strip = document.querySelector('.wcard-motif .strip-content');
     const addChip = strip?.querySelector('.chip-add');
     if (!strip || !addChip) return;
 
@@ -525,15 +561,51 @@ export function init() {
       pills.push(vitalPillHtml(vital.type, def?.label || vital.type, vital.value, def?.unit || ''));
     });
 
-    addChip.insertAdjacentHTML('beforebegin', pills.join(''));
-    strip.querySelectorAll('.vital-pill').forEach(wireVitalPill);
-
-    const hint = strip.querySelector('.strip-text');
-    if (hint) {
+    // A couple of constants that were never taken are laid out as empty slots:
+    // the shortest way to record one is to click where it will be shown.
+    if (!isClosed() && pills.length < SLOTTED_UP_TO) {
       const recorded = new Set((SERVER.typedVitals || []).map(v => v.type));
-      const remaining = VITAL_TYPES.filter(v => !recorded.has(v.id)).map(v => v.label);
-      hint.textContent = remaining.length ? remaining.join(' · ') : 'Toutes les constantes sont renseignées';
+      let room = SLOTTED_UP_TO - pills.length;
+
+      if (temperature === null || temperature === undefined) {
+        pills.push(emptyVitalSlotHtml('temperature', 'Temp.'));
+        room -= 1;
+      }
+
+      VITAL_TYPES
+        .filter(v => !recorded.has(v.id) && v.id !== 'temperature')
+        .slice(0, Math.max(0, room))
+        .forEach(v => pills.push(emptyVitalSlotHtml(v.id, v.label)));
     }
+
+    addChip.insertAdjacentHTML('beforebegin', pills.join(''));
+    strip.querySelectorAll('.vital-pill:not(.is-empty)').forEach(wireVitalPill);
+    strip.querySelectorAll('.vital-pill.is-empty').forEach(wireEmptyVitalSlot);
+    syncConstanteAddHeight();
+  }
+
+  function emptyVitalSlotHtml(id, label) {
+    return `
+      <button class="vital-pill is-empty" data-slot="${escapeHtml(id)}" title="Saisir : ${escapeHtml(label)}">
+        <span class="vital-pill-label">${escapeHtml(label)}</span>
+        <span class="vital-pill-value">—</span>
+      </button>`;
+  }
+
+  function wireEmptyVitalSlot(slot) {
+    slot.addEventListener('click', () => {
+      const vt = VITAL_TYPES.find(v => v.id === slot.dataset.slot);
+      if (vt) openVitalValueModal(vt);
+      else if (slot.dataset.slot === 'temperature') openEditWeightModal();
+    });
+  }
+
+  // The add button takes the exact height of a pill, whatever the card
+  // stretches to and whatever fonts have loaded.
+  function syncConstanteAddHeight() {
+    const pill = document.querySelector('.vitals-strip .vital-pill');
+    const btn = document.getElementById('constante-add');
+    if (pill && btn) btn.style.height = `${pill.offsetHeight}px`;
   }
 
   function weightPillHtml(weight) {
@@ -648,21 +720,15 @@ export function init() {
     recomputeBillTotal();
   }
 
-  function renderTeamMemo() {
-    const memo = document.getElementById('team-memo');
-    if (memo && memo !== document.activeElement) memo.value = SERVER.teamMemo || '';
-  }
-
   function renderChiefComplaint() {
-    const span = document.querySelector('.strip:first-child .strip-text');
-    if (span && span.tagName === 'SPAN') span.textContent = SERVER.chiefComplaint || '';
+    const field = document.getElementById('motif-free');
+    if (field && field !== document.activeElement) field.value = SERVER.chiefComplaint || '';
   }
 
   onServerState(renderMotifStrip);
   onServerState(renderVitalsStrip);
   onServerState(renderPrescription);
   onServerState(renderBill);
-  onServerState(renderTeamMemo);
   onServerState(renderChiefComplaint);
 
   // ═══════════════════════════════════════════════
@@ -1252,6 +1318,10 @@ export function init() {
         <label class="field-label-mini" for="close-summary">Compte-rendu de sortie</label>
         <textarea class="modal-textarea" id="close-summary" rows="3" placeholder="Synthèse remise au propriétaire…">${escapeHtml(SERVER.summary || '')}</textarea>
       </div>
+      <div class="field-block">
+        <label class="field-label-mini" for="close-memo">Mémo équipe <span style="color:var(--text-subtle);font-weight:var(--weight-normal)">— interne, non remis au propriétaire</span></label>
+        <textarea class="modal-textarea" id="close-memo" rows="2" placeholder="Ce que l'équipe doit savoir pour la suite…">${escapeHtml(SERVER.teamMemo || '')}</textarea>
+      </div>
       <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
         <input type="checkbox" checked data-soon> <span>Envoyer la facture par email${OWNER ? ` à ${escapeHtml(OWNER.fullName)}` : ''}</span>
       </label>
@@ -1272,8 +1342,16 @@ export function init() {
     Modal.open({ title: 'Clôture de la consultation', body, footer });
     Modal.getEl('#close-confirm').addEventListener('click', () => {
       const summary = Modal.getEl('#close-summary')?.value || '';
+      const memo = Modal.getEl('#close-memo')?.value ?? null;
       Modal.close();
-      closeConsultation(summary);
+
+      // The memo is a note of its own: it is saved even if it was the only
+      // thing the vet changed in the dialog.
+      const saved = (null !== memo && memo !== (SERVER.teamMemo || ''))
+        ? save(EP.teamMemo, { memo })
+        : Promise.resolve();
+
+      saved.then(() => closeConsultation(summary));
     });
   }
 
@@ -1439,22 +1517,32 @@ export function init() {
   // ─── Patient bar ───
   document.querySelector('.pb-photo')?.addEventListener('click', () => Toast.info('Téléversement de photo (à implémenter)'));
   document.querySelector('.pb-owner')?.addEventListener('click', openOwnerModal);
-  // warnings — rendered from the animal's medical alerts
-  function renderPatientWarnings() {
-    const host = document.querySelector('.pb-warnings');
+  // The animal's standing warnings sit at the end of the constants card: they
+  // are read with the figures they bear on, and they disappear with their
+  // separator when there is nothing to warn about.
+  function renderVigilances() {
+    const host = document.getElementById('vigilance-list');
+    const sep = document.getElementById('vigilance-sep');
     if (!host) return;
-    host.innerHTML = (SERVER.medicalAlerts || []).map(alert => {
+
+    const alerts = SERVER.medicalAlerts || [];
+
+    host.innerHTML = alerts.map(alert => {
       const isAllergy = alert.kind === 'ALLERGY';
       const icon = isAllergy
-        ? '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>'
-        : '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>';
-      return `<span class="pb-warn${isAllergy ? '' : ' is-info'}" data-alert-id="${escapeHtml(alert.id)}" style="cursor:pointer">${icon}${escapeHtml(isAllergy ? `Allergie ${alert.label}` : `Suivi ${alert.label}`)}</span>`;
+        ? '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>'
+        : '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>';
+      const label = isAllergy ? `Allergie ${alert.label}` : `Suivi ${alert.label}`;
+      return `<button class="vg ${isAllergy ? 'vg-danger' : 'vg-amber'}" data-alert-id="${escapeHtml(alert.id)}" title="${escapeHtml(label)}">${icon}${escapeHtml(label)}</button>`;
     }).join('');
+
+    host.classList.toggle('is-empty', alerts.length === 0);
+    if (sep) sep.classList.toggle('is-hidden', alerts.length === 0);
   }
 
-  onServerState(renderPatientWarnings);
+  onServerState(renderVigilances);
 
-  document.querySelector('.pb-warnings')?.addEventListener('click', e => {
+  document.getElementById('vigilance-list')?.addEventListener('click', e => {
     const warn = e.target.closest('[data-alert-id]');
     if (!warn) return;
     const alert = (SERVER.medicalAlerts || []).find(a => a.id === warn.dataset.alertId);
@@ -1485,48 +1573,35 @@ export function init() {
       : 'Aucune modification enregistrée pour le moment');
   });
 
-  // ─── Motif strip ───
-  document.querySelector('.strip:first-child .chip-add')?.addEventListener('click', openAddMotifModal);
+  // ─── Motif card ───
+  document.querySelector('.wcard-motif .chip-add')?.addEventListener('click', openAddMotifModal);
 
-  function wireStripTextEdit(span) {
-    span.addEventListener('click', () => {
-      const current = span.textContent;
-      const input = document.createElement('textarea');
-      input.value = current;
-      input.className = 'quad-textarea';
-      input.style.minHeight = '40px';
-      input.style.fontSize = 'var(--text-md)';
-      input.style.border = '1px solid var(--brand-400)';
-      input.style.background = 'var(--surface-card)';
-      input.style.padding = 'var(--space-2)';
-      span.replaceWith(input);
-      input.focus();
-      input.select();
-      const finish = (cancelled = false) => {
-        const span2 = document.createElement('span');
-        span2.className = 'strip-text';
-        span2.style.marginLeft = 'var(--space-2)';
-        span2.textContent = cancelled ? current : input.value;
-        input.replaceWith(span2);
-        wireStripTextEdit(span2);
-        if (!cancelled && input.value !== current && input.value.trim() !== '') {
-          save(EP.chiefComplaint, { chiefComplaint: input.value }).then(payload => {
-            if (payload?.success) Toast.success('Motif mis à jour');
-          });
-        }
-      };
-      input.addEventListener('blur', () => finish(false));
-      input.dataset.persist = '1';
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); finish(false); }
-        if (e.key === 'Escape') { e.preventDefault(); finish(true); }
+  // The motif in one sentence is a plain field: it saves when it loses focus,
+  // and Escape puts back what the server holds.
+  const motifField = document.getElementById('motif-free');
+  if (motifField) {
+    motifField.dataset.persist = '1';
+    let lastSaved = motifField.value;
+
+    const commit = () => {
+      const value = motifField.value.trim();
+      if (value === lastSaved.trim()) return;
+      lastSaved = motifField.value;
+      save(EP.chiefComplaint, { chiefComplaint: value }).then(payload => {
+        if (payload?.success) Toast.success('Motif mis à jour');
       });
+    };
+
+    motifField.addEventListener('blur', commit);
+    motifField.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); motifField.blur(); }
+      if (e.key === 'Escape') { e.preventDefault(); motifField.value = lastSaved; motifField.blur(); }
     });
   }
-  document.querySelectorAll('.strip:first-child .strip-text').forEach(wireStripTextEdit);
 
-  // ─── Constantes strip ───
-  document.querySelector('.strip:last-child .chip-add')?.addEventListener('click', openAddConstanteModal);
+  // ─── Constantes card ───
+  document.getElementById('constante-add')?.addEventListener('click', openAddConstanteModal);
+  window.addEventListener('resize', syncConstanteAddHeight);
 
   // ─── SOAP S — dicter ───
   const sQuad = document.querySelector('.quad[data-letter="S"]');
@@ -1562,33 +1637,6 @@ export function init() {
   }
 
   // ─── Footer ───
-  // Pause
-  const pauseBtn = document.getElementById('btn-pause');
-  if (pauseBtn) pauseBtn.addEventListener('click', () => {
-    openConfirmModal({
-      title: 'Mettre la consultation en pause',
-      message: 'La consultation reste accessible depuis l\'agenda. Vous pouvez la reprendre à tout moment.',
-      confirmLabel: 'Mettre en pause',
-      onConfirm: () => {
-        if (window.Turbo) window.Turbo.visit(EP.admissionQueue); else window.location.assign(EP.admissionQueue);
-      },
-    });
-  });
-
-  // Plus tard
-  const laterBtn = document.getElementById('btn-later');
-  if (laterBtn) laterBtn.addEventListener('click', () => {
-    openConfirmModal({
-      title: 'Reporter la consultation',
-      message: 'Le brouillon sera conservé. Vous pourrez la reprendre depuis l\'agenda quand vous le souhaitez.',
-      confirmLabel: 'Reporter',
-      onConfirm: () => {
-        if (window.Turbo) window.Turbo.visit(EP.consultations); else window.location.assign(EP.consultations);
-      },
-    });
-  });
-
-  // Clôturer
   document.getElementById('btn-close-consultation')?.addEventListener('click', openCloseConsultationModal);
 
   // ─── Keyboard shortcuts ───
@@ -1625,22 +1673,11 @@ export function init() {
   onServerState(() => {
     document.body.classList.toggle('consultation-readonly', isClosed());
     if (!isClosed()) return;
-    ['#q-subjective', '#q-objective', '#team-memo'].forEach(sel => {
+    ['#q-subjective', '#q-objective'].forEach(sel => {
       document.querySelector(sel)?.setAttribute('readonly', 'readonly');
     });
     document.getElementById('btn-close-consultation')?.setAttribute('disabled', 'disabled');
   });
-
-  // ─── Mémo équipe ───
-  const memoEl = document.getElementById('team-memo');
-  if (memoEl) {
-    let memoTimer = null;
-    memoEl.addEventListener('input', () => {
-      clearTimeout(memoTimer);
-      memoTimer = setTimeout(() => save(EP.teamMemo, { memo: memoEl.value }), 700);
-    });
-    registerCleanup(() => clearTimeout(memoTimer));
-  }
 
   // Close any floating UI left open when Turbo caches the page
   registerCleanup(() => { Modal.close(); Dropdown.close(); });
