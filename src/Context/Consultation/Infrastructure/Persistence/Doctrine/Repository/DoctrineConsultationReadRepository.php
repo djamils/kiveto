@@ -235,6 +235,40 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         return $lines;
     }
 
+    public function prescriptionLinesForConsultation(ClinicId $clinicId, ConsultationId $consultationId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(pl.id) AS source_line_id, BIN_TO_UUID(pl.article_id) AS article_id,
+                    pl.code, pl.label, pl.dose, pl.frequency, pl.duration_days, pl.route, pl.quantity
+             FROM consultation__prescription_lines pl
+             INNER JOIN consultation__consultations c ON c.id = pl.consultation_id
+             WHERE c.id = :consultationId AND c.clinic_id = :clinicId
+             ORDER BY pl.position ASC',
+            [
+                'consultationId' => Uuid::fromString($consultationId->toString())->toBinary(),
+                'clinicId'       => Uuid::fromString($clinicId->toString())->toBinary(),
+            ],
+        );
+
+        $lines = [];
+
+        foreach ($rows as $row) {
+            $lines[] = [
+                'sourceLineId' => RowAccessor::string($row, 'source_line_id'),
+                'articleId'    => RowAccessor::nullableString($row, 'article_id'),
+                'code'         => RowAccessor::nullableString($row, 'code'),
+                'label'        => RowAccessor::string($row, 'label'),
+                'dose'         => RowAccessor::nullableString($row, 'dose'),
+                'frequency'    => RowAccessor::nullableString($row, 'frequency'),
+                'durationDays' => RowAccessor::nullableInt($row, 'duration_days'),
+                'route'        => RowAccessor::nullableString($row, 'route'),
+                'quantity'     => RowAccessor::string($row, 'quantity'),
+            ];
+        }
+
+        return $lines;
+    }
+
     public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array
     {
         if ($criteria->isImpossible()) {

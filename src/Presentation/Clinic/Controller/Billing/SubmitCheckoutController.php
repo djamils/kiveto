@@ -8,7 +8,7 @@ use App\Context\Billing\Application\Command\ApplyInvoiceDiscount\ApplyInvoiceDis
 use App\Context\Billing\Application\Command\CheckoutAdmission\CheckoutAdmission;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/encaissement/{admissionId}', name: 'clinic_checkout_submit', methods: ['POST'])]
+#[Route(path: '/checkout/{admissionId}', name: 'clinic_checkout_submit', methods: ['POST'])]
 final class SubmitCheckoutController extends AbstractController
 {
     public function __construct(
@@ -61,7 +61,7 @@ final class SubmitCheckoutController extends AbstractController
                 method: $request->request->getString('method'),
                 amountMinorUnits: $amount,
                 reference: '' !== $reference ? $reference : null,
-                recordedByUserId: $user instanceof ClinicUserEntity ? $user->getId()->toRfc4122() : null,
+                recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
             ));
         } catch (\ValueError) {
             $this->addFlash('error', 'Moyen de paiement inconnu.');

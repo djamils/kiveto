@@ -253,7 +253,7 @@
                   {% if invoice.balanceDueMinorUnits > 0 and invoice.status != 'CANCELLED' %}
                     <div class="row-menu-sep"></div>
                     <a class="row-menu-item" data-turbo-frame="_top"
-                       href="{{ path('clinic_invoice_details', { invoiceId: invoice.id }) }}#paiement">
+                       href="{{ path('clinic_invoice_details', { invoiceId: invoice.id }) }}#payment">
                       <i data-lucide="banknote"></i> Encaisser
                     </a>
                   {% endif %}
@@ -306,15 +306,41 @@
         {% endif %}
       {% endfor %}
     </form>
-    {% if pagination.pageCount > 1 %}
-      <nav class="pag-nav">
-        <a class="pag-btn{{ pagination.page <= 1 ? ' is-disabled' : '' }}"
-           href="{{ path('clinic_invoices', qs|merge({ page: pagination.page - 1 })) }}" aria-label="Page précédente">‹</a>
-        <span class="pag-current">{{ pagination.page }} / {{ pagination.pageCount }}</span>
-        <a class="pag-btn{{ pagination.page >= pagination.pageCount ? ' is-disabled' : '' }}"
-           href="{{ path('clinic_invoices', qs|merge({ page: pagination.page + 1 })) }}" aria-label="Page suivante">›</a>
-      </nav>
-    {% endif %}
+    <div class="pag-controls">
+      {% if pagination.page > 1 %}
+        <a class="pag-btn" href="{{ path('clinic_invoices', qs|merge({ page: pagination.page - 1 })) }}" aria-label="Précédent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </a>
+      {% else %}
+        <button class="pag-btn" type="button" disabled aria-label="Précédent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      {% endif %}
+
+      {# First, last and the current page's neighbours, with gaps collapsed to an ellipsis #}
+      {% set shown = [1, pagination.pageCount, pagination.page, pagination.page - 1, pagination.page + 1]|filter(p => p >= 1 and p <= pagination.pageCount)|sort %}
+      {% for p in shown %}
+        {% set previous = loop.first ? 0 : shown[loop.index0 - 1] %}
+        {% if p != previous %}
+          {% if p - previous > 1 and not loop.first %}<span class="pag-ellipsis">…</span>{% endif %}
+          {% if p == pagination.page %}
+            <span class="pag-btn is-active">{{ p }}</span>
+          {% else %}
+            <a class="pag-btn" href="{{ path('clinic_invoices', qs|merge({ page: p })) }}">{{ p }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {% if pagination.page < pagination.pageCount %}
+        <a class="pag-btn" href="{{ path('clinic_invoices', qs|merge({ page: pagination.page + 1 })) }}" aria-label="Suivant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      {% else %}
+        <button class="pag-btn" type="button" disabled aria-label="Suivant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      {% endif %}
+    </div>
   </footer>
 
   </turbo-frame>

@@ -156,13 +156,13 @@ changes; Billing never touches its tables directly.
 
 | Route | Name | Purpose |
 |---|---|---|
-| `GET /facturation` | `clinic_invoices` | list: filters (status, period, search), totals header |
-| `GET /facturation/{invoiceId}` | `clinic_invoice_details` | detail: lines, VAT breakdown, payments, actions |
-| `GET /facturation/{invoiceId}/impression` | `clinic_invoice_print` | printable A4 view |
-| `POST /facturation/{invoiceId}/paiement` | `clinic_invoice_pay` | record a payment |
-| `POST /facturation/{invoiceId}/annuler` | `clinic_invoice_cancel` | cancel an unpaid invoice |
-| `GET /encaissement/{admissionId}` | `clinic_checkout` | checkout screen for a visit |
-| `POST /encaissement/{admissionId}` | `clinic_checkout_submit` | issue + pay + close the admission |
+| `GET /invoices` | `clinic_invoices` | list: filters (status, period, search), totals header |
+| `GET /invoices/{invoiceId}` | `clinic_invoice_details` | detail: lines, VAT breakdown, payments, actions |
+| `GET /invoices/{invoiceId}/print` | `clinic_invoice_print` | printable A4 view |
+| `POST /invoices/{invoiceId}/payment` | `clinic_invoice_pay` | record a payment |
+| `POST /invoices/{invoiceId}/cancel` | `clinic_invoice_cancel` | cancel an unpaid invoice |
+| `GET /checkout/{admissionId}` | `clinic_checkout` | checkout screen for a visit |
+| `POST /checkout/{admissionId}` | `clinic_checkout_submit` | issue + pay + close the admission |
 
 The board's "Encaisser" button becomes a link to `clinic_checkout` instead of
 posting straight to `clinic_admission_close`.

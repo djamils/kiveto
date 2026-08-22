@@ -115,6 +115,7 @@ final class ConsultationDemoStory extends Story
 
         // Surgery and hospitalisation columns.
         $luna = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_LUNA_ID, 'Luna', 'standard', 'Stérilisation programmée.');
+        $this->buildSurgeryConsultation(self::PARIS, $luna, $vetUserId);
         $this->moveTo(self::PARIS, $luna, 'in_surgery');
 
         $caramel = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_CARAMEL_ID, 'Caramel', 'priority', 'Pancréatite aiguë, sous perfusion.');
@@ -183,6 +184,7 @@ final class ConsultationDemoStory extends Story
             ['Suivi chronique', 'Imagerie'],
             [['CONS_SUIVI', 'Consultation de suivi', 1.0], ['RADIO_MEMBRE', 'Radiographie des hanches', 2.0]],
             'Arthrose coxo-fémorale stable. Poursuite du traitement, contrôle dans 6 mois.',
+            prescribe: [['MELOXIDYL-1', '0,1 mg/kg', '1×/j', 30, 'per os', 2.0]],
         );
 
         $nala = $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_NALA_ID, 'Nala', 'standard', 'Vaccination typhus-coryza.');
@@ -553,8 +555,10 @@ final class ConsultationDemoStory extends Story
      * A consultation closed today with billable acts: the visit lands in the
      * checkout queue with a non-zero amount to collect.
      *
-     * @param list<string>                                $motifs
-     * @param list<array{0: string, 1: string, 2: float}> $acts   catalog code, label, quantity
+     * @param list<string>                                                              $motifs
+     * @param list<array{0: string, 1: string, 2: float}>                               $acts      catalog code, label, quantity
+     * @param list<array{0: string, 1: string, 2: string, 3: int, 4: string, 5: float}> $prescribe
+     *                                                                                             catalog code, dose, frequency, days, route, quantity
      */
     private function buildBillableConsultation(
         string $clinicId,
@@ -564,6 +568,7 @@ final class ConsultationDemoStory extends Story
         array $motifs,
         array $acts,
         string $summary,
+        array $prescribe = [],
     ): void {
         $consultationId = $this->startConsultation($admissionId, $vetUserId);
 
@@ -595,10 +600,90 @@ final class ConsultationDemoStory extends Story
             ));
         }
 
+        foreach ($prescribe as [$code, $dose, $frequency, $days, $route, $quantity]) {
+            $this->commandBus->dispatch(new AddPrescriptionLine(
+                consultationId: $consultationId,
+                clinicId: $clinicId,
+                articleId: $this->articleId($clinicId, $code),
+                dose: $dose,
+                frequency: $frequency,
+                durationDays: $days,
+                route: $route,
+                quantity: $quantity,
+                createdByUserId: $vetUserId,
+            ));
+        }
+
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
             closedByUserId: $vetUserId,
             summary: $summary,
+        ));
+    }
+
+    /**
+     * The pre-operative consultation of a patient on the table: it carries the
+     * anaesthetic protocol, which is where a controlled substance shows up.
+     */
+    private function buildSurgeryConsultation(string $clinicId, string $admissionId, string $vetUserId): void
+    {
+        $consultationId = $this->startConsultation($admissionId, $vetUserId);
+
+        $this->commandBus->dispatch(new RecordChiefComplaint(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            chiefComplaint: 'Stérilisation programmée, examen pré-anesthésique.',
+        ));
+
+        $this->commandBus->dispatch(new UpdateConsultationMotifs(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            labels: ['Chirurgie', 'Pré-anesthésie'],
+        ));
+
+        $this->commandBus->dispatch(new RecordVitals(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            weightKg: 3.9,
+            temperatureC: 38.3,
+        ));
+
+        $this->commandBus->dispatch(new AddPlanAction(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            kind: 'PERFORMED_ACT',
+            description: 'Stérilisation femelle',
+            catalogItemId: $this->actId($clinicId, 'STERIL_FEMELLE'),
+            catalogCode: null,
+            posology: null,
+            durationDays: null,
+            followUpDays: null,
+            quantity: 1.0,
+            createdByUserId: $vetUserId,
+        ));
+
+        $this->commandBus->dispatch(new AddPrescriptionLine(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            articleId: $this->articleId($clinicId, 'MEDETO-1'),
+            dose: '40 µg/kg',
+            frequency: 'dose unique',
+            durationDays: 1,
+            route: 'IM',
+            quantity: 1.0,
+            createdByUserId: $vetUserId,
+        ));
+
+        $this->commandBus->dispatch(new AddPrescriptionLine(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            articleId: $this->articleId($clinicId, 'MELOXIDYL-1'),
+            dose: '0,05 mg/kg',
+            frequency: '1×/j',
+            durationDays: 3,
+            route: 'per os',
+            quantity: 1.0,
+            createdByUserId: $vetUserId,
         ));
     }
 

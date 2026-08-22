@@ -7,7 +7,7 @@ namespace App\Presentation\Clinic\Controller\Billing;
 use App\Context\Billing\Application\Command\RecordInvoicePayment\RecordInvoicePayment;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/facturation/{invoiceId}/paiement', name: 'clinic_invoice_pay', methods: ['POST'])]
+#[Route(path: '/invoices/{invoiceId}/payment', name: 'clinic_invoice_pay', methods: ['POST'])]
 final class RecordPaymentController extends AbstractController
 {
     public function __construct(
@@ -56,7 +56,7 @@ final class RecordPaymentController extends AbstractController
                 method: $request->request->getString('method'),
                 amountMinorUnits: $amount,
                 reference: '' !== $reference ? $reference : null,
-                recordedByUserId: $user instanceof ClinicUserEntity ? $user->getId()->toRfc4122() : null,
+                recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
             ));
 
             $this->addFlash('success', 'Paiement enregistré.');

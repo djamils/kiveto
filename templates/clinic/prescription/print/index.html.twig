@@ -1,0 +1,138 @@
+{#
+ # Kiveto — templates/clinic/prescription/print/index.html.twig
+ # ───────────────────────────────────────────────────────────
+ # The printable ordonnance: a bare A4 page in the French format, no shell.
+ #
+ # Variables:
+ #   prescription  PrescriptionDetails
+ #   clinic        ClinicDto|null
+ #}
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ prescription.number ?? 'Ordonnance' }}{% endblock %}
+{% block show_sidebar %}false{% endblock %}
+{% block show_topbar %}false{% endblock %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('styles/pages/prescription.css') }}"/>
+{% endblock %}
+
+{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
+
+{% block body %}
+<div class="po-page" data-page="clinic_prescription_print">
+
+  <div class="po-toolbar no-print">
+    <a class="btn btn-ghost btn-sm" href="{{ path('clinic_prescription_details', { prescriptionId: prescription.id }) }}">
+      <i data-lucide="arrow-left"></i> Retour
+    </a>
+    <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">
+      <i data-lucide="printer"></i> Imprimer
+    </button>
+  </div>
+
+  <article class="po-sheet">
+
+    <header class="po-head">
+      <div class="po-prescriber">
+        <span class="po-prescriber-name">{{ prescription.prescriberName }}</span>
+        <span>Vétérinaire</span>
+        {% if prescription.prescriberRegistrationNumber %}
+          <span>N° ordinal {{ prescription.prescriberRegistrationNumber }}</span>
+        {% endif %}
+        <span class="po-clinic">{{ clinic ? clinic.name : 'Clinique vétérinaire' }}</span>
+      </div>
+      <div class="po-doc">
+        <span class="po-doc-kind">Ordonnance</span>
+        <span class="po-doc-number">{{ prescription.number ?? 'Brouillon' }}</span>
+        <span class="po-doc-date">
+          {% if prescription.issuedAt %}
+            Le {{ prescription.issuedAt|date('d/m/Y', 'Europe/Paris') }}
+          {% else %}
+            Non signée
+          {% endif %}
+        </span>
+        {% if prescription.status == 'CANCELLED' %}<span class="po-void">ANNULÉE</span>{% endif %}
+      </div>
+    </header>
+
+    <section class="po-parties">
+      <div class="po-party">
+        <span class="po-party-label">Détenteur</span>
+        <span class="po-party-name">{{ prescription.ownerName }}</span>
+        {% for line in prescription.ownerAddressLines %}<span>{{ line }}</span>{% endfor %}
+      </div>
+      <div class="po-party">
+        <span class="po-party-label">Animal</span>
+        <span class="po-party-name">{{ prescription.patientName }}</span>
+        {% set meta = [SPECIES_LABELS[prescription.patientSpecies] ?? null, prescription.patientBreed]|filter(v => v)|join(' · ') %}
+        {% if meta %}<span>{{ meta }}</span>{% endif %}
+        {% if prescription.patientBirthDate %}
+          <span>Né(e) le {{ prescription.patientBirthDate|date('d/m/Y') }}</span>
+        {% endif %}
+        {% if prescription.patientMicrochipNumber %}
+          <span>Identification {{ prescription.patientMicrochipNumber }}</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="po-meds">
+      <span class="po-meds-title">Prescription</span>
+      <ol class="po-med-list">
+        {% for line in prescription.lines %}
+          <li class="po-med">
+            <div class="po-med-head">
+              <span class="po-med-name">{{ line.label }}</span>
+              {% if line.pharmaceuticalForm %}<span class="po-med-form">— {{ line.pharmaceuticalForm }}</span>{% endif %}
+            </div>
+            {% if line.activeSubstances|length > 0 %}
+              <div class="po-med-substances">{{ line.activeSubstances|join(', ') }}</div>
+            {% endif %}
+            <div class="po-med-posology">
+              {{ line.posology ?: 'Selon les indications du vétérinaire' }}
+            </div>
+            <div class="po-med-qty">
+              Quantité à délivrer : {{ line.quantity|number_format(line.quantity == line.quantity|round ? 0 : 2, ',', ' ') }}
+              {% if line.isControlled %}
+                <span class="po-med-controlled">· {{ line.prescriptionClassLabel }}</span>
+              {% endif %}
+            </div>
+            {% if line.instructions %}<div class="po-med-instructions">{{ line.instructions }}</div>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    {% if prescription.notes %}
+      <section class="po-notes">
+        <span class="po-notes-label">Recommandations</span>
+        <p>{{ prescription.notes|nl2br }}</p>
+      </section>
+    {% endif %}
+
+    <footer class="po-foot">
+      <div class="po-validity">
+        {% if prescription.validUntil %}
+          <span>Ordonnance valable jusqu'au {{ prescription.validUntil|date('d/m/Y', 'Europe/Paris') }}.</span>
+          {% if prescription.renewalsAllowed > 0 %}
+            <span>Renouvelable {{ prescription.renewalsAllowed }} fois
+              ({{ prescription.renewalsUsed }} déjà utilisé{{ prescription.renewalsUsed > 1 ? 's' : '' }}).</span>
+          {% else %}
+            <span>Non renouvelable.</span>
+          {% endif %}
+        {% endif %}
+        {% if prescription.carriesControlledSubstance %}
+          <span class="po-controlled-note">
+            Contient une substance contrôlée : délivrance soumise à la réglementation en vigueur.
+          </span>
+        {% endif %}
+      </div>
+      <div class="po-signature">
+        <span class="po-signature-label">Signature et cachet</span>
+        <span class="po-signature-name">{{ prescription.prescriberName }}</span>
+      </div>
+    </footer>
+
+  </article>
+</div>
+{% endblock %}

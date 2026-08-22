@@ -431,6 +431,33 @@ services:
     App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper: ~
 
     # ============================================================================
+    # BOUNDED CONTEXT: PRESCRIPTION
+    # ============================================================================
+
+    App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface:
+        class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DoctrinePrescriptionRepository
+
+    App\Context\Prescription\Domain\Service\PrescriptionNumberGeneratorInterface:
+        class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DbalPrescriptionNumberGenerator
+
+    App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterface:
+        class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DbalPrescriptionReadRepository
+
+    App\Context\Prescription\Application\Port\ConsultationPrescriptionProviderInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Consultation\QueryBusConsultationPrescriptionProvider
+
+    App\Context\Prescription\Application\Port\PrescriberDirectoryInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Clinic\DbalPrescriberDirectory
+
+    App\Context\Prescription\Application\Port\PatientDirectoryInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Patient\DbalPatientDirectory
+
+    App\Context\Prescription\Application\Port\DrugRegistryInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Catalog\QueryBusDrugRegistry
+
+    App\Context\Prescription\Infrastructure\Persistence\Doctrine\PrescriptionMapper: ~
+
+    # ============================================================================
     # GLOBAL SEARCH
     # ============================================================================
 
@@ -734,6 +761,49 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: PRESCRIPTION — public for integration tests
+        # ========================================================================
+
+        App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface:
+            class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DoctrinePrescriptionRepository
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Domain\Service\PrescriptionNumberGeneratorInterface:
+            class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DbalPrescriptionNumberGenerator
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterface:
+            class: App\Context\Prescription\Infrastructure\Persistence\Doctrine\Repository\DbalPrescriptionReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Application\Port\ConsultationPrescriptionProviderInterface:
+            class: App\Context\Prescription\Infrastructure\Adapter\Consultation\QueryBusConsultationPrescriptionProvider
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Application\Port\PrescriberDirectoryInterface:
+            class: App\Context\Prescription\Infrastructure\Adapter\Clinic\DbalPrescriberDirectory
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Application\Port\PatientDirectoryInterface:
+            class: App\Context\Prescription\Infrastructure\Adapter\Patient\DbalPatientDirectory
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Application\Port\DrugRegistryInterface:
+            class: App\Context\Prescription\Infrastructure\Adapter\Catalog\QueryBusDrugRegistry
+            public: true
+            autowire: true
+
+        App\Context\Prescription\Infrastructure\Persistence\Doctrine\PrescriptionMapper:
+            public: true
+            autowire: true
 
         # ========================================================================
         # BOUNDED CONTEXT: BILLING — public for integration tests

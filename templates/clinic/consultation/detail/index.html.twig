@@ -104,9 +104,15 @@
     <div class="rp-block">
       <div class="rp-block-head">
         <span class="rp-block-title">Ordonnance</span>
-        <button class="btn btn-ghost btn-icon btn-xs" id="btn-rx-print" title="Voir / imprimer">
+        {#
+         # Leaves the cockpit for the ordonnance itself: a prescription is a
+         # signed document, not a print of this panel.
+         #}
+        <a class="btn btn-ghost btn-icon btn-xs" data-turbo-frame="_top"
+           href="{{ path('clinic_prescription_prepare', { consultationId: consultation.consultationId }) }}"
+           title="Éditer l'ordonnance">
           <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 3H5L3 5v8h10V5z"/><path d="M5 8h6M5 10.5h4"/></svg>
-        </button>
+        </a>
       </div>
 
       {# Allergy banner and prescription rows are rendered by assets/js/pages/consultation.js #}

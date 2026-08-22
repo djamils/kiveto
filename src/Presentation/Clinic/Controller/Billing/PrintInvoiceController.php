@@ -14,7 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/facturation/{invoiceId}/impression', name: 'clinic_invoice_print', methods: ['GET'])]
+#[Route(path: '/invoices/{invoiceId}/print', name: 'clinic_invoice_print', methods: ['GET'])]
 final class PrintInvoiceController extends AbstractController
 {
     public function __construct(
