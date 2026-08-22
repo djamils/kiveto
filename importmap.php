@@ -72,6 +72,12 @@ return [
     'pages/consultations' => [
         'path' => './assets/js/pages/consultations.js',
     ],
+    'pages/billing/list' => [
+        'path' => './assets/js/pages/billing/list.js',
+    ],
+    'pages/billing/checkout' => [
+        'path' => './assets/js/pages/billing/checkout.js',
+    ],
     'pages/select-clinic' => [
         'path' => './assets/js/pages/select-clinic.js',
     ],

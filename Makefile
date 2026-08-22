@@ -251,7 +251,9 @@ reset-test-db: drop-test-db create-test-db migrate-test-db
 
 load-fixtures:
 	@$(call step,Loading fixtures (dev) with Foundry...)
-	$(Q)$(call run_live,$(SYMFONY) foundry:load-fixtures --append dev --no-interaction --quiet)
+# The dev profiler keeps every one of the ~60 bus messages the stories dispatch,
+# which no longer fits in PHP's default limit.
+	$(Q)$(call run_live,$(EXEC_PHP) php -d memory_limit=512M bin/console foundry:load-fixtures --append dev --no-interaction --quiet)
 	@$(call step,Backfilling search index from fixtures...)
 	$(Q)$(call run_live,$(SYMFONY) app:search:reindex --no-interaction --quiet)
 	@$(call ok,Fixtures loaded)

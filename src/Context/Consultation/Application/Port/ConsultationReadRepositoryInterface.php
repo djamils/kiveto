@@ -66,6 +66,25 @@ interface ConsultationReadRepositoryInterface
     public function totalsForAdmissions(ClinicId $clinicId, array $admissionIds): array;
 
     /**
+     * Every billing line of every consultation of a visit, oldest first.
+     *
+     * The Billing BC snapshots these into an invoice; the rows stay a plain
+     * shape so no Consultation type leaks across the boundary.
+     *
+     * @return list<array{
+     *     consultationId: string,
+     *     sourceLineId: string,
+     *     label: string,
+     *     code: ?string,
+     *     quantity: string,
+     *     unitPriceMinorUnits: int,
+     *     currency: string,
+     *     taxCategoryCode: ?string
+     * }>
+     */
+    public function billingLinesForAdmission(ClinicId $clinicId, AdmissionId $admissionId): array;
+
+    /**
      * One page of the clinic-wide consultation list, plus the unpaginated total.
      *
      * @return array{items: list<ConsultationListRow>, total: int}
