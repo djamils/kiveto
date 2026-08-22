@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/ordonnances/{prescriptionId}/renouveler', name: 'clinic_prescription_renew', methods: ['POST'])]
+#[Route(path: '/prescriptions/{prescriptionId}/renew', name: 'clinic_prescription_renew', methods: ['POST'])]
 final class RenewPrescriptionController extends AbstractController
 {
     public function __construct(

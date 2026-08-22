@@ -157,12 +157,13 @@ Nothing else in Consultation changes.
 
 | Route | Name | Purpose |
 |---|---|---|
-| `GET /ordonnances` | `clinic_prescriptions` | list: filters (status, period, search), counters |
-| `GET /ordonnances/{prescriptionId}` | `clinic_prescription_details` | detail: lines, validity, renewals, actions |
-| `GET /ordonnances/{prescriptionId}/impression` | `clinic_prescription_print` | printable A4 sheet |
-| `POST /ordonnances/{prescriptionId}/renouveler` | `clinic_prescription_renew` | consume one renewal |
-| `POST /ordonnances/{prescriptionId}/annuler` | `clinic_prescription_cancel` | cancel with a reason |
-| `GET /consultations/{consultationId}/ordonnance` | `clinic_prescription_prepare` | draft it from the cockpit and open it |
+| `GET /prescriptions` | `clinic_prescriptions` | list: filters (status, period, search), counters |
+| `GET /prescriptions/{prescriptionId}` | `clinic_prescription_details` | detail: lines, validity, renewals, actions |
+| `GET /prescriptions/{prescriptionId}/print` | `clinic_prescription_print` | printable A4 sheet |
+| `POST /prescriptions/{prescriptionId}/renew` | `clinic_prescription_renew` | consume one renewal |
+| `POST /prescriptions/{prescriptionId}/cancel` | `clinic_prescription_cancel` | cancel with a reason |
+| `POST /prescriptions/{prescriptionId}/issue` | `clinic_prescription_issue` | sign it: renewals, note, number |
+| `GET /consultations/{consultationId}/prescription` | `clinic_prescription_prepare` | draft it from the cockpit and open it |
 
 ## Test strategy
 

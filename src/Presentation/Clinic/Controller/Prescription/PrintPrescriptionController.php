@@ -14,7 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/ordonnances/{prescriptionId}/impression', name: 'clinic_prescription_print', methods: ['GET'])]
+#[Route(path: '/prescriptions/{prescriptionId}/print', name: 'clinic_prescription_print', methods: ['GET'])]
 final class PrintPrescriptionController extends AbstractController
 {
     public function __construct(

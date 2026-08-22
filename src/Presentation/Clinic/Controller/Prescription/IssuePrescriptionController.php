@@ -20,7 +20,7 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * Signing the ordonnance: the renewal allowance and the note are part of the
  * same gesture, since neither can be changed once the document is signed.
  */
-#[Route(path: '/ordonnances/{prescriptionId}/emettre', name: 'clinic_prescription_issue', methods: ['POST'])]
+#[Route(path: '/prescriptions/{prescriptionId}/issue', name: 'clinic_prescription_issue', methods: ['POST'])]
 final class IssuePrescriptionController extends AbstractController
 {
     public function __construct(

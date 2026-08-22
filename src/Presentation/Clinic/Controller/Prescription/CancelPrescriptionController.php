@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/ordonnances/{prescriptionId}/annuler', name: 'clinic_prescription_cancel', methods: ['POST'])]
+#[Route(path: '/prescriptions/{prescriptionId}/cancel', name: 'clinic_prescription_cancel', methods: ['POST'])]
 final class CancelPrescriptionController extends AbstractController
 {
     public function __construct(

@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/ordonnances', name: 'clinic_prescriptions', methods: ['GET'])]
+#[Route(path: '/prescriptions', name: 'clinic_prescriptions', methods: ['GET'])]
 final class ListPrescriptionsController extends AbstractController
 {
     private const array PAGE_SIZES = [10, 25, 50, 100];

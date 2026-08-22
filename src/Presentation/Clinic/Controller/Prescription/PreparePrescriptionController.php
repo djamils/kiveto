@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * goes under the medicines, and only then puts their name on it.
  */
 #[Route(
-    path: '/consultations/{consultationId}/ordonnance',
+    path: '/consultations/{consultationId}/prescription',
     name: 'clinic_prescription_prepare',
     methods: ['GET'],
 )]
