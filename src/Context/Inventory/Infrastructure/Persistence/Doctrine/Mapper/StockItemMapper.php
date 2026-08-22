@@ -24,8 +24,18 @@ final readonly class StockItemMapper
 
     public function toEntity(StockItem $stockItem): StockItemEntity
     {
-        $entity = new StockItemEntity();
+        return $this->hydrate($stockItem, new StockItemEntity());
+    }
 
+    /**
+     * Writes the aggregate onto an entity that may already be managed by
+     * Doctrine: the row is updated in place and only the lots the aggregate no
+     * longer holds are dropped. Rebuilding the object graph from scratch would
+     * collide with the identity map as soon as the same aggregate is saved
+     * twice in one request.
+     */
+    public function hydrate(StockItem $stockItem, StockItemEntity $entity): StockItemEntity
+    {
         $entity->setId(Uuid::fromString($stockItem->id()->toString()));
         $entity->setClinicId(Uuid::fromString($stockItem->clinicId()->toString()));
         $entity->setArticleId(Uuid::fromString($stockItem->articleId()->toString()));
@@ -40,12 +50,31 @@ final readonly class StockItemMapper
         $entity->setCreatedAt($stockItem->createdAt());
         $entity->setUpdatedAt($stockItem->updatedAt());
 
-        // Clear and rebuild lots collection
-        $entity->clearLots();
+        $known = [];
+
+        foreach ($entity->getLots() as $lotEntity) {
+            $known[$lotEntity->getId()->toString()] = $lotEntity;
+        }
+
+        $kept = [];
 
         foreach ($stockItem->lots() as $lot) {
-            $lotEntity = $this->lotMapper->toEntity($lot, $entity);
-            $entity->addLot($lotEntity);
+            $lotId        = $lot->id()->toString();
+            $kept[$lotId] = true;
+
+            if (isset($known[$lotId])) {
+                $this->lotMapper->hydrate($lot, $known[$lotId], $entity);
+
+                continue;
+            }
+
+            $entity->addLot($this->lotMapper->toEntity($lot, $entity));
+        }
+
+        foreach ($known as $lotId => $lotEntity) {
+            if (!isset($kept[$lotId])) {
+                $entity->removeLot($lotEntity);
+            }
         }
 
         return $entity;

@@ -27,8 +27,14 @@ final readonly class DoctrineStockItemRepository implements StockItemRepositoryI
     public function save(StockItem $stockItem): void
     {
         try {
-            $entity = $this->mapper->toEntity($stockItem);
-            $this->em->persist($entity);
+            $managed = $this->em->find(StockItemEntity::class, Uuid::fromString($stockItem->id()->toString()));
+
+            if (null !== $managed) {
+                $this->mapper->hydrate($stockItem, $managed);
+            } else {
+                $this->em->persist($this->mapper->toEntity($stockItem));
+            }
+
             $this->em->flush();
         } catch (OptimisticLockException) {
             throw new ConcurrentStockModificationException($stockItem->id()->toString());

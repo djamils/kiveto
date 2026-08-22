@@ -1,0 +1,130 @@
+{#
+ # Kiveto — templates/clinic/stock/alerts.html.twig
+ # ───────────────────────────────────────────────
+ # What needs attention, grouped by how urgent it is. An alert disappears on its
+ # own once the situation it named is over.
+ #
+ # Variables:
+ #   alerts    list<StockAlertView>
+ #   articles  map articleId => ArticleListRow
+ #   expiring  list<ExpiringLotView>
+ #   severity  string|null
+ #   expiringWithinDays int
+ #}
+{% extends 'clinic/stock/_shell.html.twig' %}
+
+{% set SEVERITIES = { 'CRITICAL': 'Critique', 'WARNING': 'À surveiller', 'INFO': 'Pour information' } %}
+{% set SEVERITY_TONES = { 'CRITICAL': 'red', 'WARNING': 'amber', 'INFO': 'blue' } %}
+{% set TYPE_LABELS = {
+  'OUT_OF_STOCK': 'Rupture de stock',
+  'LOW_STOCK': 'Sous le seuil',
+  'LOW_EXPIRY': 'Péremption proche'
+} %}
+{% set alertCount = alerts|length %}
+
+{% block stock_count %}{{ alerts|length }} alerte{{ alerts|length > 1 ? 's' : '' }}{% endblock %}
+
+{% block stock_body %}
+
+  <section class="filters">
+    <span class="filter-label">Gravité</span>
+    <a class="filter-add{{ severity is null ? ' is-active' : '' }}" href="{{ path('clinic_stock_alerts') }}">
+      Toutes
+    </a>
+    {% for value, label in SEVERITIES %}
+      <a class="filter-add{{ severity == value ? ' is-active' : '' }}"
+         href="{{ path('clinic_stock_alerts', { severity: value }) }}">
+        <span class="tone-dot tone-{{ SEVERITY_TONES[value] }}"></span>
+        {{ label }}
+      </a>
+    {% endfor %}
+  </section>
+
+  <section class="table-wrapper">
+    {% if alerts|length > 0 %}
+      <div class="alert-groups">
+        {% for value, label in SEVERITIES %}
+          {% set group = alerts|filter(a => a.severity.value == value) %}
+          {% if group is not empty %}
+            <div>
+              <div class="alert-group-title">
+                <span class="tone-dot tone-{{ SEVERITY_TONES[value] }}"></span>
+                {{ label }}
+                <span class="stk-tab-count">{{ group|length }}</span>
+              </div>
+              <div class="alert-cards">
+                {% for alert in group %}
+                  {% set article = articles[alert.articleId.toString()]|default(null) %}
+                  <div class="alert-card sev-{{ value|lower }}">
+                    <div class="alert-card-head">
+                      <span class="alert-card-name">{{ article ? article.name : alert.articleName }}</span>
+                      <span class="tag tone-{{ SEVERITY_TONES[value] }}">
+                        {{- TYPE_LABELS[alert.type.value]|default(alert.type.value) -}}
+                      </span>
+                    </div>
+                    <span class="alert-card-meta">
+                      {%- if alert.currentLevelAmount is not null -%}
+                        Il reste {{ alert.currentLevelAmount|number_format(2, ',', ' ') }}
+                        {{ alert.currentLevelUnit|lower }}
+                      {%- endif -%}
+                      {%- if alert.earliestExpiry is not null -%}
+                        {% if alert.currentLevelAmount is not null %} · {% endif %}
+                        Périme le {{ alert.earliestExpiry|date('d/m/Y') }}
+                      {%- endif -%}
+                    </span>
+                    <span class="alert-card-meta">
+                      Détectée le {{ alert.detectedAt|date('d/m/Y') }}
+                      {%- if article %} · {{ article.code }}{% endif -%}
+                    </span>
+                    {% if article %}
+                      <div class="alert-card-actions">
+                        <a class="btn btn-secondary btn-sm" href="{{ path('clinic_stock', { q: article.code }) }}">
+                          <i data-lucide="boxes"></i> Voir le stock
+                        </a>
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        {% if expiring is not empty %}
+          <div>
+            <div class="alert-group-title">
+              <i data-lucide="calendar-clock"></i>
+              Lots à écouler dans les {{ expiringWithinDays }} jours
+              <span class="stk-tab-count">{{ expiring|length }}</span>
+            </div>
+            <div class="alert-cards">
+              {% for lot in expiring %}
+                {% set article = articles[lot.articleId]|default(null) %}
+                <div class="alert-card {{ lot.daysUntilExpiry <= 7 ? 'sev-critical' : 'sev-warning' }}">
+                  <div class="alert-card-head">
+                    <span class="alert-card-name">{{ article ? article.name : 'Article' }}</span>
+                    <span class="tag tone-slate">{{ lot.lotNumber }}</span>
+                  </div>
+                  <span class="alert-card-meta">
+                    {{ lot.quantityAmount|number_format(2, ',', ' ') }} {{ lot.quantityUnit|lower }}
+                    · périme le {{ lot.expiryDate|date('d/m/Y') }}
+                    ({{ lot.daysUntilExpiry }} j)
+                  </span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i data-lucide="shield-check"></i></div>
+        <div class="empty-title">Rien à signaler</div>
+        <div class="empty-sub">
+          Aucun article en rupture, sous son seuil ou proche de la péremption.
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+{% endblock %}

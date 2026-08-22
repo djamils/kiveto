@@ -24,6 +24,9 @@ const PAGE_MODULES = {
   clinic_catalogue_articles:     'pages/catalog',
   clinic_catalogue_packages:     'pages/catalog',
   clinic_catalogue_price_lists:  'pages/catalog',
+  clinic_stock:                  'pages/stock',
+  clinic_stock_movements:        'pages/stock',
+  clinic_stock_alerts:           'pages/stock',
   clinic_select_clinic:          'pages/select-clinic',
 };
 

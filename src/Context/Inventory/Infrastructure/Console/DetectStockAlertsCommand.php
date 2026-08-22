@@ -189,7 +189,7 @@ final class DetectStockAlertsCommand extends Command
             type: $type,
             severity: $severity,
             currentLevelAmount: $currentLevel,
-            currentLevelUnit: $unit,
+            currentLevelUnit: null !== $currentLevel ? $unit : null,
             earliestExpiry: $earliestExpiry,
             detectedAt: $now,
             resolvedAt: null,

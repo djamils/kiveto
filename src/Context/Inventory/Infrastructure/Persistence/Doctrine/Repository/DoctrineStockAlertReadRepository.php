@@ -122,7 +122,7 @@ final readonly class DoctrineStockAlertReadRepository implements StockAlertReadR
             type: StockAlertType::from(RowAccessor::string($row, 'type')),
             severity: StockAlertSeverity::from(RowAccessor::string($row, 'severity')),
             currentLevelAmount: RowAccessor::nullableString($row, 'current_level_amount'),
-            currentLevelUnit: RowAccessor::string($row, 'current_level_unit'),
+            currentLevelUnit: RowAccessor::nullableString($row, 'current_level_unit'),
             earliestExpiry: $earliestExpiry,
             detectedAt: new \DateTimeImmutable(RowAccessor::string($row, 'detected_at')),
             resolvedAt: $resolvedAt,

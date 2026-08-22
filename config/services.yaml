@@ -595,6 +595,9 @@ services:
     App\Context\Inventory\Application\Port\StockAlertReadRepositoryInterface:
         class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockAlertReadRepository
 
+    App\Context\Inventory\Application\Port\StockOverviewReadRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DbalStockOverviewReadRepository
+
     App\Context\Inventory\Application\Port\ArticleProviderInterface:
         class: App\Context\Inventory\Infrastructure\Adapter\Catalog\CatalogArticleProviderAdapter
 
@@ -886,6 +889,16 @@ when@test:
 
         App\Context\Catalog\Application\Port\CatalogListReadRepositoryInterface:
             class: App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DbalCatalogListReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Inventory\Application\Port\StockOverviewReadRepositoryInterface:
+            class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DbalStockOverviewReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Inventory\Domain\StockItem\Repository\StockItemRepositoryInterface:
+            class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DoctrineStockItemRepository
             public: true
             autowire: true
 
