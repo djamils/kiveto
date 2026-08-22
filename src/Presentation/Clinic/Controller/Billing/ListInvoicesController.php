@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/facturation', name: 'clinic_invoices', methods: ['GET'])]
+#[Route(path: '/invoices', name: 'clinic_invoices', methods: ['GET'])]
 final class ListInvoicesController extends AbstractController
 {
     private const array PAGE_SIZES = [10, 25, 50, 100];

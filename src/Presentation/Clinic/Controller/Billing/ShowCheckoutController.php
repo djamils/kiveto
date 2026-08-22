@@ -22,7 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * practitioner recorded — so the desk always sees the current state of the
  * visit rather than a snapshot taken at some earlier moment.
  */
-#[Route(path: '/encaissement/{admissionId}', name: 'clinic_checkout', methods: ['GET'])]
+#[Route(path: '/checkout/{admissionId}', name: 'clinic_checkout', methods: ['GET'])]
 final class ShowCheckoutController extends AbstractController
 {
     public function __construct(

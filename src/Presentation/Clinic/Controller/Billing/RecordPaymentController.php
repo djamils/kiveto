@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/facturation/{invoiceId}/paiement', name: 'clinic_invoice_pay', methods: ['POST'])]
+#[Route(path: '/invoices/{invoiceId}/payment', name: 'clinic_invoice_pay', methods: ['POST'])]
 final class RecordPaymentController extends AbstractController
 {
     public function __construct(

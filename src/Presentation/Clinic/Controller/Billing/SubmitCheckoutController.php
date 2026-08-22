@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route(path: '/encaissement/{admissionId}', name: 'clinic_checkout_submit', methods: ['POST'])]
+#[Route(path: '/checkout/{admissionId}', name: 'clinic_checkout_submit', methods: ['POST'])]
 final class SubmitCheckoutController extends AbstractController
 {
     public function __construct(

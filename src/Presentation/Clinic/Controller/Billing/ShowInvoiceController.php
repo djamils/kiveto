@@ -13,7 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/facturation/{invoiceId}', name: 'clinic_invoice_details', methods: ['GET'])]
+#[Route(path: '/invoices/{invoiceId}', name: 'clinic_invoice_details', methods: ['GET'])]
 final class ShowInvoiceController extends AbstractController
 {
     public function __construct(

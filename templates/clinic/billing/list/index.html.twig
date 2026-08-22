@@ -253,7 +253,7 @@
                   {% if invoice.balanceDueMinorUnits > 0 and invoice.status != 'CANCELLED' %}
                     <div class="row-menu-sep"></div>
                     <a class="row-menu-item" data-turbo-frame="_top"
-                       href="{{ path('clinic_invoice_details', { invoiceId: invoice.id }) }}#paiement">
+                       href="{{ path('clinic_invoice_details', { invoiceId: invoice.id }) }}#payment">
                       <i data-lucide="banknote"></i> Encaisser
                     </a>
                   {% endif %}

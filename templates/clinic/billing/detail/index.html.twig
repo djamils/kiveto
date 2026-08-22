@@ -197,7 +197,7 @@
       </div>
 
       {% if invoice.balanceDueMinorUnits > 0 and invoice.status != 'CANCELLED' and invoice.status != 'DRAFT' %}
-        <div class="card" id="paiement">
+        <div class="card" id="payment">
           <div class="card-head"><span class="card-title">Encaisser</span></div>
           <form class="pay-form" method="POST" action="{{ path('clinic_invoice_pay', { invoiceId: invoice.id }) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('invoice_pay_' ~ invoice.id) }}">
