@@ -17,6 +17,7 @@ doctrine_migrations:
         'DoctrineMigrations\Catalog': '%kernel.project_dir%/migrations/Catalog'
         'DoctrineMigrations\Inventory': '%kernel.project_dir%/migrations/Inventory'
         'DoctrineMigrations\Procurement': '%kernel.project_dir%/migrations/Procurement'
+        'DoctrineMigrations\Billing': '%kernel.project_dir%/migrations/Billing'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

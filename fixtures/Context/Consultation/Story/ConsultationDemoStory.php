@@ -144,6 +144,18 @@ final class ConsultationDemoStory extends Story
             'Cicatrisation complète, points retirés. Aucun soin supplémentaire.',
         );
         $this->closeAdmission(self::PARIS, $noisette, 'released_to_owner');
+
+        $cannelle = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_CANNELLE_ID, 'Cannelle', 'standard', 'Vermifugation et pesée.');
+        $this->buildBillableConsultation(
+            self::PARIS,
+            $cannelle,
+            $vetUserId,
+            'Vermifugation semestrielle.',
+            ['Prévention'],
+            [['VERMIF', 'Vermifugation', 1.0], ['CONS_STD', 'Consultation standard', 1.0]],
+            'Vermifuge administré, poids stable.',
+        );
+        $this->closeAdmission(self::PARIS, $cannelle, 'released_to_owner');
     }
 
     private function buildLyonBoard(string $vetUserId): void
@@ -184,6 +196,18 @@ final class ConsultationDemoStory extends Story
             'Rappel effectué. Prochaine échéance dans 12 mois.',
         );
         $this->closeAdmission(self::LYON, $nala, 'released_to_owner');
+
+        $buddy = $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_BUDDY_ID, 'Buddy', 'standard', 'Détartrage programmé.');
+        $this->buildBillableConsultation(
+            self::LYON,
+            $buddy,
+            $vetUserId,
+            'Détartrage sous anesthésie.',
+            ['Dentaire'],
+            [['DETARTRAGE', 'Détartrage complet', 1.0], ['HOSP_JOUR', 'Surveillance post-anesthésique', 1.0]],
+            'Détartrage réalisé, réveil sans incident.',
+        );
+        $this->closeAdmission(self::LYON, $buddy, 'released_to_owner');
     }
 
     private function buildClosedConsultation(string $clinicId, string $admissionId, string $vetUserId): void

@@ -17,6 +17,8 @@ const PAGE_MODULES = {
   clinic_clients_view:           'pages/clients/view',
   clinic_consultation_details:   'pages/consultation',
   clinic_consultations:          'pages/consultations',
+  clinic_invoices:               'pages/billing/list',
+  clinic_checkout:               'pages/billing/checkout',
   clinic_select_clinic:          'pages/select-clinic',
 };
 

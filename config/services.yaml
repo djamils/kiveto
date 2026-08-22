@@ -404,6 +404,33 @@ services:
     App\Context\Admission\Infrastructure\Persistence\Doctrine\AdmissionMapper: ~
 
     # ============================================================================
+    # BOUNDED CONTEXT: BILLING
+    # ============================================================================
+
+    App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DoctrineInvoiceRepository
+
+    App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceNumberGenerator
+
+    App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceReadRepository
+
+    App\Context\Billing\Application\Port\ConsultationBillingProviderInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Consultation\QueryBusConsultationBillingProvider
+
+    App\Context\Billing\Application\Port\TaxResolverInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Taxation\QueryBusTaxResolver
+
+    App\Context\Billing\Application\Port\PayerDirectoryInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Client\DbalPayerDirectory
+
+    App\Context\Billing\Application\Port\AdmissionCoordinatorInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Admission\MessengerAdmissionCoordinator
+
+    App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper: ~
+
+    # ============================================================================
     # GLOBAL SEARCH
     # ============================================================================
 
@@ -707,6 +734,49 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+
+        # ========================================================================
+        # BOUNDED CONTEXT: BILLING — public for integration tests
+        # ========================================================================
+
+        App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface:
+            class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DoctrineInvoiceRepository
+            public: true
+            autowire: true
+
+        App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface:
+            class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceNumberGenerator
+            public: true
+            autowire: true
+
+        App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface:
+            class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceReadRepository
+            public: true
+            autowire: true
+
+        App\Context\Billing\Application\Port\ConsultationBillingProviderInterface:
+            class: App\Context\Billing\Infrastructure\Adapter\Consultation\QueryBusConsultationBillingProvider
+            public: true
+            autowire: true
+
+        App\Context\Billing\Application\Port\TaxResolverInterface:
+            class: App\Context\Billing\Infrastructure\Adapter\Taxation\QueryBusTaxResolver
+            public: true
+            autowire: true
+
+        App\Context\Billing\Application\Port\PayerDirectoryInterface:
+            class: App\Context\Billing\Infrastructure\Adapter\Client\DbalPayerDirectory
+            public: true
+            autowire: true
+
+        App\Context\Billing\Application\Port\AdmissionCoordinatorInterface:
+            class: App\Context\Billing\Infrastructure\Adapter\Admission\MessengerAdmissionCoordinator
+            public: true
+            autowire: true
+
+        App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper:
+            public: true
+            autowire: true
 
         # ========================================================================
         # BOUNDED CONTEXT: CATALOG — public for integration tests

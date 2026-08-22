@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
+use App\Fixtures\Context\Billing\Story\BillingDemoStory;
 use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
@@ -76,5 +77,8 @@ final class ClinicDataset extends Story
         // Seed admissions + consultations in varied cockpit states (needs the
         // catalog and the animals above)
         ConsultationDemoStory::load();
+
+        // Invoice the visits that are over (needs their consultations)
+        BillingDemoStory::load();
     }
 }

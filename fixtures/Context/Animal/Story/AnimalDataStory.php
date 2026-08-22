@@ -27,8 +27,10 @@ final class AnimalDataStory extends Story
     public const ANIMAL_GRIBOUILLE_ID = '01936e1a-1111-7000-8000-000000000011';
     public const ANIMAL_SUSHI_ID      = '01936e1a-1212-7000-8000-000000000012';
     public const ANIMAL_JAVA_ID       = '01936e1a-1313-7000-8000-000000000013';
+    public const ANIMAL_CANNELLE_ID   = '01936e1a-1414-7000-8000-000000000014';
 
     public const ANIMAL_FELIX_ID   = '01936e1a-7777-7000-8000-000000000007';
+    public const ANIMAL_BUDDY_ID   = '01936e1a-1515-7000-8000-000000000015';
     public const ANIMAL_COCO_ID    = '01936e1a-8888-7000-8000-000000000008';
     public const ANIMAL_MOKA_ID    = '01936e1a-9999-7000-8000-000000000009';
     public const ANIMAL_CHARLIE_ID = '01936e1a-aaaa-7000-8000-00000000000a';
@@ -224,6 +226,7 @@ final class AnimalDataStory extends Story
 
         // 8. Buddy - Labrador mâle de Thomas (ARCHIVED avec animal)
         $animal8 = AnimalEntityFactory::new()
+            ->withId(self::ANIMAL_BUDDY_ID)
             ->withClinicId($lyonClinicId)
             ->withName('Buddy')
             ->dog()
@@ -426,7 +429,7 @@ final class AnimalDataStory extends Story
             ['Filou', 'cat', null, 'Roux', self::ANIMAL_FILOU_ID],
             ['Caramel', 'dog', 'Teckel', 'Marron', self::ANIMAL_CARAMEL_ID],
             ['Noisette', 'cat', 'Européen', 'Tigré', self::ANIMAL_NOISETTE_ID],
-            ['Cannelle', 'dog', null, 'Fauve', null],
+            ['Cannelle', 'dog', null, 'Fauve', self::ANIMAL_CANNELLE_ID],
             ['Doudou', 'cat', 'Angora', 'Blanc', null],
             ['Bisou', 'cat', 'Ragdoll', 'Bicolore', null],
         ];

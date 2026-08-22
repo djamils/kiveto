@@ -201,6 +201,40 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         return $totals;
     }
 
+    public function billingLinesForAdmission(ClinicId $clinicId, AdmissionId $admissionId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(c.id) AS consultation_id, BIN_TO_UUID(bl.id) AS source_line_id,
+                    bl.label, bl.code, bl.quantity, bl.unit_price_minor_units, bl.currency,
+                    bl.tax_category_code
+             FROM consultation__consultations c
+             INNER JOIN consultation__billing_lines bl ON bl.consultation_id = c.id
+             WHERE c.clinic_id = :clinicId AND c.admission_id = :admissionId
+             ORDER BY c.started_at_utc ASC, bl.position ASC',
+            [
+                'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
+                'admissionId' => Uuid::fromString($admissionId->toString())->toBinary(),
+            ],
+        );
+
+        $lines = [];
+
+        foreach ($rows as $row) {
+            $lines[] = [
+                'consultationId'      => RowAccessor::string($row, 'consultation_id'),
+                'sourceLineId'        => RowAccessor::string($row, 'source_line_id'),
+                'label'               => RowAccessor::string($row, 'label'),
+                'code'                => RowAccessor::nullableString($row, 'code'),
+                'quantity'            => RowAccessor::string($row, 'quantity'),
+                'unitPriceMinorUnits' => RowAccessor::int($row, 'unit_price_minor_units'),
+                'currency'            => RowAccessor::string($row, 'currency'),
+                'taxCategoryCode'     => RowAccessor::nullableString($row, 'tax_category_code'),
+            ];
+        }
+
+        return $lines;
+    }
+
     public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array
     {
         if ($criteria->isImpossible()) {

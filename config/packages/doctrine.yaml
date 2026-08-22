@@ -117,6 +117,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Procurement/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Procurement\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Procurement
+            Billing:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/Billing/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Billing
         controller_resolver:
             auto_mapping: false
 

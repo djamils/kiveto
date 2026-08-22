@@ -522,14 +522,12 @@
                       <span class="card-vet"></span>
                     {% endif %}
                     {#
-                     # Ends the visit. No payment is recorded: the clinic has no
-                     # invoicing yet, so this marks the patient as gone.
+                     # Opens the checkout screen, where the invoice is drafted
+                     # from the visit and the payment taken. Ending the visit is
+                     # the consequence of paying it, not a button of its own.
                      #}
-                    <form method="post" action="{{ path('clinic_admission_close', { admissionId: entry.admissionId }) }}">
-                      <input type="hidden" name="_token" value="{{ csrf_token('admission_close_' ~ entry.admissionId) }}">
-                      <input type="hidden" name="closure_reason" value="consultation_completed">
-                      <button class="btn btn-primary btn-xs" type="submit">Encaisser</button>
-                    </form>
+                    <a class="btn btn-primary btn-xs"
+                       href="{{ path('clinic_checkout', { admissionId: entry.admissionId }) }}">Encaisser</a>
                   </div>
                 </div>
               {% endfor %}

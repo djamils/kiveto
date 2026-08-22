@@ -477,6 +477,64 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         );
     }
 
+    public function testBillingLinesOfAVisitComeBackAcrossItsConsultations(): void
+    {
+        $admissionId = Uuid::v7()->toRfc4122();
+
+        $first = $this->startConsultation(
+            self::CONSULTATION_1,
+            self::CLINIC_ID,
+            self::PATIENT_ID,
+            new \DateTimeImmutable('2026-04-10 09:00:00'),
+        );
+        $this->addBilledAct($first, 'Consultation standard', 'CONS_STD', 1.0, 5000);
+        $this->saveOnAdmission($first, $admissionId);
+
+        $second = $this->startConsultation(
+            self::CONSULTATION_2,
+            self::CLINIC_ID,
+            self::PATIENT_ID,
+            new \DateTimeImmutable('2026-04-10 11:00:00'),
+        );
+        $this->addBilledAct($second, 'Radiographie', 'RADIO', 2.0, 7000);
+        $this->saveOnAdmission($second, $admissionId);
+
+        $lines = $this->readRepository->billingLinesForAdmission(
+            ClinicId::fromString(self::CLINIC_ID),
+            AdmissionId::fromString($admissionId),
+        );
+
+        // Oldest consultation first, then the order the acts were recorded in.
+        self::assertCount(2, $lines);
+        self::assertSame('Consultation standard', $lines[0]['label']);
+        self::assertSame(self::CONSULTATION_1, $lines[0]['consultationId']);
+        self::assertSame('CONS_STD', $lines[0]['code']);
+        self::assertSame(5000, $lines[0]['unitPriceMinorUnits']);
+        self::assertSame('EUR', $lines[0]['currency']);
+        self::assertSame('TVA20', $lines[0]['taxCategoryCode']);
+        self::assertSame('Radiographie', $lines[1]['label']);
+        self::assertSame('2.00', $lines[1]['quantity']);
+    }
+
+    public function testBillingLinesOfAnotherClinicAreInvisible(): void
+    {
+        $admissionId = Uuid::v7()->toRfc4122();
+
+        $consultation = $this->startConsultation(
+            self::CONSULTATION_1,
+            self::CLINIC_ID,
+            self::PATIENT_ID,
+            new \DateTimeImmutable('2026-04-10 09:00:00'),
+        );
+        $this->addBilledAct($consultation, 'Consultation standard', 'CONS_STD', 1.0, 5000);
+        $this->saveOnAdmission($consultation, $admissionId);
+
+        self::assertSame([], $this->readRepository->billingLinesForAdmission(
+            ClinicId::fromString(self::OTHER_CLINIC_ID),
+            AdmissionId::fromString($admissionId),
+        ));
+    }
+
     private function insertExamSystemRow(string $system, string $structuredData, int $position): void
     {
         $connection = self::getContainer()->get('doctrine.dbal.default_connection');
@@ -503,6 +561,50 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'consultationId' => ParameterType::BINARY,
                 'userId'         => ParameterType::BINARY,
             ],
+        );
+    }
+
+    private function addBilledAct(
+        Consultation $consultation,
+        string $label,
+        string $code,
+        float $quantity,
+        int $unitPrice,
+    ): void {
+        $consultation->addPlanAction(
+            PlanActionKind::PERFORMED_ACT,
+            $label,
+            $code,
+            null,
+            null,
+            null,
+            $quantity,
+            $unitPrice,
+            'EUR',
+            'TVA20',
+            UserId::fromString(self::USER_ID),
+            new \DateTimeImmutable('2026-04-10 09:05:00'),
+        );
+    }
+
+    /**
+     * The aggregate takes its admission at construction time; the visit id has
+     * to be forced on the row so several consultations share one.
+     */
+    private function saveOnAdmission(Consultation $consultation, string $admissionId): void
+    {
+        $this->writeRepository->save($consultation);
+
+        $connection = self::getContainer()->get(Connection::class);
+        \assert($connection instanceof Connection);
+
+        $connection->executeStatement(
+            'UPDATE consultation__consultations SET admission_id = :admissionId WHERE id = :id',
+            [
+                'admissionId' => Uuid::fromString($admissionId)->toBinary(),
+                'id'          => Uuid::fromString($consultation->getId()->toString())->toBinary(),
+            ],
+            ['admissionId' => ParameterType::BINARY, 'id' => ParameterType::BINARY],
         );
     }
 
