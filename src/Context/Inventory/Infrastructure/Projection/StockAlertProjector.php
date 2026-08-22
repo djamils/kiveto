@@ -292,7 +292,7 @@ final class StockAlertProjector
                 type: $type,
                 severity: $severity,
                 currentLevelAmount: $currentLevelAmount,
-                currentLevelUnit: $unit,
+                currentLevelUnit: null !== $currentLevelAmount ? $unit : null,
                 earliestExpiry: $earliestExpiry,
                 detectedAt: $now,
                 resolvedAt: null,
@@ -302,6 +302,8 @@ final class StockAlertProjector
         }
 
         if (null === $existingAlert->resolvedAt) {
+            $level = $currentLevelAmount ?? $existingAlert->currentLevelAmount;
+
             $this->alertRepository->save(new StockAlertView(
                 alertId: $existingAlert->alertId,
                 clinicId: $existingAlert->clinicId,
@@ -310,8 +312,8 @@ final class StockAlertProjector
                 articleName: $existingAlert->articleName,
                 type: $existingAlert->type,
                 severity: $severity,
-                currentLevelAmount: $currentLevelAmount ?? $existingAlert->currentLevelAmount,
-                currentLevelUnit: $unit,
+                currentLevelAmount: $level,
+                currentLevelUnit: null !== $level ? $unit : null,
                 earliestExpiry: $earliestExpiry ?? $existingAlert->earliestExpiry,
                 detectedAt: $now,
                 resolvedAt: null,
@@ -330,7 +332,7 @@ final class StockAlertProjector
             type: $type,
             severity: $severity,
             currentLevelAmount: $currentLevelAmount,
-            currentLevelUnit: $unit,
+            currentLevelUnit: null !== $currentLevelAmount ? $unit : null,
             earliestExpiry: $earliestExpiry,
             detectedAt: $now,
             resolvedAt: null,

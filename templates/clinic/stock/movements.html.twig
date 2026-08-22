@@ -1,0 +1,190 @@
+{#
+ # Kiveto — templates/clinic/stock/movements.html.twig
+ # ──────────────────────────────────────────────────
+ # The trail: every movement of stock, newest first. It is append-only, so this
+ # page only reads.
+ #
+ # Variables:
+ #   movements      list<MovementRow>
+ #   articles       map articleId => ArticleListRow
+ #   page           MovementPage
+ #   types          list<string>
+ #   selectedTypes  list<string>
+ #   pageSizes      list<int>
+ #   queryState     array
+ #}
+{% extends 'clinic/stock/_shell.html.twig' %}
+
+{% set TYPE_LABELS = { 'IN': 'Entrée', 'OUT': 'Sortie', 'ADJUSTMENT': 'Ajustement' } %}
+{% set TYPE_TONES = { 'IN': 'green', 'OUT': 'blue', 'ADJUSTMENT': 'amber' } %}
+{% set REASON_LABELS = {
+  'RECEIPT_SUPPLIER': 'Réception fournisseur',
+  'RECEIPT_OPENING': 'Stock initial',
+  'RECEIPT_RETURN_FROM_CLIENT': 'Retour client',
+  'CONSUMPTION_CONSULTATION': 'Consultation',
+  'SALE_RETAIL': 'Vente au comptoir',
+  'LOSS_EXPIRY': 'Perte — péremption',
+  'LOSS_BREAKAGE': 'Perte — casse',
+  'LOSS_THEFT': 'Perte — vol',
+  'RECALL_RETURN_TO_SUPPLIER': 'Retour fournisseur',
+  'PHYSICAL_INVENTORY': 'Inventaire',
+  'CORRECTION': 'Correction'
+} %}
+{% set MONTHS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'] %}
+
+{% block stock_count %}{{ page.total }} mouvement{{ page.total > 1 ? 's' : '' }}{% endblock %}
+
+{% block stock_search %}
+  <form class="tb-search" method="GET" action="{{ path('clinic_stock_movements') }}" role="search">
+    <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" name="q" value="{{ app.request.query.get('q') }}"
+           placeholder="Rechercher un article…" autocomplete="off">
+    {% for key, value in queryState %}
+      {% if key != 'q' %}
+        {% if value is iterable %}
+          {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
+        {% else %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </form>
+{% endblock %}
+
+{% block stock_body %}
+
+  <section class="filters">
+    <span class="filter-label">Filtres</span>
+
+    {% for type in selectedTypes %}
+      <span class="filter-chip">
+        <span class="chip-key">Type :</span>
+        <span class="tone-dot tone-{{ TYPE_TONES[type]|default('slate') }}"></span>
+        <span>{{ TYPE_LABELS[type]|default(type) }}</span>
+        <a class="chip-x"
+           href="{{ path('clinic_stock_movements', queryState|merge({ kind: selectedTypes|filter(t => t != type) })) }}"
+           aria-label="Retirer">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </a>
+      </span>
+    {% endfor %}
+
+    <span class="filter-add-wrap">
+      <button class="filter-add{{ selectedTypes is not empty ? ' is-active' : '' }}" type="button" data-filter-toggle="type">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Type
+      </button>
+      <div class="filter-menu" data-filter-menu="type">
+        <div class="filter-menu-title">Type de mouvement</div>
+        {% for type in types %}
+          {% set checked = type in selectedTypes %}
+          <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
+             href="{{ path('clinic_stock_movements', queryState|merge({ kind: checked ? selectedTypes|filter(t => t != type) : selectedTypes|merge([type]) })) }}">
+            <span class="tone-dot tone-{{ TYPE_TONES[type]|default('slate') }}"></span>
+            <span style="flex:1">{{ TYPE_LABELS[type]|default(type) }}</span>
+            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
+          </a>
+        {% endfor %}
+      </div>
+    </span>
+
+    <form method="GET" action="{{ path('clinic_stock_movements') }}" class="filter-add-wrap"
+          style="gap:6px;border:none;padding:0;background:none">
+      <input class="form-input form-input-sm" type="date" name="from" value="{{ app.request.query.get('from') }}"
+             aria-label="Depuis" style="width:150px">
+      <input class="form-input form-input-sm" type="date" name="to" value="{{ app.request.query.get('to') }}"
+             aria-label="Jusqu’au" style="width:150px">
+      {% for type in selectedTypes %}<input type="hidden" name="kind[]" value="{{ type }}">{% endfor %}
+      {% if app.request.query.get('q') %}<input type="hidden" name="q" value="{{ app.request.query.get('q') }}">{% endif %}
+      <button class="filter-add" type="submit">Appliquer</button>
+    </form>
+
+    {% if queryState is not empty %}
+      <a class="filter-clear" href="{{ path('clinic_stock_movements') }}">Tout effacer</a>
+    {% endif %}
+  </section>
+
+  <section class="table-wrapper">
+    {% if movements|length > 0 %}
+      <table class="stk-table">
+        <thead>
+          <tr>
+            <th class="col-code">Date</th>
+            <th class="col-name">Article</th>
+            <th class="col-kind">Type</th>
+            <th class="col-tax">Motif</th>
+            <th class="col-qty">Quantité</th>
+            <th class="col-expiry">Lot</th>
+            <th class="col-meta">Référence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for movement in movements %}
+            {% set article = articles[movement.articleId]|default(null) %}
+            <tr>
+              <td class="col-code">
+                <span class="cell-meta">
+                  {{ movement.occurredAt|date('d', 'Europe/Paris') }}
+                  {{ MONTHS[movement.occurredAt|date('n', 'Europe/Paris') - 1] }}
+                  <span class="cell-sub">{{ movement.occurredAt|date('H:i', 'Europe/Paris') }}</span>
+                </span>
+              </td>
+              <td class="col-name">
+                {% if article %}
+                  <span class="cell-name">{{ article.name }}</span>
+                  <span class="cell-sub">{{ article.code }}</span>
+                {% else %}
+                  <span class="cell-name" style="color:var(--color-danger-text)">Article retiré du catalogue</span>
+                {% endif %}
+              </td>
+              <td class="col-kind">
+                <span class="tag tone-{{ TYPE_TONES[movement.type]|default('slate') }}">
+                  {{- TYPE_LABELS[movement.type]|default(movement.type) -}}
+                </span>
+              </td>
+              <td class="col-tax">
+                <span class="cell-tax">{{ REASON_LABELS[movement.reason]|default(movement.reason) }}</span>
+              </td>
+              <td class="col-qty">
+                {# An inventory records the gap it closed, not the way it went. #}
+                {% if movement.type == 'ADJUSTMENT' %}
+                  <span class="cell-qty">
+                    {{ movement.quantity|abs|number_format(2, ',', ' ') }}
+                    <span class="qty-unit">{{ movement.unit|lower }}</span>
+                  </span>
+                {% else %}
+                  <span class="cell-qty{{ movement.isIncoming ? '' : ' is-low' }}">
+                    {{- movement.isIncoming ? '+' : '−' }}{{ movement.quantity|abs|number_format(2, ',', ' ') }}
+                    <span class="qty-unit">{{ movement.unit|lower }}</span>
+                  </span>
+                {% endif %}
+              </td>
+              <td class="col-expiry">
+                <span class="cell-code">{{ movement.lotNumber ?? '—' }}</span>
+              </td>
+              <td class="col-meta">
+                <span class="cell-meta">{{ movement.reference ?? '—' }}</span>
+                {% if movement.note %}<span class="cell-sub">{{ movement.note }}</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i data-lucide="history"></i></div>
+        <div class="empty-title">Aucun mouvement</div>
+        <div class="empty-sub">
+          {% if queryState is not empty %}
+            Aucun mouvement ne correspond à ces critères.
+          {% else %}
+            Chaque réception, sortie et inventaire laisse une trace ici.
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  {{ include('clinic/stock/_pagination.html.twig', { route: 'clinic_stock_movements' }) }}
+
+{% endblock %}

@@ -118,7 +118,24 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
 
     public function articles(ClinicId $clinicId, CatalogListCriteria $criteria): array
     {
+        if ($criteria->isImpossible()) {
+            return ['items' => [], 'total' => 0];
+        }
+
         $filter = $this->baseFilter($clinicId, $criteria, 'a');
+
+        if (true === $criteria->trackStockOnly) {
+            $filter['where'][] = 'a.track_stock = 1';
+        }
+
+        if (null !== $criteria->articleIds) {
+            $filter['where'][]              = 'a.id IN (:articleIds)';
+            $filter['params']['articleIds'] = array_map(
+                static fn (string $id): string => Uuid::fromString($id)->toBinary(),
+                $criteria->articleIds,
+            );
+            $filter['types']['articleIds'] = ArrayParameterType::BINARY;
+        }
 
         if ([] !== $criteria->kinds) {
             $filter['where'][]         = 'a.kind IN (:kinds)';

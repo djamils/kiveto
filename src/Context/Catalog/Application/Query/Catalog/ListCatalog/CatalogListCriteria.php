@@ -24,8 +24,12 @@ final readonly class CatalogListCriteria
     public const string STATUS_ARCHIVED = 'ARCHIVED';
 
     /**
-     * @param list<string> $kinds
-     * @param list<string> $taxCategories
+     * @param list<string>      $kinds
+     * @param list<string>      $taxCategories
+     * @param list<string>|null $articleIds    a narrowing to a known set of items, used
+     *                                         when another context decided which ones
+     *                                         are of interest; an empty list matches
+     *                                         nothing, null does not narrow at all
      */
     public function __construct(
         public ?string $term = null,
@@ -34,11 +38,22 @@ final readonly class CatalogListCriteria
         public ?string $status = self::STATUS_ACTIVE,
         public ?bool $requiresPrescription = null,
         public ?bool $controlledOnly = null,
+        public ?bool $trackStockOnly = null,
+        public ?array $articleIds = null,
         public string $sortBy = self::SORT_NAME,
         public bool $sortDescending = false,
         public int $page = 1,
         public int $perPage = 25,
     ) {
+    }
+
+    /**
+     * A narrowing to an empty set can only match nothing, and MySQL refuses an
+     * empty IN () anyway.
+     */
+    public function isImpossible(): bool
+    {
+        return null !== $this->articleIds && [] === $this->articleIds;
     }
 
     public function offset(): int

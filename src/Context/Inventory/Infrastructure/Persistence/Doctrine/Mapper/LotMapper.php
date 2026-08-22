@@ -19,8 +19,14 @@ final readonly class LotMapper
 {
     public function toEntity(Lot $lot, StockItemEntity $stockItemEntity): LotEntity
     {
-        $entity = new LotEntity();
+        return $this->hydrate($lot, new LotEntity(), $stockItemEntity);
+    }
 
+    /**
+     * Writes the lot onto an entity that may already be managed by Doctrine.
+     */
+    public function hydrate(Lot $lot, LotEntity $entity, StockItemEntity $stockItemEntity): LotEntity
+    {
         $entity->setId(Uuid::fromString($lot->id()->toString()));
         $entity->setStockItem($stockItemEntity);
         $entity->setLotNumber($lot->number()->toString());

@@ -12,6 +12,7 @@ use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
+use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
@@ -84,5 +85,8 @@ final class ClinicDataset extends Story
 
         // Invoice the visits that are over (needs their consultations)
         BillingDemoStory::load();
+
+        // Stock last: it is built on the articles the catalogue tracks.
+        InventoryDemoStory::load();
     }
 }
