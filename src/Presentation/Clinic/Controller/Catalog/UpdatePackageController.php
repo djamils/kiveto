@@ -18,7 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Only the fixed price of a package can be changed: its name, its code and its
  * mode are what the invoices already issued refer to.
  */
-#[Route(path: '/catalogue/forfaits/{packageId}', name: 'clinic_catalogue_package_update', methods: ['POST'])]
+#[Route(path: '/catalog/packages/{packageId}', name: 'clinic_catalogue_package_update', methods: ['POST'])]
 final class UpdatePackageController extends AbstractController
 {
     public function __construct(

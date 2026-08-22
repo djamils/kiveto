@@ -21,7 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * The price lists of the clinic, and the overrides of whichever one is open.
  */
-#[Route(path: '/catalogue/tarifs', name: 'clinic_catalogue_price_lists', methods: ['GET'])]
+#[Route(path: '/catalog/price-lists', name: 'clinic_catalogue_price_lists', methods: ['GET'])]
 final class ListPriceListsController extends AbstractController
 {
     public function __construct(

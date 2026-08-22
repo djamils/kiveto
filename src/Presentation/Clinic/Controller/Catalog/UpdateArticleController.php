@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue/articles/{articleId}', name: 'clinic_catalogue_article_update', methods: ['POST'])]
+#[Route(path: '/catalog/articles/{articleId}', name: 'clinic_catalogue_article_update', methods: ['POST'])]
 final class UpdateArticleController extends AbstractController
 {
     public function __construct(

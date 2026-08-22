@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue', name: 'clinic_catalogue', methods: ['GET'])]
+#[Route(path: '/catalog', name: 'clinic_catalogue', methods: ['GET'])]
 final class ListActsController extends AbstractController
 {
     public function __construct(

@@ -19,7 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * One form for both: adding an override and correcting one differ only by
  * whether the entry already exists.
  */
-#[Route(path: '/catalogue/tarifs/{priceListId}/lignes', name: 'clinic_catalogue_price_item_save', methods: ['POST'])]
+#[Route(path: '/catalog/price-lists/{priceListId}/items', name: 'clinic_catalogue_price_item_save', methods: ['POST'])]
 final class SavePriceListItemController extends AbstractController
 {
     public function __construct(

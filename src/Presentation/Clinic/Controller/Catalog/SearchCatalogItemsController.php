@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Archived items are dropped — a package cannot hold one anyway, and the domain
  * would refuse it.
  */
-#[Route(path: '/catalogue/recherche', name: 'clinic_catalogue_search', methods: ['GET'])]
+#[Route(path: '/catalog/search', name: 'clinic_catalogue_search', methods: ['GET'])]
 final class SearchCatalogItemsController extends AbstractController
 {
     private const int MAX_RESULTS = 25;

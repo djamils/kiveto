@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * refuses to make a drug through the ordinary door — so the kind of the form
  * decides which one is dispatched.
  */
-#[Route(path: '/catalogue/articles', name: 'clinic_catalogue_article_create', methods: ['POST'])]
+#[Route(path: '/catalog/articles', name: 'clinic_catalogue_article_create', methods: ['POST'])]
 final class CreateArticleController extends AbstractController
 {
     public function __construct(

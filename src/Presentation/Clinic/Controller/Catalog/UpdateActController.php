@@ -23,7 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * One form, several commands: the domain changes a name, a price and a tax
  * category one at a time, so only what actually moved is dispatched.
  */
-#[Route(path: '/catalogue/actes/{actId}', name: 'clinic_catalogue_act_update', methods: ['POST'])]
+#[Route(path: '/catalog/acts/{actId}', name: 'clinic_catalogue_act_update', methods: ['POST'])]
 final class UpdateActController extends AbstractController
 {
     public function __construct(

@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue/forfaits', name: 'clinic_catalogue_package_create', methods: ['POST'])]
+#[Route(path: '/catalog/packages', name: 'clinic_catalogue_package_create', methods: ['POST'])]
 final class CreatePackageController extends AbstractController
 {
     public function __construct(

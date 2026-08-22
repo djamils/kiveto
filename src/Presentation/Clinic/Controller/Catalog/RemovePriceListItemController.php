@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(
-    path: '/catalogue/tarifs/{priceListId}/lignes/{entryId}/remove',
+    path: '/catalog/price-lists/{priceListId}/items/{entryId}/remove',
     name: 'clinic_catalogue_price_item_remove',
     methods: ['POST'],
 )]

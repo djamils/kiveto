@@ -137,7 +137,8 @@
                 </button>
                 <div class="row-menu" data-row-menu>
                   {% if not act.isArchived %}
-                    <button class="row-menu-item" type="button" data-edit-act="{{ act.id }}">
+                    <button class="row-menu-item" type="button" data-edit-act="{{ act.id }}"
+                            data-action="{{ path('clinic_catalogue_act_update', { actId: act.id }) }}">
                       <i data-lucide="pencil"></i> Modifier
                     </button>
                     <div class="row-menu-sep"></div>

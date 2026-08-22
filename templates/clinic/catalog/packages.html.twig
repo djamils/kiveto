@@ -132,12 +132,14 @@
                 <div class="row-menu" data-row-menu>
                   {% if not package.isArchived %}
                     {% if package.isFixedPrice %}
-                      <button class="row-menu-item" type="button" data-edit-package="{{ package.id }}">
+                      <button class="row-menu-item" type="button" data-edit-package="{{ package.id }}"
+                              data-action="{{ path('clinic_catalogue_package_update', { packageId: package.id }) }}">
                         <i data-lucide="pencil"></i> Modifier le tarif
                       </button>
                     {% endif %}
                     <button class="row-menu-item" type="button"
-                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}">
+                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}"
+                            data-action="{{ path('clinic_catalogue_package_component_add', { packageId: package.id }) }}">
                       <i data-lucide="plus"></i> Ajouter une prestation
                     </button>
                     <div class="row-menu-sep"></div>
@@ -192,7 +194,8 @@
                   {% endif %}
                   {% if not package.isArchived %}
                     <button class="composition-add" type="button"
-                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}">
+                            data-add-component="{{ package.id }}" data-package-name="{{ package.name }}"
+                            data-action="{{ path('clinic_catalogue_package_component_add', { packageId: package.id }) }}">
                       <i data-lucide="plus"></i> Ajouter une prestation
                     </button>
                   {% endif %}

@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(
-    path: '/catalogue/forfaits/{packageId}/prestations/{componentId}/remove',
+    path: '/catalog/packages/{packageId}/components/{componentId}/remove',
     name: 'clinic_catalogue_package_component_remove',
     methods: ['POST'],
 )]

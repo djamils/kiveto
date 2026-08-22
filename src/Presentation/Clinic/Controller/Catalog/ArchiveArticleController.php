@@ -12,7 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue/articles/{articleId}/archive', name: 'clinic_catalogue_article_archive', methods: ['POST'])]
+#[Route(path: '/catalog/articles/{articleId}/archive', name: 'clinic_catalogue_article_archive', methods: ['POST'])]
 final class ArchiveArticleController extends AbstractController
 {
     public function __construct(

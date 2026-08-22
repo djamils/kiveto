@@ -5,8 +5,9 @@
  * the picker that finds an act or an article to put in a package or a price
  * list.
  *
- * Filtering, sorting and pagination are server-side links; nothing here rebuilds
- * a URL. The module only opens things and fills forms.
+ * Filtering, sorting and pagination are server-side links, and every action URL
+ * comes off a data attribute the template wrote with path(): the module opens
+ * things and fills forms, it never builds a route.
  */
 
 import { modal } from 'kiveto/modal';
@@ -134,7 +135,7 @@ function initEditors() {
         row,
         modalId: 'act-edit-modal',
         formId: 'act-edit-form',
-        action: `/catalogue/actes/${actBtn.dataset.editAct}`,
+        action: actBtn.dataset.action,
         fields: {
           '[name="name"]': row.dataset.name,
           '[name="base_price"]': row.dataset.price,
@@ -152,7 +153,7 @@ function initEditors() {
         row,
         modalId: 'article-edit-modal',
         formId: 'article-edit-form',
-        action: `/catalogue/articles/${articleBtn.dataset.editArticle}`,
+        action: articleBtn.dataset.action,
         fields: {
           '[name="name"]': row.dataset.name,
           '[name="base_price"]': row.dataset.price,
@@ -175,7 +176,7 @@ function initEditors() {
         row,
         modalId: 'package-edit-modal',
         formId: 'package-edit-form',
-        action: `/catalogue/forfaits/${packageBtn.dataset.editPackage}`,
+        action: packageBtn.dataset.action,
         fields: { '[name="fixed_price"]': row.dataset.price },
       });
       return;
@@ -187,7 +188,7 @@ function initEditors() {
       const form = document.getElementById('component-add-form');
       if (!form) return;
 
-      form.setAttribute('action', `/catalogue/forfaits/${componentBtn.dataset.addComponent}/prestations`);
+      form.setAttribute('action', componentBtn.dataset.action);
       resetPicker(form.querySelector('[data-item-picker]'));
 
       const target = form.querySelector('[data-component-target]');
@@ -267,7 +268,9 @@ function initPicker() {
   const search = (picker, term) => {
     const results = picker.querySelector('[data-picker-results]');
 
-    fetch(`/catalogue/recherche?term=${encodeURIComponent(term)}`, {
+    const endpoint = picker.dataset.endpoint;
+
+    fetch(`${endpoint}?term=${encodeURIComponent(term)}`, {
       headers: { Accept: 'application/json' },
     })
       .then(response => response.json())

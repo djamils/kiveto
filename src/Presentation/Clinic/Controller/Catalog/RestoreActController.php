@@ -12,7 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue/actes/{actId}/restore', name: 'clinic_catalogue_act_restore', methods: ['POST'])]
+#[Route(path: '/catalog/acts/{actId}/restore', name: 'clinic_catalogue_act_restore', methods: ['POST'])]
 final class RestoreActController extends AbstractController
 {
     public function __construct(

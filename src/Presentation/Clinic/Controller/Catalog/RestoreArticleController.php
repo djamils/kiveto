@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Restoring a drug whose marketing authorization was withdrawn is refused by the
  * domain — the message says so rather than silently putting it back on sale.
  */
-#[Route(path: '/catalogue/articles/{articleId}/restore', name: 'clinic_catalogue_article_restore', methods: ['POST'])]
+#[Route(path: '/catalog/articles/{articleId}/restore', name: 'clinic_catalogue_article_restore', methods: ['POST'])]
 final class RestoreArticleController extends AbstractController
 {
     public function __construct(

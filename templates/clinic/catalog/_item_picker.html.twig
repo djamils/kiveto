@@ -2,13 +2,14 @@
  # Kiveto — templates/clinic/catalog/_item_picker.html.twig
  # ───────────────────────────────────────────────────────
  # Picks an act or an article out of the catalogue. The page module fills the
- # results from /catalogue/recherche and writes the choice into the hidden
+ # results from the endpoint named here and writes the choice into the hidden
  # inputs the form posts.
  #
  # Variables:
  #   pickerId  string  Prefix of the ids, so two pickers can live on one page
  #}
-<div class="item-picker" data-item-picker="{{ pickerId }}">
+<div class="item-picker" data-item-picker="{{ pickerId }}"
+     data-endpoint="{{ path('clinic_catalogue_search') }}">
   <div class="field">
     <label class="field-label" for="{{ pickerId }}-search">Prestation</label>
     <input class="form-input" id="{{ pickerId }}-search" type="text" autocomplete="off"

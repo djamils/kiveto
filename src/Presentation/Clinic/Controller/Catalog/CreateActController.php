@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route(path: '/catalogue/actes', name: 'clinic_catalogue_act_create', methods: ['POST'])]
+#[Route(path: '/catalog/acts', name: 'clinic_catalogue_act_create', methods: ['POST'])]
 final class CreateActController extends AbstractController
 {
     public function __construct(

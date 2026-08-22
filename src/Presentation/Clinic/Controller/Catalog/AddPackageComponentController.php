@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route(
-    path: '/catalogue/forfaits/{packageId}/prestations',
+    path: '/catalog/packages/{packageId}/components',
     name: 'clinic_catalogue_package_component_add',
     methods: ['POST'],
 )]
