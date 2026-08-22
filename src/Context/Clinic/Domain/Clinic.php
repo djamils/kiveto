@@ -7,6 +7,7 @@ namespace App\Context\Clinic\Domain;
 use App\Context\Clinic\Domain\Event\ClinicActivated;
 use App\Context\Clinic\Domain\Event\ClinicClosed;
 use App\Context\Clinic\Domain\Event\ClinicCreated;
+use App\Context\Clinic\Domain\Event\ClinicLetterheadUpdated;
 use App\Context\Clinic\Domain\Event\ClinicLocaleChanged;
 use App\Context\Clinic\Domain\Event\ClinicRenamed;
 use App\Context\Clinic\Domain\Event\ClinicSlugChanged;
@@ -16,6 +17,7 @@ use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Context\Clinic\Domain\ValueObject\Letterhead;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
@@ -34,6 +36,7 @@ final class Clinic extends AggregateRoot
     private CountryCode $countryCode;
     private ?string $jurisdictionCode;
     private CurrencyCode $currencyCode;
+    private Letterhead $letterhead;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -68,6 +71,7 @@ final class Clinic extends AggregateRoot
         $clinic->currencyCode     = $currencyCode;
         $clinic->clinicGroupId    = $clinicGroupId;
         $clinic->status           = ClinicStatus::ACTIVE;
+        $clinic->letterhead       = Letterhead::empty();
         $clinic->createdAt        = $createdAt;
         $clinic->updatedAt        = $createdAt;
 
@@ -96,6 +100,7 @@ final class Clinic extends AggregateRoot
         \DateTimeImmutable $updatedAt,
         ?ClinicGroupId $clinicGroupId = null,
         ?string $jurisdictionCode = null,
+        ?Letterhead $letterhead = null,
     ): self {
         $clinic                   = new self();
         $clinic->id               = $id;
@@ -108,6 +113,7 @@ final class Clinic extends AggregateRoot
         $clinic->currencyCode     = $currencyCode;
         $clinic->status           = $status;
         $clinic->clinicGroupId    = $clinicGroupId;
+        $clinic->letterhead       = $letterhead ?? Letterhead::empty();
         $clinic->createdAt        = $createdAt;
         $clinic->updatedAt        = $updatedAt;
 
@@ -210,6 +216,25 @@ final class Clinic extends AggregateRoot
         ));
     }
 
+    /**
+     * The letterhead is replaced whole: it is one block of identity, and editing
+     * it field by field would let a document print half of an old address.
+     */
+    public function updateLetterhead(Letterhead $letterhead, \DateTimeImmutable $updatedAt): void
+    {
+        if ($letterhead->equals($this->letterhead)) {
+            return;
+        }
+
+        $this->letterhead = $letterhead;
+        $this->updatedAt  = $updatedAt;
+
+        $this->recordDomainEvent(new ClinicLetterheadUpdated(
+            clinicId: $this->id->toString(),
+            isEmpty: $letterhead->isEmpty(),
+        ));
+    }
+
     public function close(\DateTimeImmutable $updatedAt): void
     {
         if (ClinicStatus::CLOSED === $this->status) {
@@ -272,6 +297,11 @@ final class Clinic extends AggregateRoot
     public function currencyCode(): CurrencyCode
     {
         return $this->currencyCode;
+    }
+
+    public function letterhead(): Letterhead
+    {
+        return $this->letterhead;
     }
 
     public function createdAt(): \DateTimeImmutable

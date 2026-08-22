@@ -38,6 +38,7 @@ final readonly class GetClinicHandler
             clinicGroupId: $clinic->clinicGroupId()?->toString(),
             createdAt: $clinic->createdAt()->format('c'),
             updatedAt: $clinic->updatedAt()->format('c'),
+            letterhead: LetterheadDto::fromDomain($clinic->letterhead()),
         );
     }
 }

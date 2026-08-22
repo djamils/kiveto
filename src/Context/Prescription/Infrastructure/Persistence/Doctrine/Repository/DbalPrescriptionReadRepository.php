@@ -8,10 +8,12 @@ use App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterfac
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionLineView;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\RenewalView;
+use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
 use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
+use App\Context\Prescription\Domain\ValueObject\ConsultationId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
@@ -198,6 +200,34 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
         }
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    public function forConsultation(ClinicId $clinicId, ConsultationId $consultationId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(p.id) AS id, p.number, p.status, %s AS line_count
+                 FROM prescription__prescriptions p
+                 WHERE p.clinic_id = UUID_TO_BIN(:clinicId)
+                   AND p.consultation_id = UUID_TO_BIN(:consultationId)
+                 ORDER BY p.created_at ASC',
+                $this->lineCountExpression(),
+            ),
+            [
+                'clinicId'       => $clinicId->toString(),
+                'consultationId' => $consultationId->toString(),
+            ],
+        );
+
+        return array_map(
+            static fn (array $row): ConsultationPrescriptionRow => new ConsultationPrescriptionRow(
+                id: RowAccessor::string($row, 'id'),
+                number: RowAccessor::nullableString($row, 'number'),
+                status: RowAccessor::string($row, 'status'),
+                lineCount: RowAccessor::int($row, 'line_count'),
+            ),
+            $rows,
+        );
     }
 
     /**

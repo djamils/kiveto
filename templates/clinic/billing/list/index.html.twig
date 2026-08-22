@@ -246,7 +246,7 @@
                   </a>
                   {% if invoice.number %}
                     <a class="row-menu-item" data-turbo-frame="_top" target="_blank" rel="noopener"
-                       href="{{ path('clinic_invoice_print', { invoiceId: invoice.id }) }}">
+                       href="{{ path('clinic_invoice_pdf', { invoiceId: invoice.id }) }}">
                       <i data-lucide="printer"></i> Imprimer
                     </a>
                   {% endif %}

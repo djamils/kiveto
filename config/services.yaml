@@ -85,6 +85,10 @@ services:
     App\Shared\Domain\Identifier\UuidGeneratorInterface:
         class: App\Shared\Infrastructure\Identifier\SymfonyUuidV7Generator
 
+    # PDF rendering - Gotenberg (Chromium) by default
+    App\Shared\Application\Pdf\PdfRendererInterface:
+        class: App\Shared\Infrastructure\Pdf\GotenbergPdfRenderer
+
     # Message Context and Actor Context (singletons)
     App\Shared\Application\Messaging\MessageContext: ~
     App\Shared\Application\Security\ActorContext: ~

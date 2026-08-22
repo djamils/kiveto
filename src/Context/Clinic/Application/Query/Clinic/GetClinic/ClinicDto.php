@@ -21,6 +21,9 @@ final readonly class ClinicDto
         public ?string $clinicGroupId,
         public string $createdAt,
         public string $updatedAt,
+        // Optional so the collection read, which has no aggregate at hand, can
+        // skip it: only the document routes need the identity block.
+        public ?LetterheadDto $letterhead = null,
     ) {
     }
 }

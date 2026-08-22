@@ -9,12 +9,16 @@ use App\Context\Prescription\Application\Port\PrescriptionReadRepositoryInterfac
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetailsHandler;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
+use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
+use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultation;
+use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultationHandler;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListItemView;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptions;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsHandler;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
+use App\Context\Prescription\Domain\ValueObject\ConsultationId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
 use PHPUnit\Framework\TestCase;
 
@@ -22,6 +26,7 @@ final class PrescriptionQueryHandlersTest extends TestCase
 {
     private const string CLINIC_ID       = '01960000-0000-7000-8000-000000000701';
     private const string PRESCRIPTION_ID = '01960000-0000-7000-8000-000000000702';
+    private const string CONSULTATION_ID = '01960000-0000-7000-8000-000000000703';
 
     public function testGettingAPrescriptionForwardsTheClinicScope(): void
     {
@@ -42,6 +47,36 @@ final class PrescriptionQueryHandlersTest extends TestCase
         );
 
         self::assertSame($details, $result);
+    }
+
+    public function testTheOrdonnancesOfAConsultationAreListedInTheClinicScope(): void
+    {
+        $rows = [
+            new ConsultationPrescriptionRow('01960000-0000-7000-8000-000000000801', 'ORD-2026-000001', 'ISSUED', 2),
+            new ConsultationPrescriptionRow('01960000-0000-7000-8000-000000000802', null, 'DRAFT', 1),
+            new ConsultationPrescriptionRow('01960000-0000-7000-8000-000000000803', 'ORD-2026-000002', 'CANCELLED', 3),
+        ];
+
+        $repository = $this->createMock(PrescriptionReadRepositoryInterface::class);
+        $repository->expects(self::once())
+            ->method('forConsultation')
+            ->with(
+                self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+                self::callback(static fn (ConsultationId $id): bool => self::CONSULTATION_ID === $id->toString()),
+            )
+            ->willReturn($rows)
+        ;
+
+        $result = (new ListPrescriptionsForConsultationHandler($repository))(
+            new ListPrescriptionsForConsultation(self::CLINIC_ID, self::CONSULTATION_ID),
+        );
+
+        self::assertSame($rows, $result);
+
+        // Only a signed, uncancelled ordonnance is handed to a client.
+        self::assertTrue($rows[0]->isPrintable());
+        self::assertFalse($rows[1]->isPrintable());
+        self::assertFalse($rows[2]->isPrintable());
     }
 
     public function testSearchingWrapsTheRowsWithTheirPager(): void

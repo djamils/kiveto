@@ -6,6 +6,9 @@ namespace App\Tests\Unit\Context\Billing\Application\Query;
 
 use App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
+use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
+use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceForAdmission;
+use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceForAdmissionHandler;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStatsHandler;
@@ -17,14 +20,16 @@ use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesHandler;
+use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use PHPUnit\Framework\TestCase;
 
 final class InvoiceQueryHandlersTest extends TestCase
 {
-    private const string CLINIC_ID  = '01960000-0000-7000-8000-000000000701';
-    private const string INVOICE_ID = '01960000-0000-7000-8000-000000000702';
+    private const string CLINIC_ID    = '01960000-0000-7000-8000-000000000701';
+    private const string INVOICE_ID   = '01960000-0000-7000-8000-000000000702';
+    private const string ADMISSION_ID = '01960000-0000-7000-8000-000000000703';
 
     public function testGettingAnInvoiceForwardsTheClinicScope(): void
     {
@@ -45,6 +50,47 @@ final class InvoiceQueryHandlersTest extends TestCase
         );
 
         self::assertSame($details, $result);
+    }
+
+    public function testTheInvoiceOfAVisitIsLookedUpInTheClinicScope(): void
+    {
+        $row = new AdmissionInvoiceRow(self::INVOICE_ID, 'FAC-2026-000001', 'PAID', 4200, 'EUR');
+
+        $repository = $this->createMock(InvoiceReadRepositoryInterface::class);
+        $repository->expects(self::once())
+            ->method('forAdmission')
+            ->with(
+                self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+                self::callback(static fn (AdmissionId $id): bool => self::ADMISSION_ID === $id->toString()),
+            )
+            ->willReturn($row)
+        ;
+
+        $result = (new FindInvoiceForAdmissionHandler($repository))(
+            new FindInvoiceForAdmission(self::CLINIC_ID, self::ADMISSION_ID),
+        );
+
+        self::assertSame($row, $result);
+        self::assertTrue($row->isPrintable());
+    }
+
+    public function testAVisitThatHasNotBeenInvoicedYetHasNoInvoice(): void
+    {
+        $repository = $this->createMock(InvoiceReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('forAdmission')->willReturn(null);
+
+        self::assertNull((new FindInvoiceForAdmissionHandler($repository))(
+            new FindInvoiceForAdmission(self::CLINIC_ID, self::ADMISSION_ID),
+        ));
+    }
+
+    public function testADraftOrCancelledInvoiceIsNotHandedToTheClient(): void
+    {
+        $draft     = new AdmissionInvoiceRow(self::INVOICE_ID, null, 'DRAFT', 4200, 'EUR');
+        $cancelled = new AdmissionInvoiceRow(self::INVOICE_ID, 'FAC-2026-000002', 'CANCELLED', 4200, 'EUR');
+
+        self::assertFalse($draft->isPrintable());
+        self::assertFalse($cancelled->isPrintable());
     }
 
     public function testSearchingWrapsTheRowsWithTheirPager(): void

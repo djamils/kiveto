@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Context\Prescription\Application\Port;
 
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
+use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
 use App\Context\Prescription\Domain\ValueObject\ClinicId;
+use App\Context\Prescription\Domain\ValueObject\ConsultationId;
 use App\Context\Prescription\Domain\ValueObject\PrescriptionId;
 
 interface PrescriptionReadRepositoryInterface
@@ -23,4 +25,11 @@ interface PrescriptionReadRepositoryInterface
      * @return array{items: list<PrescriptionListRow>, total: int}
      */
     public function search(ClinicId $clinicId, SearchPrescriptionsCriteria $criteria): array;
+
+    /**
+     * The ordonnances written during one consultation, oldest first.
+     *
+     * @return list<ConsultationPrescriptionRow>
+     */
+    public function forConsultation(ClinicId $clinicId, ConsultationId $consultationId): array;
 }

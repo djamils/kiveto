@@ -1,0 +1,218 @@
+{#
+ # Kiveto — templates/clinic/document/invoice.html.twig
+ # ───────────────────────────────────────────────────
+ # The invoice as it is handed to the client and, later, to their insurer.
+ # Ported from docs/frontend-theme/vetsaas-layouts/vetos-doc-facture.html.
+ #
+ # Variables:
+ #   invoice  InvoiceDetails
+ #   clinic   ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% set issuedAt = invoice.issuedAt ?? invoice.createdAt %}
+{% set letterhead = clinic is not null ? clinic.letterhead : null %}
+{% set isSettled = invoice.balanceDueMinorUnits <= 0 and invoice.cancelledAt is null and invoice.issuedAt is not null %}
+
+{% block doc_title %}Facture {{ invoice.number ?? 'brouillon' }}{% endblock %}
+
+{% block doc_kind %}Facture{% endblock %}
+
+{% block doc_meta %}
+  {% if invoice.number %}<b>N° {{ invoice.number }}</b><br/>{% endif %}
+  Date d’émission : {{ doc.longDate(issuedAt) }}<br/>
+  Date d’exécution des prestations : {{ doc.longDate(invoice.createdAt) }}<br/>
+  Échéance : paiement comptant
+{% endblock %}
+
+{% block content %}
+
+  {% if invoice.cancelledAt %}
+    <div class="box crit" style="margin-top:3.5mm;">
+      <p class="box-t">Facture annulée</p>
+      <p>
+        Annulée le {{ invoice.cancelledAt|date('d/m/Y', 'Europe/Paris') }}
+        {%- if invoice.cancellationReason %} — {{ invoice.cancellationReason }}{% endif %}.
+        Ce document ne vaut plus justificatif de paiement.
+      </p>
+    </div>
+  {% endif %}
+
+  <table class="parties"><tr>
+    <td>
+      <p class="plabel">Facturé à</p>
+      <p class="pname">{{ invoice.payerName }}</p>
+      {% if invoice.payerAddressLines is not empty %}
+        <p class="pline">{{ invoice.payerAddressLines|join('<br/>')|raw }}</p>
+      {% endif %}
+    </td>
+    <td>
+      <p class="plabel">Récapitulatif</p>
+      <p class="pname">{{ invoice.totalGrossMinorUnits|money(invoice.currency) }}</p>
+      <table class="pgrid">
+        <tr><td>Statut</td><td>{{ invoice.statusLabel }}</td></tr>
+        <tr>
+          <td>Prestations</td>
+          <td>{{ invoice.lines|length }} ligne{{ invoice.lines|length > 1 ? 's' : '' }}</td>
+        </tr>
+        <tr>
+          <td>Déjà réglé</td>
+          <td>{{ invoice.amountPaidMinorUnits|money(invoice.currency) }}</td>
+        </tr>
+        <tr>
+          <td>Reste dû</td>
+          <td{% if invoice.balanceDueMinorUnits <= 0 %} style="color:#15803d;"{% endif %}>
+            {{- invoice.balanceDueMinorUnits|money(invoice.currency) -}}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="h2"><tr>
+    <td>Détail des prestations</td>
+    <td class="r">Montants en {{ invoice.currency }}</td>
+  </tr></table>
+
+  <table class="data">
+    <thead><tr>
+      <th>Désignation</th>
+      <th class="num" style="width:16mm;">Qté</th>
+      <th class="num" style="width:24mm;">P.U. HT</th>
+      <th class="num" style="width:16mm;">TVA</th>
+      <th class="num" style="width:26mm;">Total TTC</th>
+    </tr></thead>
+    <tbody>
+      {% for line in invoice.lines %}
+        <tr>
+          <td>
+            {{ line.label }}
+            {% if line.code %}<span class="sub">{{ line.code }}</span>{% endif %}
+          </td>
+          <td class="num">{{ line.quantity }}</td>
+          <td class="num">{{ line.unitPriceMinorUnits|money(invoice.currency) }}</td>
+          <td class="num">{{ line.taxRatePercent }} %</td>
+          <td class="num" style="font-weight:600;">{{ line.grossMinorUnits|money(invoice.currency) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="muted">Aucune prestation facturée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table style="width:100%;border-collapse:collapse;margin-top:4mm;"><tr>
+    <td style="width:52%;vertical-align:top;padding-right:5mm;">
+
+      {% if invoice.taxBreakdown is not empty %}
+        <div class="box" style="margin-top:0;">
+          <p class="box-t">Récapitulatif de TVA</p>
+          <table class="data" style="margin-top:0;">
+            <thead><tr>
+              <th>Taux</th><th class="num">Base HT</th><th class="num">TVA</th><th class="num">Total TTC</th>
+            </tr></thead>
+            <tbody>
+              {% for rate in invoice.taxBreakdown %}
+                <tr>
+                  <td>{{ rate.ratePercent }} %</td>
+                  <td class="num">{{ rate.netMinorUnits|money(invoice.currency) }}</td>
+                  <td class="num">{{ rate.taxMinorUnits|money(invoice.currency) }}</td>
+                  <td class="num">{{ (rate.netMinorUnits + rate.taxMinorUnits)|money(invoice.currency) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      <div class="box">
+        <p class="box-t">Règlement</p>
+        {% if invoice.payments is not empty %}
+          <table class="pgrid" style="margin-top:0;">
+            {% for payment in invoice.payments %}
+              <tr>
+                <td style="width:30mm;">{{ payment.methodLabel }}</td>
+                <td>
+                  {{ payment.amountMinorUnits|money(invoice.currency) }}
+                  le {{ payment.receivedAt|date('d/m/Y', 'Europe/Paris') }}
+                  à {{ payment.receivedAt|date('H\\hi', 'Europe/Paris') }}
+                  {%- if payment.reference %} · réf. {{ payment.reference }}{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            <tr>
+              <td>Reste dû</td>
+              <td{% if invoice.balanceDueMinorUnits <= 0 %} style="color:#15803d;"{% endif %}>
+                {{- invoice.balanceDueMinorUnits|money(invoice.currency) -}}
+              </td>
+            </tr>
+          </table>
+        {% else %}
+          <p>
+            Aucun règlement enregistré à ce jour.
+            Reste dû : <b>{{ invoice.balanceDueMinorUnits|money(invoice.currency) }}</b>.
+          </p>
+        {% endif %}
+      </div>
+
+      {% if invoice.notes %}
+        <div class="box">
+          <p class="box-t">Remarques</p>
+          <p>{{ invoice.notes|nl2br }}</p>
+        </div>
+      {% endif %}
+
+    </td>
+    <td style="vertical-align:top;">
+
+      <table class="totals">
+        {% if invoice.discountMinorUnits > 0 %}
+          <tr>
+            <td>Total HT avant remise</td>
+            <td>{{ invoice.totalNetBeforeDiscountMinorUnits|money(invoice.currency) }}</td>
+          </tr>
+          <tr>
+            <td>
+              Remise
+              {%- if invoice.discountReason %} <em style="font-style:normal;color:#6b7280;">({{ invoice.discountReason }})</em>{% endif %}
+            </td>
+            <td style="color:#b45309;">− {{ invoice.discountMinorUnits|money(invoice.currency) }}</td>
+          </tr>
+        {% endif %}
+        <tr class="sep"><td>Total HT</td><td>{{ invoice.totalNetMinorUnits|money(invoice.currency) }}</td></tr>
+        <tr><td>TVA</td><td>{{ invoice.totalTaxMinorUnits|money(invoice.currency) }}</td></tr>
+        <tr class="grand"><td>Net à payer</td><td>{{ invoice.totalGrossMinorUnits|money(invoice.currency) }}</td></tr>
+        <tr>
+          <td colspan="2" style="padding-top:2mm;text-align:right;font-size:8.5pt;color:#6b7280;">
+            Déjà réglé : {{ invoice.amountPaidMinorUnits|money(invoice.currency) }}
+          </td>
+        </tr>
+      </table>
+
+      {% if invoice.cancelledAt %}
+        <p style="text-align:right;margin-top:6mm;"><span class="stamp void">Annulée</span></p>
+      {% elseif isSettled %}
+        <p style="text-align:right;margin-top:6mm;"><span class="stamp">Acquittée</span></p>
+      {% endif %}
+
+    </td>
+  </tr></table>
+
+  <p class="legal">
+    {% if letterhead is not null and letterhead.legalSentence %}
+      <b>Mentions légales.</b>
+      {{ letterhead.legalName ?? (clinic is not null ? clinic.name : '') }}, {{ letterhead.legalSentence }}
+      {%- if letterhead.formattedSiret %}, SIRET {{ letterhead.formattedSiret }}{% endif %}
+      {%- if letterhead.vatNumber %}, TVA intracommunautaire {{ letterhead.vatNumber }}{% endif %}.<br/>
+    {% endif %}
+    <b>Conditions de règlement.</b> Paiement comptant à réception des soins, sauf accord écrit préalable.
+    En cas de retard de paiement, application de plein droit de pénalités calculées au taux d’intérêt légal
+    majoré de trois points, ainsi que d’une indemnité forfaitaire de recouvrement de 40 € pour les clients
+    professionnels (articles L. 441-10 et D. 441-5 du code de commerce). Aucun escompte n’est accordé pour
+    paiement anticipé.<br/>
+    <b>Réclamation.</b> Toute contestation relative à la présente facture doit être adressée par écrit dans
+    un délai de trente jours à compter de sa date d’émission. Facture à conserver — elle vaut justificatif
+    auprès de votre assurance santé animale et, le cas échéant, pour toute déclaration fiscale.
+  </p>
+
+{% endblock %}

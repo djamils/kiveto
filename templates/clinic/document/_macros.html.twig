@@ -1,0 +1,20 @@
+{#
+ # Kiveto — templates/clinic/document/_macros.html.twig
+ # ───────────────────────────────────────────────────
+ # Small helpers shared by the three documents. The dates are spelled out in
+ # French rather than formatted by intl: twig/intl-extra is not installed, and a
+ # printed document has to read the same on every machine anyway.
+ #}
+
+{# "22 août 2026" #}
+{% macro longDate(value) %}
+{%- set months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] -%}
+{{- value|date('j', 'Europe/Paris') }} {{ months[value|date('n', 'Europe/Paris') - 1] }} {{ value|date('Y', 'Europe/Paris') -}}
+{% endmacro %}
+
+{# "jeudi 22 août 2026, 10 h 30" #}
+{% macro longDateTime(value) %}
+{%- set days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'] -%}
+{%- set months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] -%}
+{{- days[value|date('N', 'Europe/Paris') - 1] }} {{ value|date('j', 'Europe/Paris') }} {{ months[value|date('n', 'Europe/Paris') - 1] }} {{ value|date('Y', 'Europe/Paris') }}, {{ value|date('H', 'Europe/Paris') }} h {{ value|date('i', 'Europe/Paris') -}}
+{% endmacro %}

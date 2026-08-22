@@ -263,7 +263,7 @@
                   </a>
                   {% if p.number %}
                     <a class="row-menu-item" data-turbo-frame="_top" target="_blank" rel="noopener"
-                       href="{{ path('clinic_prescription_print', { prescriptionId: p.id }) }}">
+                       href="{{ path('clinic_prescription_pdf', { prescriptionId: p.id }) }}">
                       <i data-lucide="printer"></i> Imprimer
                     </a>
                   {% endif %}

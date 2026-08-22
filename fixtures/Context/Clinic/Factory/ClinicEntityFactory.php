@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Context\Clinic\Factory;
 
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Persistence\PersistentProxyObjectFactory;
@@ -39,6 +40,15 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
         return $this->with(['clinicGroupId' => Uuid::fromString($groupId)]);
     }
 
+    /**
+     * The identity block the clinic prints on its documents. Without it a
+     * document still renders, with the clinic name alone in the header.
+     */
+    public function withLetterhead(LetterheadEmbeddable $letterhead): self
+    {
+        return $this->with(['letterhead' => $letterhead]);
+    }
+
     public function suspended(): self
     {
         return $this->with(['status' => ClinicStatus::SUSPENDED]);
@@ -66,6 +76,7 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
             'jurisdictionCode' => null,
             'currencyCode'     => 'EUR',
             'clinicGroupId'    => null,
+            'letterhead'       => new LetterheadEmbeddable(),
             'createdAt'        => $now,
             'updatedAt'        => $now,
         ];

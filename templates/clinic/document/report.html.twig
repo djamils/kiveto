@@ -1,0 +1,308 @@
+{#
+ # Kiveto — templates/clinic/document/report.html.twig
+ # ──────────────────────────────────────────────────
+ # The consultation report handed to the owner, and the document another
+ # practitioner reads when the animal is referred.
+ # Ported from docs/frontend-theme/vetsaas-layouts/vetos-doc-compte-rendu.html.
+ #
+ # It follows the SOAP order the cockpit records in: motif and anamnesis,
+ # clinical exam, diagnosis, plan.
+ #
+ # Variables:
+ #   consultation  ConsultationDetailsDTO
+ #   patient       array   Cockpit patient payload (name, species, breed, …)
+ #   owner         array|null
+ #   practitioner  ClinicVeterinarianItem|null
+ #   clinic        ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% set VITAL_LABELS = {
+  'TEMPERATURE': 'Température', 'WEIGHT': 'Poids',
+  'HEART_RATE': 'Fréq. cardiaque', 'RESPIRATORY_RATE': 'Fréq. respiratoire',
+  'BODY_CONDITION_SCORE': 'Score corporel', 'PAIN_SCORE': 'Score douleur',
+  'CAPILLARY_REFILL_TIME': 'TRC', 'MUCOUS_MEMBRANES': 'Muqueuses',
+  'BLOOD_PRESSURE': 'Tension art.', 'GLYCEMIA': 'Glycémie'
+} %}
+{% set VITAL_UNITS = {
+  'TEMPERATURE': '°C', 'WEIGHT': 'kg',
+  'HEART_RATE': 'bpm', 'RESPIRATORY_RATE': 'rpm',
+  'BODY_CONDITION_SCORE': '/9', 'PAIN_SCORE': '/4',
+  'CAPILLARY_REFILL_TIME': 's', 'MUCOUS_MEMBRANES': '',
+  'BLOOD_PRESSURE': 'mmHg', 'GLYCEMIA': 'mmol/L'
+} %}
+{% set SYSTEM_LABELS = {
+  'CARDIOVASCULAR': 'Cardiovasculaire', 'RESPIRATORY': 'Respiratoire',
+  'DIGESTIVE': 'Digestif', 'URINARY': 'Urinaire', 'LOCOMOTOR': 'Locomoteur',
+  'NEUROLOGICAL': 'Neurologique', 'SKIN': 'Cutané', 'OPHTHALMIC': 'Ophtalmique',
+  'DENTAL': 'Dentaire', 'INTEGUMENT': 'Téguments'
+} %}
+{% set EXAM_STATUS_LABELS = { 'NORMAL': 'Normal', 'ANOMALY': 'Anomalie', 'UNTESTED': 'Non exploré' } %}
+{% set CERTAINTY_LABELS = { 'CERTAIN': 'Certain', 'PROBABLE': 'Probable', 'POSSIBLE': 'Possible', 'EXCLUDED': 'Écarté' } %}
+{% set PLAN_KIND_LABELS = {
+  'PERFORMED_ACT': 'Actes réalisés', 'MEDICATION_PRESCRIPTION': 'Traitement prescrit',
+  'FOLLOW_UP_APPOINTMENT': 'Surveillance et contrôles', 'ADVICE': 'Conseils au détenteur',
+  'OTHER': 'Autres décisions'
+} %}
+{% set PLAN_KIND_ORDER = ['PERFORMED_ACT', 'MEDICATION_PRESCRIPTION', 'FOLLOW_UP_APPOINTMENT', 'ADVICE', 'OTHER'] %}
+
+{% set city = clinic is not null and clinic.letterhead is not null ? clinic.letterhead.city : null %}
+{% set SEX_LABELS = { '♂': 'Mâle', '♀': 'Femelle' } %}
+{# "DR" is stored as a code; on paper it reads "Dr Rousseau", as on the ordonnance. #}
+{% set practitionerName = practitioner is not null and practitioner.displayName
+    ? (practitioner.professionalTitle ? practitioner.professionalTitle|lower|title ~ ' ' : '') ~ practitioner.displayName
+    : 'Vétérinaire' %}
+
+{% macro diagnosis(diagnosis, certaintyLabels) %}
+  <p>
+    <b>{{ diagnosis.label }}</b>
+    {%- if diagnosis.code %} <span class="muted">({{ diagnosis.code }})</span>{% endif %}
+    {%- if diagnosis.isPrimary %} — diagnostic principal{% endif %}
+    {%- if diagnosis.certainty and diagnosis.certainty != 'CERTAIN' %}
+      <span class="muted">· {{ certaintyLabels[diagnosis.certainty]|default(diagnosis.certainty)|lower }}</span>
+    {%- endif %}
+    {%- if diagnosis.note %}<br/>{{ diagnosis.note }}{% endif %}
+  </p>
+{% endmacro %}
+
+{% block doc_title %}Compte rendu de consultation — {{ patient.name ?? 'patient' }}{% endblock %}
+
+{% block doc_kind %}Compte rendu<br/>de consultation{% endblock %}
+
+{% block doc_meta %}
+  Consultation du {{ doc.longDateTime(startedAt) }}<br/>
+  {% if consultation.motifs is not empty %}
+    Motif : {{ consultation.motifs|map(m => m.label)|join(', ') }}<br/>
+  {% elseif consultation.chiefComplaint %}
+    Motif : {{ consultation.chiefComplaint }}<br/>
+  {% endif %}
+  Vétérinaire : <b>{{ practitionerName }}</b><br/>
+  {% if closedAt is not null %}
+    Consultation clôturée le {{ closedAt|date('d/m/Y', 'Europe/Paris') }}
+  {% else %}
+    <b>Consultation en cours</b> — compte rendu provisoire
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+  <table class="parties"><tr>
+    <td>
+      <p class="plabel">Détenteur</p>
+      {% if owner is not null %}
+        <p class="pname">{{ owner.fullName }}</p>
+        <p class="pline">
+          {% if owner.address %}{{ owner.address }}<br/>{% endif %}
+          {% set contact = [] %}
+          {% if owner.phone %}{% set contact = contact|merge([owner.phone|phone_display(false, false)]) %}{% endif %}
+          {% if owner.email %}{% set contact = contact|merge([owner.email]) %}{% endif %}
+          {{ contact|join(' · ') }}
+        </p>
+      {% else %}
+        <p class="pname">Détenteur non renseigné</p>
+        <p class="pline">L’animal n’est rattaché à aucun détenteur au dossier.</p>
+      {% endif %}
+    </td>
+    <td>
+      <p class="plabel">Animal</p>
+      <p class="pname">{{ patient.name ?? 'Patient non identifié' }}</p>
+      <table class="pgrid">
+        <tr>
+          <td>Espèce, race</td>
+          <td>
+            {{ patient.speciesLabel ?? 'Non précisée' }}
+            {%- if patient.breed %}, {{ patient.breed }}{% endif %}
+          </td>
+        </tr>
+        {% if patient.sexLabel %}
+          <tr>
+            <td>Sexe</td>
+            <td>
+              {{- SEX_LABELS[patient.sexLabel]|default(patient.sexLabel) -}}
+              {%- if patient.sterilized %}, {{ patient.sexLabel == '♀' ? 'stérilisée' : 'stérilisé' }}{% endif -%}
+            </td>
+          </tr>
+        {% endif %}
+        {% if patient.birthDate %}
+          <tr>
+            <td>Naissance</td>
+            <td>
+              {{ patient.birthDate|date('d/m/Y', 'Europe/Paris') }}
+              {%- if patient.ageLabel %} <span class="muted">({{ patient.ageLabel }})</span>{% endif %}
+            </td>
+          </tr>
+        {% endif %}
+        {% if patient.microchip %}
+          <tr><td>Identification</td><td>{{ patient.microchip }} (transpondeur)</td></tr>
+        {% endif %}
+      </table>
+    </td>
+  </tr></table>
+
+  {# ── Subjectif ── #}
+  {% if consultation.chiefComplaint or consultation.subjectiveText or consultation.motifs is not empty %}
+    <table class="h2"><tr><td>Motif et anamnèse</td><td class="r">Subjectif</td></tr></table>
+    {% if consultation.chiefComplaint %}
+      <p><b>Motif d’appel :</b> {{ consultation.chiefComplaint }}</p>
+    {% endif %}
+    {% if consultation.subjectiveText %}
+      <p>{{ consultation.subjectiveText|nl2br }}</p>
+    {% endif %}
+  {% endif %}
+
+  {# ── Objectif ── #}
+  {% if consultation.typedVitals is not empty or consultation.objectiveObservations or consultation.examSystems is not empty %}
+    <table class="h2"><tr><td>Examen clinique</td><td class="r">Objectif</td></tr></table>
+
+    {% if consultation.typedVitals is not empty %}
+      {% for chunk in consultation.typedVitals|batch(6) %}
+        <table class="vitals"><tr>
+          {% for vital in chunk %}
+            <td>
+              <p class="vn">{{ vital.value }}{{ VITAL_UNITS[vital.type] is defined and VITAL_UNITS[vital.type] ? ' ' ~ VITAL_UNITS[vital.type] : '' }}</p>
+              <p class="vl">{{ VITAL_LABELS[vital.type]|default(vital.type) }}</p>
+            </td>
+          {% endfor %}
+          {% if chunk|length < 6 %}
+            {% for i in 1..(6 - chunk|length) %}<td style="border:none;background:none;"></td>{% endfor %}
+          {% endif %}
+        </tr></table>
+      {% endfor %}
+    {% endif %}
+
+    {% if consultation.objectiveObservations %}
+      <p style="margin-top:3mm;">{{ consultation.objectiveObservations|nl2br }}</p>
+    {% endif %}
+
+    {% set examined = consultation.examSystems|filter(s => s.status != 'UNTESTED') %}
+    {% if examined is not empty %}
+      <table class="data">
+        <thead><tr>
+          <th style="width:38mm;">Appareil</th>
+          <th class="ctr" style="width:24mm;">Constat</th>
+          <th>Observations</th>
+        </tr></thead>
+        <tbody>
+          {% for system in examined %}
+            <tr>
+              <td>{{ SYSTEM_LABELS[system.system]|default(system.system) }}</td>
+              <td class="ctr {{ system.status == 'ANOMALY' ? 'alert' : 'okv' }}">
+                {{ EXAM_STATUS_LABELS[system.status]|default(system.status) }}
+              </td>
+              <td>
+                {{ system.notes ?? '—' }}
+                {% if system.structuredData is not empty %}
+                  <span class="sub">
+                    {%- for key, value in system.structuredData -%}
+                      {{ key }} : {{ value }}{{ loop.last ? '' : ' · ' }}
+                    {%- endfor -%}
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  {% endif %}
+
+  {# ── Analyse ── #}
+  {% if consultation.diagnoses is not empty %}
+    <table class="h2"><tr><td>Diagnostic</td><td class="r">Analyse</td></tr></table>
+    {# Primary first: it is what the reader is looking for. #}
+    {% for diagnosis in consultation.diagnoses|filter(d => d.isPrimary) %}
+      {{ _self.diagnosis(diagnosis, CERTAINTY_LABELS) }}
+    {% endfor %}
+    {% for diagnosis in consultation.diagnoses|filter(d => not d.isPrimary) %}
+      {{ _self.diagnosis(diagnosis, CERTAINTY_LABELS) }}
+    {% endfor %}
+  {% endif %}
+
+  {# ── Plan ── #}
+  {% set hasPlan = consultation.planActions is not empty or consultation.prescriptionLines is not empty or consultation.acts is not empty %}
+  {% if hasPlan %}
+    <table class="h2"><tr><td>Conduite à tenir</td><td class="r">Plan</td></tr></table>
+
+    {# Performed acts come from two places: the acts recorded during the visit
+       and the plan actions of that kind. They read as one list. #}
+    {% set performedActions = consultation.planActions|filter(a => a.kind == 'PERFORMED_ACT') %}
+    {% if consultation.acts is not empty or performedActions is not empty %}
+      <h3>Actes réalisés</h3>
+      <ul>
+        {% for act in consultation.acts %}
+          <li>{{ act.label }}{% if act.quantity != '1' %} ({{ act.quantity }}){% endif %}</li>
+        {% endfor %}
+        {% for action in performedActions %}
+          <li>{{ action.description }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if consultation.prescriptionLines is not empty %}
+      <h3>Traitement prescrit</h3>
+      <ul>
+        {% for line in consultation.prescriptionLines %}
+          <li>
+            <b>{{ line.label }}</b>
+            {%- set posology = [] -%}
+            {%- if line.dose %}{% set posology = posology|merge([line.dose]) %}{% endif -%}
+            {%- if line.frequency %}{% set posology = posology|merge([line.frequency]) %}{% endif -%}
+            {%- if line.durationDays %}{% set posology = posology|merge(['pendant ' ~ line.durationDays ~ ' jours']) %}{% endif -%}
+            {%- if line.route %}{% set posology = posology|merge([line.route]) %}{% endif -%}
+            {%- if posology is not empty %} — {{ posology|join(', ') }}{% endif -%}
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="muted" style="font-size:8pt;">
+        Les modalités de délivrance figurent sur l’ordonnance remise avec ce compte rendu.
+      </p>
+    {% endif %}
+
+    {% for kind in PLAN_KIND_ORDER %}
+      {% set actions = consultation.planActions|filter(a => a.kind == kind) %}
+      {% if actions is not empty and kind not in ['PERFORMED_ACT', 'MEDICATION_PRESCRIPTION'] %}
+        <h3>{{ PLAN_KIND_LABELS[kind] }}</h3>
+        <ul>
+          {% for action in actions %}
+            <li>
+              {{ action.description }}
+              {%- if action.followUpDays %} — sous {{ action.followUpDays }} jours{% endif -%}
+              {%- if action.durationDays %} — pendant {{ action.durationDays }} jours{% endif -%}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if consultation.summary %}
+    <table class="h2"><tr><td>Synthèse</td></tr></table>
+    <p>{{ consultation.summary|nl2br }}</p>
+  {% endif %}
+
+  <table class="sign"><tr>
+    <td style="width:55%;">
+      <p class="sign-place">Fait{% if city %} à {{ city }}{% endif %}, le {{ doc.longDate(closedAt ?? startedAt) }}</p>
+      <p class="sign-name">{{ practitionerName }}</p>
+      <p class="sign-qual">
+        Docteur vétérinaire
+        {%- if clinic is not null %}<br/>{{ clinic.name }}{% endif %}
+      </p>
+    </td>
+    <td><div class="sign-box"><i>Signature et cachet</i></div></td>
+  </tr></table>
+
+  <p class="legal">
+    <b>Document médical confidentiel.</b> Ce compte rendu est établi à la demande du détenteur de l’animal
+    et lui est personnellement destiné. Il relate exclusivement les constatations faites lors de la
+    consultation qu’il désigne et ne préjuge pas de l’évolution ultérieure. Il ne peut être ni reproduit
+    partiellement, ni utilisé à d’autres fins que le suivi médical de l’animal désigné, sans l’accord écrit
+    du vétérinaire signataire.<br/>
+    <b>Conservation des données.</b> Les données de santé de l’animal et les coordonnées du détenteur sont
+    conservées dix ans à compter de la dernière consultation, conformément aux obligations de tenue du
+    dossier médical. Droit d’accès, de rectification et d’effacement auprès de la clinique (RGPD, articles
+    15 à 17).
+  </p>
+
+{% endblock %}

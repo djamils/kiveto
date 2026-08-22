@@ -1,0 +1,51 @@
+{#
+ # Kiveto — templates/clinic/document/_footer.html.twig
+ # ───────────────────────────────────────────────────
+ # The band repeated at the bottom of every page. Chromium renders it on its own,
+ # inside the bottom margin, so:
+ #   - it loads no external resource (no web font, no stylesheet);
+ #   - styles set on <body> are overridden by the print stylesheet, which is why
+ #     everything hangs off an inner <div>;
+ #   - in there, 1px comes out as 1pt, so the sizes are px to read as points;
+ #   - the horizontal padding has to match the page margins to line up with the
+ #     body above it;
+ #   - `pageNumber` and `totalPages` are filled in by the renderer.
+ #
+ # Variables:
+ #   clinic     ClinicDto|null  The current clinic
+ #   reference  string          What identifies the document, e.g. "Facture · FAC-2026-000001"
+ #   subject    string|null     Who it is about, e.g. "Rex / Dupont"
+ #}
+{% set letterhead = clinic is not null ? clinic.letterhead : null %}
+{% set clinicName = clinic is not null ? clinic.name : '' %}
+{% set identity = [] %}
+{% if clinicName %}{% set identity = identity|merge([clinicName]) %}{% endif %}
+{% if letterhead is not null and letterhead.addressLines is not empty %}
+  {% set identity = identity|merge([letterhead.addressLines|join(', ')]) %}
+{% endif %}
+{% if letterhead is not null and letterhead.phone %}
+  {% set identity = identity|merge([letterhead.phone|phone_display(false, false)]) %}
+{% endif %}
+{% if letterhead is not null and letterhead.formattedSiret %}
+  {% set identity = identity|merge(['SIRET ' ~ letterhead.formattedSiret]) %}
+{% endif %}
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"/></head>
+<body>
+  <div style="width:100%;box-sizing:border-box;padding:0 14mm;font-family:'Carlito','DejaVu Sans',sans-serif;font-size:7px;color:#9aa2af;">
+    <table style="width:100%;border-collapse:collapse;border-top:0.25mm solid #e5e9ee;">
+      <tr>
+        <td style="padding-top:4px;text-align:left;vertical-align:top;line-height:1.45;">
+          {{ identity|join(' · ') }}
+          {% if reference is defined and reference %}&nbsp;|&nbsp;{{ reference }}{% endif %}
+          {% if subject is defined and subject %}&nbsp;|&nbsp;{{ subject }}{% endif %}
+        </td>
+        <td style="padding-top:4px;text-align:right;vertical-align:top;white-space:nowrap;width:60px;">
+          <span class="pageNumber"></span> / <span class="totalPages"></span>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

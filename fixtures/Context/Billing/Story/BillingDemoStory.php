@@ -66,6 +66,41 @@ final class BillingDemoStory extends Story
 
             $this->partiallyPaidInvoice($clinicId, $admissions[1]);
         }
+
+        // One visit per clinic leaves with everything: compte rendu, ordonnance
+        // and facture. It is the only way the "Dossier complet" of the cockpit
+        // has three documents to merge.
+        foreach ([self::PARIS, self::LYON] as $clinicId) {
+            $admissionId = $this->admissionOfAnIssuedOrdonnance($clinicId);
+
+            if (null !== $admissionId) {
+                $this->paidInvoice($clinicId, $admissionId);
+            }
+        }
+    }
+
+    /**
+     * The visit of a signed ordonnance that has not been invoiced yet. It is
+     * still open at the counter, which is exactly the case the desk meets when
+     * it cashes a visit that prescribed something.
+     */
+    private function admissionOfAnIssuedOrdonnance(string $clinicId): ?string
+    {
+        $row = $this->connection->fetchOne(
+            "SELECT BIN_TO_UUID(c.admission_id)
+             FROM consultation__consultations c
+             JOIN prescription__prescriptions p
+               ON p.consultation_id = c.id AND p.status = 'ISSUED'
+             WHERE c.clinic_id = :clinicId
+               AND NOT EXISTS (
+                   SELECT 1 FROM billing__invoices i WHERE i.admission_id = c.admission_id
+               )
+             ORDER BY c.started_at_utc ASC
+             LIMIT 1",
+            ['clinicId' => Uuid::fromString($clinicId)->toBinary()],
+        );
+
+        return \is_string($row) ? $row : null;
     }
 
     private function paidInvoice(string $clinicId, string $admissionId): void
