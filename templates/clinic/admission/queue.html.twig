@@ -13,6 +13,10 @@
 {% block page_title %}Flux du jour{% endblock %}
 
 {% block stylesheets %}
+  {# The flow follows the new-gen layout down to its type, like the cockpit does. #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="{{ asset('styles/pages/scheduling/waiting-room.css') }}"/>
 {% endblock %}
 
@@ -45,6 +49,8 @@
 {% set hospiEntries = entries|filter(e => e.locationStatus == 'in_hospitalization') %}
 {% set attenteCount = waitEntries|length %}
 {% set consultCount = consultEntries|length %}
+{# Everyone the clinic has taken in hand: in a room, at the theatre or in the ward #}
+{% set chargeCount = consultEntries|length + surgeryEntries|length + hospiEntries|length %}
 {# A practitioner counts as busy when one of their patients is in consultation. #}
 {% set busyVetIds = consultEntries|map(e => e.practitionerUserId)|filter(id => id is not null) %}
 
@@ -102,8 +108,8 @@
         <span class="kpi-label">attente</span>
       </div>
       <div class="kpi-item">
-        <span class="kpi-num info">{{ consultCount }}</span>
-        <span class="kpi-label">consult</span>
+        <span class="kpi-num info">{{ chargeCount }}</span>
+        <span class="kpi-label">pris en charge</span>
       </div>
       <div class="kpi-item">
         <span class="kpi-num danger">{{ urgCount }}</span>
@@ -124,6 +130,43 @@
     </div>
   </div>
 
+
+  {#
+   # ── Section 3b: the emergency nobody has taken yet ──
+   # An emergency still sitting in the waiting room is the one thing on this
+   # page that cannot wait for someone to scroll to it.
+   #}
+  {% set pendingUrgencies = waitEntries|filter(e => e.triageLevel in ['emergency', 'vital_emergency']) %}
+  {% if pendingUrgencies|length > 0 %}
+    {% set urgent = pendingUrgencies|sort((a, b) => a.openedAt <=> b.openedAt)|first %}
+    {% set waited = (date().timestamp - date(urgent.openedAt).timestamp) // 60 %}
+    <div class="urg-alert" role="alert">
+      <span class="urg-alert-dot"></span>
+      <div class="urg-alert-body">
+        <span class="urg-alert-title">
+          Urgence non prise en charge · {{ urgent.displayLabel }}
+          {%- if urgent.triageNotes %} · {{ urgent.triageNotes }}{% endif -%}
+        </span>
+        <span class="urg-alert-meta">
+          {% if waited < 1 %}À l'instant{% else %}{{ waited }} min écoulée{{ waited > 1 ? 's' : '' }}{% endif %}
+          {%- set freeVets = practitioners|filter(v => v.userId not in busyVetIds) -%}
+          {%- if freeVets|length > 0 %} · {{ freeVets|length }} praticien{{ freeVets|length > 1 ? 's' : '' }} libre{{ freeVets|length > 1 ? 's' : '' }}
+          {%- else %} · tous les praticiens sont occupés{% endif -%}
+          {%- if pendingUrgencies|length > 1 %} · {{ pendingUrgencies|length - 1 }} autre{{ pendingUrgencies|length > 2 ? 's' : '' }} en attente{% endif -%}
+        </span>
+      </div>
+      <div class="urg-alert-actions">
+        <form method="post"
+              action="{{ path('clinic_consultation_start_from_admission', {admissionId: urgent.admissionId}) }}"
+              style="display:contents;">
+          <input type="hidden" name="_token" value="{{ csrf_token('consultation_start') }}">
+          <button class="btn btn-danger btn-sm" type="submit">
+            <i data-lucide="zap" style="width:11px;height:11px;"></i> Prendre en charge
+          </button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
 
   {# ── Section 4: Vet & Rooms Strip (REAL) ── #}
   <div class="vstrip">
@@ -176,7 +219,7 @@
           <div>
             <div class="col-title-l">Pris en charge</div>
             <div class="col-title-meta">
-              {{ consultEntries|length }} patient{{ consultEntries|length > 1 ? 's' : '' }}
+              {{ chargeCount }} patient{{ chargeCount > 1 ? 's' : '' }}
             </div>
           </div>
         </div>
@@ -212,17 +255,6 @@
               {% set vetShort = vetName ? vetName|replace({'Dr. ': '', 'Dr ': ''})|split(' ')|last : '' %}
               {% set speciesKey = appt.animalSpecies ? appt.animalSpecies|lower : '' %}
               {% set reasonLow = appt.reason ? appt.reason|lower : '' %}
-              {% if reasonLow matches '/(chirurgi|stérilis|castrat|opérat|bloc)/' %}
-                {% set rdvBadgeClass = 'surgery' %}
-              {% elseif reasonLow matches '/(vaccin|primo|rappel)/' %}
-                {% set rdvBadgeClass = 'vaccine' %}
-              {% elseif reasonLow matches '/(urgence|vital|hémorrag|convuls)/' %}
-                {% set rdvBadgeClass = 'urgent' %}
-              {% elseif reasonLow matches '/(consultation|suivi|post.op|bilan|contrôle|détartrage)/' %}
-                {% set rdvBadgeClass = 'consult' %}
-              {% else %}
-                {% set rdvBadgeClass = 'checkup' %}
-              {% endif %}
               {% set speciesIcon = {'dog': '🐕', 'cat': '🐈', 'nac': '🐇', 'other': '🐾'}[speciesKey] ?? '🐾' %}
               {% if appt.animalBirthDate %}
                 {% set birthYear = appt.animalBirthDate|date('Y') %}
@@ -245,7 +277,6 @@
                     <span class="card-pet-name">{{ appt.animalLabel ?? '—' }}</span>
                   </span>
                   <span class="card-top-right">
-                    {% if appt.reason %}<span class="rdv-badge {{ rdvBadgeClass }}">{{ appt.reason }}</span>{% endif %}
                     <span class="card-when{% if isLate %} late{% endif %}">{{ apptTime }}{% if isLate %} · {{ lateDisplay }}{% endif %}</span>
                     <span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                   </span>
@@ -255,7 +286,9 @@
                     {% set speciesLabels = {'dog': 'Canin', 'cat': 'Félin', 'nac': 'NAC', 'other': 'Autre'} %}
                     {% set speciesLabel = speciesLabels[speciesKey] ?? '' %}
                     <div class="sched-col-line">{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}</div>
-                    <div class="sched-col-line muted">{{ ageDisplay }}</div>
+                    <div class="sched-col-line muted">
+                      {{- ageDisplay }}{% if ageDisplay and appt.reason %} · {% endif %}{{ appt.reason|default('')|lower -}}
+                    </div>
                   </div>
                   <div class="sched-col">
                     <div class="sched-col-line">{{ appt.ownerLabel ?? '' }}</div>
@@ -453,11 +486,25 @@
         {# En consultation (REAL) #}
         <div class="kcol">
           <div class="kcol-scroll">
-            {% if consultEntries|length > 0 %}
-              <div class="col-section-l">Pris en charge <span class="col-section-cnt">{{ consultEntries|length }}</span></div>
-              {% for entry in consultEntries %}
+            {#
+             # Taking a patient in charge happens in three places: the room, the
+             # theatre and the ward. The column keeps them apart.
+             #}
+            {% set chargeGroups = [
+              { label: 'Consultation',    icon: 'stethoscope', stripe: 'stripe-consult',       items: consultEntries },
+              { label: 'Chirurgie',       icon: 'scissors',    stripe: 'stripe-charge-surg',   items: surgeryEntries },
+              { label: 'Hospitalisation', icon: 'bed-double',  stripe: 'stripe-charge-hospi',  items: hospiEntries },
+            ] %}
+            {% if chargeCount > 0 %}
+              {% for group in chargeGroups %}
+                {% if group.items|length > 0 %}
+                  <div class="col-section-l">
+                    <i data-lucide="{{ group.icon }}" style="width:10px;height:10px;"></i>
+                    {{ group.label }} <span class="col-section-cnt">{{ group.items|length }}</span>
+                  </div>
+                  {% for entry in group.items %}
                 {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="scard stripe-consult" data-admission-id="{{ entry.admissionId }}"
+                <div class="scard {{ group.stripe }}" data-admission-id="{{ entry.admissionId }}"
                   data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
                   data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
                   data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
@@ -480,9 +527,11 @@
                     <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
                   </div>
                 </div>
+                                {% endfor %}
+                {% endif %}
               {% endfor %}
             {% else %}
-              <div class="col-empty">Aucun patient en consultation</div>
+              <div class="col-empty">Aucune prise en charge en cours</div>
             {% endif %}
 
           </div>

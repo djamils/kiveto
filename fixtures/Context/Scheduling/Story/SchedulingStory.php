@@ -10,13 +10,19 @@ use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Shared\Infrastructure\Persistence\RowAccessor;
+use Doctrine\DBAL\Connection;
 use Zenstruck\Foundry\Story;
 
 final class SchedulingStory extends Story
 {
+    /** @var array<string, list<array{animalId: string, clientId: string}>> */
+    private array $patientsByClinic = [];
+
     public function __construct(
         private readonly ClockInterface $clock,
         private readonly CommandBusInterface $commandBus,
+        private readonly Connection $connection,
     ) {
     }
 
@@ -134,6 +140,49 @@ final class SchedulingStory extends Story
         );
     }
 
+    /**
+     * The clinic's patients, handed out in turn so every booking of the demo
+     * carries a different animal.
+     *
+     * @return array{animalId?: string, clientId?: string}
+     */
+    private function nextPatient(string $clinicId): array
+    {
+        if (!isset($this->patientsByClinic[$clinicId])) {
+            $rows = $this->connection->fetchAllAssociative(
+                "SELECT BIN_TO_UUID(a.id) AS animal_id, BIN_TO_UUID(o.client_id) AS client_id
+                 FROM animal__animals a
+                 JOIN animal__ownerships o ON o.animal_id = a.id AND o.status = 'active' AND o.role = 'primary'
+                 WHERE a.clinic_id = UUID_TO_BIN(:clinicId) AND a.status = 'ACTIVE'
+                 ORDER BY a.name ASC",
+                ['clinicId' => $clinicId],
+            );
+
+            $patients = [];
+
+            foreach ($rows as $row) {
+                $patients[] = [
+                    'animalId' => RowAccessor::string($row, 'animal_id'),
+                    'clientId' => RowAccessor::string($row, 'client_id'),
+                ];
+            }
+
+            $this->patientsByClinic[$clinicId] = $patients;
+        }
+
+        $patients = $this->patientsByClinic[$clinicId];
+
+        if ([] === $patients) {
+            return [];
+        }
+
+        $patient                           = array_shift($patients);
+        $patients[]                        = $patient;
+        $this->patientsByClinic[$clinicId] = $patients;
+
+        return $patient;
+    }
+
     private function schedule(
         string $clinicId,
         string $practitionerId,
@@ -143,6 +192,10 @@ final class SchedulingStory extends Story
         string $reason,
         bool $cancelled,
     ): void {
+        // A booking is made for an animal and its owner. An agenda of anonymous
+        // slots shows nothing of what the day holds.
+        $patient = $this->nextPatient($clinicId);
+
         $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
             clinicId: $clinicId,
             practitionerUserId: $practitionerId,
@@ -150,6 +203,8 @@ final class SchedulingStory extends Story
             durationMinutes: $durationMinutes,
             reason: $reason,
             notes: null,
+            ownerId: $patient['clientId'] ?? null,
+            animalId: $patient['animalId'] ?? null,
         ));
 
         \assert(\is_string($appointmentId));

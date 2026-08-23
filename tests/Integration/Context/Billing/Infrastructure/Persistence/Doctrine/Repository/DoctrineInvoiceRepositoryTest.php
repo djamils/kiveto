@@ -321,7 +321,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
 
         $upTo = $this->read->search(
             $this->clinic(),
-            new SearchInvoicesCriteria(issuedTo: new \DateTimeImmutable('+1 day')),
+            new SearchInvoicesCriteria(issuedTo: $this->now()->modify('+1 day')),
         );
         self::assertSame(2, $upTo['total']);
     }
@@ -414,8 +414,8 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
 
         $stats = $this->read->stats(
             $this->clinic(),
-            new \DateTimeImmutable('-1 day'),
-            new \DateTimeImmutable('+1 day'),
+            $this->now()->modify('-1 day'),
+            $this->now()->modify('+1 day'),
         );
 
         self::assertSame(6400, $stats->collectedMinorUnits);
@@ -436,8 +436,8 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
 
         $stats = $this->read->stats(
             $this->clinic(),
-            new \DateTimeImmutable('-1 day'),
-            new \DateTimeImmutable('+1 day'),
+            $this->now()->modify('-1 day'),
+            $this->now()->modify('+1 day'),
         );
 
         self::assertSame($invoice->totalGross()->minorUnits(), $stats->outstandingMinorUnits);
@@ -487,7 +487,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
             id: PaymentId::fromString($this->uuids->generate()),
             method: PaymentMethod::CARD,
             amount: Money::fromMinorUnits($amount, CurrencyCode::fromString('EUR')),
-            receivedAt: new \DateTimeImmutable(),
+            receivedAt: $this->now(),
             reference: 'TX-1',
         );
     }
@@ -497,6 +497,11 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         return ClinicId::fromString(self::CLINIC_ID);
     }
 
+    /**
+     * The clock of these tests. Windows are asked for around it rather than
+     * around the real time: a fixed instant and a moving window drift apart
+     * within a day, and the suite starts failing on its own.
+     */
     private function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('2026-08-22 10:00:00');
