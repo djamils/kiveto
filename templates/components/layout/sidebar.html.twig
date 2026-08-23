@@ -132,6 +132,15 @@
   { key: 'clinic_reporting',              label: 'Rapports',           icon: icon_chart,       route: 'clinic_reporting' },
 ] %}
 
+{# Settings belong to whoever administers the clinic: offering the door to
+   someone it would refuse is worse than not showing it. #}
+{% if clinic_can('manage_staff') %}
+  {% set nav_items = nav_items|merge([
+    { key: 'clinic_settings', label: 'Paramètres', icon: icon_settings, route: 'clinic_settings',
+      matches: ['clinic_settings_hours', 'clinic_settings_billing', 'clinic_settings_preferences', 'clinic_settings_team'] },
+  ]) %}
+{% endif %}
+
 {# ── Flag SVGs (used in clinic switcher language section) ── #}
 {% set icon_fr_flag %}
   <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
@@ -208,14 +217,18 @@
     {# Section 2: clinic settings #}
     <div class="clinic-switcher-section">
       <p class="popover-head">Gestion</p>
-      <a href="{{ path('clinic_settings') }}" class="nav-item">
-        {{ icon_settings|raw }}
-        <span>Paramètres de la clinique</span>
-      </a>
-      <a href="{{ path('clinic_settings_team') }}" class="nav-item">
-        {{ icon_users|raw }}
-        <span>Membres &amp; rôles</span>
-      </a>
+      {% if clinic_can('manage_staff') %}
+        <a href="{{ path('clinic_settings') }}" class="nav-item">
+          {{ icon_settings|raw }}
+          <span>Paramètres de la clinique</span>
+        </a>
+        <a href="{{ path('clinic_settings_team') }}" class="nav-item">
+          {{ icon_users|raw }}
+          <span>Membres &amp; rôles</span>
+        </a>
+      {% else %}
+        <p class="popover-empty">Réservé à la gérance</p>
+      {% endif %}
     </div>
 
     <div class="popover-divider"></div>

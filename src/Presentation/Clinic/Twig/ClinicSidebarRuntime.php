@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Twig;
 
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
@@ -21,7 +22,17 @@ final readonly class ClinicSidebarRuntime
         private QueryBusInterface $queryBus,
         private CurrentClinicContextInterface $currentClinicContext,
         private Security $security,
+        private ClinicPermissionGuard $guard,
     ) {
+    }
+
+    /**
+     * Whether the member may do something in the clinic they are in. The
+     * navigation asks before offering a door that would answer 403.
+     */
+    public function can(string $permission): bool
+    {
+        return $this->guard->has($permission);
     }
 
     /**
