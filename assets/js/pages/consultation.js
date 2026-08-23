@@ -1482,22 +1482,6 @@ export function init() {
     }
   }
 
-  // ─── Sidebar toggle (focus mode) ───
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle');
-  const sidebarEl = document.querySelector('.sidebar');
-  if (sidebarToggleBtn && sidebarEl) {
-    // état initial : le HTML naît avec is-collapsed (focus mode par défaut sur la consultation)
-    if (sidebarEl.classList.contains('is-collapsed')) {
-      document.body.classList.add('sidebar-collapsed');
-    }
-    sidebarToggleBtn.addEventListener('click', () => {
-      const collapsed = sidebarEl.classList.toggle('is-collapsed');
-      document.body.classList.toggle('sidebar-collapsed', collapsed);
-      // ferme tout dropdown ouvert (les positions absolues sinon ne suivent pas)
-      Dropdown.close();
-    });
-  }
-
   // ─── Topbar ───
   document.querySelector('.crumb a')?.addEventListener('click', e => {
     e.preventDefault();
