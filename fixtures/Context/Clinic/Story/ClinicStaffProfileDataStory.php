@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Clinic\Story;
 
+use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\OnboardStaffMember\OnboardStaffMember;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
@@ -45,6 +46,21 @@ final class ClinicStaffProfileDataStory extends Story
             ->create()
         ;
 
+        // A clinic runs itself: someone holds the keys to the settings, and
+        // someone answers the phone. Without them the demo has nobody who can
+        // open the settings pages, and nobody who must be refused.
+        $managerUser = ClinicUserFactory::new()
+            ->withEmail('manager@kiveto.local')
+            ->withPlainPassword('manager')
+            ->create()
+        ;
+
+        $receptionUser = ClinicUserFactory::new()
+            ->withEmail('accueil@kiveto.local')
+            ->withPlainPassword('accueil')
+            ->create()
+        ;
+
         $lyonVet = ClinicUserFactory::new()
             ->withEmail('vet.lyon@kiveto.local')
             ->withPlainPassword('vetlyon')
@@ -71,6 +87,27 @@ final class ClinicStaffProfileDataStory extends Story
             isVisibleInAgenda: true,
             registrationNumber: 'FR-12345',
             professionalTitle: ProfessionalTitle::DR,
+        ));
+
+        $this->commandBus->dispatch(new CreateClinicMembership(
+            clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
+            userId: $managerUser->getId()->toRfc4122(),
+            role: ClinicMemberRole::MANAGER,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+
+        $this->commandBus->dispatch(new CreateClinicMembership(
+            clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
+            userId: $receptionUser->getId()->toRfc4122(),
+            role: ClinicMemberRole::RECEPTIONIST,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+
+        $this->commandBus->dispatch(new CreateClinicMembership(
+            clinicId: ClinicDataStory::GROUP_CLINIC_ID,
+            userId: $managerUser->getId()->toRfc4122(),
+            role: ClinicMemberRole::MANAGER,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
         ));
 
         // Onboard the same veterinarian to Lyon clinic as well

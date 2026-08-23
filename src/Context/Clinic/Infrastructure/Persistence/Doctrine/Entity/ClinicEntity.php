@@ -51,6 +51,19 @@ class ClinicEntity
     #[ORM\Embedded(class: LetterheadEmbeddable::class, columnPrefix: false)]
     private LetterheadEmbeddable $letterhead;
 
+    /**
+     * Opening hours and billing settings are read and written whole, so they
+     * are stored whole rather than spread over a dozen columns.
+     *
+     * @var array<string, mixed>
+     */
+    #[ORM\Column(name: 'opening_hours', type: 'json', options: ['default' => '{}'])]
+    private array $openingHours = [];
+
+    /** @var array<string, mixed> */
+    #[ORM\Column(name: 'billing_settings', type: 'json', options: ['default' => '{}'])]
+    private array $billingSettings = [];
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $version = 1;
@@ -174,6 +187,30 @@ class ClinicEntity
     public function setCurrencyCode(string $currencyCode): void
     {
         $this->currencyCode = $currencyCode;
+    }
+
+    /** @return array<string, mixed> */
+    public function getOpeningHours(): array
+    {
+        return $this->openingHours;
+    }
+
+    /** @param array<string, mixed> $openingHours */
+    public function setOpeningHours(array $openingHours): void
+    {
+        $this->openingHours = $openingHours;
+    }
+
+    /** @return array<string, mixed> */
+    public function getBillingSettings(): array
+    {
+        return $this->billingSettings;
+    }
+
+    /** @param array<string, mixed> $billingSettings */
+    public function setBillingSettings(array $billingSettings): void
+    {
+        $this->billingSettings = $billingSettings;
     }
 
     public function getLetterhead(): LetterheadEmbeddable

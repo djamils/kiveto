@@ -1,0 +1,67 @@
+{#
+ # Opening hours — the week the clinic keeps, and the days it does not.
+ #}
+{% extends 'clinic/settings/_shell.html.twig' %}
+
+{% set dayNames = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' } %}
+{# Two rows per day: enough for a clinic that shuts at noon, and one spare. #}
+{% set slotsPerDay = 2 %}
+
+{% block settings_body %}
+<form method="post" action="{{ path('clinic_settings_hours_save') }}" class="set-form">
+
+  <section class="set-card">
+    <header class="set-card-head">
+      <h2 class="set-card-title">Horaires d’ouverture</h2>
+      <p class="set-card-sub">Laissez un jour vide pour indiquer qu’il est fermé.</p>
+    </header>
+
+    <div class="hours-grid">
+      {% for day, label in dayNames %}
+        {% set slots = settings.week[day]|default([]) %}
+        <div class="hours-row{{ slots is empty ? ' is-closed' : '' }}">
+          <span class="hours-day">{{ label }}</span>
+          <div class="hours-slots">
+            {% for index in 0..(slotsPerDay - 1) %}
+              {% set slot = slots[index]|default(null) %}
+              <span class="hours-slot">
+                <input class="form-input form-input-sm mono" type="time" name="day[{{ day }}][{{ index }}][opensAt]"
+                       value="{{ slot ? slot.opensAt : '' }}" aria-label="{{ label }} — ouverture">
+                <span class="hours-dash">–</span>
+                <input class="form-input form-input-sm mono" type="time" name="day[{{ day }}][{{ index }}][closesAt]"
+                       value="{{ slot ? slot.closesAt : '' }}" aria-label="{{ label }} — fermeture">
+              </span>
+            {% endfor %}
+          </div>
+          <span class="hours-state">{{ slots is empty ? 'Fermé' : '' }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="set-card">
+    <header class="set-card-head">
+      <h2 class="set-card-title">Fermetures exceptionnelles</h2>
+      <p class="set-card-sub">Jours fériés, congés, fermeture ponctuelle.</p>
+    </header>
+
+    <div class="closures">
+      {% set rows = settings.closures|length + 3 %}
+      {% for index in 0..(rows - 1) %}
+        {% set closure = settings.closures[index]|default(null) %}
+        <div class="closure-row">
+          <input class="form-input form-input-sm" type="date" name="closure[{{ index }}][date]"
+                 value="{{ closure ? closure.date : '' }}" aria-label="Date de fermeture">
+          <input class="form-input form-input-sm" type="text" name="closure[{{ index }}][reason]"
+                 value="{{ closure ? closure.reason : '' }}" maxlength="120" placeholder="Motif (facultatif)">
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="set-actions">
+    <button class="btn btn-primary" type="submit">Enregistrer</button>
+  </div>
+
+</form>
+{% endblock %}

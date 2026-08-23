@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Context\Billing\Application\Port\InvoiceNumberPrefixProviderInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
@@ -24,6 +25,7 @@ final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGenerato
     public function __construct(
         private Connection $connection,
         private UuidGeneratorInterface $uuidGenerator,
+        private InvoiceNumberPrefixProviderInterface $prefixes,
     ) {
     }
 
@@ -55,6 +57,6 @@ final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGenerato
             ['next' => $next, 'clinicId' => $clinicBinary, 'year' => $year],
         );
 
-        return InvoiceNumber::of($year, $next);
+        return InvoiceNumber::of($year, $next, $this->prefixes->prefixFor($clinicId->toString()));
     }
 }

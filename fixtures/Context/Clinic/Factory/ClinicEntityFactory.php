@@ -49,6 +49,22 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
         return $this->with(['letterhead' => $letterhead]);
     }
 
+    /**
+     * @param array<string, mixed> $openingHours
+     */
+    public function withOpeningHours(array $openingHours): self
+    {
+        return $this->with(['openingHours' => $openingHours]);
+    }
+
+    /**
+     * @param array<string, mixed> $billingSettings
+     */
+    public function withBillingSettings(array $billingSettings): self
+    {
+        return $this->with(['billingSettings' => $billingSettings]);
+    }
+
     public function suspended(): self
     {
         return $this->with(['status' => ClinicStatus::SUSPENDED]);
@@ -77,6 +93,8 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
             'currencyCode'     => 'EUR',
             'clinicGroupId'    => null,
             'letterhead'       => new LetterheadEmbeddable(),
+            'openingHours'     => [],
+            'billingSettings'  => [],
             'createdAt'        => $now,
             'updatedAt'        => $now,
         ];

@@ -208,11 +208,11 @@
     {# Section 2: clinic settings #}
     <div class="clinic-switcher-section">
       <p class="popover-head">Gestion</p>
-      <a href="#" class="nav-item">
+      <a href="{{ path('clinic_settings') }}" class="nav-item">
         {{ icon_settings|raw }}
         <span>Paramètres de la clinique</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="{{ path('clinic_settings_team') }}" class="nav-item">
         {{ icon_users|raw }}
         <span>Membres &amp; rôles</span>
       </a>

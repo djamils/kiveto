@@ -138,6 +138,7 @@
 @import "./pages/clients/directory.css";
 @import "./pages/clients/view.css";
 @import "./pages/consultation.css";
+@import "./pages/settings.css";
 @import "./pages/consultations.css";
 @import "./pages/hospitalisations.css";
 @import "./pages/scheduling/_shared.css";

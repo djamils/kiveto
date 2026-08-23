@@ -84,6 +84,9 @@ return [
     'pages/catalog' => [
         'path' => './assets/js/pages/catalog.js',
     ],
+    'pages/settings' => [
+        'path' => './assets/js/pages/settings.js',
+    ],
     'pages/stock' => [
         'path' => './assets/js/pages/stock.js',
     ],

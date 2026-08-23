@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Clinic\Domain\Clinic;
+use App\Context\Clinic\Domain\ValueObject\BillingSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
+use App\Context\Clinic\Domain\ValueObject\OpeningHours;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Shared\Domain\Localization\Locale;
@@ -38,6 +40,8 @@ final readonly class ClinicMapper
                 : null,
             jurisdictionCode: $entity->getJurisdictionCode(),
             letterhead: self::letterheadToDomain($entity->getLetterhead()),
+            openingHours: self::openingHoursToDomain($entity->getOpeningHours()),
+            billingSettings: self::billingSettingsToDomain($entity->getBillingSettings()),
         );
     }
 
@@ -54,6 +58,8 @@ final readonly class ClinicMapper
         $entity->setCurrencyCode($clinic->currencyCode()->toString());
         $entity->setStatus($clinic->status());
         $entity->setLetterhead(self::letterheadToEntity($clinic->letterhead()));
+        $entity->setOpeningHours($clinic->openingHours()->toArray());
+        $entity->setBillingSettings(self::billingSettingsToArray($clinic->billingSettings()));
         $entity->setCreatedAt($clinic->createdAt());
         $entity->setUpdatedAt($clinic->updatedAt());
 
@@ -62,6 +68,95 @@ final readonly class ClinicMapper
         }
 
         return $entity;
+    }
+
+    /**
+     * A row written before the opening hours existed carries an empty object,
+     * which reads back as a clinic that has not said when it opens.
+     *
+     * @param array<string, mixed> $stored
+     */
+    private static function openingHoursToDomain(array $stored): OpeningHours
+    {
+        if ([] === $stored) {
+            return OpeningHours::empty();
+        }
+
+        /* @var array{week?: array<int|string, list<array{opensAt?: string, closesAt?: string}>>, closures?: list<array{date?: string, reason?: string|null}>} $stored */
+        return OpeningHours::fromArray($stored);
+    }
+
+    /**
+     * @param array<string, mixed> $stored
+     */
+    private static function billingSettingsToDomain(array $stored): BillingSettings
+    {
+        if ([] === $stored) {
+            return BillingSettings::empty();
+        }
+
+        $address = null;
+        $raw     = $stored['billingAddress'] ?? null;
+
+        if (\is_array($raw)) {
+            $street  = self::stringOrNull($raw, 'streetLine1');
+            $city    = self::stringOrNull($raw, 'city');
+            $country = self::stringOrNull($raw, 'countryCode');
+
+            if (null !== $street && null !== $city && null !== $country) {
+                $address = PostalAddress::create(
+                    streetLine1: $street,
+                    city: $city,
+                    countryCode: $country,
+                    streetLine2: self::stringOrNull($raw, 'streetLine2'),
+                    postalCode: self::stringOrNull($raw, 'postalCode'),
+                );
+            }
+        }
+
+        $terms = $stored['paymentTermsDays'] ?? null;
+
+        return BillingSettings::create(
+            billingAddress: $address,
+            invoiceNumberPrefix: self::stringOrNull($stored, 'invoiceNumberPrefix'),
+            paymentTermsDays: \is_int($terms) ? $terms : null,
+            iban: self::stringOrNull($stored, 'iban'),
+            bic: self::stringOrNull($stored, 'bic'),
+            invoiceFooterNote: self::stringOrNull($stored, 'invoiceFooterNote'),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function billingSettingsToArray(BillingSettings $settings): array
+    {
+        $address = $settings->billingAddress;
+
+        return [
+            'billingAddress' => null === $address ? null : [
+                'streetLine1' => $address->streetLine1,
+                'streetLine2' => $address->streetLine2,
+                'postalCode'  => $address->postalCode,
+                'city'        => $address->city,
+                'countryCode' => $address->countryCode,
+            ],
+            'invoiceNumberPrefix' => $settings->invoiceNumberPrefix,
+            'paymentTermsDays'    => $settings->paymentTermsDays,
+            'iban'                => $settings->iban,
+            'bic'                 => $settings->bic,
+            'invoiceFooterNote'   => $settings->invoiceFooterNote,
+        ];
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    private static function stringOrNull(array $data, string $key): ?string
+    {
+        $value = $data[$key] ?? null;
+
+        return \is_string($value) && '' !== $value ? $value : null;
     }
 
     /**

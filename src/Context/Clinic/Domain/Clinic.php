@@ -5,19 +5,23 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Domain;
 
 use App\Context\Clinic\Domain\Event\ClinicActivated;
+use App\Context\Clinic\Domain\Event\ClinicBillingSettingsUpdated;
 use App\Context\Clinic\Domain\Event\ClinicClosed;
 use App\Context\Clinic\Domain\Event\ClinicCreated;
 use App\Context\Clinic\Domain\Event\ClinicLetterheadUpdated;
 use App\Context\Clinic\Domain\Event\ClinicLocaleChanged;
+use App\Context\Clinic\Domain\Event\ClinicOpeningHoursUpdated;
 use App\Context\Clinic\Domain\Event\ClinicRenamed;
 use App\Context\Clinic\Domain\Event\ClinicSlugChanged;
 use App\Context\Clinic\Domain\Event\ClinicSuspended;
 use App\Context\Clinic\Domain\Event\ClinicTimeZoneChanged;
+use App\Context\Clinic\Domain\ValueObject\BillingSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
+use App\Context\Clinic\Domain\ValueObject\OpeningHours;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
@@ -37,6 +41,8 @@ final class Clinic extends AggregateRoot
     private ?string $jurisdictionCode;
     private CurrencyCode $currencyCode;
     private Letterhead $letterhead;
+    private OpeningHours $openingHours;
+    private BillingSettings $billingSettings;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -72,6 +78,8 @@ final class Clinic extends AggregateRoot
         $clinic->clinicGroupId    = $clinicGroupId;
         $clinic->status           = ClinicStatus::ACTIVE;
         $clinic->letterhead       = Letterhead::empty();
+        $clinic->openingHours     = OpeningHours::empty();
+        $clinic->billingSettings  = BillingSettings::empty();
         $clinic->createdAt        = $createdAt;
         $clinic->updatedAt        = $createdAt;
 
@@ -101,6 +109,8 @@ final class Clinic extends AggregateRoot
         ?ClinicGroupId $clinicGroupId = null,
         ?string $jurisdictionCode = null,
         ?Letterhead $letterhead = null,
+        ?OpeningHours $openingHours = null,
+        ?BillingSettings $billingSettings = null,
     ): self {
         $clinic                   = new self();
         $clinic->id               = $id;
@@ -114,6 +124,8 @@ final class Clinic extends AggregateRoot
         $clinic->status           = $status;
         $clinic->clinicGroupId    = $clinicGroupId;
         $clinic->letterhead       = $letterhead ?? Letterhead::empty();
+        $clinic->openingHours     = $openingHours ?? OpeningHours::empty();
+        $clinic->billingSettings  = $billingSettings ?? BillingSettings::empty();
         $clinic->createdAt        = $createdAt;
         $clinic->updatedAt        = $updatedAt;
 
@@ -235,6 +247,40 @@ final class Clinic extends AggregateRoot
         ));
     }
 
+    /**
+     * The week is replaced whole: opening hours are read as a block, and a
+     * half-applied change would show a clinic open on a day it has closed.
+     */
+    public function updateOpeningHours(OpeningHours $openingHours, \DateTimeImmutable $updatedAt): void
+    {
+        if ($openingHours->equals($this->openingHours)) {
+            return;
+        }
+
+        $this->openingHours = $openingHours;
+        $this->updatedAt    = $updatedAt;
+
+        $this->recordDomainEvent(new ClinicOpeningHoursUpdated(
+            clinicId: $this->id->toString(),
+            isEmpty: $openingHours->isEmpty(),
+        ));
+    }
+
+    public function updateBillingSettings(BillingSettings $billingSettings, \DateTimeImmutable $updatedAt): void
+    {
+        if ($billingSettings->equals($this->billingSettings)) {
+            return;
+        }
+
+        $this->billingSettings = $billingSettings;
+        $this->updatedAt       = $updatedAt;
+
+        $this->recordDomainEvent(new ClinicBillingSettingsUpdated(
+            clinicId: $this->id->toString(),
+            isEmpty: $billingSettings->isEmpty(),
+        ));
+    }
+
     public function close(\DateTimeImmutable $updatedAt): void
     {
         if (ClinicStatus::CLOSED === $this->status) {
@@ -302,6 +348,16 @@ final class Clinic extends AggregateRoot
     public function letterhead(): Letterhead
     {
         return $this->letterhead;
+    }
+
+    public function openingHours(): OpeningHours
+    {
+        return $this->openingHours;
+    }
+
+    public function billingSettings(): BillingSettings
+    {
+        return $this->billingSettings;
     }
 
     public function createdAt(): \DateTimeImmutable

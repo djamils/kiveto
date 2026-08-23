@@ -15,7 +15,10 @@ use App\Context\Billing\Domain\Exception\InvalidInvoiceNumberException;
  */
 final class InvoiceNumber
 {
-    private const string PATTERN = '/^FAC-(\d{4})-(\d{6})$/';
+    public const string DEFAULT_PREFIX = 'FAC';
+
+    /** The prefix is the clinic's own; the year and the counter are not. */
+    private const string PATTERN = '/^([A-Z0-9][A-Z0-9\-\/]{0,11})-(\d{4})-(\d{6})$/';
 
     private function __construct(
         private readonly string $value,
@@ -30,11 +33,12 @@ final class InvoiceNumber
             throw new InvalidInvoiceNumberException($value);
         }
 
-        return new self($value, (int) $matches[1], (int) $matches[2]);
+        return new self($value, (int) $matches[2], (int) $matches[3]);
     }
 
-    public static function of(int $year, int $sequence): self
+    public static function of(int $year, int $sequence, ?string $prefix = null): self
     {
+        $prefix = null !== $prefix && '' !== $prefix ? mb_strtoupper($prefix) : self::DEFAULT_PREFIX;
         if ($year < 1000 || $year > 9999) {
             throw new InvalidInvoiceNumberException((string) $year);
         }
@@ -43,7 +47,13 @@ final class InvoiceNumber
             throw new InvalidInvoiceNumberException((string) $sequence);
         }
 
-        return new self(\sprintf('FAC-%04d-%06d', $year, $sequence), $year, $sequence);
+        $value = \sprintf('%s-%04d-%06d', $prefix, $year, $sequence);
+
+        if (1 !== preg_match(self::PATTERN, $value)) {
+            throw new InvalidInvoiceNumberException($value);
+        }
+
+        return new self($value, $year, $sequence);
     }
 
     public function toString(): string
