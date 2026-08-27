@@ -83,6 +83,14 @@ final class SchedulingStory extends Story
                 ->setTime($hour, $minute, 0)
             ;
 
+            // The plan below fills today for both clinics whatever weekday it
+            // is. When a week-plan slot lands on today, the two collide on the
+            // same practitioner and the handler refuses the overlap — so today
+            // belongs to $todayPlan alone.
+            if ($localStart->format('Y-m-d') === $now->format('Y-m-d')) {
+                continue;
+            }
+
             $this->schedule($clinicId, $practitionerId, $localStart, $utcTz, $duration, $reason, $cancelled);
         }
 
