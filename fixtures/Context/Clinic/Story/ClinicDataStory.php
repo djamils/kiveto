@@ -40,6 +40,30 @@ final class ClinicDataStory extends Story
                 email: 'contact@vet-paris.fr',
                 website: 'www.vet-paris.fr',
             ))
+            // Open six days a week, shut at lunch, closed on Sunday — and shut
+            // on Christmas Day, so the demo has a closure to show.
+            ->withOpeningHours([
+                'week' => [
+                    1 => [['opensAt' => '09:00', 'closesAt' => '12:30'], ['opensAt' => '14:00', 'closesAt' => '19:00']],
+                    2 => [['opensAt' => '09:00', 'closesAt' => '12:30'], ['opensAt' => '14:00', 'closesAt' => '19:00']],
+                    3 => [['opensAt' => '09:00', 'closesAt' => '12:30'], ['opensAt' => '14:00', 'closesAt' => '19:00']],
+                    4 => [['opensAt' => '09:00', 'closesAt' => '12:30'], ['opensAt' => '14:00', 'closesAt' => '19:00']],
+                    5 => [['opensAt' => '09:00', 'closesAt' => '19:00']],
+                    6 => [['opensAt' => '09:00', 'closesAt' => '13:00']],
+                ],
+                'closures' => [
+                    ['date' => '2026-12-25', 'reason' => 'Noël'],
+                    ['date' => '2027-01-01', 'reason' => 'Jour de l\'an'],
+                ],
+            ])
+            ->withBillingSettings([
+                'billingAddress'      => null,
+                'invoiceNumberPrefix' => 'FAC',
+                'paymentTermsDays'    => 30,
+                'iban'                => 'FR7630006000011234567890189',
+                'bic'                 => 'AGRIFRPP',
+                'invoiceFooterNote'   => 'Règlement à réception. Aucun escompte pour paiement anticipé.',
+            ])
             ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
         ;
 

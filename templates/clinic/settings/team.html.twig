@@ -1,0 +1,248 @@
+{#
+ # Team — who works here, in what capacity, and whether they still do.
+ #
+ # Variables:
+ #   memberships  list<MembershipListItem>
+ #   profiles     map membershipId => StaffProfileReadItem
+ #}
+{% extends 'clinic/settings/_shell.html.twig' %}
+
+{% set roleLabels = {
+  'MANAGER': 'Gérant',
+  'VETERINARY': 'Vétérinaire',
+  'VETERINARY_ASSISTANT': 'ASV',
+  'RECEPTIONIST': 'Accueil'
+} %}
+{% set roleTones = { 'MANAGER': 'violet', 'VETERINARY': 'blue', 'VETERINARY_ASSISTANT': 'green', 'RECEPTIONIST': 'slate' } %}
+{% set engagementLabels = { 'EMPLOYEE': 'Salarié', 'CONTRACTOR': 'Libéral', 'PARTNER': 'Associé', 'INTERN': 'Stagiaire', 'REPLACEMENT': 'Remplaçant' } %}
+
+{% block settings_actions %}
+  <button class="btn btn-primary btn-sm" type="button" data-modal-open="member-modal">
+    <i data-lucide="user-plus"></i> Ajouter un membre
+  </button>
+{% endblock %}
+
+{% block settings_body %}
+
+<section class="set-card set-card-flush">
+  <header class="set-card-head">
+    <h2 class="set-card-title">Équipe</h2>
+    <p class="set-card-sub">{{ memberships|length }} membre{{ memberships|length > 1 ? 's' : '' }} rattaché{{ memberships|length > 1 ? 's' : '' }} à cette clinique.</p>
+  </header>
+
+  {% if memberships|length > 0 %}
+    <table class="set-table">
+      <thead>
+        <tr>
+          <th>Membre</th>
+          <th>Rôle</th>
+          <th>Contrat</th>
+          <th>Agenda</th>
+          <th>Statut</th>
+          <th>Gestion</th>
+          <th class="set-col-actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for membership in memberships %}
+          {% set profile = profiles[membership.membershipId]|default(null) %}
+          {% set isActive = membership.status.value == 'ACTIVE' %}
+          <tr class="{{ isActive ? '' : 'is-inactive' }}">
+            <td>
+              <span class="member-name">
+                {% if profile %}
+                  <span class="member-dot" style="background:{{ profile.agendaColor }}22;color:{{ profile.agendaColor }}">
+                    {{ profile.displayName|split(' ')|map(w => w|first)|join('')|upper|slice(0, 2) }}
+                  </span>
+                  {{ profile.displayName }}
+                {% else %}
+                  <span class="member-dot member-dot-empty">{{ membership.userEmail|first|upper }}</span>
+                  {{ membership.userEmail|split('@')|first }}
+                {% endif %}
+              </span>
+              <span class="member-mail">{{ membership.userEmail }}</span>
+            </td>
+            <td><span class="tag tone-{{ roleTones[membership.role.value]|default('slate') }}">{{ roleLabels[membership.role.value]|default(membership.role.value) }}</span></td>
+            <td><span class="cell-muted">{{ engagementLabels[membership.engagement.value]|default(membership.engagement.value) }}</span></td>
+            <td>
+              {% if profile %}
+                <span class="cell-muted">{{ profile.isVisibleInAgenda ? 'Visible' : 'Masqué' }}</span>
+              {% else %}
+                <span class="cell-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if isActive %}
+                <span class="tag tone-green">Actif</span>
+              {% else %}
+                <span class="tag tone-slate">Désactivé</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if membership.isClinicAdministrator %}
+                <span class="tag tone-amber">Gère la clinique</span>
+              {% else %}
+                <span class="cell-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="set-col-actions">
+              <button class="btn btn-secondary btn-xs" type="button"
+                      data-member-edit
+                      data-membership-id="{{ membership.membershipId }}"
+                      data-profile-id="{{ profile ? profile.profileId : '' }}"
+                      data-name="{{ profile ? profile.displayName : membership.userEmail }}"
+                      data-role="{{ membership.role.value }}"
+                      data-engagement="{{ membership.engagement.value }}"
+                      data-phone="{{ profile ? (profile.phone ?? '') : '' }}">Modifier</button>
+              <form method="post" style="display:inline"
+                    action="{{ path(isActive ? 'clinic_settings_team_disable' : 'clinic_settings_team_enable', { membershipId: membership.membershipId }) }}">
+                <button class="btn btn-ghost btn-xs{{ isActive ? ' is-danger' : '' }}" type="submit">
+                  {{ isActive ? 'Désactiver' : 'Réactiver' }}
+                </button>
+              </form>
+              {# The target value is in the route, not in a field: a checkbox that
+                 fails to render must never be read as "take the hat off". #}
+              <form method="post" style="display:inline"
+                    action="{{ path(membership.isClinicAdministrator ? 'clinic_settings_team_administration_revoke' : 'clinic_settings_team_administration_grant', { membershipId: membership.membershipId }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('team_administration') }}">
+                <button class="btn btn-ghost btn-xs" type="submit">
+                  {{ membership.isClinicAdministrator ? 'Retirer la gestion' : 'Donner la gestion' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="set-empty">Personne n’est encore rattaché à cette clinique.</div>
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block settings_modals %}
+  {# ── Ajouter un membre ── #}
+  <div class="modal-overlay hidden" id="member-modal">
+    <div class="modal">
+      <form method="post" action="{{ path('clinic_settings_team_add') }}" id="member-form">
+        <header class="modal-head">
+          <div>
+            <h2 class="modal-title">Ajouter un membre</h2>
+            <p class="modal-sub">Un compte est créé si l’adresse est inconnue.</p>
+          </div>
+          <button class="modal-close" type="button" data-modal-close aria-label="Fermer">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          </button>
+        </header>
+        <div class="modal-body">
+          <div class="set-grid">
+            <label class="set-field">
+              <span class="set-label">Prénom</span>
+              <input class="form-input" type="text" name="firstName" required maxlength="120">
+            </label>
+            <label class="set-field">
+              <span class="set-label">Nom</span>
+              <input class="form-input" type="text" name="lastName" required maxlength="120">
+            </label>
+            <label class="set-field set-field-wide">
+              <span class="set-label">Adresse e-mail</span>
+              <input class="form-input" type="email" name="email" required maxlength="180">
+            </label>
+            <label class="set-field set-field-wide">
+              <span class="set-label">Mot de passe provisoire</span>
+              <input class="form-input" type="text" name="password" minlength="8" maxlength="72"
+                     placeholder="Au moins 8 caractères — seulement si le compte n’existe pas">
+            </label>
+            <label class="set-field">
+              <span class="set-label">Rôle</span>
+              <select class="form-input" name="role" id="member-role">
+                {% for value, label in roleLabels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="set-field">
+              <span class="set-label">Contrat</span>
+              <select class="form-input" name="engagement">
+                {% for value, label in engagementLabels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="set-field">
+              <span class="set-label">Téléphone</span>
+              <input class="form-input" type="tel" name="phone" maxlength="20">
+            </label>
+            <label class="set-field">
+              <span class="set-label">Couleur d’agenda</span>
+              <input class="form-input" type="color" name="agendaColor" value="#4338ca">
+            </label>
+            <label class="set-field" data-vet-only>
+              <span class="set-label">N° d’ordre</span>
+              <input class="form-input mono" type="text" name="registrationNumber" maxlength="40">
+            </label>
+            <label class="set-field" data-vet-only>
+              <span class="set-label">Titre</span>
+              <select class="form-input" name="professionalTitle">
+                <option value="">—</option>
+                <option value="DOCTOR">Docteur</option>
+                <option value="VETERINARIAN">Vétérinaire</option>
+              </select>
+            </label>
+            <label class="set-check set-field-wide">
+              <input type="checkbox" name="isVisibleInAgenda" value="1" checked>
+              <span>Visible dans l’agenda</span>
+            </label>
+            <label class="set-check set-field-wide">
+              <input type="checkbox" name="isClinicAdministrator" value="1">
+              <span>Peut gérer la clinique (équipe, facturation, réglages)</span>
+            </label>
+          </div>
+        </div>
+        <footer class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Ajouter</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modifier un membre ── #}
+  <div class="modal-overlay hidden" id="member-edit-modal">
+    <div class="modal modal-narrow">
+      <form method="post" id="member-edit-form">
+        <header class="modal-head">
+          <div>
+            <h2 class="modal-title">Modifier</h2>
+            <p class="modal-sub" data-member-target></p>
+          </div>
+          <button class="modal-close" type="button" data-modal-close aria-label="Fermer">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+          </button>
+        </header>
+        <div class="modal-body">
+          <input type="hidden" name="profileId" data-profile-field>
+          <div class="set-grid">
+            <label class="set-field">
+              <span class="set-label">Rôle</span>
+              <select class="form-input" name="role" data-role-field>
+                {% for value, label in roleLabels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="set-field">
+              <span class="set-label">Contrat</span>
+              <select class="form-input" name="engagement" data-engagement-field>
+                {% for value, label in engagementLabels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="set-field set-field-wide">
+              <span class="set-label">Téléphone</span>
+              <input class="form-input" type="tel" name="phone" maxlength="20" data-phone-field>
+            </label>
+          </div>
+        </div>
+        <footer class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+{% endblock %}

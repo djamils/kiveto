@@ -36,6 +36,12 @@ final readonly class DoctrineClinicRepository implements ClinicRepositoryInterfa
             $existing->setLocale($entity->getLocale());
             $existing->setStatus($entity->getStatus());
             $existing->setClinicGroupId($entity->getClinicGroupId());
+            // What the clinic prints, when it opens and how it bills are part of
+            // the aggregate too: leaving them out of the copy silently dropped
+            // every change made to them.
+            $existing->setLetterhead($entity->getLetterhead());
+            $existing->setOpeningHours($entity->getOpeningHours());
+            $existing->setBillingSettings($entity->getBillingSettings());
             $existing->setUpdatedAt($entity->getUpdatedAt());
         }
 

@@ -27,6 +27,7 @@ final class MembershipCollectionTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-01-01'),
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
+            isClinicAdministrator: false,
         );
 
         $collection = new MembershipCollection(memberships: [$item], total: 1);

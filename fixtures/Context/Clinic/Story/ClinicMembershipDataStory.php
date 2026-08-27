@@ -26,12 +26,14 @@ final class ClinicMembershipDataStory extends Story
             ->create()
         ;
 
-        // Assign manager to Lyon clinic (group) — non-practitioner, CreateClinicMembership is allowed
+        // Assign manager to Lyon clinic (group) — non-practitioner, CreateClinicMembership is allowed.
+        // The hat is explicit: the manager role no longer implies it.
         $this->commandBus->dispatch(new CreateClinicMembership(
             clinicId: ClinicDataStory::GROUP_CLINIC_ID,
             userId: $adminUser->getId()->toRfc4122(),
             role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
+            isClinicAdministrator: true,
         ));
     }
 }

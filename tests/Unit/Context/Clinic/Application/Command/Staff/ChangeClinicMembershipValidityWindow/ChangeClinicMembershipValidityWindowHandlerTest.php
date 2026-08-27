@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Clinic\Application\Command\Staff\ChangeClinicMe
 
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindowHandler; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Clinic\Application\Exception\LastClinicAdministratorException;
+use App\Context\Clinic\Application\Service\ClinicAdministrationInvariant;
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
@@ -16,6 +18,7 @@ use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
@@ -33,7 +36,12 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())->method('publish');
 
-        $handler = new ChangeClinicMembershipValidityWindowHandler($repo, new DomainEventPublisher($eventBus));
+        $handler = new ChangeClinicMembershipValidityWindowHandler(
+            $repo,
+            new ClinicAdministrationInvariant($repo),
+            $this->clock(),
+            new DomainEventPublisher($eventBus),
+        );
 
         $newFrom  = new \DateTimeImmutable('2026-06-01');
         $newUntil = new \DateTimeImmutable('2026-12-31');
@@ -49,10 +57,85 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
         $repo->method('findById')->willReturn(null);
 
         $publisher = new DomainEventPublisher($this->createStub(EventBusInterface::class));
-        $handler   = new ChangeClinicMembershipValidityWindowHandler($repo, $publisher);
+        $handler   = new ChangeClinicMembershipValidityWindowHandler(
+            $repo,
+            new ClinicAdministrationInvariant($repo),
+            $this->clock(),
+            $publisher,
+        );
 
         $this->expectException(\InvalidArgumentException::class);
         $handler(new ChangeClinicMembershipValidityWindow(self::MEMBERSHIP_ID, new \DateTimeImmutable(), null));
+    }
+
+    /**
+     * validUntil moved into the past. One of two ways to make a membership
+     * ineffective without touching its status.
+     */
+    public function testRefusesToExpireTheLastEffectiveAdministrator(): void
+    {
+        $membership = $this->membership(isClinicAdministrator: true);
+
+        $repo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $repo->method('findById')->willReturn($membership);
+        $repo->method('countEffectiveAdministrators')->willReturn(0);
+        // The window never reaches the repository.
+        $repo->expects(self::never())->method('save');
+
+        $this->expectException(LastClinicAdministratorException::class);
+
+        $this->guardedHandler($repo)(new ChangeClinicMembershipValidityWindow(
+            self::MEMBERSHIP_ID,
+            new \DateTimeImmutable('2026-01-01'),
+            new \DateTimeImmutable('2026-03-01'),
+        ));
+    }
+
+    /**
+     * validFrom moved into the future. The other way, and the one a status-based
+     * or validUntil-only check would miss entirely.
+     */
+    public function testRefusesToPostponeTheLastEffectiveAdministrator(): void
+    {
+        $membership = $this->membership(isClinicAdministrator: true);
+
+        $repo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $repo->method('findById')->willReturn($membership);
+        $repo->method('countEffectiveAdministrators')->willReturn(0);
+        $repo->expects(self::never())->method('save');
+
+        $this->expectException(LastClinicAdministratorException::class);
+
+        $this->guardedHandler($repo)(new ChangeClinicMembershipValidityWindow(
+            self::MEMBERSHIP_ID,
+            new \DateTimeImmutable('2026-09-01'),
+            null,
+        ));
+    }
+
+    /**
+     * The anti-trap case: reopening the window of an administrator whose own
+     * window expired must succeed, even though the clinic is currently at zero.
+     */
+    public function testReopensTheWindowOfAnExpiredAdministratorInAnEmptyClinic(): void
+    {
+        $membership = $this->membership(
+            isClinicAdministrator: true,
+            validUntil: new \DateTimeImmutable('2026-03-01'),
+        );
+
+        $repo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $repo->method('findById')->willReturn($membership);
+        $repo->method('countEffectiveAdministrators')->willReturn(0);
+        $repo->expects(self::once())->method('save');
+
+        $this->guardedHandler($repo)(new ChangeClinicMembershipValidityWindow(
+            self::MEMBERSHIP_ID,
+            new \DateTimeImmutable('2026-01-01'),
+            null,
+        ));
+
+        self::assertNull($membership->validUntil());
     }
 
     private function buildMembership(): ClinicMembership
@@ -68,6 +151,45 @@ final class ChangeClinicMembershipValidityWindowHandlerTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: false,
+            isClinicAdministrator: false,
         );
+    }
+
+    private function guardedHandler(
+        ClinicMembershipRepositoryInterface $repo,
+    ): ChangeClinicMembershipValidityWindowHandler {
+        return new ChangeClinicMembershipValidityWindowHandler(
+            $repo,
+            new ClinicAdministrationInvariant($repo),
+            $this->clock(),
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+    }
+
+    private function membership(
+        bool $isClinicAdministrator = false,
+        ?\DateTimeImmutable $validUntil = null,
+    ): ClinicMembership {
+        return ClinicMembership::reconstitute(
+            id: ClinicMembershipId::fromString(self::MEMBERSHIP_ID),
+            clinicId: ClinicId::fromString('01912345-6789-7abc-8def-000000000002'),
+            userId: UserId::fromString('01912345-6789-7abc-8def-000000000003'),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            status: ClinicMembershipStatus::ACTIVE,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: $validUntil,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: false,
+            isClinicAdministrator: $isClinicAdministrator,
+        );
+    }
+
+    private function clock(): ClockInterface
+    {
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-06-01 10:00:00'));
+
+        return $clock;
     }
 }

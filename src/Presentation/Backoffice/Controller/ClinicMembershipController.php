@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Presentation\Backoffice\Controller;
 
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipAdministration\ChangeClinicMembershipAdministration;
 use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipEngagement\ChangeClinicMembershipEngagement;
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipRole\ChangeClinicMembershipRole;
-use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipRole\ChangeClinicMembershipRole; // phpcs:ignore Generic.Files.LineLength.TooLong
+use App\Context\Clinic\Application\Command\Staff\ChangeClinicMembershipValidityWindow\ChangeClinicMembershipValidityWindow as ChangeMembershipValidityWindow;
 use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;
+use App\Context\Clinic\Application\Exception\LastClinicAdministratorException;
 use App\Context\Clinic\Application\Query\Clinic\ListClinics\ClinicCollection; // phpcs:ignore Generic.Files.LineLength.TooLong
 use App\Context\Clinic\Application\Query\Clinic\ListClinics\ListClinics;
 use App\Context\Clinic\Application\Query\Staff\ListAllMemberships\ListAllMemberships;
@@ -124,6 +126,7 @@ final class ClinicMembershipController extends AbstractController
                 engagement: $engagement,
                 validFrom: $validFrom,
                 validUntil: $validUntil,
+                isClinicAdministrator: $request->request->getBoolean('is_clinic_administrator'),
             ));
 
             $this->addFlash('success', 'Membership créée avec succès.');
@@ -136,6 +139,69 @@ final class ClinicMembershipController extends AbstractController
         }
     }
 
+    /**
+     * The recovery path the whole risk model leans on: it runs outside
+     * ClinicPermissionGuard, so it cannot lock itself out of a clinic that has
+     * lost every administrator.
+     */
+    #[Route(path: '/clinic-memberships/{id}/administration/grant', name: 'backoffice_memberships_administration_grant', methods: ['POST'])]
+    public function grantAdministration(string $id, Request $request): RedirectResponse
+    {
+        $this->assertCsrf($request);
+
+        $clinicId = trim((string) $request->request->get('clinic_id'));
+
+        if ('' === $clinicId) {
+            $this->addFlash('error', 'La clinique du membre est obligatoire.');
+
+            return $this->redirectToRoute('backoffice_clinic_memberships');
+        }
+
+        try {
+            $this->commandBus->dispatch(new ChangeClinicMembershipAdministration(
+                clinicId: $clinicId,
+                membershipId: $id,
+                isClinicAdministrator: true,
+            ));
+
+            $this->addFlash('success', 'Ce membre peut désormais gérer la clinique.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('backoffice_clinic_memberships');
+    }
+
+    #[Route(path: '/clinic-memberships/{id}/administration/revoke', name: 'backoffice_memberships_administration_revoke', methods: ['POST'])]
+    public function revokeAdministration(string $id, Request $request): RedirectResponse
+    {
+        $this->assertCsrf($request);
+
+        $clinicId = trim((string) $request->request->get('clinic_id'));
+
+        if ('' === $clinicId) {
+            $this->addFlash('error', 'La clinique du membre est obligatoire.');
+
+            return $this->redirectToRoute('backoffice_clinic_memberships');
+        }
+
+        try {
+            $this->commandBus->dispatch(new ChangeClinicMembershipAdministration(
+                clinicId: $clinicId,
+                membershipId: $id,
+                isClinicAdministrator: false,
+            ));
+
+            $this->addFlash('success', 'Ce membre ne gère plus la clinique.');
+        } catch (LastClinicAdministratorException) {
+            $this->addFlash('error', 'Impossible : plus personne ne pourrait gérer cette clinique.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', 'Erreur: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('backoffice_clinic_memberships');
+    }
+
     #[Route(path: '/clinic-memberships/{id}/disable', name: 'backoffice_clinic_memberships_disable', methods: ['POST'])]
     public function disable(string $id, Request $request): RedirectResponse
     {
@@ -145,6 +211,8 @@ final class ClinicMembershipController extends AbstractController
             $this->commandBus->dispatch(new DisableClinicMembership($id));
 
             $this->addFlash('success', 'Membership désactivée avec succès.');
+        } catch (LastClinicAdministratorException) {
+            $this->addFlash('error', 'Impossible : plus personne ne pourrait gérer cette clinique.');
         } catch (\Throwable $e) {
             $this->addFlash('error', 'Erreur: ' . $e->getMessage());
         }
@@ -239,6 +307,8 @@ final class ClinicMembershipController extends AbstractController
             $this->commandBus->dispatch(new ChangeMembershipValidityWindow($id, $validFrom, $validUntil));
 
             $this->addFlash('success', 'Période de validité modifiée avec succès.');
+        } catch (LastClinicAdministratorException) {
+            $this->addFlash('error', 'Impossible : plus personne ne pourrait gérer cette clinique.');
         } catch (\Throwable $e) {
             $this->addFlash('error', 'Erreur: ' . $e->getMessage());
         }

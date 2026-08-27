@@ -85,6 +85,14 @@
         <small style="color:var(--text-subtle);">Optionnel. Laisser vide pour pas de limite (recommande pour EMPLOYEE)</small>
       </div>
 
+      <div class="field">
+        <label class="field-label">
+          <input type="checkbox" name="is_clinic_administrator" value="1">
+          Peut gerer la clinique (equipe, facturation, reglages)
+        </label>
+        <small style="color:var(--text-subtle);">Independant du role : un veterinaire peut gerer sa clinique.</small>
+      </div>
+
       <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
         <button type="submit" class="btn btn-primary">Creer</button>
         <a href="{{ path('backoffice_clinic_memberships') }}" class="btn btn-secondary">Annuler</a>

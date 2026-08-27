@@ -64,6 +64,7 @@ final class ChangeClinicMembershipEngagementHandlerTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: false,
+            isClinicAdministrator: false,
         );
     }
 }

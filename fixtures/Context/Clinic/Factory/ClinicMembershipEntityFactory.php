@@ -100,6 +100,11 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
         return $this->with(['isDefault' => true]);
     }
 
+    public function asClinicAdministrator(): self
+    {
+        return $this->with(['isClinicAdministrator' => true]);
+    }
+
     public function disabled(): self
     {
         return $this->with(['status' => ClinicMembershipStatus::DISABLED]);
@@ -111,16 +116,17 @@ final class ClinicMembershipEntityFactory extends PersistentProxyObjectFactory
         $validFrom = \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-6 months'));
 
         return [
-            'id'         => Uuid::v7(),
-            'clinicId'   => Uuid::v7(),
-            'userId'     => Uuid::v7(),
-            'role'       => ClinicMemberRole::RECEPTIONIST,
-            'engagement' => self::faker()->randomElement(ClinicMembershipEngagement::cases()),
-            'status'     => ClinicMembershipStatus::ACTIVE,
-            'validFrom'  => $validFrom,
-            'validUntil' => null,
-            'createdAt'  => $createdAt,
-            'isDefault'  => false,
+            'id'                    => Uuid::v7(),
+            'clinicId'              => Uuid::v7(),
+            'userId'                => Uuid::v7(),
+            'role'                  => ClinicMemberRole::RECEPTIONIST,
+            'engagement'            => self::faker()->randomElement(ClinicMembershipEngagement::cases()),
+            'status'                => ClinicMembershipStatus::ACTIVE,
+            'validFrom'             => $validFrom,
+            'validUntil'            => null,
+            'createdAt'             => $createdAt,
+            'isDefault'             => false,
+            'isClinicAdministrator' => false,
         ];
     }
 }

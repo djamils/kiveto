@@ -145,6 +145,14 @@
                     <button type="submit" class="btn btn-sm btn-success">Enable</button>
                   </form>
                 {% endif %}
+                {# Recovery path: works even on a clinic with no administrator left. #}
+                <form method="post" action="{{ path(membership.isClinicAdministrator ? 'backoffice_memberships_administration_revoke' : 'backoffice_memberships_administration_grant', {id: membership.membershipId}) }}" style="display:inline;">
+                  <input type="hidden" name="_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="clinic_id" value="{{ membership.clinicId }}">
+                  <button type="submit" class="btn btn-sm btn-secondary">
+                    {{ membership.isClinicAdministrator ? 'Retirer la gestion' : 'Donner la gestion' }}
+                  </button>
+                </form>
               </td>
             </tr>
           {% else %}

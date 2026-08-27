@@ -32,6 +32,7 @@ final class GetUserMembershipInClinicHandlerTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: false,
+            isClinicAdministrator: false,
         );
 
         $repo = $this->createStub(ClinicMembershipRepositoryInterface::class);

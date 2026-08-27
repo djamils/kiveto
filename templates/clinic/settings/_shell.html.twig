@@ -1,0 +1,58 @@
+{#
+ # Kiveto — templates/clinic/settings/_shell.html.twig
+ # ─────────────────────────────────────────────────
+ # The shell the settings pages share: the topbar and the tab bar.
+ #
+ # Variables:
+ #   settings  ClinicSettingsView  The clinic being configured
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block title %}Paramètres{% endblock %}
+{% block show_topbar %}false{% endblock %}
+
+{% block stylesheets %}
+  <link rel="stylesheet" href="{{ asset('styles/pages/settings.css') }}"/>
+{% endblock %}
+
+{% set _route = app.request.attributes.get('_route') %}
+
+{% block content %}
+<div class="set-root">
+
+  <header class="topbar">
+    <button class="tb-toggle show-mobile" type="button" aria-label="Menu" data-action="click->sidebar#toggle">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="tb-title">
+      <span class="topbar-icon" aria-hidden="true"><i data-lucide="settings"></i></span>
+      <h1 class="topbar-title">Paramètres</h1>
+      <span class="tb-title-count">{{ settings.name }}</span>
+    </div>
+    <div class="tb-spacer"></div>
+    {% block settings_actions %}{% endblock %}
+  </header>
+
+  <nav class="set-tabs" aria-label="Paramètres de la clinique">
+    <a class="set-tab{{ _route starts with 'clinic_settings' and _route == 'clinic_settings' ? ' is-active' : '' }}"
+       href="{{ path('clinic_settings') }}">Identité</a>
+    <a class="set-tab{{ _route == 'clinic_settings_hours' ? ' is-active' : '' }}"
+       href="{{ path('clinic_settings_hours') }}">Horaires</a>
+    <a class="set-tab{{ _route == 'clinic_settings_billing' ? ' is-active' : '' }}"
+       href="{{ path('clinic_settings_billing') }}">Facturation</a>
+    <a class="set-tab{{ _route == 'clinic_settings_preferences' ? ' is-active' : '' }}"
+       href="{{ path('clinic_settings_preferences') }}">Préférences</a>
+    <a class="set-tab{{ _route == 'clinic_settings_team' ? ' is-active' : '' }}"
+       href="{{ path('clinic_settings_team') }}">Équipe</a>
+  </nav>
+
+  <div class="set-scroll">
+    {% block settings_body %}{% endblock %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}{% block settings_modals %}{% endblock %}{% endblock %}

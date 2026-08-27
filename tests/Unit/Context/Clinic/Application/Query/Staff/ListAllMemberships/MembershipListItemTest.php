@@ -29,6 +29,7 @@ final class MembershipListItemTest extends TestCase
             validFrom: $validFrom,
             validUntil: null,
             createdAt: $createdAt,
+            isClinicAdministrator: false,
         );
 
         self::assertSame('membership-uuid', $item->membershipId);

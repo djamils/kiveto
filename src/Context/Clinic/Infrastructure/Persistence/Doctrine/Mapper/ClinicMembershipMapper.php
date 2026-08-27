@@ -26,6 +26,7 @@ final class ClinicMembershipMapper
             validUntil: $entity->getValidUntil(),
             createdAt: $entity->getCreatedAt(),
             isDefault: $entity->getIsDefault(),
+            isClinicAdministrator: $entity->getIsClinicAdministrator(),
         );
     }
 
@@ -42,6 +43,7 @@ final class ClinicMembershipMapper
         $entity->setValidUntil($membership->validUntil());
         $entity->setCreatedAt($membership->createdAt());
         $entity->setIsDefault($membership->isDefault());
+        $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
 
         return $entity;
     }

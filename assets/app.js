@@ -27,6 +27,11 @@ const PAGE_MODULES = {
   clinic_stock:                  'pages/stock',
   clinic_stock_movements:        'pages/stock',
   clinic_stock_alerts:           'pages/stock',
+  clinic_settings:               'pages/settings',
+  clinic_settings_hours:         'pages/settings',
+  clinic_settings_billing:       'pages/settings',
+  clinic_settings_preferences:   'pages/settings',
+  clinic_settings_team:          'pages/settings',
   clinic_select_clinic:          'pages/select-clinic',
 };
 

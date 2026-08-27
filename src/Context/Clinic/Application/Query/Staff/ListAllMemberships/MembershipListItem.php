@@ -22,6 +22,7 @@ final readonly class MembershipListItem
         public \DateTimeImmutable $validFrom,
         public ?\DateTimeImmutable $validUntil,
         public \DateTimeImmutable $createdAt,
+        public bool $isClinicAdministrator,
     ) {
     }
 }

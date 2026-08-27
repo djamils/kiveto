@@ -19,6 +19,7 @@ final class ClinicSidebarExtension extends AbstractExtension
     {
         return [
             new TwigFunction('clinic_sidebar_data', $this->runtime->getSidebarData(...)),
+            new TwigFunction('clinic_can', $this->runtime->can(...)),
         ];
     }
 }

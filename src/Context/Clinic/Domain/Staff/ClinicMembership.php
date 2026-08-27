@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Domain\Staff;
 
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipAdministrationChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipCreated;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDefaultChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDisabled;
@@ -31,6 +32,7 @@ final class ClinicMembership extends AggregateRoot
     private ?\DateTimeImmutable $validUntil;
     private \DateTimeImmutable $createdAt;
     private bool $isDefault;
+    private bool $isClinicAdministrator;
 
     private function __construct()
     {
@@ -45,20 +47,22 @@ final class ClinicMembership extends AggregateRoot
         \DateTimeImmutable $validFrom,
         ?\DateTimeImmutable $validUntil,
         \DateTimeImmutable $createdAt,
+        bool $isClinicAdministrator,
     ): self {
         self::validateValidityWindow($validFrom, $validUntil);
 
-        $membership             = new self();
-        $membership->id         = $id;
-        $membership->clinicId   = $clinicId;
-        $membership->userId     = $userId;
-        $membership->role       = $role;
-        $membership->engagement = $engagement;
-        $membership->status     = ClinicMembershipStatus::ACTIVE;
-        $membership->validFrom  = $validFrom;
-        $membership->validUntil = $validUntil;
-        $membership->createdAt  = $createdAt;
-        $membership->isDefault  = false;
+        $membership                        = new self();
+        $membership->id                    = $id;
+        $membership->clinicId              = $clinicId;
+        $membership->userId                = $userId;
+        $membership->role                  = $role;
+        $membership->engagement            = $engagement;
+        $membership->status                = ClinicMembershipStatus::ACTIVE;
+        $membership->validFrom             = $validFrom;
+        $membership->validUntil            = $validUntil;
+        $membership->createdAt             = $createdAt;
+        $membership->isDefault             = false;
+        $membership->isClinicAdministrator = $isClinicAdministrator;
 
         $membership->recordDomainEvent(new ClinicMembershipCreated(
             membershipId: $id->toString(),
@@ -68,6 +72,7 @@ final class ClinicMembership extends AggregateRoot
             engagement: $engagement->value,
             validFrom: $validFrom->format(\DateTimeInterface::ATOM),
             validUntil: $validUntil?->format(\DateTimeInterface::ATOM),
+            isClinicAdministrator: $isClinicAdministrator,
         ));
 
         return $membership;
@@ -84,18 +89,20 @@ final class ClinicMembership extends AggregateRoot
         ?\DateTimeImmutable $validUntil,
         \DateTimeImmutable $createdAt,
         bool $isDefault,
+        bool $isClinicAdministrator,
     ): self {
-        $membership             = new self();
-        $membership->id         = $id;
-        $membership->clinicId   = $clinicId;
-        $membership->userId     = $userId;
-        $membership->role       = $role;
-        $membership->engagement = $engagement;
-        $membership->status     = $status;
-        $membership->validFrom  = $validFrom;
-        $membership->validUntil = $validUntil;
-        $membership->createdAt  = $createdAt;
-        $membership->isDefault  = $isDefault;
+        $membership                        = new self();
+        $membership->id                    = $id;
+        $membership->clinicId              = $clinicId;
+        $membership->userId                = $userId;
+        $membership->role                  = $role;
+        $membership->engagement            = $engagement;
+        $membership->status                = $status;
+        $membership->validFrom             = $validFrom;
+        $membership->validUntil            = $validUntil;
+        $membership->createdAt             = $createdAt;
+        $membership->isDefault             = $isDefault;
+        $membership->isClinicAdministrator = $isClinicAdministrator;
 
         return $membership;
     }
@@ -188,6 +195,76 @@ final class ClinicMembership extends AggregateRoot
     public function isDefault(): bool
     {
         return $this->isDefault;
+    }
+
+    public function isClinicAdministrator(): bool
+    {
+        return $this->isClinicAdministrator;
+    }
+
+    public function grantAdministration(): void
+    {
+        if ($this->isClinicAdministrator) {
+            return;
+        }
+
+        $this->isClinicAdministrator = true;
+
+        $this->recordDomainEvent(new ClinicMembershipAdministrationChanged(
+            membershipId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            userId: $this->userId->toString(),
+            isClinicAdministrator: true,
+        ));
+    }
+
+    public function revokeAdministration(): void
+    {
+        if (!$this->isClinicAdministrator) {
+            return;
+        }
+
+        $this->isClinicAdministrator = false;
+
+        $this->recordDomainEvent(new ClinicMembershipAdministrationChanged(
+            membershipId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            userId: $this->userId->toString(),
+            isClinicAdministrator: false,
+        ));
+    }
+
+    /**
+     * Wearing the hat only counts while the membership is in force: an expired
+     * administrator keeps the flag on their row but opens nothing.
+     */
+    public function isEffectiveAdministratorAt(\DateTimeImmutable $now): bool
+    {
+        return $this->isClinicAdministrator && $this->isEffectiveAt($now);
+    }
+
+    /**
+     * What this membership may do: the clinical role's permissions, plus the
+     * administrator's when it wears the hat. Role and hat are independent axes,
+     * so the answer is their union rather than either one alone.
+     *
+     * @return list<ClinicPermission>
+     */
+    public function permissions(): array
+    {
+        $permissions = [];
+
+        foreach (StaffRolePermissionMap::permissionsFor($this->role) as $permission) {
+            $permissions[$permission->value] = $permission;
+        }
+
+        if ($this->isClinicAdministrator) {
+            foreach (StaffRolePermissionMap::administratorPermissions() as $permission) {
+                $permissions[$permission->value] = $permission;
+            }
+        }
+
+        return array_values($permissions);
     }
 
     public function setAsDefault(): void
