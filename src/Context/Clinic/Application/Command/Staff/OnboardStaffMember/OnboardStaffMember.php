@@ -28,6 +28,7 @@ final readonly class OnboardStaffMember implements CommandInterface
         public ?string $registrationNumber = null,
         public ?ProfessionalTitle $professionalTitle = null,
         public ?string $signatureImageKey = null,
+        public bool $isClinicAdministrator = false,
     ) {
     }
 }

@@ -39,6 +39,38 @@ final class DoctrineMembershipAdminRepositoryTest extends KernelTestCase
         self::assertSame($user->getEmail(), $collection->memberships[0]->userEmail);
     }
 
+    public function testListAllCarriesTheAdministrationHat(): void
+    {
+        $clinic  = ClinicEntityFactory::createOne(['slug' => 'admin-repo-hat-test']);
+        $hatted  = ClinicUserFactory::new()->withEmail('hatted@kiveto.local')->create();
+        $hatless = ClinicUserFactory::new()->withEmail('hatless@kiveto.local')->create();
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($hatted->getId()->toRfc4122())
+            ->asVeterinary()
+            ->asEmployee()
+            ->asClinicAdministrator()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($hatless->getId()->toRfc4122())
+            ->asReceptionist()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $byEmail = [];
+        foreach ($this->repo()->listAll()->memberships as $item) {
+            $byEmail[$item->userEmail] = $item->isClinicAdministrator;
+        }
+
+        self::assertTrue($byEmail['hatted@kiveto.local']);
+        self::assertFalse($byEmail['hatless@kiveto.local']);
+    }
+
     public function testListAllWithRoleFilter(): void
     {
         $clinic = ClinicEntityFactory::createOne(['slug' => 'admin-filter-test']);

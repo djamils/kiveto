@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Application\Query\Staff\ListPermissionsForUserInClinic;
 
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
-use App\Context\Clinic\Domain\Staff\StaffRolePermissionMap;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Time\ClockInterface;
@@ -38,7 +37,7 @@ final readonly class ListPermissionsForUserInClinicHandler
 
         return array_map(
             static fn ($permission): string => $permission->value,
-            StaffRolePermissionMap::permissionsFor($membership->role()),
+            $membership->permissions(),
         );
     }
 }

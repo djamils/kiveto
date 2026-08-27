@@ -11,14 +11,25 @@ use PHPUnit\Framework\TestCase;
 
 final class StaffRolePermissionMapTest extends TestCase
 {
-    public function testManagerHasAllPermissions(): void
+    public function testManagerKeepsClinicalPermissionsButNoLongerAdministrative(): void
     {
         $permissions = StaffRolePermissionMap::permissionsFor(ClinicMemberRole::MANAGER);
 
-        self::assertCount(9, $permissions);
+        self::assertCount(7, $permissions);
+        self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
+        self::assertContains(ClinicPermission::CREATE_CONSULTATION, $permissions);
+        self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_BILLING, $permissions);
+    }
+
+    public function testAdministratorPermissionsCarryStaffAndBilling(): void
+    {
+        $permissions = StaffRolePermissionMap::administratorPermissions();
+
+        self::assertCount(2, $permissions);
         self::assertContains(ClinicPermission::MANAGE_STAFF, $permissions);
         self::assertContains(ClinicPermission::MANAGE_BILLING, $permissions);
-        self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
     }
 
     public function testVeterinaryHasClinicalPermissions(): void
@@ -60,7 +71,12 @@ final class StaffRolePermissionMapTest extends TestCase
         }
     }
 
-    public function testEveryPermissionIsMappedToAtLeastOneRole(): void
+    /**
+     * The design invariant this protects is that no permission is unreachable.
+     * Since administration became a hat rather than a role, two of them are
+     * reachable only through the hat — so the hat counts as a grantor here.
+     */
+    public function testEveryPermissionIsGrantedByARoleOrByTheAdministratorHat(): void
     {
         $allMapped = [];
         foreach (ClinicMemberRole::cases() as $role) {
@@ -69,12 +85,26 @@ final class StaffRolePermissionMapTest extends TestCase
             }
         }
 
+        foreach (StaffRolePermissionMap::administratorPermissions() as $p) {
+            $allMapped[$p->value] = true;
+        }
+
         foreach (ClinicPermission::cases() as $permission) {
             self::assertArrayHasKey(
                 $permission->value,
                 $allMapped,
-                \sprintf('Permission %s is not mapped to any role', $permission->value),
+                \sprintf('Permission %s is granted by nothing', $permission->value),
             );
+        }
+    }
+
+    public function testAdministrativePermissionsAreReachableOnlyThroughTheHat(): void
+    {
+        foreach (ClinicMemberRole::cases() as $role) {
+            $permissions = StaffRolePermissionMap::permissionsFor($role);
+
+            self::assertNotContains(ClinicPermission::MANAGE_STAFF, $permissions);
+            self::assertNotContains(ClinicPermission::MANAGE_BILLING, $permissions);
         }
     }
 }

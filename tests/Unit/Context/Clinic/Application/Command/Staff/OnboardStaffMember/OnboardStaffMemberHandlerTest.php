@@ -10,6 +10,7 @@ use App\Context\Clinic\Application\Exception\ClinicMembershipAlreadyExistsExcept
 use App\Context\Clinic\Application\Port\UserExistenceCheckerInterface;
 use App\Context\Clinic\Domain\Clinic;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
+use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\Repository\StaffProfileRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\StaffProfile;
@@ -219,6 +220,94 @@ final class OnboardStaffMemberHandlerTest extends TestCase
             sortOrder: 0,
             isVisibleInAgenda: true,
         ));
+    }
+
+    /**
+     * The path that makes an owner-manager in one call: the role stays
+     * VETERINARY, so the credentials survive, and the hat rides along.
+     */
+    public function testOnboardsAVeterinarianWearingTheAdministrationHat(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $saved          = null;
+        $membershipRepo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+        $membershipRepo->expects(self::once())->method('save')->with(
+            self::callback(static function (ClinicMembership $membership) use (&$saved): bool {
+                $saved = $membership;
+
+                return true;
+            })
+        );
+
+        $profileRepo = $this->createMock(StaffProfileRepositoryInterface::class);
+        $profileRepo->expects(self::once())->method('save');
+
+        $handler = $this->makeHandler($clinicRepo, $membershipRepo, $profileRepo);
+
+        $handler(new OnboardStaffMember(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Éric',
+            lastName: 'Rousseau',
+            displayName: 'Dr. Rousseau',
+            agendaColor: '#1a2b3c',
+            sortOrder: 0,
+            isVisibleInAgenda: true,
+            registrationNumber: 'FR-12345',
+            professionalTitle: ProfessionalTitle::DR,
+            isClinicAdministrator: true,
+        ));
+
+        self::assertInstanceOf(ClinicMembership::class, $saved);
+        self::assertTrue($saved->isClinicAdministrator());
+        self::assertSame(ClinicMemberRole::VETERINARY, $saved->role());
+    }
+
+    public function testOnboardsWithoutTheHatWhenNotAsked(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $saved          = null;
+        $membershipRepo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+        // Stubbed on purpose: an unstubbed int-returning mock answers 0, which
+        // would fire the re-seeding rule and quietly grant the hat here.
+        $membershipRepo->method('countEffectiveAdministrators')->willReturn(1);
+        $membershipRepo->expects(self::once())->method('save')->with(
+            self::callback(static function (ClinicMembership $membership) use (&$saved): bool {
+                $saved = $membership;
+
+                return true;
+            })
+        );
+
+        $handler = $this->makeHandler(
+            $clinicRepo,
+            $membershipRepo,
+            $this->createStub(StaffProfileRepositoryInterface::class),
+        );
+
+        $handler(new OnboardStaffMember(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Camille',
+            lastName: 'Bonnet',
+            displayName: 'Dr. Bonnet',
+            agendaColor: '#1a2b3c',
+            sortOrder: 0,
+            isVisibleInAgenda: true,
+        ));
+
+        self::assertInstanceOf(ClinicMembership::class, $saved);
+        self::assertFalse($saved->isClinicAdministrator());
     }
 
     private function makeHandler(

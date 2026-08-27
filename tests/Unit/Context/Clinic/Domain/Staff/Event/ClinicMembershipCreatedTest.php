@@ -31,6 +31,25 @@ final class ClinicMembershipCreatedTest extends TestCase
         self::assertSame('EMPLOYEE', $payload['engagement']);
         self::assertSame('2026-01-01T00:00:00+00:00', $payload['validFrom']);
         self::assertNull($payload['validUntil']);
+        self::assertFalse($payload['isClinicAdministrator']);
+    }
+
+    public function testPayloadCarriesTheAdministrationHat(): void
+    {
+        $event = new ClinicMembershipCreated(
+            membershipId: 'mid',
+            clinicId: 'cid',
+            userId: 'uid',
+            role: 'VETERINARY',
+            engagement: 'EMPLOYEE',
+            validFrom: '2026-01-01T00:00:00+00:00',
+            validUntil: null,
+            isClinicAdministrator: true,
+        );
+
+        self::assertTrue($event->payload()['isClinicAdministrator']);
+        // validUntil stays nullable: the payload is not a map of strings.
+        self::assertNull($event->payload()['validUntil']);
     }
 
     public function testEventName(): void

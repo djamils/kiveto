@@ -20,6 +20,18 @@ final class StaffRolePermissionMap
     }
 
     /**
+     * Permissions granted by wearing the clinic administration hat, on top of
+     * whatever the clinical role already grants. Kept out of the role map so
+     * that the hat stays the single source of truth for clinic administration.
+     *
+     * @return list<ClinicPermission>
+     */
+    public static function administratorPermissions(): array
+    {
+        return [ClinicPermission::MANAGE_STAFF, ClinicPermission::MANAGE_BILLING];
+    }
+
+    /**
      * @return array<string, list<ClinicPermission>>
      */
     private static function buildMap(): array
@@ -31,8 +43,6 @@ final class StaffRolePermissionMap
         self::$map = [
             ClinicMemberRole::MANAGER->value => [
                 ClinicPermission::VIEW_DASHBOARD,
-                ClinicPermission::MANAGE_STAFF,
-                ClinicPermission::MANAGE_BILLING,
                 ClinicPermission::MANAGE_APPOINTMENTS,
                 ClinicPermission::VIEW_MEDICAL_RECORD,
                 ClinicPermission::CREATE_PRESCRIPTION,

@@ -64,6 +64,13 @@ final readonly class CreateClinicMembershipHandler
         $validFrom    = $command->validFrom ?? $this->clock->now();
         $createdAt    = $this->clock->now();
 
+        // A clinic that has nobody able to administer it gets its next member as
+        // administrator. Best-effort: a membership created already out of window
+        // is hatted but not effective, which is why the publisher backoffice —
+        // not this rule — is the actual guarantee.
+        $isClinicAdministrator = $command->isClinicAdministrator
+            || 0 === $this->membershipRepository->countEffectiveAdministrators($clinicId, $createdAt);
+
         $membership = ClinicMembership::create(
             id: $membershipId,
             clinicId: $clinicId,
@@ -73,6 +80,7 @@ final readonly class CreateClinicMembershipHandler
             validFrom: $validFrom,
             validUntil: $command->validUntil,
             createdAt: $createdAt,
+            isClinicAdministrator: $isClinicAdministrator,
         );
 
         $this->membershipRepository->save($membership);

@@ -13,6 +13,7 @@ use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicMembershipEntity;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClinicMembershipRepository implements ClinicMembershipRepositoryInterface
@@ -38,6 +39,7 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
             $entity->setValidFrom($membership->validFrom());
             $entity->setValidUntil($membership->validUntil());
             $entity->setIsDefault($membership->isDefault());
+            $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
         }
 
         $this->entityManager->flush();
@@ -100,6 +102,38 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
         return $this->mapper->toDomain($entity);
     }
 
+    public function countEffectiveAdministrators(
+        ClinicId $clinicId,
+        \DateTimeImmutable $now,
+        ?ClinicMembershipId $excluding = null,
+    ): int {
+        // These conditions mirror ClinicMembership::isEffectiveAt(). If that
+        // method changes, this query changes with it.
+        $qb = $this->entityManager->createQueryBuilder()
+            ->select('COUNT(m.id)')
+            ->from(ClinicMembershipEntity::class, 'm')
+            ->where('m.clinicId = :clinicId')
+            ->andWhere('m.isClinicAdministrator = true')
+            ->andWhere('m.status = :active')
+            ->andWhere('m.validFrom <= :now')
+            ->andWhere('(m.validUntil IS NULL OR m.validUntil >= :now)')
+            ->setParameter('clinicId', Uuid::fromString($clinicId->toString()), UuidType::NAME)
+            ->setParameter('active', ClinicMembershipStatus::ACTIVE)
+            ->setParameter('now', $now)
+        ;
+
+        if (null !== $excluding) {
+            $qb->andWhere('m.id <> :excluded')
+                ->setParameter('excluded', Uuid::fromString($excluding->toString()), UuidType::NAME)
+            ;
+        }
+
+        $count = $qb->getQuery()->getSingleScalarResult();
+        \assert(\is_int($count) || \is_string($count));
+
+        return (int) $count;
+    }
+
     public function saveAll(ClinicMembership ...$memberships): void
     {
         $repository = $this->entityManager->getRepository(ClinicMembershipEntity::class);
@@ -117,6 +151,7 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
                 $entity->setValidFrom($membership->validFrom());
                 $entity->setValidUntil($membership->validUntil());
                 $entity->setIsDefault($membership->isDefault());
+                $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
             }
         }
 

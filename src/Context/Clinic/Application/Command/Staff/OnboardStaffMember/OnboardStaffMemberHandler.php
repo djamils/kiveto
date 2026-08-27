@@ -76,6 +76,11 @@ final readonly class OnboardStaffMemberHandler
         $profileId    = StaffProfileId::fromString($this->uuidGenerator->generate());
         $validFrom    = $command->validFrom ?? $now;
 
+        // A clinic that has nobody able to administer it gets its next member as
+        // administrator. Best-effort, for the same reason as CreateClinicMembership.
+        $isClinicAdministrator = $command->isClinicAdministrator
+            || 0 === $this->membershipRepository->countEffectiveAdministrators($clinicId, $now);
+
         $membership = ClinicMembership::create(
             id: $membershipId,
             clinicId: $clinicId,
@@ -85,6 +90,7 @@ final readonly class OnboardStaffMemberHandler
             validFrom: $validFrom,
             validUntil: $command->validUntil,
             createdAt: $now,
+            isClinicAdministrator: $isClinicAdministrator,
         );
 
         $this->membershipRepository->save($membership);

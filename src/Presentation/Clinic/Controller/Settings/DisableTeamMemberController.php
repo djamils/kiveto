@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
+use App\Context\Clinic\Application\Exception\LastClinicAdministratorException;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\CommandBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,6 +32,12 @@ final class DisableTeamMemberController extends AbstractController
 
         try {
             $this->commandBus->dispatch(new DisableClinicMembership(membershipId: $membershipId));
+        } catch (LastClinicAdministratorException) {
+            // Extends RuntimeException per the folder convention, so it falls
+            // straight through the clause below and would become a 500.
+            $this->addFlash('error', 'Impossible : plus personne ne pourrait gérer la clinique.');
+
+            return $this->redirectToRoute('clinic_settings_team');
         } catch (\DomainException $exception) {
             $this->addFlash('error', $exception->getMessage());
 

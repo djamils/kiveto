@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Clinic\Domain\Staff;
 
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
+use App\Context\Clinic\Domain\Staff\ClinicPermission;
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipAdministrationChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipCreated;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDefaultChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipDisabled;
@@ -55,6 +57,7 @@ final class ClinicMembershipTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-12-31'),
             validUntil: new \DateTimeImmutable('2026-01-01'),
             createdAt: new \DateTimeImmutable('2026-01-01'),
+            isClinicAdministrator: false,
         );
     }
 
@@ -225,6 +228,7 @@ final class ClinicMembershipTest extends TestCase
             validUntil: $validUntil,
             createdAt: $createdAt,
             isDefault: false,
+            isClinicAdministrator: false,
         );
 
         self::assertSame(self::ID, $membership->id()->toString());
@@ -320,6 +324,7 @@ final class ClinicMembershipTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: true,
+            isClinicAdministrator: false,
         );
 
         self::assertTrue($membership->isDefault());
@@ -338,6 +343,7 @@ final class ClinicMembershipTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: true,
+            isClinicAdministrator: false,
         );
 
         $membership->clearDefault();
@@ -355,6 +361,179 @@ final class ClinicMembershipTest extends TestCase
         self::assertSame($expectedPayload, $events[0]->payload());
     }
 
+    public function testCreateLeavesTheHatOffByDefault(): void
+    {
+        self::assertFalse($this->createMembership()->isClinicAdministrator());
+    }
+
+    public function testCreateCarriesTheHatOntoTheCreationEvent(): void
+    {
+        $membership = ClinicMembership::create(
+            id: ClinicMembershipId::fromString(self::ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            userId: UserId::fromString(self::USER_ID),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+            isClinicAdministrator: true,
+        );
+
+        self::assertTrue($membership->isClinicAdministrator());
+
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipCreated::class, $events[0]);
+        self::assertTrue($events[0]->payload()['isClinicAdministrator']);
+    }
+
+    public function testReconstitutePreservesTheHat(): void
+    {
+        self::assertTrue($this->reconstitute(isClinicAdministrator: true)->isClinicAdministrator());
+    }
+
+    public function testPermissionsForVeterinaryWithoutTheHatExcludeAdministration(): void
+    {
+        $permissions = $this->reconstitute()->permissions();
+
+        self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_BILLING, $permissions);
+    }
+
+    /**
+     * The case the whole change exists for: the lead veterinarian of an
+     * independent practice both prescribes and configures the clinic.
+     */
+    public function testPermissionsForVeterinaryWithTheHatUnionBothSets(): void
+    {
+        $permissions = $this->reconstitute(isClinicAdministrator: true)->permissions();
+
+        self::assertContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
+        self::assertContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertContains(ClinicPermission::MANAGE_BILLING, $permissions);
+        self::assertSame(\count($permissions), \count(array_unique($permissions, \SORT_REGULAR)));
+    }
+
+    public function testPermissionsForManagerWithoutTheHatExcludeAdministration(): void
+    {
+        $permissions = $this->reconstitute(role: ClinicMemberRole::MANAGER)->permissions();
+
+        self::assertContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertNotContains(ClinicPermission::MANAGE_BILLING, $permissions);
+    }
+
+    public function testPermissionsForManagerWithTheHatIncludeAdministration(): void
+    {
+        $permissions = $this->reconstitute(
+            role: ClinicMemberRole::MANAGER,
+            isClinicAdministrator: true,
+        )->permissions();
+
+        self::assertContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertContains(ClinicPermission::MANAGE_BILLING, $permissions);
+    }
+
+    public function testPermissionsForReceptionistWithTheHatStayNonClinical(): void
+    {
+        $permissions = $this->reconstitute(
+            role: ClinicMemberRole::RECEPTIONIST,
+            isClinicAdministrator: true,
+        )->permissions();
+
+        self::assertContains(ClinicPermission::MANAGE_STAFF, $permissions);
+        self::assertNotContains(ClinicPermission::CREATE_PRESCRIPTION, $permissions);
+        self::assertNotContains(ClinicPermission::VIEW_MEDICAL_RECORD, $permissions);
+    }
+
+    public function testGrantAdministrationRecordsEvent(): void
+    {
+        $membership = $this->reconstitute();
+
+        $membership->grantAdministration();
+
+        self::assertTrue($membership->isClinicAdministrator());
+
+        $events = $membership->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipAdministrationChanged::class, $events[0]);
+        self::assertTrue($events[0]->payload()['isClinicAdministrator']);
+    }
+
+    public function testGrantAdministrationIsIdempotent(): void
+    {
+        $membership = $this->reconstitute(isClinicAdministrator: true);
+
+        $membership->grantAdministration();
+
+        self::assertTrue($membership->isClinicAdministrator());
+        self::assertCount(0, $membership->pullDomainEvents());
+    }
+
+    public function testRevokeAdministrationRecordsEvent(): void
+    {
+        $membership = $this->reconstitute(isClinicAdministrator: true);
+
+        $membership->revokeAdministration();
+
+        self::assertFalse($membership->isClinicAdministrator());
+
+        $events = $membership->pullDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipAdministrationChanged::class, $events[0]);
+        self::assertFalse($events[0]->payload()['isClinicAdministrator']);
+    }
+
+    public function testRevokeAdministrationIsIdempotent(): void
+    {
+        $membership = $this->reconstitute();
+
+        $membership->revokeAdministration();
+
+        self::assertFalse($membership->isClinicAdministrator());
+        self::assertCount(0, $membership->pullDomainEvents());
+    }
+
+    public function testIsEffectiveAdministratorAtRequiresBothTheHatAndTheWindow(): void
+    {
+        $now = new \DateTimeImmutable('2026-06-01');
+
+        self::assertFalse($this->reconstitute()->isEffectiveAdministratorAt($now));
+        self::assertTrue($this->reconstitute(isClinicAdministrator: true)->isEffectiveAdministratorAt($now));
+    }
+
+    public function testIsEffectiveAdministratorAtIsFalseWhenDisabled(): void
+    {
+        $membership = $this->reconstitute(
+            status: ClinicMembershipStatus::DISABLED,
+            isClinicAdministrator: true,
+        );
+
+        self::assertFalse($membership->isEffectiveAdministratorAt(new \DateTimeImmutable('2026-06-01')));
+    }
+
+    public function testIsEffectiveAdministratorAtIsFalseAfterValidUntil(): void
+    {
+        $membership = $this->reconstitute(
+            validUntil: new \DateTimeImmutable('2026-03-01'),
+            isClinicAdministrator: true,
+        );
+
+        self::assertFalse($membership->isEffectiveAdministratorAt(new \DateTimeImmutable('2026-06-01')));
+    }
+
+    public function testIsEffectiveAdministratorAtIsFalseBeforeValidFrom(): void
+    {
+        $membership = $this->reconstitute(
+            validFrom: new \DateTimeImmutable('2026-09-01'),
+            isClinicAdministrator: true,
+        );
+
+        self::assertFalse($membership->isEffectiveAdministratorAt(new \DateTimeImmutable('2026-06-01')));
+    }
+
     private function createMembership(): ClinicMembership
     {
         return ClinicMembership::create(
@@ -366,6 +545,7 @@ final class ClinicMembershipTest extends TestCase
             validFrom: new \DateTimeImmutable('2026-01-01'),
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-01-01'),
+            isClinicAdministrator: false,
         );
     }
 
@@ -373,18 +553,21 @@ final class ClinicMembershipTest extends TestCase
         ClinicMembershipStatus $status = ClinicMembershipStatus::ACTIVE,
         ?\DateTimeImmutable $validFrom = null,
         ?\DateTimeImmutable $validUntil = null,
+        ClinicMemberRole $role = ClinicMemberRole::VETERINARY,
+        bool $isClinicAdministrator = false,
     ): ClinicMembership {
         return ClinicMembership::reconstitute(
             id: ClinicMembershipId::fromString(self::ID),
             clinicId: ClinicId::fromString(self::CLINIC_ID),
             userId: UserId::fromString(self::USER_ID),
-            role: ClinicMemberRole::VETERINARY,
+            role: $role,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
             status: $status,
             validFrom: $validFrom ?? new \DateTimeImmutable('2026-01-01'),
             validUntil: $validUntil,
             createdAt: new \DateTimeImmutable('2026-01-01'),
             isDefault: false,
+            isClinicAdministrator: $isClinicAdministrator,
         );
     }
 }

@@ -47,8 +47,11 @@ final class ClinicStaffProfileDataStory extends Story
         ;
 
         // A clinic runs itself: someone holds the keys to the settings, and
-        // someone answers the phone. Without them the demo has nobody who can
-        // open the settings pages, and nobody who must be refused.
+        // someone answers the phone. Administration is a hat now, not a role, so
+        // the lead veterinarian wears it too — that is the independent practice
+        // the demo is meant to show. The manager keeps it as well, which covers
+        // the non-clinical administrator, and everyone else goes without so the
+        // refused case stays represented.
         $managerUser = ClinicUserFactory::new()
             ->withEmail('manager@kiveto.local')
             ->withPlainPassword('manager')
@@ -87,6 +90,7 @@ final class ClinicStaffProfileDataStory extends Story
             isVisibleInAgenda: true,
             registrationNumber: 'FR-12345',
             professionalTitle: ProfessionalTitle::DR,
+            isClinicAdministrator: true,
         ));
 
         $this->commandBus->dispatch(new CreateClinicMembership(
@@ -94,6 +98,7 @@ final class ClinicStaffProfileDataStory extends Story
             userId: $managerUser->getId()->toRfc4122(),
             role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
+            isClinicAdministrator: true,
         ));
 
         $this->commandBus->dispatch(new CreateClinicMembership(
@@ -108,6 +113,7 @@ final class ClinicStaffProfileDataStory extends Story
             userId: $managerUser->getId()->toRfc4122(),
             role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
+            isClinicAdministrator: true,
         ));
 
         // Onboard the same veterinarian to Lyon clinic as well
@@ -124,6 +130,7 @@ final class ClinicStaffProfileDataStory extends Story
             isVisibleInAgenda: true,
             registrationNumber: 'FR-12345',
             professionalTitle: ProfessionalTitle::DR,
+            isClinicAdministrator: true,
         ));
 
         // Onboard assistant to Paris clinic (no credentials)

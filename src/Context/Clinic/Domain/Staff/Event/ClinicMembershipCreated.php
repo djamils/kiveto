@@ -19,6 +19,7 @@ readonly class ClinicMembershipCreated extends AbstractDomainEvent
         private string $engagement,
         private string $validFrom,
         private ?string $validUntil,
+        private bool $isClinicAdministrator = false,
     ) {
     }
 
@@ -27,17 +28,18 @@ readonly class ClinicMembershipCreated extends AbstractDomainEvent
         return $this->membershipId;
     }
 
-    /** @return array<string, string|null> */
+    /** @return array<string, bool|string|null> */
     public function payload(): array
     {
         return [
-            'membershipId' => $this->membershipId,
-            'clinicId'     => $this->clinicId,
-            'userId'       => $this->userId,
-            'role'         => $this->role,
-            'engagement'   => $this->engagement,
-            'validFrom'    => $this->validFrom,
-            'validUntil'   => $this->validUntil,
+            'membershipId'          => $this->membershipId,
+            'clinicId'              => $this->clinicId,
+            'userId'                => $this->userId,
+            'role'                  => $this->role,
+            'engagement'            => $this->engagement,
+            'validFrom'             => $this->validFrom,
+            'validUntil'            => $this->validUntil,
+            'isClinicAdministrator' => $this->isClinicAdministrator,
         ];
     }
 }

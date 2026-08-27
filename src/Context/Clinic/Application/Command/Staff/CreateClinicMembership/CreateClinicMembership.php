@@ -17,6 +17,7 @@ final readonly class CreateClinicMembership implements CommandInterface
         public ClinicMembershipEngagement $engagement,
         public ?\DateTimeImmutable $validFrom = null,
         public ?\DateTimeImmutable $validUntil = null,
+        public bool $isClinicAdministrator = false,
     ) {
     }
 }

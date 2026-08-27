@@ -61,6 +61,10 @@ final class AddTeamMemberController extends AbstractController
             return $this->refuse('Le rôle ou le type de contrat choisi n’existe pas.');
         }
 
+        // A checkbox is a fair reading here: on creation there is no prior state
+        // to lose, so an absent field genuinely means "no".
+        $isClinicAdministrator = $request->request->getBoolean('isClinicAdministrator');
+
         $userId = $this->findUserByEmail($email);
 
         if (null === $userId) {
@@ -93,6 +97,7 @@ final class AddTeamMemberController extends AbstractController
                     phone: $this->field($request, 'phone'),
                     registrationNumber: $this->field($request, 'registrationNumber'),
                     professionalTitle: ProfessionalTitle::tryFrom($request->request->getString('professionalTitle')),
+                    isClinicAdministrator: $isClinicAdministrator,
                 ));
             } else {
                 $this->commandBus->dispatch(new CreateClinicMembership(
@@ -100,6 +105,7 @@ final class AddTeamMemberController extends AbstractController
                     userId: $userId,
                     role: $role,
                     engagement: $engagement,
+                    isClinicAdministrator: $isClinicAdministrator,
                 ));
             }
         } catch (\DomainException $exception) {

@@ -13,7 +13,7 @@
   'VETERINARY_ASSISTANT': 'ASV',
   'RECEPTIONIST': 'Accueil'
 } %}
-{% set roleTones = { 'MANAGER': 'purple', 'VETERINARY': 'blue', 'VETERINARY_ASSISTANT': 'green', 'RECEPTIONIST': 'slate' } %}
+{% set roleTones = { 'MANAGER': 'violet', 'VETERINARY': 'blue', 'VETERINARY_ASSISTANT': 'green', 'RECEPTIONIST': 'slate' } %}
 {% set engagementLabels = { 'EMPLOYEE': 'Salarié', 'CONTRACTOR': 'Libéral', 'PARTNER': 'Associé', 'INTERN': 'Stagiaire', 'REPLACEMENT': 'Remplaçant' } %}
 
 {% block settings_actions %}
@@ -39,6 +39,7 @@
           <th>Contrat</th>
           <th>Agenda</th>
           <th>Statut</th>
+          <th>Gestion</th>
           <th class="set-col-actions"></th>
         </tr>
       </thead>
@@ -77,6 +78,13 @@
                 <span class="tag tone-slate">Désactivé</span>
               {% endif %}
             </td>
+            <td>
+              {% if membership.isClinicAdministrator %}
+                <span class="tag tone-amber">Gère la clinique</span>
+              {% else %}
+                <span class="cell-muted">—</span>
+              {% endif %}
+            </td>
             <td class="set-col-actions">
               <button class="btn btn-secondary btn-xs" type="button"
                       data-member-edit
@@ -90,6 +98,15 @@
                     action="{{ path(isActive ? 'clinic_settings_team_disable' : 'clinic_settings_team_enable', { membershipId: membership.membershipId }) }}">
                 <button class="btn btn-ghost btn-xs{{ isActive ? ' is-danger' : '' }}" type="submit">
                   {{ isActive ? 'Désactiver' : 'Réactiver' }}
+                </button>
+              </form>
+              {# The target value is in the route, not in a field: a checkbox that
+                 fails to render must never be read as "take the hat off". #}
+              <form method="post" style="display:inline"
+                    action="{{ path(membership.isClinicAdministrator ? 'clinic_settings_team_administration_revoke' : 'clinic_settings_team_administration_grant', { membershipId: membership.membershipId }) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('team_administration') }}">
+                <button class="btn btn-ghost btn-xs" type="submit">
+                  {{ membership.isClinicAdministrator ? 'Retirer la gestion' : 'Donner la gestion' }}
                 </button>
               </form>
             </td>
@@ -172,6 +189,10 @@
             <label class="set-check set-field-wide">
               <input type="checkbox" name="isVisibleInAgenda" value="1" checked>
               <span>Visible dans l’agenda</span>
+            </label>
+            <label class="set-check set-field-wide">
+              <input type="checkbox" name="isClinicAdministrator" value="1">
+              <span>Peut gérer la clinique (équipe, facturation, réglages)</span>
             </label>
           </div>
         </div>

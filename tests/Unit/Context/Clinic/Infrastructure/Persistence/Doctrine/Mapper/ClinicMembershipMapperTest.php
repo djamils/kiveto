@@ -51,6 +51,29 @@ final class ClinicMembershipMapperTest extends TestCase
         self::assertSame($entity->getValidUntil(), $domain->validUntil());
         self::assertSame($entity->getCreatedAt(), $domain->createdAt());
         self::assertFalse($domain->isDefault());
+        self::assertFalse($domain->isClinicAdministrator());
+    }
+
+    public function testMappingIsSymmetricalForTheAdministrationHat(): void
+    {
+        $entity = new ClinicMembershipEntity();
+        $entity->setId(Uuid::fromString('01912345-6789-7abc-8def-0123456789ab'));
+        $entity->setClinicId(Uuid::fromString('01912345-6789-7abc-8def-0123456789ac'));
+        $entity->setUserId(Uuid::fromString('01912345-6789-7abc-8def-0123456789ad'));
+        $entity->setRole(ClinicMemberRole::VETERINARY);
+        $entity->setEngagement(ClinicMembershipEngagement::EMPLOYEE);
+        $entity->setStatus(ClinicMembershipStatus::ACTIVE);
+        $entity->setValidFrom(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $entity->setValidUntil(null);
+        $entity->setCreatedAt(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+        $entity->setIsDefault(false);
+        $entity->setIsClinicAdministrator(true);
+
+        $domain = $this->mapper->toDomain($entity);
+        self::assertTrue($domain->isClinicAdministrator());
+
+        $roundTripped = $this->mapper->toEntity($domain);
+        self::assertTrue($roundTripped->getIsClinicAdministrator());
     }
 
     public function testToDomainWithNullValidUntil(): void
@@ -89,6 +112,7 @@ final class ClinicMembershipMapperTest extends TestCase
             validUntil: new \DateTimeImmutable('2026-06-30T23:59:59Z'),
             createdAt: new \DateTimeImmutable('2026-01-01T00:00:00Z'),
             isDefault: false,
+            isClinicAdministrator: false,
         );
 
         $entity = $this->mapper->toEntity($membership);
@@ -118,6 +142,7 @@ final class ClinicMembershipMapperTest extends TestCase
             validUntil: null,
             createdAt: new \DateTimeImmutable('2026-03-01T00:00:00Z'),
             isDefault: false,
+            isClinicAdministrator: false,
         );
 
         $reconstituted = $this->mapper->toDomain($this->mapper->toEntity($original));

@@ -72,6 +72,154 @@ final class CreateClinicMembershipHandlerTest extends TestCase
         ));
     }
 
+    /**
+     * The flag is a plain pass-through in this batch: no re-seeding rule, so a
+     * membership gets exactly the hat the caller asked for.
+     */
+    public function testPassesTheAdministrationHatThroughToTheAggregate(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $userChecker = $this->createStub(UserExistenceCheckerInterface::class);
+        $userChecker->method('exists')->willReturn(true);
+
+        $saved          = null;
+        $membershipRepo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+        $membershipRepo->expects(self::once())->method('save')->with(
+            self::callback(static function (ClinicMembership $membership) use (&$saved): bool {
+                $saved = $membership;
+
+                return true;
+            })
+        );
+
+        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn(self::MEMBERSHIP_ID);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        $handler = new CreateClinicMembershipHandler(
+            $membershipRepo,
+            $clinicRepo,
+            $userChecker,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+
+        $handler(new CreateClinicMembership(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::MANAGER,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            isClinicAdministrator: true,
+        ));
+
+        self::assertInstanceOf(ClinicMembership::class, $saved);
+        self::assertTrue($saved->isClinicAdministrator());
+    }
+
+    public function testLeavesTheHatOffWhenTheCommandDoesNotAskForIt(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $userChecker = $this->createStub(UserExistenceCheckerInterface::class);
+        $userChecker->method('exists')->willReturn(true);
+
+        $saved          = null;
+        $membershipRepo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+        // Stubbed on purpose: an unstubbed int-returning mock answers 0, which
+        // would fire the re-seeding rule and quietly grant the hat here.
+        $membershipRepo->method('countEffectiveAdministrators')->willReturn(1);
+        $membershipRepo->expects(self::once())->method('save')->with(
+            self::callback(static function (ClinicMembership $membership) use (&$saved): bool {
+                $saved = $membership;
+
+                return true;
+            })
+        );
+
+        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn(self::MEMBERSHIP_ID);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        $handler = new CreateClinicMembershipHandler(
+            $membershipRepo,
+            $clinicRepo,
+            $userChecker,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+
+        $handler(new CreateClinicMembership(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::RECEPTIONIST,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+
+        self::assertInstanceOf(ClinicMembership::class, $saved);
+        self::assertFalse($saved->isClinicAdministrator());
+    }
+
+    /**
+     * A clinic with nobody able to administer it hands the hat to its next
+     * member, even though the command did not ask for one.
+     */
+    public function testGrantsTheHatWhenTheClinicHasNoEffectiveAdministrator(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $userChecker = $this->createStub(UserExistenceCheckerInterface::class);
+        $userChecker->method('exists')->willReturn(true);
+
+        $saved          = null;
+        $membershipRepo = $this->createMock(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+        $membershipRepo->method('countEffectiveAdministrators')->willReturn(0);
+        $membershipRepo->expects(self::once())->method('save')->with(
+            self::callback(static function (ClinicMembership $membership) use (&$saved): bool {
+                $saved = $membership;
+
+                return true;
+            })
+        );
+
+        $uuidGenerator = $this->createStub(UuidGeneratorInterface::class);
+        $uuidGenerator->method('generate')->willReturn(self::MEMBERSHIP_ID);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        $handler = new CreateClinicMembershipHandler(
+            $membershipRepo,
+            $clinicRepo,
+            $userChecker,
+            $uuidGenerator,
+            $clock,
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+        );
+
+        $handler(new CreateClinicMembership(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::RECEPTIONIST,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+        ));
+
+        self::assertInstanceOf(ClinicMembership::class, $saved);
+        self::assertTrue($saved->isClinicAdministrator());
+    }
+
     public function testRejectsPractitionerRolesWithAntiBypassGuard(): void
     {
         $handler = new CreateClinicMembershipHandler(

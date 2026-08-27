@@ -50,6 +50,9 @@ class ClinicMembershipEntity
     #[ORM\Column(name: 'is_default', type: 'boolean', options: ['default' => false])]
     private bool $isDefault = false;
 
+    #[ORM\Column(name: 'is_clinic_administrator', type: 'boolean', options: ['default' => false])]
+    private bool $isClinicAdministrator = false;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -148,5 +151,15 @@ class ClinicMembershipEntity
     public function setIsDefault(bool $isDefault): void
     {
         $this->isDefault = $isDefault;
+    }
+
+    public function getIsClinicAdministrator(): bool
+    {
+        return $this->isClinicAdministrator;
+    }
+
+    public function setIsClinicAdministrator(bool $isClinicAdministrator): void
+    {
+        $this->isClinicAdministrator = $isClinicAdministrator;
     }
 }
