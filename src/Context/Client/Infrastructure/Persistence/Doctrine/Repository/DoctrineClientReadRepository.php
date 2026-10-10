@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
+use App\Context\Client\Application\Query\GetClientById\AuthorizedPersonDto;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
+use App\Context\Client\Application\Query\GetClientById\ConsentDto;
 use App\Context\Client\Application\Query\GetClientById\ContactMethodDto;
 use App\Context\Client\Application\Query\GetClientById\PostalAddressDto;
 use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
@@ -65,6 +67,16 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             postalAddress: $postalAddress,
             createdAt: $entity->getCreatedAt()->format('c'),
             updatedAt: $entity->getUpdatedAt()->format('c'),
+            authorizedPerson: $this->buildAuthorizedPersonDto($entity),
+            preferredChannel: $entity->getCommunicationPreferences()['preferredChannel'] ?? null,
+            consents: array_map(
+                static fn (array $consent): ConsentDto => new ConsentDto(
+                    kind: $consent['kind'],
+                    channels: $consent['channels'],
+                    grantedAt: $consent['grantedAt'],
+                ),
+                $entity->getCommunicationPreferences()['consents'] ?? [],
+            ),
         );
     }
 
@@ -232,6 +244,24 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         }
 
         return $result;
+    }
+
+    private function buildAuthorizedPersonDto(ClientEntity $entity): ?AuthorizedPersonDto
+    {
+        $data = $entity->getAuthorizedPerson();
+
+        if (null === $data) {
+            return null;
+        }
+
+        return new AuthorizedPersonDto(
+            civility: $data['civility'],
+            firstName: $data['firstName'],
+            lastName: $data['lastName'],
+            relationship: $data['relationship'],
+            phoneNumber: $data['phoneNumber'],
+            authorizedAt: $data['authorizedAt'],
+        );
     }
 
     /**

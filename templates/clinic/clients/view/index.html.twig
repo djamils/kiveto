@@ -1,68 +1,80 @@
 {#
- # Kiveto — templates/clinic/clients/view.html.twig
- # ─────────────────────────────────────────────────
- # Client record page — Kiveto design from vetos-fiche-client.html mockup.
- # Left column: owner info, contacts, notes.
- # Right column: animal tabs, animal details, widgets, vital charts, documents.
+ # Kiveto — templates/clinic/clients/view/index.html.twig
+ # ─────────────────────────────────────────────────────
+ # Client sheet, laid out after the new-gen v14 mock-up
+ # (docs/frontend-theme/vetsaas-layouts/new-gen/vetos-fiche-client-v14.html):
+ # a compact identity header, a sticky safety strip with the section tabs,
+ # then five full-width panes.
  #
  # Variables:
- #   client           ClientDto { id, firstName, lastName, status, createdAt,
- #                    updatedAt, contactMethods[], postalAddress }
- #   currentClinicId    string
+ #   client             ClientView
+ #   sheet              array built by ClientSheetBuilder
+ #   activeTab          string  one of the pane ids below
+ #   today              string  Y-m-d in clinic time
  #   currentClinicName  string
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName ~ ' — ' ~ currentClinicName : 'Fiche client — ' ~ currentClinicName }}{% endblock %}
+{% set archived = client.status == 'archived' %}
+{% set tabs = {
+  synthese: 'Synthèse',
+  consultations: 'Consultations',
+  facturation: 'Facturation',
+  communications: 'Communications',
+  documents: 'Documents',
+} %}
+{% set current_tab = activeTab in tabs|keys ? activeTab : 'synthese' %}
 
-{% block page_title %}{{ client is defined ? client.firstName ~ ' ' ~ client.lastName : 'Sophie Dubois' }}{% endblock %}
+{% block title %}{{ client.fullName }} — {{ currentClinicName }}{% endblock %}
 
-{% block breadcrumb %}
-  <a href="{{ path('clinic_clients_list') }}" class="cv-breadcrumb-link">
-    <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Clients & Animaux
-  </a>
-  <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M4.5 3l3 3-3 3" stroke="#cbd5e1" stroke-width="1.3" stroke-linecap="round"/></svg>
-  <span class="topbar-title cv-breadcrumb-current">
-    {% if client is defined %}{{ client.firstName }} {{ client.lastName }}{% else %}Sophie Dubois{% endif %}
-  </span>
-{% endblock %}
-
-{% block topbar_actions %}
-  <div class="topbar-actions cv-topbar-actions">
-    <button class="btn btn-secondary" onclick="toast('Nouveau RDV…','#4338ca')">
-      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Nouveau RDV</span>
-    </button>
-    <button class="btn btn-primary" onclick="toast('Nouvelle consultation…','#4338ca')">
-      <svg width="11" height="11" fill="none" viewBox="0 0 12 12"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span>Nouvelle consultation</span>
-    </button>
-  </div>
-{% endblock %}
-
-{% block stylesheets %}
-<link rel="stylesheet" href="{{ asset('styles/pages/client-view.css') }}"/>
-{% endblock %}
+{% block page_title %}{{ client.fullName }}{% endblock %}
 
 {% block content %}
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeAllDrawers()"></div>
+<div class="fc fc-page" data-fc-sheet>
 
-<div class="page-body">
+  {{ include('clinic/clients/view/_header.html.twig') }}
 
-  {# Left column: owner identity, contacts, notes #}
-  {% include 'clinic/clients/view/_client_info.html.twig' %}
+  <div class="fc-scroll" data-fc-scroll>
+    <div class="fc-stuck">
+      <div class="fc-safety{{ sheet.safety.pills|filter(p => p.level == 'crit')|length == 0 ? ' fc-none' }}">
+        {% for pill in sheet.safety.pills %}
+          <span class="fc-sf fc-{{ pill.level }}">
+            {% if loop.first and pill.level != 'info' %}
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5.6v3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="currentColor"/><path d="M6.9 2.7L1.8 11.9a1.2 1.2 0 001 1.8h10.4a1.2 1.2 0 001-1.8L9.1 2.7a1.2 1.2 0 00-2.2 0z" stroke="currentColor" stroke-width="1.35"/></svg>
+            {% endif %}
+            {{ pill.label }}
+          </span>
+        {% endfor %}
+        <span class="fc-sf-meta">{{ sheet.safety.meta }}</span>
+      </div>
+      <div class="fc-tabs" role="tablist" aria-label="Sections du dossier">
+        {% for id, label in tabs %}
+          <button class="fc-tab" type="button" role="tab" id="fc-tab-{{ id }}" data-fc-tab="{{ id }}"
+                  aria-selected="{{ id == current_tab ? 'true' : 'false' }}" aria-controls="fc-p-{{ id }}"
+                  tabindex="{{ id == current_tab ? '0' : '-1' }}">
+            {{- label -}}
+            {%- if id == 'facturation' and sheet.billing.outstandingCount > 0 -%}
+              <span class="fc-n fc-hot">{{ sheet.billing.outstandingCount }}</span>
+            {%- elseif id == 'documents' and sheet.documents|length > 0 -%}
+              <span class="fc-n">{{ sheet.documents|length }}</span>
+            {%- endif -%}
+          </button>
+        {% endfor %}
+      </div>
+    </div>
 
-  {# Right column: animal tabs and content area #}
-  {% include 'clinic/clients/view/_animal_tabs.html.twig' %}
+    {% for id in tabs|keys %}
+      <div class="fc-pane{{ id == current_tab ? ' fc-on' }}" id="fc-p-{{ id }}" role="tabpanel" aria-labelledby="fc-tab-{{ id }}">
+        {{ include('clinic/clients/view/_tab_' ~ id ~ '.html.twig') }}
+      </div>
+    {% endfor %}
+  </div>
 
 </div>
 {% endblock %}
 
 {% block modals %}
-{# All modals: owner edit, phones, prefs, identification, aux contact, status #}
-{% include 'clinic/clients/view/_modals.html.twig' %}
-
-<div id="toast"></div>
-{% endblock %}
-
-{% block javascripts %}
+<div class="fc" data-fc-modals>
+  {{ include('clinic/clients/view/_modals.html.twig') }}
+</div>
 {% endblock %}

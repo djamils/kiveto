@@ -280,6 +280,22 @@ services:
 
     App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper: ~
 
+    App\Context\Client\Domain\Repository\ClientNoteRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteRepository
+
+    App\Context\Client\Application\Port\ClientNoteReadRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteReadRepository
+
+    App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientNoteMapper: ~
+
+    App\Context\Client\Domain\Repository\ClientCommunicationRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientCommunicationRepository
+
+    App\Context\Client\Application\Port\ClientCommunicationReadRepositoryInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientCommunicationReadRepository
+
+    App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientCommunicationMapper: ~
+
     # ============================================================================
     # BOUNDED CONTEXT: ANIMAL
     # ============================================================================

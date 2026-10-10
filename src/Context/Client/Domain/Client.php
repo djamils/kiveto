@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Client\Domain;
 
 use App\Context\Client\Domain\Event\ClientArchived;
+use App\Context\Client\Domain\Event\ClientAuthorizedPersonChanged;
+use App\Context\Client\Domain\Event\ClientCommunicationPreferencesUpdated;
 use App\Context\Client\Domain\Event\ClientContactMethodsReplaced;
 use App\Context\Client\Domain\Event\ClientCreated;
 use App\Context\Client\Domain\Event\ClientIdentityUpdated;
@@ -15,10 +17,14 @@ use App\Context\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
 use App\Context\Client\Domain\Exception\ClientMustHaveAtLeastOneContactMethodException;
 use App\Context\Client\Domain\Exception\DuplicateContactMethodException;
 use App\Context\Client\Domain\Exception\PrimaryContactMethodConflictException;
+use App\Context\Client\Domain\ValueObject\AuthorizedPerson;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
+use App\Context\Client\Domain\ValueObject\Consent;
+use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
 use App\Shared\Domain\Aggregate\AggregateRoot;
@@ -32,7 +38,9 @@ final class Client extends AggregateRoot
     private ClientStatus $status;
     /** @var list<ContactMethod> */
     private array $contactMethods;
-    private ?PostalAddress $postalAddress = null;
+    private ?PostalAddress $postalAddress       = null;
+    private ?AuthorizedPerson $authorizedPerson = null;
+    private CommunicationPreferences $communicationPreferences;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -61,6 +69,8 @@ final class Client extends AggregateRoot
         $client->createdAt      = $createdAt;
         $client->updatedAt      = $createdAt;
 
+        $client->communicationPreferences = CommunicationPreferences::none();
+
         $client->recordDomainEvent(new ClientCreated(
             clientId: $id->toString(),
             clinicId: $clinicId->toString(),
@@ -84,6 +94,8 @@ final class Client extends AggregateRoot
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
         ?PostalAddress $postalAddress = null,
+        ?AuthorizedPerson $authorizedPerson = null,
+        ?CommunicationPreferences $communicationPreferences = null,
     ): self {
         $client                 = new self();
         $client->id             = $id;
@@ -94,6 +106,9 @@ final class Client extends AggregateRoot
         $client->postalAddress  = $postalAddress;
         $client->createdAt      = $createdAt;
         $client->updatedAt      = $updatedAt;
+
+        $client->authorizedPerson         = $authorizedPerson;
+        $client->communicationPreferences = $communicationPreferences ?? CommunicationPreferences::none();
 
         return $client;
     }
@@ -175,6 +190,74 @@ final class Client extends AggregateRoot
         ));
     }
 
+    /**
+     * Designating the same person again keeps the date of the original
+     * authorization; null withdraws the authorization.
+     */
+    public function changeAuthorizedPerson(?AuthorizedPerson $person, \DateTimeImmutable $now): void
+    {
+        $this->ensureNotArchived();
+
+        if (null !== $person && null !== $this->authorizedPerson && $person->isSamePersonAs($this->authorizedPerson)) {
+            $person = new AuthorizedPerson(
+                $person->civility,
+                $person->firstName,
+                $person->lastName,
+                $person->relationship,
+                $person->phoneNumber,
+                $this->authorizedPerson->authorizedAt,
+            );
+        }
+
+        $this->authorizedPerson = $person;
+        $this->updatedAt        = $now;
+
+        $this->recordDomainEvent(new ClientAuthorizedPersonChanged(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            authorizedPerson: null === $person ? null : [
+                'civility'     => $person->civility->value,
+                'firstName'    => $person->firstName,
+                'lastName'     => $person->lastName,
+                'relationship' => $person->relationship->value,
+                'phoneNumber'  => $person->phoneNumber?->toString(),
+                'authorizedAt' => $person->authorizedAt->format(\DATE_ATOM),
+            ],
+        ));
+    }
+
+    /**
+     * @param array<string, list<ContactChannel>> $channelsByConsentKind keyed by ConsentKind value
+     */
+    public function updateCommunicationPreferences(
+        ?ContactChannel $preferredChannel,
+        array $channelsByConsentKind,
+        \DateTimeImmutable $now,
+    ): void {
+        $this->ensureNotArchived();
+
+        $this->communicationPreferences = $this->communicationPreferences->revise(
+            $preferredChannel,
+            $channelsByConsentKind,
+            $now,
+        );
+        $this->updatedAt = $now;
+
+        $this->recordDomainEvent(new ClientCommunicationPreferencesUpdated(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            preferredChannel: $preferredChannel?->value,
+            consents: array_map(
+                static fn (Consent $consent): array => [
+                    'kind'      => $consent->kind->value,
+                    'channels'  => array_map(static fn (ContactChannel $c): string => $c->value, $consent->channels),
+                    'grantedAt' => $consent->grantedAt->format(\DATE_ATOM),
+                ],
+                $this->communicationPreferences->consents,
+            ),
+        ));
+    }
+
     public function id(): ClientId
     {
         return $this->id;
@@ -206,6 +289,16 @@ final class Client extends AggregateRoot
     public function postalAddress(): ?PostalAddress
     {
         return $this->postalAddress;
+    }
+
+    public function authorizedPerson(): ?AuthorizedPerson
+    {
+        return $this->authorizedPerson;
+    }
+
+    public function communicationPreferences(): CommunicationPreferences
+    {
+        return $this->communicationPreferences;
     }
 
     public function createdAt(): \DateTimeImmutable

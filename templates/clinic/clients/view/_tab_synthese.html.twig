@@ -1,0 +1,189 @@
+{# Partial: "Synthèse" pane — file checklist, animals, appointments, authorized person, consents. #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set checklist = sheet.checklist %}
+
+{% if not archived and checklist.missing > 0 %}
+<section class="fc-card fc-c12">
+  <div class="fc-card-h">
+    <span class="fc-card-t">Compléter le dossier</span>
+    <span class="fc-badge fc-b-warn">{{ checklist.missing }} information{{ checklist.missing > 1 ? 's' }} manquante{{ checklist.missing > 1 ? 's' }}</span>
+  </div>
+  <div class="fc-done-h">
+    <div class="fc-done-bar"><i style="width:{{ (checklist.done / checklist.total * 100)|round }}%"></i></div>
+    <span class="fc-done-n">{{ checklist.done }} sur {{ checklist.total }}</span>
+  </div>
+  <div class="fc-card-b fc-flush" style="margin-top:9px;">
+    {% set rank = 0 %}
+    {% for row in checklist.rows %}
+      {% if row.done %}
+        <div class="fc-todo-row fc-ok">
+          <span class="fc-tr-i fc-ok"><svg width="15" height="15" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l3 3 6-6.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="fc-tr-m"><p class="fc-tr-t">{{ row.title }}</p><p class="fc-tr-s">{{ row.detail }}</p></div>
+        </div>
+      {% else %}
+        {% set rank = rank + 1 %}
+        <div class="fc-todo-row">
+          <span class="fc-tr-i fc-{{ row.level }}">{{ row.level == 'crit' ? '!' : rank }}</span>
+          <div class="fc-tr-m"><p class="fc-tr-t">{{ row.title }}</p><p class="fc-tr-s">{{ row.detail }}</p></div>
+          <button class="fc-btn {{ row.level == 'crit' ? 'fc-btn-primary' : 'fc-btn-ghost' }} fc-btn-xs" type="button" data-fc-open="{{ row.modal }}">{{ row.action }}</button>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="fc-card fc-c12" id="fc-s-pets">
+  <div class="fc-card-h">
+    <span class="fc-card-t">Animaux</span>
+    {% if sheet.animals|length > 0 %}<span class="fc-card-c">{{ sheet.animals|length }}</span>{% endif %}
+    {% if not archived %}
+      <div class="fc-card-x">
+        <button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-pet">
+          <svg width="12" height="12" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Ajouter un animal
+        </button>
+      </div>
+    {% endif %}
+  </div>
+  {% if sheet.animals|length == 0 %}
+    <div class="fc-card-b fc-flush">
+      {{ ui.empty('Aucun animal rattaché', 'Ajoutez le premier animal du dossier pour ouvrir son suivi médical.') }}
+    </div>
+  {% else %}
+    <div class="fc-card-b">
+      <div class="fc-pets-row">
+        {% for animal in sheet.animals %}
+          {% set allergic = animal.alerts|filter(a => a.kind == 'ALLERGY')|length > 0 %}
+          <a class="fc-pet{{ allergic ? ' fc-alert' : (animal.kind != 'dog' ? ' fc-' ~ animal.kind) }}" href="{{ path('clinic_animals_view', {id: animal.id}) }}">
+            <div class="fc-pet-top">
+              <div class="fc-pet-av fc-a-{{ animal.kind }}">{{ ui.species_icon(animal.kind) }}</div>
+              <div style="flex:1;min-width:0;">
+                <p class="fc-pet-n">{{ animal.name }}</p>
+                <p class="fc-pet-m">{{ animal.meta }}</p>
+              </div>
+              <svg width="14" height="14" fill="none" viewBox="0 0 14 14" style="color:#94a3b8;" aria-hidden="true"><path d="M5 2.5L9.5 7 5 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="fc-fh-badges" style="margin-top:8px;">
+              {% if animal.deceased %}
+                <span class="fc-badge fc-b-grey">Décédé</span>
+              {% elseif animal.archived %}
+                <span class="fc-badge fc-b-grey">Archivé</span>
+              {% endif %}
+              {% for alert in animal.alerts %}
+                <span class="fc-badge {{ alert.kind == 'ALLERGY' ? 'fc-b-crit' : 'fc-b-warn' }}">{{ alert.kind == 'ALLERGY' ? 'Allergie ' }}{{ alert.label }}</span>
+              {% else %}
+                {% if not animal.deceased and not animal.archived %}<span class="fc-badge fc-b-ok">Aucune alerte</span>{% endif %}
+              {% endfor %}
+            </div>
+            <div class="fc-pet-foot">
+              <div><p class="fc-pf-l">Dernière visite</p><p class="fc-pf-v">{{ animal.inConsultation ? 'En cours' : (animal.lastVisit ?? 'Aucune') }}</p></div>
+              <div><p class="fc-pf-l">Prochain RDV</p><p class="fc-pf-v{{ animal.nextAppointment ? ' fc-warn' }}">{{ animal.nextAppointment ?? 'Aucun' }}</p></div>
+              <div><p class="fc-pf-l">Identification</p><p class="fc-pf-v fc-mono{{ animal.microchip ? '' : ' fc-crit' }}">{{ animal.microchip ?? 'Non identifié' }}</p></div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</section>
+
+<div class="fc-col fc-c6">
+  <section class="fc-card" id="fc-s-rdv">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Rendez-vous à venir</span>
+      {% if sheet.appointments.upcomingCount > 0 %}<span class="fc-card-c">{{ sheet.appointments.upcomingCount }}</span>{% endif %}
+      {% if not archived %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-rdv">Nouveau</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for row in sheet.appointments.rows %}
+        <div class="fc-row">
+          <div class="fc-row-ico {{ row.cancelled ? 'fc-ico-crit' : 'fc-ico-brand' }}">{{ row.day }}</div>
+          <div class="fc-row-m"><p class="fc-row-t">{{ row.title }}</p><p class="fc-row-s">{{ row.subtitle }}</p></div>
+          <span class="fc-badge fc-b-{{ row.badge }}">{{ row.badgeLabel }}</span>
+          <div class="fc-row-a">
+            <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_scheduling_agenda', {view: 'day', date: row.date}) }}">{{ row.action }}</a>
+          </div>
+        </div>
+      {% else %}
+        <div class="fc-empty">
+          <span class="fc-empty-i"><svg width="15" height="15" fill="none" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3.2" width="12" height="10.6" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M5 1.6v3M11 1.6v3M2 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          <div class="fc-empty-m"><p class="fc-empty-t">Aucun rendez-vous programmé</p><p class="fc-empty-s">Le prochain rendez-vous de ce client apparaîtra ici.</p></div>
+          {% if not archived %}<button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-rdv">Programmer</button>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% if sheet.appointments.footer %}<div class="fc-card-f">{{ sheet.appointments.footer }}</div>{% endif %}
+  </section>
+
+  {% set person = sheet.authorizedPerson %}
+  <section class="fc-card" id="fc-s-auth">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Personne autorisée</span>
+      {% if not archived %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-edit">{{ person ? 'Modifier' : 'Désigner' }}</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b">
+      {% if person %}
+        <div class="fc-auth-hd">
+          <span class="fc-auth-av">{{ person.initials }}</span>
+          <div>
+            <p class="fc-auth-n">{{ person.name }}</p>
+            <p class="fc-auth-r">{{ person.subtitle }}{% if person.phoneNumber %} · {{ person.phoneNumber|phone_display(false, false) }}{% endif %}</p>
+          </div>
+        </div>
+        <div class="fc-kv"><span>Dépose et récupération</span><span class="fc-badge fc-b-ok">Autorisé</span></div>
+        <div class="fc-kv"><span>Désignée le</span><span>{{ person.authorizedAt }}</span></div>
+        <div class="fc-kv"><span>Portée</span><span>Tous les animaux du dossier</span></div>
+      {% else %}
+        <div class="fc-empty fc-todo">
+          <span class="fc-empty-i"><svg width="15" height="15" fill="none" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.4" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M2.8 13.6c.4-2.6 2.5-4.2 5.2-4.2s4.8 1.6 5.2 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+          <div class="fc-empty-m">
+            <p class="fc-empty-t">Aucune personne désignée</p>
+            <p class="fc-empty-s">Seul {{ client.fullName }} pourra déposer et récupérer ses animaux. Désigner un proche évite un refus au comptoir le jour où il est empêché.</p>
+          </div>
+          {% if not archived %}<button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-edit">Désigner</button>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="fc-card-f">Dossier ouvert le {{ sheet.openedOn }}.</div>
+  </section>
+</div>
+
+<div class="fc-col fc-c6">
+  {% set consents = sheet.consents %}
+  <section class="fc-card" id="fc-s-consent">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Consentements</span>
+      {% if consents.missing > 0 %}
+        <span class="fc-badge fc-b-warn">{{ consents.missing }} à recueillir</span>
+      {% else %}
+        <span class="fc-badge fc-b-ok">Tous recueillis</span>
+      {% endif %}
+      {% if not archived %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-comm">Gérer les envois</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for row in consents.rows %}
+        <div class="fc-row">
+          <div class="fc-row-m"><p class="fc-row-t">{{ row.label }}</p><p class="fc-row-s">{{ row.detail }}</p></div>
+          {% if row.active %}
+            <span class="fc-badge fc-b-ok">Actif</span>
+          {% elseif not archived %}
+            <button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-comm">{{ row.kind == 'marketing' ? 'Demander' : 'Recueillir' }}</button>
+          {% else %}
+            <span class="fc-badge fc-b-grey">Inactif</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <div class="fc-row">
+        <div class="fc-row-m"><p class="fc-row-t">Canal préféré</p><p class="fc-row-s">Échanges ponctuels hors envois automatiques</p></div>
+        <span class="fc-badge fc-b-grey">{{ consents.preferredChannelLabel ?? 'À définir' }}</span>
+      </div>
+    </div>
+    <div class="fc-card-f">Le retrait d’un consentement est immédiat et sans effet rétroactif.</div>
+  </section>
+</div>

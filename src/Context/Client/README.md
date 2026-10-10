@@ -19,6 +19,13 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **ContactLabel** : `MOBILE` | `HOME` | `WORK` | `OTHER`
 - **ClientIdentity** : Prénom + Nom du client
 - **PostalAddress** : Adresse postale internationale (unique par client, optionnelle)
+- **AuthorizedPerson** : Personne autorisée à déposer et récupérer les animaux du dossier (une seule par client, optionnelle) — civilité, prénom, nom, lien (`AuthorizedPersonRelationship`), téléphone, date de désignation
+- **ContactChannel** : `SMS` | `EMAIL` | `PHONE` | `MAIL` ; seuls `SMS` et `EMAIL` sont automatisables
+- **Consent** : Accord du client pour un type d'envoi (`ConsentKind`) sur un ou plusieurs canaux automatisables, daté de son recueil
+- **ConsentKind** : `APPOINTMENT_REMINDERS` | `VACCINATION_REMINDERS` | `CLINICAL_DOCUMENTS` | `BILLING` | `MARKETING`
+- **CommunicationPreferences** : Canal préféré pour les échanges ponctuels + liste des consentements actifs
+- **ClientNote** : Note interne sur un client (`INFORMATION` ou `ATTENTION`), jamais visible du client, jamais modifiée
+- **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe — une entrée de journal, pas un envoi
 
 ## Architecture
 
@@ -104,6 +111,24 @@ src/Client/
 2. **Au plus 1 primary EMAIL** autorisé par client
 3. Interdiction de supprimer le dernier ContactMethod
 4. Interdiction des doublons stricts (même type + même valeur)
+
+### AuthorizedPerson
+1. Au plus **une** personne autorisée par client ; prénom et nom obligatoires
+2. Redésigner la **même personne** (même nom, casse ignorée) conserve la date de désignation d'origine ; désigner quelqu'un d'autre repart de la date du jour
+3. `null` retire l'autorisation
+
+### Consents et préférences
+1. Un consentement **existe ou n'existe pas** : le retirer le supprime, il n'y a pas d'état « refusé »
+2. Un consentement porte **au moins un canal**, et uniquement des canaux automatisables (`SMS`, `EMAIL`)
+3. Au plus un consentement par `ConsentKind`
+4. Réviser les préférences **conserve la date de recueil** d'un consentement tant qu'il ne couvre aucun canal nouveau ; accepter un canal supplémentaire est un nouveau consentement, daté du jour
+
+### ClientNote et ClientCommunication
+1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression)
+2. Rattachés à un client **de la clinique** : le handler charge le client avant d'écrire
+3. Contenu d'une note : non vide, 2 000 caractères max ; objet d'un échange : non vide, 160 caractères max ; corps : 4 000 caractères max
+4. L'auteur est un **nom figé à l'écriture** (pas une référence utilisateur)
+5. Restent possibles sur un client archivé (ils ne modifient pas la fiche)
 
 ### Scoping
 - Toutes les opérations sont scopées par `ClinicId`
@@ -227,7 +252,63 @@ Archive un client et publie un **Integration Event** pour notifier les autres BC
 
 ---
 
+#### ChangeClientAuthorizedPerson
+Désigne, remplace ou retire la personne autorisée.
+
+**Input:**
+- `clinicId: string`
+- `clientId: string`
+- `authorizedPerson: ?AuthorizedPersonDto` (`civility`, `firstName`, `lastName`, `relationship`, `?phoneNumber`) — `null` retire l'autorisation
+
+**Output:** `void` — event `ClientAuthorizedPersonChanged`
+
+**Exceptions:** `ClientNotFoundException`, `ClientArchivedCannotBeModifiedException`, `\ValueError` (civilité ou lien inconnu), `\InvalidArgumentException` (nom vide, téléphone invalide)
+
+---
+
+#### UpdateClientCommunicationPreferences
+Enregistre le canal préféré et l'état complet des consentements.
+
+**Input:**
+- `clinicId: string`
+- `clientId: string`
+- `preferredChannel: ?string`
+- `channelsByConsentKind: array<string, list<string>>` — un type absent ou sans canal est retiré
+
+**Output:** `void` — event `ClientCommunicationPreferencesUpdated`
+
+**Exceptions:** `ClientNotFoundException`, `ClientArchivedCannotBeModifiedException`, `\ValueError` (type ou canal inconnu), `\InvalidArgumentException` (canal non automatisable)
+
+---
+
+#### AddClientNote
+Ajoute une note interne.
+
+**Input:** `clinicId`, `clientId`, `kind` (`information` | `attention`), `content`, `authorName`
+
+**Output:** `string` (id de la note) — event `ClientNoteAdded`
+
+---
+
+#### LogClientCommunication
+Consigne un échange au journal du client. N'envoie rien.
+
+**Input:** `clinicId`, `clientId`, `channel`, `direction` (`inbound` | `outbound`), `subject`, `?body`, `authorName`
+
+**Output:** `string` (id de l'entrée) — event `ClientCommunicationLogged`
+
+---
+
 ### Queries (Read Model)
+
+#### ListClientNotes / ListClientCommunications
+Notes internes et échanges consignés d'un client, du plus récent au plus ancien.
+
+**Input:** `clinicId`, `clientId`
+
+**Output:** `list<ClientNoteView>` (`id`, `kind`, `content`, `authorName`, `createdAt`) / `list<ClientCommunicationView>` (`id`, `channel`, `direction`, `subject`, `body`, `authorName`, `occurredAt`)
+
+`ClientView` (GetClientById) expose en plus `authorizedPerson`, `preferredChannel` et `consents` (consentements actifs uniquement).
 
 #### GetClientById
 Retourne les détails complets d'un client (incluant tous ses contact methods).
@@ -446,16 +527,27 @@ $result = $queryBus->ask($query);
 
 ## Évolution future (hors scope MVP)
 
-- Preferences : `locale`, `preferredChannel` (EMAIL|SMS|PHONE|NONE)
-- Consents : `marketingOptIn`, `smsOptIn`, `emailOptIn`
+- Preferences : `locale`
+- Historique horodaté des consentements (aujourd'hui seule la date de recueil du consentement actif est conservée)
+- Envoi réel de messages depuis le journal des communications
+- Type de client (professionnel, éleveur, association) et civilité du client
 - Unicité email par clinic (contrainte DB + validation domain)
 - **Adresses postales multiples** (billing + shipping séparées)
-- Notes / commentaires sur le client
 - Historique des modifications (event sourcing partiel)
 
 ---
 
 ## Changelog
+
+### 2026-10-10 - Fiche client : personne autorisée, consentements, notes, journal
+
+**Ajouts** :
+- ✨ `AuthorizedPerson` et `CommunicationPreferences` sur l'agrégat `Client` (colonnes JSON `authorized_person` et `communication_preferences`)
+- ✨ Commands `ChangeClientAuthorizedPerson` et `UpdateClientCommunicationPreferences`
+- ✨ Agrégats `ClientNote` (table `client__client_notes`) et `ClientCommunication` (table `client__client_communications`), commands `AddClientNote` / `LogClientCommunication`, queries `ListClientNotes` / `ListClientCommunications`
+
+**Corrections** :
+- 🐛 `DoctrineClientRepository::save()` ne persistait pas l'adresse postale lors de la mise à jour d'un client existant : `UpdateClientPostalAddress` était sans effet en base
 
 ### 2026-01-17 - Patch : Adresse Postale + Scalabilité
 

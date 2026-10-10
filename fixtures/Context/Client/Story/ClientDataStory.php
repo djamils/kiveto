@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Client\Story;
 
+use App\Context\Client\Domain\ValueObject\CommunicationDirection;
+use App\Context\Client\Domain\ValueObject\ContactChannel;
+use App\Fixtures\Context\Client\Factory\ClientCommunicationEntityFactory;
 use App\Fixtures\Context\Client\Factory\ClientEntityFactory;
+use App\Fixtures\Context\Client\Factory\ClientNoteEntityFactory;
 use App\Fixtures\Context\Client\Factory\ContactMethodEntityFactory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use Zenstruck\Foundry\Story;
@@ -47,6 +51,19 @@ final class ClientDataStory extends Story
                 countryCode: 'FR',
                 postalCode: '75008',
                 region: 'Île-de-France',
+            )
+            // Complete file: authorized person designated and every consent collected.
+            ->withAuthorizedPerson('mister', 'Antoine', 'Dupont', 'spouse', '+33688214509', '2025-01-14 10:00:00')
+            ->withCommunicationPreferences(
+                'sms',
+                [
+                    'appointment_reminders' => ['sms', 'email'],
+                    'vaccination_reminders' => ['sms'],
+                    'clinical_documents'    => ['email'],
+                    'billing'               => ['email'],
+                    'marketing'             => ['email'],
+                ],
+                '2024-09-09 09:30:00',
             )
             ->create()
         ;
@@ -191,6 +208,12 @@ final class ClientDataStory extends Story
                 countryCode: 'FR',
                 postalCode: '78000',
                 region: 'Île-de-France',
+            )
+            // Partial file: reminders agreed to, marketing never asked, nobody authorized.
+            ->withCommunicationPreferences(
+                'phone',
+                ['appointment_reminders' => ['sms'], 'vaccination_reminders' => ['sms', 'email']],
+                '2026-07-20 11:00:00',
             )
             ->create()
         ;
@@ -372,6 +395,65 @@ final class ClientDataStory extends Story
             ->email('isabelle.fontaine@free.fr')
             ->home()
             ->primary()
+            ->create()
+        ;
+
+        $this->buildNotesAndCommunications($parisClinicId);
+    }
+
+    /**
+     * Internal notes and logged exchanges. Sophie shows both lists filled,
+     * Aurélie a single attention note; every other client keeps the empty states.
+     */
+    private function buildNotesAndCommunications(string $clinicId): void
+    {
+        ClientNoteEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_SOPHIE_ID)
+            ->writtenBy('Dr Rousseau', '2026-03-27 10:20:00')
+            ->create(['content' => 'Cliente très impliquée et observante. Peut être contactée par SMS pour les résultats.'])
+        ;
+        ClientNoteEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_SOPHIE_ID)
+            ->attention()
+            ->writtenBy('Camille Leroy', '2026-08-27 18:05:00')
+            ->create(['content' => 'Rex est stressé par la contention. Prévoir un examen au sol.'])
+        ;
+        ClientNoteEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_AURELIE_ID)
+            ->attention()
+            ->writtenBy('Camille Leroy', '2026-09-15 09:40:00')
+            ->create(['content' => 'Facture de vermifugation en attente. Ne pas aborder le sujet en salle d’attente.'])
+        ;
+
+        ClientCommunicationEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_SOPHIE_ID)
+            ->via(ContactChannel::PHONE, CommunicationDirection::INBOUND)
+            ->about('Appel entrant — 4 min', 'Prise de rendez-vous pour le rappel vaccinal de Rex.')
+            ->loggedBy('Camille Leroy', '2026-03-20 09:12:00')
+            ->create()
+        ;
+        ClientCommunicationEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_SOPHIE_ID)
+            ->via(ContactChannel::EMAIL, CommunicationDirection::OUTBOUND)
+            ->about('Compte rendu du bilan annuel envoyé', 'Compte rendu et ordonnance transmis après la consultation du 27 mars.')
+            ->loggedBy('Dr Rousseau', '2026-03-27 17:30:00')
+            ->create()
+        ;
+        ClientCommunicationEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_SOPHIE_ID)
+            ->via(ContactChannel::SMS, CommunicationDirection::INBOUND)
+            ->about(
+                'Message reçu',
+                '« Bonjour, Rex boite depuis quelques jours, est-ce que je peux passer aujourd’hui ? » — rappelée, reçue le jour même.',
+            )
+            ->loggedBy('Camille Leroy', '2026-08-27 08:04:00')
+            ->create()
+        ;
+        ClientCommunicationEntityFactory::new()
+            ->forClient($clinicId, self::CLIENT_AURELIE_ID)
+            ->via(ContactChannel::EMAIL, CommunicationDirection::OUTBOUND)
+            ->about('Relance de paiement', 'Première relance pour la facture de vermifugation, sans réponse à ce jour.')
+            ->loggedBy('Camille Leroy', '2026-09-15 09:35:00')
             ->create()
         ;
     }

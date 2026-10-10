@@ -1,152 +1,380 @@
-{# Partial: modals — all client view modals #}
+{#
+ # Partial: dialogs of the client sheet.
+ # Every form posts to its own single-action controller, carries the shared
+ # `client_sheet` CSRF token and comes back to the tab it was opened from.
+ #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set token = csrf_token('client_sheet') %}
+{% set contact = sheet.contact %}
+{% set choices = sheet.choices %}
+{% set person = sheet.authorizedPerson ? sheet.authorizedPerson.form : {civility: 'unspecified', firstName: '', lastName: '', relationship: 'spouse', phoneNumber: ''} %}
+{% set active_animals = sheet.animals|filter(a => not a.archived and not a.deceased) %}
 
-{# ── MODAL: Edit owner ── #}
-<div class="modal-overlay hidden" id="modal-owner" onclick="if(event.target===this)closeModal('modal-owner')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title">Éditer le propriétaire</p><button onclick="closeModal('modal-owner')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="cv-grid-2">
-        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" value="{{ client is defined ? client.firstName : 'Sophie' }}"></div>
-        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" value="{{ client is defined ? client.lastName : 'Dubois' }}"></div>
+{# ══ Edit the client ══ #}
+<div class="fc-ov" id="fc-m-edit">
+  <div class="fc-modal fc-xl" role="dialog" aria-modal="true" aria-labelledby="fc-m-edit-t">
+    {{ ui.modal_head('Modifier la fiche client', client.fullName, 'fc-m-edit-t') }}
+    <form class="fc-m-b fc-mduo" id="fc-form-edit" method="post" action="{{ path('clinic_clients_profile_update', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div>
+        <fieldset>
+          <legend>Identité <span class="fc-lg-s">qui est le client</span></legend>
+          <div class="fc-fg2">
+            <div class="fc-f">
+              <label for="fc-e-first">Prénom <span class="fc-req">*</span></label>
+              <input class="fc-in" id="fc-e-first" name="first_name" value="{{ client.firstName }}" required maxlength="255">
+            </div>
+            <div class="fc-f">
+              <label for="fc-e-last">Nom <span class="fc-req">*</span></label>
+              <input class="fc-in" id="fc-e-last" name="last_name" value="{{ client.lastName }}" required maxlength="255">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Coordonnées <span class="fc-lg-s">joindre le client</span></legend>
+          <div class="fc-fg2">
+            <div class="fc-f">
+              <label for="fc-e-mob">Téléphone principal</label>
+              {{ include('components/ui/phone.html.twig', {name: 'mobile', id: 'fc-e-mob', value: contact.mobile ?? ''}) }}
+            </div>
+            <div class="fc-f">
+              <label for="fc-e-tel">Autre numéro</label>
+              {{ include('components/ui/phone.html.twig', {name: 'landline', id: 'fc-e-tel', value: contact.landline ?? ''}) }}
+            </div>
+          </div>
+          <div class="fc-f" style="margin-top:12px;">
+            <label for="fc-e-mail">Adresse e-mail</label>
+            <input class="fc-in" id="fc-e-mail" name="email" type="email" value="{{ contact.email ?? '' }}" maxlength="255">
+          </div>
+          <div class="fc-fg3 fc-addr" style="margin-top:12px;">
+            <div class="fc-f"><label for="fc-e-addr">Adresse</label><input class="fc-in" id="fc-e-addr" name="street" value="{{ contact.street }}" maxlength="255"></div>
+            <div class="fc-f"><label for="fc-e-cp">Code postal</label><input class="fc-in" id="fc-e-cp" name="postal_code" value="{{ contact.postalCode }}" maxlength="20"></div>
+            <div class="fc-f"><label for="fc-e-city">Ville</label><input class="fc-in" id="fc-e-city" name="city" value="{{ contact.city }}" maxlength="255"></div>
+          </div>
+          <p class="fc-hint" style="margin-top:10px;">Au moins un moyen de contact est nécessaire. L’adresse e-mail sert à l’envoi des comptes rendus.</p>
+        </fieldset>
       </div>
-      <div class="form-row"><label class="form-label">Adresse</label><input class="form-input" value="12 rue de la Paix, 75001 Paris"></div>
-      <div class="form-row"><label class="form-label">Profession (optionnel)</label><input class="form-input" placeholder="Ex : Médecin, Retraité…"></div>
+      <div class="fc-side">
+        <fieldset>
+          <legend>Personne autorisée</legend>
+          <div class="fc-f" style="max-width:180px;">
+            <label for="fc-e-aciv">Civilité</label>
+            <select class="fc-in" id="fc-e-aciv" name="ap_civility">
+              {% for value, label in choices.civilities %}
+                <option value="{{ value }}"{{ value == person.civility ? ' selected' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fc-fg2" style="margin-top:12px;">
+            <div class="fc-f"><label for="fc-e-afirst">Prénom</label><input class="fc-in" id="fc-e-afirst" name="ap_first_name" value="{{ person.firstName }}" maxlength="255"></div>
+            <div class="fc-f"><label for="fc-e-alast">Nom</label><input class="fc-in" id="fc-e-alast" name="ap_last_name" value="{{ person.lastName }}" maxlength="255"></div>
+          </div>
+          <div class="fc-f" style="margin-top:12px;">
+            <label for="fc-e-arel">Lien avec le client</label>
+            <select class="fc-in" id="fc-e-arel" name="ap_relationship">
+              {% for value, label in choices.relationships %}
+                <option value="{{ value }}"{{ value == person.relationship ? ' selected' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fc-f" style="margin-top:12px;">
+            <label for="fc-e-atel">Téléphone</label>
+            {{ include('components/ui/phone.html.twig', {name: 'ap_phone', id: 'fc-e-atel', value: person.phoneNumber}) }}
+          </div>
+          <p class="fc-hint" style="margin-top:12px;">Cette personne peut déposer et récupérer les animaux du dossier. Laisser le prénom et le nom vides retire l’autorisation.</p>
+        </fieldset>
+      </div>
+    </form>
+    <div class="fc-m-f">
+      <span class="fc-hint">Les envois automatiques et les consentements se règlent dans <button type="button" class="fc-inline-link" data-fc-open="fc-m-comm">Préférences de communication</button>.</span>
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-edit">Enregistrer</button>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-owner')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-owner')">Enregistrer</button></div>
   </div>
 </div>
 
-{# ── MODAL: Phones and contacts ── #}
-<div class="modal-overlay hidden" id="modal-phones" onclick="if(event.target===this)closeModal('modal-phones')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title">Contacts & Téléphones</p><button onclick="closeModal('modal-phones')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <p class="cv-modal-hint">Vous pouvez ajouter plusieurs numéros et leur donner un nom.</p>
-      <div class="cv-phone-rows">
-        <div class="cv-phone-row">
-          <div><label class="form-label">Téléphone</label><input class="form-input" value="+33 6 12 34 56 78"></div>
-          <div><label class="form-label">Libellé</label><input class="form-input" value="Mobile principal"></div>
-          <button class="btn btn-secondary btn-xs cv-phone-delete" onclick="toast('Supprimé','#dc2626')"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+{# ══ Communication preferences ══ #}
+<div class="fc-ov" id="fc-m-comm">
+  <div class="fc-modal fc-md" role="dialog" aria-modal="true" aria-labelledby="fc-m-comm-t">
+    {{ ui.modal_head('Préférences de communication', client.fullName ~ ' · ' ~ sheet.safety.meta|split(' · ')|first, 'fc-m-comm-t') }}
+    <form class="fc-m-b" id="fc-form-comm" method="post" action="{{ path('clinic_clients_communication_preferences_update', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <fieldset>
+        <legend>Envois automatiques <span class="fc-lg-s">un consentement par type de message</span></legend>
+        <table class="fc-commt">
+          <thead><tr><th>Type de message</th><th>E-mail</th><th>SMS</th></tr></thead>
+          <tbody>
+            {% for row in sheet.consents.rows %}
+              <tr class="{{ row.active ? '' : 'fc-off' }}">
+                <td><span class="fc-ct">{{ row.label }}</span><span class="fc-cs{{ row.active ? '' : ' fc-warn' }}">{{ row.detail }}</span></td>
+                {% for channel in ['email', 'sms'] %}
+                  <td><input type="checkbox" name="consent[{{ row.kind }}][]" value="{{ channel }}"{{ channel in row.channels ? ' checked' }} aria-label="{{ row.label }} par {{ choices.channels[channel] }}"></td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <p class="fc-hint" style="margin-top:10px;">Cocher un nouveau canal enregistre le consentement du client à la date du jour ; tout décocher le retire.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Canal préféré <span class="fc-lg-s">échanges ponctuels</span></legend>
+        <div class="fc-f">
+          {{ ui.segmented('preferred_channel', {'': 'À définir'}|merge(choices.channels), sheet.consents.preferredChannel ?? '') }}
+          <p class="fc-hint">Canal utilisé pour les échanges ponctuels hors des envois automatiques ci-dessus.</p>
         </div>
-        <div class="cv-phone-row">
-          <div><input class="form-input cv-phone-input-no-margin" placeholder="+33 6 …"></div>
-          <div><input class="form-input" placeholder="Ex : Domicile, Travail…"></div>
-          <button class="btn btn-secondary btn-xs cv-phone-delete"><svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M2 3h8M5 3V2h2v1M4 3v7h4V3H4z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+      </fieldset>
+    </form>
+    <div class="fc-m-f">
+      <span class="fc-hint">Un consentement inchangé garde la date à laquelle il a été recueilli.</span>
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-comm">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+{# ══ Add an animal ══ #}
+<div class="fc-ov" id="fc-m-pet">
+  <div class="fc-modal" role="dialog" aria-modal="true" aria-labelledby="fc-m-pet-t">
+    {{ ui.modal_head('Ajouter un animal', 'Rattaché à ' ~ client.fullName, 'fc-m-pet-t') }}
+    <form class="fc-m-b" id="fc-form-pet" method="post" action="{{ path('clinic_clients_animal_add', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <fieldset>
+        <legend>Identité</legend>
+        <div class="fc-f" style="margin-bottom:10px;">
+          <label>Espèce</label>
+          {{ ui.segmented('species', {dog: 'Chien', cat: 'Chat', nac: 'NAC', other: 'Autre'}, 'dog') }}
+        </div>
+        <div class="fc-fg">
+          <div class="fc-f">
+            <label for="fc-p-nom">Nom <span class="fc-req">*</span></label>
+            <input class="fc-in" id="fc-p-nom" name="name" placeholder="Ex. Nala" required maxlength="255">
+          </div>
+          <div class="fc-f">
+            <label for="fc-p-race">Race</label>
+            <input class="fc-in" id="fc-p-race" name="breed" placeholder="Ex. Labrador" maxlength="255">
+          </div>
+          <div class="fc-f">
+            <label for="fc-p-naiss">Date de naissance</label>
+            <input class="fc-in" id="fc-p-naiss" name="birth_date" type="date" max="{{ today }}">
+          </div>
+          <div class="fc-f">
+            <label>Sexe</label>
+            {{ ui.segmented('sex', {female: 'Femelle', male: 'Mâle', unknown: 'Inconnu'}, 'female') }}
+          </div>
+        </div>
+        <div class="fc-sw-row" style="margin-top:6px;">
+          <div class="fc-sw-m"><p class="fc-sw-t" id="fc-p-ster-l">Stérilisé</p></div>
+          <input type="hidden" name="neutered" value="0">
+          <button class="fc-sw" type="button" role="switch" aria-checked="false" aria-labelledby="fc-p-ster-l" data-fc-switch="neutered"></button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Identification</legend>
+        <div class="fc-f">
+          <label for="fc-p-puce">Numéro de transpondeur</label>
+          <input class="fc-in" id="fc-p-puce" name="microchip" placeholder="15 chiffres" inputmode="numeric" maxlength="15">
+        </div>
+      </fieldset>
+    </form>
+    <div class="fc-m-f">
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-pet">Créer l’animal</button>
+    </div>
+  </div>
+</div>
+
+{# ══ Cash a payment ══ #}
+{% if sheet.billing.outstanding|length > 0 %}
+{% set first_due = sheet.billing.outstanding|first %}
+<div class="fc-ov" id="fc-m-pay">
+  <div class="fc-modal fc-sm" role="dialog" aria-modal="true" aria-labelledby="fc-m-pay-t">
+    {{ ui.modal_head('Encaisser un règlement', client.fullName, 'fc-m-pay-t') }}
+    <form class="fc-m-b" id="fc-form-pay" method="post" action="{{ path('clinic_clients_payment_record', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div class="fc-f" style="margin-bottom:12px;">
+        <label for="fc-pay-inv">Facture</label>
+        <select class="fc-in" id="fc-pay-inv" name="invoice_id" data-fc-invoice>
+          {% for invoice in sheet.billing.outstanding %}
+            <option value="{{ invoice.id }}" data-balance="{{ invoice.balanceInput }}">{{ invoice.number }} — {{ invoice.balance|money(sheet.billing.currency) }} dus</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fc-f" style="margin-bottom:12px;">
+        <label for="fc-pay-m">Montant encaissé (€) <span class="fc-req">*</span></label>
+        <input class="fc-in" id="fc-pay-m" name="amount" value="{{ first_due.balanceInput }}" required inputmode="decimal" data-fc-amount>
+      </div>
+      <div class="fc-f" style="margin-bottom:12px;">
+        <label>Moyen de paiement</label>
+        {{ ui.segmented('method', {CARD: 'Carte', CASH: 'Espèces', CHECK: 'Chèque', TRANSFER: 'Virement'}, 'CARD') }}
+      </div>
+      <div class="fc-f">
+        <label for="fc-pay-ref">Référence ou commentaire</label>
+        <input class="fc-in" id="fc-pay-ref" name="reference" placeholder="Ex. terminal 0412, chèque n° 4471" maxlength="255">
+      </div>
+    </form>
+    <div class="fc-m-f">
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-pay">Encaisser</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ══ New appointment ══ #}
+<div class="fc-ov" id="fc-m-rdv">
+  <div class="fc-modal" role="dialog" aria-modal="true" aria-labelledby="fc-m-rdv-t">
+    {{ ui.modal_head('Nouveau rendez-vous', client.fullName, 'fc-m-rdv-t') }}
+    <form class="fc-m-b" id="fc-form-rdv" method="post" action="{{ path('clinic_clients_appointment_schedule', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div class="fc-fg">
+        <div class="fc-f">
+          <label for="fc-r-animal">Animal</label>
+          <select class="fc-in" id="fc-r-animal" name="animal_id">
+            {% for animal in active_animals %}
+              <option value="{{ animal.id }}">{{ animal.label }}</option>
+            {% endfor %}
+            <option value="">Sans animal précisé</option>
+          </select>
+        </div>
+        <div class="fc-f">
+          <label for="fc-r-vet">Praticien <span class="fc-req">*</span></label>
+          <select class="fc-in" id="fc-r-vet" name="practitioner" required>
+            {% for user_id, name in sheet.practitioners %}
+              <option value="{{ user_id }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fc-f fc-full">
+          <label for="fc-r-motif">Motif</label>
+          <input class="fc-in" id="fc-r-motif" name="reason" placeholder="Ex. contrôle rénal" maxlength="255">
+        </div>
+        <div class="fc-f">
+          <label for="fc-r-date">Date <span class="fc-req">*</span></label>
+          <input class="fc-in" id="fc-r-date" name="date" type="date" min="{{ today }}" value="{{ today }}" required>
+        </div>
+        <div class="fc-f">
+          <label for="fc-r-heure">Heure <span class="fc-req">*</span></label>
+          <input class="fc-in" id="fc-r-heure" name="time" type="time" value="09:30" step="300" required>
+        </div>
+        <div class="fc-f fc-full">
+          <label>Durée</label>
+          {{ ui.segmented('duration', {'15': '15 min', '30': '30 min', '45': '45 min', '60': '60 min'}, '30') }}
         </div>
       </div>
-      <button class="btn btn-secondary btn-xs" onclick="toast('Ligne ajoutée','#4338ca')">
-        <svg width="10" height="10" fill="none" viewBox="0 0 12 12"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ajouter un numéro
+      {% if sheet.practitioners|length == 0 %}
+        <div class="fc-note fc-warn" style="margin-top:12px;">Aucun praticien n’est configuré pour cette clinique : ajoutez-en un dans les paramètres de l’équipe avant de créer un rendez-vous.</div>
+      {% endif %}
+    </form>
+    <div class="fc-m-f">
+      <a class="fc-btn fc-btn-white" href="{{ path('clinic_scheduling_agenda') }}">Voir l’agenda</a>
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-rdv"{{ sheet.practitioners|length == 0 ? ' disabled' }}>Créer le rendez-vous</button>
+    </div>
+  </div>
+</div>
+
+{# ══ Internal note ══ #}
+<div class="fc-ov" id="fc-m-note">
+  <div class="fc-modal fc-sm" role="dialog" aria-modal="true" aria-labelledby="fc-m-note-t">
+    {{ ui.modal_head('Ajouter une note interne', 'Jamais visible du client', 'fc-m-note-t') }}
+    <form class="fc-m-b" id="fc-form-note" method="post" action="{{ path('clinic_clients_note_add', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div class="fc-f" style="margin-bottom:12px;">
+        <label>Nature</label>
+        {{ ui.segmented('kind', choices.noteKinds, 'information') }}
+      </div>
+      <div class="fc-f">
+        <label for="fc-n-txt">Note <span class="fc-req">*</span></label>
+        <textarea class="fc-in" id="fc-n-txt" name="content" placeholder="Ex. préfère être appelée en fin de journée." required maxlength="2000"></textarea>
+      </div>
+    </form>
+    <div class="fc-m-f">
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-note">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+{# ══ Log an exchange ══ #}
+<div class="fc-ov" id="fc-m-msg">
+  <div class="fc-modal" role="dialog" aria-modal="true" aria-labelledby="fc-m-msg-t">
+    {{ ui.modal_head('Consigner un échange', client.fullName ~ (sheet.consents.preferredChannelLabel ? ' · canal préféré : ' ~ sheet.consents.preferredChannelLabel : ''), 'fc-m-msg-t') }}
+    <form class="fc-m-b" id="fc-form-msg" method="post" action="{{ path('clinic_clients_communication_log', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div class="fc-fg" style="margin-bottom:12px;">
+        <div class="fc-f">
+          <label>Canal</label>
+          {{ ui.segmented('channel', choices.channels, sheet.consents.preferredChannel ?? 'phone') }}
+        </div>
+        <div class="fc-f">
+          <label>Sens</label>
+          {{ ui.segmented('direction', {outbound: 'Émis', inbound: 'Reçu'}, 'outbound') }}
+        </div>
+      </div>
+      <div class="fc-f" style="margin-bottom:12px;">
+        <label for="fc-msg-sub">Objet <span class="fc-req">*</span></label>
+        <input class="fc-in" id="fc-msg-sub" name="subject" placeholder="Ex. résultats d’analyse communiqués" required maxlength="160">
+      </div>
+      <div class="fc-f">
+        <label for="fc-msg-txt">Contenu de l’échange</label>
+        <textarea class="fc-in" id="fc-msg-txt" name="body" placeholder="Ce qui a été dit ou écrit, et la suite prévue…" maxlength="4000"></textarea>
+      </div>
+      <div class="fc-note fc-info" style="margin-top:12px;">L’échange est ajouté au journal du dossier. Aucun message n’est envoyé au client depuis cette fenêtre.</div>
+    </form>
+    <div class="fc-m-f">
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-primary" type="submit" form="fc-form-msg">Consigner</button>
+    </div>
+  </div>
+</div>
+
+{# ══ Other actions ══ #}
+<div class="fc-ov" id="fc-m-more">
+  <div class="fc-modal fc-sm" role="dialog" aria-modal="true" aria-labelledby="fc-m-more-t">
+    {{ ui.modal_head('Autres actions', null, 'fc-m-more-t') }}
+    <div class="fc-m-b fc-menu">
+      <button class="fc-row" type="button" data-fc-goto="documents">
+        <span class="fc-row-m"><span class="fc-row-t">Documents du dossier</span><span class="fc-row-s">{{ sheet.documents|length }} pièce{{ sheet.documents|length > 1 ? 's' }} · comptes rendus, ordonnances, factures</span></span>
       </button>
-      <div class="cv-email-section">
-        <p class="cv-email-label">Email</p>
-        <input class="form-input" value="s.dubois@email.fr">
-      </div>
+      <button class="fc-row" type="button" data-fc-goto="communications">
+        <span class="fc-row-m"><span class="fc-row-t">Journal des communications</span><span class="fc-row-s">Appels, SMS, e-mails et notes internes</span></span>
+      </button>
+      {% if not archived %}
+        <button class="fc-row" type="button" data-fc-open="fc-m-comm">
+          <span class="fc-row-m"><span class="fc-row-t">Consentements et envois</span><span class="fc-row-s">Préférences de communication du client</span></span>
+        </button>
+        <button class="fc-row" type="button" data-fc-open="fc-m-archive">
+          <span class="fc-row-m"><span class="fc-row-t fc-danger">Archiver la fiche</span><span class="fc-row-s">Le client n’apparaîtra plus dans les recherches</span></span>
+        </button>
+      {% else %}
+        <form method="post" action="{{ path('clinic_clients_unarchive', {id: client.id}) }}">
+          <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+          <button class="fc-row" type="submit">
+            <span class="fc-row-m"><span class="fc-row-t">Désarchiver la fiche</span><span class="fc-row-s">Le client redevient modifiable et visible dans les recherches</span></span>
+          </button>
+        </form>
+      {% endif %}
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-phones')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-phones')">Enregistrer</button></div>
   </div>
 </div>
 
-{# ── MODAL: Communication preferences ── #}
-<div class="modal-overlay hidden" id="modal-prefs" onclick="if(event.target===this)closeModal('modal-prefs')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title">Préférences de communication</p><button onclick="closeModal('modal-prefs')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="form-row"><label class="form-label">Canal préféré</label>
-        {{ include('components/ui/select.html.twig', {
-          name: 'communication_channel',
-          placeholder: 'Sélectionner...',
-          value: 'sms',
-          options: [
-            { value: 'sms', label: 'SMS' },
-            { value: 'email', label: 'Email' },
-            { value: 'telephone', label: 'Téléphone' },
-            { value: 'none', label: 'Aucune préférence' },
-          ]
-        }) }}
+{# ══ Archive ══ #}
+{% if not archived %}
+<div class="fc-ov" id="fc-m-archive">
+  <div class="fc-modal fc-sm" role="dialog" aria-modal="true" aria-labelledby="fc-m-archive-t">
+    {{ ui.modal_head('Archiver la fiche', 'Le client n’apparaîtra plus dans les recherches', 'fc-m-archive-t') }}
+    <form class="fc-m-b" id="fc-form-archive" method="post" action="{{ path('clinic_clients_archive', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+      <div class="fc-note fc-crit">
+        Les données médicales des animaux sont conservées au titre de l’obligation de tenue du dossier. L’archivage masque la fiche sans l’effacer ; elle peut être désarchivée à tout moment.
       </div>
-      <div class="form-row"><label class="form-label">Plage horaire de contact</label>
-        {{ include('components/ui/select.html.twig', {
-          name: 'time_preference',
-          placeholder: 'Sélectionner...',
-          value: 'morning',
-          options: [
-            { value: 'morning', label: 'Matin (8h–12h)' },
-            { value: 'afternoon', label: 'Après-midi (12h–18h)' },
-            { value: 'evening', label: 'Soirée (18h–20h)' },
-            { value: 'all_day', label: 'Toute la journée' },
-          ]
-        }) }}
-      </div>
-      <div class="form-row"><label class="form-label">Rappels automatiques</label>
-        <div class="cv-checkbox-group">
-          <label class="cv-checkbox-label"><input type="checkbox" checked class="cv-checkbox">Rappel RDV 24h avant</label>
-          <label class="cv-checkbox-label"><input type="checkbox" checked class="cv-checkbox">Rappel vaccin à renouveler</label>
-          <label class="cv-checkbox-label"><input type="checkbox" class="cv-checkbox">Newsletter clinique</label>
-        </div>
-      </div>
-      <div class="form-row"><label class="form-label">Note libre</label><input class="form-input" value="Disponible le matin uniquement"></div>
+    </form>
+    <div class="fc-m-f">
+      <button class="fc-btn fc-btn-white fc-grow" type="button" data-fc-close>Annuler</button>
+      <button class="fc-btn fc-btn-danger" type="submit" form="fc-form-archive">Archiver</button>
     </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-prefs')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-prefs')">Enregistrer</button></div>
   </div>
 </div>
-
-{# ── MODAL: Animal identification ── #}
-<div class="modal-overlay hidden" id="modal-ident" onclick="if(event.target===this)closeModal('modal-ident')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title" id="modal-ident-title">Identification</p><button onclick="closeModal('modal-ident')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="cv-grid-2">
-        <div class="form-row"><label class="form-label">Transpondeur (puce)</label><input class="form-input" id="fi-chip" placeholder="15 chiffres"></div>
-        <div class="form-row"><label class="form-label">Tatouage</label><input class="form-input" id="fi-tattoo" placeholder="Code tatouage"></div>
-        <div class="form-row"><label class="form-label">N° Passeport</label><input class="form-input" id="fi-passport" placeholder="FR…"></div>
-        <div class="form-row"><label class="form-label">N° LOF / LOOF</label><input class="form-input" id="fi-loof" placeholder="Livre des origines"></div>
-        <div class="form-row"><label class="form-label">N° SIRE (équidé)</label><input class="form-input" id="fi-sire" placeholder="Code SIRE"></div>
-        <div class="form-row"><label class="form-label">Race(s) si croisement</label><input class="form-input" id="fi-cross" placeholder="Ex : Labrador × Border Collie"></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-ident')">Annuler</button><button class="btn btn-primary" onclick="toast('Enregistré','#059669');closeModal('modal-ident')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Auxiliary contact ── #}
-<div class="modal-overlay hidden" id="modal-auxcontact" onclick="if(event.target===this)closeModal('modal-auxcontact')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title">Contact auxiliaire</p><button onclick="closeModal('modal-auxcontact')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <p class="cv-modal-description">Personne à contacter en l'absence du propriétaire principal.</p>
-      <div class="cv-grid-2">
-        <div class="form-row"><label class="form-label">Prénom</label><input class="form-input" id="ac-first" placeholder="Prénom"></div>
-        <div class="form-row"><label class="form-label">Nom</label><input class="form-input" id="ac-last" placeholder="Nom"></div>
-        <div class="form-row"><label class="form-label">Téléphone</label><input class="form-input" id="ac-phone" placeholder="+33 6 …"></div>
-        <div class="form-row"><label class="form-label">Lien</label><input class="form-input" id="ac-rel" placeholder="Ex : Conjoint, Voisin…"></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-auxcontact')">Annuler</button><button class="btn btn-primary" onclick="toast('Contact enregistré','#059669');closeModal('modal-auxcontact')">Enregistrer</button></div>
-  </div>
-</div>
-
-{# ── MODAL: Animal status ── #}
-<div class="modal-overlay hidden" id="modal-status" onclick="if(event.target===this)closeModal('modal-status')">
-  <div class="modal">
-    <div class="modal-head"><p class="cv-modal-title">Statut de l'animal</p><button onclick="closeModal('modal-status')" class="cv-modal-close"><svg width="9" height="9" fill="none" viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#64748b" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
-    <div class="modal-body">
-      <div class="form-row"><label class="form-label">Statut</label>
-        {# TODO: wire onchange handler #}
-        {{ include('components/ui/select.html.twig', {
-          name: 'animal_status',
-          id: 'animal-status-sel',
-          value: 'alive',
-          options: [
-            { value: 'alive', label: 'Vivant' },
-            { value: 'deceased', label: 'Décédé' },
-            { value: 'missing', label: 'Disparu' },
-            { value: 'given', label: 'Cédé (vendu / donné)' },
-          ]
-        }) }}
-      </div>
-      <div class="form-row" id="status-date-row"><label class="form-label">Date</label><input type="date" class="form-input" id="status-date"></div>
-      <div class="form-row"><label class="form-label">Note</label><textarea class="form-input cv-textarea-no-resize" id="status-note" rows="2" placeholder="Cause, circonstances, nouveau propriétaire…"></textarea></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-secondary" onclick="closeModal('modal-status')">Annuler</button><button class="btn btn-primary" onclick="toast('Statut mis à jour','#059669');closeModal('modal-status')">Enregistrer</button></div>
-  </div>
-</div>
+{% endif %}

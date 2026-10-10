@@ -1,0 +1,44 @@
+{# Partial: "Facturation" pane — the client's invoices and a short summary. #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set billing = sheet.billing %}
+<section class="fc-card fc-c8" id="fc-s-fact">
+  <div class="fc-card-h">
+    <span class="fc-card-t">Facturation</span>
+    {% if billing.balanceDue > 0 %}
+      <span class="fc-badge fc-b-crit">{{ billing.balanceDue|money(billing.currency) }} dus</span>
+      <div class="fc-card-x"><button class="fc-btn fc-btn-primary fc-btn-xs" type="button" data-fc-open="fc-m-pay">Encaisser</button></div>
+    {% endif %}
+  </div>
+  <div class="fc-card-b fc-flush">
+    {% if billing.rows|length > 0 %}
+      <div class="fc-table-wrap">
+        <table class="fc-t">
+          <thead><tr><th>Facture</th><th>Date</th><th>Animal</th><th>Objet</th><th class="fc-n">Montant</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for invoice in billing.rows %}
+              <tr>
+                <td><a class="fc-link" href="{{ path('clinic_invoice_details', {invoiceId: invoice.id}) }}"><b>{{ invoice.number }}</b></a></td>
+                <td>{{ invoice.date }}</td>
+                <td>{{ invoice.animalName }}</td>
+                <td>{{ invoice.subject }}</td>
+                <td class="fc-n">{{ invoice.amount|money(invoice.currency) }}</td>
+                <td><span class="fc-badge fc-b-{{ invoice.badge }}">{{ invoice.badgeLabel }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ ui.empty('Aucune facture', 'Chaque consultation est facturée à sa clôture. Aucun historique de règlement pour ce client.') }}
+    {% endif %}
+  </div>
+</section>
+<section class="fc-card fc-c4">
+  <div class="fc-card-h"><span class="fc-card-t">Récapitulatif</span></div>
+  <div class="fc-card-b">
+    <div class="fc-kv"><span>Solde dû</span><span class="{{ billing.balanceDue > 0 ? 'fc-bad' : 'fc-good' }}">{{ billing.balanceDue|money(billing.currency) }}</span></div>
+    <div class="fc-kv"><span>Réglé · factures de 12 mois</span><span>{{ billing.paidLastYear > 0 ? billing.paidLastYear|money(billing.currency) : '—' }}</span></div>
+    <div class="fc-kv"><span>Factures émises</span><span>{{ billing.issuedCount > 0 ? billing.issuedCount ~ ' depuis ' ~ billing.firstYear : 'Aucune' }}</span></div>
+    <div class="fc-kv"><span>Factures en attente</span><span>{{ billing.outstandingCount > 0 ? billing.outstandingCount : 'Aucune' }}</span></div>
+  </div>
+</section>

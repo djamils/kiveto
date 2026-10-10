@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Client\Profile;
 
+use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
+use App\Presentation\Clinic\ViewModel\Client\ClientSheetBuilder;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Domain\Localization\TimeZone;
+use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -19,10 +24,12 @@ final class ViewClientController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
+        private readonly ClientSheetBuilder $sheetBuilder,
+        private readonly ClockInterface $clock,
     ) {
     }
 
-    public function __invoke(string $id): Response
+    public function __invoke(string $id, Request $request): Response
     {
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
@@ -32,15 +39,21 @@ final class ViewClientController extends AbstractController
             clientId: $id,
         ));
 
-        if (null === $client) {
+        if (!$client instanceof ClientView) {
             throw $this->createNotFoundException('Client introuvable.');
         }
 
         $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
         \assert($clinic instanceof ClinicDto);
 
+        $clinicTz = TimeZone::fromString($clinic->timeZone)->toNative();
+        $now      = $this->clock->now();
+
         return $this->render('clinic/clients/view/index.html.twig', [
             'client'            => $client,
+            'sheet'             => $this->sheetBuilder->build($client, $clinicTz, $now),
+            'activeTab'         => $request->query->getString('tab', 'synthese'),
+            'today'             => $now->setTimezone($clinicTz)->format('Y-m-d'),
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
