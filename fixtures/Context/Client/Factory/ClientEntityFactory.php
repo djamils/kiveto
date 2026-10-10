@@ -76,6 +76,63 @@ final class ClientEntityFactory extends PersistentProxyObjectFactory
         });
     }
 
+    public function withAuthorizedPerson(
+        string $civility,
+        string $firstName,
+        string $lastName,
+        string $relationship,
+        ?string $phoneNumber,
+        string $authorizedAt,
+    ): self {
+        return $this->afterInstantiate(static function (ClientEntity $client) use (
+            $civility,
+            $firstName,
+            $lastName,
+            $relationship,
+            $phoneNumber,
+            $authorizedAt,
+        ): void {
+            $client->setAuthorizedPerson([
+                'civility'     => $civility,
+                'firstName'    => $firstName,
+                'lastName'     => $lastName,
+                'relationship' => $relationship,
+                'phoneNumber'  => $phoneNumber,
+                'authorizedAt' => (new \DateTimeImmutable($authorizedAt))->format(\DATE_ATOM),
+            ]);
+        });
+    }
+
+    /**
+     * @param array<string, list<string>> $channelsByConsentKind consent kind => channels, all granted on $grantedAt
+     */
+    public function withCommunicationPreferences(
+        ?string $preferredChannel,
+        array $channelsByConsentKind,
+        string $grantedAt,
+    ): self {
+        return $this->afterInstantiate(static function (ClientEntity $client) use (
+            $preferredChannel,
+            $channelsByConsentKind,
+            $grantedAt,
+        ): void {
+            $consents = [];
+
+            foreach ($channelsByConsentKind as $kind => $channels) {
+                $consents[] = [
+                    'kind'      => $kind,
+                    'channels'  => $channels,
+                    'grantedAt' => (new \DateTimeImmutable($grantedAt))->format(\DATE_ATOM),
+                ];
+            }
+
+            $client->setCommunicationPreferences([
+                'preferredChannel' => $preferredChannel,
+                'consents'         => $consents,
+            ]);
+        });
+    }
+
     protected function defaults(): array|callable
     {
         return [

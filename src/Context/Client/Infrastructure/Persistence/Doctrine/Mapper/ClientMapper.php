@@ -5,9 +5,16 @@ declare(strict_types=1);
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Client\Domain\Client;
+use App\Context\Client\Domain\ValueObject\AuthorizedPerson;
+use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
+use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
+use App\Context\Client\Domain\ValueObject\Consent;
+use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddressEmbeddable;
@@ -44,6 +51,8 @@ final readonly class ClientMapper
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
             postalAddress: $postalAddress,
+            authorizedPerson: $this->authorizedPersonToDomain($entity),
+            communicationPreferences: $this->communicationPreferencesToDomain($entity),
         );
     }
 
@@ -62,6 +71,10 @@ final readonly class ClientMapper
         $clientEntity->setUpdatedAt($client->updatedAt());
 
         $clientEntity->setPostalAddress($this->domainToEmbeddable($client->postalAddress()));
+        $clientEntity->setAuthorizedPerson($this->authorizedPersonToArray($client->authorizedPerson()));
+        $clientEntity->setCommunicationPreferences(
+            $this->communicationPreferencesToArray($client->communicationPreferences()),
+        );
 
         $contactMethodEntities = array_map(
             fn (ContactMethod $cm): ContactMethodEntity => $this->contactMethodToEntity($client->id(), $cm),
@@ -71,6 +84,99 @@ final readonly class ClientMapper
         return [
             'client'         => $clientEntity,
             'contactMethods' => $contactMethodEntities,
+        ];
+    }
+
+    private function authorizedPersonToDomain(ClientEntity $entity): ?AuthorizedPerson
+    {
+        $data = $entity->getAuthorizedPerson();
+
+        if (null === $data) {
+            return null;
+        }
+
+        return new AuthorizedPerson(
+            civility: Civility::from($data['civility']),
+            firstName: $data['firstName'],
+            lastName: $data['lastName'],
+            relationship: AuthorizedPersonRelationship::from($data['relationship']),
+            phoneNumber: null === $data['phoneNumber'] ? null : PhoneNumber::fromString($data['phoneNumber']),
+            authorizedAt: new \DateTimeImmutable($data['authorizedAt']),
+        );
+    }
+
+    /**
+     * @return array{
+     *     civility: string,
+     *     firstName: string,
+     *     lastName: string,
+     *     relationship: string,
+     *     phoneNumber: string|null,
+     *     authorizedAt: string
+     * }|null
+     */
+    private function authorizedPersonToArray(?AuthorizedPerson $person): ?array
+    {
+        if (null === $person) {
+            return null;
+        }
+
+        return [
+            'civility'     => $person->civility->value,
+            'firstName'    => $person->firstName,
+            'lastName'     => $person->lastName,
+            'relationship' => $person->relationship->value,
+            'phoneNumber'  => $person->phoneNumber?->toString(),
+            'authorizedAt' => $person->authorizedAt->format(\DATE_ATOM),
+        ];
+    }
+
+    private function communicationPreferencesToDomain(ClientEntity $entity): CommunicationPreferences
+    {
+        $data = $entity->getCommunicationPreferences();
+
+        if (null === $data) {
+            return CommunicationPreferences::none();
+        }
+
+        return new CommunicationPreferences(
+            null === $data['preferredChannel'] ? null : ContactChannel::from($data['preferredChannel']),
+            array_map(
+                static fn (array $consent): Consent => new Consent(
+                    ConsentKind::from($consent['kind']),
+                    array_map(
+                        static fn (string $channel): ContactChannel => ContactChannel::from($channel),
+                        $consent['channels'],
+                    ),
+                    new \DateTimeImmutable($consent['grantedAt']),
+                ),
+                $data['consents'],
+            ),
+        );
+    }
+
+    /**
+     * @return array{
+     *     preferredChannel: string|null,
+     *     consents: list<array{kind: string, channels: list<string>, grantedAt: string}>
+     * }|null
+     */
+    private function communicationPreferencesToArray(CommunicationPreferences $preferences): ?array
+    {
+        if (null === $preferences->preferredChannel && [] === $preferences->consents) {
+            return null;
+        }
+
+        return [
+            'preferredChannel' => $preferences->preferredChannel?->value,
+            'consents'         => array_map(
+                static fn (Consent $consent): array => [
+                    'kind'      => $consent->kind->value,
+                    'channels'  => array_map(static fn (ContactChannel $c): string => $c->value, $consent->channels),
+                    'grantedAt' => $consent->grantedAt->format(\DATE_ATOM),
+                ],
+                $preferences->consents,
+            ),
         ];
     }
 

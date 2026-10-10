@@ -36,6 +36,28 @@ class ClientEntity
     #[ORM\Column(type: 'string', length: 20, enumType: ClientStatus::class)]
     private ClientStatus $status;
 
+    /**
+     * @var array{
+     *     civility: string,
+     *     firstName: string,
+     *     lastName: string,
+     *     relationship: string,
+     *     phoneNumber: string|null,
+     *     authorizedAt: string
+     * }|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $authorizedPerson = null;
+
+    /**
+     * @var array{
+     *     preferredChannel: string|null,
+     *     consents: list<array{kind: string, channels: list<string>, grantedAt: string}>
+     * }|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $communicationPreferences = null;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $version = 1;
@@ -109,6 +131,58 @@ class ClientEntity
     public function setStatus(ClientStatus $status): void
     {
         $this->status = $status;
+    }
+
+    /**
+     * @return array{
+     *     civility: string,
+     *     firstName: string,
+     *     lastName: string,
+     *     relationship: string,
+     *     phoneNumber: string|null,
+     *     authorizedAt: string
+     * }|null
+     */
+    public function getAuthorizedPerson(): ?array
+    {
+        return $this->authorizedPerson;
+    }
+
+    /**
+     * @param array{
+     *     civility: string,
+     *     firstName: string,
+     *     lastName: string,
+     *     relationship: string,
+     *     phoneNumber: string|null,
+     *     authorizedAt: string
+     * }|null $authorizedPerson
+     */
+    public function setAuthorizedPerson(?array $authorizedPerson): void
+    {
+        $this->authorizedPerson = $authorizedPerson;
+    }
+
+    /**
+     * @return array{
+     *     preferredChannel: string|null,
+     *     consents: list<array{kind: string, channels: list<string>, grantedAt: string}>
+     * }|null
+     */
+    public function getCommunicationPreferences(): ?array
+    {
+        return $this->communicationPreferences;
+    }
+
+    /**
+     * @param array{
+     *     preferredChannel: string|null,
+     *     consents: list<array{kind: string, channels: list<string>, grantedAt: string}>
+     * }|null $communicationPreferences
+     */
+    public function setCommunicationPreferences(?array $communicationPreferences): void
+    {
+        $this->communicationPreferences = $communicationPreferences;
     }
 
     public function getCreatedAt(): \DateTimeImmutable
