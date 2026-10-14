@@ -1,146 +1,225 @@
 {#
  # Kiveto — templates/clinic/consultation/detail/index.html.twig
- # Consultation cockpit — single-viewport, ported from
- # docs/frontend-theme/vetsaas-layouts/new-gen/vetsaas-consultation.html.
+ # ─────────────────────────────────────────────────────────────
+ # Consultation cockpit, ported from
+ # docs/frontend-theme/kiveto-theme/consultation-v-topbar_8.html (and its
+ # -vierge / -cloturee variants: a consultation just started, and a closed one
+ # read only, with its addenda). No sidebar: the « K » square of the topbar and
+ # the arrow of the patient bar are the ways out.
+ #
+ # Layout: patient bar, then the work area — motif and vitals cards, the S·O·A
+ # column and the P column — next to the « Sortie consultation » panel. The
+ # page module (assets/js/pages/consultation.js) renders every block from the
+ # #consultation-data payload, as the mock-up renders from its demo state, and
+ # re-renders from the refreshed state every cockpit endpoint answers with.
  #
  # Variables:
- #   consultation  ConsultationDetailsDTO  The consultation read model
- #   patient       array                   Patient banner payload
- #   owner         array|null              Primary owner payload
- #   hydration     array                   Server → JS payload (see #consultation-data)
+ #   consultation  ConsultationDetailsDTO
+ #   patient       array   CockpitPatientBuilder patient payload
+ #   owner         array|null
+ #   hydration     array   server → JS payload
+ #
+ # Styles: assets/styles/pages/consultation.css (scoped under `.cs`).
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block page_title %}Consultation{% endblock %}
-{% block show_topbar %}false{% endblock %}
-{# Focus mode: during the act the page is the whole workspace, and the way back
-   is the arrow in the patient bar. #}
-{% block show_sidebar %}false{% endblock %}
+{% block sidebar_mode %}none{% endblock %}
+{% block page_body_class %}vt{% endblock %}
+{% block title %}{{ consultation.isClosed ? 'Consultation clôturée' : 'Consultation' }} · {{ patient.name }} — Kiveto{% endblock %}
 
-{% block stylesheets %}
-{# The cockpit follows the new-gen layout down to its type: Public Sans for the
-   text, Bricolage Grotesque for the names of things, Spline Sans Mono for the
-   figures. #}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="{{ asset('styles/pages/consultation.css') }}"/>
-{% endblock %}
+{% set closed = consultation.isClosed %}
+{% set ctx = hydration.context %}
+{% set x14 = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>' %}
+{% set species_emoji = { dog: '🐕', cat: '🐈', rabbit: '🐇', nac: '🐇', bird: '🦜', reptile: '🦎', horse: '🐴', ferret: '🦦', rodent: '🐹' } %}
 
-{# The patient bar spans the work area and the right panel, so it is rendered
-   above them rather than inside the scroll. #}
-{% block content_header %}
-  {% include 'clinic/consultation/detail/_patient_banner.html.twig' %}
-{% endblock %}
+{% block main %}
+<div class="cs{{ closed ? ' cs-closed' }}" data-page="{{ app.request.attributes.get('_route') }}">
 
-{% block content %}
-
-  {# Page-level CSRF token shared by all cockpit mutation endpoints #}
   <input type="hidden" id="consultation-csrf" value="{{ csrf_token('consultation_edit') }}">
-
-  {#
-   # Server → JS hydration payload (agenda pattern). Parsed once by
-   # assets/js/pages/consultation.js at init(); the same shape comes back from
-   # every mutation endpoint.
-   #}
   {# JSON_HEX_TAG keeps "<" escaped so free text can never break out of the script tag #}
-  <script type="application/json" id="consultation-data">
-  {{ hydration|json_encode(constant('JSON_HEX_TAG'))|raw }}
-  </script>
+  <script type="application/json" id="consultation-data">{{ hydration|json_encode(constant('JSON_HEX_TAG'))|raw }}</script>
 
-  {% if consultation.isClosed %}
-    <div class="closed-banner" id="closed-banner" role="status">
-      <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="3" y="7" width="10" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
-      </svg>
-      <span><strong>Consultation clôturée</strong> — lecture seule. Aucune modification n'est possible.</span>
+  {# ── Patient bar ── #}
+  <div class="pbar">
+    <a class="pb-back" href="{{ ctx.urls.flux }}" data-tip="Retour au flux"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m6-6-6 6 6 6"/></svg></a>
+    {% if patient.photoUrl %}
+      <div class="pb-photo" style="background:center/cover no-repeat url('{{ patient.photoUrl }}')"></div>
+    {% else %}
+      <div class="pb-photo">{{ species_emoji[patient.species ?? '']|default('🐾') }}</div>
+    {% endif %}
+    <div class="pb-id">
+      <div class="pb-name">
+        {% if ctx.urls.animal %}<a href="{{ ctx.urls.animal }}" style="color:inherit;text-decoration:none" data-tip="Ouvrir le dossier">{{ patient.name }}</a>{% else %}{{ patient.name }}{% endif %}
+        {% if patient.sexLabel %}
+          {% set female = patient.sexLabel == '♀' %}
+          <span class="puce" style="background:{{ female ? '#fdf2f8' : '#eff6ff' }};color:{{ female ? '#be185d' : '#1d4ed8' }}">{{ patient.sexLabel }} {{ patient.sterilized ? (female ? 'stérilisée' : 'castré') : (female ? 'entière' : 'entier') }}</span>
+        {% endif %}
+        {% if ctx.origin.type == 'urgence' %}<span class="puce" style="background:#fef2f2;color:#b91c1c"><span class="pdot" style="background:#dc2626"></span>Urgence</span>{% endif %}
+      </div>
+      <div class="pb-meta">
+        <span>{{ [patient.speciesLabel, patient.breed, patient.color, patient.ageLabel]|filter(v => v)|join(' · ') ?: 'Espèce non renseignée' }}</span>
+        {% if patient.microchip %}<span class="sep-v"></span><span class="mono">{{ patient.microchip }}</span>{% endif %}
+        {% if owner %}<span class="sep-v"></span>{% if ctx.urls.client %}<a class="pb-owner" id="pbOwner" href="{{ ctx.urls.client }}">{{ owner.fullName }}</a>{% else %}<span class="pb-owner" id="pbOwner">{{ owner.fullName }}</span>{% endif %}{% endif %}
+      </div>
     </div>
-  {% endif %}
-
-  {# ── Motif · Constantes & vigilances ── #}
-  {% include 'clinic/consultation/detail/_summary_cards.html.twig' %}
-
-  {# ── SOAP 2×2 grid ── #}
-  {% include 'clinic/consultation/detail/_soap_notes.html.twig' %}
-
-{% endblock %}
-
-{% block rpanel %}
-<aside class="app-rpanel">
-
-  <div class="rp-head">
-    <div class="rp-title">
-      <span class="live-pulse"></span>
-      Sortie consultation
+    <div class="pb-actions">
+      <span class="timer" data-tip="Durée de la consultation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg><span id="timer">00:00</span></span>
+      <span class="save" id="save" data-s="{{ closed ? 'closed' : 'idle' }}"><span class="pulse"></span><span id="saveLbl">{{ closed ? 'Clôturée' : 'Brouillon' }}</span></span>
+      <span class="sep-v"></span>
+      <button type="button" class="pbtn" id="btnHisto" data-menu><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>Historique</button>
+      <button type="button" class="pbtn" id="btnNotes" data-tip="Notes internes de l'équipe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Notes<span class="pcnt" id="pcNotes">0</span></button>
+      <button type="button" class="pbtn" id="btnFiles" data-tip="Radios, échos, analyses, photos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>Fichiers<span class="pcnt" id="pcFiles">0</span></button>
+      <button type="button" class="pbtn" id="btnDocs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>Documents</button>
+      {% if ctx.urls.animal %}
+        <a class="pbtn" href="{{ ctx.urls.animal }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>Dossier complet</a>
+      {% endif %}
+      <button type="button" class="pbtn ic" id="btnPlus" data-menu data-tip="Plus d'actions"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
     </div>
-    <div class="rp-sub">Mise à jour automatique au fil du Plan.</div>
   </div>
 
-  <div class="rp-scroll">
+  <div class="cs-wrap">
+    <main class="cs-main scr">
+      <div class="closed-ban{{ closed ? ' on' }}" id="closedBan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span id="closedTxt">Consultation clôturée</span><button type="button" id="btnAvenant">Ajouter un avenant</button></div>
+      <div class="av-box" id="avBox"><textarea id="avIn" placeholder="Correction ou complément — daté et signé, la consultation d'origine reste intacte"></textarea><div class="av-act"><button type="button" class="btn" id="avAnnuler">Annuler</button><button type="button" class="btn primaire" id="avOk">Signer l'avenant</button></div></div>
+      <div id="avList"></div>
 
-    {# ── Ordonnance ── #}
-    <div class="rp-block">
-      <div class="rp-block-head">
-        <span class="rp-block-title">Ordonnance</span>
-        {#
-         # Leaves the cockpit for the ordonnance itself: a prescription is a
-         # signed document, not a print of this panel.
-         #}
-        <a class="btn btn-ghost btn-icon btn-xs" data-turbo-frame="_top"
-           href="{{ path('clinic_prescription_prepare', { consultationId: consultation.consultationId }) }}"
-           title="Éditer l'ordonnance">
-          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 3H5L3 5v8h10V5z"/><path d="M5 8h6M5 10.5h4"/></svg>
-        </a>
+      <div class="sumrow">
+        <div class="wcard">
+          <p class="wcard-t">Motif de consultation<span class="orig" id="motifOrig"></span></p>
+          <div class="strip" id="motifStrip"><input class="motif-free" id="motifFree" maxlength="255" placeholder="Préciser le motif en une phrase…" value="{{ consultation.chiefComplaint }}"{{ closed ? ' readonly' }}></div>
+        </div>
+        <div class="wcard">
+          <p class="wcard-t">Constantes &amp; vigilances</p>
+          <div class="strip" id="vitStrip"></div>
+        </div>
       </div>
 
-      {# Allergy banner and prescription rows are rendered by assets/js/pages/consultation.js #}
-      <div class="rx-warning" style="display:none"></div>
+      <div class="soap">
+        <div class="soap-col">
+        <section class="quad">
+          <div class="qh"><span class="ql" style="background:#1d4ed8">S</span><span class="qt">Subjectif</span><span class="qs">— motif &amp; symptômes</span>
+            <div class="qa"><button type="button" class="qbtn edit-only" id="btnDicter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg><span>Dicter</span></button></div>
+          </div>
+          <div class="qb"><textarea class="qta" id="qS" placeholder="Ce que rapporte le propriétaire…" style="min-height:120px"{{ closed ? ' readonly' }}>{{ consultation.subjectiveText }}</textarea></div>
+        </section>
 
-      <div class="rx-list"></div>
+        <section class="quad" id="quadO">
+          <div class="qh"><span class="ql" style="background:#16a34a">O</span><span class="qt">Objectif</span><span class="qc" id="oCount">—</span><span class="qs">— examen</span>
+            <div class="qa edit-only">
+              <button type="button" class="qbtn" id="btnRas">Tout RAS</button>
+              <div class="dd" id="ddTpl"></div>
+            </div>
+          </div>
+          <div class="qb scr">
+            <div id="sysList"></div>
+            <div><p class="qlbl" style="margin-bottom:6px">Observations détaillées</p>
+            <textarea class="qta" id="qO" placeholder="État général, démarche, comportement, contexte…"{{ closed ? ' readonly' }}>{{ consultation.objectiveObservations }}</textarea></div>
+          </div>
+        </section>
 
-      <button class="add-row" id="btn-add-medication">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
-        Ajouter un médicament
-      </button>
-    </div>
+        <section class="quad" id="quadA">
+          <div class="qh"><span class="ql" style="background:#d97706">A</span><span class="qt">Diagnostic</span><span class="qc" id="aCount">0 dx</span>
+            <div class="qa edit-only">
+              <button type="button" class="qbtn ia" id="btnIA" data-tip="Pistes tirées des anomalies de l'examen et du dossier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>Suggérer (IA)</button>
+              <button type="button" class="qbtn ic" id="btnAddDx" data-tip="Ajouter un diagnostic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+          <div class="qb scr" id="aBody"></div>
+        </section>
+        </div>
 
-    {# ── Actes & produits ── #}
-    <div class="rp-block">
-      <div class="rp-block-head">
-        <span class="rp-block-title">Actes &amp; produits</span>
-        <span class="badge b-grey" id="bill-status-badge" style="font-size:var(--text-xs)">brouillon</span>
+        <div class="soap-col">
+        <section class="quad" id="quadP">
+          <div class="qh"><span class="ql" style="background:#4338ca">P</span><span class="qt">Plan</span><span class="qc" id="pCount">0 actions</span>
+            <div class="qa edit-only">
+              <div class="dd" id="ddPlanTpl"></div>
+              <button type="button" class="qbtn ic" id="btnAddPlan" data-tip="Ajouter au plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+          <div class="qb scr" id="pBody"></div>
+        </section>
+        </div>
       </div>
-      <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-bottom:var(--space-2);line-height:var(--lh-normal)">
-        Lignes générées depuis le plan et l'ordonnance · modifiez à la source
+    </main>
+
+    <aside class="rpanel">
+      <div class="rp-head">
+        <div class="rp-title"><span class="live"></span>Sortie consultation</div>
+        <div class="rp-sub">{{ closed ? 'Figée à la clôture — modifications par avenant.' : 'Mise à jour automatique au fil du plan.' }}</div>
       </div>
-
-      {# Billing rows are derived server-side and rendered by the page module #}
-      <div class="bill-list"></div>
-    </div>
-
+      <div class="rp-scroll">
+        <div>
+          <div class="rp-bh"><span class="rp-bt">Ce qui sort de la consultation</span><span class="puce" id="billBadge" style="margin-left:auto">brouillon</span></div>
+          <div class="rp-in scr" id="outList"></div>
+        </div>
+      </div>
+      <div class="rp-foot">
+        <div class="tot"><div class="l"><b>Total TTC</b><small id="totHt">—</small></div><div class="a" id="totTtc">—</div></div>
+        <div class="chk" id="chk"></div>
+        <button type="button" class="btn primaire btn-close" id="btnClore">Clôturer la consultation</button>
+      </div>
+    </aside>
   </div>
 
-  {#
-   # The total sits in the foot next to the sentence that says what closing will
-   # produce: the commitment is read at the moment it is taken.
-   #}
-  <div class="rp-foot">
-    <div class="bill-total">
-      <div>
-        <div style="font-size:var(--text-md);font-weight:var(--weight-medium);color:#e9efec">Total TTC</div>
-        <div style="font-size:var(--text-xs);color:#8fa3ab;font-family:var(--font-mono);margin-top:2px"></div>
+  <div class="menu-pop scr" id="menuPop"></div>
+
+  {# ── Drawer: team notes, files, documents ── #}
+  <div class="dw-veil" id="dwVeil"></div>
+  <aside class="drawer" id="drawer" aria-label="Dossier de la consultation">
+    <div class="dw-head">
+      <div class="seg dw-tabs" id="dwTabs">
+        <button type="button" data-t="notes">Notes <span class="pcnt" id="tcNotes">0</span></button>
+        <button type="button" data-t="files">Fichiers <span class="pcnt" id="tcFiles">0</span></button>
+        <button type="button" data-t="docs">Documents</button>
       </div>
-      <div class="bill-total-amount">—</div>
+      <button type="button" class="mclose" id="dwX" aria-label="Fermer">{{ x14|raw }}</button>
     </div>
-    <div class="closure-note" id="closure-note"></div>
-    <button class="btn btn-primary btn-lg" id="btn-close-consultation">
-      Clôturer la consultation
-    </button>
+    <p class="dw-sub" id="dwSub"></p>
+    <div class="dw-body scr" id="dwBody"></div>
+    <div class="dw-foot" id="dwFoot"></div>
+  </aside>
+
+  {# ── Plan line editor ── #}
+  <div class="mveil" id="edVeil" role="dialog" aria-modal="true" aria-label="Ligne de plan">
+    <div class="mbox ed" style="width:min(660px,95vw)">
+      <div class="mhead"><div class="mt" style="flex:1;min-width:0"><b id="edTitre">Ajouter au plan</b><span id="edSous"></span></div>
+        <button type="button" class="mclose" id="edX" aria-label="Fermer">{{ x14|raw }}</button></div>
+      <div class="mbody">
+        <div class="seg ed-kinds" id="edKinds"></div>
+        <div id="edPick"></div>
+        <div id="edForm"></div>
+      </div>
+      <div class="mfoot">
+        <div class="ed-tot" id="edTot"></div>
+        <button type="button" class="btn ghost-danger" id="edSuppr">Retirer</button>
+        <button type="button" class="btn" id="edAnnuler">Annuler</button>
+        <button type="button" class="btn primaire" id="edOk">Ajouter au plan</button>
+      </div>
+    </div>
   </div>
 
-</aside>
-{% endblock %}
+  {# ── Paper previews ── #}
+  <div class="mveil" id="prevVeil" role="dialog" aria-modal="true" aria-label="Aperçu">
+    <div class="mbox prev" style="width:min(720px,95vw)">
+      <div class="mhead"><div class="mt" style="flex:1;min-width:0"><b id="prevTitre">Aperçu</b><span id="prevSous">—</span></div>
+        <button type="button" class="mclose" id="prevX" aria-label="Fermer">{{ x14|raw }}</button></div>
+      <div class="mbody scr"><div class="paper" id="paper"></div></div>
+      <div class="mfoot"><button type="button" class="btn" id="prevFermer">Fermer</button><a class="btn" id="prevPdf" target="_blank" rel="noopener" data-turbo="false">Télécharger le PDF</a><button type="button" class="btn primaire" id="prevPrint">Imprimer</button></div>
+    </div>
+  </div>
 
-{% block modals %}
-  {% include 'clinic/consultation/detail/_modals.html.twig' %}
+  {# ── Closing confirmation (the only confirmation of the page) ── #}
+  <div class="mveil" id="cloVeil" role="dialog" aria-modal="true" aria-label="Clôturer la consultation">
+    <div class="mbox" style="width:min(500px,95vw)">
+      <div class="mhead"><div class="mt"><b>Clôturer la consultation de {{ patient.name }} ?</b><span>Ce qui va se passer :</span></div>
+        <button type="button" class="mclose" id="cloX" aria-label="Fermer">{{ x14|raw }}</button></div>
+      <div class="mbody"><div class="conseq" id="conseq"></div></div>
+      <form class="mfoot" method="post" action="{{ hydration.endpoints.close }}" id="cloForm" data-turbo="false">
+        <input type="hidden" name="_token" value="{{ csrf_token('consultation_edit') }}">
+        <button type="button" class="btn" id="cloAnnuler">Continuer la consultation</button>
+        <button type="submit" class="btn primaire" id="cloOk">Clôturer</button>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

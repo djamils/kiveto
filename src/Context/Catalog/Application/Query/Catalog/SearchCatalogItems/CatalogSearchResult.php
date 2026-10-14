@@ -16,6 +16,8 @@ final readonly class CatalogSearchResult
         public string $basePriceCurrency,
         public string $taxCategoryCode,
         public bool $requiresPrescription,
+        /** DRUG, CONSUMABLE, FOOD or EQUIPMENT for an article, null for an act. */
+        public ?string $articleKind = null,
     ) {
     }
 }

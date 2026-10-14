@@ -14,6 +14,7 @@ use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\UserId;
+use App\Context\Consultation\Domain\ValueObject\Vitals;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -55,6 +56,25 @@ final class RecordVitalsHandlerTest extends TestCase
             weightKg: 12.5,
             temperatureC: 38.2,
         ));
+    }
+
+    public function testClearsTheVitalsWhenBothReadingsAreRemoved(): void
+    {
+        $consultation = $this->makeConsultation();
+        $consultation->recordVitals(Vitals::create(12.5, 38.2), new \DateTimeImmutable('2026-04-10 09:05:00'));
+
+        $this->consultations->expects(self::once())->method('findById')->willReturn($consultation);
+        $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:10:00'));
+        $this->consultations->expects(self::once())->method('save')->with(self::identicalTo($consultation));
+
+        ($this->handler)(new RecordVitals(
+            consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
+            weightKg: null,
+            temperatureC: null,
+        ));
+
+        self::assertNull($consultation->getVitals());
     }
 
     #[AllowMockObjectsWithoutExpectations]

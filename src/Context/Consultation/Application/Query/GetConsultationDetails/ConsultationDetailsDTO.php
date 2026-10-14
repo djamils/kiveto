@@ -7,11 +7,11 @@ namespace App\Context\Consultation\Application\Query\GetConsultationDetails;
 final readonly class ConsultationDetailsDTO
 {
     /**
-     * @param array{weightKg: ?string, temperatureC: ?string}|null                     $vitals
-     * @param list<array{noteType: string, content: string, createdAt: string}>        $notes
-     * @param list<array{label: string, quantity: string, performedAt: string}>        $acts
-     * @param list<array{id: string, label: string}>                                   $motifs
-     * @param list<array{id: string, type: string, value: string, recordedAt: string}> $typedVitals
+     * @param array{weightKg: ?string, temperatureC: ?string}|null                                                   $vitals
+     * @param list<array{id: string, noteType: string, content: string, createdAt: string, createdByUserId: string}> $notes
+     * @param list<array{label: string, quantity: string, performedAt: string}>                                      $acts
+     * @param list<array{id: string, label: string}>                                                                 $motifs
+     * @param list<array{id: string, type: string, value: string, recordedAt: string}>                               $typedVitals
      * @param list<array{
      *     id: string,
      *     system: string,

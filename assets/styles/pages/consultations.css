@@ -23,26 +23,7 @@
       display: flex; flex-direction: column; flex: 1; min-height: 0;
     }
 
-    /* ── Topbar ── */
-    .topbar {
-      height: 52px; flex-shrink: 0;
-      padding: 0 var(--space-6);
-      border-bottom: 1px solid var(--border-light);
-      background: var(--surface-card);
-      display: flex; align-items: center; gap: var(--space-4);
-    }
-    .tb-toggle {
-      width: 30px; height: 30px; flex-shrink: 0;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: transparent; border: 1px solid var(--border-light);
-      border-radius: var(--radius-md); color: var(--text-muted); cursor: pointer;
-    }
-    .tb-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
-    /* Icon and title reuse the shared .topbar-icon / .topbar-title of the
-       standard topbar, so this page reads like every other list. */
-    .tb-title { display: flex; align-items: center; gap: var(--space-2); }
-    .tb-title-count { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-    .tb-spacer { flex: 1; }
+    /* ── Search (in the shell .pagehead) ── */
     .tb-search { position: relative; width: 340px; }
     .tb-search input {
       width: 100%; height: 32px;
@@ -366,3 +347,36 @@
     .bulk-btn svg { width: 13px; height: 13px; }
   }
 }
+
+/* ═════════ v-topbar language (unlayered: wins over the legacy layer) ═════════
+   The list the shell's « Consultations » entry opens reads like the cockpit it
+   leads to: page header of the shell, mist background, the results as one
+   elevated card, kit chips for motifs and statuses. */
+.cl-page{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--brume)}
+.cl-page .cl-root{flex:1;min-height:0}
+.cl-page .pagehead h1 small .tb-title-count{font-family:var(--font-data);font-weight:600;color:var(--encre)}
+.cl-page .tb-search{width:340px}
+.cl-page .tb-search input{height:34px;border:1px solid var(--trait);border-radius:8px;background:var(--carte);font:inherit;font-size:.84rem;color:var(--encre)}
+.cl-page .tb-search input:focus{border-color:var(--pin);box-shadow:0 0 0 3px rgba(67,56,202,.12)}
+.cl-page .btn:disabled{opacity:.45;cursor:not-allowed}
+.cl-page .cl-root > turbo-frame{margin:14px;background:var(--carte);border:1px solid var(--trait);border-radius:12px;box-shadow:var(--ombre);overflow:hidden}
+.cl-page .filters{background:var(--carte);border-bottom:1px solid var(--brume)}
+.cl-page .filter-label{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--encre-35)}
+.cl-page .filter-add{border:1px dashed var(--encre-35);border-radius:6px;color:var(--encre-60);font-size:.74rem;font-weight:600}
+.cl-page .filter-add:hover,.cl-page .filter-add.is-active{border-style:solid;border-color:var(--pin);color:var(--pin-fonce);background:var(--pin-pale)}
+.cl-page .filter-chip{border-radius:5px;background:var(--pin-pale);color:var(--pin-fonce);font-size:.76rem;font-weight:600}
+.cl-page .filter-menu{border:1px solid var(--trait);border-radius:10px;box-shadow:0 14px 40px rgba(15,23,42,.18)}
+.cl-page .consult-table th{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--encre-35)}
+.cl-page .consult-table tbody tr{border-bottom-color:var(--brume)}
+.cl-page .consult-table tbody tr:hover{background:#fbfcfe}
+.cl-page .patient-avatar{border-radius:10px;background:var(--celadon)}
+.cl-page .patient-name{font-family:var(--font-display);font-weight:600;letter-spacing:-.01em}
+.cl-page .motif-chip{border-radius:5px;background:var(--pin-pale);color:var(--pin-fonce);font-weight:600}
+.cl-page .status-badge{border-radius:5px;font-weight:600}
+.cl-page .status-badge.status-OPEN{background:var(--ambre-pale);color:#b45309}
+.cl-page .status-badge.status-OPEN .status-dot{background:#f59e0b}
+.cl-page .status-badge.status-CLOSED{background:#f0fdf4;color:#15803d}
+.cl-page .status-badge.status-CLOSED .status-dot{background:#16a34a}
+.cl-page .cell-amount{font-family:var(--font-data);font-weight:600}
+.cl-page .pagination{background:var(--carte);border-top:1px solid var(--brume)}
+.cl-page .pag-btn.is-active{background:var(--pin);border-color:var(--pin);color:#fff}

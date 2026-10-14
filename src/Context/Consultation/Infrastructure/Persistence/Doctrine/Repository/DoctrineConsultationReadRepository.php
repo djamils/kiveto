@@ -528,12 +528,12 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
     }
 
     /**
-     * @return list<array{noteType: string, content: string, createdAt: string}>
+     * @return list<array{id: string, noteType: string, content: string, createdAt: string, createdByUserId: string}>
      */
     private function fetchNotes(string $consultationIdBinary): array
     {
         $rows = $this->fetchChildren(
-            'SELECT note_type, content, created_at_utc
+            'SELECT BIN_TO_UUID(id) AS id, note_type, content, created_at_utc, BIN_TO_UUID(created_by_user_id) AS created_by_user_id
              FROM consultation__clinical_notes
              WHERE consultation_id = :consultationId
              ORDER BY created_at_utc ASC',
@@ -544,12 +544,14 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
             /**
              * @param array<string, mixed> $row
              *
-             * @return array{noteType: string, content: string, createdAt: string}
+             * @return array{id: string, noteType: string, content: string, createdAt: string, createdByUserId: string}
              */
             static fn (array $row): array => [
-                'noteType'  => RowAccessor::string($row, 'note_type'),
-                'content'   => RowAccessor::string($row, 'content'),
-                'createdAt' => RowAccessor::string($row, 'created_at_utc'),
+                'id'              => RowAccessor::string($row, 'id'),
+                'noteType'        => RowAccessor::string($row, 'note_type'),
+                'content'         => RowAccessor::string($row, 'content'),
+                'createdAt'       => RowAccessor::string($row, 'created_at_utc'),
+                'createdByUserId' => RowAccessor::string($row, 'created_by_user_id'),
             ],
             $rows,
         );

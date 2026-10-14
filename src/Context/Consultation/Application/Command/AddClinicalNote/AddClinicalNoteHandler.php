@@ -25,11 +25,16 @@ final readonly class AddClinicalNoteHandler
         $consultationId = ConsultationId::fromString($command->consultationId);
         $consultation   = $this->consultations->findById($consultationId);
 
-        if (null === $consultation) {
+        if (null === $consultation || $consultation->getClinicId()->toString() !== $command->clinicId) {
             throw new \DomainException('Consultation not found');
         }
 
-        $noteType        = NoteType::from($command->noteType);
+        $noteType = NoteType::tryFrom($command->noteType);
+
+        if (null === $noteType) {
+            throw new \InvalidArgumentException('Unknown note type');
+        }
+
         $createdByUserId = UserId::fromString($command->createdByUserId);
         $now             = $this->clock->now();
 

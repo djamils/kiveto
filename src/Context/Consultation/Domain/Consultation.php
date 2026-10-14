@@ -205,6 +205,15 @@ final class Consultation extends AggregateRoot
         ));
     }
 
+    /** Removes the last weight / temperature reading, back to "not measured". */
+    public function clearVitals(\DateTimeImmutable $occurredAt): void
+    {
+        $this->ensureOpen();
+
+        $this->vitals       = null;
+        $this->updatedAtUtc = $occurredAt;
+    }
+
     public function addClinicalNote(
         NoteType $noteType,
         string $content,
@@ -213,7 +222,35 @@ final class Consultation extends AggregateRoot
     ): void {
         $this->ensureOpen();
 
+        if (NoteType::ADDENDUM === $noteType) {
+            throw new \DomainException('An addendum can only be added to a closed consultation');
+        }
+
         $note               = ClinicalNoteRecord::create($noteType, $content, $createdAt, $createdByUserId);
+        $this->notes[]      = $note;
+        $this->updatedAtUtc = $createdAt;
+
+        $this->recordDomainEvent(new ConsultationClinicalNoteAdded(
+            $this->id,
+            $note,
+            $createdAt,
+        ));
+    }
+
+    /**
+     * Correction or complement signed after closing: it is appended as a dated
+     * note, the closed record itself is never rewritten.
+     */
+    public function addAddendum(
+        string $content,
+        UserId $createdByUserId,
+        \DateTimeImmutable $createdAt,
+    ): void {
+        if ($this->status->isOpen()) {
+            throw new \DomainException('An addendum can only be added to a closed consultation');
+        }
+
+        $note               = ClinicalNoteRecord::create(NoteType::ADDENDUM, trim($content), $createdAt, $createdByUserId);
         $this->notes[]      = $note;
         $this->updatedAtUtc = $createdAt;
 

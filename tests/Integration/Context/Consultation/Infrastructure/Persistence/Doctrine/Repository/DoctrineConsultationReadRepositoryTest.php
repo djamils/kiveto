@@ -166,10 +166,12 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         self::assertNull($dto->closedAtUtc);
         self::assertFalse($dto->isClosed());
 
-        self::assertSame(
-            [['noteType' => 'DIAGNOSIS', 'content' => 'Otite externe', 'createdAt' => '2026-04-10 09:00:00']],
-            $dto->notes,
-        );
+        self::assertCount(1, $dto->notes);
+        self::assertSame($consultation->getNotes()[0]->getId(), $dto->notes[0]['id']);
+        self::assertSame('DIAGNOSIS', $dto->notes[0]['noteType']);
+        self::assertSame('Otite externe', $dto->notes[0]['content']);
+        self::assertSame('2026-04-10 09:00:00', $dto->notes[0]['createdAt']);
+        self::assertSame(self::USER_ID, $dto->notes[0]['createdByUserId']);
         self::assertSame(
             [['label' => 'Otoscopie', 'quantity' => '1.50', 'performedAt' => '2026-04-10 09:00:00']],
             $dto->acts,

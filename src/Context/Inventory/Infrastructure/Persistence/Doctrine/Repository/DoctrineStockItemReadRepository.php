@@ -14,6 +14,7 @@ use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemId;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemStatus;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineStockItemReadRepository implements StockItemReadRepositoryInterface
@@ -157,7 +158,12 @@ final readonly class DoctrineStockItemReadRepository implements StockItemReadRep
 
         $sql .= ' GROUP BY s.id ORDER BY s.id ASC LIMIT :limit OFFSET :offset';
 
-        $rows = $this->connection->fetchAllAssociative($sql, array_merge($params, ['limit' => $limit, 'offset' => $offset]));
+        // LIMIT / OFFSET must be bound as integers: MySQL refuses quoted values there.
+        $rows = $this->connection->fetchAllAssociative(
+            $sql,
+            array_merge($params, ['limit' => $limit, 'offset' => $offset]),
+            ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
+        );
 
         return array_map(
             static fn (array $row): StockItemSummaryView => new StockItemSummaryView(

@@ -5,50 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Consultation\Record;
 
 use App\Context\Consultation\Application\Command\AddClinicalNote\AddClinicalNote;
-use App\Shared\Application\Bus\CommandBusInterface;
-use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Publishes a note for the team from the cockpit's « Notes » drawer.
+ */
 final class AddClinicalNoteController extends AbstractController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
+        private readonly CockpitEndpoint $endpoint,
     ) {
     }
 
     #[Route('/clinic/consultations/{id}/notes', name: 'clinic_consultation_add_note', methods: ['POST'])]
-    public function __invoke(string $id, Request $request): Response
+    public function __invoke(string $id, Request $request): JsonResponse
     {
-        $user = $this->getUser();
-        \assert($user instanceof SecurityUser);
-
-        $noteType = $request->request->getString('noteType');
-        $content  = $request->request->getString('content');
-
-        if ('' === $noteType || '' === $content) {
-            $this->addFlash('error', 'Le type et le contenu de la note sont obligatoires.');
-
-            return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
-        }
-
-        try {
-            $this->commandBus->dispatch(
-                new AddClinicalNote(
-                    consultationId: $id,
-                    noteType: $noteType,
-                    content: $content,
-                    createdByUserId: $user->id(),
-                )
-            );
-
-            $this->addFlash('success', 'Note clinique ajoutée.');
-        } catch (\Exception $e) {
-            $this->addFlash('error', 'Erreur : ' . $e->getMessage());
-        }
-
-        return $this->redirectToRoute('clinic_consultation_details', ['id' => $id]);
+        return $this->endpoint->run(
+            $request,
+            $id,
+            static fn (string $clinicId, string $userId): AddClinicalNote => new AddClinicalNote(
+                consultationId: $id,
+                clinicId: $clinicId,
+                noteType: $request->request->getString('noteType', 'GENERAL'),
+                content: $request->request->getString('content'),
+                createdByUserId: $userId,
+            ),
+        );
     }
 }

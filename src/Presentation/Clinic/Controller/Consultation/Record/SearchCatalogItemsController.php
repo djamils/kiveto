@@ -8,6 +8,8 @@ use App\Context\Consultation\Application\Port\CatalogItemDto;
 use App\Context\Consultation\Application\Port\CatalogItemProviderInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\ListStockItemsByClinic;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\StockItemSummaryView;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitStateBuilder;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -52,12 +54,12 @@ final class SearchCatalogItemsController extends AbstractController
 
         $items = array_values(array_filter(
             $this->catalogItems->search($term, $clinicId, self::SEARCH_FETCH_LIMIT),
-            static fn (CatalogItemDto $item): bool => 'ACTIVE' === $item->status
-                && ('' === $kind || $item->itemType === $kind),
+            static fn (CatalogItemDto $item): bool => 'ACTIVE' === $item->status && self::matchesKind($item, $kind),
         ));
 
         $items     = \array_slice($items, 0, self::MAX_RESULTS);
         $allergies = $this->allergyLabels($id, $clinicId);
+        $stock     = $this->stockByArticle($clinicId);
 
         return new JsonResponse([
             'success' => true,
@@ -71,11 +73,52 @@ final class SearchCatalogItemsController extends AbstractController
                     'basePriceMinorUnits'  => $item->basePriceMinorUnits,
                     'currency'             => $item->currency,
                     'status'               => $item->status,
+                    'articleKind'          => $item->articleKind,
+                    'stock'                => 'ARTICLE' === $item->itemType ? ($stock[$item->itemId] ?? null) : null,
                     'allergyConflicts'     => $this->allergyConflicts($item, $allergies, $clinicId),
                 ],
                 $items,
             ),
         ]);
+    }
+
+    /**
+     * `kind` narrows the list to one picker of the plan editor: ACT, MED (drug
+     * articles), PRD (every other article) or ARTICLE.
+     */
+    private static function matchesKind(CatalogItemDto $item, string $kind): bool
+    {
+        return match ($kind) {
+            ''      => true,
+            'MED'   => 'ARTICLE' === $item->itemType && 'DRUG' === $item->articleKind,
+            'PRD'   => 'ARTICLE' === $item->itemType && 'DRUG' !== $item->articleKind,
+            default => $item->itemType === $kind,
+        };
+    }
+
+    /**
+     * Quantity available per stock-tracked article, so the picker can show
+     * « Stock 4 » or « Rupture » next to each product.
+     *
+     * @return array<string, float>
+     */
+    private function stockByArticle(string $clinicId): array
+    {
+        $rows = $this->queryBus->ask(new ListStockItemsByClinic($clinicId, null, 1000));
+
+        if (!\is_array($rows)) {
+            return [];
+        }
+
+        $stock = [];
+
+        foreach ($rows as $row) {
+            if ($row instanceof StockItemSummaryView && $row->trackStock) {
+                $stock[$row->articleId] = (float) $row->availableQuantityAmount;
+            }
+        }
+
+        return $stock;
     }
 
     /**

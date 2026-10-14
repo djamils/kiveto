@@ -28,12 +28,16 @@ final readonly class RecordVitalsHandler
             throw new \DomainException('Consultation not found');
         }
 
-        $vitals = Vitals::create($command->weightKg, $command->temperatureC);
-
-        $consultation->recordVitals(
-            $vitals,
-            $this->clock->now(),
-        );
+        // Both readings removed from the cockpit: the consultation goes back to
+        // "not measured" rather than refusing the change.
+        if (null === $command->weightKg && null === $command->temperatureC) {
+            $consultation->clearVitals($this->clock->now());
+        } else {
+            $consultation->recordVitals(
+                Vitals::create($command->weightKg, $command->temperatureC),
+                $this->clock->now(),
+            );
+        }
 
         $this->consultations->save($consultation);
     }

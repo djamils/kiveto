@@ -20,6 +20,8 @@ final readonly class CatalogItemDto
         public string $currency,
         public string $taxCategoryCode,
         public string $status,
+        /** DRUG, CONSUMABLE, FOOD or EQUIPMENT for an article, null for an act. */
+        public ?string $articleKind = null,
     ) {
     }
 }

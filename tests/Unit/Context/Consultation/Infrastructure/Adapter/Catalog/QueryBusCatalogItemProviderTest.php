@@ -64,6 +64,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
                         basePriceCurrency: 'CHF',
                         taxCategoryCode: 'veterinary.medicine.oral',
                         requiresPrescription: true,
+                        articleKind: 'DRUG',
                     ),
                 ];
             })
@@ -86,6 +87,8 @@ final class QueryBusCatalogItemProviderTest extends TestCase
         self::assertTrue($items[1]->requiresPrescription);
         self::assertSame('CHF', $items[1]->currency);
         self::assertSame('ARCHIVED', $items[1]->status);
+        self::assertSame('DRUG', $items[1]->articleKind);
+        self::assertNull($items[0]->articleKind);
     }
 
     public function testSearchReturnsNothingWhenTheBusDoesNotAnswerWithAnArray(): void
@@ -196,6 +199,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
         self::assertSame('CHF', $item->currency);
         self::assertSame('veterinary.medicine.oral', $item->taxCategoryCode);
         self::assertSame('ACTIVE', $item->status);
+        self::assertSame('MEDICATION', $item->articleKind);
     }
 
     /**
