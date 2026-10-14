@@ -14,6 +14,7 @@ use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
+use App\Fixtures\Context\Scheduling\Story\CalmDayClinicStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
@@ -57,6 +58,9 @@ final class ClinicDataset extends Story
 
         // Seed Scheduling BC appointments (depends on users, memberships, owners, animals)
         SchedulingStory::load();
+
+        // The quiet clinic of the group: its own patients and calm day
+        CalmDayClinicStory::load();
 
         // Seed PlanningBlock fixtures
         SchedulingPlanningBlockStory::load();
