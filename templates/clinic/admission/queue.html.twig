@@ -1,1504 +1,405 @@
 {#
  # Kiveto — templates/clinic/admission/queue.html.twig
  # ─────────────────────────────────────────────────────
- # Waiting room — "Flux du jour" kanban layout.
+ # Ambulatory flow board (« Flux ambulatoire »), ported from
+ # docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_6.html:
+ # live clock and day figures, the banner of the emergencies nobody has taken
+ # yet, four columns — Planifié (today's bookings by time), Salle d'attente
+ # (emergencies, priority, normal queue), Pris en charge, Sortie — the « partis
+ # aujourd'hui » bar, the arrival and emergency modals, the card action menu
+ # and the patient peek. An empty column renders its dashed placeholder.
  #
- # Variables:
- #   entries           WaitingRoomItemDto[]   Active admissions in waiting room
- #   countUnidentified int                    Admissions with unidentified patient
+ # Variables from controller:
+ #   board  App\Presentation\Clinic\ViewModel\Flux\FluxBoardView
+ #
+ # Behaviour: assets/js/pages/flux.js — styles: assets/styles/pages/flux.css
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% block show_topbar %}false{% endblock %}
-{% block page_title %}Flux du jour{% endblock %}
+{% block page_body_class %}vt{% endblock %}
+{% block title %}Flux ambulatoire{% endblock %}
 
-{% block stylesheets %}
-  {# The flow follows the new-gen layout down to its type, like the cockpit does. #}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="{{ asset('styles/pages/scheduling/waiting-room.css') }}"/>
-{% endblock %}
-
-{% set channelLabels = {
-  'appointment_booked':        'RDV',
-  'walk_in':                   'Sans RDV',
-  'emergency':                 'Urgence',
-  'emergency_by_third_party':  'Urgence tiers',
-  'emergency_by_authority':    'Urgence autorités',
-  'emergency_by_association':  'Urgence asso.',
-  'transfer_from_other_clinic':'Transfert',
+{% set _svg = {
+  arrivee: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  fleche:  '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  ok:      '<path d="m5 13 4 4L19 7"/>',
+  alerte:  '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  eclair:  '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  croix:   '<path d="M18 6 6 18M6 6l12 12"/>',
+  retour:  '<path d="M19 12H5m6-6-6 6 6 6"/>',
 } %}
 
-{% set channelBadgeStyle = {
-  'appointment_booked':        'background:var(--color-info-bg);color:var(--color-info-text);',
-  'walk_in':                   'background:var(--surface-subtle);color:var(--text-secondary);border:1px solid var(--border-medium);',
-  'emergency':                 'background:var(--color-danger-bg);color:var(--color-danger-text);',
-  'emergency_by_third_party':  'background:var(--color-danger-bg);color:var(--color-danger-text);',
-  'emergency_by_authority':    'background:var(--color-danger-bg);color:var(--color-danger-text);',
-  'emergency_by_association':  'background:var(--color-warning-bg);color:var(--color-warning-text);',
-  'transfer_from_other_clinic':'background:var(--color-purple-bg);color:var(--color-purple-text);',
-} %}
+{% macro idBloc(p) %}
+  <div class="esp">{{ p.emoji }}</div>
+  <div class="id"><div>
+    <b>{{ p.name }}</b>
+    <span>{{ p.breed }}{% if p.breed and p.ownerShort %} · {% endif %}{{ p.ownerShort }}</span>
+  </div></div>
+{% endmacro %}
 
-{% set urgCount = entries|filter(e => e.triageLevel in ['emergency','vital_emergency'])|length %}
-{% set waitEntries = entries|filter(e => e.locationStatus == 'in_waiting_room') %}
-{# Seen, back at the desk, waiting to be charged before the visit is closed #}
-{% set checkoutEntries = entries|filter(e => e.locationStatus == 'at_reception') %}
-{% set consultEntries = entries|filter(e => e.locationStatus == 'in_consultation_room') %}
-{% set surgeryEntries = entries|filter(e => e.locationStatus == 'in_surgery') %}
-{% set hospiEntries = entries|filter(e => e.locationStatus == 'in_hospitalization') %}
-{% set attenteCount = waitEntries|length %}
-{% set consultCount = consultEntries|length %}
-{# Everyone the clinic has taken in hand: in a room, at the theatre or in the ward #}
-{% set chargeCount = consultEntries|length + surgeryEntries|length + hospiEntries|length %}
-{# A practitioner counts as busy when one of their patients is in consultation. #}
-{% set busyVetIds = consultEntries|map(e => e.practitionerUserId)|filter(id => id is not null) %}
+{% macro menuBtn(p) %}<button class="pmenu" data-key="{{ p.key }}" data-tip="Plus d'actions" aria-label="Plus d'actions" aria-haspopup="menu">⋯</button>{% endmacro %}
 
-{% block content %}
-<div data-controller="waiting-room" class="wr-root">
-
-  {# ── Section 1: Topbar ── #}
-  <div class="topbar">
-    <div>
-      <p class="topbar-title">Flux du jour</p>
-      <p class="topbar-date">{{ "now"|date("l j F Y")|capitalize }}</p>
-    </div>
-    <div class="topbar-clock">
-      <span class="clock-num" data-waiting-room-target="clockH"></span>
-      <span class="clock-sep">:</span>
-      <span class="clock-num" data-waiting-room-target="clockM"></span>
-      <span class="clock-sep clock-sep--sec">:</span>
-      <span class="clock-sec" data-waiting-room-target="clockS"></span>
-    </div>
-    <div class="topbar-right">
-      <button class="btn btn-danger btn-sm"
-              data-action="waiting-room#openModal"
-              data-waiting-room-modal-id-param="modal-urgence">
-        <i data-lucide="alert-triangle" style="width:13px;height:13px;"></i> Urgence
-      </button>
-      <button class="btn btn-primary btn-sm"
-              data-action="waiting-room#openModal"
-              data-waiting-room-modal-id-param="modal-checkin">
-        <i data-lucide="user-plus" style="width:13px;height:13px;"></i> Walk-in
-      </button>
-    </div>
-  </div>
-
-  {# ── Section 2: Tabs Row with KPIs ── #}
-  <div class="tabs-row">
-    <div class="tabs-left">
-      <button class="tab-btn active" data-tab="amb"
-              data-action="click->waiting-room#setTab"
-              data-waiting-room-tab-param="amb">
-        <i data-lucide="activity"></i>
-        <span>Flux ambulatoire</span>
-        <span class="tab-badge{% if urgCount > 0 %} warn{% endif %}">{{ entries|length }} · {{ urgCount }} urg.</span>
-      </button>
-      {# Disabled until the domain models surgical stages, cages and care plans #}
-      <button class="tab-btn" data-tab="soins" disabled
-              title="Soins cliniques — bientôt disponible">
-        <i data-lucide="bed-double"></i>
-        <span>Soins cliniques</span>
-        <span class="tab-badge">{{ surgeryEntries|length }} · {{ hospiEntries|length }}</span>
-      </button>
-    </div>
-    <div class="tabs-kpis" id="tabs-kpis">
-      <div class="kpi-item">
-        <span class="kpi-num warn">{{ attenteCount }}</span>
-        <span class="kpi-label">attente</span>
+{# One card, drawn like the mock-up's carte(): one layout per column #}
+{% macro card(p, svg) %}
+  {% if p.column == 'planifie' %}
+    <article class="pat pat-mini" data-key="{{ p.key }}">
+      <div class="top">
+        <div class="esp">{{ p.emoji }}</div>
+        <b class="pm-nom">{{ p.name }}</b>
+        <button class="av-ic avancer" data-key="{{ p.key }}" data-tip="Enregistrer l'arrivée" aria-label="Enregistrer l'arrivée — {{ p.name }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">{{ svg.arrivee|raw }}</svg>
+        </button>
+        {{ _self.menuBtn(p) }}
       </div>
-      <div class="kpi-item">
-        <span class="kpi-num info">{{ chargeCount }}</span>
-        <span class="kpi-label">pris en charge</span>
+      <div class="pm-foot">
+        <span class="pm-sub">{{ p.motif }}{% if p.ownerShort %} · {{ p.ownerShort }}{% endif %}</span>
+        {% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}
       </div>
-      <div class="kpi-item">
-        <span class="kpi-num danger">{{ urgCount }}</span>
-        <span class="kpi-label">urgences</span>
+    </article>
+  {% elseif p.column == 'charge' %}
+    <article class="pat" data-key="{{ p.key }}">
+      <div class="top">{{ _self.idBloc(p) }}{{ _self.menuBtn(p) }}</div>
+      <div class="infos">
+        <span class="puce motif">{{ p.motif }}</span>
+        {% if p.location == 'in_surgery' %}<span class="puce">Au bloc</span>{% endif %}
+        <span class="qui">{{ p.practitioner ?? 'Sans praticien' }}</span>
       </div>
-      <div class="kpi-item">
-        <span class="kpi-num purple">{{ surgeryEntries|length }}</span>
-        <span class="kpi-label">bloc</span>
+    </article>
+  {% elseif p.column == 'attente' %}
+    <article class="pat{{ p.isEmergency ? ' urg' }}" data-key="{{ p.key }}">
+      <div class="top">{{ _self.idBloc(p) }}<span class="chrono{{ p.isLong ? ' long' }}" data-dep="{{ p.sinceEpoch }}">{{ p.waitLabel }}</span>
+        <button class="av-ic avancer" data-key="{{ p.key }}" data-tip="Prendre en charge" aria-label="Prendre en charge — {{ p.name }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">{{ svg.fleche|raw }}</svg>
+        </button>
+      {{ _self.menuBtn(p) }}</div>
+      <div class="infos"><span class="puce motif">{{ p.motif }}</span>{% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}</div>
+    </article>
+  {% else %}
+    <article class="pat" data-key="{{ p.key }}">
+      <div class="top">{{ _self.idBloc(p) }}{{ _self.menuBtn(p) }}</div>
+      <div class="bas">
+        <span class="qui">{{ p.practitioner ?? '' }}</span>
+        <button class="avancer encaisser" data-key="{{ p.key }}">
+          {{ p.amountLabel ? 'Encaisser ' ~ p.amountLabel : 'Encaisser' }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">{{ svg.ok|raw }}</svg>
+        </button>
       </div>
-      <div class="kpi-item">
-        <span class="kpi-num success">{{ hospiEntries|length }}</span>
-        <span class="kpi-label">hospi</span>
-      </div>
-      <div class="kpi-live">
-        <span class="kpi-live-dot"></span>
-        <span class="kpi-live-text">Live</span>
-      </div>
-    </div>
-  </div>
-
-
-  {#
-   # ── Section 3b: the emergency nobody has taken yet ──
-   # An emergency still sitting in the waiting room is the one thing on this
-   # page that cannot wait for someone to scroll to it.
-   #}
-  {% set pendingUrgencies = waitEntries|filter(e => e.triageLevel in ['emergency', 'vital_emergency']) %}
-  {% if pendingUrgencies|length > 0 %}
-    {% set urgent = pendingUrgencies|sort((a, b) => a.openedAt <=> b.openedAt)|first %}
-    {% set waited = (date().timestamp - date(urgent.openedAt).timestamp) // 60 %}
-    <div class="urg-alert" role="alert">
-      <span class="urg-alert-dot"></span>
-      <div class="urg-alert-body">
-        <span class="urg-alert-title">
-          Urgence non prise en charge · {{ urgent.displayLabel }}
-          {%- if urgent.triageNotes %} · {{ urgent.triageNotes }}{% endif -%}
-        </span>
-        <span class="urg-alert-meta">
-          {% if waited < 1 %}À l'instant{% else %}{{ waited }} min écoulée{{ waited > 1 ? 's' : '' }}{% endif %}
-          {%- set freeVets = practitioners|filter(v => v.userId not in busyVetIds) -%}
-          {%- if freeVets|length > 0 %} · {{ freeVets|length }} praticien{{ freeVets|length > 1 ? 's' : '' }} libre{{ freeVets|length > 1 ? 's' : '' }}
-          {%- else %} · tous les praticiens sont occupés{% endif -%}
-          {%- if pendingUrgencies|length > 1 %} · {{ pendingUrgencies|length - 1 }} autre{{ pendingUrgencies|length > 2 ? 's' : '' }} en attente{% endif -%}
-        </span>
-      </div>
-      <div class="urg-alert-actions">
-        <form method="post"
-              action="{{ path('clinic_consultation_start_from_admission', {admissionId: urgent.admissionId}) }}"
-              style="display:contents;">
-          <input type="hidden" name="_token" value="{{ csrf_token('consultation_start') }}">
-          <button class="btn btn-danger btn-sm" type="submit">
-            <i data-lucide="zap" style="width:11px;height:11px;"></i> Prendre en charge
-          </button>
-        </form>
-      </div>
-    </div>
+    </article>
   {% endif %}
+{% endmacro %}
 
-  {# ── Section 4: Vet & Rooms Strip (REAL) ── #}
-  <div class="vstrip">
-    <span class="vstrip-l">Équipe</span>
-    <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:nowrap;">
-      {% for vet in practitioners %}
-        {% set name = vet.displayName ?? 'N/A' %}
-        {% set initials = (name|split(' ')|map(w => w[0:1])|join(''))|upper %}
-        {% set color = vet.agendaColor ?? '#4338ca' %}
-        <div class="vcard">
-          <div class="vcard-av" style="background:{{ color }}22;color:{{ color }};">{{ initials[0:2] }}</div>
-          <span class="vcard-name">{{ name|split(' ')|last }}</span>
-          {% if vet.userId in busyVetIds %}
-            <span class="vcard-status">· en consultation</span>
-          {% else %}
-            <span class="vcard-status free">· libre</span>
-          {% endif %}
-        </div>
-      {% else %}
-        <span style="font-size:var(--text-sm);color:var(--text-subtle);">Aucun praticien configuré</span>
-      {% endfor %}
+{% macro section(cls, label, icon, items, svg) %}
+  {% if items|length %}
+    <div class="ksec {{ cls }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ icon|raw }}</svg>{{ label }}<span class="kn">{{ items|length }}</span></div>
+    {% for p in items %}{{ _self.card(p, svg) }}{% endfor %}
+  {% endif %}
+{% endmacro %}
+
+{% block main %}
+{% set b = board %}
+{% set _waiting = b.waitingCount %}
+{% set _urg = b.urgent|length %}
+{% set _now = date('now', b.timeZone) %}
+
+{# Everything the page module needs to draw the peek, the menu and post the actions #}
+{% set _patients = {} %}
+{% for p in b.patients %}
+  {% set _patients = _patients|merge({ (p.key): {
+    p: p,
+    t: p.admissionId ? {
+      close: csrf_token('admission_close_' ~ p.admissionId),
+      triage: csrf_token('admission_triage_' ~ p.admissionId),
+    } : {},
+  } }) %}
+{% endfor %}
+{% set _data = {
+  tz: b.timeZone,
+  now: b.nowEpoch,
+  patients: _patients,
+  rdv: b.appointmentsByAnimal,
+  free: b.freePractitioners,
+  urls: {
+    checkin:   path('clinic_admission_checkin'),
+    emergency: path('clinic_admission_emergency'),
+    identify:  path('clinic_admission_identify'),
+    search:    path('clinic_search', { format: 'flux', mode: 'pick', type: 'animal' }),
+    start:     path('clinic_consultation_start_from_admission', { admissionId: '__ID__' }),
+    toCheckout: path('clinic_admission_send_to_checkout', { admissionId: '__ID__' }),
+    move:      path('clinic_admission_move', { admissionId: '__ID__' }),
+    motif:     path('clinic_admission_update_motif', { admissionId: '__ID__' }),
+    triage:    path('clinic_admission_update_triage', { admissionId: '__ID__' }),
+    close:     path('clinic_admission_close', { admissionId: '__ID__' }),
+    checkout:  path('clinic_checkout', { admissionId: '__ID__' }),
+    consultation: path('clinic_consultation_details', { id: '__ID__' }),
+    animal:    path('clinic_animals_view', { id: '__ID__' }),
+    agenda:    path('clinic_scheduling_agenda', { view: 'day', date: _now|date('Y-m-d') }),
+    cancelRdv: path('clinic_scheduling_appointment_cancel', { appointmentId: '__ID__' }),
+  },
+  tokens: {
+    checkin:   csrf_token('waiting_room_action'),
+    emergency: csrf_token('admission_emergency'),
+    identify:  csrf_token('admission_identify'),
+    start:     csrf_token('consultation_start'),
+    flux:      csrf_token('flux_action'),
+    rdv:       csrf_token('appointment'),
+  },
+} %}
+
+<div class="flx" data-page="{{ app.request.attributes.get('_route') }}">
+
+  <div class="pagehead">
+    <h1>Flux ambulatoire<small>Patients sur place, de l'arrivée au règlement · {{ b.dateLabel }}</small></h1>
+    <div class="horloge"><span class="hdot"></span><time id="horloge">{{ b.clockLabel }}</time></div>
+    <div class="stats">
+      <div class="stat"><b id="stSurPlace">{{ b.onSiteCount }}</b>sur place</div>
+      <div class="stat"><b id="stAttente"{% if b.averageWaitMinutes > 15 %} class="warn"{% endif %}>{{ b.averageWaitMinutes }} min</b>attente moy.</div>
+      <div class="stat"><b>{{ b.freePractitioners }}</b>praticien{{ b.freePractitioners > 1 ? 's' }} libre{{ b.freePractitioners > 1 ? 's' }}</div>
     </div>
-  </div>
-
-  {# ── Section 5: Tab Content — Flux Ambulatoire ── #}
-  <div class="tab-content active" id="content-amb">
-    {# Lookup map: userId → displayName for appointment cards #}
-    {% set vetByUserId = {} %}
-    {% for vet in practitioners %}
-      {% set vetByUserId = vetByUserId|merge({(vet.userId): vet.displayName ?? ''}) %}
-    {% endfor %}
-    <div class="kanban-amb">
-      <div class="kanban-titles">
-        <div class="col-title">
-          <div>
-            <div class="col-title-l">Planifié</div>
-            <div class="col-title-meta">{{ appointments|length }} rendez-vous à venir</div>
-          </div>
-        </div>
-        <div class="col-title">
-          <div>
-            <div class="col-title-l">Salle d'attente</div>
-            <div class="col-title-meta">
-              {{ waitEntries|length }} patient{{ waitEntries|length > 1 ? 's' : '' }}
-              {% if urgCount > 0 %} · <span class="urg-mark">{{ urgCount }} urgence{{ urgCount > 1 ? 's' : '' }}</span>{% endif %}
-            </div>
-          </div>
-        </div>
-        <div class="col-title">
-          <div>
-            <div class="col-title-l">Pris en charge</div>
-            <div class="col-title-meta">
-              {{ chargeCount }} patient{{ chargeCount > 1 ? 's' : '' }}
-            </div>
-          </div>
-        </div>
-        <div class="col-title">
-          <div>
-            <div class="col-title-l">Sortie</div>
-            <div class="col-title-meta">
-              {{ checkoutEntries|length }} à encaisser
-              {%- if dischargedToday|length %} · {{ dischargedToday|length }} parti{{ dischargedToday|length > 1 ? 's' : '' }}{% endif -%}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="kanban-cols">
-
-        {# Planifié (REAL via GetAgendaForClinicDateRange) #}
-        <div class="kcol">
-          <div class="kcol-scroll">
-            {% for appt in appointments %}
-              {% set apptTime = appt.startsAtUtc|date('H:i', 'Europe/Paris') %}
-              {% set apptTs = appt.startsAtUtc|date('U') %}
-              {% set nowTs = 'now'|date('U') %}
-              {% set isLate = nowTs > apptTs %}
-              {% set minutesLate = isLate ? ((nowTs - apptTs) / 60)|round : 0 %}
-              {% if minutesLate >= 60 %}
-                {% set lateH = (minutesLate / 60)|round(0, 'floor') %}
-                {% set lateM = minutesLate % 60 %}
-                {% set lateDisplay = '+' ~ lateH ~ 'h' ~ (lateM > 0 ? lateM : '') %}
-              {% else %}
-                {% set lateDisplay = '+' ~ minutesLate %}
-              {% endif %}
-              {% set vetName = vetByUserId[appt.practitionerUserId] ?? (appt.practitionerLabel ?? '') %}
-              {% set vetShort = vetName ? vetName|replace({'Dr. ': '', 'Dr ': ''})|split(' ')|last : '' %}
-              {% set speciesKey = appt.animalSpecies ? appt.animalSpecies|lower : '' %}
-              {% set reasonLow = appt.reason ? appt.reason|lower : '' %}
-              {% set speciesIcon = {'dog': '🐕', 'cat': '🐈', 'nac': '🐇', 'other': '🐾'}[speciesKey] ?? '🐾' %}
-              {% if appt.animalBirthDate %}
-                {% set birthYear = appt.animalBirthDate|date('Y') %}
-                {% set ageYears = 'now'|date('Y') - birthYear %}
-                {% set ageDisplay = ageYears > 0 ? ageYears ~ ' an' ~ (ageYears > 1 ? 's' : '') : '< 1 an' %}
-              {% else %}
-                {% set ageDisplay = '' %}
-              {% endif %}
-              <div class="scard stripe-planifie is-collapsed"
-                   data-motif="{{ appt.reason ?? '' }}"
-                   data-channel="RDV" data-opened-at="{{ apptTime }}"
-                   data-triage-label="Standard"
-                   data-vet="{{ vetName }}"
-                   data-owner-name="{{ appt.ownerLabel ?? '' }}"
-                   data-species="{{ appt.animalSpecies ?? '' }}">
-                <div class="card-top"
-                     data-action="click->waiting-room#toggleCollapse">
-                  <span class="card-pet">
-                    <span class="card-pet-icon">{{ appt.animalLabel ? speciesIcon : '🐾' }}</span>
-                    <span class="card-pet-name">{{ appt.animalLabel ?? '—' }}</span>
-                  </span>
-                  <span class="card-top-right">
-                    <span class="card-when{% if isLate %} late{% endif %}">{{ apptTime }}{% if isLate %} · {{ lateDisplay }}{% endif %}</span>
-                    <span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-                  </span>
-                </div>
-                <div class="sched-split">
-                  <div class="sched-col">
-                    {% set speciesLabels = {'dog': 'Canin', 'cat': 'Félin', 'nac': 'NAC', 'other': 'Autre'} %}
-                    {% set speciesLabel = speciesLabels[speciesKey] ?? '' %}
-                    <div class="sched-col-line">{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}</div>
-                    <div class="sched-col-line muted">
-                      {{- ageDisplay }}{% if ageDisplay and appt.reason %} · {% endif %}{{ appt.reason|default('')|lower -}}
-                    </div>
-                  </div>
-                  <div class="sched-col">
-                    <div class="sched-col-line">{{ appt.ownerLabel ?? '' }}</div>
-                    {% if appt.ownerPhone %}
-                      <div class="sched-col-line tel">{{ appt.ownerPhone|phone_display(false, false) }}</div>
-                    {% endif %}
-                  </div>
-                </div>
-                {% if appt.notes %}
-                  <div class="card-meta" style="font-style:italic;">{{ appt.notes }}</div>
-                {% endif %}
-                <div class="sched-vet-line">
-                  {% if vetShort %}
-                    <span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ vetShort[0:2]|upper }}</span>
-                    <span>{{ vetShort }}</span>
-                  {% else %}
-                    <span class="sched-vet-empty">vétérinaire non assigné</span>
-                  {% endif %}
-                  <button class="sched-checkin-inline"
-                          data-action="click->waiting-room#openCheckinWithPatient"
-                          data-animal-id="{{ appt.animalId ?? '' }}"
-                          data-animal-name="{{ appt.animalLabel ?? '' }}"
-                          data-animal-species="{{ speciesIcon }}"
-                          data-animal-subtitle="{{ speciesLabel }}{% if speciesLabel and appt.animalBreed %} · {% endif %}{{ appt.animalBreed ?? '' }}"
-                          data-owner-label="{{ appt.ownerLabel ?? '' }}"
-                          data-owner-phone="{{ appt.ownerPhone ?? '' }}"
-                          data-vet="{{ vetName }}"
-                          data-appt-time="{{ apptTime }}"
-                          data-appt-ts="{{ apptTs }}"
-                          data-appt-id="{{ appt.id }}"
-                          data-motif="{{ appt.reason ?? '' }}">Check-in</button>
-                </div>
-              </div>
-            {% else %}
-              <div class="col-empty">Aucun RDV planifié aujourd'hui</div>
-            {% endfor %}
-          </div>
-        </div>
-
-        {# En attente (REAL) #}
-        <div class="kcol">
-          <div class="kcol-scroll">
-            {% set urgentEntries = waitEntries|filter(e => e.triageLevel in ['vital_emergency','emergency']) %}
-            {% set prioEntries = waitEntries|filter(e => e.triageLevel == 'priority') %}
-            {% set stdEntries = waitEntries|filter(e => e.triageLevel == 'standard') %}
-
-{# ─── macro wait-expanded (réutilisé pour les 3 types) ─── #}
-            {%- macro waitExpanded(entry, enr, primaryClass) -%}
-              {%- set speciesLabels = {'dog': 'Chien', 'cat': 'Chat', 'nac': 'Lapin', 'other': 'Autre'} -%}
-              {%- set speciesVal = enr is not empty and enr.species is defined ? enr.species : '' -%}
-              {%- set breedVal   = enr is not empty and enr.breed is defined ? enr.breed : '' -%}
-              {%- set speciesKey = speciesVal ? speciesVal|lower : '' -%}
-              {%- set especeText = speciesLabels[speciesKey] ?? '' -%}
-              {%- set especeRace = especeText ~ (breedVal ? ' · ' ~ breedVal : '') -%}
-              {%- set ageVal     = enr is not empty and enr.age is defined ? enr.age : '' -%}
-              {%- set weightVal  = enr is not empty and enr.weight is defined ? enr.weight : '' -%}
-              {%- set ageWeight  = [ageVal, weightVal]|filter(v => v)|join(' · ') -%}
-              {%- set ownerName  = enr is not empty and enr.ownerName is defined ? enr.ownerName : '' -%}
-              {%- set ownerPhone = enr is not empty and enr.ownerPhone is defined ? enr.ownerPhone : '' -%}
-              {%- set isUnknown = (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) -%}
-              {%- set dangerCls = primaryClass == 'danger' ? 'danger' : '' -%}
-              <div class="wait-expanded">
-                <div class="wait-expanded-grid">
-                  <div class="wait-expanded-col">
-                    {% if isUnknown %}<div class="wed-key">Animal</div>{% endif %}
-                    <div class="wait-expanded-line">{{ especeRace ?: 'Non identifié' }}</div>
-                    {% if ageWeight %}<div class="wait-expanded-line muted">{{ ageWeight }}</div>{% endif %}
-                  </div>
-                  <div class="wait-expanded-col">
-                    {% if isUnknown %}<div class="wed-key">Propriétaire</div>{% endif %}
-                    <div class="wait-expanded-line">{{ ownerName ?: 'Non identifié' }}</div>
-                    {% if ownerPhone and not isUnknown %}
-                      <div class="wait-expanded-line tel">{{ ownerPhone|phone_display(false, false) }}</div>
-                    {% else %}
-                      <div class="wait-expanded-line muted">Tél. non renseigné</div>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="wait-actions">
-                  {% if isUnknown %}
-                    <button class="wait-act-warn" type="button"
-                            onclick="openIdentifierModal('{{ entry.admissionId }}', '{{ entry.displayLabel|e('js') }}', '{{ entry.physicalDescription|default('')|e('js') }}', '{{ entry.triageNotes|default('')|e('js') }}')">Identifier</button>
-                  {% else %}
-                    <button class="wait-act-secondary" type="button">Profil</button>
-                  {% endif %}
-                  <div class="wait-split {{ dangerCls }}" data-motif="{{ (entry.appointmentReason ?? entry.triageNotes ?? '')|e('html_attr') }}">
-                    <form method="post"
-                          action="{{ path('clinic_consultation_start_from_admission', {admissionId: entry.admissionId}) }}"
-                          style="display:contents;">
-                      <input type="hidden" name="_token" value="{{ csrf_token('consultation_start') }}">
-                      <button class="wait-split-main" type="submit">→ Prendre en charge</button>
-                    </form>
-                    <button class="wait-split-arrow" type="button" data-action="click->waiting-room#toggleActMenu">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {%- endmacro -%}
-
-            {% import _self as cards %}
-
-            {# ── chevron SVG ── #}
-            {%- set chevronSvg -%}<span class="card-collapse-chevron"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>{%- endset -%}
-
-            {# ── vet pill ── #}
-            {%- macro vetPill(entry, vetByUserId) -%}
-              {%- set vetName = (vetByUserId[entry.practitionerUserId] ?? null) ?: (entry.practitionerLabel ?? null) -%}
-              {% if vetName %}<span class="card-vet"><span class="card-vet-dot" style="background:var(--brand-100);color:var(--brand-700);">{{ vetName|split(" ")|last|slice(0,2)|upper }}</span>{{ vetName|split(" ")|last }}</span>{% else %}<span></span>{% endif %}
-            {%- endmacro -%}
-
-            {% if urgentEntries|length > 0 %}
-              <div class="col-section-l urg"><i data-lucide="alert-triangle" style="width:10px;height:10px;"></i> Urgences <span class="col-section-cnt">{{ urgentEntries|length }}</span></div>
-              {% for entry in urgentEntries %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}{% set waitClass = waitMin >= 60 ? 'over' : (waitMin >= 20 ? 'warn' : '') %}
-                <div class="pcard urgent is-collapsible is-collapsed">
-                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
-                    <span class="card-pet">
-                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
-                      <span class="card-pet-name">{{ entry.displayLabel }}</span>
-                    </span>
-                    <span style="display:inline-flex;align-items:center;gap:4px;">
-                      {%- set cardIsUnknown = (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) -%}
-                      <span class="urg-tag{% if cardIsUnknown %} nonid{% endif %}">{{ cardIsUnknown ? 'NON ID' : (entry.triageLevel == 'vital_emergency' ? 'VITAL' : 'URG') }}</span>
-                      {{ chevronSvg }}
-                    </span>
-                  </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
-                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
-                  <div class="card-foot">
-                    {{ cards.vetPill(entry, vetByUserId) }}
-                    <span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>
-                  </div>
-                  {{ cards.waitExpanded(entry, enr, 'danger') }}
-                </div>
-              {% endfor %}
-            {% endif %}
-
-            {% if prioEntries|length > 0 %}
-              <div class="col-section-l warn"><i data-lucide="alert-circle" style="width:10px;height:10px;"></i> Prioritaires <span class="col-section-cnt">{{ prioEntries|length }}</span></div>
-              {% for entry in prioEntries %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}{% set waitClass = waitMin >= 60 ? 'over' : (waitMin >= 20 ? 'warn' : '') %}
-                <div class="pcard priority is-collapsible is-collapsed">
-                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
-                    <span class="card-pet">
-                      <span class="card-pet-icon">🐾</span>
-                      <span class="card-pet-name">{{ entry.displayLabel }}</span>
-                    </span>
-                    {{ chevronSvg }}
-                  </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
-                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
-                  <div class="sla"><div class="sla-bar"><div class="sla-fill warn" style="width:60%;"></div></div><div class="sla-meta"><span>SLA 15 min</span><span class="warn">{{ waitDisplay }}</span></div></div>
-                  <div class="card-foot">
-                    {{ cards.vetPill(entry, vetByUserId) }}
-                    <span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>
-                  </div>
-                  {{ cards.waitExpanded(entry, enr, '') }}
-                </div>
-              {% endfor %}
-            {% endif %}
-
-            {% if stdEntries|length > 0 %}
-              <div class="col-section-l">Standard <span class="col-section-cnt">{{ stdEntries|length }}</span></div>
-              {% for entry in stdEntries %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                {% set waitMin = (('now'|date('U') - entry.openedAt|date('U')) / 60)|round %}{% set waitH = (waitMin / 60)|round(0, 'floor') %}{% set waitM = waitMin % 60 %}{% set waitDisplay = waitMin >= 60 ? waitH ~ 'h' ~ (waitM > 0 ? waitM : '') : (waitMin > 0 ? waitMin ~ ' min' : '<1 min') %}{% set waitClass = waitMin >= 60 ? 'over' : (waitMin >= 20 ? 'warn' : '') %}
-                <div class="scard stripe-attente is-collapsible is-collapsed">
-                  <div class="card-top" data-action="click->waiting-room#toggleCollapse">
-                    <span class="card-pet">
-                      <span class="card-pet-icon">{% if (not entry.isPatientIdentifiedAtOpening) and (entry.knownAnimalId is null) %}❓{% else %}🐾{% endif %}</span>
-                      <span class="card-pet-name">{{ entry.displayLabel }}</span>
-                    </span>
-                    <span style="display:inline-flex;gap:4px;align-items:center;"><span class="card-wait {{ waitClass }}">{{ waitDisplay }}</span>{{ chevronSvg }}</span>
-                  </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
-                  {% if entry.contextNote %}<div class="card-meta" style="font-style:italic;color:var(--text-muted);">{{ entry.contextNote }}</div>{% endif %}
-                  <div class="card-foot">
-                    {{ cards.vetPill(entry, vetByUserId) }}
-                    <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
-                  </div>
-                  {{ cards.waitExpanded(entry, enr, '') }}
-                </div>
-              {% endfor %}
-            {% endif %}
-
-            {% if waitEntries|length == 0 %}
-              <div class="col-empty">Aucun patient en attente</div>
-            {% endif %}
-          </div>
-        </div>
-
-        {# En consultation (REAL) #}
-        <div class="kcol">
-          <div class="kcol-scroll">
-            {#
-             # Taking a patient in charge happens in three places: the room, the
-             # theatre and the ward. The column keeps them apart.
-             #}
-            {% set chargeGroups = [
-              { label: 'Consultation',    icon: 'stethoscope', stripe: 'stripe-consult',       items: consultEntries },
-              { label: 'Chirurgie',       icon: 'scissors',    stripe: 'stripe-charge-surg',   items: surgeryEntries },
-              { label: 'Hospitalisation', icon: 'bed-double',  stripe: 'stripe-charge-hospi',  items: hospiEntries },
-            ] %}
-            {% if chargeCount > 0 %}
-              {% for group in chargeGroups %}
-                {% if group.items|length > 0 %}
-                  <div class="col-section-l">
-                    <i data-lucide="{{ group.icon }}" style="width:10px;height:10px;"></i>
-                    {{ group.label }} <span class="col-section-cnt">{{ group.items|length }}</span>
-                  </div>
-                  {% for entry in group.items %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="scard {{ group.stripe }}" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  {% if consultationIdByAdmission[entry.admissionId] ?? false %}data-consultation-url="{{ path('clinic_consultation_details', { id: consultationIdByAdmission[entry.admissionId] }) }}"{% endif %}
-                  data-action="click->waiting-room#openDetailSlide">
-                  <div class="card-top">
-                    <span class="card-pet">
-                      <span class="card-pet-icon">🐾</span>
-                      <span class="card-pet-name">{{ entry.displayLabel }}</span>
-                    </span>
-                    <span class="card-when">{{ entry.openedAt|date('H\\hi') }}</span>
-                  </div>
-                  {% if entry.triageNotes %}<div class="card-meta">{{ entry.triageNotes }}</div>{% endif %}
-                  <div class="card-foot">
-                    <span class="card-vet"><span class="card-vet-dot card-vet-unassigned">!</span>en cours</span>
-                    <span style="display:inline-flex;gap:4px;flex-shrink:0;align-items:center;">{% if entry.intakeChannel == 'appointment_booked' and entry.appointmentReason %}{% set reasonKey = entry.appointmentReason|lower %}{% if 'chirurgi' in reasonKey or 'stérilis' in reasonKey or 'castrat' in reasonKey %}<span class="rdv-badge surgery">{{ entry.appointmentReason }}</span>{% elseif 'vaccin' in reasonKey or 'rappel' in reasonKey %}<span class="rdv-badge vaccine">{{ entry.appointmentReason }}</span>{% elseif 'consultation' in reasonKey or 'suivi' in reasonKey or 'bilan' in reasonKey or 'contrôle' in reasonKey %}<span class="rdv-badge consult">{{ entry.appointmentReason }}</span>{% else %}<span class="rdv-badge checkup">{{ entry.appointmentReason }}</span>{% endif %}{% endif %}<span class="rdv-badge" style="{{ channelBadgeStyle[entry.intakeChannel] ?? '' }}">{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}</span></span>
-                  </div>
-                </div>
-                                {% endfor %}
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              <div class="col-empty">Aucune prise en charge en cours</div>
-            {% endif %}
-
-          </div>
-        </div>
-
-        {# Sortie — waiting to be charged, then today's departures #}
-        <div class="kcol">
-          <div class="kcol-scroll">
-            {% if checkoutEntries|length > 0 %}
-              <div class="col-section-l">À encaisser <span class="col-section-cnt">{{ checkoutEntries|length }}</span></div>
-              {% for entry in checkoutEntries %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                {% set total = checkoutTotals[entry.admissionId] ?? null %}
-                <div class="scard stripe-sortie" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  data-vet="{{ entry.practitionerLabel ?? '' }}">
-                  <div class="card-top">
-                    <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">{{ entry.displayLabel }}</span></span>
-                    <span class="card-amount">
-                      {%- if total %}{{ total.totalTtcMinorUnits|money(total.currency) }}{% else %}—{% endif -%}
-                    </span>
-                  </div>
-                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
-                  {% if motif or (enr.ownerName ?? false) %}
-                    <div class="card-meta">{{ motif }}{% if motif and (enr.ownerName ?? false) %} · {% endif %}{{ enr.ownerName ?? '' }}</div>
-                  {% endif %}
-                  <div class="card-foot">
-                    {% if entry.practitionerLabel %}
-                      <span class="card-vet"><span class="card-vet-dot">{{ entry.practitionerLabel|split(' ')|last|slice(0, 2)|upper }}</span>{{ entry.practitionerLabel }}</span>
-                    {% else %}
-                      <span class="card-vet"></span>
-                    {% endif %}
-                    {#
-                     # Opens the checkout screen, where the invoice is drafted
-                     # from the visit and the payment taken. Ending the visit is
-                     # the consequence of paying it, not a button of its own.
-                     #}
-                    <a class="btn btn-primary btn-xs"
-                       href="{{ path('clinic_checkout', { admissionId: entry.admissionId }) }}">Encaisser</a>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-
-            {% if dischargedToday|length > 0 %}
-              <div class="col-section-l done">Parti{{ dischargedToday|length > 1 ? 's' : '' }} <span class="col-section-cnt">{{ dischargedToday|length }}</span></div>
-              {% for entry in dischargedToday %}
-                {% set enr = animalEnrichment[entry.admissionId] ?? {} %}
-                <div class="scard stripe-sortie is-done" data-admission-id="{{ entry.admissionId }}"
-                  data-motif="{{ entry.appointmentReason ?? entry.triageNotes ?? '' }}"
-                  data-channel="{{ channelLabels[entry.intakeChannel] ?? entry.intakeChannel }}"
-                  data-opened-at="{{ entry.openedAt|date('H\\hi') }}"
-                  data-triage-label="{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}"
-                  data-species="{{ enr.species ?? '' }}{% if enr.breed ?? false %} · {{ enr.breed }}{% endif %}"
-                  data-owner-name="{{ enr.ownerName ?? '' }}"
-                  data-owner-phone="{{ enr.ownerPhone ?? '' }}"
-                  data-vet="{{ entry.practitionerLabel ?? '' }}"
-                  data-action="click->waiting-room#openDetailSlide">
-                  <div class="card-top">
-                    <span class="card-pet"><span class="card-pet-icon">🐾</span><span class="card-pet-name">{{ entry.displayLabel }}</span></span>
-                    <span class="card-when">{{ entry.closedAt ? entry.closedAt|date('H\\hi') : '' }}</span>
-                  </div>
-                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
-                  {% if motif or (enr.ownerName ?? false) %}
-                    <div class="card-meta">{{ motif }}{% if motif and (enr.ownerName ?? false) %} · {% endif %}{{ enr.ownerName ?? '' }}</div>
-                  {% endif %}
-                  <div class="card-foot">
-                    {% if entry.practitionerLabel %}
-                      <span class="card-vet"><span class="card-vet-dot">{{ entry.practitionerLabel|split(' ')|last|slice(0, 2)|upper }}</span>{{ entry.practitionerLabel }}</span>
-                    {% else %}
-                      <span class="card-vet"></span>
-                    {% endif %}
-                    <span class="card-wait" style="color:var(--color-success-600);">Sortie ✓</span>
-                  </div>
-                </div>
-              {% endfor %}
-            {% endif %}
-
-            {% if checkoutEntries|length == 0 and dischargedToday|length == 0 %}
-              <div class="col-empty">Aucune sortie aujourd'hui</div>
-            {% endif %}
-          </div>
-        </div>
-
-      </div>{# /kanban-cols #}
-    </div>{# /kanban-amb #}
-  </div>{# /content-amb #}
-
-  {#
-   # ── Section 6: Tab Content — Soins Cliniques ──
-   # Fed by the admissions whose location status is `in_surgery` /
-   # `in_hospitalization`. The domain has no surgical stage, no cage and no care
-   # schedule yet, so the pré-op / réveil columns and the per-card checklists,
-   # progress bars and soins blocks of the layout have nothing to show.
-   #}
-  <div class="tab-content" id="content-soins">
-    <div class="soins-grid">
-      {# LEFT: Bloc opératoire #}
-      <div class="soins-pane">
-        <div class="soins-pane-head">
-          <div class="soins-pane-title">
-            <div class="soins-pane-icon bloc"><i data-lucide="syringe" style="width:14px;height:14px;"></i></div>
-            <div>
-              <div class="soins-pane-title-name">Bloc opératoire</div>
-              <div class="soins-pane-title-meta">
-                {{ surgeryEntries|length }} intervention{{ surgeryEntries|length > 1 ? 's' : '' }} en cours
-              </div>
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-sm"><i data-lucide="plus" style="width:11px;height:11px;"></i> Programmer</button>
-        </div>
-        <div class="bloc-cols">
-          <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="clipboard-list" style="width:11px;height:11px;"></i> Pré-op <span class="bloc-substatus-cnt">0</span></div>
-            <div class="bloc-subcol-scroll">
-              <div class="col-empty">Aucun patient en pré-op</div>
-            </div>
-          </div>
-          <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="zap" style="width:11px;height:11px;"></i> Per-op <span class="bloc-substatus-cnt">{{ surgeryEntries|length }}</span></div>
-            <div class="bloc-subcol-scroll">
-              {% for entry in surgeryEntries %}
-                <div class="surg-card perop">
-                  <span class="surg-pet">🐾 {{ entry.displayLabel }}</span>
-                  {% set motif = entry.appointmentReason ?? entry.triageNotes %}
-                  {% if motif %}<div class="surg-motif">{{ motif }}</div>{% endif %}
-                  <div class="surg-meta">
-                    {% if entry.practitionerLabel %}
-                      <span class="surg-meta-item"><i data-lucide="user" style="width:11px;height:11px;"></i>{{ entry.practitionerLabel }}</span>
-                    {% endif %}
-                    <span class="surg-meta-item"><i data-lucide="clock" style="width:11px;height:11px;"></i>depuis {{ entry.openedAt|date('H\\hi') }}</span>
-                  </div>
-                </div>
-              {% else %}
-                <div class="col-empty">Aucune intervention en cours</div>
-              {% endfor %}
-            </div>
-          </div>
-          <div class="bloc-subcol">
-            <div class="bloc-substatus"><i data-lucide="moon" style="width:11px;height:11px;"></i> Réveil <span class="bloc-substatus-cnt">0</span></div>
-            <div class="bloc-subcol-scroll">
-              <div class="col-empty">Aucun patient en réveil</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {# RIGHT: Hospitalisation #}
-      <div class="soins-pane">
-        <div class="soins-pane-head">
-          <div class="soins-pane-title">
-            <div class="soins-pane-icon hospi"><i data-lucide="bed-double" style="width:14px;height:14px;"></i></div>
-            <div>
-              <div class="soins-pane-title-name">Hospitalisation</div>
-              <div class="soins-pane-title-meta">
-                {{ hospiEntries|length }} patient{{ hospiEntries|length > 1 ? 's' : '' }}
-              </div>
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-sm"><i data-lucide="plus" style="width:11px;height:11px;"></i> Hospitaliser</button>
-        </div>
-        <div class="hospi-list">
-          {% for entry in hospiEntries %}
-            {% set days = date(entry.openedAt).diff(date()).days %}
-            {% set severity = { 'vital_emergency': 'critique', 'emergency': 'critique', 'priority': 'surveillance' }[entry.triageLevel] ?? 'stable' %}
-            <div class="hospi-row {{ severity }}">
-              <div class="hospi-head">
-                <span class="hospi-pet">🐾 {{ entry.displayLabel }} <span class="hospi-day">J+{{ days }}</span></span>
-                <span class="hospi-status {{ severity }}">{{ { 'vital_emergency': 'Vital', 'emergency': 'Urgence', 'priority': 'Prioritaire', 'standard': 'Standard' }[entry.triageLevel] ?? entry.triageLevel }}</span>
-              </div>
-              {% set motif = entry.appointmentReason ?? entry.triageNotes %}
-              {% if motif %}<div class="hospi-motif">{{ motif }}</div>{% endif %}
-              {% if entry.practitionerLabel %}<div class="hospi-vet">{{ entry.practitionerLabel }}</div>{% endif %}
-            </div>
-          {% else %}
-            <div class="col-empty">Aucun patient hospitalisé</div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>{# /content-soins #}
-
-  {# Backdrop — ferme le slide au clic extérieur #}
-  <div class="detail-backdrop" id="detail-backdrop"
-       data-action="click->waiting-room#closeDetailSlide"></div>
-
-  {# ── Section 7: Detail Slide ── #}
-  <div class="detail-slide" id="detail-slide">
-    <div class="detail-head">
-      <p class="detail-head-title" id="slide-title">Détail patient</p>
-      <button class="btn-modal-close"
-              data-action="click->waiting-room#closeDetailSlide">
-        <i data-lucide="x" style="width:12px;height:12px;"></i>
+    <div class="right">
+      <button class="btn urgence" id="btnUrgence" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ _svg.alerte|raw }}</svg>
+        Urgence
+      </button>
+      <button class="btn primaire" id="btnArrivee" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ _svg.arrivee|raw }}</svg>
+        Enregistrer une arrivée
       </button>
     </div>
-    <div class="detail-scroll" id="slide-content">
-      <div style="padding:var(--space-4);color:var(--text-subtle);font-size:var(--text-sm);">Sélectionnez un patient pour voir son détail.</div>
+  </div>
+
+  <div class="urg-alert" id="urgAlert" hidden role="alert">
+    <span class="ua-dot"></span>
+    <div class="ua-body">
+      <b class="ua-head" id="uaHead">—</b>
+      <div id="uaRows"></div>
     </div>
   </div>
 
-  {# FABs (mobile) #}
-  <div class="fab-group">
-    <button class="fab fab-danger"
-            data-action="waiting-room#openModal"
-            data-waiting-room-modal-id-param="modal-urgence">
-      <i data-lucide="alert-triangle" class="wr-icon-md"></i> Urgence
-    </button>
-    <button class="fab fab-primary"
-            data-action="waiting-room#openModal"
-            data-waiting-room-modal-id-param="modal-checkin">
-      <i data-lucide="plus" class="wr-icon-md"></i> Check-in patient
-    </button>
+  <main class="board" id="board">
+    {# ── Planifié ── #}
+    <section class="kcol" aria-label="Planifié">
+      <div class="khead"><span class="pastille" style="background:var(--encre-35)"></span><div><h2>Planifié</h2><span class="kmeta">{{ b.plannedCount }} rendez-vous à venir</span></div></div>
+      <div class="kliste">
+        {% for slot in b.planned %}
+          <div class="pslot"><span class="ph">{{ slot.time }}</span><span class="pline"></span></div>
+          {% for p in slot.patients %}{{ _self.card(p, _svg) }}{% endfor %}
+        {% else %}
+          <div class="kvide">Aucun RDV planifié aujourd'hui</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# ── Salle d'attente ── #}
+    <section class="kcol" aria-label="Salle d'attente">
+      <div class="khead"><span class="pastille" style="background:var(--ambre)"></span><div><h2>Salle d'attente</h2><span class="kmeta">{{ _waiting }} patient{{ _waiting > 1 ? 's' }}{% if _urg %} · <span class="urgm">{{ _urg }} urgence{{ _urg > 1 ? 's' }}</span>{% endif %}</span></div></div>
+      <div class="kliste">
+        {% if _waiting %}
+          {{ _self.section('urg', 'Urgences', _svg.alerte, b.urgent, _svg) }}
+          {{ _self.section('prio', 'Prioritaires', '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', b.priority, _svg) }}
+          {{ _self.section('std', 'File normale', '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', b.standard, _svg) }}
+        {% else %}
+          <div class="kvide">Personne en attente</div>
+        {% endif %}
+      </div>
+    </section>
+
+    {# ── Pris en charge ── #}
+    <section class="kcol" aria-label="Pris en charge">
+      <div class="khead"><span class="pastille" style="background:var(--pin)"></span><div><h2>Pris en charge</h2><span class="kmeta">{{ b.inCharge|length }} patient{{ b.inCharge|length > 1 ? 's' }}</span></div></div>
+      <div class="kliste">
+        {% for p in b.inCharge %}{{ _self.card(p, _svg) }}{% else %}<div class="kvide">Personne ici pour le moment</div>{% endfor %}
+      </div>
+    </section>
+
+    {# ── Sortie ── #}
+    <section class="kcol" aria-label="Sortie">
+      <div class="khead"><span class="pastille" style="background:var(--vert)"></span><div><h2>Sortie</h2><span class="kmeta">{{ b.checkout|length }} à encaisser</span></div></div>
+      <div class="kliste">
+        {% for p in b.checkout %}{{ _self.card(p, _svg) }}{% else %}<div class="kvide">Personne en sortie</div>{% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <div class="partis" id="partis">
+    {% set _n = b.departed|length %}
+    {% if _n %}
+      <b id="partisN">{{ _n }}</b> patient{{ _n > 1 ? 's' }} parti{{ _n > 1 ? 's' }} aujourd'hui
+      <span class="noms" id="partisNoms">{{ b.departed|map(d => d.name ~ ' (' ~ d.time ~ ')')|join(' · ') }}</span>
+    {% else %}
+      <b id="partisN">0</b> patient parti aujourd'hui
+      <span class="noms" id="partisNoms">Les départs du jour s'afficheront ici.</span>
+    {% endif %}
+    <a class="aside" href="{{ path('clinic_consultations') }}">Voir l'historique</a>
   </div>
 
-  {# ══════════════════════════════════════════════════════════════════ #}
-  {#  MODALS                                                           #}
-  {# ══════════════════════════════════════════════════════════════════ #}
-
-  {# ── [UI-2] Modal Walk-in (fidèle au layout vetos-flux-du-jour) ── #}
-  <div class="modal-overlay hidden" id="modal-checkin">
-    <div class="modal-box">
-      <div class="modal-head">
-        <p class="modal-title" id="ci-modal-title">Check-in patient</p>
-        <button class="btn-modal-close" type="button"
-                data-action="click->waiting-room#closeModal">
-          <i data-lucide="x" style="width:12px;height:12px;"></i>
-        </button>
+  {# ═══ Modale Enregistrer une arrivée ═══ #}
+  <div class="mveil" id="ciVeil" role="dialog" aria-modal="true" aria-label="Enregistrer une arrivée">
+    <div class="mbox">
+      <div class="mhead">
+        <b>Enregistrer une arrivée</b>
+        <button class="mclose" id="ciClose" type="button" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button>
       </div>
+      <div class="mbody">
 
-      <form method="post" action="{{ path('clinic_admission_checkin') }}" id="ci-main-form">
-        <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
-        <input type="hidden" name="arrivalMode" value="STANDARD">
-        <input type="hidden" name="animalId" id="ci-animal-id">
-        <input type="hidden" name="animalName" id="ci-animal-name">
-        <input type="hidden" name="foundAnimalDescription" id="ci-description">
-        <input type="hidden" name="appointmentId" id="ci-appointment-id">
-        <input type="hidden" name="priority" id="ci-priority" value="0">
-
-        <div class="modal-body">
-
-          {# Toggle — caché par défaut, révélé depuis le footer dropdown #}
-          <div id="ci-toggle-row" style="display:none;">
-            <div class="ci-toggle">
-              <button type="button" id="ci-toggle-existing" class="active"
-                      data-action="click->waiting-room#ciSetMode"
-                      data-mode="existing">Patient existant</button>
-              <button type="button" id="ci-toggle-new"
-                      data-action="click->waiting-room#ciSetMode"
-                      data-mode="new">Nouveau client</button>
-            </div>
-          </div>
-
-          {# Zone recherche (toujours visible) #}
-          <div id="ci-search-zone">
-            <div class="form-row"
-                 data-controller="global-search"
-                 data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
-                 data-global-search-mode-value="pick"
-                 data-global-search-picker-id-value="walkin-checkin"
-                 data-global-search-type-value="animal">
-              <label class="form-label">Patient</label>
-              <div class="ci-dropdown">
-                <div class="ci-tag-input" id="ci-tag-input"
-                     data-action="click->waiting-room#ciFocusSearch">
-                  <span id="ci-tag-chip-slot"></span>
-                  <input type="text" class="ci-tag-search" id="ci-search"
-                         placeholder="Nom animal, propriétaire, puce, téléphone…"
-                         autocomplete="off"
-                         data-global-search-target="input"
-                         data-action="input->global-search#search focus->waiting-room#ciOnFocus blur->waiting-room#ciOnBlur">
-                </div>
-                <div class="ci-dropdown-menu" data-global-search-target="results" id="ci-dropdown-menu"></div>
-                <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
+        {# Recherche unifiée : la création découle de la recherche #}
+        <div id="ciZoneExist">
+          <div class="frow" style="margin-bottom:0">
+            <label class="flbl" for="ciSearch">Patient</label>
+            <div class="ci-tagwrap">
+              <div class="ci-taginput" id="ciTagInput">
+                <input type="text" id="ciSearch" placeholder="Nom animal, propriétaire, puce, téléphone…" autocomplete="off">
               </div>
-            </div>
-            <div id="ci-patient-zone"><div class="ci-empty-state">Recherchez un patient déjà enregistré ou basculez sur « Nouveau client »</div></div>
-          </div>
-
-          {# Formulaire nouveau client (caché par défaut) #}
-          <div id="ci-create-form" style="display:none;">
-            <div class="ci-create-cols">
-              <div class="ci-create-col">
-                <div class="ci-create-col-h">
-                  <span class="ci-create-col-h-icon"><i data-lucide="paw-print" style="width:11px;height:11px;"></i></span>
-                  Animal
-                </div>
-                <div class="ci-create-field">
-                  <label class="form-label">Nom <span class="ci-required">*</span></label>
-                  <input type="text" class="ci-input" id="ci-new-animal"
-                         placeholder="Ex : Pioupiou"
-                         data-action="input->waiting-room#ciNewValidate">
-                </div>
-                <div class="ci-create-field">
-                  <label class="form-label">Espèce <span class="ci-required">*</span></label>
-                  <select class="ci-input" id="ci-new-espece"
-                          data-action="change->waiting-room#ciNewValidate">
-                    <option value="Canin">Chien</option>
-                    <option value="Félin">Chat</option>
-                    <option value="Lapin">Lapin</option>
-                    <option value="NAC">NAC / autre</option>
-                  </select>
-                </div>
-              </div>
-              <div class="ci-create-divider"></div>
-              <div class="ci-create-col">
-                <div class="ci-create-col-h">
-                  <span class="ci-create-col-h-icon"><i data-lucide="user" style="width:11px;height:11px;"></i></span>
-                  Propriétaire
-                </div>
-                <div class="ci-create-row-3">
-                  <div class="ci-create-field">
-                    <label class="form-label">Prénom <span class="ci-required">*</span></label>
-                    <input type="text" class="ci-input" id="ci-new-prenom"
-                           placeholder="Marc"
-                           data-action="input->waiting-room#ciNewValidate">
-                  </div>
-                  <div class="ci-create-field">
-                    <label class="form-label">Nom <span class="ci-required">*</span></label>
-                    <input type="text" class="ci-input" id="ci-new-proprio"
-                           placeholder="Dupont"
-                           data-action="input->waiting-room#ciNewValidate">
-                  </div>
-                </div>
-                <div class="ci-create-field">
-                  <label class="form-label">Téléphone <span class="ci-required">*</span></label>
-                  <input type="tel" class="ci-input" id="ci-new-tel"
-                         placeholder="06 …"
-                         data-action="input->waiting-room#ciNewValidate">
-                </div>
-              </div>
+              <div class="ci-menu" id="ciMenu"></div>
             </div>
           </div>
-
-          {# Note — toujours visible #}
-          <div class="form-row" style="margin-bottom:0;margin-top:var(--space-3);">
-            <label class="form-label" id="ci-note-label">Note d'arrivée (optionnelle)</label>
-            <textarea class="ci-textarea" id="ci-note" name="triageNotes"
-                      placeholder="Ex : animal stressé, retard dû aux transports…"></textarea>
-          </div>
-
-          {# Priorité #}
-          <div class="form-row" style="margin-bottom:0;margin-top:var(--space-3);">
-            <label class="form-label">Priorité</label>
-            <div class="ci-priority-pills">
-              <button type="button" class="ci-priority-pill std selected" id="ci-prio-std"
-                      data-action="click->waiting-room#ciSetPriority"
-                      data-priority="0">
-                <div class="ci-priority-icon"><i data-lucide="minus" style="width:11px;height:11px;"></i></div>
-                <div class="ci-priority-meta">
-                  <div class="ci-priority-name">Standard</div>
-                  <div class="ci-priority-sub">file normale</div>
-                </div>
-              </button>
-              <button type="button" class="ci-priority-pill prio" id="ci-prio-prio"
-                      data-action="click->waiting-room#ciSetPriority"
-                      data-priority="1">
-                <div class="ci-priority-icon"><i data-lucide="alert-triangle" style="width:11px;height:11px;"></i></div>
-                <div class="ci-priority-meta">
-                  <div class="ci-priority-name">Prioritaire</div>
-                  <div class="ci-priority-sub">à voir vite</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
+          <div id="ciFiche"><div class="ci-vide">Recherchez un patient — s'il n'existe pas encore, la création se propose toute seule.</div></div>
+          <div id="ciRdvZone"></div>
         </div>
 
-        <div class="modal-foot">
-          <button type="button" class="btn btn-secondary" data-ci-close>Annuler</button>
-          <button type="submit" class="btn btn-primary" id="ci-validate"
-                  data-action="click->waiting-room#ciPrepareNew" disabled>
-            <i data-lucide="check" style="width:11px;height:11px;"></i>
-            <span id="ci-validate-label">Valider l'arrivée</span>
+        {# Nouveau client : compact, atteint depuis la recherche #}
+        <div id="ciZoneNew" style="display:none">
+          <div class="g2">
+            <div class="frow"><label class="flbl" for="ciNewAnimal">Animal <span class="req">*</span></label><input class="finput ci-req" id="ciNewAnimal" placeholder="Ex : Pioupiou"></div>
+            <div class="frow"><label class="flbl">Espèce</label>
+              <div class="dd" id="ddCiEspece"></div>
+            </div>
+          </div>
+          <div class="g2">
+            <div class="frow"><label class="flbl" for="ciNewProprio">Propriétaire <span class="req">*</span></label><input class="finput ci-req" id="ciNewProprio" placeholder="Prénom Nom"></div>
+            <div class="frow"><label class="flbl" for="ciNewTel">Téléphone <span class="req">*</span></label><input class="finput ci-req" id="ciNewTel" type="tel" placeholder="06 …"></div>
+          </div>
+          <button type="button" class="ci-lien" id="ciRetourRecherche">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">{{ _svg.retour|raw }}</svg>
+            Rechercher un patient existant
           </button>
         </div>
-      </form>
+
+        <div class="frow" style="margin-top:13px;margin-bottom:11px">
+          <label class="flbl" for="ciMotif">Motif</label>
+          <div class="mchips" id="ciChips"></div>
+          <input class="finput" id="ciMotif" placeholder="Ou décrivez librement — optionnel">
+        </div>
+        <div class="frow" style="margin-bottom:0">
+          <label class="flbl">Priorité</label>
+          <div class="seg" id="ciPrioSeg">
+            <button type="button" class="on" data-p="0">Standard <span class="sub">· file normale</span></button>
+            <button type="button" class="warn" data-p="1">Prioritaire <span class="sub">· à voir vite</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn" id="ciAnnuler" type="button">Annuler</button>
+        <button class="btn primaire" id="ciValider" type="button" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">{{ _svg.ok|raw }}</svg>
+          <span id="ciValiderTxt">Enregistrer l'arrivée</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  {# ── [UI-1] Modal Urgence — wizard 2 étapes ── #}
-  <div class="modal-overlay hidden" id="modal-urgence"
-       data-action="click->waiting-room#closeOnOverlayClick">
-    <div class="wr-modal-box" style="width:580px;max-width:calc(100vw - 24px);">
-
-      {# Head #}
-      <div class="wr-modal-head wr-modal-head--urgence">
-        <div class="wr-modal-urgence-title">
-          <div class="wr-modal-urgence-icon">
-            <i data-lucide="alert-triangle" class="wr-icon-sm wr-icon--white"></i>
-          </div>
-          <p class="wr-modal-urgence-text" id="urg-title">Urgence — Identification</p>
+  {# ═══ Modale Urgence : un seul écran, le motif prime ═══ #}
+  <div class="mveil" id="urgVeil" role="dialog" aria-modal="true" aria-label="Admission d'urgence">
+    <div class="mbox" style="width:min(560px,94vw)">
+      <div class="mhead urg">
+        <span class="urg-hic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">{{ _svg.alerte|raw }}</svg></span>
+        <b>Admission d'urgence</b>
+        <button class="mclose" id="urgClose" type="button" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button>
+      </div>
+      <div class="mbody">
+        <div class="urg-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">{{ _svg.eclair|raw }}</svg>
+          Placé immédiatement en tête de file — l'identification peut attendre, pas le patient.
         </div>
-        <button class="btn-modal-close wr-modal-close--urgence"
-                onclick="urgClose()">
-          <i data-lucide="x" class="wr-icon-xs wr-icon--red"></i>
+        <div class="frow">
+          <label class="flbl" for="urgMotif">Que se passe-t-il ? <span class="req">*</span></label>
+          <div class="mchips" id="urgChips"></div>
+          <input class="finput" id="urgMotif" placeholder="Symptômes observés…">
+        </div>
+        <div class="frow" style="margin-bottom:0">
+          <label class="flbl" for="urgSearch">Patient — optionnel, régularisable après stabilisation</label>
+          <div id="urgIdent">
+            <div class="ci-tagwrap">
+              <div class="ci-taginput">
+                <input type="search" id="urgSearch" placeholder="Puce, nom animal, propriétaire…" autocomplete="off">
+              </div>
+              <div class="ci-menu" id="urgMenu"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:9px">
+              <span style="font-size:.73rem;color:var(--encre-60);flex:none">Espèce si connue :</span>
+              <div class="dd up" id="ddUrgEspece" style="flex:1;max-width:220px"></div>
+            </div>
+          </div>
+          <div id="urgFiche"></div>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn" id="urgAnnuler" type="button">Annuler</button>
+        <button class="btn danger" id="urgEnregistrer" type="button" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ _svg.alerte|raw }}</svg>
+          <span id="urgEnregistrerTxt">Admettre en urgence</span>
         </button>
       </div>
-
-      {# Stepper #}
-      <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-light);background:var(--surface-subtle);">
-        <div id="urg-dot-1" style="width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">1</div>
-        <span style="font-size:var(--text-xs);color:var(--text-subtle);">Identification</span>
-        <div style="flex:1;height:1px;background:var(--border-medium);"></div>
-        <div id="urg-dot-2" style="width:20px;height:20px;border-radius:50%;background:var(--border-medium);color:var(--text-subtle);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">2</div>
-        <span style="font-size:var(--text-xs);color:var(--text-subtle);">Admission</span>
-      </div>
-
-      {# ── STEP 1 ── #}
-      {# Champ caché partagé pour transporter l'animalId vers les formulaires step 2 #}
-      <input type="hidden" id="urg-animal-id">
-
-      <div id="urg-step-1">
-        <div class="wr-modal-body">
-          <div class="wr-urgence-alert">
-            <i data-lucide="zap" class="wr-urgence-alert-icon"></i>
-            Ce patient sera placé immédiatement en tête de file.
-          </div>
-
-          {# Recherche live unifiée (puce ou nom/propriétaire) #}
-          <div class="form-row"
-               data-controller="global-search"
-               data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
-               data-global-search-mode-value="pick"
-               data-global-search-picker-id-value="walkin-urgence"
-               data-global-search-type-value="animal">
-            <label class="form-label-wr">Rechercher — puce, nom animal, propriétaire, téléphone</label>
-            <input type="search"
-                   class="form-input-wr"
-                   id="urg-search"
-                   placeholder="250269… ou nom animal, propriétaire, téléphone…"
-                   autocomplete="off"
-                   autofocus
-                   data-global-search-target="input"
-                   data-action="input->global-search#search input->global-search#onTyped">
-            <div class="wr-search-results" data-global-search-target="results"></div>
-            <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
-          </div>
-
-          {# Animal sélectionné — affiché après pick #}
-          <div id="urg-selected-animal" style="display:none;padding:var(--space-2) var(--space-3);background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius-md);font-size:var(--text-sm);color:#1d4ed8;margin-bottom:var(--space-3);">
-            <i data-lucide="check-circle" style="width:13px;height:13px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
-            <span id="urg-selected-label"></span>
-          </div>
-
-          {# Toggle non identifié #}
-          <div id="urg-toggle-nonid"
-               style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);cursor:pointer;border:2px solid var(--border-medium);transition:.15s;"
-               onclick="urgToggleNonId()">
-            <div id="urg-checkbox-box"
-                 style="width:18px;height:18px;border-radius:4px;border:2px solid #d97706;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <svg id="urg-checkbox-check" width="10" height="10" fill="none" viewBox="0 0 10 10" style="display:none;">
-                <path d="M2 5l2.5 2.5L8 2.5" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <p style="font-size:var(--text-base);font-weight:var(--weight-medium);color:var(--text-primary);">Animal non identifié</p>
-              <p style="font-size:var(--text-sm);color:var(--text-muted);">Urgence vitale ou errant — régularisation après stabilisation</p>
-            </div>
-          </div>
-        </div>
-        <div class="wr-modal-foot">
-          <button type="button" class="btn-wr btn-secondary" onclick="urgClose()">Annuler</button>
-          <button type="button" class="btn-wr btn-danger" id="urg-next-btn"
-                  onclick="urgGoStep2()" disabled style="opacity:.5;cursor:not-allowed;">
-            Continuer <i data-lucide="arrow-right" class="wr-icon-xs"></i>
-          </button>
-        </div>
-      </div>
-
-      {# ── STEP 2 ── #}
-      <div id="urg-step-2" style="display:none;">
-
-        {# Bandeau mode #}
-        <div id="urg-mode-banner"
-             style="margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:var(--weight-medium);display:flex;align-items:center;gap:var(--space-2);">
-        </div>
-
-        {# 2A — dossier existant (animal identifié via live search) #}
-        <div id="urg-2a" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_emergency') }}" id="urg-2a-form">
-            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-            <input type="hidden" name="intake_channel" value="emergency">
-            <input type="hidden" name="triage_level" value="emergency">
-            <input type="hidden" name="known_animal_id" id="urg-2a-animal-id">
-            <input type="hidden" name="animal_name" id="urg-2a-animal-name">
-            <input type="hidden" name="provisional_label" id="urg-2a-label">
-            <div class="wr-modal-body">
-              <div class="form-row">
-                <label class="form-label-wr">Motif d'urgence *</label>
-                <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes observés…">
-              </div>
-            </div>
-            <div class="wr-modal-foot">
-              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
-                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
-              </button>
-              <button type="submit" class="btn-wr btn-danger">
-                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {# 2B — nouveau dossier (non trouvé en base) #}
-        <div id="urg-2b" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_emergency') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-            <input type="hidden" name="intake_channel" value="emergency">
-            <input type="hidden" name="triage_level" value="emergency">
-            <div class="wr-modal-body">
-              <div class="wr-form-grid-2">
-                <div class="form-row">
-                  <label class="form-label-wr">Animal *</label>
-                  <input class="form-input-wr" name="provisional_label" required placeholder="Nom de l'animal">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Motif d'urgence *</label>
-                  <input class="form-input-wr" name="triage_notes" required placeholder="Symptômes…">
-                </div>
-              </div>
-            </div>
-            <div class="wr-modal-foot">
-              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
-                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
-              </button>
-              <button type="submit" class="btn-wr btn-danger">
-                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {# 2C — non identifié #}
-        <div id="urg-2c" style="display:none;">
-          <form method="post" action="{{ path('clinic_admission_emergency') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('admission_emergency') }}">
-            <input type="hidden" name="triage_level" value="emergency">
-            <div class="wr-modal-body">
-              <div class="wr-form-grid-2">
-                <div class="form-row">
-                  <label class="form-label-wr">Espèce présumée *</label>
-                  <select name="observed_species" class="form-input-wr" required>
-                    <option value="">— Sélectionner —</option>
-                    <option>Canin</option><option>Félin</option><option>Lapin</option>
-                    <option>NAC</option><option>Oiseau</option>
-                  </select>
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Canal d'entrée *</label>
-                  <select name="intake_channel" class="form-input-wr">
-                    <option value="emergency_by_third_party">Particulier tiers</option>
-                    <option value="emergency_by_authority">Police / Pompiers</option>
-                    <option value="emergency_by_association">Association</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <label class="form-label-wr">État clinique *</label>
-                <input class="form-input-wr" name="triage_notes" required
-                       placeholder="Ex : inconscient, plaie ouverte, dyspnée…">
-              </div>
-              <div class="wr-form-grid-2">
-                <div class="form-row">
-                  <label class="form-label-wr">Présentateur — Nom</label>
-                  <input class="form-input-wr" name="presenter_name" placeholder="Optionnel">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Présentateur — Tél.</label>
-                  <input class="form-input-wr" name="presenter_phone" placeholder="+33 6 …">
-                </div>
-              </div>
-              <div class="wr-form-grid-2">
-                <div class="form-row">
-                  <label class="form-label-wr">Description physique</label>
-                  <input class="form-input-wr" name="provisional_label"
-                         placeholder="Ex : chat tigré, ~3 kg, yeux verts">
-                </div>
-                <div class="form-row">
-                  <label class="form-label-wr">Lieu de découverte</label>
-                  <input class="form-input-wr" name="observed_color"
-                         placeholder="Ex : rue St-Denis, Paris 1er">
-                </div>
-              </div>
-            </div>
-            <div class="wr-modal-foot">
-              <button type="button" class="btn-wr btn-secondary" onclick="urgGoStep1()">
-                <i data-lucide="arrow-left" class="wr-icon-xs"></i> Retour
-              </button>
-              <button type="submit" class="btn-wr btn-danger">
-                <i data-lucide="alert-triangle" class="wr-icon-xs"></i> Enregistrer l'urgence
-              </button>
-            </div>
-          </form>
-        </div>
-
-      </div>{# /urg-step-2 #}
     </div>
   </div>
 
-  {# ── Modal Identifier ── #}
-  <div class="modal-overlay hidden" id="modal-identifier"
-       onclick="if(event.target===this)closeIdentifierModal()">
-    <div class="modal-box">
-
-      <div class="modal-head id-head">
-        <div class="id-head-title">
-          <div class="id-head-icon">
-            <i data-lucide="search" style="width:14px;height:14px;"></i>
-          </div>
-          <p class="modal-title">Identifier l'animal</p>
+  {# ═══ Modale Modifier le motif ═══ #}
+  <div class="mveil" id="motifVeil" role="dialog" aria-modal="true" aria-label="Modifier le motif">
+    <div class="mbox" style="width:min(460px,94vw)">
+      <div class="mhead">
+        <b id="motifTitre">Modifier le motif</b>
+        <button class="mclose" id="motifClose" type="button" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button>
+      </div>
+      <div class="mbody">
+        <div class="frow" style="margin-bottom:0">
+          <label class="flbl" for="motifInput">Motif <span class="req">*</span></label>
+          <input class="finput" id="motifInput" placeholder="Motif de la visite">
         </div>
-        <button class="btn-modal-close id-close" type="button"
-                onclick="closeIdentifierModal()">
-          <i data-lucide="x" style="width:14px;height:14px;"></i>
+      </div>
+      <div class="mfoot">
+        <button class="btn" id="motifAnnuler" type="button">Annuler</button>
+        <button class="btn primaire" id="motifValider" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">{{ _svg.ok|raw }}</svg>
+          Enregistrer
         </button>
       </div>
-
-      <div class="modal-body">
-        <form method="post" action="{{ path('clinic_admission_identify') }}" id="identify-form">
-          <input type="hidden" name="_token" value="{{ csrf_token('admission_identify') }}">
-          <input type="hidden" name="admissionId" id="identify-admission-id">
-          <input type="hidden" name="tab" id="identify-tab" value="owner">
-          <input type="hidden" name="animalId" id="identify-animal-id">
-          <input type="hidden" name="animalName" id="identify-animal-name">
-
-        <div class="id-ctx-strip">
-          <div class="id-ctx-avatar">🐾</div>
-          <div class="id-ctx-meta">
-            <div class="id-ctx-name" id="id-ctx-name">—</div>
-            <div class="id-ctx-sub" id="id-ctx-sub">—</div>
-          </div>
-          <span class="id-ctx-tag">NON ID</span>
-        </div>
-
-        <div class="id-tabs">
-          <button class="id-tab active" type="button" onclick="idSetTab('owner')">
-            <i data-lucide="user" style="width:12px;height:12px;"></i>
-            Propriétaire
-          </button>
-          <button class="id-tab" type="button" onclick="idSetTab('anon')">
-            <i data-lucide="alert-circle" style="width:12px;height:12px;"></i>
-            Anonyme
-          </button>
-        </div>
-
-        <div class="id-panel active" id="id-panel-owner">
-          <div class="form-row">
-            <label class="form-label">Rechercher un animal</label>
-            <div data-controller="global-search"
-                 data-global-search-url-value="{{ path('clinic_search', {format: 'dropdown'}) }}"
-                 data-global-search-mode-value="pick"
-                 data-global-search-picker-id-value="identifier-animal"
-                 data-global-search-type-value="animal">
-              <input type="text" class="ci-input" id="id-owner-search"
-                     placeholder="Nom de l'animal, du propriétaire…"
-                     data-global-search-target="input"
-                     data-action="input->global-search#search">
-              <div id="id-owner-results" data-global-search-target="results"></div>
-              <div class="sr-only" aria-live="polite" data-global-search-target="liveRegion"></div>
-            </div>
-          </div>
-          <div id="id-animal-selected" style="display:none;"></div>
-        </div>
-
-        <div class="id-panel" id="id-panel-anon">
-          <div class="id-anon-banner">
-            <div class="id-anon-banner-t">Garder l'animal en statut anonyme</div>
-            <div class="id-anon-banner-s">L'animal restera dans le système sans propriétaire identifié. Vous pourrez compléter l'identification plus tard.</div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">Description physique (complément)</label>
-            <textarea class="ci-textarea" name="physicalDescription" id="id-anon-desc"
-                      placeholder="Ex : chat tigré gris, environ 3 kg, yeux verts, collier rouge usé…"></textarea>
-          </div>
-          <div class="form-row" style="margin-bottom:0;">
-            <label class="form-label">Lieu de découverte / contact tiers (optionnel)</label>
-            <input type="text" class="ci-input" name="triageNotes" id="id-anon-place"
-                   placeholder="Ex : rue St-Denis, Paris 1er — apporté par M. Durand 06 …">
-          </div>
-        </div>
-
-        </form>
-      </div>
-
-      <div class="modal-foot">
-        <span class="id-foot-hint" id="id-foot-hint">Pas trouvé ? Basculez sur « Anonyme » pour garder le statut temporaire.</span>
-        <button class="btn btn-secondary" type="button"
-                onclick="closeIdentifierModal()">Annuler</button>
-        <button class="btn btn-primary" id="id-submit" type="submit" form="identify-form" disabled>
-          <i data-lucide="check" style="width:11px;height:11px;"></i>
-          <span>Lier au dossier</span>
-        </button>
-      </div>
-
     </div>
   </div>
 
-</div>{# /waiting-room controller #}
-{% endblock %}
+  {# ═══ Modale Identifier le patient (urgence admise sans identité) ═══ #}
+  <div class="mveil" id="idVeil" role="dialog" aria-modal="true" aria-label="Identifier le patient">
+    <div class="mbox">
+      <div class="mhead">
+        <b id="idTitre">Identifier le patient</b>
+        <button class="mclose" id="idClose" type="button" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button>
+      </div>
+      <div class="mbody">
+        <div class="frow" style="margin-bottom:0">
+          <label class="flbl" for="idSearch">Fiche de l'animal</label>
+          <div class="ci-tagwrap">
+            <div class="ci-taginput">
+              <input type="search" id="idSearch" placeholder="Puce, nom animal, propriétaire…" autocomplete="off">
+            </div>
+            <div class="ci-menu" id="idMenu"></div>
+          </div>
+          <div id="idFiche"><div class="ci-vide">Recherchez la fiche de l'animal pour rattacher cette admission à son dossier.</div></div>
+        </div>
+      </div>
+      <div class="mfoot">
+        <button class="btn" id="idAnnuler" type="button">Annuler</button>
+        <button class="btn primaire" id="idValider" type="button" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">{{ _svg.ok|raw }}</svg>
+          <span id="idValiderTxt">Lier au dossier</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
-{% block javascripts %}
-  {{ parent() }}
-  <script>
-    /* ── Queue filter (kept for compatibility) ── */
-    function filterQueue(btn) {
-      const filter = btn.dataset.filter;
-      btn.closest('.queue-filter').querySelectorAll('.qf-tab')
-        .forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
+  {# ═══ Menu d'actions carte ═══ #}
+  <div class="act-pop" id="actPop" role="menu"></div>
 
-      const cards = document.querySelectorAll('#queue-list .qcard');
-      let visible = 0;
-      cards.forEach(function (card) {
-        const triage   = card.dataset.triage ?? '';
-        const location = card.dataset.location ?? '';
-        const isUrgent  = triage === 'emergency' || triage === 'vital_emergency';
-        const isConsult = location === 'in_consultation_room';
+  {# ═══ Fiche éclair patient ═══ #}
+  <div class="peek" id="peek" role="dialog" aria-label="Détail patient"></div>
 
-        let show = false;
-        if (filter === 'all')               show = true;
-        else if (filter === 'urgence')      show = isUrgent;
-        else if (filter === 'attente')      show = !isConsult;
-        else if (filter === 'consultation') show = isConsult;
-
-        card.style.display = show ? '' : 'none';
-        if (show) visible++;
-      });
-
-      const counter = document.getElementById('queue-count');
-      if (counter) counter.textContent = visible + ' patient' + (visible > 1 ? 's' : '');
-    }
-
-    /* ── [UI-5] Detail panel (kept for compatibility) ── */
-    const CHANNEL_LABELS = {
-      appointment_booked: 'RDV', walk_in: 'Sans RDV',
-      emergency: 'Urgence', emergency_by_third_party: 'Urgence tiers',
-      emergency_by_authority: 'Urgence autorités',
-      emergency_by_association: 'Urgence asso.',
-      transfer_from_other_clinic: 'Transfert',
-    };
-
-    function showDetail(card) {
-      document.querySelectorAll('#queue-list .qcard').forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
-
-      const isUnidentified = card.dataset.unidentified === 'true';
-      const label    = card.querySelector('.qcard-name')?.textContent?.trim() ?? '—';
-      const waitEl   = card.querySelector('.wait-big');
-      const waitText = waitEl ? waitEl.textContent.trim() + ' ' + (card.querySelector('.wait-label')?.textContent?.trim() ?? '') : '—';
-      const notesEl  = card.querySelector('.qcard-motif');
-
-      document.getElementById('detail-empty').style.display = 'none';
-      document.getElementById('detail-content').style.display = '';
-
-      const avatarEl = document.getElementById('detail-avatar');
-      if (isUnidentified) {
-        avatarEl.style.background = '#fff7ed';
-        avatarEl.style.color      = '#d97706';
-        avatarEl.style.borderRadius = 'var(--radius-md)';
-        avatarEl.innerHTML = '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4M12 8h.01"/></svg>';
-      } else {
-        avatarEl.style.background = 'var(--brand-50)';
-        avatarEl.style.color      = 'var(--brand-600)';
-        avatarEl.style.borderRadius = 'var(--radius-full)';
-        avatarEl.innerHTML = label.slice(0, 2).toUpperCase();
-      }
-
-      document.getElementById('detail-name').textContent = label;
-      document.getElementById('detail-wait').textContent = waitText;
-
-      const notesDiv = document.getElementById('detail-notes');
-      if (notesEl && notesEl.textContent.trim()) {
-        notesDiv.textContent = notesEl.textContent.trim();
-        notesDiv.style.display = '';
-      } else {
-        notesDiv.style.display = 'none';
-      }
-
-      document.getElementById('detail-identification').style.display = isUnidentified ? '' : 'none';
-
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    /* ── Detail slide ── */
-    function closeDetailSlide() {
-      document.getElementById('detail-slide').classList.remove('open');
-    }
-
-    /* ── [UI-1] Urgence wizard ── */
-    var urgMode = null;
-    var urgNonIdChecked = false;
-
-    function urgClose() {
-      document.getElementById('modal-urgence').classList.add('hidden');
-      urgReset();
-    }
-    function urgReset() {
-      urgMode = null; urgNonIdChecked = false;
-      document.getElementById('urg-step-1').style.display = '';
-      document.getElementById('urg-step-2').style.display = 'none';
-      document.getElementById('urg-dot-1').style.background = '#dc2626';
-      document.getElementById('urg-dot-1').style.color = '#fff';
-      document.getElementById('urg-dot-2').style.background = 'var(--border-medium)';
-      document.getElementById('urg-dot-2').style.color = 'var(--text-subtle)';
-      var s = document.getElementById('urg-search'); if (s) s.value = '';
-      var results = document.querySelector('[data-global-search-picker-id-value="walkin-urgence"] [data-global-search-target="results"]');
-      if (results) results.innerHTML = '';
-      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
-      document.getElementById('urg-checkbox-check').style.display = 'none';
-      document.getElementById('urg-title').textContent = 'Urgence — Identification';
-      var sel = document.getElementById('urg-selected-animal'); if (sel) sel.style.display = 'none';
-      var aid = document.getElementById('urg-animal-id'); if (aid) aid.value = '';
-      urgUpdateBtn();
-    }
-    function urgUpdateBtn() {
-      var btn = document.getElementById('urg-next-btn');
-      var ok  = urgMode !== null;
-      btn.disabled = !ok;
-      btn.style.opacity = ok ? '1' : '.5';
-      btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
-    }
-    function urgToggleNonId() {
-      urgNonIdChecked = !urgNonIdChecked;
-      var el = document.getElementById('urg-toggle-nonid');
-      el.style.borderColor  = urgNonIdChecked ? '#d97706' : 'var(--border-medium)';
-      el.style.background   = urgNonIdChecked ? '#fff7ed' : '';
-      document.getElementById('urg-checkbox-check').style.display = urgNonIdChecked ? '' : 'none';
-      urgMode = urgNonIdChecked ? 'non-identifie' : null;
-      urgUpdateBtn();
-    }
-    /* Called by waiting_room_controller when a pick event arrives for walkin-urgence */
-    function urgSetFromPick(animalId, description) {
-      urgMode = 'existant'; urgNonIdChecked = false;
-      document.getElementById('urg-toggle-nonid').style.borderColor = 'var(--border-medium)';
-      document.getElementById('urg-toggle-nonid').style.background = '';
-      document.getElementById('urg-checkbox-check').style.display = 'none';
-      var aid = document.getElementById('urg-animal-id'); if (aid) aid.value = animalId;
-      var label = document.getElementById('urg-selected-label'); if (label) label.textContent = description;
-      var sel = document.getElementById('urg-selected-animal'); if (sel) sel.style.display = '';
-      urgUpdateBtn();
-    }
-    /* Called by global-search onTyped action (any typing without pick = nouveau dossier) */
-    function urgOnTyped(val) {
-      if (val.length >= 2 && urgMode !== 'existant') {
-        urgMode = 'nouveau'; urgUpdateBtn();
-      } else if (val.length < 2 && urgMode === 'nouveau') {
-        urgMode = null; urgUpdateBtn();
-      }
-    }
-
-    function urgGoStep2() {
-      if (!urgMode) return;
-      document.getElementById('urg-step-1').style.display = 'none';
-      document.getElementById('urg-step-2').style.display = '';
-      document.getElementById('urg-dot-1').style.background = '#16a34a';
-      document.getElementById('urg-dot-2').style.background = '#dc2626';
-      document.getElementById('urg-dot-2').style.color = '#fff';
-
-      ['urg-2a','urg-2b','urg-2c'].forEach(id => document.getElementById(id).style.display = 'none');
-      var subId = urgMode === 'existant' ? 'urg-2a' : urgMode === 'non-identifie' ? 'urg-2c' : 'urg-2b';
-      document.getElementById(subId).style.display = '';
-
-      var banner = document.getElementById('urg-mode-banner');
-      if (urgMode === 'existant') {
-        banner.style.cssText = 'background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
-        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Rattachement à dossier existant';
-        document.getElementById('urg-title').textContent = 'Urgence — Admission';
-      } else if (urgMode === 'non-identifie') {
-        banner.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;color:#d97706;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
-        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4M12 8h.01"/></svg> <strong>Animal non identifié</strong> — régularisation différée';
-        document.getElementById('urg-title').textContent = 'Urgence — Animal non identifié';
-      } else {
-        banner.style.cssText = 'background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;margin:var(--space-3) var(--space-4) 0;padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;display:flex;align-items:center;gap:var(--space-2);';
-        banner.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> <strong>Création nouveau dossier</strong>';
-        document.getElementById('urg-title').textContent = 'Urgence — Nouveau dossier';
-      }
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    /* ── Modal Identifier ── */
-    function openIdentifierModal(admissionId, label, physicalDescription, triageNotes) {
-      document.getElementById('identify-admission-id').value = admissionId;
-      document.getElementById('identify-animal-id').value = '';
-      document.getElementById('identify-animal-name').value = '';
-      var nameEl = document.getElementById('id-ctx-name');
-      if (nameEl) nameEl.textContent = label || '—';
-      var subEl = document.getElementById('id-ctx-sub');
-      if (subEl) subEl.textContent = '—';
-      var descEl = document.getElementById('id-anon-desc');
-      if (descEl) descEl.value = physicalDescription || '';
-      var placeEl = document.getElementById('id-anon-place');
-      if (placeEl) placeEl.value = triageNotes || '';
-      var selectedEl = document.getElementById('id-animal-selected');
-      if (selectedEl) { selectedEl.style.display = 'none'; selectedEl.innerHTML = ''; }
-      var ownerSearch = document.getElementById('id-owner-search');
-      if (ownerSearch) ownerSearch.value = '';
-      var ownerResults = document.getElementById('id-owner-results');
-      if (ownerResults) ownerResults.innerHTML = '';
-      document.getElementById('modal-identifier').classList.remove('hidden');
-      idSetTab('owner');
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    function closeIdentifierModal() {
-      document.getElementById('modal-identifier').classList.add('hidden');
-    }
-
-    function identifierSetAnimal(resourceId, name, subtitle, context) {
-      document.getElementById('identify-animal-id').value = resourceId;
-      document.getElementById('identify-animal-name').value = name;
-      var selectedEl = document.getElementById('id-animal-selected');
-      if (selectedEl) {
-        selectedEl.style.display = '';
-        var parts = [name];
-        if (subtitle) parts.push('(' + subtitle + ')');
-        if (context && context !== 'Sans propriétaire') parts.push('— ' + context);
-        selectedEl.innerHTML = '<div class="id-selected-chip"><strong>' + name + '</strong>' + (subtitle ? ' <span class="muted">(' + subtitle + ')</span>' : '') + '</div>';
-      }
-      var submit = document.getElementById('id-submit');
-      if (submit) submit.disabled = false;
-    }
-
-    /* ── Modal Identifier — tab switching ── */
-    var idHints = {
-      owner: 'Pas trouvé ? Basculez sur « Anonyme » pour garder le statut temporaire.',
-      anon:  "Vous pourrez compléter l'identification plus tard depuis la fiche patient.",
-    };
-    function idSetTab(tab) {
-      document.getElementById('identify-tab').value = tab;
-      document.querySelectorAll('#modal-identifier .id-tab').forEach(function (t) {
-        t.classList.toggle('active', t.getAttribute('onclick') === "idSetTab('" + tab + "')");
-      });
-      document.querySelectorAll('#modal-identifier .id-panel').forEach(function (p) {
-        p.classList.remove('active');
-      });
-      var panel = document.getElementById('id-panel-' + tab);
-      if (panel) panel.classList.add('active');
-      var hint = document.getElementById('id-foot-hint');
-      if (hint && idHints[tab]) hint.textContent = idHints[tab];
-      var submit = document.getElementById('id-submit');
-      if (submit) {
-        if ('anon' === tab) {
-          submit.disabled = false;
-          submit.querySelector('span').textContent = 'Confirmer';
-        } else {
-          var hasAnimal = document.getElementById('identify-animal-id').value !== '';
-          submit.disabled = !hasAnimal;
-          submit.querySelector('span').textContent = 'Lier au dossier';
-        }
-      }
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    function urgGoStep1() {
-      document.getElementById('urg-step-2').style.display = 'none';
-      document.getElementById('urg-step-1').style.display = '';
-      document.getElementById('urg-dot-1').style.background = '#dc2626';
-      document.getElementById('urg-dot-1').style.color = '#fff';
-      document.getElementById('urg-dot-2').style.background = 'var(--border-medium)';
-      document.getElementById('urg-dot-2').style.color = 'var(--text-subtle)';
-      document.getElementById('urg-title').textContent = 'Urgence — Identification';
-    }
-  </script>
+  <script type="application/json" id="fluxData">{{ _data|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }}</script>
+</div>
 {% endblock %}

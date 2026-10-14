@@ -21,11 +21,11 @@ final class SearchController extends AbstractController
 {
     private const array VALID_MODES = ['navigate', 'pick'];
 
-    /** Result fragments by `format`: the default turbo frame, the pickers' dropdown and the shell's search palette. */
+    /** Result fragments by `format`: the default turbo frame, the shell's search palette and the flow board's patient pickers. */
     private const array TEMPLATES = [
         'turboframe' => 'clinic/search/_results.html.twig',
-        'dropdown'   => 'clinic/search/_dropdown_results.html.twig',
         'palette'    => 'clinic/search/_palette_results.html.twig',
+        'flux'       => 'clinic/search/_flux_results.html.twig',
     ];
 
     /**

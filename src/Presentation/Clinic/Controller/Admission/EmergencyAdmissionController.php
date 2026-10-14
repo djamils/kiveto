@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Admission;
 
 use App\Context\Admission\Application\Command\OpenEmergencyAdmission\OpenEmergencyAdmission;
-use App\Context\Admission\Domain\ValueObject\IntakeChannel;
-use App\Context\Admission\Domain\ValueObject\TriageLevel;
+use App\Context\Admission\Domain\Exception\PatientAlreadyAdmittedException;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,86 +16,89 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
-#[Route('/admission/emergency', name: 'clinic_admission_emergency', methods: ['GET', 'POST'])]
+/**
+ * « Admission d'urgence »: one screen where the motif comes first and the
+ * identity can wait. A known animal is attached at once; otherwise the
+ * patient is admitted under a provisional « Urgence HH:MM » label, to be
+ * identified once stabilised.
+ */
+#[Route('/admission/emergency', name: 'clinic_admission_emergency', methods: ['POST'])]
 final class EmergencyAdmissionController extends AbstractController
 {
     public function __construct(
         private readonly CommandBusInterface $commandBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ClockInterface $clock,
     ) {
     }
 
     public function __invoke(Request $request): Response
     {
-        if ($request->isMethod('GET')) {
-            $presetIntake = $request->query->getString('intake') ?: null;
-
-            return $this->render('clinic/admission/emergency_form.html.twig', [
-                'intakeChannels' => IntakeChannel::cases(),
-                'triageLevels'   => TriageLevel::cases(),
-                'presetIntake'   => $presetIntake,
-            ]);
-        }
-
         $token = $request->request->getString('_token');
         if (!$this->csrfTokenManager->isTokenValid(new CsrfToken('admission_emergency', $token))) {
             $this->addFlash('error', 'Token de sécurité invalide. Veuillez réessayer.');
 
-            return $this->redirectToRoute('clinic_admission_emergency');
+            return $this->redirectToRoute('clinic_admission_queue');
         }
 
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
-        $intakeChannel = $request->request->getString('intake_channel');
-        $triageLevel   = $request->request->getString('triage_level');
+        $triageNotes = trim($request->request->getString('triage_notes'));
 
-        if ('' === $intakeChannel || '' === $triageLevel) {
-            $this->addFlash('error', 'Le canal d\'admission et le niveau de triage sont obligatoires.');
+        if ('' === $triageNotes) {
+            $this->addFlash('error', 'Décrivez ce qui se passe pour admettre l\'urgence.');
 
-            return $this->redirectToRoute('clinic_admission_emergency');
+            return $this->redirectToRoute('clinic_admission_queue');
         }
 
-        $provisionalLabel = $request->request->getString('provisional_label') ?: null;
-        $knownAnimalId    = $request->request->getString('known_animal_id') ?: null;
-        $animalName       = $request->request->getString('animal_name') ?: null;
-        $observedSpecies  = $request->request->getString('observed_species') ?: null;
-        $observedColor    = $request->request->getString('observed_color') ?: null;
-        $presenterName    = $request->request->getString('presenter_name') ?: null;
-        $presenterPhone   = $request->request->getString('presenter_phone') ?: null;
-        $presenterRole    = $request->request->getString('presenter_role') ?: null;
-        $physicalDesc     = $request->request->getString('physical_description') ?: null;
-        $triageNotes      = $request->request->getString('triage_notes') ?: null;
+        $knownAnimalId = $request->request->getString('known_animal_id') ?: null;
+        $animalName    = $request->request->getString('animal_name') ?: null;
+        $label         = null;
+
+        if (null === $knownAnimalId) {
+            $zone     = $request->request->getString('time_zone');
+            $known    = \in_array($zone, \DateTimeZone::listIdentifiers(), true);
+            $timeZone = new \DateTimeZone($known ? $zone : 'Europe/Paris');
+            $label    = 'Urgence ' . $this->clock->now()->setTimezone($timeZone)->format('H:i');
+        }
 
         try {
             $this->commandBus->dispatch(new OpenEmergencyAdmission(
                 clinicId: $currentClinicId->toString(),
-                intakeChannel: $intakeChannel,
-                triageLevel: $triageLevel,
-                provisionalLabel: $provisionalLabel,
+                intakeChannel: $request->request->getString('intake_channel') ?: 'emergency',
+                triageLevel: $request->request->getString('triage_level') ?: 'emergency',
+                provisionalLabel: $label,
                 knownAnimalId: $knownAnimalId,
                 animalName: $animalName,
-                observedSpecies: $observedSpecies,
-                observedColor: $observedColor,
-                presenterName: $presenterName,
-                presenterPhone: $presenterPhone,
-                presenterRole: $presenterRole,
-                physicalDescription: $physicalDesc,
+                observedSpecies: $request->request->getString('observed_species') ?: null,
+                observedColor: null,
+                presenterName: null,
+                presenterPhone: null,
+                presenterRole: null,
+                physicalDescription: null,
                 triageNotes: $triageNotes,
             ));
 
-            $this->addFlash('success', 'Admission urgente créée avec succès.');
-
-            return $this->redirectToRoute('clinic_admission_queue');
+            $this->addFlash('success', \sprintf(
+                'Urgence admise — %s en tête de file%s.',
+                $animalName ?? $label,
+                null === $knownAnimalId ? ' · identification à régulariser' : '',
+            ));
+        } catch (PatientAlreadyAdmittedException) {
+            $this->addFlash('error', \sprintf(
+                '%s est déjà sur place — son admission est en cours.',
+                $animalName ?? 'Ce patient',
+            ));
         } catch (\InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
-
-            return $this->redirectToRoute('clinic_admission_emergency');
         } catch (\DomainException $e) {
             $this->addFlash('error', $e->getMessage());
-
-            return $this->redirectToRoute('clinic_admission_emergency');
+        } catch (\ValueError) {
+            $this->addFlash('error', 'Canal d\'admission ou niveau de triage invalide.');
         }
+
+        return $this->redirectToRoute('clinic_admission_queue');
     }
 }

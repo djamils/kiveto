@@ -264,6 +264,7 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 practitionerUserId: $practitionerUserIds[$admissionId] ?? null,
                 closedAt: $entity->getClosedAt()?->format(\DateTimeInterface::ATOM),
                 closureReason: $entity->getClosureReason()?->value,
+                locationSince: $entity->getLocationStatusEnteredAt()->format(\DateTimeInterface::ATOM),
             );
         }
 

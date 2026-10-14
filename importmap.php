@@ -54,6 +54,9 @@ return [
     'pages/home' => [
         'path' => './assets/js/pages/home.js',
     ],
+    'pages/flux' => [
+        'path' => './assets/js/pages/flux.js',
+    ],
     'pages/scheduling/agenda' => [
         'path' => './assets/js/pages/scheduling/agenda.js',
     ],

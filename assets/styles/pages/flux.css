@@ -1,0 +1,278 @@
+/* assets/styles/pages/flux.css
+   Ambulatory flow board (« Flux ambulatoire ») — ported as-is from
+   docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_6.html:
+   clock and day figures, live emergency banner, the four columns and their
+   cards, the « partis » bar, arrival / emergency modals, card action menu
+   and patient peek. The shell and its kit (page header, buttons, modals,
+   dropdowns, chips, tooltips) live in shell/shell.css.
+
+   Every rule is anchored on the page root `.flx`: the mock-up's generic
+   names (.board, .pat, .stats, .peek…) would otherwise leak into the other
+   pages. Its keyframes are prefixed `flx-`. */
+
+/* Page root: the mock-up's full-height column under the topbar. */
+.flx{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}
+
+.flx .horloge{
+  display:flex;align-items:center;gap:8px;background:var(--pin-pale);color:var(--pin-fonce);
+  border-radius:20px;padding:6px 13px;font-size:.82rem;font-weight:600;
+}
+.flx .horloge time{font-family:var(--font-data)}
+.flx .horloge .hdot{width:7px;height:7px;border-radius:50%;background:var(--pin)}
+@media (prefers-reduced-motion:no-preference){
+  .flx .horloge .hdot{animation:flx-hpulse 2s ease-in-out infinite}
+  @keyframes flx-hpulse{0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.4)}50%{box-shadow:0 0 0 6px rgba(99,102,241,0)}}
+}
+.flx .stats{display:flex;gap:0;margin-left:6px}
+.flx .stat{display:flex;align-items:baseline;gap:6px;padding:0 14px;border-left:1px solid var(--trait);font-size:.76rem;color:var(--encre-60)}
+.flx .stat b{font-family:var(--font-data);font-size:1rem;color:var(--encre)}
+.flx .stat b.warn{color:var(--garance)}
+
+.flx .board{display:flex;gap:14px;padding:16px 22px;flex:1;min-height:0;overflow-x:auto}
+.flx .kcol{
+  flex:1 1 0;min-width:250px;display:flex;flex-direction:column;min-height:0;gap:8px;
+}
+.flx .kcol > .khead{display:flex;align-items:flex-start;gap:9px;padding:0 4px;flex:none}
+.flx .khead h2{font-family:var(--font-display);font-weight:600;font-size:.95rem;line-height:1.25}
+.flx .khead .kmeta{display:block;font-size:.72rem;color:var(--encre-60);margin-top:1px}
+.flx .khead .kmeta .urgm{color:var(--garance);font-weight:600}
+.flx .khead .pastille{width:8px;height:8px;border-radius:3px;flex:none;margin-top:5px}
+.flx .kliste{
+  flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px;min-height:0;
+  background:var(--carte);border:1px solid var(--trait);border-radius:var(--r-lg);box-shadow:var(--ombre);
+}
+.flx .kvide{border:1.5px dashed var(--trait);border-radius:var(--r-md);padding:18px 10px;text-align:center;font-size:.76rem;color:var(--encre-35)}
+
+.flx .pat{
+  background:var(--carte);border:1px solid var(--trait);border-radius:var(--r-md);
+  padding:10px 11px;display:flex;flex-direction:column;gap:8px;
+  transition:opacity .2s,transform .2s,border-color .13s,box-shadow .13s;
+}
+.flx .pat:hover{border-color:rgba(67,56,202,.35);box-shadow:0 0 0 2px rgba(67,56,202,.05)}
+.flx .pat.urg:hover{border-color:rgba(220,38,38,.4);box-shadow:0 0 0 2px rgba(220,38,38,.045)}
+.flx .pat.urg{background:#fffbfb;border-color:#f9e9e9}
+.flx .pat .top{display:flex;align-items:center;gap:9px}
+.flx .pat .esp{width:36px;height:36px;border-radius:8px;background:var(--celadon);display:grid;place-items:center;font-size:18px;flex:none}
+.flx .pat.urg .esp{background:var(--garance-pale)}
+.flx .pat .id{flex:1;min-width:0}
+.flx .pat .id b{font-size:.9rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.flx .pat .id > div > span{display:block;font-size:.73rem;color:var(--encre-60)}
+.flx .pat .chrono{margin-left:auto;font-family:var(--font-data);font-size:.74rem;color:var(--encre-35);flex:none}
+.flx .pat .chrono.long{color:var(--garance);font-weight:700}
+.flx .pat .infos{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.flx .pat .infos .qui{margin-left:auto}
+.flx .puce.urgp{background:var(--garance);color:#fff;text-transform:uppercase;letter-spacing:.05em;font-size:.6rem;font-weight:700;padding:0 7px}
+.flx .pat-mini{padding:8px 10px;gap:5px}
+.flx .pat-mini .esp{width:26px;height:26px;font-size:13px;border-radius:7px}
+.flx .pm-nom{font-size:.84rem;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flx .pm-foot{display:flex;align-items:baseline;gap:8px}
+.flx .pm-foot .qui{flex:none}
+.flx .pm-sub{flex:1;min-width:0;font-size:.72rem;color:var(--encre-60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flx .pat-mini .dr{font-size:.68rem;padding:2px 7px}
+.flx .pat-mini .pmenu{width:24px;height:24px}
+.flx .pat .avancer.av-ic{
+  width:28px;height:28px;padding:0;margin:0;gap:0;flex:none;
+  display:grid;place-items:center;border-radius:7px;
+  background:var(--pin-pale);color:var(--pin-fonce);transition:background .13s;
+}
+.flx .pat .avancer.av-ic:hover{background:var(--celadon)}
+.flx .pat .avancer.av-ic svg{width:14px;height:14px}
+.flx .pslot{display:flex;align-items:center;gap:8px;padding:4px 2px 0}
+.flx .pslot:first-child{padding-top:0}
+.flx .pslot .ph{font-family:var(--font-data);font-size:.76rem;font-weight:600;color:var(--encre-60);letter-spacing:.02em}
+.flx .pslot .pline{flex:1;height:1px;background:var(--trait)}
+.flx .pat .dr{margin-left:auto;flex:none;font-size:.72rem;font-weight:600;color:var(--pin-fonce);background:var(--pin-pale);border-radius:7px;padding:3px 8px;white-space:nowrap}
+.flx .ksec{display:flex;align-items:center;gap:6px;padding:3px 2px 0;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35)}
+.flx .ksec svg{width:10px;height:10px;flex:none}
+.flx .ksec .kn{font-family:var(--font-data);font-size:.66rem;background:var(--brume);border-radius:10px;padding:0 6px;color:inherit}
+.flx .ksec.urg{color:#b91c1c}
+.flx .ksec.prio{color:#c2410c}
+.flx .kliste .ksec + .pat{margin-top:1px}
+.flx .pat .bas{display:flex;align-items:center;gap:7px}
+.flx .pat .qui{font-size:.72rem;color:var(--encre-60)}
+.flx .pat .avancer{
+  margin-left:auto;display:flex;align-items:center;gap:6px;
+  background:var(--pin-pale);color:var(--pin-fonce);border-radius:8px;
+  padding:7px 11px;font-size:.78rem;font-weight:700;transition:background .13s;flex:none;
+}
+.flx .pat .avancer:hover{background:var(--celadon)}
+.flx .pat .avancer.encaisser{background:var(--ambre-pale);color:#c2410c}
+.flx .pat .avancer.encaisser:hover{background:#ffedd5}
+.flx .pat .avancer svg{width:13px;height:13px;flex:none}
+.flx .pat .pmenu{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--encre-35);flex:none}
+.flx .pat .pmenu:hover{background:var(--brume);color:var(--encre-60)}
+.flx .pat.sortie{opacity:0;transform:translateX(14px)}
+
+.flx .partis{
+  flex:none;display:flex;align-items:center;gap:10px;margin:0 22px 16px;padding:9px 14px;
+  background:var(--carte);border:1px solid var(--trait);border-radius:var(--r-md);
+  font-size:.78rem;color:var(--encre-60);
+}
+.flx .partis b{font-family:var(--font-data);color:var(--encre)}
+.flx .partis .noms{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.flx .partis .aside{margin-left:auto;font-size:.76rem;font-weight:600;color:var(--pin);flex:none}
+.flx .partis .aside:hover{text-decoration:underline}
+
+/* ── Bouton danger ── */
+.flx .btn.danger{background:var(--garance);border-color:var(--garance);color:#fff}
+.flx .btn.danger:hover{background:#b91c1c}
+.flx .btn.urgence{background:var(--garance-pale);border-color:#fecaca;color:#b91c1c}
+.flx .btn.urgence:hover{background:#fee2e2;border-color:rgba(220,38,38,.4)}
+.flx .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+/* ── Bannière urgence live ── */
+.flx .urg-alert{
+  flex:none;display:flex;gap:11px;margin:14px 22px 0;padding:9px 14px 7px;
+  background:var(--garance-pale);border:1px solid #fecaca;border-radius:var(--r-md);
+}
+.flx .urg-alert[hidden]{display:none}
+.flx .ua-dot{width:9px;height:9px;border-radius:50%;background:var(--garance);flex:none;align-self:flex-start;margin-top:5px}
+@media (prefers-reduced-motion:no-preference){
+  .flx .ua-dot{animation:flx-uapulse 1.4s ease-in-out infinite}
+  @keyframes flx-uapulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}50%{box-shadow:0 0 0 6px rgba(220,38,38,0)}}
+}
+.flx .ua-body{flex:1;min-width:0}
+.flx .ua-head{display:block;font-size:.76rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.flx .ua-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.flx .ua-row + .ua-row{border-top:1px solid rgba(220,38,38,.12)}
+.flx .ua-txt{min-width:0;font-size:.83rem;color:var(--encre);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flx .ua-txt b{font-weight:700}
+.flx .ua-min{margin-left:auto;flex:none;font-family:var(--font-data);font-size:.74rem;font-weight:600;color:#b91c1c}
+.flx .ua-btn{
+  flex:none;display:flex;align-items:center;gap:6px;
+  background:var(--carte);border:1px solid #fecaca;border-radius:8px;
+  padding:6px 11px;font-size:.78rem;font-weight:600;color:#b91c1c;transition:background .13s,border-color .13s;
+}
+.flx .ua-btn:hover{background:#fee2e2;border-color:rgba(220,38,38,.4)}
+
+/* ── Check-in : recherche patient (tag input + dropdown) ── */
+.flx .ci-tagwrap{position:relative}
+.flx .ci-taginput{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:text;
+  border:1px solid var(--trait);border-radius:8px;padding:7px 10px;background:var(--brume);transition:border-color .13s;
+}
+.flx .ci-taginput:focus-within{border-color:var(--pin);background:var(--carte)}
+.flx .ci-taginput input{flex:1;min-width:120px;border:none;background:transparent;outline:none;font-size:.85rem}
+.flx .ci-taginput input::placeholder{color:var(--encre-35)}
+.flx .ci-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pin-pale);color:var(--pin-fonce);border-radius:6px;padding:3px 5px 3px 8px;font-size:.78rem;font-weight:600}
+.flx .ci-chip button{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;color:var(--pin-fonce)}
+.flx .ci-chip button:hover{background:var(--celadon)}
+.flx .ci-menu{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;display:none;max-height:236px;overflow-y:auto;
+  background:var(--carte);border:1px solid var(--trait);border-radius:9px;box-shadow:0 12px 34px rgba(15,23,42,.14);padding:4px;
+}
+.flx .ci-menu.open{display:block}
+.flx .ci-opt{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:7px;text-align:left}
+.flx .ci-opt:hover,.flx .ci-opt.focus{background:var(--pin-pale)}
+.flx .ci-opt .oesp{width:30px;height:30px;border-radius:7px;background:var(--celadon);display:grid;place-items:center;font-size:15px;flex:none}
+.flx .ci-opt .otxt{min-width:0}
+.flx .ci-opt .otxt b{display:block;font-size:.83rem;font-weight:600}
+.flx .ci-opt .otxt span{display:block;font-size:.72rem;color:var(--encre-60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flx .ci-nores{padding:10px;text-align:center;font-size:.76rem;color:var(--encre-35)}
+.flx .ci-vide{border:1.5px dashed var(--trait);border-radius:9px;padding:14px;text-align:center;font-size:.76rem;color:var(--encre-35);margin-top:10px}
+.flx .ci-fiche{
+  display:flex;align-items:center;gap:10px;margin-top:10px;padding:9px 11px;
+  background:var(--brume);border:1px solid var(--trait);border-radius:9px;
+}
+.flx .ci-fiche .oesp{width:34px;height:34px;border-radius:8px;background:var(--celadon);display:grid;place-items:center;font-size:17px;flex:none}
+.flx .ci-fiche .ftxt b{display:block;font-size:.86rem;font-weight:600}
+.flx .ci-fiche .ftxt span{display:block;font-size:.73rem;color:var(--encre-60)}
+.flx .ci-fiche .fvisite{margin-left:auto;font-size:.72rem;color:var(--encre-60);text-align:right;flex:none}
+.flx .ci-fiche .fvisite b{display:block;font-family:var(--font-data);font-size:.74rem;color:var(--encre);font-weight:600}
+
+/* ── Check-in : création nouveau client ── */
+.flx .ci-cols{display:grid;grid-template-columns:1fr 1px 1fr;gap:13px;margin-bottom:2px}
+.flx .ci-div{background:var(--trait)}
+.flx .ci-colh{display:flex;align-items:center;gap:7px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);margin-bottom:9px}
+.flx .ci-colh .hic{width:20px;height:20px;border-radius:6px;background:var(--pin-pale);color:var(--pin-fonce);display:grid;place-items:center}
+
+
+/* ── Modale urgence ── */
+.flx .mhead.urg{background:var(--garance);border-bottom:none}
+.flx .mhead.urg > b{color:#fff}
+.flx .urg-hic{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;flex:none}
+.flx .mhead.urg .mclose{color:rgba(255,255,255,.85)}
+.flx .mhead.urg .mclose:hover{background:rgba(255,255,255,.15)}
+.flx .urg-note{display:flex;align-items:center;gap:8px;background:var(--garance-pale);border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:8px 11px;font-size:.78rem;font-weight:600;margin-bottom:12px}
+
+/* ── Segmenté inline (2-3 options) ── */
+.flx .seg button.on.warn{color:#c2410c}
+.flx .seg button b{font-weight:700}
+.flx .seg button .sub{font-weight:400;font-size:.71rem;color:var(--encre-60)}
+
+/* ── Chips de motifs fréquents ── */
+.flx .mchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px}
+.flx .mchip{border:1px solid var(--trait);background:var(--brume);border-radius:16px;padding:4px 11px;font-size:.75rem;font-weight:600;color:var(--encre-60);transition:all .12s}
+.flx .mchip:hover{border-color:rgba(67,56,202,.35);color:var(--pin-fonce)}
+.flx .mchip.on{background:var(--pin-pale);border-color:var(--pin-pale);color:var(--pin-fonce)}
+.flx .mchip.rouge:hover{border-color:rgba(220,38,38,.4);color:#b91c1c}
+.flx .mchip.rouge.on{background:var(--garance-pale);border-color:var(--garance-pale);color:#b91c1c}
+
+/* ── Fiche patient sélectionné : vigilances + retrait ── */
+.flx .ci-fiche .fvig{margin-left:0}
+.flx .ci-fiche .fx{margin-left:auto;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--encre-35);flex:none}
+.flx .ci-fiche .fx:hover{background:var(--garance-pale);color:#b91c1c}
+.flx .fiche-vigs{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.flx .ci-lien{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;font-weight:600;color:var(--pin);margin-top:9px}
+.flx .ci-lien:hover{text-decoration:underline}
+.flx .ci-opt.creer .oesp{background:var(--pin-pale);color:var(--pin-fonce);font-size:15px;font-weight:700}
+.flx .ci-opt.creer b{color:var(--pin-fonce)}
+
+/* ── Menu d'actions par carte ── */
+.flx .act-pop{
+  position:fixed;z-index:130;width:206px;display:none;padding:4px;
+  background:var(--carte);border:1px solid var(--trait);border-radius:9px;box-shadow:0 14px 40px rgba(15,23,42,.18);
+}
+.flx .act-pop.open{display:block}
+.flx .act-it{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:7px;font-size:.8rem;font-weight:500;text-align:left}
+.flx .act-it:hover{background:var(--brume)}
+.flx .act-it svg{width:13px;height:13px;color:var(--encre-60);flex:none}
+.flx .act-it.rouge{color:var(--garance)}
+.flx .act-it.rouge svg{color:var(--garance)}
+.flx .act-it.rouge:hover{background:var(--garance-pale)}
+.flx .act-sep{height:1px;background:var(--trait);margin:4px 6px}
+
+/* ── Fiche éclair patient (popover ancré à la carte) ── */
+.flx .peek{
+  position:fixed;z-index:120;width:324px;overflow:hidden;
+  background:var(--carte);border:1px solid var(--trait);border-radius:12px;
+  box-shadow:0 18px 50px rgba(15,23,42,.18);
+  opacity:0;transform:translateY(4px) scale(.98);pointer-events:none;
+  transition:opacity .14s,transform .14s;
+}
+.flx .peek.open{opacity:1;transform:none;pointer-events:auto}
+.flx .pk-head{display:flex;align-items:flex-start;gap:10px;padding:12px 14px 10px}
+.flx .pk-head .oesp{width:38px;height:38px;border-radius:9px;background:var(--celadon);display:grid;place-items:center;font-size:19px;flex:none}
+.flx .pk-head .pk-id{min-width:0;flex:1}
+.flx .pk-head b{display:block;font-family:var(--font-display);font-size:.98rem;font-weight:600}
+.flx .pk-head .sous{display:block;font-size:.73rem;color:var(--encre-60)}
+.flx .pk-close{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--encre-35);flex:none}
+.flx .pk-close:hover{background:var(--brume)}
+.flx .pk-badges{display:flex;flex-wrap:wrap;gap:4px;padding:0 14px 10px}
+.flx .pk-rows{border-top:1px solid var(--brume);padding:3px 14px}
+.flx .pk-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:.79rem;border-bottom:1px solid var(--brume)}
+.flx .pk-row:last-child{border-bottom:none}
+.flx .pk-row .l{color:var(--encre-60);flex:none}
+.flx .pk-row .v{font-weight:600;text-align:right;min-width:0}
+.flx .pk-row .v.mono{font-family:var(--font-data);font-size:.75rem}
+.flx .pk-foot{display:flex;gap:8px;padding:10px 14px;background:#fbfcfe;border-top:1px solid var(--trait)}
+.flx .pk-foot .btn{flex:1;justify-content:center;padding:7px 8px;font-size:.78rem;white-space:nowrap}
+
+@media (max-width:1050px){.flx .board{flex-wrap:nowrap}.flx .kcol{min-width:270px;flex:0 0 270px}.flx .stats{display:none}}
+
+/* ── Scrollbars fines et discrètes (colonnes, board, menus, panneaux) ── */
+.flx .kliste,.flx .board,.flx .ci-menu,.flx .dbody,.flx .mbody{scrollbar-width:thin;scrollbar-color:#cfd8e3 transparent}
+.flx .kliste::-webkit-scrollbar,.flx .ci-menu::-webkit-scrollbar,.flx .dbody::-webkit-scrollbar,.flx .mbody::-webkit-scrollbar{width:10px}
+.flx .board::-webkit-scrollbar{height:10px}
+.flx .kliste::-webkit-scrollbar-track,.flx .board::-webkit-scrollbar-track,.flx .ci-menu::-webkit-scrollbar-track,.flx .dbody::-webkit-scrollbar-track,.flx .mbody::-webkit-scrollbar-track{background:transparent}
+.flx .kliste::-webkit-scrollbar-button,.flx .board::-webkit-scrollbar-button,.flx .ci-menu::-webkit-scrollbar-button,.flx .dbody::-webkit-scrollbar-button,.flx .mbody::-webkit-scrollbar-button{display:none;width:0;height:0}
+.flx .kliste::-webkit-scrollbar-thumb,.flx .board::-webkit-scrollbar-thumb,.flx .ci-menu::-webkit-scrollbar-thumb,.flx .dbody::-webkit-scrollbar-thumb,.flx .mbody::-webkit-scrollbar-thumb{
+  background:#dbe2ea;border-radius:10px;border:3px solid transparent;background-clip:padding-box;
+}
+.flx .kliste::-webkit-scrollbar-thumb:hover,.flx .board::-webkit-scrollbar-thumb:hover,.flx .ci-menu::-webkit-scrollbar-thumb:hover,.flx .dbody::-webkit-scrollbar-thumb:hover,.flx .mbody::-webkit-scrollbar-thumb:hover{
+  background:#c3cedb;border:3px solid transparent;background-clip:padding-box;
+}
+/* ── Integration: actions that have no backend yet stay visible, disabled ── */
+.flx .act-it[disabled]{opacity:.45;cursor:not-allowed}
+.flx .act-it[disabled]:hover{background:none}
+.flx .dd-it .ic{width:26px;height:26px;border-radius:7px;background:var(--celadon);display:grid;place-items:center;font-size:14px;flex:none}

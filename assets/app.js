@@ -11,6 +11,7 @@ import { createIcons, icons } from 'lucide';
  */
 const PAGE_MODULES = {
   clinic_dashboard:              'pages/home',
+  clinic_admission_queue:        'pages/flux',
   clinic_scheduling_agenda:      'pages/scheduling/agenda',
   clinic_scheduling_planning:    'pages/scheduling/planning',
   clinic_hospitalisations:       'pages/hospitalisations',
