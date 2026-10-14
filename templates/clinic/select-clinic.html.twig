@@ -1,102 +1,40 @@
 {#
  # Kiveto -- templates/clinic/select-clinic.html.twig
- # Clinic picker page. User selects which clinic to work in.
- # Extends base.html.twig (no sidebar).
+ # Clinic picker shown after sign-in when the member works in several clinics
+ # and has no default one yet (connexion_3.html, « Votre clinique par défaut »,
+ # then « Entrée »). Picking a clinic makes it the default and opens it: the
+ # hidden form is posted to clinic_select_clinic_post once the welcome screen
+ # has played (assets/js/pages/auth.js).
  #
  # Variables from controller:
- #   clinics    array of AccessibleClinic (clinicId, clinicName, clinicSlug, memberRole.value, engagement.value)
  #   csrf_token string   CSRF token value
+ # The clinics themselves come from clinic_shell() (colour, initial, role).
  #}
-{% extends 'base.html.twig' %}
+{% extends 'security/_auth_layout.html.twig' %}
 
-{% block title %}Choisissez votre clinique{% endblock %}
+{% block title %}Votre clinique — Kiveto{% endblock %}
 
-{% block stylesheets %}
-{% endblock %}
-
-{% block body %}
-
-<div class="select-clinic-wrapper">
-<div class="card" role="main" data-page="clinic_select_clinic">
-
-  <div class="card-head">
-    <div class="head-top">
-      <div class="brand-logo" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-          <path d="M10 3C10 3 6 6 6 10C6 12.5 7.5 14.5 10 15C12.5 14.5 14 12.5 14 10C14 6 10 3 10 3Z" fill="rgba(255,255,255,.9)"/>
-          <path d="M10 15V18M8 17H12" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="head-text">
-        <p class="head-title">Bienvenue sur VET-OS</p>
-        <p class="head-sub">Choisissez votre clinique par défaut — elle sera chargée automatiquement à chaque connexion.</p>
-      </div>
-      <button class="btn-deconnect" onclick="window.location.href='{{ path('_logout_clinic') }}'" type="button" aria-label="Se déconnecter">
-        Déconnexion
-      </button>
+{% block screens %}
+  {% set _shell = clinic_shell() %}
+  <section class="ecran on" id="e-clin" aria-labelledby="t-clin">
+    <a class="retourb" href="{{ path('_logout_clinic') }}" data-turbo="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>Se déconnecter</a>
+    <h1 class="titre" id="t-clin">Votre clinique par défaut</h1>
+    <p class="sous">Vous avez accès à plusieurs cliniques du groupe. Celle-ci s'ouvrira à chaque connexion ; vous pourrez en changer à tout moment.</p>
+    <div class="clins" id="clins">
+      {% for clinic in _shell.clinics %}
+        <button type="button" class="clin{{ clinic.isDefault ? ' def' }}" data-clinic-id="{{ clinic.id }}" data-clinic-name="{{ clinic.name }}">
+          <span class="sq" style="background:{{ clinic.color }}">{{ clinic.initial }}</span>
+          <span class="tx"><b>{{ clinic.name }}{% if clinic.isDefault %}<span class="tag">Par défaut</span>{% endif %}</b><span>{{ clinic.subtitle }}</span></span>
+          {% if loop.index <= 9 %}<kbd>{{ loop.index }}</kbd>{% endif %}
+        </button>
+      {% endfor %}
     </div>
-    <div class="search-wrap">
-      <span class="search-icon" aria-hidden="true">
-        <svg width="13" height="13" fill="none" viewBox="0 0 16 16">
-          <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/>
-          <path d="M10.5 10.5l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <input class="search-input" id="search-input" type="search"
-        placeholder="Rechercher une clinique ou une ville…"
-        oninput="filterList(this.value)" aria-label="Rechercher une clinique" autocomplete="off"/>
-    </div>
-  </div>
+  </section>
 
-  <div class="list-zone" id="list-zone">
-    {# Preserve JS-rendered content during Turbo swaps #}
-    <div class="list" id="clinic-list" data-turbo-temporary role="listbox" aria-label="Sélectionnez une clinique"></div>
-  </div>
+  {% include 'security/_welcome_screen.html.twig' %}
 
-  <p class="scroll-hint hidden" id="scroll-hint" aria-hidden="true">
-    <svg width="11" height="11" fill="none" viewBox="0 0 12 12">
-      <path d="M6 2v8M3 7l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    Faire défiler pour voir plus
-  </p>
-
-  <div class="card-foot">
-    <div class="sel-status">
-      <div class="sel-dot" id="sel-dot"></div>
-      <p class="sel-label" id="sel-label">Sélectionnez votre clinique par défaut</p>
-    </div>
-    <div class="foot-actions">
-      <button class="btn-back" onclick="window.location.href='{{ path('_logout_clinic') }}'" type="button">Retour</button>
-      <button class="btn-enter" id="enter-btn" onclick="enter()" type="button" disabled
-        aria-label="Définir cette clinique et accéder à l'application">
-        Définir et accéder
-        <svg width="12" height="12" fill="none" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2 6h8M6 2l4 4-4 4" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-
-</div>
-
-{# Hidden form for clinic selection POST #}
-<form id="clinic-select-form" method="post" action="{{ path('clinic_select_clinic_post') }}" style="display:none">
-  <input type="hidden" name="_token" value="{{ csrf_token }}"/>
-  <input type="hidden" name="clinic_id" id="clinic-select-input" value=""/>
-</form>
-
-<div id="toast" role="status" aria-live="polite"></div>
-</div>{# /select-clinic-wrapper #}
-
-{% endblock %}
-
-{% block javascripts %}
-<script>
-  {# Inject server-side clinic data for the external module #}
-  window.CLINICS = [
-    {% for clinic in clinics %}
-    { id: "{{ clinic.clinicId }}", name: "{{ clinic.clinicName }}", slug: "{{ clinic.clinicSlug }}", role: "{{ clinic.memberRole.value }}", engagement: "{{ clinic.engagement.value }}", isDefault: {{ clinic.isDefault ? 'true' : 'false' }} },
-    {% endfor %}
-  ];
-</script>
+  <form id="clinic-select-form" method="post" action="{{ path('clinic_select_clinic_post') }}" hidden>
+    <input type="hidden" name="_token" value="{{ csrf_token }}">
+    <input type="hidden" name="clinic_id" id="clinic-select-input" value="">
+  </form>
 {% endblock %}

@@ -52,7 +52,6 @@ final class ShowSelectClinicController extends AbstractController
         }
 
         return $this->render('clinic/select-clinic.html.twig', [
-            'clinics'    => $accessibleClinics,
             'csrf_token' => $this->csrfTokenManager->getToken('clinic_select_clinic')->getValue(),
         ]);
     }

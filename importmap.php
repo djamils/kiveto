@@ -93,8 +93,8 @@ return [
     'pages/stock' => [
         'path' => './assets/js/pages/stock.js',
     ],
-    'pages/select-clinic' => [
-        'path' => './assets/js/pages/select-clinic.js',
+    'pages/auth' => [
+        'path' => './assets/js/pages/auth.js',
     ],
     'lucide' => [
         'version' => '1.7.0',
