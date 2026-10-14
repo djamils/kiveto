@@ -1,58 +1,43 @@
-{# Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>. #}
+{# Turbo Streams target: a plain wrapper, replaced whole on a 422. #}
 <div id="new-client-form-body">
-  {{ form_start(form, {
-    'attr':   {'id': 'form-new-client'},
-    'action': path('clinic_clients_create'),
-    'method': 'POST',
-  }) }}
+  {{ form_start(form, { attr: { id: 'form-new-client' }, action: path('clinic_clients_create'), method: 'POST' }) }}
     {{ form_errors(form) }}
 
-    <div class="form-grid">
-      <div class="form-row">
-        {{ form_label(form.firstName, 'Prénom', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.firstName, {'attr': {'class': 'form-input', 'placeholder': 'Sophie'}}) }}
+    <div class="g2 frow">
+      <div>
+        {{ form_label(form.firstName, 'Prénom', { label_attr: { class: 'flbl' } }) }}
+        {{ form_widget(form.firstName, { attr: { class: 'finput', placeholder: 'Sophie' } }) }}
         {{ form_errors(form.firstName) }}
       </div>
-      <div class="form-row">
-        {{ form_label(form.lastName, 'Nom', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.lastName, {'attr': {'class': 'form-input', 'placeholder': 'Dubois'}}) }}
+      <div>
+        {{ form_label(form.lastName, 'Nom', { label_attr: { class: 'flbl' } }) }}
+        {{ form_widget(form.lastName, { attr: { class: 'finput', placeholder: 'Dubois' } }) }}
         {{ form_errors(form.lastName) }}
       </div>
     </div>
 
-    <div class="form-grid">
-      <div class="form-row">
-        {{ form_label(form.phone, 'Téléphone', {'label_attr': {'class': 'form-label'}, 'required': true}) }}
-        {{ form_widget(form.phone, {'attr': {'class': 'form-input', 'placeholder': '06 12 34 56 78'}}) }}
+    <div class="g2 frow">
+      <div>
+        {{ form_label(form.phone, 'Téléphone', { label_attr: { class: 'flbl' }, required: true }) }}
+        {{ form_widget(form.phone, { attr: { class: 'finput', placeholder: '06 12 34 56 78' } }) }}
         {{ form_errors(form.phone) }}
       </div>
-      <div class="form-row">
-        {{ form_label(form.email, 'Email', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.email, {'attr': {'class': 'form-input', 'placeholder': 'sophie.dubois@email.fr'}}) }}
+      <div>
+        {{ form_label(form.email, 'E-mail', { label_attr: { class: 'flbl' } }) }}
+        {{ form_widget(form.email, { attr: { class: 'finput', placeholder: 'sophie.dubois@email.fr' } }) }}
         {{ form_errors(form.email) }}
       </div>
     </div>
 
-    {# The domain has no notes field yet. #}
-    <div class="form-row">
-      <span class="form-label">Notes</span>
-      <textarea class="form-input" disabled placeholder="Bientôt disponible"
-                title="Les notes client ne sont pas encore gérées"></textarea>
-    </div>
-
     {#
      # Real toggle: when it is on, the directory reopens the animal modal on the
-     # client that was just created. The input is written by hand so the label
-     # of the theme does not land beside the styled box.
+     # client that was just created. Written by hand so the theme's label does
+     # not land beside the kit checkbox.
      #}
     {% do form._thenAddAnimal.setRendered %}
-    <label class="checkbox-inline" for="{{ form._thenAddAnimal.vars.id }}">
-      <input type="checkbox" id="{{ form._thenAddAnimal.vars.id }}"
-             name="{{ form._thenAddAnimal.vars.full_name }}" value="1"
-             {{ form._thenAddAnimal.vars.checked ? 'checked' : '' }}>
-      <span class="check-mini">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
-      </span>
+    <label class="ckline" for="{{ form._thenAddAnimal.vars.id }}">
+      <input type="checkbox" class="ck" id="{{ form._thenAddAnimal.vars.id }}"
+             name="{{ form._thenAddAnimal.vars.full_name }}" value="1"{{ form._thenAddAnimal.vars.checked ? ' checked' }}>
       Ajouter un premier animal juste après
     </label>
 

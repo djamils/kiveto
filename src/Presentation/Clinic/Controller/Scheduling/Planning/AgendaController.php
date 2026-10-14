@@ -44,6 +44,9 @@ final class AgendaController extends AbstractController
                 \is_string($view) ? $view : null,
             ),
             'openNew' => '1' === $request->query->get('new'),
+            // The directory hands over who the appointment is for: the patient
+            // search of the modal opens already filled in.
+            'newPatient' => trim((string) $request->query->get('patient', '')),
         ]);
     }
 }

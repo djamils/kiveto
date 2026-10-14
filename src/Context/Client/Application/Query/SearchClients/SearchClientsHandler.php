@@ -32,6 +32,8 @@ final readonly class SearchClientsHandler
             cities: $query->cities,
             sort: $query->sort,
             direction: $query->direction,
+            restrictToIds: $query->restrictToIds,
+            termMatchingIds: $query->termMatchingIds,
         );
 
         return $this->clientReadRepository->search($clinicId, $criteria);

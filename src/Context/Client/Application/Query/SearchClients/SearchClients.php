@@ -18,6 +18,10 @@ final readonly class SearchClients
         public array $cities = [],
         public string $sort = 'name',
         public string $direction = 'asc',
+        /** @var ?list<string> clients the caller narrowed down, null when unrestricted */
+        public ?array $restrictToIds = null,
+        /** @var list<string> clients another context matched on the free text (an animal's name or chip) */
+        public array $termMatchingIds = [],
     ) {
     }
 }

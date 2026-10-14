@@ -15,6 +15,8 @@ use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStatsHandler
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetailsHandler;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
+use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalances;
+use App\Context\Billing\Application\Query\ListOutstandingBalances\ListOutstandingBalancesHandler;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
@@ -132,6 +134,18 @@ final class InvoiceQueryHandlersTest extends TestCase
         $result = (new GetBillingStatsHandler($repository))(new GetBillingStats(self::CLINIC_ID, $from, $to));
 
         self::assertSame($stats, $result);
+    }
+
+    public function testOutstandingBalancesAreAskedInTheClinicScope(): void
+    {
+        $repository = $this->createMock(InvoiceReadRepositoryInterface::class);
+        $repository->expects(self::once())->method('outstandingByPayer')->with(
+            self::callback(static fn (ClinicId $id): bool => self::CLINIC_ID === $id->toString()),
+        )->willReturn(['c1' => 1500]);
+
+        $result = (new ListOutstandingBalancesHandler($repository))(new ListOutstandingBalances(self::CLINIC_ID));
+
+        self::assertSame(['c1' => 1500], $result);
     }
 
     public function testTheCriteriaComputesItsOffset(): void

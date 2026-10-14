@@ -297,21 +297,60 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             $types['cities']  = ArrayParameterType::STRING;
         }
 
+        if (null !== $criteria->restrictToIds) {
+            // An empty restriction means another context ruled every client out.
+            if ([] === $criteria->restrictToIds) {
+                $where[] = '1 = 0';
+            } else {
+                $where[]                 = 'c.id IN (:restrictToIds)';
+                $params['restrictToIds'] = $this->binaryIds($criteria->restrictToIds);
+                $types['restrictToIds']  = ArrayParameterType::BINARY;
+            }
+        }
+
         if (null !== $criteria->searchTerm && '' !== trim($criteria->searchTerm)) {
             // The directory offers one box for the whole client card, so the
-            // term has to reach the contact methods as well as the identity.
+            // term has to reach the contact methods as well as the identity —
+            // and the clients another context matched (their animal's name or chip).
+            $alsoMatching = '';
+
+            if ([] !== $criteria->termMatchingIds) {
+                $alsoMatching              = ' OR c.id IN (:termMatchingIds)';
+                $params['termMatchingIds'] = $this->binaryIds($criteria->termMatchingIds);
+                $types['termMatchingIds']  = ArrayParameterType::BINARY;
+            }
+
+            // Phones are stored in E.164: "06 22 33" has to find "+33622334406".
+            $phone  = '';
+            $digits = ltrim((string) preg_replace('/\D+/', '', $criteria->searchTerm), '0');
+            if (\strlen($digits) >= 4) {
+                $phone           = ' OR cm.value LIKE :phone';
+                $params['phone'] = '%' . $digits . '%';
+            }
+
             $where[] = '('
                 . 'c.first_name LIKE :search OR c.last_name LIKE :search'
                 . ' OR c.postal_address_city LIKE :search'
                 . ' OR EXISTS ('
                 . 'SELECT 1 FROM client__contact_methods cm'
-                . ' WHERE cm.client_id = c.id AND cm.value LIKE :search'
+                . ' WHERE cm.client_id = c.id AND (cm.value LIKE :search' . $phone . ')'
                 . ')'
+                . $alsoMatching
                 . ')';
             $params['search'] = '%' . $criteria->searchTerm . '%';
         }
 
         return [implode(' AND ', $where), $params, $types];
+    }
+
+    /**
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    private function binaryIds(array $ids): array
+    {
+        return array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $ids);
     }
 
     /**
