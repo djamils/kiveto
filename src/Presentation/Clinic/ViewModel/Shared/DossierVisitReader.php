@@ -425,7 +425,7 @@ final readonly class DossierVisitReader
             'du'    => $invoice->amountPaidMinorUnits > 0
                 ? \sprintf('Réglée en partie · reste %s', SheetText::money($invoice->balanceDueMinorUnits, $invoice->currency))
                 : \sprintf('Émise le %s', SheetText::date(($invoice->issuedAt ?? $invoice->createdAt)->setTimezone($tz), 'd MMM')),
-            default => $payments[$invoice->id] ?? 'Réglée',
+            default => 'CREDITED' === $invoice->status ? 'Annulée par avoir' : ($payments[$invoice->id] ?? 'Réglée'),
         };
 
         return [

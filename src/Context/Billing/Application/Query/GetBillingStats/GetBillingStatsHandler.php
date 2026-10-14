@@ -17,6 +17,6 @@ final readonly class GetBillingStatsHandler
 
     public function __invoke(GetBillingStats $query): BillingStats
     {
-        return $this->invoices->stats(ClinicId::fromString($query->clinicId), $query->from, $query->to);
+        return $this->invoices->stats(ClinicId::fromString($query->clinicId), $query->from, $query->to, $query->overdueIssuedBefore);
     }
 }

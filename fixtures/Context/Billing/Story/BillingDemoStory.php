@@ -184,6 +184,12 @@ final class BillingDemoStory extends Story
 
     private function prepare(string $clinicId, string $admissionId): ?string
     {
+        // A visit with nothing recorded has nothing to invoice: preparing it
+        // would only leave an empty draft in the register.
+        if (!$this->hasBillableLines($admissionId)) {
+            return null;
+        }
+
         $invoiceId = $this->commandBus->dispatch(new PrepareInvoiceForAdmission($clinicId, $admissionId));
 
         if (!\is_string($invoiceId)) {
@@ -192,6 +198,16 @@ final class BillingDemoStory extends Story
 
         // A visit with nothing recorded cannot be issued; leave it alone.
         return $this->balanceOf($clinicId, $invoiceId) > 0 ? $invoiceId : null;
+    }
+
+    private function hasBillableLines(string $admissionId): bool
+    {
+        return false !== $this->connection->fetchOne(
+            'SELECT 1 FROM consultation__consultations c
+             INNER JOIN consultation__billing_lines bl ON bl.consultation_id = c.id
+             WHERE c.admission_id = :admissionId LIMIT 1',
+            ['admissionId' => Uuid::fromString($admissionId)->toBinary()],
+        );
     }
 
     /**

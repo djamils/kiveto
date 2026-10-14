@@ -1,0 +1,63 @@
+{#
+ # Kiveto — templates/clinic/document/cheque_deposit.html.twig
+ # ──────────────────────────────────────────────────────────
+ # The remittance slip handed to the bank with the cheques of one deposit.
+ #
+ # Variables:
+ #   deposit  ChequeDepositView
+ #   clinic   ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% block doc_title %}Bordereau de remise de chèques{% endblock %}
+
+{% block doc_kind %}Remise de chèques{% endblock %}
+
+{% block doc_meta %}
+  Date de remise : {{ doc.longDate(deposit.depositedAt) }}<br/>
+  {{ deposit.cheques|length }} chèque{{ deposit.cheques|length > 1 ? 's' : '' }} · {{ deposit.totalMinorUnits|money(deposit.currency) }}
+{% endblock %}
+
+{% block content %}
+
+  <table class="h2"><tr>
+    <td>Chèques remis</td>
+    <td class="r">Montants en {{ deposit.currency }}</td>
+  </tr></table>
+
+  <table class="data">
+    <thead><tr>
+      <th style="width:24mm;">Reçu le</th>
+      <th>Tireur</th>
+      <th>N° de chèque · banque</th>
+      <th style="width:34mm;">Facture</th>
+      <th class="num" style="width:26mm;">Montant</th>
+    </tr></thead>
+    <tbody>
+      {% for cheque in deposit.cheques %}
+        <tr>
+          <td>{{ cheque.receivedAt|date('d/m/Y', 'Europe/Paris') }}</td>
+          <td>{{ cheque.payerName }}</td>
+          <td>{{ cheque.reference ?? '—' }}</td>
+          <td>{{ cheque.invoiceNumber ?? '—' }}</td>
+          <td class="num" style="font-weight:600;">{{ cheque.amountMinorUnits|money(cheque.currency) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table style="width:100%;border-collapse:collapse;margin-top:4mm;"><tr>
+    <td style="width:52%;"></td>
+    <td style="vertical-align:top;">
+      <table class="totals">
+        <tr class="grand"><td>Total de la remise</td><td>{{ deposit.totalMinorUnits|money(deposit.currency) }}</td></tr>
+      </table>
+    </td>
+  </tr></table>
+
+  <p class="legal">
+    <b>Remise.</b> Bordereau à joindre aux chèques déposés en banque. Signature du déposant :
+  </p>
+
+{% endblock %}

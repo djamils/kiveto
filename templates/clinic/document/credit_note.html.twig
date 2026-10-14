@@ -1,0 +1,128 @@
+{#
+ # Kiveto — templates/clinic/document/credit_note.html.twig
+ # ───────────────────────────────────────────────────────
+ # The credit note (« avoir ») that corrects an issued invoice: its own number,
+ # the invoice it refers to, the lines it cancels out (as negative amounts), and
+ # what was given back to the client.
+ #
+ # Variables:
+ #   note    CreditNoteDetails
+ #   clinic  ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% set letterhead = clinic is not null ? clinic.letterhead : null %}
+
+{% block doc_title %}Avoir {{ note.number }}{% endblock %}
+
+{% block doc_kind %}Avoir{% endblock %}
+
+{% block doc_meta %}
+  <b>N° {{ note.number }}</b><br/>
+  Date d’émission : {{ doc.longDate(note.issuedAt) }}<br/>
+  Sur la facture {{ note.invoiceNumber }}{% if note.invoiceIssuedAt %} du {{ note.invoiceIssuedAt|date('d/m/Y', 'Europe/Paris') }}{% endif %}
+{% endblock %}
+
+{% block content %}
+
+  <table class="parties"><tr>
+    <td>
+      <p class="plabel">Client</p>
+      <p class="pname">{{ note.payerName }}</p>
+      {% if note.payerAddressLines is not empty %}
+        <p class="pline">{{ note.payerAddressLines|join('<br/>')|raw }}</p>
+      {% endif %}
+    </td>
+    <td>
+      <p class="plabel">Récapitulatif</p>
+      <p class="pname">− {{ note.totalGrossMinorUnits|money(note.currency) }}</p>
+      <table class="pgrid">
+        <tr><td>Motif</td><td>{{ note.reason }}</td></tr>
+        <tr>
+          <td>Remboursement</td>
+          <td>
+            {%- if note.refundedMinorUnits > 0 -%}
+              {{ note.refundedMinorUnits|money(note.currency) }} · {{ note.refundMethodLabel|lower }}
+            {%- else -%}
+              déduit des prochaines factures
+            {%- endif -%}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr></table>
+
+  <table class="h2"><tr>
+    <td>Lignes créditées</td>
+    <td class="r">Montants en {{ note.currency }}</td>
+  </tr></table>
+
+  <table class="data">
+    <thead><tr>
+      <th>Désignation</th>
+      <th class="num" style="width:16mm;">Qté</th>
+      <th class="num" style="width:24mm;">P.U. HT</th>
+      <th class="num" style="width:16mm;">TVA</th>
+      <th class="num" style="width:26mm;">Total TTC</th>
+    </tr></thead>
+    <tbody>
+      {% for line in note.lines %}
+        <tr>
+          <td>{{ line.label }}{% if line.code %}<span class="sub">{{ line.code }}</span>{% endif %}</td>
+          <td class="num">{{ line.quantity }}</td>
+          <td class="num">− {{ line.unitPriceMinorUnits|money(note.currency) }}</td>
+          <td class="num">{{ line.taxRatePercent }} %</td>
+          <td class="num" style="font-weight:600;">− {{ line.grossMinorUnits|money(note.currency) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table style="width:100%;border-collapse:collapse;margin-top:4mm;"><tr>
+    <td style="width:52%;vertical-align:top;padding-right:5mm;">
+      {% if note.taxBreakdown is not empty %}
+        <div class="box" style="margin-top:0;">
+          <p class="box-t">Récapitulatif de TVA</p>
+          <table class="data" style="margin-top:0;">
+            <thead><tr><th>Taux</th><th class="num">Base HT</th><th class="num">TVA</th></tr></thead>
+            <tbody>
+              {% for rate in note.taxBreakdown %}
+                <tr>
+                  <td>{{ rate.ratePercent }} %</td>
+                  <td class="num">− {{ rate.netMinorUnits|money(note.currency) }}</td>
+                  <td class="num">− {{ rate.taxMinorUnits|money(note.currency) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </td>
+    <td style="vertical-align:top;">
+      <table class="totals">
+        <tr class="sep"><td>Total HT</td><td>− {{ note.totalNetMinorUnits|money(note.currency) }}</td></tr>
+        <tr><td>TVA</td><td>− {{ note.totalTaxMinorUnits|money(note.currency) }}</td></tr>
+        <tr class="grand"><td>Total de l’avoir</td><td>− {{ note.totalGrossMinorUnits|money(note.currency) }}</td></tr>
+      </table>
+    </td>
+  </tr></table>
+
+  <p class="legal">
+    {% if letterhead is not null and letterhead.legalSentence %}
+      <b>Mentions légales.</b>
+      {{ letterhead.legalName ?? (clinic is not null ? clinic.name : '') }}, {{ letterhead.legalSentence }}
+      {%- if letterhead.formattedSiret %}, SIRET {{ letterhead.formattedSiret }}{% endif %}
+      {%- if letterhead.vatNumber %}, TVA intracommunautaire {{ letterhead.vatNumber }}{% endif %}.<br/>
+    {% endif %}
+    <b>Avoir.</b> Le présent avoir annule, en tout ou partie, la facture {{ note.invoiceNumber }} : il en reprend
+    les lignes créditées et porte son propre numéro dans une série continue. Motif : {{ note.reason }}.
+    {% if note.refundedMinorUnits > 0 %}
+      La somme de {{ note.refundedMinorUnits|money(note.currency) }} a été remboursée au client
+      ({{ note.refundMethodLabel|lower }}).
+    {% else %}
+      Son montant est déduit de ce que le client doit, ou reste à valoir sur ses prochaines factures.
+    {% endif %}
+  </p>
+
+{% endblock %}

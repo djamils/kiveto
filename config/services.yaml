@@ -469,6 +469,23 @@ services:
 
     App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper: ~
 
+    App\Context\Billing\Infrastructure\Persistence\Doctrine\CreditNoteMapper: ~
+
+    App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DoctrineCreditNoteRepository
+
+    App\Context\Billing\Domain\Repository\ChequeDepositRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DoctrineChequeDepositRepository
+
+    App\Context\Billing\Domain\Repository\CashClosingRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DoctrineCashClosingRepository
+
+    App\Context\Billing\Application\Port\CashDeskReadRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalCashDeskReadRepository
+
+    App\Context\Billing\Application\Port\CounterCatalogInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Catalog\QueryBusCounterCatalog
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================

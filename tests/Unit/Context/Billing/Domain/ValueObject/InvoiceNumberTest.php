@@ -72,4 +72,11 @@ final class InvoiceNumberTest extends TestCase
 
         InvoiceNumber::of(2026, 1000000);
     }
+
+    public function testAPrefixThatCannotBeReadBackIsRejected(): void
+    {
+        $this->expectException(InvalidInvoiceNumberException::class);
+
+        InvoiceNumber::of(2026, 1, 'FA C');
+    }
 }

@@ -19,6 +19,15 @@ final readonly class InvoiceListRow
         public \DateTimeImmutable $createdAt,
         public ?\DateTimeImmutable $issuedAt,
         public ?string $admissionId,
+        /** INVOICE or CREDIT_NOTE; a credit note's status is CREDIT_NOTE and its « paid » what it gave back. */
+        public string $kind = SearchInvoicesCriteria::KIND_INVOICE,
+        public int $creditedMinorUnits = 0,
+        public int $refundedMinorUnits = 0,
+        /** For a credit note: the invoice it corrects. */
+        public ?string $originInvoiceId = null,
+        public ?string $originInvoiceNumber = null,
+        /** For a credit note: why it was issued. */
+        public ?string $reason = null,
     ) {
     }
 }

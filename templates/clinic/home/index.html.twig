@@ -54,7 +54,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
         Arrivée
       </a>
-      <a class="qa2-btn" href="{{ path('clinic_invoices', {status: ['ISSUED', 'PARTIALLY_PAID']}) }}" data-tip="Raccourci : E">
+      <a class="qa2-btn" href="{{ path('clinic_invoices', {pay: 'du', per: 'tout'}) }}" data-tip="Raccourci : E">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
         Encaisser
       </a>

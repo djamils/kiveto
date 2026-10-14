@@ -18,6 +18,8 @@ final readonly class InvoiceLineView
         public string $taxRatePercent,
         public ?string $taxCategoryCode,
         public string $source,
+        /** The consultation line it was billed from, the article sold, or the invoice line a credit note cancels. */
+        public ?string $sourceReference = null,
     ) {
     }
 }

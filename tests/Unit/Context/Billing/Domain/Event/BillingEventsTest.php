@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Billing\Domain\Event;
 
+use App\Context\Billing\Domain\Event\CreditNoteIssued;
 use App\Context\Billing\Domain\Event\InvoiceCancelled;
+use App\Context\Billing\Domain\Event\InvoiceCredited;
 use App\Context\Billing\Domain\Event\InvoiceDrafted;
 use App\Context\Billing\Domain\Event\InvoiceIssued;
 use App\Context\Billing\Domain\Event\InvoicePaid;
@@ -105,6 +107,40 @@ final class BillingEventsTest extends TestCase
             'clinicId'    => self::CLINIC_ID,
             'reason'      => 'Erreur de saisie',
             'cancelledAt' => self::AT,
+        ], $event->payload());
+    }
+
+    public function testInvoiceCredited(): void
+    {
+        $event = new InvoiceCredited(self::INVOICE_ID, self::CLINIC_ID, 1500, 500, 'EUR', self::AT);
+
+        self::assertSame('billing.invoice.credited.v1', $event->name());
+        self::assertSame(self::INVOICE_ID, $event->aggregateId());
+        self::assertSame([
+            'invoiceId'          => self::INVOICE_ID,
+            'clinicId'           => self::CLINIC_ID,
+            'creditedMinorUnits' => 1500,
+            'refundedMinorUnits' => 500,
+            'currency'           => 'EUR',
+            'creditedAt'         => self::AT,
+        ], $event->payload());
+    }
+
+    public function testCreditNoteIssued(): void
+    {
+        $event = new CreditNoteIssued(self::PAYMENT_ID, self::CLINIC_ID, self::INVOICE_ID, 'AV-2026-000001', 1500, 0, 'EUR', self::AT);
+
+        self::assertSame('billing.credit-note.issued.v1', $event->name());
+        self::assertSame(self::PAYMENT_ID, $event->aggregateId());
+        self::assertSame([
+            'creditNoteId'         => self::PAYMENT_ID,
+            'clinicId'             => self::CLINIC_ID,
+            'invoiceId'            => self::INVOICE_ID,
+            'number'               => 'AV-2026-000001',
+            'totalGrossMinorUnits' => 1500,
+            'refundedMinorUnits'   => 0,
+            'currency'             => 'EUR',
+            'issuedAt'             => self::AT,
         ], $event->payload());
     }
 }

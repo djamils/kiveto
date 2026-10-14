@@ -13,7 +13,7 @@
 
 {% set issuedAt = invoice.issuedAt ?? invoice.createdAt %}
 {% set letterhead = clinic is not null ? clinic.letterhead : null %}
-{% set isSettled = invoice.balanceDueMinorUnits <= 0 and invoice.cancelledAt is null and invoice.issuedAt is not null %}
+{% set isSettled = invoice.balanceDueMinorUnits <= 0 and invoice.cancelledAt is null and invoice.issuedAt is not null and invoice.status != 'CREDITED' %}
 
 {% block doc_title %}Facture {{ invoice.number ?? 'brouillon' }}{% endblock %}
 
@@ -27,6 +27,16 @@
 {% endblock %}
 
 {% block content %}
+
+  {% if invoice.status == 'CREDITED' %}
+    <div class="box crit" style="margin-top:3.5mm;">
+      <p class="box-t">Facture annulée par avoir</p>
+      <p>
+        Entièrement créditée par {{ invoice.creditNotes|map(n => n.number)|join(', ') }}.
+        La facture reste au registre avec son numéro.
+      </p>
+    </div>
+  {% endif %}
 
   {% if invoice.cancelledAt %}
     <div class="box crit" style="margin-top:3.5mm;">
@@ -56,14 +66,20 @@
           <td>Prestations</td>
           <td>{{ invoice.lines|length }} ligne{{ invoice.lines|length > 1 ? 's' : '' }}</td>
         </tr>
+        {% if invoice.creditedMinorUnits > 0 %}
+          <tr>
+            <td>Avoirs</td>
+            <td>− {{ invoice.creditedMinorUnits|money(invoice.currency) }}</td>
+          </tr>
+        {% endif %}
         <tr>
           <td>Déjà réglé</td>
-          <td>{{ invoice.amountPaidMinorUnits|money(invoice.currency) }}</td>
+          <td>{{ (invoice.amountPaidMinorUnits - invoice.refundedMinorUnits)|money(invoice.currency) }}</td>
         </tr>
         <tr>
           <td>Reste dû</td>
           <td{% if invoice.balanceDueMinorUnits <= 0 %} style="color:#15803d;"{% endif %}>
-            {{- invoice.balanceDueMinorUnits|money(invoice.currency) -}}
+            {{- max(0, invoice.balanceDueMinorUnits)|money(invoice.currency) -}}
           </td>
         </tr>
       </table>
@@ -143,14 +159,14 @@
             <tr>
               <td>Reste dû</td>
               <td{% if invoice.balanceDueMinorUnits <= 0 %} style="color:#15803d;"{% endif %}>
-                {{- invoice.balanceDueMinorUnits|money(invoice.currency) -}}
+                {{- max(0, invoice.balanceDueMinorUnits)|money(invoice.currency) -}}
               </td>
             </tr>
           </table>
         {% else %}
           <p>
             Aucun règlement enregistré à ce jour.
-            Reste dû : <b>{{ invoice.balanceDueMinorUnits|money(invoice.currency) }}</b>.
+            Reste dû : <b>{{ max(0, invoice.balanceDueMinorUnits)|money(invoice.currency) }}</b>.
           </p>
         {% endif %}
       </div>
@@ -182,6 +198,12 @@
         <tr class="sep"><td>Total HT</td><td>{{ invoice.totalNetMinorUnits|money(invoice.currency) }}</td></tr>
         <tr><td>TVA</td><td>{{ invoice.totalTaxMinorUnits|money(invoice.currency) }}</td></tr>
         <tr class="grand"><td>Net à payer</td><td>{{ invoice.totalGrossMinorUnits|money(invoice.currency) }}</td></tr>
+        {% for note in invoice.creditNotes %}
+          <tr>
+            <td>Avoir {{ note.number }}</td>
+            <td style="color:#6d28d9;">− {{ note.totalGrossMinorUnits|money(invoice.currency) }}</td>
+          </tr>
+        {% endfor %}
         <tr>
           <td colspan="2" style="padding-top:2mm;text-align:right;font-size:8.5pt;color:#6b7280;">
             Déjà réglé : {{ invoice.amountPaidMinorUnits|money(invoice.currency) }}
@@ -189,7 +211,7 @@
         </tr>
       </table>
 
-      {% if invoice.cancelledAt %}
+      {% if invoice.cancelledAt or invoice.status == 'CREDITED' %}
         <p style="text-align:right;margin-top:6mm;"><span class="stamp void">Annulée</span></p>
       {% elseif isSettled %}
         <p style="text-align:right;margin-top:6mm;"><span class="stamp">Acquittée</span></p>

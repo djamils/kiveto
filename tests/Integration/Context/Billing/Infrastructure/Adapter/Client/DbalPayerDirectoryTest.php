@@ -135,6 +135,26 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         ));
     }
 
+    public function testAClientOfTheClinicPaysForWhatTheDeskSoldThem(): void
+    {
+        $this->client(self::CLIENT_ID, 'Sophie', 'Dupont', '12 rue des Lilas', null, '75011', 'Paris');
+
+        $payer = $this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID);
+
+        self::assertNotNull($payer);
+        self::assertSame(self::CLIENT_ID, $payer->clientId);
+        self::assertSame('Sophie Dupont', $payer->displayName);
+        self::assertSame(['12 rue des Lilas', '75011 Paris'], $payer->addressLines);
+    }
+
+    public function testAnotherClinicsClientIsNotFound(): void
+    {
+        $this->client(self::CLIENT_ID, 'Sophie', 'Dupont', null, null, null, null);
+
+        self::assertNull($this->directory->forClient(self::CLIENT_ID, '01960000-0000-7000-8000-00000000d009'));
+        self::assertNull($this->directory->forClient(self::SECOND_OWNER, self::CLINIC_ID));
+    }
+
     private function admission(): void
     {
         AnimalEntityFactory::new()

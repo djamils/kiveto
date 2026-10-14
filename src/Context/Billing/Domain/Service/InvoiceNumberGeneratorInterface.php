@@ -17,4 +17,10 @@ use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 interface InvoiceNumberGeneratorInterface
 {
     public function next(ClinicId $clinicId, int $year): InvoiceNumber;
+
+    /**
+     * The next credit note number (« AV-2026-000001 »): credit notes run in a
+     * continuous series of their own, apart from the invoices.
+     */
+    public function nextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber;
 }

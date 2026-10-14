@@ -675,7 +675,7 @@ final readonly class DashboardViewBuilder
                 audience: 'clinique',
                 assigneeUserId: null,
                 actionLabel: 'Relancer',
-                actionUrl: $this->urls->generate('clinic_invoices', ['status' => ['ISSUED', 'PARTIALLY_PAID']]),
+                actionUrl: $this->urls->generate('clinic_invoices', ['pay' => 'du', 'per' => 'tout']),
             );
         }
 

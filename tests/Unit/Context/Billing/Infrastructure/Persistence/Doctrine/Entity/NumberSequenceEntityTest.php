@@ -25,15 +25,18 @@ final class NumberSequenceEntityTest extends TestCase
         $entity->setClinicId(Uuid::fromString(self::CLINIC_ID));
         $entity->setYear(2026);
         $entity->setLastValue(42);
+        $entity->setSeries('CREDIT_NOTE');
 
         self::assertSame(self::ID, $entity->getId()->toRfc4122());
         self::assertSame(self::CLINIC_ID, $entity->getClinicId()->toRfc4122());
         self::assertSame(2026, $entity->getYear());
         self::assertSame(42, $entity->getLastValue());
+        self::assertSame('CREDIT_NOTE', $entity->getSeries());
     }
 
-    public function testACounterStartsAtZero(): void
+    public function testACounterStartsAtZeroOnTheInvoiceSeries(): void
     {
         self::assertSame(0, new NumberSequenceEntity()->getLastValue());
+        self::assertSame('INVOICE', new NumberSequenceEntity()->getSeries());
     }
 }

@@ -80,6 +80,8 @@ final readonly class InvoiceMapper
             paidAt: $entity->getPaidAt(),
             cancelledAt: $entity->getCancelledAt(),
             cancellationReason: $entity->getCancellationReason(),
+            creditedMinorUnits: $entity->getCreditedMinorUnits(),
+            refundedMinorUnits: $entity->getRefundedMinorUnits(),
         );
     }
 
@@ -118,6 +120,8 @@ final readonly class InvoiceMapper
         $entity->setPaidAt($invoice->paidAt());
         $entity->setCancelledAt($invoice->cancelledAt());
         $entity->setCancellationReason($invoice->cancellationReason());
+        $entity->setCreditedMinorUnits($invoice->amountCredited()->minorUnits());
+        $entity->setRefundedMinorUnits($invoice->amountRefunded()->minorUnits());
     }
 
     public function lineToEntity(InvoiceLine $line, InvoiceId $invoiceId, int $position): InvoiceLineEntity

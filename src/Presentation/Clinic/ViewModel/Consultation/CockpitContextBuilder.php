@@ -86,14 +86,14 @@ final readonly class CockpitContextBuilder
      * Clinic identity printed at the head of the ordonnance, invoice and report
      * previews.
      *
-     * @return array{name: string, lines: list<string>, contact: ?string, siret: ?string, ordinal: ?string, city: ?string, timeZone: string}
+     * @return array{name: string, lines: list<string>, contact: ?string, siret: ?string, vat: ?string, ordinal: ?string, city: ?string, timeZone: string}
      */
     public function letterhead(string $clinicId): array
     {
         $clinic = $this->ask(new GetClinic($clinicId));
 
         if (!$clinic instanceof ClinicDto) {
-            return ['name' => 'Clinique vétérinaire', 'lines' => [], 'contact' => null, 'siret' => null, 'ordinal' => null, 'city' => null, 'timeZone' => 'Europe/Paris'];
+            return ['name' => 'Clinique vétérinaire', 'lines' => [], 'contact' => null, 'siret' => null, 'vat' => null, 'ordinal' => null, 'city' => null, 'timeZone' => 'Europe/Paris'];
         }
 
         $letterhead = $clinic->letterhead;
@@ -106,6 +106,7 @@ final readonly class CockpitContextBuilder
             'lines'    => $letterhead->addressLines ?? [],
             'contact'  => '' !== $contact ? $contact : null,
             'siret'    => $letterhead?->formattedSiret(),
+            'vat'      => $letterhead?->vatNumber,
             'ordinal'  => $letterhead?->ordinalNumber,
             'city'     => $letterhead?->city,
             'timeZone' => $clinic->timeZone,
