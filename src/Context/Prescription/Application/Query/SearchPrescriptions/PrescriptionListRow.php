@@ -6,6 +6,9 @@ namespace App\Context\Prescription\Application\Query\SearchPrescriptions;
 
 final readonly class PrescriptionListRow
 {
+    /**
+     * @param list<PrescriptionListLine> $lines the medicines, in the order they were prescribed
+     */
     public function __construct(
         public string $id,
         public ?string $number,
@@ -21,6 +24,8 @@ final readonly class PrescriptionListRow
         public ?\DateTimeImmutable $issuedAt,
         public ?\DateTimeImmutable $validUntil,
         public string $consultationId,
+        public string $prescriberId,
+        public array $lines,
     ) {
     }
 

@@ -1,0 +1,114 @@
+{#
+ # Kiveto — templates/clinic/prescription/index.html.twig
+ # ──────────────────────────────────────────────────────
+ # Ordonnances — the clinic's register of prescriptions. Ported from
+ # docs/frontend-theme/kiveto-theme/ordonnances-v-topbar_3.html: page header
+ # (registry menu, « Depuis une consultation »), filter bar, the table and its
+ # pager, the bulk bar, the side sheet of one ordonnance, the paper preview,
+ # the new-ordonnance and cancel windows.
+ #
+ # The table, the sheet and the windows are drawn by the page module from the
+ # payload; filters and pages are asked from clinic_prescriptions_search, a
+ # sheet from clinic_prescription_sheet. Signing, renewing and cancelling post
+ # the form below to their single-action controllers, which come back to
+ # clinic_prescription_details (this page with the sheet open).
+ #
+ # Variables:
+ #   payload  App\Presentation\Clinic\ViewModel\Prescription\PrescriptionPageBuilder::page()
+ #
+ # Behaviour: assets/js/pages/prescription/register.js — styles: assets/styles/pages/prescription.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt{% endblock %}
+{% block title %}Ordonnances{% endblock %}
+
+{% set _x = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>' %}
+
+{% block main %}
+<div class="ordo" data-page="{{ app.request.attributes.get('_route') }}" data-payload="{{ payload|json_encode }}">
+
+  <div class="pagehead">
+    <h1>Ordonnances<small id="phSub">Registre continu</small></h1>
+    <div class="right">
+      <div class="hmenu" id="hmenu">
+        <button type="button" class="btn" id="hmenuBtn" data-tip="Registre et déclarations" aria-label="Registre et déclarations"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+        <div class="dd-menu">
+          <a class="dd-it" id="hmExport" href="{{ payload.urls.export }}" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg><span>Exporter le registre des ordonnances<small>CSV, numérotation continue, annulations comprises</small></span></a>
+          <button type="button" class="dd-it" disabled data-tip="Le classement des antibiotiques n'est pas encore tenu au catalogue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6"/></svg><span>Déclaration des antibiotiques<small>Cessions de l'année, au format Calypso (ANSES) — bientôt disponible</small></span></button>
+        </div>
+      </div>
+      <button type="button" class="btn primaire" id="btnNew"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Depuis une consultation</button>
+    </div>
+  </div>
+
+  <div class="cfil" id="cfil">
+    <div class="crech">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="N°, animal, propriétaire, médicament…" autocomplete="off" value="{{ payload.filters.q }}">
+    </div>
+    <span class="lblf">Filtres</span>
+    <div id="fdd" style="display:flex;gap:8px;align-items:center"></div>
+  </div>
+
+  <main class="czone{{ payload.sheet ? ' ouvert' }}" id="czone">
+    <div class="ctw">
+      <div class="cscroll scr"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table><div id="cempty"></div></div>
+      <div class="cfoot" id="cfoot"></div>
+    </div>
+    <aside class="fiche" id="fiche"><div class="fi-in">
+      <div class="fi-head" id="fiHead"></div>
+      <div class="fi-body scr" id="fiBody"></div>
+      <div class="fi-foot" id="fiFoot"></div>
+    </div></aside>
+  </main>
+
+  <div class="bulk" id="bulk" role="toolbar" aria-label="Actions groupées">
+    <span class="bn" id="bulkN">0</span><span id="bulkL">sélectionnées</span>
+    <span class="bdiv"></span>
+    <button type="button" id="bkPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimer</button>
+    <button type="button" id="bkSend" disabled data-tip="L'envoi par e-mail et SMS n'est pas encore disponible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Envoyer aux clients</button>
+    <button type="button" id="bkPdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>Télécharger les PDF</button>
+    <span class="bdiv"></span>
+    <button type="button" id="bkX" data-tip="Désélectionner" aria-label="Désélectionner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+
+  {# Aperçu #}
+  <div class="mveil prev" id="mPrev"><div class="mbox" style="width:min(680px,94vw)">
+    <div class="mhead"><div class="mt"><b id="pvT">Ordonnance</b><span id="pvS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody scr"><div class="paper" id="pvPaper"></div></div>
+    <div class="mfoot"><button type="button" class="btn" id="pvPdf">Télécharger le PDF</button><button type="button" class="btn primaire" id="pvPrint">Imprimer</button></div>
+  </div></div>
+
+  {# Depuis une consultation #}
+  <div class="mveil" id="mNew"><div class="mbox" style="width:min(600px,94vw)">
+    <div class="mhead"><div class="mt"><b>Nouvelle ordonnance</b><span>L'ordonnance se rédige dans le plan de traitement de la consultation</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="crech" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="nwQ" placeholder="Animal ou propriétaire…" autocomplete="off"></div>
+      <div class="clist scr" id="nwList"></div>
+    </div>
+  </div></div>
+
+  {# Annulation #}
+  <div class="mveil" id="mAnn"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Annuler l'ordonnance</b><span id="anS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="frow"><label class="flbl">Motif <span class="req">*</span></label><div class="motifs" id="anMotifs"></div></div>
+      <div class="frow"><input class="finput" id="anAutre" placeholder="Précisez le motif" maxlength="200" style="display:none"></div>
+      <p class="hint">L'ordonnance reste au registre avec son numéro et porte la mention « Annulée ». Elle ne peut plus être présentée ni renouvelée.</p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Retour</button><button type="button" class="btn danger" id="anOk" disabled>Annuler l'ordonnance</button></div>
+  </div></div>
+
+  {# The one form every act on an ordonnance goes through #}
+  <form id="ordoForm" method="post" hidden>
+    <input type="hidden" name="_token" id="ordoTok">
+    <input type="hidden" name="reason" id="ordoReason">
+    <input type="hidden" name="renewals" id="ordoRenewals">
+    <input type="hidden" name="notes" id="ordoNotes">
+  </form>
+</div>
+{% endblock %}

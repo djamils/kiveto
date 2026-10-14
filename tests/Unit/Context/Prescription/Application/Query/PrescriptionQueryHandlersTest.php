@@ -13,6 +13,7 @@ use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultation;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultationHandler;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListItemView;
+use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListLine;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptions;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
@@ -178,6 +179,9 @@ final class PrescriptionQueryHandlersTest extends TestCase
             createdAt: new \DateTimeImmutable('2026-08-22 10:00:00'),
             cancelledAt: null,
             cancellationReason: null,
+            prescriberId: '01960000-0000-7000-8000-000000000704',
+            patientAnimalId: null,
+            patientWeightKg: null,
         );
     }
 
@@ -198,6 +202,8 @@ final class PrescriptionQueryHandlersTest extends TestCase
             issuedAt: new \DateTimeImmutable('2026-08-22 10:00:00'),
             validUntil: $validUntil,
             consultationId: '01960000-0000-7000-8000-000000000703',
+            prescriberId: '01960000-0000-7000-8000-000000000704',
+            lines: [new PrescriptionListLine('Meloxidyl', 'RX')],
         );
     }
 }

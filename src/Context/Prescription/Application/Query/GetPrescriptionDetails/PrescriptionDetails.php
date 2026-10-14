@@ -46,6 +46,9 @@ final readonly class PrescriptionDetails
         public \DateTimeImmutable $createdAt,
         public ?\DateTimeImmutable $cancelledAt,
         public ?string $cancellationReason,
+        public string $prescriberId,
+        public ?string $patientAnimalId,
+        public ?string $patientWeightKg,
     ) {
     }
 }

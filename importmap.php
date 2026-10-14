@@ -90,8 +90,8 @@ return [
     'pages/billing/checkout' => [
         'path' => './assets/js/pages/billing/checkout.js',
     ],
-    'pages/prescription/list' => [
-        'path' => './assets/js/pages/prescription/list.js',
+    'pages/prescription/register' => [
+        'path' => './assets/js/pages/prescription/register.js',
     ],
     'pages/catalog' => [
         'path' => './assets/js/pages/catalog.js',

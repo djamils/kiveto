@@ -12,7 +12,19 @@ final readonly class SearchPrescriptionsCriteria
     public const string SORT_STATUS  = 'status';
 
     /**
+     * A signed ordonnance that can still be presented.
+     */
+    public const string VALIDITY_CURRENT = 'current';
+
+    /**
+     * A signed ordonnance whose validity has run out.
+     */
+    public const string VALIDITY_EXPIRED = 'expired';
+
+    /**
      * @param list<string> $statuses
+     * @param ?string      $prescriberId user id of the practitioner who signed, null for anyone
+     * @param ?string      $validity     one of the VALIDITY_* constants, null to ignore validity
      */
     public function __construct(
         public ?string $term = null,
@@ -20,6 +32,8 @@ final readonly class SearchPrescriptionsCriteria
         public ?\DateTimeImmutable $issuedFrom = null,
         public ?\DateTimeImmutable $issuedTo = null,
         public ?bool $controlledOnly = null,
+        public ?string $prescriberId = null,
+        public ?string $validity = null,
         public string $sortBy = self::SORT_DATE,
         public bool $sortDescending = true,
         public int $page = 1,
