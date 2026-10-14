@@ -1,0 +1,35 @@
+{#
+ # Kiveto -- templates/security/_auth_layout.html.twig
+ # Dark sign-in stage of connexion_3.html, shared by the login, lock, clinic
+ # picker and "no clinic" pages: no app shell, a `header.haut`, the screens in
+ # `main` and a `footer.bas`. Styles: assets/styles/pages/auth.css; behaviour:
+ # assets/js/pages/auth.js (loaded through `data-page`).
+ #
+ # Blocks:
+ #   screens   the `section.ecran` screens of the page (one carries `.on`)
+ #}
+{% extends 'base.html.twig' %}
+
+{% block body_attributes %} class="auth"{% endblock %}
+
+{% block body %}
+<div class="fond" aria-hidden="true"></div>
+
+<header class="haut">
+  <a class="marque" href="{{ path('clinic_login') }}" aria-label="Kiveto"><span class="k">K</span><b>Kiveto</b></a>
+  <div class="langue" role="group" aria-label="Langue"><button type="button" class="on" aria-pressed="true">FR</button><button type="button" aria-pressed="false" data-toast="Version anglaise bientôt disponible">EN</button></div>
+</header>
+
+<main data-page="{{ app.request.attributes.get('_route') }}">
+  {% block screens %}{% endblock %}
+</main>
+
+<footer class="bas">
+  <span class="etat"><i></i>Tous les services fonctionnent</span>
+  <a href="#" data-toast="Centre d'aide bientôt disponible">Aide</a>
+  <a href="#" data-toast="Politique de confidentialité bientôt disponible">Confidentialité</a>
+  <span>© {{ 'now'|date('Y') }} Kiveto</span>
+</footer>
+
+<div class="toast" id="toast" role="status" data-shell-toast><span id="toastMsg"></span></div>
+{% endblock %}

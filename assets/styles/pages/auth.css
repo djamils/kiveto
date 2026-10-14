@@ -1,0 +1,153 @@
+/* assets/styles/pages/auth.css
+   Sign-in screens of the clinic app — login, lock, clinic picker and the
+   "no clinic" dead end. Ported as-is from
+   docs/frontend-theme/kiveto-theme/connexion_3.html (no app shell: a dark
+   stage with `header.haut` and `footer.bas`).
+
+   Every rule is anchored on `body.auth` so the mock-up's bare selectors
+   (`main`, `form`, `.btn`, `.toast`…) never leak into the rest of the app.
+   The mock-up screens that have no backend yet (workstation accounts, PIN,
+   two-factor, password reset, invitation) are not ported. */
+
+/* ═════════ Tokens ═════════ */
+body.auth{
+  --nuit:#0f172a; --nuit-2:#131c33; --pin:#4338ca; --pin-vif:#6366f1; --pin-fonce:#3730a3;
+  --blanc:#fff; --t-80:rgba(255,255,255,.82); --t-60:#94a3b8; --t-40:#64748b;
+  --champ:rgba(255,255,255,.06); --champ-h:rgba(255,255,255,.09); --bord:rgba(255,255,255,.14); --bord-2:rgba(255,255,255,.08);
+  /* The mock-up's --ambre; renamed so the clinic squares keep the shell's amber. */
+  --rouge:#f87171; --ambre-vif:#fbbf24; --vert:#4ade80;
+  --font-display:"Bricolage Grotesque",sans-serif; --font-body:"Public Sans",sans-serif; --font-data:"Spline Sans Mono",monospace;
+}
+html:has(> body.auth){font-size:15px;height:auto}
+body.auth{font-family:var(--font-body);font-size:1rem;line-height:normal;color:var(--blanc);background:var(--nuit);height:auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body.auth button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+body.auth a{color:inherit}
+body.auth svg{display:inline-block}
+body.auth :is(button,a,[tabindex]):focus-visible{outline:2px solid var(--pin-vif);outline-offset:2px;border-radius:8px}
+
+/* fond */
+body.auth .fond{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+body.auth .fond::before{content:'';position:absolute;width:900px;height:900px;left:50%;top:-420px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(67,56,202,.35),transparent 70%);animation:auth-respire 9s ease-in-out infinite}
+body.auth .fond::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse at 50% 30%,#000 10%,transparent 70%)}
+@keyframes auth-respire{0%,100%{opacity:.75;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.06)}}
+
+/* barres */
+body.auth .haut{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:20px 28px}
+body.auth .marque{display:flex;align-items:center;gap:10px;text-decoration:none}
+body.auth .marque .k{width:34px;height:34px;border-radius:9px;background:var(--pin);display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:16px}
+body.auth .marque b{font-family:var(--font-display);font-weight:600;font-size:1.02rem;letter-spacing:-.01em}
+body.auth .langue{display:flex;gap:2px;background:var(--champ);border:1px solid var(--bord-2);border-radius:8px;padding:2px}
+body.auth .langue button{padding:4px 9px;border-radius:6px;font-size:.72rem;font-weight:600;color:var(--t-60)}
+body.auth .langue button.on{background:rgba(255,255,255,.1);color:var(--blanc)}
+body.auth .bas{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;padding:18px 20px 22px;font-size:.72rem;color:var(--t-40)}
+body.auth .bas a{text-decoration:none}
+body.auth .bas a:hover{color:var(--t-80)}
+body.auth .bas .etat{display:inline-flex;align-items:center;gap:6px}
+body.auth .bas .etat i{width:7px;height:7px;border-radius:50%;background:var(--vert);box-shadow:0 0 0 3px rgba(74,222,128,.15)}
+
+/* scène */
+body.auth main{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;padding:16px 20px 24px}
+body.auth .ecran{width:min(380px,100%);display:none;flex-direction:column;align-items:stretch}
+body.auth .ecran.large{width:min(700px,100%)}
+body.auth .ecran.on{display:flex;animation:auth-entre .32s cubic-bezier(.2,.8,.2,1)}
+body.auth .ecran.on.retour{animation:auth-entreG .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes auth-entre{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes auth-entreG{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+body.auth .retourb{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--t-60);padding:5px 8px 5px 4px;margin:0 0 14px -4px;border-radius:7px;text-decoration:none;transition:color .15s,background .15s}
+body.auth .retourb:hover{color:var(--blanc);background:var(--champ)}
+body.auth .titre{font-family:var(--font-display);font-weight:600;font-size:1.6rem;letter-spacing:-.02em;line-height:1.15}
+body.auth .sous{font-size:.86rem;color:var(--t-60);margin-top:6px;line-height:1.5}
+body.auth .sous b{color:var(--t-80);font-weight:600}
+body.auth .centre{text-align:center;align-items:center}
+body.auth .centre .titre,body.auth .centre .sous{text-align:center}
+
+/* bandeau */
+body.auth .info{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;font-size:.8rem;line-height:1.45;margin-bottom:18px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#c7d2fe}
+body.auth .info.ambre{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.28);color:#fde68a}
+body.auth .info svg{flex:none;margin-top:1px}
+
+body.auth kbd{font-family:var(--font-data);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--champ);border:1px solid var(--bord-2);color:var(--t-60)}
+
+/* identité (écran verrouillé) */
+body.auth .qui{display:flex;flex-direction:column;align-items:center;gap:10px}
+body.auth .qui .av{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:1.1rem;box-shadow:0 0 0 4px var(--nuit),0 0 0 5px rgba(255,255,255,.12)}
+
+body.auth .secoue{animation:auth-secoue .38s}
+@keyframes auth-secoue{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* formulaires */
+body.auth form{display:flex;flex-direction:column}
+body.auth .champ{display:flex;flex-direction:column;gap:6px;margin-top:16px}
+body.auth .champ .lbl{display:flex;align-items:baseline;justify-content:space-between;font-size:.78rem;font-weight:600;color:var(--t-80)}
+body.auth .champ .lbl a,body.auth .lien{font-size:.76rem;font-weight:600;color:#a5b4fc;text-decoration:none;cursor:pointer}
+body.auth .champ .lbl a:hover,body.auth .lien:hover{color:#c7d2fe;text-decoration:underline}
+body.auth .inp{position:relative;display:flex;align-items:center}
+body.auth .inp input{width:100%;height:46px;border-radius:10px;background:var(--champ);border:1px solid var(--bord);color:var(--blanc);padding:0 14px;font-size:.92rem;outline:none;transition:border-color .15s,background .15s,box-shadow .15s}
+body.auth .inp input::placeholder{color:var(--t-40)}
+body.auth .inp input:focus{border-color:var(--pin-vif);background:var(--champ-h);box-shadow:0 0 0 3px rgba(99,102,241,.22)}
+body.auth .inp input:-webkit-autofill{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 40px #1b2440 inset}
+body.auth .inp.ko input{border-color:var(--rouge)}
+body.auth .inp .oeil{position:absolute;right:6px;width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--t-60)}
+body.auth .inp .oeil:hover{color:var(--blanc);background:rgba(255,255,255,.06)}
+body.auth .inp input.avec-oeil{padding-right:46px}
+body.auth .aide{font-size:.74rem;color:var(--t-60);display:flex;align-items:center;gap:6px;min-height:0}
+body.auth .aide.ambre{color:var(--ambre-vif)}
+body.auth .aide.ko{color:var(--rouge)}
+body.auth .coche{display:flex;align-items:flex-start;gap:10px;margin-top:16px;font-size:.8rem;color:var(--t-80);cursor:pointer;user-select:none;line-height:1.4}
+body.auth .coche input{position:absolute;opacity:0;pointer-events:none}
+body.auth .coche .bx{flex:none;width:18px;height:18px;border-radius:5px;border:1.5px solid rgba(255,255,255,.3);display:grid;place-items:center;transition:background .15s,border-color .15s;margin-top:1px}
+body.auth .coche .bx svg{opacity:0;transform:scale(.6);transition:all .15s}
+body.auth .coche input:checked + .bx{background:var(--pin);border-color:var(--pin)}
+body.auth .coche input:checked + .bx svg{opacity:1;transform:none}
+body.auth .coche input:focus-visible + .bx{outline:2px solid var(--pin-vif);outline-offset:2px}
+body.auth .coche small{display:block;color:var(--t-40);font-size:.72rem}
+/* Not available yet: the box stays visible but reads as inactive. */
+body.auth .coche[aria-disabled="true"]{cursor:default;opacity:.55}
+body.auth .btn{position:relative;height:46px;border-radius:10px;font-weight:600;font-size:.9rem;display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;transition:background .15s,border-color .15s,transform .1s,opacity .15s}
+body.auth .btn:active{transform:scale(.985)}
+body.auth .btn.p{background:var(--pin);color:#fff;margin-top:22px}
+body.auth .btn.p:hover{background:#4f46e5}
+body.auth .btn.s{background:var(--champ);border:1px solid var(--bord);margin-top:10px}
+body.auth .btn.s:hover{background:var(--champ-h);border-color:rgba(255,255,255,.22)}
+body.auth .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+body.auth .btn .spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:auth-tourne .7s linear infinite;display:none}
+body.auth .btn.charge .spin{display:block}
+body.auth .btn.charge .lb{display:none}
+@keyframes auth-tourne{to{transform:rotate(360deg)}}
+body.auth .pied{margin-top:18px;text-align:center;font-size:.78rem;color:var(--t-60)}
+
+/* cliniques */
+body.auth .clins{display:flex;flex-direction:column;gap:8px;margin-top:24px}
+body.auth .clin{display:flex;align-items:center;gap:14px;padding:14px 14px;border-radius:12px;background:var(--champ);border:1px solid var(--bord-2);text-align:left;width:100%;transition:background .15s,border-color .15s,transform .15s}
+body.auth .clin:hover,body.auth .clin:focus-visible{background:var(--champ-h);border-color:var(--bord);transform:translateX(3px)}
+body.auth .clin .sq{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:.78rem;flex:none;color:#fff}
+body.auth .clin .tx{flex:1;min-width:0}
+body.auth .clin .tx b{display:block;font-size:.9rem;font-weight:600}
+body.auth .clin .tx span{display:block;font-size:.74rem;color:var(--t-60);margin-top:2px}
+body.auth .clin .tx b .tag{display:inline-block;margin-top:0;vertical-align:1px;margin-left:8px;font-size:.62rem;font-weight:700;color:#c7d2fe;background:rgba(99,102,241,.18);border-radius:999px;padding:2px 7px}
+body.auth .clin kbd{flex:none}
+body.auth .clin.def{border-color:rgba(99,102,241,.45)}
+
+/* bienvenue */
+body.auth .ok-rond{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.35);color:var(--vert)}
+body.auth .ok-rond svg path{stroke-dasharray:30;stroke-dashoffset:30;animation:auth-trace .5s .1s ease forwards}
+body.auth .ok-rond.bleu{background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.35);color:#a5b4fc}
+body.auth .ok-rond.ambre{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--ambre-vif)}
+body.auth .ok-rond.bleu svg path,body.auth .ok-rond.ambre svg path{stroke-dasharray:none;stroke-dashoffset:0;animation:none}
+@keyframes auth-trace{to{stroke-dashoffset:0}}
+body.auth .barre{height:3px;border-radius:3px;background:var(--bord-2);overflow:hidden;margin-top:24px}
+body.auth .barre i{display:block;height:100%;width:0;background:var(--pin-vif);animation:auth-remplit 2s linear forwards}
+@keyframes auth-remplit{to{width:100%}}
+body.auth .lien[aria-disabled="true"]{color:var(--t-40);cursor:default;text-decoration:none}
+
+/* toast — the shell toast element, drawn the mock-up's way */
+body.auth > .toast{bottom:26px;translate:-50% 20px;gap:12px;background:#1e293b;border:1px solid var(--bord);border-radius:10px;padding:10px 14px;font-size:.82rem;font-weight:400;box-shadow:0 18px 40px rgba(0,0,0,.4);z-index:50;transition:all .25s}
+body.auth > .toast.show{translate:-50% 0}
+body.auth > .toast button{font-weight:600;color:#a5b4fc}
+
+@media (max-width:520px){
+  body.auth .haut{padding:16px 18px}
+  body.auth .titre{font-size:1.4rem}
+  body.auth .clin kbd{display:none}
+}
+@media (prefers-reduced-motion:reduce){body.auth *{animation:none!important;transition:none!important}}

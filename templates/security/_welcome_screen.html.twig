@@ -1,0 +1,13 @@
+{#
+ # Kiveto -- templates/security/_welcome_screen.html.twig
+ # « Entrée » screen of connexion_3.html: the check traced in a green ring and
+ # the progress bar shown while the clinic opens. Filled in by
+ # assets/js/pages/auth.js (greeting, clinic, optional « Changer de clinique »).
+ #}
+<section class="ecran centre" id="e-ok" aria-labelledby="t-ok">
+  <div class="ok-rond"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div>
+  <h1 class="titre" id="t-ok"></h1>
+  <p class="sous" id="okSous"></p>
+  <div class="barre" style="width:100%"><i></i></div>
+  <p class="pied" id="okChg" hidden><a class="lien" id="lChg" tabindex="0">Changer de clinique</a></p>
+</section>

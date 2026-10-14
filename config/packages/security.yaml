@@ -33,6 +33,8 @@ security:
                 - App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextAuthenticator
             logout:
                 path: /logout
+                # The sign-in page greets the member with « Vous êtes déconnecté ».
+                target: /login?deco=1
                 invalidate_session: true
 
         portal:

@@ -34,7 +34,10 @@ const PAGE_MODULES = {
   clinic_settings_billing:       'pages/settings',
   clinic_settings_preferences:   'pages/settings',
   clinic_settings_team:          'pages/settings',
-  clinic_select_clinic:          'pages/select-clinic',
+  clinic_login:                  'pages/auth',
+  clinic_lock:                   'pages/auth',
+  clinic_select_clinic:          'pages/auth',
+  clinic_no_access:              'pages/auth',
 };
 
 let currentCleanup = null;

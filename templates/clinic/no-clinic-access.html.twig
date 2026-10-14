@@ -1,48 +1,17 @@
 {#
  # Kiveto -- templates/clinic/no-clinic-access.html.twig
- # ─────────────────────────────────────────────────────
- # Empty state page shown when the user has no clinic access.
- # Extends base.html.twig (no sidebar).
+ # Dead end shown after sign-in when the member has no active clinic, on the
+ # sign-in stage of connexion_3.html.
  #}
-{% extends 'base.html.twig' %}
+{% extends 'security/_auth_layout.html.twig' %}
 
-{% block title %}Aucune clinique accessible{% endblock %}
+{% block title %}Aucune clinique accessible — Kiveto{% endblock %}
 
-{% block stylesheets %}
-<style>
-  /* Center the empty state card on the page */
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    background: var(--surface-page);
-    padding: var(--space-6) var(--space-4);
-  }
-
-  .no-access-card {
-    width: 100%;
-    max-width: 480px;
-    background: var(--surface-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border-light);
-    padding: var(--space-8);
-    text-align: center;
-  }
-</style>
-{% endblock %}
-
-{% block body %}
-<div class="no-access-card">
-  {{ include('components/ui/empty_state.html.twig', {
-    title: "Vous n'avez acces a aucune clinique",
-    subtitle: "Veuillez contacter un administrateur pour obtenir l'acces a une clinique.",
-    action: {
-      label: 'Se deconnecter',
-      variant: 'secondary',
-      href: path('_logout_clinic'),
-    },
-  }) }}
-</div>
+{% block screens %}
+  <section class="ecran centre on" id="e-aucune" aria-labelledby="t-aucune">
+    <div class="ok-rond ambre"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M10 21v-5h4v5"/></svg></div>
+    <h1 class="titre" id="t-aucune">Aucune clinique accessible</h1>
+    <p class="sous">Votre compte n'est rattaché à aucune clinique active. Demandez à l'administrateur de votre clinique de vous y donner accès.</p>
+    <a class="btn s" href="{{ path('_logout_clinic') }}" data-turbo="false" style="margin-top:24px;width:100%">Se déconnecter</a>
+  </section>
 {% endblock %}
