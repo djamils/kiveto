@@ -15,17 +15,18 @@ final class LivestockMedicationsStory extends Story
     public function build(): void
     {
         $livestockDrugs = [
-            ['name' => 'Baytril 10% Solution', 'atc' => 'QJ01MA90', 'substances' => ['Enrofloxacine']],
-            ['name' => 'Oxytetracycline 200 mg/mL', 'atc' => 'QJ01AA06', 'substances' => ['Oxytétracycline']],
-            ['name' => 'Terramycin LA', 'atc' => 'QJ01AA06', 'substances' => ['Oxytétracycline']],
+            ['name' => 'Baytril 10% Solution', 'labo' => 'Elanco', 'form' => 'Solution buvable', 'atc' => 'QJ01MA90', 'substances' => ['Enrofloxacine']],
+            ['name' => 'Oxytetracycline 200 mg/mL', 'labo' => 'Ceva', 'form' => 'Solution injectable', 'atc' => 'QJ01AA06', 'substances' => ['Oxytétracycline']],
+            ['name' => 'Terramycin LA', 'labo' => 'Zoetis', 'form' => 'Solution injectable', 'atc' => 'QJ01AA06', 'substances' => ['Oxytétracycline']],
         ];
 
         foreach ($livestockDrugs as $drug) {
             $authorization = AuthorizationEntityFactory::createOne([
-                'commercialName'   => $drug['name'],
-                'atcVetCode'       => $drug['atc'],
-                'status'           => 'ACTIVE',
-                'holderLaboratory' => 'Vétérinaire Bovin SAS',
+                'commercialName'     => $drug['name'],
+                'atcVetCode'         => $drug['atc'],
+                'status'             => 'ACTIVE',
+                'holderLaboratory'   => $drug['labo'],
+                'pharmaceuticalForm' => $drug['form'],
             ]);
 
             PresentationEntityFactory::createOne([

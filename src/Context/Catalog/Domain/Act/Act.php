@@ -7,6 +7,7 @@ namespace App\Context\Catalog\Domain\Act;
 use App\Context\Catalog\Domain\Act\Event\ActArchived;
 use App\Context\Catalog\Domain\Act\Event\ActBasePriceChanged;
 use App\Context\Catalog\Domain\Act\Event\ActCreated;
+use App\Context\Catalog\Domain\Act\Event\ActDetailsRevised;
 use App\Context\Catalog\Domain\Act\Event\ActRenamed;
 use App\Context\Catalog\Domain\Act\Event\ActRestored;
 use App\Context\Catalog\Domain\Act\Event\ActTaxCategoryChanged;
@@ -165,6 +166,51 @@ final class Act extends AggregateRoot
             actId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
             newTaxCategoryCode: $taxCategory->toString(),
+        ));
+    }
+
+    /**
+     * Revises what the practice knows about the act — its description, its
+     * category, how long it takes and whether it is done under general
+     * anaesthesia. Its name, code, price and tax category have their own doors.
+     */
+    public function reviseDetails(
+        ?ActDescription $description,
+        ActCategory $category,
+        ActDuration $estimatedDuration,
+        bool $requiresAnesthesia,
+        \DateTimeImmutable $updatedAt,
+    ): void {
+        if (ActStatus::ARCHIVED === $this->status) {
+            throw new ArchivedActCannotBeModifiedException($this->id->toString());
+        }
+
+        $sameDescription = null === $description
+            ? null === $this->description
+            : null !== $this->description && $this->description->equals($description);
+
+        $unchanged = $sameDescription
+            && $category === $this->category
+            && $estimatedDuration->equals($this->estimatedDuration)
+            && $requiresAnesthesia === $this->requiresAnesthesia;
+
+        if ($unchanged) {
+            return;
+        }
+
+        $this->description        = $description;
+        $this->category           = $category;
+        $this->estimatedDuration  = $estimatedDuration;
+        $this->requiresAnesthesia = $requiresAnesthesia;
+        $this->updatedAt          = $updatedAt;
+
+        $this->recordDomainEvent(new ActDetailsRevised(
+            actId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            description: $description?->toString(),
+            category: $category->value,
+            estimatedDurationMinutes: $estimatedDuration->toMinutes(),
+            requiresAnesthesia: $requiresAnesthesia,
         ));
     }
 

@@ -10,6 +10,7 @@ use App\Context\Catalog\Domain\Package\Event\PackageComponentRemoved;
 use App\Context\Catalog\Domain\Package\Event\PackageCreated;
 use App\Context\Catalog\Domain\Package\Event\PackageFixedPriceChanged;
 use App\Context\Catalog\Domain\Package\Event\PackageRestored;
+use App\Context\Catalog\Domain\Package\Event\PackageRevised;
 use App\Context\Catalog\Domain\Package\Exception\InvalidPackagePricingModeException;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageCode;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageComponentId;
@@ -167,6 +168,55 @@ final class Package extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             newPriceMinorUnits: $fixedPrice->minorUnits(),
             newPriceCurrency: $fixedPrice->currency()->toString(),
+        ));
+    }
+
+    /**
+     * Revises the commercial face of the package: its name, its accounting
+     * family and how it is priced. The pricing invariants of create() hold:
+     * a fixed price is required in FIXED_PRICE mode and refused otherwise.
+     */
+    public function revise(
+        PackageName $name,
+        TaxCategoryCode $taxCategory,
+        PackagePricingMode $pricingMode,
+        ?Money $fixedPrice,
+        \DateTimeImmutable $updatedAt,
+    ): void {
+        if (PackagePricingMode::FIXED_PRICE === $pricingMode && null === $fixedPrice) {
+            throw new InvalidPackagePricingModeException('FIXED_PRICE mode requires a fixedPrice.');
+        }
+
+        if (PackagePricingMode::SUM_OF_COMPONENTS === $pricingMode && null !== $fixedPrice) {
+            throw new InvalidPackagePricingModeException('SUM_OF_COMPONENTS mode must not have a fixedPrice.');
+        }
+
+        $samePrice = null === $fixedPrice
+            ? null === $this->fixedPrice
+            : null !== $this->fixedPrice && $this->fixedPrice->equals($fixedPrice);
+
+        $unchanged = $samePrice
+            && $name->equals($this->name)
+            && $taxCategory->equals($this->taxCategory)
+            && $pricingMode === $this->pricingMode;
+
+        if ($unchanged) {
+            return;
+        }
+
+        $this->name        = $name;
+        $this->taxCategory = $taxCategory;
+        $this->pricingMode = $pricingMode;
+        $this->fixedPrice  = $fixedPrice;
+        $this->updatedAt   = $updatedAt;
+
+        $this->recordDomainEvent(new PackageRevised(
+            packageId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            name: $name->toString(),
+            taxCategoryCode: $taxCategory->toString(),
+            pricingMode: $pricingMode->value,
+            fixedPriceMinorUnits: $fixedPrice?->minorUnits(),
         ));
     }
 

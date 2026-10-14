@@ -183,3 +183,39 @@ body:has(.reg .bulk.on) > .toast{bottom:80px}
 .reg .fi-in{background:none}
 .reg .ocons .lien{flex:none}
 .reg .ocons .lien{display:inline-flex}
+/* ── The « Catalogue » kit the sheets and windows share (inputs with a unit,
+   switch rows, list lines with quantity, delivery chips) ── */
+.reg .ctw thead th.num,.reg .ctw tbody td.num{text-align:right}
+.reg .inu{position:relative}
+.reg .inu .finput{padding-right:44px}
+.reg .inu > i{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-style:normal;font-size:.74rem;color:var(--encre-35);pointer-events:none;font-family:var(--font-data)}
+.reg .finput.num{font-family:var(--font-data);text-align:right}
+.reg .finput.err{border-color:var(--garance)}
+.reg .swrow{display:flex;align-items:flex-start;gap:11px;padding:9px 0;border-top:1px solid var(--brume)}
+.reg .swrow:first-of-type{border-top:none;padding-top:0}
+.reg .swrow:last-child{padding-bottom:0}
+.reg .swrow .sw{margin-top:1px}
+.reg .swrow > div{flex:1;min-width:0}
+.reg .swrow b{display:block;font-size:.84rem;font-weight:600}
+.reg .swrow small{display:block;font-size:.73rem;color:var(--encre-60);margin-top:2px;line-height:1.4}
+.reg .swrow.lock .sw{opacity:.55;cursor:not-allowed}
+.reg .bandeau.warn{background:var(--ambre-pale);color:#9a3412;border:1px solid #fed7aa}
+.reg .li{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--brume);font-size:.82rem}
+.reg .li:first-child{border-top:none;padding-top:0}
+.reg .li .lt{flex:1;min-width:0}
+.reg .li .lt b{display:block;font-weight:600;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reg .li .lt span{display:block;font-size:.71rem;color:var(--encre-60)}
+.reg .li .m{font-family:var(--font-data);font-size:.78rem;white-space:nowrap}
+.reg .qty{display:flex;align-items:center;border:1px solid var(--trait);border-radius:7px;overflow:hidden;flex:none}
+.reg .qty button{width:24px;height:26px;display:grid;place-items:center;color:var(--encre-60)}
+.reg .qty button:hover{background:var(--brume)}
+.reg .qty input{width:38px;height:26px;border:none;text-align:center;font-family:var(--font-data);font-size:.78rem;outline:none;background:transparent}
+.reg .rm{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--encre-35);flex:none}
+.reg .rm:hover{background:var(--garance-pale);color:var(--garance)}
+.reg .rm svg{width:13px;height:13px}
+.reg .flags{display:flex;gap:4px;flex-wrap:wrap}
+.reg .puce.cl-libre{background:var(--brume);color:var(--encre-60)}
+.reg .puce.cl-l2{background:#eff6ff;color:#1d4ed8}
+.reg .puce.cl-l1{background:#fef2f2;color:#b91c1c}
+.reg .puce.cl-stup{background:#1e1b4b;color:#fff}
+.reg .puce.aic{background:#fff7ed;color:#c2410c}

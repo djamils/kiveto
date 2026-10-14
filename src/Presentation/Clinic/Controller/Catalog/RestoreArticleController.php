@@ -5,41 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Article\RestoreArticle\RestoreArticle;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Restoring a drug whose marketing authorization was withdrawn is refused by the
- * domain — the message says so rather than silently putting it back on sale.
- */
+/** « Remettre au catalogue » an archived article; a drug whose authorisation was withdrawn is refused. */
 #[Route(path: '/catalog/articles/{articleId}/restore', name: 'clinic_catalogue_article_restore', methods: ['POST'])]
-final class RestoreArticleController extends AbstractController
+final readonly class RestoreArticleController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $articleId): Response
+    public function __invoke(Request $request, string $articleId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new RestoreArticle($articleId, $currentClinicId->toString()));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_catalogue_articles', ['status' => 'ARCHIVED']);
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Article remis au catalogue.');
+        try {
+            $this->commandBus->dispatch(new RestoreArticle($articleId, $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_catalogue_articles', ['status' => 'ARCHIVED']);
+        return $this->endpoint->ok();
     }
 }

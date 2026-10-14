@@ -6,91 +6,70 @@ namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Pricing\AddPriceListItem\AddPriceListItem;
 use App\Context\Catalog\Application\Command\Pricing\UpdatePriceListItem\UpdatePriceListItem;
-use App\Presentation\Clinic\Form\Shared\AmountParser;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * One form for both: adding an override and correcting one differ only by
- * whether the entry already exists.
+ * « Tarifer une prestation » and the price typed in a list's table: adding an
+ * override and correcting one differ only by whether the entry exists.
  */
 #[Route(path: '/catalog/price-lists/{priceListId}/items', name: 'clinic_catalogue_price_item_save', methods: ['POST'])]
-final class SavePriceListItemController extends AbstractController
+final readonly class SavePriceListItemController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request, string $priceListId): Response
+    public function __invoke(Request $request, string $priceListId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        $clinicId = $currentClinicId->toString();
-        $price    = AmountParser::toMinorUnits($request->request->getString('net_price'));
-        $itemId   = mb_trim($request->request->getString('item_id'));
-        $entryId  = mb_trim($request->request->getString('entry_id'));
-        $override = mb_trim($request->request->getString('tax_category_override'));
-
-        if (null === $price) {
-            $this->addFlash('error', 'Le tarif saisi est invalide.');
-
-            return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
+        $net = CatalogEndpoint::cents($request, 'net');
+
+        if (null === $net) {
+            return $this->endpoint->refuse('Le prix saisi est invalide.');
+        }
+
+        $clinicId = $this->endpoint->clinicId();
+        $entryId  = CatalogEndpoint::text($request, 'entry_id');
+        $itemId   = CatalogEndpoint::text($request, 'item_id');
+
         try {
-            if ('' !== $entryId) {
+            if (null !== $entryId) {
                 $this->commandBus->dispatch(new UpdatePriceListItem(
                     priceListId: $priceListId,
                     priceListItemId: $entryId,
                     clinicId: $clinicId,
-                    netPriceMinorUnits: $price,
+                    netPriceMinorUnits: $net,
                     netPriceCurrency: 'EUR',
-                    taxCategoryOverride: '' !== $override ? $override : null,
+                    taxCategoryOverride: null,
                 ));
-            } else {
-                if ('' === $itemId) {
-                    $this->addFlash('error', 'Choisissez la prestation à tarifer.');
-
-                    return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
-                }
-
+            } elseif (null !== $itemId) {
                 $this->commandBus->dispatch(new AddPriceListItem(
                     priceListId: $priceListId,
                     clinicId: $clinicId,
                     itemType: $request->request->getString('item_type', 'ACT'),
                     itemId: $itemId,
-                    netPriceMinorUnits: $price,
+                    netPriceMinorUnits: $net,
                     netPriceCurrency: 'EUR',
-                    taxCategoryOverride: '' !== $override ? $override : null,
+                    taxCategoryOverride: null,
                 ));
+            } else {
+                return $this->endpoint->refuse('Choisissez la prestation à tarifer.');
             }
         } catch (\ValueError $exception) {
-            return $this->refuse($exception, $priceListId);
+            return $this->endpoint->refuse($exception);
         } catch (\LogicException $exception) {
-            return $this->refuse($exception, $priceListId);
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Tarif enregistré.');
-
-        return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
-    }
-
-    /**
-     * The domain refused the change, or the form carried a value no select
-     * offers. Either way the counter is told in French and stays where it was.
-     */
-    private function refuse(\Throwable $exception, string $priceListId): Response
-    {
-        $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-        return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
+        return $this->endpoint->ok();
     }
 }

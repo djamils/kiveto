@@ -6,103 +6,88 @@ namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Article\CreateDrugArticle\CreateDrugArticle;
 use App\Context\Catalog\Application\Command\Article\CreateNonDrugArticle\CreateNonDrugArticle;
-use App\Presentation\Clinic\Form\Shared\AmountParser;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * A drug and a consumable are created by two different commands — the domain
- * refuses to make a drug through the ordinary door — so the kind of the form
- * decides which one is dispatched.
+ * « Ajouter au catalogue » on a new article's sheet. A drug and a consumable
+ * are created by two different commands — the domain refuses to make a drug
+ * through the ordinary door — so the kind decides which one is dispatched. A
+ * drug picked from the pharmaceutical registry carries its authorisation.
  */
 #[Route(path: '/catalog/articles', name: 'clinic_catalogue_article_create', methods: ['POST'])]
-final class CreateArticleController extends AbstractController
+final readonly class CreateArticleController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        $price = AmountParser::toMinorUnits($request->request->getString('base_price'));
-
-        if (null === $price) {
-            $this->addFlash('error', 'Le tarif saisi est invalide.');
-
-            return $this->redirectToRoute('clinic_catalogue_articles');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $clinicId = $currentClinicId->toString();
-        $kind     = $request->request->getString('kind');
-        $name     = mb_trim($request->request->getString('name'));
-        $code     = mb_strtoupper(mb_trim($request->request->getString('code')));
-        $gtin     = mb_trim($request->request->getString('gtin'));
-        $unit     = mb_trim($request->request->getString('unit_of_measure'));
+        $net = CatalogEndpoint::cents($request, 'net');
+
+        if (null === $net) {
+            return $this->endpoint->refuse('Le prix de vente saisi est invalide.');
+        }
+
+        $form     = $request->request;
+        $clinicId = $this->endpoint->clinicId();
+        $kind     = $form->getString('kind');
+        $name     = mb_trim($form->getString('name'));
+        $code     = mb_strtoupper(mb_trim($form->getString('code')));
+        $gtin     = CatalogEndpoint::text($request, 'gtin');
+        $unit     = CatalogEndpoint::text($request, 'unit') ?? 'UNIT';
+        $tax      = $form->getString('tax_category');
+        $stock    = $form->getBoolean('track_stock');
 
         try {
             if ('DRUG' === $kind) {
-                $prescriptionClass = $request->request->getString('prescription_class', 'NONE');
+                $class = $form->getString('prescription_class', 'NONE');
 
-                $this->commandBus->dispatch(new CreateDrugArticle(
+                $id = $this->commandBus->dispatch(new CreateDrugArticle(
                     clinicId: $clinicId,
                     name: $name,
                     code: $code,
-                    gtin: '' !== $gtin ? $gtin : null,
-                    taxCategoryCode: $request->request->getString('tax_category'),
-                    basePriceMinorUnits: $price,
+                    gtin: $gtin,
+                    taxCategoryCode: $tax,
+                    basePriceMinorUnits: $net,
                     basePriceCurrency: 'EUR',
-                    unitOfMeasure: '' !== $unit ? $unit : 'UNIT',
-                    // No marketing authorization is looked up from here: the
-                    // registry reference is picked in the pharmacy screens.
-                    authorizationRef: null,
-                    requiresPrescription: 'NONE' !== $prescriptionClass,
-                    prescriptionClass: $prescriptionClass,
-                    isControlledSubstance: \in_array($prescriptionClass, ['RX_CONTROLLED', 'RX_NARCOTIC'], true),
-                    trackStock: $request->request->getBoolean('track_stock'),
+                    unitOfMeasure: $unit,
+                    authorizationRef: CatalogEndpoint::text($request, 'authorization_ref'),
+                    requiresPrescription: 'NONE' !== $class,
+                    prescriptionClass: $class,
+                    isControlledSubstance: \in_array($class, ['RX_CONTROLLED', 'RX_NARCOTIC'], true),
+                    trackStock: $stock,
                 ));
             } else {
-                $this->commandBus->dispatch(new CreateNonDrugArticle(
+                $id = $this->commandBus->dispatch(new CreateNonDrugArticle(
                     clinicId: $clinicId,
                     name: $name,
                     code: $code,
                     kind: $kind,
-                    gtin: '' !== $gtin ? $gtin : null,
-                    taxCategoryCode: $request->request->getString('tax_category'),
-                    basePriceMinorUnits: $price,
+                    gtin: $gtin,
+                    taxCategoryCode: $tax,
+                    basePriceMinorUnits: $net,
                     basePriceCurrency: 'EUR',
-                    unitOfMeasure: '' !== $unit ? $unit : 'UNIT',
-                    trackStock: $request->request->getBoolean('track_stock'),
+                    unitOfMeasure: $unit,
+                    trackStock: $stock,
                 ));
             }
         } catch (\ValueError $exception) {
-            return $this->refuse($exception);
+            return $this->endpoint->refuse($exception);
         } catch (\LogicException $exception) {
-            return $this->refuse($exception);
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Article ajouté au catalogue.');
-
-        return $this->redirectToRoute('clinic_catalogue_articles');
-    }
-
-    /**
-     * The domain refused the change, or the form carried a value no select
-     * offers. Either way the counter is told in French and stays where it was.
-     */
-    private function refuse(\Throwable $exception): Response
-    {
-        $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-        return $this->redirectToRoute('clinic_catalogue_articles');
+        return $this->endpoint->ok(['id' => $id]);
     }
 }

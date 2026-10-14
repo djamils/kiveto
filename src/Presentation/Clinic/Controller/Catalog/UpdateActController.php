@@ -7,77 +7,85 @@ namespace App\Presentation\Clinic\Controller\Catalog;
 use App\Context\Catalog\Application\Command\Act\ChangeActBasePrice\ChangeActBasePrice;
 use App\Context\Catalog\Application\Command\Act\ChangeActTaxCategory\ChangeActTaxCategory;
 use App\Context\Catalog\Application\Command\Act\RenameAct\RenameAct;
+use App\Context\Catalog\Application\Command\Act\ReviseActDetails\ReviseActDetails;
 use App\Context\Catalog\Application\Query\Act\GetActDetail\ActDetailView;
 use App\Context\Catalog\Application\Query\Act\GetActDetail\GetActDetail;
-use App\Presentation\Clinic\Form\Shared\AmountParser;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * One form, several commands: the domain changes a name, a price and a tax
- * category one at a time, so only what actually moved is dispatched.
+ * « Enregistrer » on an act's sheet, and the bulk bar's price revision and
+ * family change. Every field is optional: the domain changes a name, a price,
+ * a tax category and the practical details one at a time, so only what was
+ * sent and actually moved is dispatched.
  */
 #[Route(path: '/catalog/acts/{actId}', name: 'clinic_catalogue_act_update', methods: ['POST'])]
-final class UpdateActController extends AbstractController
+final readonly class UpdateActController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly QueryBusInterface $queryBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private QueryBusInterface $queryBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request, string $actId): Response
+    public function __invoke(Request $request, string $actId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
+        }
 
-        $clinicId = $currentClinicId->toString();
+        $clinicId = $this->endpoint->clinicId();
+        $form     = $request->request;
 
         try {
             $act = $this->queryBus->ask(new GetActDetail($actId, $clinicId));
-        } catch (\DomainException) {
-            throw $this->createNotFoundException('Acte introuvable.');
-        }
+            \assert($act instanceof ActDetailView);
 
-        \assert($act instanceof ActDetailView);
+            $name = CatalogEndpoint::text($request, 'name');
 
-        $name  = mb_trim($request->request->getString('name'));
-        $price = AmountParser::toMinorUnits($request->request->getString('base_price'));
-        $tax   = $request->request->getString('tax_category');
-
-        if (null === $price) {
-            $this->addFlash('error', 'Le tarif saisi est invalide.');
-
-            return $this->redirectToRoute('clinic_catalogue');
-        }
-
-        try {
-            if ('' !== $name && $name !== $act->name) {
+            if (null !== $name && $name !== $act->name) {
                 $this->commandBus->dispatch(new RenameAct($actId, $clinicId, $name));
             }
 
-            if ($price !== $act->basePriceMinorUnits) {
-                $this->commandBus->dispatch(new ChangeActBasePrice($actId, $clinicId, $price, $act->basePriceCurrency));
+            if ($form->has('net')) {
+                $net = CatalogEndpoint::cents($request, 'net');
+
+                if (null === $net) {
+                    return $this->endpoint->refuse('Le tarif saisi est invalide.');
+                }
+
+                if ($net !== $act->basePriceMinorUnits) {
+                    $this->commandBus->dispatch(new ChangeActBasePrice($actId, $clinicId, $net, $act->basePriceCurrency));
+                }
             }
 
-            if ('' !== $tax && $tax !== $act->taxCategoryCode) {
+            $tax = CatalogEndpoint::text($request, 'tax_category');
+
+            if (null !== $tax && $tax !== $act->taxCategoryCode) {
                 $this->commandBus->dispatch(new ChangeActTaxCategory($actId, $clinicId, $tax));
             }
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
 
-            return $this->redirectToRoute('clinic_catalogue');
+            if ($form->has('category')) {
+                $this->commandBus->dispatch(new ReviseActDetails(
+                    actId: $actId,
+                    clinicId: $clinicId,
+                    description: CatalogEndpoint::text($request, 'description'),
+                    category: $form->getString('category'),
+                    estimatedDurationMinutes: $form->getInt('duration', $act->estimatedDurationMinutes),
+                    requiresAnesthesia: $form->getBoolean('requires_anesthesia'),
+                ));
+            }
+        } catch (\ValueError $exception) {
+            return $this->endpoint->refuse($exception);
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Acte mis à jour.');
-
-        return $this->redirectToRoute('clinic_catalogue');
+        return $this->endpoint->ok();
     }
 }

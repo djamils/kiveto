@@ -1,14 +1,150 @@
+{#
+ # Kiveto — templates/clinic/catalog/index.html.twig
+ # ─────────────────────────────────────────────────
+ # Catalogue — the clinic's acts, articles, packages and price lists. Ported
+ # from docs/frontend-theme/kiveto-theme/catalogue-v-topbar_1.html: page header
+ # (tabs with their counters, import / export menu, « Nouvel … »), filter bar,
+ # the table with its pager and bulk bar, the side sheet of one item, the item
+ # picker, the price lists view, and the « Réviser les prix », « Changer la
+ # famille », « Nouvelle grille » and « Tarifer une prestation » windows.
+ #
+ # The four routes (clinic_catalogue, …_articles, …_packages, …_price_lists)
+ # render this page on their tab. The table, the sheet and the lists are drawn
+ # by the page module from the payload; every change is posted in the
+ # background to its single-action controller, then the module asks
+ # clinic_catalogue_data again.
+ #
+ # Variables:
+ #   payload  App\Presentation\Clinic\ViewModel\Catalog\CatalogPageBuilder::page()
+ #
+ # Behaviour: assets/js/pages/catalog.js — styles: assets/styles/shell/register.css + assets/styles/pages/catalog.css
+ #}
 {% extends 'clinic/base.html.twig' %}
 
+{% block page_body_class %}vt{% endblock %}
 {% block title %}Catalogue{% endblock %}
-{% block page_icon %}<i data-lucide="package"></i>{% endblock %}
-{% block page_title %}Catalogue{% endblock %}
 
-{% block content %}
-<div style="display:flex;align-items:center;justify-content:center;min-height:400px;">
-  {{ include('components/ui/empty_state.html.twig', {
-    title: 'Bientôt disponible',
-    subtitle: 'Le catalogue des produits, médicaments et actes sera disponible prochainement.',
-  }) }}
+{% set _x = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>' %}
+{% set _soon = 'Pas encore disponible dans Kiveto' %}
+
+{% block main %}
+<div class="reg cata" data-page="{{ app.request.attributes.get('_route') }}" data-payload="{{ payload|json_encode }}">
+
+  <div class="pagehead">
+    <h1>Catalogue<small>Actes, produits, forfaits et prix de la clinique</small></h1>
+    <div class="ctabs" id="tabs">
+      <button type="button" data-t="actes"{{ payload.tab == 'actes' ? ' class="on"' }}>Actes <span class="n" id="nActes">0</span></button>
+      <button type="button" data-t="articles"{{ payload.tab == 'articles' ? ' class="on"' }}>Articles <span class="n" id="nArticles">0</span></button>
+      <button type="button" data-t="forfaits"{{ payload.tab == 'forfaits' ? ' class="on"' }}>Forfaits <span class="n" id="nForfaits">0</span></button>
+      <button type="button" data-t="grilles"{{ payload.tab == 'grilles' ? ' class="on"' }}>Grilles tarifaires <span class="n" id="nGrilles">0</span></button>
+    </div>
+    <div class="right">
+      <div class="hmenu" id="hmenu">
+        <button type="button" class="btn" id="hmenuBtn" data-tip="Importer, exporter, affiche des tarifs" aria-label="Importer, exporter, affiche des tarifs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+        <div class="dd-menu">
+          <button type="button" class="dd-it" disabled data-tip="{{ _soon }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg><span>Mettre à jour les prix d'achat<small>Tarif de la centrale (Centravet, Alcyon, Coveto) · bientôt disponible</small></span></button>
+          <button type="button" class="dd-it" disabled data-tip="{{ _soon }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg><span>Importer un fichier<small>CSV ou Excel, depuis votre ancien logiciel · bientôt disponible</small></span></button>
+          <a class="dd-it" id="btnExport" href="{{ payload.urls.export }}" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg><span>Exporter le catalogue<small>CSV, pour votre expert-comptable</small></span></a>
+          <div class="dd-sep"></div>
+          <button type="button" class="dd-it" disabled data-tip="{{ _soon }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Imprimer l'affiche des tarifs<small>Prestations courantes, à afficher en salle d'attente · bientôt disponible</small></span></button>
+        </div>
+      </div>
+      <button type="button" class="btn primaire" id="btnNew"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span id="btnNewL">Nouvel acte</span></button>
+    </div>
+  </div>
+
+  <div class="cfil" id="cfil">
+    <div class="crech">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="Rechercher…" autocomplete="off">
+    </div>
+    <span class="lblf">Filtres</span>
+    <div id="fdd"></div>
+  </div>
+
+  <main class="czone" id="czone">
+    <div class="ctw">
+      <div class="cscroll scr"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table><div id="cempty"></div></div>
+      <div class="cfoot" id="cfoot"></div>
+    </div>
+    <aside class="fiche" id="fiche"><div class="fi-in">
+      <div class="fi-head" id="fiHead"></div>
+      <div class="fi-body scr" id="fiBody"></div>
+      <div class="fi-foot" id="fiFoot"></div>
+    </div></aside>
+  </main>
+
+  <main class="gview" id="gview">
+    <div class="glist scr" id="glist"></div>
+    <div class="gdet scr" id="gdet"></div>
+  </main>
+
+  <div class="bulk" id="bulk" role="toolbar" aria-label="Actions groupées">
+    <span class="bn" id="bulkN">0</span><span id="bulkL">sélectionnés</span>
+    <span class="bdiv"></span>
+    <button type="button" id="bkRev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>Réviser les prix</button>
+    <button type="button" id="bkFam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l6.59-6.59a1 1 0 0 0 0-1.41z"/><circle cx="7" cy="7" r="1.5"/></svg>Changer la famille</button>
+    <button type="button" id="bkArch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></svg>Archiver</button>
+    <span class="bdiv"></span>
+    <button type="button" id="bkX" data-tip="Désélectionner" aria-label="Désélectionner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+
+  <div class="pick" id="pick">
+    <div class="crech"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="pickQ" autocomplete="off"></div>
+    <div class="pick-l scr" id="pickL"></div>
+  </div>
+
+  {# Révision des prix #}
+  <div class="mveil" id="mRev"><div class="mbox large">
+    <div class="mhead"><div class="mt"><b>Réviser les prix</b><span id="rvSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="g3">
+        <div><label class="flbl" for="rvPct">Variation</label><div class="inu"><input class="finput num" id="rvPct" value="3"><i>%</i></div></div>
+        <div><label class="flbl">Arrondi</label><div class="seg" id="rvArr"><button type="button" data-v="0.1" class="on">0,10 €</button><button type="button" data-v="0.5">0,50 €</button><button type="button" data-v="1">1 €</button></div></div>
+        <div><label class="flbl">Prise d'effet</label><div class="dd" id="rvEff"></div></div>
+      </div>
+      <p class="hint">Les consultations et factures déjà émises gardent leur prix. Les forfaits à la somme des prestations suivent d'eux-mêmes.</p>
+      <div class="rvprev scr"><table class="tbl" id="rvTab"></table></div>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="rvOk">Appliquer</button></div>
+  </div></div>
+
+  {# Changer la famille #}
+  <div class="mveil" id="mFam"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Changer la famille</b><span id="fmSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <label class="flbl">Famille comptable</label><div class="dd" id="fmDd"></div>
+      <p class="hint">La famille range le chiffre d'affaires dans vos statistiques et votre comptabilité ; le taux de TVA en découle.</p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="fmOk">Appliquer</button></div>
+  </div></div>
+
+  {# Nouvelle grille #}
+  <div class="mveil" id="mGrille"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Nouvelle grille tarifaire</b><span>Un jeu de prix qui remplace ceux du catalogue dans certaines situations</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="frow"><label class="flbl" for="ngNom">Nom <span class="req">*</span></label><input class="finput" id="ngNom" placeholder="Éleveurs partenaires" autocomplete="off"></div>
+      <div class="frow"><label class="flbl">S'applique</label><div class="seg" id="ngAppli"><button type="button" data-v="clients" disabled data-tip="{{ _soon }}">À certains clients</button><button type="button" data-v="horaire" disabled data-tip="{{ _soon }}">Selon l'horaire</button><button type="button" data-v="manuelle" class="on">Au choix, à la facture</button></div></div>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="ngOk" disabled>Créer la grille</button></div>
+  </div></div>
+
+  {# Tarifer une prestation #}
+  <div class="mveil" id="mTarif"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Tarifer une prestation</b><span id="tfSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="frow"><label class="flbl">Prestation <span class="req">*</span></label><button type="button" class="dd-btn" id="tfPick" style="background:var(--brume)"><span class="ph">Rechercher un acte ou un article…</span></button></div>
+      <div class="g2">
+        <div><label class="flbl">Prix du catalogue</label><div class="ro mono" id="tfBase">—</div></div>
+        <div><label class="flbl" for="tfPrix">Prix dans cette grille TTC <span class="req">*</span></label><div class="inu"><input class="finput num" id="tfPrix" inputmode="decimal" autocomplete="off"><i>€</i></div></div>
+      </div>
+      <p class="hint" id="tfHint">La TVA reste celle de la prestation : elle dépend de sa nature, pas du moment ni du client.</p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="tfOk" disabled>Enregistrer</button></div>
+  </div></div>
+
 </div>
 {% endblock %}

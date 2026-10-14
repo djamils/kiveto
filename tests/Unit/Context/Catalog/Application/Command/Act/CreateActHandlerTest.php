@@ -16,10 +16,13 @@ use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 
+#[CoversClass(CreateActHandler::class)]
+#[CoversClass(CreateAct::class)]
 final class CreateActHandlerTest extends TestCase
 {
     private UuidGeneratorInterface&Stub $uuidGenerator;
@@ -97,6 +100,32 @@ final class CreateActHandlerTest extends TestCase
             description: null,
             category: 'CONSULTATION',
             taxCategoryCode: 'veterinary.act.consultation',
+            basePriceMinorUnits: 5000,
+            basePriceCurrency: 'EUR',
+            estimatedDurationMinutes: 20,
+            requiresAnesthesia: false,
+        ));
+    }
+
+    public function testThrowsOnUnknownTaxCategory(): void
+    {
+        $taxRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
+        $taxRegistry->method('has')->willReturn(false);
+        $this->taxRegistry = $taxRegistry;
+
+        $actRepository = $this->createMock(ActRepositoryInterface::class);
+        $actRepository->expects(self::never())->method('save');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Unknown tax category code: "veterinary.unknown".');
+
+        ($this->makeHandler($actRepository))(new CreateAct(
+            clinicId: '01950000-0000-7000-0000-000000000002',
+            name: 'Test',
+            code: 'TEST',
+            description: null,
+            category: 'CONSULTATION',
+            taxCategoryCode: 'veterinary.unknown',
             basePriceMinorUnits: 5000,
             basePriceCurrency: 'EUR',
             estimatedDurationMinutes: 20,

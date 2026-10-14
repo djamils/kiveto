@@ -18,6 +18,7 @@ use App\Context\Catalog\Domain\Package\Exception\ArchivedItemInPackageException;
 use App\Context\Catalog\Domain\Package\Exception\DuplicatePackageCodeException;
 use App\Context\Catalog\Domain\Package\Exception\InvalidPackagePricingModeException;
 use App\Context\Catalog\Domain\Pricing\Exception\PriceListNotFoundException;
+use App\Shared\Domain\UnitOfMeasure\Exception\UnknownUnitOfMeasureException;
 
 /**
  * Says in French what the Catalog domain refused.
@@ -55,9 +56,40 @@ final class CatalogErrorMessage
 
             $exception instanceof PriceListNotFoundException => 'Cette grille tarifaire est introuvable.',
 
-            // Anything the domain raises without a name of its own — the tax
-            // category registry, mostly — still says what it refused.
-            default => $exception->getMessage(),
+            $exception instanceof UnknownUnitOfMeasureException => 'Cette unité de conditionnement n’est pas connue.',
+
+            // Anything the domain raises without a name of its own is matched
+            // on its message, so the page never shows an English sentence.
+            default => self::plain($exception->getMessage()),
         };
+    }
+
+    private static function plain(string $message): string
+    {
+        $known = [
+            'Invalid act code'          => 'Le code ne prend que des majuscules, chiffres, « _ » ou « - » (2 à 20 caractères).',
+            'Invalid article code'      => 'Le code ne prend que des majuscules, chiffres, « _ » ou « - » (2 à 20 caractères).',
+            'Invalid package code'      => 'Le code ne prend que des majuscules, chiffres, « _ » ou « - » (2 à 20 caractères).',
+            'Invalid GTIN'              => 'Le code-barres compte 8 à 14 chiffres.',
+            'Article name cannot be'    => 'Le libellé est obligatoire (150 caractères au plus).',
+            'Package name cannot be'    => 'Le libellé est obligatoire (150 caractères au plus).',
+            'Price list name cannot be' => 'Le nom de la grille est obligatoire.',
+            'Act description cannot'    => 'La description ne dépasse pas 1 000 caractères.',
+            'Act duration must be'      => 'La durée doit être d’au moins une minute.',
+            'Quantity must be'          => 'La quantité doit être d’au moins 1.',
+            'Unknown tax category'      => 'Cette famille comptable n’est pas connue.',
+            'Invalid tax category'      => 'Cette famille comptable n’est pas connue.',
+            'Act "'                     => 'Cet acte est introuvable.',
+            'Article "'                 => 'Cet article est introuvable.',
+            'Package "'                 => 'Ce forfait est introuvable.',
+        ];
+
+        foreach ($known as $prefix => $french) {
+            if (str_starts_with($message, $prefix)) {
+                return $french;
+            }
+        }
+
+        return $message;
     }
 }

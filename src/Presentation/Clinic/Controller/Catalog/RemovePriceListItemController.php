@@ -5,45 +5,38 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Pricing\RemovePriceListItem\RemovePriceListItem;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Retirer de la grille »: the prestation goes back to its catalogue price there. */
 #[Route(
     path: '/catalog/price-lists/{priceListId}/items/{entryId}/remove',
     name: 'clinic_catalogue_price_item_remove',
     methods: ['POST'],
 )]
-final class RemovePriceListItemController extends AbstractController
+final readonly class RemovePriceListItemController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $priceListId, string $entryId): Response
+    public function __invoke(Request $request, string $priceListId, string $entryId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new RemovePriceListItem(
-                priceListId: $priceListId,
-                priceListItemId: $entryId,
-                clinicId: $currentClinicId->toString(),
-            ));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Tarif retiré. La prestation repasse à son tarif de base.');
+        try {
+            $this->commandBus->dispatch(new RemovePriceListItem($priceListId, $entryId, $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_catalogue_price_lists', ['list' => $priceListId]);
+        return $this->endpoint->ok();
     }
 }

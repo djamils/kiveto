@@ -5,72 +5,58 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Package\CreatePackage\CreatePackage;
-use App\Presentation\Clinic\Form\Shared\AmountParser;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
+use App\Presentation\Clinic\ViewModel\Catalog\PackageComposition;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Ajouter au catalogue » on a new package's sheet, with its composition. */
 #[Route(path: '/catalog/packages', name: 'clinic_catalogue_package_create', methods: ['POST'])]
-final class CreatePackageController extends AbstractController
+final readonly class CreatePackageController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private PackageComposition $composition,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        $mode = $request->request->getString('pricing_mode', 'SUM_OF_COMPONENTS');
-
-        // A fixed-price package needs its price up front; a sum-of-components
-        // one refuses to carry any.
-        $price = 'FIXED_PRICE' === $mode
-            ? AmountParser::toMinorUnits($request->request->getString('fixed_price'))
-            : null;
-
-        if ('FIXED_PRICE' === $mode && null === $price) {
-            $this->addFlash('error', 'Le tarif forfaitaire saisi est invalide.');
-
-            return $this->redirectToRoute('clinic_catalogue_packages');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
+        $mode = $request->request->getString('pricing_mode', 'SUM_OF_COMPONENTS');
+        $net  = 'FIXED_PRICE' === $mode ? CatalogEndpoint::cents($request, 'net') : null;
+
+        if ('FIXED_PRICE' === $mode && null === $net) {
+            return $this->endpoint->refuse('Le prix forfaitaire saisi est invalide.');
+        }
+
+        $clinicId = $this->endpoint->clinicId();
+
         try {
-            $this->commandBus->dispatch(new CreatePackage(
-                clinicId: $currentClinicId->toString(),
+            $id = $this->commandBus->dispatch(new CreatePackage(
+                clinicId: $clinicId,
                 name: mb_trim($request->request->getString('name')),
                 code: mb_strtoupper(mb_trim($request->request->getString('code'))),
                 taxCategoryCode: $request->request->getString('tax_category'),
                 pricingMode: $mode,
-                fixedPriceMinorUnits: $price,
-                fixedPriceCurrency: null !== $price ? 'EUR' : null,
+                fixedPriceMinorUnits: $net,
+                fixedPriceCurrency: null !== $net ? 'EUR' : null,
             ));
+            \assert(\is_string($id));
+
+            $this->composition->sync($id, $clinicId, [], PackageComposition::wanted($request) ?? []);
         } catch (\ValueError $exception) {
-            return $this->refuse($exception);
+            return $this->endpoint->refuse($exception);
         } catch (\LogicException $exception) {
-            return $this->refuse($exception);
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Forfait créé. Ajoutez-lui ses prestations.');
-
-        return $this->redirectToRoute('clinic_catalogue_packages');
-    }
-
-    /**
-     * The domain refused the change, or the form carried a value no select
-     * offers. Either way the counter is told in French and stays where it was.
-     */
-    private function refuse(\Throwable $exception): Response
-    {
-        $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-        return $this->redirectToRoute('clinic_catalogue_packages');
+        return $this->endpoint->ok(['id' => $id]);
     }
 }
