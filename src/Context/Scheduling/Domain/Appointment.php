@@ -114,6 +114,20 @@ final class Appointment extends AggregateRoot
         $this->animalId = $animalId;
     }
 
+    /**
+     * Rewrites the motif and the note of a booking that is still to come.
+     * An empty string clears the field.
+     */
+    public function changeDetails(?string $reason, ?string $notes): void
+    {
+        if ($this->status->isTerminal()) {
+            throw new \DomainException('Cannot change the details of a terminated appointment.');
+        }
+
+        $this->reason = null === $reason || '' === trim($reason) ? null : trim($reason);
+        $this->notes  = null === $notes || '' === trim($notes) ? null : trim($notes);
+    }
+
     public function linkAdmission(string $admissionId): void
     {
         $this->linkedAdmissionId = $admissionId;

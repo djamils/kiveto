@@ -14,6 +14,8 @@ final readonly class PlanningBlockReadModel
         public int $capacityPerHour,
         public int $currentAppointmentCount,
         public bool $acceptsAppointments,
+        // Length of the block occurrence: capacity is per hour of the block
+        public int $durationMinutes = 0,
     ) {
     }
 }

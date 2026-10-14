@@ -6,6 +6,7 @@ namespace App\Fixtures\Context\Scheduling\Story;
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
+use App\Context\Scheduling\Application\Command\MarkAppointmentNoShow\MarkAppointmentNoShow;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
@@ -19,6 +20,9 @@ final class SchedulingStory extends Story
 {
     /** @var array<string, list<array{animalId: string, clientId: string}>> */
     private array $patientsByClinic = [];
+
+    /** @var array<string, list<array{int, int}>> booked [start, end] timestamps by practitioner */
+    private array $booked = [];
 
     public function __construct(
         private readonly ClockInterface $clock,
@@ -153,6 +157,8 @@ final class SchedulingStory extends Story
             [17, 0,  $lyon,  $vetUserId,        30, 'Consultation dermatologie', false],
         ];
 
+        $this->buildLoadedWeek($paris, ['vet' => $vetUserId, 'dupont' => $contractorUserId], $monday, $now, $utcTz);
+
         foreach ($todayPlan as [$hour, $minute, $clinicId, $practitionerId, $duration, $reason, $cancelled]) {
             $localStart    = $today->setTime($hour, $minute, 0);
             $appointmentId = $this->schedule(
@@ -169,6 +175,99 @@ final class SchedulingStory extends Story
             // timeline shows it as « terminé ».
             if ($localStart->modify(\sprintf('+%d minutes', $duration)) <= $now) {
                 $this->commandBus->dispatch(new CompleteAppointment($appointmentId));
+            }
+        }
+    }
+
+    /**
+     * Paris runs a loaded week (agenda-v-topbar-charge mock-up): every
+     * bookable block of its trame (SchedulingPlanningBlockStory::PARIS_TRAME)
+     * is filled at about 90 %, the on-call evenings about half. Today keeps
+     * its own plan above. What is over is completed — one in twelve was a
+     * no-show, one in ten is still to settle — and one in fourteen of what
+     * is to come is cancelled.
+     *
+     * @param array<string, string> $staff
+     */
+    private function buildLoadedWeek(string $clinicId, array $staff, \DateTimeImmutable $monday, \DateTimeImmutable $now, \DateTimeZone $utcTz): void
+    {
+        $seed = 7;
+        $rand = static function () use (&$seed): float {
+            $seed = ($seed * 16807) % 2147483647;
+
+            return $seed / 2147483647;
+        };
+        $pick = fn (array $list): string => $this->pickOne($list, $rand());
+
+        $reasons = [
+            'consult' => ['Consultation — boiterie', 'Consultation — vomissements', 'Consultation — prurit', 'Consultation — toux', 'Consultation — otite', 'Consultation — perte d\'appétit', 'Consultation — diarrhée', 'Consultation — plaie'],
+            'vaccin'  => ['Vaccin — rappel CHPPiL', 'Vaccin — rappel TC', 'Primo-vaccination', 'Vaccin rage — voyage'],
+            'suivi'   => ['Suivi — contrôle otite', 'Suivi — recontrôle post-op', 'Suivi IRC', 'Suivi — retrait de fils', 'Suivi — contrôle dermato'],
+            'bilan'   => ['Bilan annuel', 'Bilan senior', 'Bilan cardiaque'],
+            'chir'    => ['Chirurgie — stérilisation', 'Chirurgie — castration', 'Chirurgie — détartrage', 'Chirurgie — exérèse nodule'],
+            'urg'     => ['Urgence — trauma', 'Urgence — intoxication', 'Urgence — dyspnée', 'Urgence — plaie profonde'],
+        ];
+        $durations = ['consult' => 30, 'vaccin' => 20, 'suivi' => 20, 'bilan' => 30, 'urg' => 30];
+
+        $done   = 0;
+        $toCome = 0;
+
+        for ($day = 0; $day < 7; ++$day) {
+            $date = $monday->modify(\sprintf('+%d days', $day));
+            if ($date->format('Y-m-d') === $now->format('Y-m-d')) {
+                continue;
+            }
+
+            foreach (SchedulingPlanningBlockStory::PARIS_TRAME as [$weekday, $who, $start, $end, $type]) {
+                if ($weekday !== (int) $date->format('N') || !\in_array($type, ['consultation', 'surgery', 'on_call'], true)) {
+                    continue;
+                }
+
+                [$h, $m] = array_map('intval', explode(':', $start));
+                $minute  = $h * 60 + $m;
+                [$h, $m] = array_map('intval', explode(':', $end));
+                $stop    = $h * 60 + $m;
+
+                while ($minute < $stop) {
+                    if ('on_call' === $type && $rand() < .55) {
+                        $minute += 30;
+                        continue;
+                    }
+                    if ('on_call' !== $type && $rand() < .1) {
+                        $minute += 20;
+                        continue;
+                    }
+
+                    $kind = match ($type) {
+                        'surgery' => 'chir',
+                        'on_call' => $rand() < .6 ? 'urg' : 'consult',
+                        default   => $pick(['consult', 'consult', 'consult', 'vaccin', 'vaccin', 'suivi', 'suivi', 'bilan']),
+                    };
+                    $duration = 'chir' === $kind ? (int) $pick(['45', '60', '90']) : $durations[$kind];
+
+                    if ($minute + $duration > $stop) {
+                        break;
+                    }
+
+                    $localStart = $date->setTime(intdiv($minute, 60), $minute % 60);
+                    $minute += $duration;
+                    $isOver = $localStart->modify(\sprintf('+%d minutes', $duration)) <= $now;
+                    $cancel = !$isOver && 5 === ++$toCome % 14;
+
+                    // A booking of the regular week plan already holds the slot
+                    if ($this->isBooked($staff[$who], $localStart, $duration)) {
+                        continue;
+                    }
+
+                    $id = $this->schedule($clinicId, $staff[$who], $localStart, $utcTz, $duration, $pick($reasons[$kind]), $cancel);
+
+                    // A few past bookings are left unsettled: the agenda offers « Marquer non venu »
+                    if ($isOver && 3 !== ++$done % 10) {
+                        $this->commandBus->dispatch(7 === $done % 12
+                            ? new MarkAppointmentNoShow($id)
+                            : new CompleteAppointment($id));
+                    }
+                }
             }
         }
     }
@@ -242,6 +341,10 @@ final class SchedulingStory extends Story
 
         \assert(\is_string($appointmentId));
 
+        if (!$cancelled) {
+            $this->booked[$practitionerId][] = [$localStart->getTimestamp(), $localStart->getTimestamp() + $durationMinutes * 60];
+        }
+
         if ($cancelled) {
             $this->commandBus->dispatch(new CancelAppointment(
                 appointmentId: $appointmentId,
@@ -249,5 +352,29 @@ final class SchedulingStory extends Story
         }
 
         return $appointmentId;
+    }
+
+    private function isBooked(string $practitionerId, \DateTimeImmutable $start, int $durationMinutes): bool
+    {
+        $from = $start->getTimestamp();
+        $to   = $from + $durationMinutes * 60;
+
+        foreach ($this->booked[$practitionerId] ?? [] as [$s, $e]) {
+            if ($from < $e && $to > $s) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<array-key, mixed> $list
+     */
+    private function pickOne(array $list, float $random): string
+    {
+        $value = array_values($list)[(int) floor($random * \count($list))] ?? '';
+
+        return \is_string($value) ? $value : '';
     }
 }

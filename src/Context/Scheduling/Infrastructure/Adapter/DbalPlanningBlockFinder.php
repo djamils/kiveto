@@ -86,6 +86,7 @@ final readonly class DbalPlanningBlockFinder implements PlanningBlockFinderInter
                     capacityPerHour: RowAccessor::int($row, 'capacity_per_hour'),
                     currentAppointmentCount: $count,
                     acceptsAppointments: $type->acceptsAppointments(),
+                    durationMinutes: intdiv($endUtc->getTimestamp() - $startUtc->getTimestamp(), 60),
                 );
             }
         }

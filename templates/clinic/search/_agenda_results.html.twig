@@ -1,0 +1,26 @@
+{#
+ # Kiveto — templates/clinic/search/_agenda_results.html.twig
+ # ───────────────────────────────────────────────────────────
+ # Patient options of the agenda's booking modal — `.ps-opt` rows of
+ # agenda-v-topbar_5.html. Only animal hits: the page module adds the
+ # « Créer » row.
+ #}
+{%- set _emoji = { dog: '🐕', cat: '🐈', nac: '🐇' } -%}
+{%- set _species = { dog: 'Chien', cat: 'Chat', nac: 'NAC', other: 'Animal' } -%}
+{%- for bucket in buckets -%}
+  {%- for hit in bucket.hits -%}
+    {%- set _sp = hit.metadata.species ?? 'other' -%}
+    {%- set _parts = (hit.subtitle ?? '')|split(' · ') -%}
+    {%- set _breed = _parts|length > 1 ? _parts|slice(1)|join(' · ') : (_species[_sp] ?? 'Animal') -%}
+    {%- set _owner = hit.context and hit.context != 'Sans propriétaire' ? hit.context : 'Sans propriétaire' -%}
+    <button type="button" class="ps-opt"
+            data-id="{{ hit.resourceId }}"
+            data-name="{{ hit.title }}"
+            data-emoji="{{ _emoji[_sp] ?? '🐾' }}"
+            data-owner="{{ _owner }}"
+            data-breed="{{ _breed }}">
+      <span class="oe">{{ _emoji[_sp] ?? '🐾' }}</span>
+      <span><b>{{ hit.title }}</b><small>{{ _owner }} · {{ _breed }}</small></span>
+    </button>
+  {%- endfor -%}
+{%- endfor -%}

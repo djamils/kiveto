@@ -16,6 +16,10 @@ final readonly class RescheduleAppointment implements CommandInterface
         public string $practitionerUserId,
         public ?string $ownerId = null,
         public ?string $animalId = null,
+        // Motif and note of the booking: rewritten when $changeDetails is true
+        public bool $changeDetails = false,
+        public ?string $reason = null,
+        public ?string $notes = null,
     ) {
     }
 }

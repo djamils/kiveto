@@ -74,6 +74,10 @@ final readonly class RescheduleAppointmentHandler
         $appointment->changePractitionerAssignee($newAssignee);
         $appointment->changeOwnerAndAnimal($command->ownerId, $command->animalId);
 
+        if ($command->changeDetails) {
+            $appointment->changeDetails($command->reason, $command->notes);
+        }
+
         $this->appointmentRepository->save($appointment);
     }
 }
