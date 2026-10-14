@@ -1,0 +1,79 @@
+{#
+ # Kiveto — templates/clinic/animals/view/index.html.twig
+ # ─────────────────────────────────────────────────────
+ # Animal sheet, laid out after the new-gen v14 mock-up
+ # (docs/frontend-theme/vetsaas-layouts/new-gen/vetos-fiche-animal-v14.html).
+ # It shares its style sheet, macros and page script with the client sheet.
+ #
+ # Variables:
+ #   animal             AnimalView
+ #   sheet              array built by AnimalSheetBuilder
+ #   activeTab          string  one of the pane ids below
+ #   today              string  Y-m-d in clinic time
+ #   currentClinicName  string
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% set tabs = {
+  synthese: 'Synthèse',
+  medical: 'Médical',
+  prevention: 'Prévention',
+  documents: 'Documents',
+} %}
+{% set current_tab = activeTab in tabs|keys ? activeTab : 'synthese' %}
+
+{% block title %}{{ animal.name }} — {{ currentClinicName }}{% endblock %}
+
+{% block page_title %}{{ animal.name }}{% endblock %}
+
+{% block content %}
+<div class="fc fc-page" data-fc-sheet>
+
+  {{ include('clinic/animals/view/_header.html.twig') }}
+
+  <div class="fc-scroll" data-fc-scroll>
+    <div class="fc-stuck">
+      <div class="fc-safety{{ sheet.safety.pills|filter(p => p.level == 'crit')|length == 0 ? ' fc-none' }}">
+        {% for pill in sheet.safety.pills %}
+          <span class="fc-sf fc-{{ pill.level }}">
+            {% if pill.level == 'crit' %}
+              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5.6v3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="currentColor"/><path d="M6.9 2.7L1.8 11.9a1.2 1.2 0 001 1.8h10.4a1.2 1.2 0 001-1.8L9.1 2.7a1.2 1.2 0 00-2.2 0z" stroke="currentColor" stroke-width="1.35"/></svg>
+            {% endif %}
+            {{ pill.label }}
+          </span>
+        {% endfor %}
+        <span class="fc-sf-meta">{{ sheet.safety.meta }}</span>
+      </div>
+      <div class="fc-tabs" role="tablist" aria-label="Sections du dossier">
+        {% for id, label in tabs %}
+          <button class="fc-tab" type="button" role="tab" id="fc-tab-{{ id }}" data-fc-tab="{{ id }}"
+                  aria-selected="{{ id == current_tab ? 'true' : 'false' }}" aria-controls="fc-p-{{ id }}"
+                  tabindex="{{ id == current_tab ? '0' : '-1' }}">
+            {{- label -}}
+            {%- if id == 'medical' and sheet.history.total > 0 -%}
+              <span class="fc-n">{{ sheet.history.total }}</span>
+            {%- elseif id == 'prevention' and sheet.prevention.lateCount > 0 -%}
+              <span class="fc-n fc-hot">{{ sheet.prevention.lateCount }}</span>
+            {%- elseif id == 'documents' and sheet.documents|length > 0 -%}
+              <span class="fc-n">{{ sheet.documents|length }}</span>
+            {%- endif -%}
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% for id in tabs|keys %}
+      <div class="fc-pane{{ id == current_tab ? ' fc-on' }}" id="fc-p-{{ id }}" role="tabpanel" aria-labelledby="fc-tab-{{ id }}">
+        {{ include('clinic/animals/view/_tab_' ~ id ~ '.html.twig') }}
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+<div class="fc" data-fc-modals>
+  {{ include('clinic/animals/view/_modals.html.twig') }}
+</div>
+{% endblock %}

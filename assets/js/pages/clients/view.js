@@ -1,5 +1,6 @@
 /**
- * Page module — Client sheet (fiche client, new-gen v14 layout).
+ * Page module — Client and animal sheets (new-gen v14 layout).
+ * Both pages share the same `fc-` markup, so they share this script.
  * Loaded by the app.js dispatcher on turbo:load.
  *
  * Everything is wired through delegated listeners on the document, bound in
@@ -60,6 +61,11 @@ function closeModals() {
   opener = null;
 }
 
+function toggleAccordion(header) {
+  const open = header.parentElement.classList.toggle('fc-open');
+  header.setAttribute('aria-expanded', String(open));
+}
+
 function onClick(event) {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -77,6 +83,9 @@ function onClick(event) {
   if (trigger) return openModal(trigger.dataset.fcOpen, trigger);
 
   if (target.closest('[data-fc-close]') || target.classList.contains('fc-ov')) return closeModals();
+
+  const accordion = target.closest('[data-fc-acc]');
+  if (accordion && !target.closest('button, a')) return toggleAccordion(accordion);
 
   const segment = target.closest('[data-fc-seg] button');
   if (segment) {
@@ -100,6 +109,15 @@ function onClick(event) {
   }
 }
 
+/** Typing again in the owner search invalidates the client picked before. */
+function onInput(event) {
+  const search = event.target;
+  if (!(search instanceof HTMLInputElement) || !search.matches('[data-fc-owner-search]')) return;
+
+  const picked = search.form?.querySelector('[data-fc-owner-id]');
+  if (picked) picked.value = '';
+}
+
 function onChange(event) {
   const select = event.target;
   if (!(select instanceof HTMLSelectElement) || !select.matches('[data-fc-invoice]')) return;
@@ -111,7 +129,17 @@ function onChange(event) {
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape') return closeModals();
+  if (event.key === 'Escape') {
+    // In a combobox, Escape belongs to its list of suggestions, not to the dialog around it.
+    if (event.target instanceof Element && event.target.matches('[role="combobox"]')) return;
+
+    return closeModals();
+  }
+
+  if ((event.key === 'Enter' || event.key === ' ') && event.target instanceof Element && event.target.matches('[data-fc-acc]')) {
+    event.preventDefault();
+    return toggleAccordion(event.target);
+  }
 
   const all = tabs();
   const index = all.indexOf(document.activeElement);
@@ -139,6 +167,8 @@ export function init() {
 
   document.addEventListener('click', onClick, { signal });
   document.addEventListener('change', onChange, { signal });
+  // Capture: the autocomplete may stop the event once it has handled it.
+  document.addEventListener('input', onInput, { signal, capture: true });
   document.addEventListener('keydown', onKeydown, { signal });
 }
 

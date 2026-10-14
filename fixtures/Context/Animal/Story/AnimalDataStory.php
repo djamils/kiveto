@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Animal\Story;
 
+use App\Context\Animal\Domain\ValueObject\PreventiveCareKind;
 use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use App\Fixtures\Context\Animal\Factory\OwnershipEntityFactory;
+use App\Fixtures\Context\Animal\Factory\PreventiveCareRecordEntityFactory;
+use App\Fixtures\Context\Animal\Factory\WeightRecordEntityFactory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use Zenstruck\Foundry\Story;
@@ -463,5 +466,70 @@ final class AnimalDataStory extends Story
                 ->create()
             ;
         }
+
+        $this->buildWeighingsAndPreventiveCare();
+    }
+
+    /**
+     * Weighings and preventive acts, dated relative to today so that the
+     * "late", "due soon" and "up to date" states all stay on screen whenever
+     * the fixtures are loaded. Rex carries the full picture (a curve, one act
+     * of each state); Minou a single weighing; every other animal keeps the
+     * empty states.
+     */
+    private function buildWeighingsAndPreventiveCare(): void
+    {
+        $clinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
+        $today    = new \DateTimeImmutable('today 10:00');
+
+        $rexCurve = [
+            '-11 months' => [27_400, null],
+            '-9 months'  => [27_600, 5],
+            '-7 months'  => [27_900, null],
+            '-5 months'  => [28_300, 5],
+            '-3 months'  => [28_800, 6],
+            '-5 weeks'   => [29_100, 6],
+        ];
+
+        foreach ($rexCurve as $when => [$grams, $score]) {
+            WeightRecordEntityFactory::new()
+                ->forAnimal($clinicId, self::ANIMAL_REX_ID)
+                ->weighing($grams, $today->modify($when), $score)
+                ->create()
+            ;
+        }
+
+        WeightRecordEntityFactory::new()
+            ->forAnimal($clinicId, self::ANIMAL_MINOU_ID)
+            ->weighing(4_200, $today->modify('-2 months'), 5)
+            ->create()
+        ;
+
+        $rexActs = [
+            // Up to date.
+            [PreventiveCareKind::VACCINATION, 'CHPPiL', '-7 months', '+5 months', 'VX-77219'],
+            [PreventiveCareKind::VACCINATION, 'Rage', '-14 months', '+22 months', 'RB-40118'],
+            // Late.
+            [PreventiveCareKind::INTERNAL_PARASITE, 'Vermifugation', '-4 months', '-1 month', null],
+            // Due soon.
+            [PreventiveCareKind::EXTERNAL_PARASITE, 'Puces et tiques', '-3 weeks', '+10 days', null],
+            // An older act of the same protocol: the sheet only keeps the latest.
+            [PreventiveCareKind::VACCINATION, 'CHPPiL', '-19 months', '-7 months', 'VX-61020'],
+        ];
+
+        foreach ($rexActs as [$kind, $label, $administered, $nextDue, $batch]) {
+            PreventiveCareRecordEntityFactory::new()
+                ->forAnimal($clinicId, self::ANIMAL_REX_ID)
+                ->act($kind, $label, $today->modify($administered), $today->modify($nextDue), $batch)
+                ->create()
+            ;
+        }
+
+        // An act without a next due date: listed, never chased.
+        PreventiveCareRecordEntityFactory::new()
+            ->forAnimal($clinicId, self::ANIMAL_MINOU_ID)
+            ->act(PreventiveCareKind::VACCINATION, 'Typhus-Coryza', $today->modify('-2 months'))
+            ->create()
+        ;
     }
 }

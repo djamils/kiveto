@@ -308,6 +308,22 @@ services:
 
     App\Context\Animal\Infrastructure\Persistence\Doctrine\AnimalMapper: ~
 
+    App\Context\Animal\Domain\Repository\WeightRecordRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrineWeightRecordRepository
+
+    App\Context\Animal\Application\Port\WeightRecordReadRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrineWeightRecordReadRepository
+
+    App\Context\Animal\Infrastructure\Persistence\Doctrine\WeightRecordMapper: ~
+
+    App\Context\Animal\Domain\Repository\PreventiveCareRecordRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrinePreventiveCareRecordRepository
+
+    App\Context\Animal\Application\Port\PreventiveCareRecordReadRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DoctrinePreventiveCareRecordReadRepository
+
+    App\Context\Animal\Infrastructure\Persistence\Doctrine\PreventiveCareRecordMapper: ~
+
     # ============================================================================
     # BOUNDED CONTEXT: SCHEDULING
     # ============================================================================

@@ -25,6 +25,7 @@ use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVet
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\ListAppointmentsForOwner;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\OwnerAppointmentItem;
+use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -312,7 +313,7 @@ final readonly class ClientSheetBuilder
             return 'Aujourd’hui';
         }
 
-        return mb_convert_case($this->format($createdAt, 'MMMM y'), \MB_CASE_TITLE);
+        return mb_convert_case(SheetText::date($createdAt, 'MMMM y'), \MB_CASE_TITLE);
     }
 
     /**
@@ -393,9 +394,9 @@ final readonly class ClientSheetBuilder
                 'archived'        => 'active' !== $item->status,
                 'deceased'        => 'deceased' === $item->lifeStatus,
                 'alerts'          => $alerts[$item->id] ?? [],
-                'lastVisit'       => null === $lastVisit ? null : $this->format($lastVisit->setTimezone($tz), 'd MMM y'),
+                'lastVisit'       => null === $lastVisit ? null : SheetText::date($lastVisit->setTimezone($tz), 'd MMM y'),
                 'inConsultation'  => $inConsultation,
-                'nextAppointment' => null === $next ? null : $this->format($next->setTimezone($tz), 'd MMM y'),
+                'nextAppointment' => null === $next ? null : SheetText::date($next->setTimezone($tz), 'd MMM y'),
                 'microchip'       => $item->microchipNumber,
             ];
         }
@@ -528,8 +529,8 @@ final readonly class ClientSheetBuilder
                     'id'       => $appointment->id,
                     'day'      => $startsAt->format('d'),
                     'title'    => $subject,
-                    'subtitle' => $this->sentence(implode(' · ', array_filter([
-                        $this->format($startsAt, "EEEE d MMMM, HH 'h' mm"),
+                    'subtitle' => SheetText::sentence(implode(' · ', array_filter([
+                        SheetText::date($startsAt, "EEEE d MMMM, HH 'h' mm"),
                         $practitioners[$appointment->practitionerUserId] ?? null,
                         $appointment->durationMinutes . ' min',
                     ]))),
@@ -551,7 +552,7 @@ final readonly class ClientSheetBuilder
                     'id'         => $appointment->id,
                     'day'        => $startsAt->format('d'),
                     'title'      => $subject,
-                    'subtitle'   => \sprintf('Prévu le %s · à reprogrammer', $this->format($startsAt, 'd MMMM')),
+                    'subtitle'   => \sprintf('Prévu le %s · à reprogrammer', SheetText::date($startsAt, 'd MMMM')),
                     'badge'      => 'crit',
                     'badgeLabel' => 'Annulé',
                     'action'     => 'Reprogrammer',
@@ -599,7 +600,7 @@ final readonly class ClientSheetBuilder
             'rows'          => [...$upcoming, ...array_reverse($cancelled)],
             'upcomingCount' => \count($upcoming),
             'next'          => null === $next ? null : [
-                'when'   => $this->format($next['startsAt'], "EEEE d MMMM, HH 'h' mm"),
+                'when'   => SheetText::date($next['startsAt'], "EEEE d MMMM, HH 'h' mm"),
                 'detail' => implode(', ', array_filter([$next['animal'], $next['reason']])),
             ],
             'footer' => $footer,
@@ -631,7 +632,7 @@ final readonly class ClientSheetBuilder
             'name'         => trim($honorific . ' ' . $person->fullName()),
             'subtitle'     => AuthorizedPersonRelationship::from($person->relationship)->label(),
             'phoneNumber'  => $person->phoneNumber,
-            'authorizedAt' => $this->format((new \DateTimeImmutable($person->authorizedAt))->setTimezone($tz), 'd MMMM y'),
+            'authorizedAt' => SheetText::date((new \DateTimeImmutable($person->authorizedAt))->setTimezone($tz), 'd MMMM y'),
             'form'         => [
                 'civility'     => $person->civility,
                 'firstName'    => $person->firstName,
@@ -687,7 +688,7 @@ final readonly class ClientSheetBuilder
                 'active' => true,
                 'detail' => \sprintf(
                     'Recueilli le %s · %s',
-                    $this->format((new \DateTimeImmutable($consent->grantedAt))->setTimezone($tz), 'd MMMM y'),
+                    SheetText::date((new \DateTimeImmutable($consent->grantedAt))->setTimezone($tz), 'd MMMM y'),
                     implode(' et ', $channels),
                 ),
                 'channels' => $consent->channels,
@@ -745,7 +746,7 @@ final readonly class ClientSheetBuilder
                     'title'    => \sprintf('%s — %s', $consultation['animalName'], $reason),
                     'subtitle' => \sprintf(
                         '%s · %s · consultation ouverte',
-                        $this->sentence($this->format($startedAt, "d MMMM, HH 'h' mm")),
+                        SheetText::sentence(SheetText::date($startedAt, "d MMMM, HH 'h' mm")),
                         $practitioner,
                     ),
                 ];
@@ -776,7 +777,7 @@ final readonly class ClientSheetBuilder
             'open'       => $open,
             'closed'     => $closed,
             'total'      => \count($consultations),
-            'firstVisit' => null === $first ? null : $this->format($first->setTimezone($tz), 'd MMMM y'),
+            'firstVisit' => null === $first ? null : SheetText::date($first->setTimezone($tz), 'd MMMM y'),
         ];
     }
 
@@ -894,7 +895,7 @@ final readonly class ClientSheetBuilder
             $rows[] = [
                 'when' => \sprintf(
                     '%s · %s',
-                    $this->format($exchange->occurredAt->setTimezone($tz), "d MMMM y · HH 'h' mm"),
+                    SheetText::date($exchange->occurredAt->setTimezone($tz), "d MMMM y · HH 'h' mm"),
                     mb_strtolower(ContactChannel::from($exchange->channel)->label()),
                 ),
                 'title'     => $exchange->subject,
@@ -1181,26 +1182,5 @@ final readonly class ClientSheetBuilder
             'noteKinds'     => $noteKinds,
             'directions'    => $directions,
         ];
-    }
-
-    private function format(\DateTimeImmutable $date, string $pattern): string
-    {
-        $formatter = new \IntlDateFormatter(
-            'fr_FR',
-            \IntlDateFormatter::NONE,
-            \IntlDateFormatter::NONE,
-            $date->getTimezone(),
-            \IntlDateFormatter::GREGORIAN,
-            $pattern,
-        );
-
-        $formatted = $formatter->format($date);
-
-        return false === $formatted ? $date->format('d/m/Y') : $formatted;
-    }
-
-    private function sentence(string $text): string
-    {
-        return mb_strtoupper(mb_substr($text, 0, 1)) . mb_substr($text, 1);
     }
 }
