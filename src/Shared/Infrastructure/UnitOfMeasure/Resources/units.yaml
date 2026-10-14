@@ -31,6 +31,14 @@ units:
     category: COUNT
     base_factor: ~
 
+  PIPETTE:
+    category: COUNT
+    base_factor: ~
+
+  BOTTLE:
+    category: COUNT
+    base_factor: ~
+
   ML:
     category: VOLUME
     base_factor: '0.001'

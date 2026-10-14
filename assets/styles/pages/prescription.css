@@ -11,13 +11,6 @@
    The table / side sheet kit it shares with Facturation lives in
    shell/register.css (anchored on `.reg`); the rules below are what only the
    ordonnances draw, anchored on the page root `.ordo`. */
-/* ── Zone : tableau + fiche ── */
-.ordo .flags{display:flex;gap:4px;flex-wrap:wrap}
-.ordo .puce.cl-libre{background:var(--brume);color:var(--encre-60)}
-.ordo .puce.cl-l2{background:#eff6ff;color:#1d4ed8}
-.ordo .puce.cl-l1{background:#fef2f2;color:#b91c1c}
-.ordo .puce.cl-stup{background:#1e1b4b;color:#fff}
-.ordo .puce.aic{background:#fff7ed;color:#c2410c}
 /* ═════════ Ordonnances ═════════ */
 .ordo .meds{font-size:.78rem;color:var(--encre);max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ordo .meds + .flags{margin-top:4px}

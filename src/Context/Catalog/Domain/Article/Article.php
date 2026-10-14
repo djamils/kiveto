@@ -7,6 +7,7 @@ namespace App\Context\Catalog\Domain\Article;
 use App\Context\Catalog\Domain\Article\Event\ArticleArchived;
 use App\Context\Catalog\Domain\Article\Event\ArticleBasePriceChanged;
 use App\Context\Catalog\Domain\Article\Event\ArticleCreated;
+use App\Context\Catalog\Domain\Article\Event\ArticleDetailsRevised;
 use App\Context\Catalog\Domain\Article\Event\ArticlePrescriptionFlagsUpdated;
 use App\Context\Catalog\Domain\Article\Event\ArticleRenamed;
 use App\Context\Catalog\Domain\Article\Event\ArticleRestored;
@@ -225,6 +226,43 @@ final class Article extends AggregateRoot
             articleId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
             newTaxCategoryCode: $taxCategory->toString(),
+        ));
+    }
+
+    /**
+     * Revises how the article is identified at the counter and kept on the
+     * shelves: its barcode, the unit it is counted in, and whether its stock is
+     * followed. The handler guards the barcode's uniqueness in the clinic.
+     */
+    public function reviseDetails(
+        ?Gtin $gtin,
+        UnitOfMeasure $unitOfMeasure,
+        bool $trackStock,
+        \DateTimeImmutable $updatedAt,
+    ): void {
+        if (ArticleStatus::ARCHIVED === $this->status) {
+            throw new ArchivedArticleCannotBeModifiedException($this->id->toString());
+        }
+
+        $sameGtin = null === $gtin
+            ? null === $this->gtin
+            : null !== $this->gtin && $this->gtin->equals($gtin);
+
+        if ($sameGtin && $unitOfMeasure->equals($this->unitOfMeasure) && $trackStock === $this->trackStock) {
+            return;
+        }
+
+        $this->gtin          = $gtin;
+        $this->unitOfMeasure = $unitOfMeasure;
+        $this->trackStock    = $trackStock;
+        $this->updatedAt     = $updatedAt;
+
+        $this->recordDomainEvent(new ArticleDetailsRevised(
+            articleId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            gtin: $gtin?->toString(),
+            unitOfMeasure: $unitOfMeasure->toString(),
+            trackStock: $trackStock,
         ));
     }
 

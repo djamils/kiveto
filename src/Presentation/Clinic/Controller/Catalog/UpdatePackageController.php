@@ -4,57 +4,74 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Catalog;
 
-use App\Context\Catalog\Application\Command\Package\ChangePackageFixedPrice\ChangePackageFixedPrice;
-use App\Presentation\Clinic\Form\Shared\AmountParser;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Context\Catalog\Application\Command\Package\RevisePackage\RevisePackage;
+use App\Context\Catalog\Application\Query\Package\GetPackageDetail\GetPackageDetail;
+use App\Context\Catalog\Application\Query\Package\GetPackageDetail\PackageDetailView;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
+use App\Presentation\Clinic\ViewModel\Catalog\PackageComposition;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\Shared\Application\Bus\QueryBusInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Only the fixed price of a package can be changed: its name, its code and its
- * mode are what the invoices already issued refer to.
+ * « Enregistrer » on a package's sheet — name, family, pricing and
+ * composition — and the bulk bar's price revision of a fixed-price package.
+ * Fields left out keep their value.
  */
 #[Route(path: '/catalog/packages/{packageId}', name: 'clinic_catalogue_package_update', methods: ['POST'])]
-final class UpdatePackageController extends AbstractController
+final readonly class UpdatePackageController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private QueryBusInterface $queryBus,
+        private PackageComposition $composition,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request, string $packageId): Response
+    public function __invoke(Request $request, string $packageId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        $price = AmountParser::toMinorUnits($request->request->getString('fixed_price'));
-
-        if (null === $price) {
-            $this->addFlash('error', 'Le tarif forfaitaire saisi est invalide.');
-
-            return $this->redirectToRoute('clinic_catalogue_packages');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
+
+        $clinicId = $this->endpoint->clinicId();
+        $form     = $request->request;
 
         try {
-            $this->commandBus->dispatch(new ChangePackageFixedPrice(
-                packageId: $packageId,
-                clinicId: $currentClinicId->toString(),
-                fixedPriceMinorUnits: $price,
-                fixedPriceCurrency: 'EUR',
-            ));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
+            $package = $this->queryBus->ask(new GetPackageDetail($packageId, $clinicId));
+            \assert($package instanceof PackageDetailView);
 
-            return $this->redirectToRoute('clinic_catalogue_packages');
+            $mode = $form->has('pricing_mode') ? $form->getString('pricing_mode') : $package->pricingMode;
+            $net  = $form->has('net') ? CatalogEndpoint::cents($request, 'net') : $package->fixedPriceMinorUnits;
+
+            if ('FIXED_PRICE' === $mode && null === $net) {
+                return $this->endpoint->refuse('Le prix forfaitaire saisi est invalide.');
+            }
+
+            $this->commandBus->dispatch(new RevisePackage(
+                packageId: $packageId,
+                clinicId: $clinicId,
+                name: CatalogEndpoint::text($request, 'name') ?? $package->name,
+                taxCategoryCode: CatalogEndpoint::text($request, 'tax_category') ?? $package->taxCategoryCode,
+                pricingMode: $mode,
+                fixedPriceMinorUnits: 'FIXED_PRICE' === $mode ? $net : null,
+                fixedPriceCurrency: 'FIXED_PRICE' === $mode ? 'EUR' : null,
+            ));
+
+            $wanted = PackageComposition::wanted($request);
+
+            if (null !== $wanted) {
+                $this->composition->sync($packageId, $clinicId, $package->components, $wanted);
+            }
+        } catch (\ValueError $exception) {
+            return $this->endpoint->refuse($exception);
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Tarif du forfait mis à jour.');
-
-        return $this->redirectToRoute('clinic_catalogue_packages');
+        return $this->endpoint->ok();
     }
 }

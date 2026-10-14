@@ -40,20 +40,31 @@ final readonly class DoctrinePackageRepository implements PackageRepositoryInter
             $this->mapper->toEntity($package, $componentEntities, $existing);
         }
 
-        // Sync components: remove all and re-insert
+        // Sync components: the rows the aggregate still holds are updated in
+        // place (removing and re-inserting them under the same id would collide
+        // in the identity map), the others removed, the new ones inserted.
+        $kept = [];
+
         foreach ($componentEntities as $componentEntity) {
-            $this->em->remove($componentEntity);
+            $kept[$componentEntity->getId()->toRfc4122()] = $componentEntity;
         }
 
         foreach ($package->components() as $component) {
-            $componentEntity = new PackageComponentEntity();
-            $componentEntity->setId(Uuid::fromString($component->id()->toString()));
+            $id              = $component->id()->toString();
+            $componentEntity = $kept[$id] ?? new PackageComponentEntity();
+            unset($kept[$id]);
+
+            $componentEntity->setId(Uuid::fromString($id));
             $componentEntity->setPackageId($uuid);
             $componentEntity->setItemType($component->itemRef()->type()->value);
             $componentEntity->setItemId($component->itemRef()->id());
             $componentEntity->setQuantity($component->quantity()->value());
             $componentEntity->setWeight($component->weight());
             $this->em->persist($componentEntity);
+        }
+
+        foreach ($kept as $componentEntity) {
+            $this->em->remove($componentEntity);
         }
 
         $this->em->flush();

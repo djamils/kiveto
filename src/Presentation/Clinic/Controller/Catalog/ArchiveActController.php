@@ -5,37 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Act\ArchiveAct\ArchiveAct;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Archiver » an act — from its sheet or the bulk bar; it is no longer offered. */
 #[Route(path: '/catalog/acts/{actId}/archive', name: 'clinic_catalogue_act_archive', methods: ['POST'])]
-final class ArchiveActController extends AbstractController
+final readonly class ArchiveActController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $actId): Response
+    public function __invoke(Request $request, string $actId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new ArchiveAct($actId, $currentClinicId->toString()));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_catalogue');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Acte archivé. Il reste sur les documents déjà émis.');
+        try {
+            $this->commandBus->dispatch(new ArchiveAct($actId, $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_catalogue');
+        return $this->endpoint->ok();
     }
 }

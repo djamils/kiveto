@@ -5,37 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Article\ArchiveArticle\ArchiveArticle;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Archiver » an article — from its sheet or the bulk bar. */
 #[Route(path: '/catalog/articles/{articleId}/archive', name: 'clinic_catalogue_article_archive', methods: ['POST'])]
-final class ArchiveArticleController extends AbstractController
+final readonly class ArchiveArticleController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $articleId): Response
+    public function __invoke(Request $request, string $articleId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new ArchiveArticle($articleId, $currentClinicId->toString()));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_catalogue_articles');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Article archivé. Il reste sur les documents déjà émis.');
+        try {
+            $this->commandBus->dispatch(new ArchiveArticle($articleId, $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_catalogue_articles');
+        return $this->endpoint->ok();
     }
 }

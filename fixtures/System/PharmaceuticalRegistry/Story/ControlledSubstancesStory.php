@@ -15,9 +15,9 @@ final class ControlledSubstancesStory extends Story
     public function build(): void
     {
         $narcotics = [
-            ['name' => 'Narketan 10 mg/mL', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
-            ['name' => 'Medetomidine 1 mg/mL', 'class' => 'NARCOTIC_II', 'substances' => ['Médétomidine']],
-            ['name' => 'Ketamine 100 mg/mL', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
+            ['name' => 'Narketan 10 mg/mL', 'labo' => 'Vetoquinol', 'form' => 'Solution injectable', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
+            ['name' => 'Medetomidine 1 mg/mL', 'labo' => 'Vetoquinol', 'form' => 'Solution injectable', 'class' => 'NARCOTIC_II', 'substances' => ['Médétomidine']],
+            ['name' => 'Ketamine 100 mg/mL', 'labo' => 'Virbac', 'form' => 'Solution injectable', 'class' => 'NARCOTIC_I', 'substances' => ['Kétamine']],
         ];
 
         foreach ($narcotics as $narcotic) {
@@ -27,7 +27,8 @@ final class ControlledSubstancesStory extends Story
                 'controlledSubstanceClass'        => $narcotic['class'],
                 'controlledSubstanceJurisdiction' => 'FR',
                 'controlledSubstanceCode'         => 'NARCO-FR',
-                'holderLaboratory'                => 'Pharma Vét SARL',
+                'holderLaboratory'                => $narcotic['labo'],
+                'pharmaceuticalForm'              => $narcotic['form'],
             ]);
 
             PresentationEntityFactory::createOne([

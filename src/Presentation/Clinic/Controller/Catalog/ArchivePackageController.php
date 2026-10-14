@@ -5,37 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Catalog;
 
 use App\Context\Catalog\Application\Command\Package\ArchivePackage\ArchivePackage;
-use App\Presentation\Clinic\ViewModel\Catalog\CatalogErrorMessage;
+use App\Presentation\Clinic\ViewModel\Catalog\CatalogEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Archiver » a package — from its sheet or the bulk bar. */
 #[Route(path: '/catalog/packages/{packageId}/archive', name: 'clinic_catalogue_package_archive', methods: ['POST'])]
-final class ArchivePackageController extends AbstractController
+final readonly class ArchivePackageController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private CatalogEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $packageId): Response
+    public function __invoke(Request $request, string $packageId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new ArchivePackage($packageId, $currentClinicId->toString()));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', CatalogErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_catalogue_packages');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Forfait archivé.');
+        try {
+            $this->commandBus->dispatch(new ArchivePackage($packageId, $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_catalogue_packages');
+        return $this->endpoint->ok();
     }
 }
