@@ -1,1660 +1,906 @@
 /**
- * Page module — Scheduling Agenda
- * Loaded by app.js dispatcher on turbo:load.
+ * Page module — Agenda (agenda-v-topbar_5 / agenda-v-topbar-charge_3 mock-ups).
+ * Loaded by the app.js dispatcher on turbo:load.
  *
- * Reads the server payload injected into <script type="application/json" id="agenda-data">
- * and renders the week/day grid. Navigation (prev/next, today, day/week toggle)
- * is driven by server-rendered <a href> links — no JS state for that.
+ * Ports the mock-up's agenda script onto the server's data:
+ * - week view (one fixed lane per practitioner in each day) and day view
+ *   (one column per practitioner), overlap lanes, now-line, past / cancelled
+ *   / no-show / emergency states;
+ * - aside: mini-calendar (dots on booked days, week highlight), practitioner
+ *   filters with counts, motif legend with counts;
+ * - « Blocs planning » (rails in the week view, bands in the day view, lunch
+ *   breaks read from the gaps), « Créneaux libres » with a minimum duration;
+ * - click or drag on the grid, a free slot, « Nouveau RDV » or R → booking
+ *   modal (date / time pickers, patient search, practitioner, motif, note,
+ *   overlap and outside-planning warnings);
+ * - booking card: profile, edit, cancel (inline confirmation), no-show;
+ * - keys: T today, ← → period, Esc closes, R new booking.
+ *
+ * Data: the payload of AgendaViewBuilder::page() (#agenda-data) covers the
+ * 6-week grid of the opening month; other periods are fetched from the range
+ * endpoint as the user browses. Every change posts to its Scheduling
+ * endpoint and the touched days are fetched again. Listeners are bound in
+ * init() and released in cleanup().
  */
+import { showToast, toastUndo, ancrer, creerDropdown } from 'kiveto/shell';
 
-// =============== CONSTANTS ===============
-const VET_COLORS = ['#4338ca', '#0891b2', '#059669', '#db2777', '#7c3aed', '#b45309', '#0369a1', '#9d174d'];
-// Paired pastel backgrounds (Tailwind-50 shades) for solid, opaque RDV tiles.
-// Aligned with docs/frontend-theme/vetsaas-layouts/vetos-agenda.html so the
-// :hover brightness filter reads consistently across blocks.
-const VET_BG_COLORS = ['#eef2ff', '#ecfeff', '#ecfdf5', '#fdf2f8', '#f5f3ff', '#fffbeb', '#f0f9ff', '#fdf2f8'];
-const ME_BG_COLOR   = '#f0fdfa'; // teal-50 paired with #0d9488
-// Reserved color for the current user's column — intentionally outside the
-// --brand palette so it doesn't blend with buttons/sidebar (tech-spec D8).
-const ME_COLOR = '#0d9488';
-const FALLBACK_VET = { userId: null, label: '?', color: '#64748b', bg: '#f1f5f9', isMe: false };
+let ac = null;
+let D = null;
+let ticker = null;
 
-const HOUR_START = 7;
-const HOUR_END = 20;
-const SLOT_H = 80;
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const url = (name, id) => D.urls[name].replace('__ID__', encodeURIComponent(id));
 
-// Free-slots overlay (client-side only — finds gaps in each active vet's
-// schedule between 08:00 and 19:00 and paints them as clickable "available"
-// blocks. The click currently shows a toast — the create-RDV workflow is
-// out of scope for this iteration).
-const FREE_START = 8 * 60;
-const FREE_END = 19 * 60;
-let freeSlotsActive = false;
-let freeDuration = 20;
+/* ═════════ Time helpers ═════════ */
+const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const toMin = (s) => { const [a, b] = s.split(':').map(Number); return a * 60 + (b || 0); };
+const JOURS_L = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const JOURS_C = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parse = (v) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
+const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const lundiDe = (d) => addD(d, -((d.getDay() + 6) % 7));
+const memeJour = (a, b) => iso(a) === iso(b);
+const fmtLong = (d) => `${JOURS_L[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]}`;
+const jourCourt = (d) => `${JOURS_C[d.getDay()].toLowerCase()} ${d.getDate()}`;
+const dureeTxt = (d) => (d < 60 ? d + ' min' : Math.floor(d / 60) + ' h' + (d % 60 ? ' ' + String(d % 60).padStart(2, '0') : ''));
 
-// Sync with ACTIVITY_TYPES in planning.js and PlanningBlockType.php when adding new types.
-const PLANNING_BLOCK_TYPES = {
-  consultation: { color: '#4338ca', bg: '#eef2ff', label: 'Consultation' },
-  surgery:      { color: '#b45309', bg: '#fef3c7', label: 'Chirurgie'    },
-  on_call:      { color: '#7c3aed', bg: '#f5f3ff', label: 'Garde'        },
-  health_check: { color: '#059669', bg: '#ecfdf5', label: 'Bilans/Labo'  },
-  training:     { color: '#0891b2', bg: '#ecfeff', label: 'Formation'    },
-  leave:        { color: '#dc2626', bg: '#fef2f2', label: 'Congé'        },
-  admin:        { color: '#64748b', bg: '#f8fafc', label: 'Admin'        },
-  emergency:    { color: '#ea580c', bg: '#fff7ed', label: 'Urgences'     },
-};
-const PLANNING_OVERLAY_LS_KEY = 'kiveto.agenda.planning-overlay';
-let planningBlocksVisible = false;
+let AUJ = null;
+let t0 = 0;
+/** Minutes since midnight in the clinic, advancing with the page's clock. */
+const nowMin = () => D.nowMin + Math.floor((Date.now() - t0) / 60000);
 
-const DOW_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-
-// =============== RUNTIME STATE (populated by init) ===============
-let AGENDA_DATA = null;
-let appointments = [];
-let vetById = {};
-let activeVets = new Set();
-let view = 'week';
-let weekDays = [];
-let clientProfileUrlTemplate = '';
-let nowDate = new Date();
-
-// =============== UTILS ===============
-function parseUtcDateTime(utcString) {
-  // Accepts MySQL "Y-m-d H:i:s" or ISO 8601 "Y-m-dTH:i:sZ" → JS Date (UTC).
-  if (utcString.includes('T')) return new Date(utcString);
-  return new Date(utcString.replace(' ', 'T') + 'Z');
-}
-
-// Mirrors src/Shared/Presentation/Twig/PhoneFormatRuntime.php (international mode).
-// Kept in sync manually; if a new country is added server-side, add it here too.
-const PHONE_COUNTRIES = [
-  { dialCode: '+352', trunkPrefix: '',  maskIntl: '### ### ###',    keepTrunk: false },
-  { dialCode: '+212', trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
-  { dialCode: '+216', trunkPrefix: '',  maskIntl: '## ### ###',     keepTrunk: false },
-  { dialCode: '+213', trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
-  { dialCode: '+33',  trunkPrefix: '0', maskIntl: '# ## ## ## ##',  keepTrunk: false },
-  { dialCode: '+32',  trunkPrefix: '0', maskIntl: '## ## ## ##',    keepTrunk: false },
-  { dialCode: '+41',  trunkPrefix: '0', maskIntl: '# ### ## ##',    keepTrunk: false },
-  { dialCode: '+34',  trunkPrefix: '',  maskIntl: '### ## ## ##',   keepTrunk: false },
-  { dialCode: '+39',  trunkPrefix: '',  maskIntl: '### ### ####',   keepTrunk: true },
-  { dialCode: '+49',  trunkPrefix: '0', maskIntl: '## #######',     keepTrunk: false },
-  { dialCode: '+44',  trunkPrefix: '0', maskIntl: '#### ### ###',   keepTrunk: false },
-  { dialCode: '+1',   trunkPrefix: '',  maskIntl: '(###) ###-####', keepTrunk: false },
+/* ═════════ Reference data ═════════ */
+const MOTIFS = [
+  { k: 'consult', l: 'Consultation', c: '#4338ca', d: 30 },
+  { k: 'vaccin', l: 'Vaccin', c: '#0891b2', d: 20 },
+  { k: 'suivi', l: 'Suivi', c: '#7c3aed', d: 20 },
+  { k: 'chir', l: 'Chirurgie', c: '#b45309', d: 60 },
+  { k: 'bilan', l: 'Bilan', c: '#059669', d: 30 },
+  { k: 'urg', l: 'Urgence', c: '#dc2626', d: 30 },
 ];
+const MOT = (k) => MOTIFS.find((m) => m.k === k) || MOTIFS[0];
 
-function formatPhoneIntl(e164) {
-  if (!e164 || typeof e164 !== 'string' || !e164.startsWith('+')) return e164 || '';
-  const country = PHONE_COUNTRIES.find((c) => e164.startsWith(c.dialCode));
-  if (!country) return e164;
-  const national = e164.slice(country.dialCode.length);
-  const digits = country.keepTrunk && country.trunkPrefix ? country.trunkPrefix + national : national;
-  let result = '';
-  let di = 0;
-  for (let i = 0; i < country.maskIntl.length && di < digits.length; i++) {
-    if (country.maskIntl[i] === '#') result += digits[di++];
-    else result += country.maskIntl[i];
-  }
-  if (di < digits.length) result += digits.slice(di);
-  return `${country.dialCode} ${result}`;
-}
+/* Planning block types — same names as the planning page */
+const TYPES = [
+  { k: 'consult', l: 'Consultation', c: '#4338ca', rdv: true },
+  { k: 'chir', l: 'Chirurgie', c: '#b45309', rdv: true },
+  { k: 'garde', l: 'Garde / urgences', c: '#dc2626', rdv: true },
+  { k: 'bilan', l: 'Bilans / labo', c: '#059669', rdv: true },
+  { k: 'admin', l: 'Administratif', c: '#64748b', rdv: false },
+  { k: 'formation', l: 'Formation', c: '#0891b2', rdv: false },
+  { k: 'conge', l: 'Congé', c: '#94a3b8', rdv: false },
+  { k: 'pause', l: 'Pause déjeuner', c: '#cbd5e1', rdv: false },
+];
+const TYP = (k) => TYPES.find((t) => t.k === k) || TYPES[0];
+const COURT = { consult: 'Consult.', chir: 'Chir.', garde: 'Garde', bilan: 'Bilan', admin: 'Admin.', formation: 'Form.', conge: 'Congé', pause: 'Pause' };
+/* Blocks open to any booking (free slots are searched there) */
+const RDV_OK = (t) => t === 'consult' || t === 'garde' || t === 'bilan';
+/* Blocks the domain refuses bookings in */
+const FERME = (t) => t === 'admin' || t === 'formation' || t === 'conge';
 
-function toClinicLocalParts(utcDate, timezone) {
-  const opts = {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  };
-  const parts = new Intl.DateTimeFormat('en-GB', opts).formatToParts(utcDate);
-  const get = (type) => parts.find((p) => p.type === type).value;
-  return {
-    dateStr: `${get('year')}-${get('month')}-${get('day')}`,
-    timeStr: `${get('hour')}:${get('minute')}`,
-  };
-}
+let VETS = [];
+const VET = (id) => VETS.find((v) => v.id === id) || { id, nom: 'Praticien', court: 'Praticien', ini: '?', c: '#64748b' };
 
-function fmtTime(hhmm) {
-  const [h, m] = hhmm.split(':');
-  return `${h}h${m === '00' ? '' : m}`;
-}
+/* ═════════ Store: bookings and blocks of the loaded days ═════════ */
+let RDVS = [];
+let BLOCS = [];
+const loaded = new Set();
+const pending = new Map();
 
-function shortTimezoneLabel(timezone) {
-  // "Europe/Paris" → "Paris", "America/New_York" → "New York", "UTC" → "UTC"
-  if (!timezone) return '';
-  const parts = timezone.split('/');
-  return parts[parts.length - 1].replace(/_/g, ' ');
-}
+/* A booking without a file keeps the typed name in its note (« Nouveau patient : Rex — … ») */
+const PREFIXE = 'Nouveau patient : ';
+const nomSansFiche = (r) => (r.note && r.note.startsWith(PREFIXE) ? r.note.slice(PREFIXE.length).split(' — ')[0] : '');
+const pat = (r) => ({ a: r.a || nomSansFiche(r) || 'Sans fiche', e: r.e || '🐾', cli: r.cli || (r.a ? 'Sans propriétaire' : 'Nouveau client'), tel: r.tel || '' });
+const cliCourt = (c) => { const m = c.split(' '); return m.length > 2 ? m[0] + ' ' + m[m.length - 1] : c; };
+const motifTxt = (r) => { const mo = MOT(r.m); return r.reason && r.reason !== mo.l ? r.reason : mo.l; };
 
-function currentUtcOffsetLabel(timezone) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: timezone,
-      timeZoneName: 'shortOffset',
-    }).formatToParts(new Date());
-    const tzName = parts.find((p) => p.type === 'timeZoneName');
-    if (!tzName) return '';
-    // Intl returns "GMT+2" or "GMT+2:30" — pad the hour part to two digits
-    // for a stable, aligned display ("GMT+02", "GMT+02:30", "GMT").
-    const match = /^GMT([+-])(\d+)(?::(\d+))?$/.exec(tzName.value);
-    if (!match) return tzName.value;
-    const sign = match[1];
-    const hh = match[2].padStart(2, '0');
-    return match[3] ? `GMT${sign}${hh}:${match[3]}` : `GMT${sign}${hh}`;
-  } catch (_e) {
-    return '';
-  }
-}
+function blocsDe(vet, d) { const k = iso(d); return BLOCS.filter((b) => b.vet === vet && b.date === k).sort((x, y) => x.s - y.s); }
 
-// ISO-8601 week number (week starts Monday, week 1 contains the first Thursday of the year).
-function isoWeekNumber(date) {
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-  // Thursday of the current week decides the ISO year.
-  target.setDate(target.getDate() + 3 - ((target.getDay() + 6) % 7));
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
-  const diffDays = (target.getTime() - firstThursday.getTime()) / 86400000;
-  return 1 + Math.round((diffDays - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
-}
-
-// "Avril 2026" when the range stays in one month, "Mars – Avril 2026" when
-// it straddles two months in the same year, "Décembre 2025 – Janvier 2026"
-// across a year boundary.
-function monthRangeLabel(start, end) {
-  const sameYear = start.getFullYear() === end.getFullYear();
-  const sameMonth = sameYear && start.getMonth() === end.getMonth();
-  if (sameMonth) {
-    return `${MONTHS_FR[start.getMonth()]} ${start.getFullYear()}`;
-  }
-  if (sameYear) {
-    return `${MONTHS_FR[start.getMonth()]} – ${MONTHS_FR[end.getMonth()]} ${start.getFullYear()}`;
-  }
-  return `${MONTHS_FR[start.getMonth()]} ${start.getFullYear()} – ${MONTHS_FR[end.getMonth()]} ${end.getFullYear()}`;
-}
-
-function pad2(n) {
-  return String(n).padStart(2, '0');
-}
-
-function isoDate(d) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function addDays(d, n) {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
-function mondayOf(d) {
-  const day = d.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day;
-  const s = new Date(d);
-  s.setDate(d.getDate() + diff);
-  s.setHours(0, 0, 0, 0);
-  return s;
-}
-
-// =============== DATA PREP ===============
-function buildVetIndex() {
-  vetById = {};
-  activeVets = new Set();
-  const vetList = [];
-  (AGENDA_DATA.veterinarians || []).forEach((v, i) => {
-    const isMe = v.userId === AGENDA_DATA.currentUserId;
-    const titlePrefix = v.professionalTitle === 'DR' ? 'Dr. ' : (v.professionalTitle === 'PR' ? 'Pr. ' : '');
-    const profileLabel = v.displayName ? `${titlePrefix}${v.displayName}` : null;
-    const entry = {
-      userId: v.userId,
-      label: isMe ? 'Moi' : (profileLabel || `Praticien ${i + 1}`),
-      color: isMe ? ME_COLOR : (v.agendaColor || VET_COLORS[i % VET_COLORS.length]),
-      bg:    isMe ? ME_BG_COLOR : VET_BG_COLORS[i % VET_BG_COLORS.length],
-      isMe,
-    };
-    vetById[v.userId] = entry;
-    vetList.push(entry);
-    activeVets.add(v.userId);
-  });
-  // Expose vet list for the appointment form Stimulus controller
-  window.__agendaVets = vetList;
-}
-
-/**
- * Decorate each appointment with clinic-local date / time parts so rendering
- * uses the clinic's timezone, not the browser's.
- */
-function prepareAppointments() {
-  appointments = (AGENDA_DATA.appointments || []).map((a) => {
-    const utc = parseUtcDateTime(a.startsAtUtc);
-    const parts = toClinicLocalParts(utc, AGENDA_DATA.clinicTimezone);
-    const [hh, mm] = parts.timeStr.split(':').map(Number);
-    const startMin = hh * 60 + mm;
-    return {
-      ...a,
-      _date: parts.dateStr,
-      _startTime: parts.timeStr,
-      _startMin: startMin,
-      _endMin: startMin + a.durationMinutes,
-      _endUtc: new Date(utc.getTime() + a.durationMinutes * 60 * 1000),
-    };
-  });
-}
-
-function buildWeekDays() {
-  // selectedDate is a "Y-m-d" string in the clinic timezone. Turn it into a
-  // local JS Date that represents the same calendar day for display purposes.
-  const [y, m, d] = AGENDA_DATA.selectedDate.split('-').map(Number);
-  const selected = new Date(y, m - 1, d);
-  weekDays = [];
-  if (view === 'week') {
-    const start = mondayOf(selected);
-    for (let i = 0; i < 7; i += 1) weekDays.push(addDays(start, i));
-  } else {
-    weekDays = [selected];
-  }
-}
-
-// =============== RENDER ===============
-function renderWeek() {
-  const head = document.getElementById('agenda-head');
-  const inner = document.getElementById('agenda-inner');
-  if (!head || !inner) return;
-
-  const cols = weekDays.length;
-  const gridCols = `55px repeat(${cols},1fr)`;
-  // Provisional head template — the trailing scrollbar-spacer width is
-  // adjusted at the end of renderWeek() once the body actually overflows
-  // and the real scrollbar width is known.
-  head.style.gridTemplateColumns = `55px repeat(${cols},1fr) 0px`;
-  inner.style.gridTemplateColumns = gridCols;
-
-  while (head.children.length > 1) head.removeChild(head.lastChild);
-  inner.innerHTML = '';
-
-  // Timezone label in the top-left spacer cell so the user knows the grid's
-  // reference timezone at a glance (e.g. "Paris · UTC+2").
-  const firstCell = head.firstElementChild;
-  if (firstCell) {
-    firstCell.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-size:10px;color:#94a3b8;line-height:1.15;">
-      <span style="font-weight:500;color:#64748b;">${escapeHtml(shortTimezoneLabel(AGENDA_DATA.clinicTimezone))}</span>
-      <span>${escapeHtml(currentUtcOffsetLabel(AGENDA_DATA.clinicTimezone))}</span>
-    </div>`;
-  }
-
-  // The "Month year · Semaine N" label in the static header is patched
-  // in place by patchHeaderNav() / renderHeaderLabel(), called from
-  // bootstrapFromPayload() before renderWeek(). Nothing to do here.
-
-  // Day headers
-  const todayIso = toClinicLocalParts(nowDate, AGENDA_DATA.clinicTimezone).dateStr;
-  weekDays.forEach((d, di) => {
-    const iso = isoDate(d);
-    const isToday = iso === todayIso;
-    const el = document.createElement('div');
-    el.style.cssText = `padding:8px 0;text-align:center;border-left:${di === 0 ? '1px solid #dde3ea' : '1px solid #f1f5f9'};${isToday ? 'background:#f5f3ff;' : ''}`;
-    const dowIndex = (d.getDay() + 6) % 7 + 1; // align with legacy label mapping
-    el.innerHTML = `
-      <div style="font-size:var(--text-xs);font-weight:var(--weight-medium);color:${isToday ? '#4338ca' : '#94a3b8'};text-transform:uppercase;letter-spacing:.06em;">${DOW_FR[dowIndex] || DOW_FR[0]}</div>
-      <div style="font-size:18px;font-weight:${isToday ? '800' : 'var(--weight-medium)'};color:${isToday ? '#4338ca' : '#0f172a'};line-height:1.1;margin-top:1px;">${d.getDate()}</div>
-      <div style="font-size:var(--text-xs);color:var(--text-subtle);margin-top:1px;">${countRdv(iso)} RDV</div>`;
-    head.appendChild(el);
-  });
-  // Scrollbar spacer
-  head.appendChild(document.createElement('div'));
-
-  // Time column
-  const timeCol = document.createElement('div');
-  timeCol.className = 'time-col';
-  for (let h = HOUR_START; h <= HOUR_END; h += 1) {
-    const lbl = document.createElement('div');
-    lbl.className = 'time-label';
-    lbl.textContent = `${h}:00`;
-    timeCol.appendChild(lbl);
-  }
-  inner.appendChild(timeCol);
-
-  // Day columns
-  weekDays.forEach((d) => {
-    const iso = isoDate(d);
-    const isToday = iso === todayIso;
-    const col = document.createElement('div');
-    col.className = 'day-col';
-    col.dataset.date = iso;
-    if (isToday) col.style.background = '#fdfcff';
-    const totalH = HOUR_END - HOUR_START + 1;
-    col.style.height = `${totalH * SLOT_H}px`;
-    col.style.position = 'relative';
-
-    renderPlanningOverlays(col, iso); // must be first — prepend order determines stacking
-
-    // Hour slots — two clickable half-zones (on the hour / half past) with
-    // hover highlight. Click shows a "not wired yet" toast — the full create
-    // workflow is a separate follow-up spec.
-    for (let h = HOUR_START; h <= HOUR_END; h += 1) {
-      const slotWrap = document.createElement('div');
-      slotWrap.style.cssText = `position:absolute;top:${(h - HOUR_START) * SLOT_H}px;left:0;right:0;height:${SLOT_H}px;border-bottom:1px solid #c9d0d8;`;
-
-      const top = document.createElement('div');
-      top.style.cssText = 'position:absolute;top:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;';
-      top.dataset.time = `${pad2(h)}:00`;
-      top.onmouseenter = () => { top.style.background = '#f5f3ff'; };
-      top.onmouseleave = () => { top.style.background = ''; };
-      top.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, top.dataset.time, null); };
-
-      const bot = document.createElement('div');
-      bot.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:50%;cursor:pointer;transition:background .1s;border-top:1px dashed #dde2e7;';
-      bot.dataset.time = `${pad2(h)}:30`;
-      bot.onmouseenter = () => { bot.style.background = '#f5f3ff'; };
-      bot.onmouseleave = () => { bot.style.background = ''; };
-      bot.onclick = (e) => { e.stopPropagation(); openNewRdv(iso, bot.dataset.time, null); };
-
-      slotWrap.appendChild(top);
-      slotWrap.appendChild(bot);
-      col.appendChild(slotWrap);
+/* Lunch break: any gap of 30 min to 2 h starting between 11:30 and 14:00 in a worked day */
+function pauses(dates) {
+  const out = [];
+  dates.forEach((dt) => VETS.forEach((v) => {
+    const bl = BLOCS.filter((b) => b.date === dt && b.vet === v.id && b.t !== 'conge' && b.t !== 'pause').sort((a, b) => a.s - b.s);
+    for (let i = 0; i < bl.length - 1; i++) {
+      const s = bl[i].e, e = bl[i + 1].s;
+      if (e - s >= 30 && e - s <= 120 && s >= 11 * 60 + 30 && s <= 14 * 60) out.push({ id: `p-${v.id}-${dt}-${s}`, date: dt, vet: v.id, s, e, t: 'pause', note: '' });
     }
+  }));
+  return out;
+}
 
-    // Appointments for this day (filters: active vets, non-cancelled).
-    // The lane algorithm below requires chronological order — the source
-    // array can become unsorted after a reschedule (in-place replacement
-    // keeps the original index even when the new start is earlier/later).
-    const dayAppts = appointments.filter((a) =>
-      a._date === iso
-      && activeVets.has(a.practitionerUserId)
-      && a.status !== 'CANCELLED',
-    ).sort((a, b) => a._startMin - b._startMin);
+function merge(range) {
+  const days = [];
+  for (let d = parse(range.from); d <= parse(range.to); d = addD(d, 1)) days.push(iso(d));
+  const set = new Set(days);
+  RDVS = RDVS.filter((r) => !set.has(r.date)).concat(range.appointments);
+  BLOCS = BLOCS.filter((b) => !set.has(b.date)).concat(range.blocks);
+  BLOCS = BLOCS.concat(pauses(days));
+  days.forEach((k) => loaded.add(k));
+}
 
-    // Assign lanes to overlapping blocks
+async function fetchRange(from, to) {
+  const key = iso(from) + '|' + iso(to);
+  if (pending.has(key)) return pending.get(key);
+  const p = (async () => {
+    const res = await fetch(`${D.urls.range}?from=${iso(from)}&to=${iso(to)}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error('range ' + res.status);
+    merge(await res.json());
+  })().finally(() => pending.delete(key));
+  pending.set(key, p);
+  return p;
+}
+
+/** Loads the 6-week grid around `d` unless every day of [from, to] is known. */
+async function ensure(from, to) {
+  for (let d = new Date(from); d <= to; d = addD(d, 1)) {
+    if (!loaded.has(iso(d))) {
+      const g = lundiDe(new Date(d.getFullYear(), d.getMonth(), 1));
+      const end = addD(g, 41) < to ? to : addD(g, 41);
+      await fetchRange(g < from ? g : from, end);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Fetches the given days again after a change (canonical labels and statuses). */
+async function refresh(...dates) {
+  const ds = [...new Set(dates.map(iso))].map(parse);
+  try {
+    await Promise.all(ds.map((d) => fetchRange(d, d)));
+  } catch {
+    showToast('Agenda non actualisé — rechargez la page', 'danger');
+  }
+  if (D) rendre();
+}
+
+/* ═════════ View state ═════════ */
+let START = 8 * 60, END = 20 * 60;
+const HH = 56, PX = HH / 60, RAIL = 15;
+let vue = 'week', cur = null, moisVu = null;
+let visibles = new Set();
+let blocsOn = false, libresOn = false, durLibre = 20, popId = null;
+let calHead, calInner, calBody, pop, rdvVeilEl;
+
+function estPasse(d, m) { return (d < AUJ && !memeJour(d, AUJ)) || (memeJour(d, AUJ) && m < nowMin()); }
+
+function colonnes() {
+  if (vue === 'week') {
+    const l = lundiDe(cur);
+    return Array.from({ length: 7 }, (_, i) => { const d = addD(l, i); return { d, vets: VETS.map((v) => v.id).filter((v) => visibles.has(v)), key: iso(d) + '|*' }; });
+  }
+  return VETS.filter((v) => visibles.has(v.id)).map((v) => ({ d: new Date(cur), vets: [v.id], vet: v, key: iso(cur) + '|' + v.id }));
+}
+function rdvsCol(col) { const k = iso(col.d); return RDVS.filter((r) => r.date === k && col.vets.includes(r.vet)); }
+
+/* Overlaps: clusters + lanes */
+function couloirs(evs) {
+  evs.sort((a, b) => a.s - b.s || b.dur - a.dur);
+  let grappe = [], fin = -1;
+  const fermer = () => {
     const lanes = [];
-    dayAppts.forEach((a) => {
-      let lane = 0;
-      while (lanes[lane] && lanes[lane] > a._startMin) lane += 1;
-      lanes[lane] = a._endMin;
-      a._lane = lane;
+    grappe.forEach((e) => { let i = lanes.findIndex((x) => x <= e.s); if (i < 0) { i = lanes.length; lanes.push(0); } lanes[i] = e.s + e.dur; e._l = i; });
+    grappe.forEach((e) => { e._n = lanes.length; });
+  };
+  evs.forEach((e) => { if (e.s >= fin && grappe.length) { fermer(); grappe = []; } grappe.push(e); fin = Math.max(fin, e.s + e.dur); });
+  if (grappe.length) fermer();
+  return evs;
+}
+
+/* Free slots: 5-min ticks, set of free practitioners per tick */
+function plagesLibres(col) {
+  const out = []; let run = null; const k = iso(col.d);
+  for (let m = START; m < END; m += 5) {
+    const libres = col.vets.filter((v) => {
+      if (!blocsDe(v, col.d).some((b) => RDV_OK(b.t) && m >= b.s && m + 5 <= b.e)) return false;
+      if (RDVS.some((r) => r.st !== 'annule' && r.vet === v && r.date === k && m < r.s + r.dur && m + 5 > r.s)) return false;
+      return !estPasse(col.d, m);
     });
-    const totalLanes = lanes.length || 1;
+    const key = libres.join(',');
+    if (run && run.key === key) { run.e = m + 5; } else { if (run && run.key) out.push(run); run = { key, vets: libres, s: m, e: m + 5 }; }
+  }
+  if (run && run.key) out.push(run);
+  return out.filter((r) => r.e - r.s >= durLibre);
+}
 
-    dayAppts.forEach((a) => {
-      const block = createRdvBlock(a);
-      const laneW = 100 / totalLanes;
-      const left = a._lane * laneW;
-      block.style.left = `calc(${left}% + 3px)`;
-      block.style.right = `calc(${100 - left - laneW}% + 3px)`;
-      col.appendChild(block);
-    });
+function evHtml(r, col) {
+  const v = VET(r.vet), mo = MOT(r.m), p = pat(r);
+  const h = r.dur * PX;
+  const n = r._n || 1, l = r._l || 0;
+  const pl = blocsOn && vue === 'week' && col.vets.length > 1 ? (col.vets.length * RAIL + 4) + 'px' : '0px';
+  const pos = `top:${(r.s - START) * PX + 1}px;height:${h - 2}px;left:calc(${pl} + (100% - ${pl}) * ${l} / ${n} + 2px);width:calc((100% - ${pl}) / ${n} - 4px)`;
+  const passe = r.st === 'fait' || estPasse(parse(r.date), r.s + r.dur);
+  const cls = ['ev', h < 40 ? 'xs' : '', vue === 'week' && n >= 2 ? 'nar' : '', r.m === 'urg' ? 'urg' : '', r.st === 'annule' ? 'annule' : r.st === 'absent' ? 'absent' : passe ? 'passe' : '', popId === r.id ? 'sel' : '', r._busy ? 'busy' : ''].filter(Boolean).join(' ');
+  const etroit = vue === 'week' && n >= 2;
+  const corps = etroit
+    ? `<span class="ea en"><i class="mdot" style="background:${mo.c}"></i>${esc(p.a)}</span>${h >= 40 ? `<span class="et">${hm(r.s)}</span>` : ''}`
+    : h < 40
+      ? `<span class="et"><i class="mdot" style="background:${mo.c}"></i>${hm(r.s)}</span><span class="ea">${esc(p.a)}</span>`
+      : `<span class="et"><i class="mdot" style="background:${mo.c}"></i>${hm(r.s)} – ${hm(r.s + r.dur)}</span><span class="ea">${p.e} ${esc(p.a)}</span>${h >= 46 ? `<span class="em">${esc(r.note || motifTxt(r))} · ${esc(cliCourt(p.cli))}</span>` : ''}`;
+  const stc = !etroit && h >= 28 && (r.st === 'annule' || r.st === 'absent') ? `<span class="stc">${r.st === 'annule' ? 'Annulé' : 'Non venu'}</span>` : '';
+  const tip = `${r.st === 'annule' ? 'Annulé · ' : r.st === 'absent' ? 'Non venu · ' : ''}${p.a} · ${hm(r.s)}–${hm(r.s + r.dur)} · ${motifTxt(r)}`;
+  return `<div class="${cls}" data-id="${esc(r.id)}" style="${pos};--c:${v.c};--cbg:${v.c}38" data-tip="${esc(tip)}">${corps}${stc}</div>`;
+}
 
-    // Free slots overlay (when toggled on)
-    if (freeSlotsActive) renderFreeSlots(col, iso);
-
-    // Now line
-    if (isToday) {
-      const nowParts = toClinicLocalParts(nowDate, AGENDA_DATA.clinicTimezone);
-      const [nh, nm] = nowParts.timeStr.split(':').map(Number);
-      const nowMin = nh * 60 + nm;
-      const startMin = HOUR_START * 60;
-      if (nowMin >= startMin && nowMin <= HOUR_END * 60) {
-        const top = ((nowMin - startMin) / 60) * SLOT_H;
-        const line = document.createElement('div');
-        line.className = 'now-line';
-        line.style.top = `${top}px`;
-        line.innerHTML = '<div class="now-dot"></div>';
-        col.appendChild(line);
-      }
-    }
-
-    inner.appendChild(col);
+/* Grid bounds: 08:00–20:00, stretched to whole hours around what the period holds */
+function bornes(cols) {
+  let s = 8 * 60, e = 20 * 60;
+  cols.forEach((c) => {
+    rdvsCol(c).forEach((r) => { s = Math.min(s, r.s); e = Math.max(e, r.s + r.dur); });
+    if (blocsOn) c.vets.forEach((v) => blocsDe(v, c.d).forEach((b) => { if (b.t !== 'conge') { s = Math.min(s, b.s); e = Math.max(e, b.e); } }));
   });
-
-  // Scroll to 8am
-  const body = document.getElementById('agenda-body');
-  if (body) body.scrollTop = (8 - HOUR_START) * SLOT_H;
-
-  // Align the day-column headers with the scrolled body columns: the head is
-  // outside the scroll container so its full width covers the body + scrollbar,
-  // while the inner's 1fr columns are computed from (body width − scrollbar).
-  // Reserve the exact OS scrollbar width in the head's trailing spacer so the
-  // 7 head 1fr cells match the 7 inner 1fr cells 1:1.
-  if (body) {
-    const scrollbarWidth = body.offsetWidth - body.clientWidth;
-    head.style.gridTemplateColumns = `55px repeat(${cols},1fr) ${scrollbarWidth}px`;
-  }
+  START = Math.max(0, Math.floor(s / 60) * 60);
+  END = Math.min(24 * 60, Math.ceil(e / 60) * 60);
 }
 
-function countRdv(iso) {
-  return appointments.filter((a) =>
-    a._date === iso
-    && activeVets.has(a.practitionerUserId)
-    && a.status !== 'CANCELLED',
-  ).length;
-}
+function rendre() {
+  if (!D) return;
+  const cols = colonnes();
+  const visStart = vue === 'week' ? lundiDe(cur) : new Date(cur);
+  const visEnd = vue === 'week' ? addD(lundiDe(cur), 6) : new Date(cur);
+  const g = lundiDe(new Date(moisVu.getFullYear(), moisVu.getMonth(), 1));
+  ensure(visStart < g ? visStart : g, visEnd > addD(g, 41) ? visEnd : addD(g, 41))
+    .then((fetched) => { if (fetched && D) rendre(); })
+    .catch(() => showToast('Impossible de charger cette période', 'danger'));
 
-function createRdvBlock(a) {
-  const vet = vetById[a.practitionerUserId] || FALLBACK_VET;
-  const topPx = ((a._startMin - HOUR_START * 60) / 60) * SLOT_H + 1;
-  const heightPx = Math.max((a.durationMinutes / 60) * SLOT_H - 3, 14);
+  bornes(cols);
+  const tpl = `56px repeat(${cols.length},minmax(0,1fr))`;
+  const today = AUJ, nm = nowMin();
+  // headers
+  calHead.style.gridTemplateColumns = tpl;
+  calHead.innerHTML = '<div></div>' + cols.map((c) => {
+    const n = rdvsCol(c).filter((r) => r.st !== 'annule').length;
+    if (vue === 'week') {
+      return `<div class="cal-hd${memeJour(c.d, today) ? ' auj' : ''}"><span class="dn">${JOURS_C[c.d.getDay()]}</span><span class="dnum">${c.d.getDate()}</span><span class="cnt">${n ? n + ' RDV' : '—'}</span>${blocsOn && c.vets.length > 1 ? `<span class="rail-ini">${c.vets.map((v) => `<i style="color:${VET(v).c}">${esc(VET(v).ini)}</i>`).join('')}</span>` : ''}</div>`;
+    }
+    return `<div class="cal-hd vet"><span class="vav" style="background:${c.vet.c}22;color:${c.vet.c}">${esc(c.vet.ini)}</span><b>${esc(c.vet.nom)}</b><span class="cnt">${n} RDV</span></div>`;
+  }).join('');
+  // grid
+  calInner.style.gridTemplateColumns = tpl;
+  calInner.style.setProperty('--hh', HH + 'px');
+  const H = (END - START) * PX;
+  let html = `<div class="gut" style="height:${H}px">` + Array.from({ length: (END - START) / 60 }, (_, i) => (i ? `<span style="top:${i * HH}px">${hm(START + i * 60)}</span>` : '')).join('') + '</div>';
+  cols.forEach((c, ci) => {
+    const we = c.d.getDay() === 0 || c.d.getDay() === 6;
+    let inner = '';
+    // planning blocks
+    if (blocsOn) {
+      c.vets.forEach((vid, i) => {
+        const v = VET(vid);
+        blocsDe(vid, c.d).forEach((b) => {
+          const t = TYP(b.t), top = (Math.max(b.s, START) - START) * PX, hgt = (Math.min(b.e, END) - Math.max(b.s, START)) * PX;
+          if (hgt <= 0) return;
+          const tip = `${v.nom} · ${t.l} ${hm(b.s)}–${hm(b.e)}${b.note ? ' · ' + b.note : ''}`;
+          if (vue === 'week' && c.vets.length > 1) {
+            inner += `<div class="prail t-${b.t}" style="top:${top}px;height:${hgt}px;left:${2 + i * RAIL}px;--c:${t.c}" data-tip="${esc(tip)}">${hgt > 44 && b.t !== 'pause' ? `<span>${COURT[b.t]}</span>` : ''}</div>`;
+          } else {
+            inner += `<div class="pband t-${b.t}" style="top:${top}px;height:${hgt}px;--c:${t.c}"><span class="pb-l"><i></i>${t.l}${b.note ? ` · <em>${esc(b.note)}</em>` : ''}<b>${hm(b.s)}–${hm(b.e)}</b></span></div>`;
+          }
+        });
+      });
+    }
+    // free slots
+    if (libresOn) {
+      plagesLibres(c).forEach((f) => {
+        const lbl = vue === 'week' ? 'Libre · ' + f.vets.map((v) => VET(v).ini).join(' ') : `Libre · ${hm(f.s)}–${hm(f.e)}`;
+        inner += `<div class="free" data-s="${f.s}" data-e="${f.e}" data-v="${esc(f.vets[0])}" style="top:${(f.s - START) * PX + 1}px;height:${(f.e - f.s) * PX - 2}px"><span>${esc(lbl)}</span></div>`;
+      });
+    }
+    // bookings
+    if (vue === 'week' && c.vets.length > 1) {
+      // week: one fixed lane per practitioner (same order as the rails)
+      const actifs = c.vets.filter((v) => rdvsCol(c).some((r) => r.vet === v));
+      actifs.forEach((v, i) => couloirs(rdvsCol(c).filter((r) => r.vet === v).map((r) => Object.assign(r, { _l: 0, _n: 1 }))).forEach((r) => { r._n = actifs.length * r._n; r._l = i * (r._n / actifs.length) + r._l; inner += evHtml(r, c); }));
+    } else couloirs(rdvsCol(c).map((r) => Object.assign(r, { _l: 0, _n: 1 }))).forEach((r) => { inner += evHtml(r, c); });
+    // now
+    if (memeJour(c.d, today) && nm > START && nm < END) inner += `<div class="nowl" style="top:${(nm - START) * PX}px"></div>`;
+    inner += '<div class="hover-slot"></div>';
+    html += `<div class="ccol${we ? ' we' : ''}" data-ci="${ci}" style="height:${H}px">${inner}</div>`;
+  });
+  calInner.innerHTML = html;
+  calHead.style.paddingRight = (calBody.offsetWidth - calBody.clientWidth) + 'px';
 
-  const isPast = a._endUtc < nowDate;
-  const isCancelled = a.status === 'CANCELLED';
-  // Dead branch in this iteration (cancelled are filtered upstream) but kept
-  // for the future "show cancelled" toggle spec.
-  // eslint-disable-next-line no-unused-vars
-  const strikethrough = isCancelled ? 'text-decoration:line-through;' : '';
-
-  const block = document.createElement('div');
-  block.className = 'rdv-block';
-  block.dataset.id = a.id;
-
-  let bg;
-  let borderColor;
-  let opacity = '1';
-  if (isCancelled) {
-    bg = '#f1f5f9';
-    borderColor = '#94a3b8';
-    opacity = '0.8';
-  } else if (isPast) {
-    bg = '#e2e8f0';
-    borderColor = vet.color;
-    opacity = '0.8';
+  // period label
+  if (vue === 'week') {
+    const l = lundiDe(cur), d7 = addD(l, 6);
+    $('#schLabel').textContent = l.getMonth() === d7.getMonth()
+      ? `${l.getDate()} – ${d7.getDate()} ${MOIS[d7.getMonth()]} ${d7.getFullYear()}`
+      : `${l.getDate()} ${MOIS[l.getMonth()]} – ${d7.getDate()} ${MOIS[d7.getMonth()]} ${d7.getFullYear()}`;
   } else {
-    bg = vet.bg;
-    borderColor = vet.color;
+    $('#schLabel').textContent = `${fmtLong(cur)} ${cur.getFullYear()}`;
   }
+  brancherGrille(cols);
+  rendreAside();
+  majUrl();
+}
 
-  block.style.cssText = `top:${topPx}px;height:${heightPx}px;background:${bg};border-left-color:${borderColor};opacity:${opacity};overflow:hidden;`;
+/* Keeps the period in the address so a reload (or a shared link) opens it */
+function majUrl() {
+  const u = new URL(window.location.href);
+  u.searchParams.set('view', vue);
+  u.searchParams.set('date', iso(cur));
+  u.searchParams.delete('new');
+  if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
+}
 
-  const nameColor = (isCancelled || isPast) ? '#334155' : '#0f172a';
-  const timeColor = (isCancelled || isPast) ? '#64748b' : vet.color;
-  const subColor = (isCancelled || isPast) ? '#475569' : '#64748b';
-  const dot = `<span style="width:6px;height:6px;border-radius:50%;background:${vet.color};flex-shrink:0;display:inline-block;"></span>`;
-  const R = 'display:flex;align-items:center;gap:3px;overflow:hidden;white-space:nowrap;height:15px;min-height:15px;max-height:15px;flex-shrink:0;';
-
-  const lines = Math.floor((heightPx - 2) / 15);
-  let html = `<div style="display:flex;flex-direction:column;overflow:hidden;width:100%;height:${heightPx - 2}px;justify-content:center;">`;
-  const reasonText = escapeHtml(a.reason || 'Consultation');
-  const animalEmoji = speciesEmoji(a.animalSpecies);
-  const animalName = a.animalLabel ? `${animalEmoji} ${escapeHtml(a.animalLabel)}` : '';
-  const ownerName = a.ownerLabel ? escapeHtml(a.ownerLabel) : '';
-  const vetLabel = escapeHtml(vet.label);
-  if (lines === 1) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span>${animalName ? `<span style="font-size:11px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${animalName}</span>` : `<span style="font-size:var(--text-xs);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">· ${reasonText}</span>`}</div>`;
-  } else if (lines === 2) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
-    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
-  } else if (lines === 3) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
-    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
-    html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName || vetLabel}</span></div>`;
-  } else if (lines >= 4) {
-    html += `<div style="${R}">${dot}<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${timeColor};flex-shrink:0;">${fmtTime(a._startTime)} · ${a.durationMinutes}min</span></div>`;
-    html += `<div style="${R}"><span style="font-size:11.5px;font-weight:var(--weight-bold);color:${nameColor};overflow:hidden;text-overflow:ellipsis;">${animalName || reasonText}</span></div>`;
-    if (ownerName) {
-      html += `<div style="${R}"><span style="font-size:10.5px;color:${subColor};overflow:hidden;text-overflow:ellipsis;">${ownerName}</span></div>`;
-    }
-    html += `<div style="${R}"><span style="font-size:10.5px;color:${timeColor};font-weight:500;overflow:hidden;text-overflow:ellipsis;">${reasonText}${lines >= 5 ? ` · ${vetLabel}` : ''}</span></div>`;
-  }
-  html += '</div>';
-  block.innerHTML = html;
-
-  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
-  if (!isPast && !isTerminal) {
-    block.classList.add('is-draggable');
-    block.addEventListener('pointerdown', (e) => startDrag(e, a, block));
-  }
-
-  block.onclick = (e) => {
-    if (block.dataset.dragJustEnded === '1') {
-      block.dataset.dragJustEnded = '';
-      e.stopPropagation();
-      e.preventDefault();
-      return;
-    }
+function brancherGrille(cols) {
+  $$('.ev', calInner).forEach((el) => el.addEventListener('click', (e) => { e.stopPropagation(); ouvrirPop(el.dataset.id, el); }));
+  $$('.free', calInner).forEach((el) => el.addEventListener('click', (e) => {
     e.stopPropagation();
-    showRdvPopup(a.id, e);
-  };
-  return block;
+    const col = cols[+el.closest('.ccol').dataset.ci];
+    const y = e.clientY - el.closest('.ccol').getBoundingClientRect().top;
+    let m = Math.round((START + y / PX) / 5) * 5;
+    m = Math.max(+el.dataset.s, Math.min(m, +el.dataset.e - durLibre));
+    ouvrirRdv({ date: col.d, s: m, vet: el.dataset.v, dur: durLibre });
+  }));
+  $$('.ccol', calInner).forEach((colEl) => {
+    const col = cols[+colEl.dataset.ci];
+    const ghost = $('.hover-slot', colEl);
+    const minuteAt = (e) => Math.floor((START + (e.clientY - colEl.getBoundingClientRect().top) / PX) / 15) * 15;
+    colEl.addEventListener('mousemove', (e) => {
+      if (ghost.classList.contains('drag')) return;
+      if (e.target.closest('.ev,.free,.prail')) { ghost.style.display = 'none'; return; }
+      const m = Math.min(minuteAt(e), END - 30);
+      ghost.style.display = 'block';
+      ghost.style.top = (m - START) * PX + 1 + 'px';
+      ghost.style.height = 30 * PX - 2 + 'px';
+      ghost.textContent = '+ ' + hm(m);
+    });
+    colEl.addEventListener('mouseleave', () => { ghost.style.display = 'none'; });
+    const vetA = (m) => (col.vet ? col.vet.id : (col.vets.find((v) => blocsDe(v, col.d).some((b) => RDV_OK(b.t) && m >= b.s && m < b.e)) || defautVet()));
+    colEl.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.target.closest('.ev')) return;
+      const surLibre = !!e.target.closest('.free');
+      const m0 = Math.min(minuteAt(e), END - 15);
+      let moved = false, s = m0, f = m0 + 15;
+      e.preventDefault(); document.body.classList.add('dragging');
+      const mv = (ev) => {
+        const m1 = Math.max(START, Math.min(END, Math.round((START + (ev.clientY - colEl.getBoundingClientRect().top) / PX) / 15) * 15));
+        if (!moved && Math.abs(m1 - m0) < 15) return;
+        moved = true;
+        s = Math.min(m0, m1); f = Math.max(m0 + 15, m1); if (m1 < m0) { s = m1; f = m0 + 15; }
+        ghost.classList.add('drag'); ghost.style.display = 'block';
+        ghost.style.top = (s - START) * PX + 1 + 'px'; ghost.style.height = (f - s) * PX - 2 + 'px';
+        ghost.textContent = `${hm(s)} – ${hm(f)} · ${dureeTxt(f - s)}`;
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+        document.body.classList.remove('dragging'); ghost.classList.remove('drag'); ghost.style.display = 'none';
+        if (moved) ouvrirRdv({ date: col.d, s, vet: vetA(s), dur: f - s });
+        else if (!surLibre) ouvrirRdv({ date: col.d, s: Math.min(m0, END - 30), vet: vetA(m0) });
+      };
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+    });
+  });
 }
 
-// =============== DRAG & DROP ===============
-// Click-and-drag an rdv-block onto a different time (same practitioner, same
-// or different day in week view). On drop: POST to reschedule, re-render via
-// appointment:saved. On conflict/error: rollback visually + toast.
-const DRAG_THRESHOLD_PX = 6;
-const DRAG_SNAP_MIN = 15;
-
-let _drag = null;
-
-function startDrag(e, appointment, block) {
-  // Left button only; ignore right-clicks, middle-clicks, extra buttons.
-  if (e.button !== undefined && e.button !== 0) return;
-  e.preventDefault();
-
-  const blockRect = block.getBoundingClientRect();
-  const parentCol = block.parentElement;
-
-  _drag = {
-    appointment,
-    block,
-    startX:         e.clientX,
-    startY:         e.clientY,
-    offsetY:        e.clientY - blockRect.top,
-    origTop:        parseFloat(block.style.top) || 0,
-    origCol:        parentCol,
-    origDateIso:    appointment._date,
-    origStartMin:   appointment._startMin,
-    targetCol:      parentCol,
-    targetStartMin: appointment._startMin,
-    targetDateIso:  appointment._date,
-    hasMoved:       false,
-  };
-
-  const onMove = (ev) => onDragMove(ev);
-  const onUp   = (ev) => onDragEnd(ev);
-  const onKey  = (ev) => { if (ev.key === 'Escape') cancelDrag(); };
-
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
-  document.addEventListener('keydown', onKey);
-  _drag.cleanup = () => {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    document.removeEventListener('keydown', onKey);
-  };
-}
-
-function onDragMove(e) {
-  if (!_drag) return;
-  const dx = e.clientX - _drag.startX;
-  const dy = e.clientY - _drag.startY;
-  if (!_drag.hasMoved && Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
-
-  if (!_drag.hasMoved) {
-    _drag.hasMoved = true;
-    _drag.block.classList.add('is-dragging');
-    document.body.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
+/* ═════════ Mini-calendar ═════════ */
+function rendreMiniCal(cont, sel, mois, opts) {
+  const premier = new Date(mois.getFullYear(), mois.getMonth(), 1);
+  const debut = lundiDe(premier);
+  const lun = lundiDe(sel);
+  let html = `<div class="mc-head">
+      <button type="button" class="mc-nav" data-mc="-1" aria-label="Mois précédent"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <b>${MOIS[mois.getMonth()].replace(/^./, (c) => c.toUpperCase())} ${mois.getFullYear()}</b>
+      <button type="button" class="mc-nav" data-mc="1" aria-label="Mois suivant"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div><div class="mc-grid">` + ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((x) => `<span class="mc-dow">${x}</span>`).join('');
+  for (let i = 0; i < 42; i++) {
+    const d = addD(debut, i);
+    const dansSem = opts.semaine && d >= lun && d < addD(lun, 7);
+    const cls = ['mc-d',
+      d.getMonth() !== mois.getMonth() ? 'hors' : '',
+      dansSem ? 'wk' : '', dansSem && d.getDay() === 1 ? 'wk-l' : '', dansSem && d.getDay() === 0 ? 'wk-r' : '',
+      memeJour(d, AUJ) ? 'today' : '', memeJour(d, sel) && !opts.semaine ? 'sel' : '',
+      opts.has && opts.has(d) ? 'has' : ''].filter(Boolean).join(' ');
+    html += `<div class="${cls}" data-d="${iso(d)}"><span>${d.getDate()}</span></div>`;
   }
-
-  const targetCol = findDayColUnder(e.clientX, e.clientY) || _drag.origCol;
-
-  // Reparent into the target column when the cursor crosses a column boundary.
-  if (targetCol !== _drag.targetCol) {
-    targetCol.appendChild(_drag.block);
-    _drag.targetCol = targetCol;
-    _drag.targetDateIso = targetCol.dataset.date || _drag.origDateIso;
-  }
-
-  const colRect = targetCol.getBoundingClientRect();
-  const yInCol = e.clientY - colRect.top - _drag.offsetY;
-  const rawMinutes = Math.max(0, yInCol) / SLOT_H * 60;
-  const snappedOffset = Math.round(rawMinutes / DRAG_SNAP_MIN) * DRAG_SNAP_MIN;
-  const duration = _drag.appointment.durationMinutes;
-  const minStart = HOUR_START * 60;
-  const maxStart = (HOUR_END + 1) * 60 - duration;
-  const newStartMin = Math.max(minStart, Math.min(minStart + snappedOffset, maxStart));
-
-  const newTop = ((newStartMin - HOUR_START * 60) / 60) * SLOT_H + 1;
-  _drag.block.style.top = `${newTop}px`;
-  _drag.targetStartMin = newStartMin;
+  cont.innerHTML = html + '</div>';
+  $$('[data-mc]', cont).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); opts.onMois(+b.dataset.mc); }));
+  $$('.mc-d', cont).forEach((c) => c.addEventListener('click', () => opts.onPick(parse(c.dataset.d))));
 }
 
-function findDayColUnder(x, y) {
-  const hits = document.elementsFromPoint(x, y);
-  for (const el of hits) {
-    if (el.classList && el.classList.contains('day-col')) return el;
-  }
-  return null;
+/* ═════════ Aside: mini-calendar, practitioners, motifs ═════════ */
+function rendreAside() {
+  const g = lundiDe(new Date(moisVu.getFullYear(), moisVu.getMonth(), 1));
+  ensure(g, addD(g, 41)).then((fetched) => { if (fetched && D) rendreAside(); }).catch(() => {});
+  const jours = new Set(RDVS.map((r) => r.date));
+  rendreMiniCal($('#miniCal'), cur, moisVu, {
+    semaine: vue === 'week',
+    has: (d) => jours.has(iso(d)),
+    onMois: (n) => { moisVu = new Date(moisVu.getFullYear(), moisVu.getMonth() + n, 1); rendreAside(); },
+    onPick: (d) => { cur = d; moisVu = new Date(d.getFullYear(), d.getMonth(), 1); fermerPop(); rendre(); },
+  });
+  const l = lundiDe(cur), k = iso(cur);
+  const periode = vue === 'week' ? ((r) => { const d = parse(r.date); return d >= l && d < addD(l, 7); }) : ((r) => r.date === k);
+  $('#vetList').innerHTML = VETS.length ? VETS.map((v) =>
+    `<button type="button" class="vchip${visibles.has(v.id) ? '' : ' off'}" data-v="${esc(v.id)}"><span class="vdot" style="background:${v.c};border-color:${v.c}"></span>${esc(v.court)}<span class="vn">${RDVS.filter((r) => r.st !== 'annule' && r.vet === v.id && periode(r)).length}</span></button>`).join('')
+    : '<div class="vchip" style="cursor:default;color:var(--encre-35)">Aucun praticien</div>';
+  $$('#vetList .vchip[data-v]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.v;
+    if (visibles.has(id)) { if (visibles.size === 1) { showToast('Au moins un vétérinaire doit rester affiché'); return; } visibles.delete(id); } else visibles.add(id);
+    fermerPop(); rendre();
+  }));
+  $('#motLegend').innerHTML = MOTIFS.map((m) =>
+    `<div class="vchip" style="cursor:default"><span class="vdot" style="background:${m.c};border-radius:50%"></span>${m.l}<span class="vn">${RDVS.filter((r) => r.st !== 'annule' && r.m === m.k && periode(r)).length}</span></div>`).join('');
 }
 
-function cancelDrag() {
-  if (!_drag) return;
-  rollbackDragPosition();
-  endDragCleanup();
-}
+/* ═════════ Next free slot of a practitioner from now ═════════ */
+const defautVet = () => (VETS.find((v) => v.id === D.me && visibles.has(v.id)) || VETS.find((v) => visibles.has(v.id)) || VETS[0] || { id: '' }).id;
 
-function rollbackDragPosition() {
-  if (!_drag) return;
-  if (_drag.origCol && _drag.block.parentElement !== _drag.origCol) {
-    _drag.origCol.appendChild(_drag.block);
+async function prochainLibre(vet, dur) {
+  try { await ensure(AUJ, addD(AUJ, 6)); } catch { /* search what is known */ }
+  for (let j = 0; j < 7; j++) {
+    const d = addD(AUJ, j), k = iso(d);
+    for (let m = Math.ceil(Math.max(8 * 60, j === 0 ? nowMin() : 0) / 15) * 15; m + dur <= 20 * 60; m += 15) {
+      if (!blocsDe(vet, d).some((b) => RDV_OK(b.t) && m >= b.s && m + dur <= b.e)) continue;
+      if (RDVS.some((r) => r.st !== 'annule' && r.vet === vet && r.date === k && m < r.s + r.dur && m + dur > r.s)) continue;
+      return { date: d, s: m, vet, dur };
+    }
   }
-  _drag.block.style.top = `${_drag.origTop}px`;
+  return { date: new Date(AUJ), s: 14 * 60, vet, dur };
 }
+const nouveau = async () => { if (!VETS.length) { showToast('Aucun praticien dans cette clinique'); return; } ouvrirRdv(await prochainLibre(defautVet(), 30)); };
 
-function endDragCleanup() {
-  if (!_drag) return;
-  _drag.cleanup();
-  _drag.block.classList.remove('is-dragging');
-  document.body.style.cursor = '';
-  document.body.style.userSelect = '';
-  _drag = null;
+/* ═════════ Server calls ═════════ */
+const ERREURS = {
+  APPOINTMENT_CONFLICT: 'Créneau déjà pris — le praticien a un autre rendez-vous à cette heure',
+  APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous est clôturé — il ne peut plus être modifié',
+  APPOINTMENT_NOT_MARKABLE: 'Ce rendez-vous ne peut pas être marqué non venu',
+  CSRF_INVALID: 'Session expirée — rechargez la page',
+};
+function message(body, fallback) {
+  const g = body?.errors?.global?.[0] || '';
+  if (/capacity/i.test(g)) return 'Plage complète — la capacité du planning est atteinte';
+  if (/block/i.test(g)) return 'Hors des plages réservables du praticien (congé, administratif, formation)';
+  if (/eligible/i.test(g)) return 'Ce praticien ne peut pas recevoir de rendez-vous dans cette clinique';
+  if (/passé/i.test(g)) return 'Impossible d\'annuler un rendez-vous passé';
+  return ERREURS[body?.errorCode] || fallback;
 }
-
-function swallowNextClickOnce() {
-  const handler = (ev) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-    document.removeEventListener('click', handler, true);
-  };
-  document.addEventListener('click', handler, true);
-}
-
-async function onDragEnd() {
-  if (!_drag) return;
-  const state = _drag;
-
-  if (!state.hasMoved) {
-    endDragCleanup();
-    return; // plain click — let the onclick handler open the popup
-  }
-
-  // Prevent the synthetic click that follows pointerup from opening a
-  // popup or hitting an hour-slot behind the block.
-  state.block.dataset.dragJustEnded = '1';
-  swallowNextClickOnce();
-  window.setTimeout(() => {
-    if (state.block) state.block.dataset.dragJustEnded = '';
-  }, 300);
-
-  const samePosition = state.targetStartMin === state.origStartMin
-                    && state.targetDateIso === state.origDateIso;
-  if (samePosition) {
-    rollbackDragPosition();
-    endDragCleanup();
-    return;
-  }
-
-  const hh = Math.floor(state.targetStartMin / 60);
-  const mm = state.targetStartMin % 60;
-  const newStartsAt = `${state.targetDateIso}T${pad2(hh)}:${pad2(mm)}`;
-
-  const csrfInput = document.querySelector('#modalAppointment input[name="_token"]');
-  if (!csrfInput) {
-    rollbackDragPosition();
-    endDragCleanup();
-    showToast("Erreur: jeton CSRF introuvable", '#dc2626');
-    return;
-  }
-
-  const body = new URLSearchParams();
-  body.append('_token', csrfInput.value);
-  body.append('startsAtUtc', newStartsAt);
-  body.append('durationMinutes', String(state.appointment.durationMinutes));
-  body.append('practitionerUserId', state.appointment.practitionerUserId);
-
-  const url = `/scheduling/appointments/${state.appointment.id}/reschedule`;
-
+async function post(target, fields) {
+  const fd = new FormData();
+  fd.append('_token', D.token);
+  Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v); });
+  let res, body = null;
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      credentials: 'same-origin',
-    });
-    const data = await response.json();
-    if (data.success) {
-      document.dispatchEvent(new CustomEvent('appointment:saved', {
-        detail: { appointment: data.appointment, action: 'rescheduled' },
-      }));
-      endDragCleanup();
-      return;
+    res = await fetch(target, { method: 'POST', body: fd, headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+    body = await res.json().catch(() => null);
+  } catch {
+    return { ok: false, body: null };
+  }
+  return { ok: res.ok && body?.success !== false, body };
+}
+
+/* ═════════ Booking card (popover) ═════════ */
+const I_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const I_USER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-3.6 3.8-6 8-6s7.1 2.4 8 6"/></svg>';
+const I_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r=".5"/></svg>';
+const I_NOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>';
+
+function ouvrirPop(id, el) {
+  const r = RDVS.find((x) => x.id === id); if (!r) return;
+  popId = id;
+  $$('.ev.sel', calInner).forEach((x) => x.classList.remove('sel'));
+  el.classList.add('sel');
+  const p = pat(r), v = VET(r.vet), mo = MOT(r.m), d = parse(r.date);
+  const passe = r.st === 'fait' || estPasse(d, r.s + r.dur);
+  const profil = r.animalId ? url('animal', r.animalId) : r.ownerId ? url('client', r.ownerId) : null;
+  const st = r.st === 'annule' || r.st === 'absent' ? r.st : null;
+  pop.classList.remove('conf');
+  pop.innerHTML = `
+    <div class="pop-head">
+      <span class="pid"><b>${p.e} ${esc(p.a)}<span class="puce" style="background:${mo.c}17;color:${mo.c}"><i class="pdot" style="background:${mo.c}"></i>${mo.l}</span></b><span class="sous">${esc(p.cli)}${p.tel ? ' · ' + esc(p.tel) : ''}</span></span>
+      <button type="button" class="pop-x" aria-label="Fermer"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="pop-rows">
+      <div class="pop-row">${I_CLOCK}<span>${JOURS_C[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]} · <span class="m">${hm(r.s)} – ${hm(r.s + r.dur)}</span></span><span class="g">${r.dur} min</span></div>
+      <div class="pop-row">${I_USER}<span style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:3px;background:${v.c}"></i>${esc(v.nom)}</span></div>
+      <div class="pop-row">${I_TAG}<span>${esc(motifTxt(r))}</span></div>
+      ${r.note ? `<div class="pop-row note">${I_NOTE}<span>${esc(r.note)}</span></div>` : ''}
+    </div>
+    ${st ? `<div class="pop-st ${st}">${st === 'annule' ? 'Annulé — créneau libéré' : 'Non venu — l\'animal ne s\'est pas présenté'}</div>` : ''}
+    <div class="pop-foot">
+      ${profil ? `<a class="btn primaire" href="${esc(profil)}" data-a="profil">Profil</a>` : '<button type="button" class="btn primaire" disabled data-tip="Rendez-vous sans fiche patient">Profil</button>'}
+      ${st || r.st === 'fait' ? ''
+        : passe ? '<button type="button" class="btn ghost-danger" data-a="absent">Marquer non venu</button>'
+          : '<button type="button" class="btn" data-a="modifier">Modifier</button><button type="button" class="btn ghost-danger" data-a="annuler">Annuler</button>'}
+    </div>
+    <div class="pop-confirm">
+      <p>Annuler le rendez-vous de ${esc(p.a)} ?</p>
+      <div><button type="button" class="btn danger" data-a="confirmer">Confirmer</button><button type="button" class="btn" data-a="non">Non</button></div>
+    </div>`;
+  $('.pop-x', pop).addEventListener('click', fermerPop);
+  $$('[data-a]', pop).forEach((b) => b.addEventListener('click', async (e) => {
+    const a = b.dataset.a;
+    if (a === 'profil') return;
+    e.preventDefault();
+    if (a === 'modifier') { fermerPop(); ouvrirRdv({ edit: r }); }
+    if (a === 'annuler') pop.classList.add('conf');
+    if (a === 'non') pop.classList.remove('conf');
+    if (a === 'confirmer') {
+      const avant = r.st;
+      r.st = 'annule'; fermerPop(); rendre();
+      const { ok, body } = await post(url('cancel', r.id), {});
+      if (!ok) { r.st = avant; rendre(); showToast(message(body, 'Le rendez-vous n\'a pas pu être annulé'), 'danger'); return; }
+      showToast(`RDV annulé — ${p.a}, ${jourCourt(d)} à ${hm(r.s)}`);
+      refresh(d);
     }
-    // Prefer a user-friendly message by errorCode; the raw server message
-    // for conflicts currently contains the practitioner UUID.
-    const friendly = {
-      APPOINTMENT_CONFLICT:        'Ce créneau est déjà occupé.',
-      APPOINTMENT_TERMINAL_STATUS: 'Ce rendez-vous n\'est plus modifiable.',
-    }[data.errorCode];
-    const msg = friendly || data.errors?.global?.[0] || 'Erreur lors du déplacement.';
-    rollbackDragPosition();
-    endDragCleanup();
-    showToast(msg, '#dc2626');
-  } catch (_err) {
-    rollbackDragPosition();
-    endDragCleanup();
-    showToast('Erreur réseau.', '#dc2626');
-  }
-}
-
-function speciesEmoji(species) {
-  switch (species) {
-    case 'dog': return '🐶';
-    case 'cat': return '🐱';
-    case 'nac': return '🐾';
-    default:    return '🐾';
-  }
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// =============== POPUP ===============
-function showRdvPopup(id, e) {
-  const a = appointments.find((x) => x.id === id);
-  if (!a) return;
-  const vet = vetById[a.practitionerUserId] || FALLBACK_VET;
-  const endMin = a._endMin;
-  const endTime = `${pad2(Math.floor(endMin / 60))}:${pad2(endMin % 60)}`;
-
-  const animalText = a.animalLabel
-    ? `${speciesEmoji(a.animalSpecies)} ${a.animalLabel}`
-    : (a.reason || 'Consultation');
-  document.getElementById('pp-animal').textContent = animalText;
-  const ownerParts = [];
-  if (a.ownerLabel) ownerParts.push(a.ownerLabel);
-  if (a.ownerPhone) ownerParts.push(formatPhoneIntl(a.ownerPhone));
-  document.getElementById('pp-proprio').textContent = ownerParts.join(' · ');
-  const badge = document.getElementById('pp-badge');
-  // Hide default PLANNED status — only show badge for non-trivial states.
-  if ('PLANNED' === a.status) {
-    badge.textContent = '';
-    badge.style.display = 'none';
-  } else {
-    badge.textContent = a.status;
-    badge.style.display = '';
-    badge.className = 'badge';
-  }
-  document.getElementById('pp-time').textContent = `${a._startTime.replace(':', ' h ')} — ${endTime.replace(':', ' h ')}`;
-  document.getElementById('pp-duration').textContent = `${a.durationMinutes} min`;
-  document.getElementById('pp-vet').textContent = vet.label;
-  document.getElementById('pp-motif').textContent = a.reason || '';
-  const noteRow = document.getElementById('pp-note-row');
-  if (a.notes) {
-    noteRow.style.display = 'flex';
-    document.getElementById('pp-note').textContent = a.notes;
-  } else {
-    noteRow.style.display = 'none';
-  }
-
-  // Reset cancel confirm state
-  cancelCancelConfirm();
-
-  // Past RDV: cancel is forbidden → hide the button. Modifier remains enabled
-  // (editing past RDV is allowed). Profil visible only when an owner is linked.
-  // Buttons use flex:1 so visible ones share the row evenly.
-  const profileBtn = document.getElementById('pp-profile-btn');
-  const editBtn    = document.getElementById('pp-edit-btn');
-  const cancelBtn  = document.getElementById('pp-cancel-btn');
-  const isPast     = a._endUtc < nowDate;
-  const isTerminal = ['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(a.status);
-  if (profileBtn) {
-    if (a.ownerId && clientProfileUrlTemplate) {
-      profileBtn.href = clientProfileUrlTemplate.replace('__ID__', a.ownerId);
-      profileBtn.style.display = '';
-    } else {
-      profileBtn.style.display = 'none';
+    if (a === 'absent') {
+      const avant = r.st;
+      r.st = 'absent'; fermerPop(); rendre();
+      const { ok, body } = await post(url('noShow', r.id), {});
+      if (!ok) { r.st = avant; rendre(); showToast(message(body, 'Le marquage n\'a pas pu être enregistré'), 'danger'); return; }
+      showToast(`${p.a} marqué non venu — ajouté à l'historique du client`);
+      refresh(d);
     }
-  }
-  if (editBtn) editBtn.disabled = isTerminal;
-  if (cancelBtn) {
-    cancelBtn.style.display = isPast ? 'none' : '';
-    cancelBtn.disabled = isTerminal;
-  }
-
-  const popup = document.getElementById('rdv-popup');
-  popup.dataset.rdvId = id;
-  positionPopup(popup, e);
-  showPopup(popup);
+  }));
+  ancrer(pop, el);
+}
+function fermerPop() {
+  if (!pop) return;
+  pop.classList.remove('open'); popId = null;
+  $$('.ev.sel', calInner).forEach((x) => x.classList.remove('sel'));
 }
 
-function positionPopup(popup, e) {
-  const x = e.clientX;
-  const y = e.clientY;
-  const w = 300;
-  const h = 300;
-  let left = x + 12;
-  let top = y - 40;
-  if (left + w > window.innerWidth - 16) left = x - w - 12;
-  if (top + h > window.innerHeight - 16) top = window.innerHeight - h - 16;
-  popup.style.left = `${left}px`;
-  popup.style.top = `${Math.max(8, top)}px`;
-  popup.style.right = 'auto';
-}
-
-function showPopup(popup) {
-  closeAllPopups();
-  popup.style.display = 'block';
-  const overlay = document.getElementById('overlay');
-  if (overlay) overlay.style.display = 'block';
-}
-
-function closeAllPopups() {
-  const popup = document.getElementById('rdv-popup');
-  if (popup) popup.style.display = 'none';
-  const overlay = document.getElementById('overlay');
-  if (overlay) overlay.style.display = 'none';
-}
-
-// =============== ACTIONS ===============
-function toggleVet(el, userId) {
-  if (activeVets.has(userId)) activeVets.delete(userId);
-  else activeVets.add(userId);
-  const check = document.querySelector(`[data-vet-check="${userId}"]`);
-  if (check) check.style.opacity = activeVets.has(userId) ? '1' : '0.15';
-  renderWeek();
-}
-
-// =============== PLANNING OVERLAYS ===============
-function togglePlanningOverlay() {
-  planningBlocksVisible = !planningBlocksVisible;
-  localStorage.setItem(PLANNING_OVERLAY_LS_KEY, planningBlocksVisible ? '1' : '0');
-  const btn = document.getElementById('planning-overlay-btn');
-  if (btn) btn.classList.toggle('is-active', planningBlocksVisible);
-  renderWeek(); // renderWeek() handles both day and week views — no renderDay() exists
-}
-
-function renderPlanningOverlays(col, iso) {
-  if (!planningBlocksVisible) return;
-
-  // Parse, clamp, and filter blocks for this column
-  const items = [];
-  (AGENDA_DATA.planningBlocks || []).forEach((b) => {
-    if (b.date !== iso || !activeVets.has(b.vet)) return;
-    const [sh, sm] = b.start.split(':').map(Number);
-    const [eh, em] = b.end.split(':').map(Number);
-    const startMin = Math.max(sh * 60 + sm, HOUR_START * 60);
-    const endMin   = Math.min(eh * 60 + em, HOUR_END   * 60);
-    if (endMin <= startMin) return;
-    const topPx    = ((startMin - HOUR_START * 60) / 60) * SLOT_H + 1;
-    const heightPx = ((endMin - startMin)          / 60) * SLOT_H - 2;
-    if (heightPx < 6) return;
-    items.push({ b, startMin, endMin, topPx, heightPx, lane: 0 });
-  });
-  if (items.length === 0) return;
-
-  // Sort by start time — required by the lane algorithm
-  items.sort((a, b) => a.startMin - b.startMin);
-
-  // One fixed lane per vet (sidebar order) — all blocks from the same vet
-  // always occupy the same column, regardless of time overlap.
-  const vetsWithBlocks = [...activeVets].filter((id) => items.some((item) => item.b.vet === id));
-  const vetLane = Object.fromEntries(vetsWithBlocks.map((id, i) => [id, i]));
-  const totalLanes = vetsWithBlocks.length || 1;
-  const laneW = 100 / totalLanes;
-  items.forEach((item) => { item.lane = vetLane[item.b.vet] ?? 0; });
-
-  items.forEach((item) => {
-    const { b, topPx, heightPx, lane } = item;
-    const type    = PLANNING_BLOCK_TYPES[b.type] ?? PLANNING_BLOCK_TYPES.consultation;
-    const vet     = vetById[b.vet];
-    const vetName = vet ? vet.label : '';
-    const label   = vetName ? `${vetName} — ${type.label}` : type.label;
-
-    const leftPct  = lane * laneW;
-    const rightPct = 100 - leftPct - laneW;
-
-    const el = document.createElement('div');
-    el.style.cssText = [
-      'position:absolute',
-      `top:${topPx}px`,
-      `height:${heightPx}px`,
-      `left:${leftPct}%`,
-      `right:${rightPct}%`,
-      `background:${type.bg}`,
-      `border-left:3px solid ${type.color}`,
-      'opacity:0.5',
-      'z-index:1',
-      'pointer-events:none',
-      'overflow:hidden',
-    ].join(';');
-    const nameHtml = vetName
-      ? `<span style="display:block;padding:2px 5px 0;font-size:var(--text-xs);font-weight:var(--weight-medium);color:${type.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${vetName}</span>`
-      : '';
-    const typeHtml = `<span style="display:block;padding:0 5px 2px;font-size:var(--text-xs);color:${type.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${type.label}</span>`;
-    el.innerHTML = nameHtml + typeHtml;
-
-    col.prepend(el); // prepend = behind all later-appended children (slots, appointments)
-  });
-}
-
-// =============== FREE SLOTS ===============
-function toggleFreeSlots() {
-  freeSlotsActive = !freeSlotsActive;
-  const btn = document.getElementById('free-slots-btn');
-  const picker = document.getElementById('free-dur-picker');
-  if (btn) btn.classList.toggle('is-active', freeSlotsActive);
-  if (picker) picker.style.display = freeSlotsActive ? 'flex' : 'none';
-  renderWeek();
-}
-
-function setFreeDur(dur) {
-  freeDuration = dur;
-  document.querySelectorAll('[data-dur]').forEach((b) => {
-    b.classList.toggle('is-active', Number(b.dataset.dur) === dur);
-  });
-  renderWeek();
-}
-
-function renderFreeSlots(col, dateStr) {
-  // Past free slots aren't actionable — a vet can't book a patient into a
-  // window that has already started. Filter by "now" in the clinic timezone:
-  //   - past days: nothing at all
-  //   - today: only slots whose start is strictly after current minute
-  //   - future days: everything
-  const nowParts = toClinicLocalParts(nowDate, AGENDA_DATA.clinicTimezone);
-  const todayIso = nowParts.dateStr;
-  if (dateStr < todayIso) return;
-  const isToday = dateStr === todayIso;
-  const [nh, nm] = nowParts.timeStr.split(':').map(Number);
-  const nowMin = nh * 60 + nm;
-
-  [...activeVets].forEach((userId) => {
-    const vet = vetById[userId];
-    if (!vet) return;
-
-    const vetAppts = appointments
-      .filter((a) => a._date === dateStr
-        && a.practitionerUserId === userId
-        && a.status !== 'CANCELLED')
-      .map((a) => ({ s: a._startMin, e: a._endMin }))
-      .sort((a, b) => a.s - b.s);
-
-    const gaps = [];
-    let cursor = FREE_START;
-    vetAppts.forEach(({ s, e }) => {
-      if (s > cursor) gaps.push({ s: cursor, e: s });
-      cursor = Math.max(cursor, e);
-    });
-    if (cursor < FREE_END) gaps.push({ s: cursor, e: FREE_END });
-
-    gaps.forEach((gap) => {
-      if (gap.e - gap.s < freeDuration) return;
-      // Slots are consecutive (step = duration) so they never overlap
-      // visually. Start aligned on the nearest quarter-hour so a gap
-      // from 08:07 → 09:00 gets slots at 08:15 / 08:35 / … for 20min,
-      // not at 08:07 / 08:27 / …
-      let t = Math.ceil(gap.s / 15) * 15;
-      while (t + freeDuration <= gap.e) {
-        if (!isToday || t > nowMin) {
-          renderFreeSlotBlock(col, vet, dateStr, t, t + freeDuration);
-        }
-        t += freeDuration;
-      }
-    });
-  });
-}
-
-function renderFreeSlotBlock(col, vet, dateStr, startMin, endMin) {
-  const topPx = ((startMin - HOUR_START * 60) / 60) * SLOT_H + 1;
-  const heightPx = ((endMin - startMin) / 60) * SLOT_H - 2;
-  if (heightPx < 10) return;
-
-  const vetList = [...activeVets];
-  const idx = vetList.indexOf(vet.userId);
-  const total = vetList.length;
-  const laneW = 100 / total;
-  const leftPct = idx * laneW;
-
-  const el = document.createElement('div');
-  el.className = 'free-slot';
-  el.style.cssText = `top:${topPx}px;height:${heightPx}px;left:calc(${leftPct}% + 2px);width:calc(${laneW}% - 4px);background:${vet.bg};border:1.5px dashed ${vet.color};opacity:.85;align-items:flex-start;padding:2px 5px;`;
-
-  const hh = pad2(Math.floor(startMin / 60));
-  const mm = pad2(startMin % 60);
-  const timeLabel = fmtTime(`${hh}:${mm}`);
-  el.innerHTML = `<span style="font-size:var(--text-xs);font-weight:var(--weight-bold);color:${vet.color};">${timeLabel}</span>`;
-  el.dataset.startTime = `${hh}:${mm}`;
-  el.dataset.practitionerId = vet.userId;
-  el.onclick = (e) => {
+/* ═════════ Date picker (calendar in a popover) ═════════ */
+const I_CAL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+const I_CLK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+function creerDatePicker(cont, val, onPick, opts = {}) {
+  cont.classList.add('dp');
+  let curV = val, mv = null;
+  const lbl = (v) => { if (!v) return '<span class="ph">Choisir une date</span>'; const d = parse(v); return `${JOURS_C[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]}${memeJour(d, AUJ) ? ' <em>aujourd\'hui</em>' : ''}`; };
+  cont.innerHTML = `<button type="button" class="dd-btn dp-btn"><span class="dp-ic">${I_CAL}</span><span class="dp-l"></span></button><div class="dp-pop"><div class="dp-cal"></div><div class="dp-q"></div></div>`;
+  const btn = $('.dp-btn', cont), popEl = $('.dp-pop', cont), cal = $('.dp-cal', cont);
+  const maj = () => { $('.dp-l', cont).innerHTML = lbl(curV); };
+  const fermer = () => cont.classList.remove('open');
+  const choisir = (d) => { curV = iso(d); maj(); fermer(); if (onPick) onPick(curV); };
+  const rendreCal = () => rendreMiniCal(cal, curV ? parse(curV) : AUJ, mv, { has: opts.has, onMois: (n) => { mv = new Date(mv.getFullYear(), mv.getMonth() + n, 1); rendreCal(); }, onPick: choisir });
+  btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openNewRdv(dateStr, el.dataset.startTime, el.dataset.practitionerId);
+    const was = cont.classList.contains('open');
+    $$('.dd.open,.dp.open,.tp.open').forEach((x) => x.classList.remove('open'));
+    if (was) return;
+    const d = curV ? parse(curV) : AUJ; mv = new Date(d.getFullYear(), d.getMonth(), 1);
+    rendreCal();
+    const lundi = addD(lundiDe(AUJ), 7);
+    $('.dp-q', cont).innerHTML = [['Aujourd\'hui', AUJ], ['Demain', addD(AUJ, 1)], ['Lundi prochain', lundi]].map(([l, d2]) => `<button type="button" data-q="${iso(d2)}">${l}</button>`).join('');
+    $$('.dp-q button', cont).forEach((b) => b.addEventListener('click', (ev) => { ev.stopPropagation(); choisir(parse(b.dataset.q)); }));
+    cont.classList.add('open');
+  });
+  popEl.addEventListener('click', (e) => e.stopPropagation());
+  maj();
+  return { get: () => curV, set: (v) => { curV = v; maj(); fermer(); } };
+}
+
+/* ═════════ Time picker (15-min slots, duration alongside) ═════════ */
+function creerTimePicker(input, opts = {}) {
+  const debut = opts.debut || 7 * 60, finJ = opts.fin || 20 * 60, pas = opts.pas || 15;
+  const wrap = document.createElement('div'); wrap.className = 'tp';
+  input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+  wrap.insertAdjacentHTML('afterbegin', `<span class="tp-ic">${I_CLK}</span>`);
+  const popEl = document.createElement('div'); popEl.className = 'tp-pop scr'; wrap.appendChild(popEl);
+  const ouvrir = () => {
+    $$('.dd.open,.dp.open,.tp.open').forEach((x) => { if (x !== wrap) x.classList.remove('open'); });
+    const ref = opts.ref ? opts.ref() : null, v = toMin(input.value.trim());
+    let h = '';
+    for (let m = debut; m <= finJ; m += pas) {
+      if (ref != null && m <= ref) continue;
+      const d = ref != null ? m - ref : null;
+      h += `<button type="button" data-m="${m}" class="${m === v ? 'on' : ''}"><b>${hm(m)}</b>${d != null ? `<i>${dureeTxt(d)}</i>` : ''}</button>`;
+    }
+    popEl.innerHTML = h;
+    $$('button', popEl).forEach((b) => b.addEventListener('mousedown', (e) => {
+      e.preventDefault(); input.value = hm(+b.dataset.m); input.dispatchEvent(new Event('input')); wrap.classList.remove('open'); input.blur();
+    }));
+    wrap.classList.add('open');
+    const on = $('.on', popEl) || $(`[data-m="${Math.round((Number.isNaN(v) ? 9 * 60 : v) / pas) * pas}"]`, popEl);
+    if (on) popEl.scrollTop = on.offsetTop - 70;
   };
-
-  col.appendChild(el);
+  input.addEventListener('focus', ouvrir);
+  input.addEventListener('click', ouvrir);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === 'Tab') wrap.classList.remove('open'); });
+  input.addEventListener('blur', () => setTimeout(() => wrap.classList.remove('open'), 120));
+  return { ouvrir };
 }
 
-// =============== NEW-RDV ===============
-function openNewRdv(dateStr, time, practitionerUserId) {
-  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
-    detail: {
-      mode: 'create',
-      prefill: { date: dateStr, time, practitionerUserId: practitionerUserId || null },
-    },
-  }));
+/* ═════════ Booking modal ═════════ */
+let M = null; // { date, s, dur, vet, pat, m, note, edit, durManuelle }
+let ddJour, ddVet, inH, psIn, psMenu, searchCtrl = null, searchTmr = null;
+
+function bindModal(signal) {
+  ddJour = creerDatePicker($('#ddJour'), '', (v) => { M.date = parse(v); majModale(); }, { has: (d) => RDVS.some((r) => r.date === iso(d)) });
+  ddVet = creerDropdown('ddVet', VETS.map((v) => ({ v: v.id, l: v.nom, c: v.c })), defautVet(), (v) => { M.vet = v; majModale(); });
+  // Not wired yet: shown as in the mock-up, inert
+  creerDropdown('ddSms', [{ v: '24', l: '24 h avant' }, { v: '48', l: '48 h avant' }, { v: '1', l: '1 h avant' }], '24');
+  creerDropdown('ddRec', [{ v: 'non', l: 'Aucune' }, { v: 'hebdo', l: 'Hebdomadaire' }, { v: 'bimens', l: 'Bimensuelle' }, { v: 'mens', l: 'Mensuelle' }], 'non');
+
+  $('#motChips').innerHTML = MOTIFS.map((m) =>
+    `<button type="button" class="mot" data-m="${m.k}" style="--mc:${m.c};--mbg:${m.c}12"><i class="mdot" style="background:${m.c}"></i>${m.l}<span class="md">${m.d} min</span></button>`).join('');
+  $$('.mot').forEach((b) => b.addEventListener('click', () => {
+    M.m = b.dataset.m;
+    if (!M.durManuelle) M.dur = MOT(M.m).d;
+    majModale();
+  }, { signal }));
+  $$('#durChips button').forEach((b) => b.addEventListener('click', () => { M.dur = +b.dataset.d; M.durManuelle = true; majModale(); }, { signal }));
+  inH = $('#rdvH');
+  creerTimePicker(inH, { debut: 8 * 60, fin: 19 * 60 });
+  inH.addEventListener('input', () => {
+    const ok = /^([01]?\d|2[0-3]):([0-5]\d)$/.test(inH.value.trim());
+    inH.style.borderColor = ok ? '' : 'var(--garance)';
+    if (ok) { M.s = toMin(inH.value.trim()); majModale(true); }
+  }, { signal });
+
+  $('#rdvX').addEventListener('click', fermerRdv, { signal });
+  $('#rdvAnnuler').addEventListener('click', fermerRdv, { signal });
+  rdvVeilEl.addEventListener('click', (e) => { if (e.target === rdvVeilEl) fermerRdv(); }, { signal });
+
+  psIn = $('#psIn'); psMenu = $('#psMenu');
+  psIn.addEventListener('input', chercher, { signal });
+  psIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && psMenu.classList.contains('open')) { e.preventDefault(); $('.ps-opt', psMenu)?.click(); }
+    if (e.key === 'Escape' && psMenu.classList.contains('open')) { e.stopPropagation(); psMenu.classList.remove('open'); }
+  }, { signal });
+  document.addEventListener('click', (e) => { if (!e.target.closest?.('.ps')) psMenu?.classList.remove('open'); }, { signal });
+
+  $('#rdvOk').addEventListener('click', confirmer, { signal });
 }
 
-function openNewRdvGlobal() {
-  const selectedDate = AGENDA_DATA ? AGENDA_DATA.selectedDate : new Date().toISOString().slice(0, 10);
-  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
-    detail: {
-      mode: 'create',
-      prefill: { date: selectedDate },
-    },
-  }));
-}
-
-// =============== EDIT / CANCEL ACTIONS ===============
-function editAppointment() {
-  const popup = document.getElementById('rdv-popup');
-  if (!popup) return;
-  const id = popup.dataset.rdvId;
-  const a = appointments.find((x) => x.id === id);
-  if (!a) return;
-
-  closeAllPopups();
-  document.dispatchEvent(new CustomEvent('appointment:open-modal', {
-    detail: {
-      mode: 'edit',
-      appointment: a,
-    },
-  }));
-}
-
-function cancelAppointment() {
-  const actions = document.querySelector('.pp-actions');
-  const confirm = document.getElementById('pp-cancel-confirm');
-  if (actions) actions.style.display = 'none';
-  if (confirm) confirm.style.display = 'block';
-}
-
-function cancelCancelConfirm() {
-  const actions = document.querySelector('.pp-actions');
-  const confirm = document.getElementById('pp-cancel-confirm');
-  if (actions) actions.style.display = 'flex';
-  if (confirm) confirm.style.display = 'none';
-}
-
-function confirmCancel() {
-  const popup = document.getElementById('rdv-popup');
-  if (!popup) return;
-  const appointmentId = popup.dataset.rdvId;
-  if (!appointmentId) return;
-
-  const btn = document.getElementById('pp-confirm-cancel-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Annulation...';
+function ouvrirRdv(o) {
+  fermerPop();
+  if (!VETS.length) { showToast('Aucun praticien dans cette clinique'); return; }
+  if (o.edit) {
+    const r = o.edit;
+    M = { date: parse(r.date), s: r.s, dur: r.dur, vet: r.vet, pat: { id: r.animalId, ownerId: r.ownerId, ...pat(r) }, m: r.m, note: r.note || '', edit: r, durManuelle: true };
+  } else {
+    M = { date: new Date(o.date), s: o.s, dur: o.dur || 30, vet: o.vet || defautVet(), pat: null, m: null, note: '', edit: null, durManuelle: !!o.dur };
   }
+  ddJour.set(iso(M.date));
+  ddVet.set(M.vet);
+  inH.value = hm(M.s); inH.style.borderColor = '';
+  $('#rdvNote').value = M.note;
+  psIn.value = '';
+  psMenu.classList.remove('open');
+  $('#rdvTitre').textContent = M.edit ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
+  majPatient();
+  majModale();
+  rdvVeilEl.classList.add('open');
+  setTimeout(() => (M.pat ? $('#rdvNote') : psIn).focus(), 40);
+}
+function fermerRdv() { rdvVeilEl?.classList.remove('open'); }
 
-  // Read CSRF from the modal form
-  const csrfToken = document.querySelector('#modalAppointment input[name="_token"]')?.value || '';
+function conflits() {
+  const k = iso(M.date);
+  return RDVS.filter((r) => r.st !== 'annule' && r.st !== 'absent' && r.vet === M.vet && r.date === k && r.id !== M.edit?.id && M.s < r.s + r.dur && M.s + M.dur > r.s);
+}
+const I_W = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>';
+function majModale(sansInput) {
+  const v = VET(M.vet), d = M.date;
+  if (!sansInput) inH.value = hm(M.s);
+  $('#rdvFin').textContent = '→ ' + hm(M.s + M.dur);
+  $$('#durChips button').forEach((b) => b.classList.toggle('on', +b.dataset.d === M.dur));
+  $$('.mot').forEach((b) => b.classList.toggle('on', b.dataset.m === M.m));
+  $('#rdvSlot').textContent = `${fmtLong(d)} · ${hm(M.s)} – ${hm(M.s + M.dur)} · ${v.nom}`;
+  // overlaps, closed blocks, outside the planning
+  const cf = conflits();
+  const box = $('#rdvConflit');
+  const bl = blocsDe(M.vet, d);
+  const ferme = bl.find((b) => FERME(b.t) && M.s < b.e && M.s + M.dur > b.s);
+  const horsBloc = !bl.some((b) => (RDV_OK(b.t) || b.t === 'chir') && M.s >= b.s && M.s + M.dur <= b.e);
+  let bloque = false;
+  if (cf.length) {
+    const c = cf[0];
+    box.className = 'conflit on warn';
+    box.innerHTML = `${I_W}<span>${esc(v.nom)} a déjà ${esc(pat(c).a)} de ${hm(c.s)} à ${hm(c.s + c.dur)} — le créneau se chevauche.</span>`;
+    bloque = true;
+  } else if (ferme) {
+    box.className = 'conflit on warn';
+    box.innerHTML = `${I_W}<span>${esc(v.nom)} est en ${esc(TYP(ferme.t).l.toLowerCase())} de ${hm(ferme.s)} à ${hm(ferme.e)} — aucun RDV sur ce créneau.</span>`;
+    bloque = true;
+  } else if (horsBloc) {
+    box.className = 'conflit on info';
+    box.innerHTML = `${I_W}<span>Hors du planning de ${esc(v.nom)} ce jour-là — le RDV reste possible.</span>`;
+  } else { box.className = 'conflit'; box.innerHTML = ''; }
+  // CTA
+  const ok = M.pat && M.m && !bloque;
+  const btn = $('#rdvOk');
+  btn.disabled = !ok;
+  btn.textContent = bloque ? 'Créneau indisponible — choisissez un autre horaire'
+    : !ok ? (M.edit ? 'Enregistrer les modifications' : 'Confirmer le rendez-vous')
+      : (M.edit ? `Enregistrer — ${M.pat.a}, ${jourCourt(d)} à ${hm(M.s)}`
+        : `Confirmer — ${M.pat.a}, ${jourCourt(d)} à ${hm(M.s)}`);
+}
 
-  fetch(`/scheduling/appointments/${appointmentId}/cancel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ _token: csrfToken }),
-    credentials: 'same-origin',
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.success) {
-        closeAllPopups();
-        cancelCancelConfirm();
-        document.dispatchEvent(new CustomEvent('appointment:saved', {
-          detail: { appointment: { id: appointmentId, appointmentId }, action: 'cancelled' },
-        }));
+/* Patient search */
+function majPatient() {
+  const z = $('#psZone'), f = $('#psFiche');
+  if (M.pat) {
+    z.style.display = 'none'; f.style.display = '';
+    f.innerHTML = `<div class="pfiche"><span class="oe">${M.pat.e}</span><span><b>${esc(M.pat.a)}</b><small>${esc(M.pat.cli)}${M.pat.tel ? ' · ' + esc(M.pat.tel) : ''}</small></span>
+      <button type="button" class="fx" aria-label="Changer de patient"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`;
+    $('.fx', f).addEventListener('click', () => { M.pat = null; majPatient(); majModale(); psIn.focus(); });
+  } else { z.style.display = ''; f.style.display = 'none'; }
+}
+function chercher() {
+  const q = psIn.value.trim();
+  clearTimeout(searchTmr);
+  if (!q) { psMenu.classList.remove('open'); return; }
+  const creer = `<button type="button" class="ps-opt creer" data-new="1"><span class="oe">＋</span><span><b>Créer « ${esc(q)} »</b><small>Nouveau patient — fiche complétée à l'arrivée</small></span></button>`;
+  searchTmr = setTimeout(async () => {
+    searchCtrl?.abort();
+    searchCtrl = new AbortController();
+    let html = '';
+    if (q.length >= 2) {
+      try {
+        const r = await fetch(D.urls.search + '&q=' + encodeURIComponent(q), { signal: searchCtrl.signal, headers: { Accept: 'text/html' } });
+        if (r.ok) html = await r.text();
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+    psMenu.innerHTML = html.trim() + creer;
+    psMenu.classList.add('open');
+    $$('.ps-opt', psMenu).slice(0, -1).slice(6).forEach((b) => b.remove());
+    $$('.ps-opt', psMenu).forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.new) {
+        M.pat = { id: null, ownerId: null, a: q.charAt(0).toUpperCase() + q.slice(1), e: '🐾', cli: 'Nouveau client', tel: '', cree: true };
       } else {
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Confirmer';
-        }
-        showToast(data.errors?.global?.[0] || 'Erreur lors de l\'annulation', '#dc2626');
+        M.pat = { id: b.dataset.id, ownerId: null, a: b.dataset.name, e: b.dataset.emoji || '🐾', cli: b.dataset.owner || 'Sans propriétaire', tel: '' };
       }
-    })
-    .catch(() => {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Confirmer';
-      }
-      showToast('Erreur réseau', '#dc2626');
-    });
+      psMenu.classList.remove('open'); majPatient(); majModale();
+    }));
+  }, 160);
 }
 
-// =============== APPOINTMENT SAVED HANDLER ===============
-function onAppointmentSaved(e) {
-  const { appointment, action } = e.detail || {};
-  if (!appointment) return;
-
-  if (action === 'created') {
-    // Push into the source array so prepareAppointments() picks it up
-    AGENDA_DATA.appointments.push(appointment);
-    prepareAppointments();
-    renderWeek();
-
-    // Flash animation on the new block
-    requestAnimationFrame(() => {
-      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
-      if (block) {
-        block.classList.add('is-new');
-        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
-      }
-    });
-
-    showToast('Rendez-vous créé avec succès');
-  } else if (action === 'rescheduled') {
-    // Replace in the source array so prepareAppointments() picks it up
-    const srcIdx = AGENDA_DATA.appointments.findIndex((a) => a.id === appointment.id);
-    if (srcIdx !== -1) AGENDA_DATA.appointments[srcIdx] = appointment;
-    else AGENDA_DATA.appointments.push(appointment);
-    prepareAppointments();
-    renderWeek();
-
-    requestAnimationFrame(() => {
-      const block = document.querySelector(`.rdv-block[data-id="${appointment.id}"]`);
-      if (block) {
-        block.classList.add('is-new');
-        block.addEventListener('animationend', () => block.classList.remove('is-new'), { once: true });
-      }
-    });
-
-    showToast('Rendez-vous modifié avec succès');
-  } else if (action === 'cancelled') {
-    const appointmentId = appointment.id || appointment.appointmentId;
-    // Mark as cancelled in the source array
-    const srcI = AGENDA_DATA.appointments.findIndex((a) => a.id === appointmentId);
-    if (srcI !== -1) AGENDA_DATA.appointments[srcI].status = 'CANCELLED';
-
-    const block = document.querySelector(`.rdv-block[data-id="${appointmentId}"]`);
-    if (block) {
-      block.classList.add('is-removing');
-      block.addEventListener('animationend', () => {
-        prepareAppointments();
-        renderWeek();
-      }, { once: true });
-    } else {
-      prepareAppointments();
-      renderWeek();
-    }
-
-    showToast('Rendez-vous annulé');
-  }
+function noteEnvoyee(note) {
+  if (!M.pat.cree) return note;
+  return PREFIXE + M.pat.a + (note ? ' — ' + note : '');
 }
 
-// =============== TOAST ===============
-function showToast(msg, color = '#16a34a') {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.style.background = color;
-  t.style.opacity = '1';
-  t.style.transform = 'translateX(-50%) translateY(0)';
-  setTimeout(() => {
-    t.style.opacity = '0';
-    t.style.transform = 'translateX(-50%) translateY(8px)';
-  }, 2500);
-}
-
-// =============== AGENDA SIDEBAR DRAWER (mobile) ===============
-function toggleAgendaSidebar() {
-  const sb = document.querySelector('.scheduling-aside');
-  const ov = document.getElementById('drawer-overlay');
-  if (!sb || !ov) return;
-  const isOpen = sb.classList.contains('open');
-  if (isOpen) {
-    sb.classList.remove('open');
-    ov.classList.remove('open');
-  } else {
-    sb.classList.add('open');
-    ov.classList.add('open');
-  }
-}
-
-function closeAgendaSidebar() {
-  const sb = document.querySelector('.scheduling-aside');
-  const ov = document.getElementById('drawer-overlay');
-  if (sb) sb.classList.remove('open');
-  if (ov) ov.classList.remove('open');
-}
-
-// =============== EXPOSE TO WINDOW (for onclick attributes in HTML) ===============
-window.toggleVet = toggleVet;
-window.toggleAgendaSidebar = toggleAgendaSidebar;
-window.closeAgendaSidebar = closeAgendaSidebar;
-window.closeAllPopups = closeAllPopups;
-window.togglePlanningOverlay = togglePlanningOverlay;
-window.toggleFreeSlots = toggleFreeSlots;
-window.setFreeDur = setFreeDur;
-window.openNewRdvGlobal = openNewRdvGlobal;
-window.editAppointment = editAppointment;
-window.cancelAppointment = cancelAppointment;
-window.cancelCancelConfirm = cancelCancelConfirm;
-window.confirmCancel = confirmCancel;
-
-// =============== PAYLOAD + RENDER BOOTSTRAP ===============
-// Reads #agenda-data (fresh after each frame swap), rebuilds state and
-// renders the grid. Safe to call on both the initial page load and after
-// every `turbo:frame-load`.
-function bootstrapFromPayload() {
-  const dataNode = document.getElementById('agenda-data');
-  if (!dataNode) return;
-
-  AGENDA_DATA = JSON.parse(dataNode.textContent);
-  view = AGENDA_DATA.view === 'day' ? 'day' : 'week';
-  clientProfileUrlTemplate = AGENDA_DATA.clientProfileUrlTemplate || '';
-  nowDate = new Date();
-
-  planningBlocksVisible = localStorage.getItem(PLANNING_OVERLAY_LS_KEY) === '1';
-  const overlayBtn = document.getElementById('planning-overlay-btn');
-  if (overlayBtn) overlayBtn.classList.toggle('is-active', planningBlocksVisible);
-
-  buildVetIndex();
-  prepareAppointments();
-  buildWeekDays();
-  patchHeaderNav();
-  renderWeek();
-  syncSidebarCalendar();
-}
-
-// Update the static page-header: nav link hrefs, view-toggle active state,
-// and the "Month year · Semaine N" label. Done in place so the header DOM
-// is never rebuilt on frame navigation — no visible snap.
-function patchHeaderNav() {
-  if (!AGENDA_DATA) return;
-
-  const [y, m, d] = AGENDA_DATA.selectedDate.split('-').map(Number);
-  const sel = new Date(y, m - 1, d);
-  const step = view === 'day' ? 1 : 7;
-
-  const prev = new Date(sel);
-  prev.setDate(sel.getDate() - step);
-  const next = new Date(sel);
-  next.setDate(sel.getDate() + step);
-
-  const setHref = (selector, url) => {
-    const el = document.querySelector(selector);
-    if (el) el.setAttribute('href', url);
+async function confirmer() {
+  const btn = $('#rdvOk');
+  if (btn.disabled) return;
+  const note = $('#rdvNote').value.trim();
+  const d = M.date, s = M.s, dur = M.dur, vet = M.vet, m = M.m, p = M.pat, edit = M.edit;
+  const champs = {
+    practitionerUserId: vet,
+    startsAtUtc: `${iso(d)} ${hm(s)}`,
+    durationMinutes: String(dur),
+    // An unchanged motif keeps the booking's own wording (« Bilan gériatrique »)
+    reason: edit && edit.m === m && edit.reason ? edit.reason : MOT(m).l,
+    notes: noteEnvoyee(note),
+    animalId: p.id || '',
+    // The server reads the owner from the animal when none is given
+    ownerId: edit && p.id && p.id === edit.animalId ? (edit.ownerId || '') : '',
   };
-  setHref('[data-nav="prev"]', `/scheduling/agenda?date=${isoDate(prev)}&view=${view}`);
-  setHref('[data-nav="next"]', `/scheduling/agenda?date=${isoDate(next)}&view=${view}`);
-  setHref('[data-nav="today"]', `/scheduling/agenda?view=${view}`);
-  setHref('[data-nav="week-view"]', `/scheduling/agenda?date=${AGENDA_DATA.selectedDate}&view=week`);
-  setHref('[data-nav="day-view"]', `/scheduling/agenda?date=${AGENDA_DATA.selectedDate}&view=day`);
+  btn.disabled = true;
 
-  document.querySelectorAll('[data-nav="week-view"]').forEach((el) => {
-    el.classList.toggle('is-active', view === 'week');
-  });
-  document.querySelectorAll('[data-nav="day-view"]').forEach((el) => {
-    el.classList.toggle('is-active', view === 'day');
-  });
-
-  renderHeaderLabel();
-}
-
-// Structured label: two child spans (month + week badge). On first run we
-// build them; on subsequent runs we only touch a span if its text actually
-// changed, and the change is wrapped in a quick fade so identical renders
-// produce zero visual movement.
-function renderHeaderLabel() {
-  const label = document.getElementById('week-label');
-  if (!label || !AGENDA_DATA) return;
-
-  const ws = weekDays[0];
-  const we = weekDays[weekDays.length - 1];
-  const monthLabel = view === 'week'
-    ? monthRangeLabel(ws, we)
-    : `${MONTHS_FR[ws.getMonth()]} ${ws.getFullYear()}`;
-  const weekText = `Semaine ${isoWeekNumber(ws)}`;
-
-  let monthEl = label.querySelector('.week-month-label');
-  let badgeEl = label.querySelector('.week-number-badge');
-
-  if (!monthEl || !badgeEl) {
-    // First render: build the structure.
-    label.innerHTML = '';
-    monthEl = document.createElement('span');
-    monthEl.className = 'week-month-label';
-    monthEl.textContent = monthLabel;
-    badgeEl = document.createElement('span');
-    badgeEl.className = 'week-number-badge';
-    badgeEl.textContent = weekText;
-    label.appendChild(monthEl);
-    label.appendChild(badgeEl);
+  if (edit) {
+    const r = edit;
+    const avant = { ...r };
+    Object.assign(r, { date: iso(d), s, dur, vet, m, note: champs.notes, a: p.a, e: p.e, cli: p.cli, animalId: p.id, _busy: true });
+    fermerRdv(); cur = new Date(d); rendre();
+    const { ok, body } = await post(url('reschedule', r.id), champs);
+    r._busy = false;
+    if (!ok) { Object.assign(r, avant); rendre(); showToast(message(body, 'Le rendez-vous n\'a pas pu être modifié'), 'danger'); return; }
+    toastUndo(`RDV modifié — ${p.a}, ${jourCourt(d)} à ${hm(s)}`, async () => {
+      const res = await post(url('reschedule', r.id), {
+        practitionerUserId: avant.vet, startsAtUtc: `${avant.date} ${hm(avant.s)}`, durationMinutes: String(avant.dur),
+        reason: avant.reason || MOT(avant.m).l, notes: avant.note || '', animalId: avant.animalId || '', ownerId: avant.ownerId || '',
+      });
+      if (!res.ok) showToast(message(res.body, 'La modification n\'a pas pu être annulée'), 'danger');
+      refresh(parse(avant.date), d);
+    });
+    refresh(parse(avant.date), d);
     return;
   }
 
-  // Subsequent renders: only touch what changed, fade in place.
-  if (monthEl.textContent !== monthLabel) fadeSwapText(monthEl, monthLabel);
-  if (badgeEl.textContent !== weekText) fadeSwapText(badgeEl, weekText);
+  const tmp = { id: 'tmp-' + Date.now(), date: iso(d), s, dur, vet, a: p.a, e: p.e, cli: p.cli, tel: p.tel, animalId: p.id, ownerId: null, m, reason: MOT(m).l, note: champs.notes, st: null, _busy: true };
+  RDVS.push(tmp);
+  fermerRdv(); cur = new Date(d); moisVu = new Date(d.getFullYear(), d.getMonth(), 1); rendre();
+  const { ok, body } = await post(D.urls.create, champs);
+  RDVS = RDVS.filter((x) => x !== tmp);
+  if (!ok) { rendre(); showToast(message(body, 'Le rendez-vous n\'a pas pu être créé'), 'danger'); return; }
+  if (body?.appointment?.id) RDVS.push({ ...tmp, id: body.appointment.id, _busy: false });
+  rendre();
+  showToast(`RDV confirmé — ${p.a}, ${jourCourt(d)} à ${hm(s)}`);
+  refresh(d);
 }
 
-// Quick fade-out → swap text → fade-in on a single element. No-op if the
-// content is already up to date (caller guards).
-const LABEL_FADE_OUT_MS = 70;
-const LABEL_FADE_IN_MS = 110;
-function fadeSwapText(el, newText) {
-  el.style.transition = `opacity ${LABEL_FADE_OUT_MS}ms ease-out`;
-  el.style.opacity = '0';
-  const onOut = () => {
-    el.removeEventListener('transitionend', onOut);
-    el.textContent = newText;
-    el.style.transition = `opacity ${LABEL_FADE_IN_MS}ms ease-in`;
-    el.style.opacity = '1';
-    const onIn = () => {
-      el.removeEventListener('transitionend', onIn);
-      el.style.transition = '';
-      el.style.opacity = '';
-    };
-    el.addEventListener('transitionend', onIn);
-  };
-  el.addEventListener('transitionend', onOut);
-}
-
-function syncSidebarCalendar() {
-  // The sidebar calendar is OUTSIDE the turbo-frame, so its Stimulus
-  // controller survives frame swaps. After a navigation, push the new
-  // selected date into the calendar so the sidebar stays in sync with
-  // the agenda grid.
-  const root = document.getElementById('scheduling-calendar');
-  if (!root || !window.Stimulus || typeof window.Stimulus.getControllerForElementAndIdentifier !== 'function') return;
-  const ctrl = window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar');
-  if (ctrl && typeof ctrl.setSelected === 'function') {
-    ctrl.setSelected(AGENDA_DATA.selectedDate);
-  }
-}
-
-// =============== CALENDAR ↔ AGENDA NAVIGATION ===============
-// All frame navigations — sidebar calendar click, header link click, etc. —
-// go through the same path: Turbo swaps the frame contents, then we run
-// bootstrapFromPayload() and manually push the new URL to history. We do
-// NOT use data-turbo-action="advance" on the frame because it caused layout
-// glitches in our flex shell when combined with link clicks.
-let _calendarSelectHandler = null;
-let _frameLoadHandler = null;
-let _popstateHandler = null;
-let _navClickHandler = null;
-let _beforeFrameRenderHandler = null;
-let _frameRenderHandler = null;
-let _appointmentSavedHandler = null;
-let _bootstrappedOnce = false;
-
-// Direction of the upcoming frame swap — 'prev', 'next' or null (fade only).
-// Set by onNavigationClick / onCalendarSelect before the frame reloads, then
-// consumed and cleared by the turbo frame render handlers.
-let _pendingNavDirection = null;
-
-// Transition tuning (ms / px / opacity).
-const NAV_OUT_MS = 80;
-const NAV_IN_MS = 140;
-const NAV_SHIFT_PX = 24;
-// Minimum opacity during the swap — keep the grid mostly visible so the
-// slide reads as "motion" rather than "content disappearing".
-const NAV_MIN_OPACITY = '0.55';
-
-function computeDirection(newIso) {
-  if (!newIso || !AGENDA_DATA || !AGENDA_DATA.selectedDate) return null;
-  // In week view, a navigation that stays within the same Monday-Sunday
-  // window shouldn't slide — the grid content is identical, only the
-  // selected-day state changes. Compare week anchors in that case.
-  const compareA = view === 'week' ? weekAnchor(AGENDA_DATA.selectedDate) : AGENDA_DATA.selectedDate;
-  const compareB = view === 'week' ? weekAnchor(newIso) : newIso;
-  if (compareB < compareA) return 'prev';
-  if (compareB > compareA) return 'next';
-  return null;
-}
-
-function weekAnchor(iso) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return isoDate(mondayOf(new Date(y, m - 1, d)));
-}
-
-function directionFromHref(href) {
-  try {
-    const url = new URL(href, window.location.origin);
-    let date = url.searchParams.get('date');
-    if (!date) {
-      // "Today" link omits the date param — resolve it client-side in the
-      // clinic timezone so it can be compared to selectedDate.
-      date = toClinicLocalParts(new Date(), AGENDA_DATA.clinicTimezone).dateStr;
-    }
-    return computeDirection(date);
-  } catch (_e) {
-    return null;
-  }
-}
-
-function onCalendarSelect(e) {
-  const iso = e && e.detail && e.detail.date;
-  if (!iso || typeof iso !== 'string') return;
-  if (iso === AGENDA_DATA.selectedDate) return; // no-op re-click
-
-  // In week view, staying within the same Monday-Sunday window means the
-  // grid content is identical — skip the server roundtrip entirely and
-  // just patch local state + URL so the Day/Week toggles and history
-  // still reflect the newly picked day.
-  if (view === 'week' && weekAnchor(iso) === weekAnchor(AGENDA_DATA.selectedDate)) {
-    AGENDA_DATA.selectedDate = iso;
-    patchHeaderNav();
-    const nextUrl = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=week`;
-    const current = window.location.pathname + window.location.search;
-    if (current !== nextUrl) window.history.pushState({}, '', nextUrl);
-    return;
-  }
-
-  const frame = document.getElementById('agenda-frame');
-  if (!frame) return;
-  _pendingNavDirection = computeDirection(iso);
-  frame.src = `/scheduling/agenda?date=${encodeURIComponent(iso)}&view=${encodeURIComponent(view)}`;
-}
-
-function onNavigationClick(e) {
-  // Capture-phase delegated click on any <a data-turbo-frame="agenda-frame">,
-  // fired before Turbo intercepts the click. The header lives OUTSIDE the
-  // frame so we match by attribute instead of DOM containment.
-  const target = e.target;
-  if (!target || typeof target.closest !== 'function') return;
-  const a = target.closest('a[data-turbo-frame="agenda-frame"]');
-  if (!a || !a.href) return;
-
-  // For the Day/Week view toggles, the sidebar calendar is the source of
-  // truth for the selected date. Read its current selection and rewrite the
-  // href just before Turbo navigates — this prevents a race where a recent
-  // calendar click hasn't finished reloading the frame yet, leaving the
-  // toggle's href pointing at the previous date.
-  const nav = a.getAttribute('data-nav');
-  if (nav === 'day-view' || nav === 'week-view') {
-    const calendarIso = getSidebarCalendarSelected();
-    if (calendarIso) {
-      const targetView = nav === 'day-view' ? 'day' : 'week';
-      a.href = `/scheduling/agenda?date=${encodeURIComponent(calendarIso)}&view=${targetView}`;
-    }
-  }
-
-  _pendingNavDirection = directionFromHref(a.href);
-}
-
-function getSidebarCalendarSelected() {
-  const root = document.getElementById('scheduling-calendar');
-  if (!root || !window.Stimulus || typeof window.Stimulus.getControllerForElementAndIdentifier !== 'function') return null;
-  const ctrl = window.Stimulus.getControllerForElementAndIdentifier(root, 'calendar');
-  if (!ctrl) return null;
-  const iso = ctrl.selectedValue;
-  return iso && typeof iso === 'string' ? iso : null;
-}
-
-function onBeforeFrameRender(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== 'agenda-frame') return;
-
-  // We animate `.agenda-wrap` (grid only), not the frame itself, so that
-  // the page header — still inside the frame so its hrefs and label stay
-  // server-rendered — doesn't slide along with the grid.
-  const wrap = frame.querySelector('.agenda-wrap');
-  if (!wrap) return;
-
-  // No direction = same view anchor (e.g. another day within the same week
-  // in week view). Skip the transition entirely so the grid stays stable.
-  if (!_pendingNavDirection) return;
-
-  // Defer Turbo's DOM swap so the "slide-out + fade-out" transition can run
-  // to completion first, then resume() below hands control back to Turbo.
-  e.preventDefault();
-
-  const dir = _pendingNavDirection;
-  const outX = dir === 'next' ? `-${NAV_SHIFT_PX}px` : `${NAV_SHIFT_PX}px`;
-
-  wrap.style.willChange = 'opacity, transform';
-  wrap.style.transition = `opacity ${NAV_OUT_MS}ms ease-out, transform ${NAV_OUT_MS}ms ease-out`;
-  wrap.style.opacity = NAV_MIN_OPACITY;
-  wrap.style.transform = `translateX(${outX})`;
-
-  window.setTimeout(() => {
-    if (e.detail && typeof e.detail.resume === 'function') e.detail.resume();
-  }, NAV_OUT_MS + 10);
-}
-
-function onFrameRender(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== 'agenda-frame') return;
-
-  // The new DOM is already mounted — grab the fresh .agenda-wrap.
-  const wrap = frame.querySelector('.agenda-wrap');
-  if (!wrap) return;
-
-  // No direction = no animation on the way out either; bail out without
-  // touching styles so the mounted DOM stays put.
-  if (!_pendingNavDirection) return;
-
-  const dir = _pendingNavDirection;
-  const inX = dir === 'next' ? `${NAV_SHIFT_PX}px` : `-${NAV_SHIFT_PX}px`;
-
-  // Jump to the "entering" position without transition, then animate back
-  // to the resting state after a forced reflow so the transition actually
-  // kicks in on the already-mounted new DOM.
-  wrap.style.transition = 'none';
-  wrap.style.opacity = NAV_MIN_OPACITY;
-  wrap.style.transform = `translateX(${inX})`;
-  // eslint-disable-next-line no-unused-expressions
-  wrap.offsetHeight;
-
-  wrap.style.transition = `opacity ${NAV_IN_MS}ms ease-out, transform ${NAV_IN_MS}ms ease-out`;
-  wrap.style.opacity = '1';
-  wrap.style.transform = 'translateX(0)';
-
-  const onEnd = () => {
-    wrap.style.transition = '';
-    wrap.style.transform = '';
-    wrap.style.opacity = '';
-    wrap.style.willChange = '';
-    _pendingNavDirection = null;
-    wrap.removeEventListener('transitionend', onEnd);
-  };
-  wrap.addEventListener('transitionend', onEnd);
-}
-
-function onFrameLoad(e) {
-  const frame = e.target;
-  if (!frame || frame.id !== 'agenda-frame') return;
-
-  bootstrapFromPayload();
-
-  // Skip history manipulation on the very first frame-load that fires when
-  // the frame is initially parsed on a full page load — the URL is already
-  // correct and pushing again would create a duplicate entry.
-  if (!_bootstrappedOnce) {
-    _bootstrappedOnce = true;
-    return;
-  }
-
-  // Sync the browser URL with the new frame src so back/forward and
-  // bookmarks work. Only push when the target differs from the current
-  // location to avoid no-op duplicate entries.
-  if (frame.src) {
-    const target = new URL(frame.src, window.location.origin);
-    const current = window.location.pathname + window.location.search;
-    const next = target.pathname + target.search;
-    if (current !== next) {
-      window.history.pushState({}, '', next);
-    }
-  }
-}
-
-function onPopState() {
-  // Browser back/forward — reload the frame from the new URL so the agenda
-  // matches the history entry the user just moved to.
-  const frame = document.getElementById('agenda-frame');
-  if (!frame) return;
-  const url = window.location.pathname + window.location.search;
-  const absolute = new URL(url, window.location.origin).href;
-  if (frame.src !== absolute) {
-    frame.src = url;
-  }
-}
-
-// =============== INIT / CLEANUP ===============
+/* ═════════ Init ═════════ */
 export function init() {
-  bootstrapFromPayload();
+  const root = $('.agd');
+  const raw = $('#agenda-data');
+  if (!root || !raw) return;
 
-  if (!_calendarSelectHandler) {
-    _calendarSelectHandler = onCalendarSelect;
-    document.addEventListener('calendar:select', _calendarSelectHandler);
-  }
-  if (!_frameLoadHandler) {
-    _frameLoadHandler = onFrameLoad;
-    document.addEventListener('turbo:frame-load', _frameLoadHandler);
-  }
-  if (!_popstateHandler) {
-    _popstateHandler = onPopState;
-    window.addEventListener('popstate', _popstateHandler);
-  }
-  if (!_navClickHandler) {
-    _navClickHandler = onNavigationClick;
-    // Capture phase so we set the direction BEFORE Turbo's bubble-phase
-    // link handler decides to navigate the frame.
-    document.addEventListener('click', _navClickHandler, true);
-  }
-  if (!_beforeFrameRenderHandler) {
-    _beforeFrameRenderHandler = onBeforeFrameRender;
-    document.addEventListener('turbo:before-frame-render', _beforeFrameRenderHandler);
-  }
-  if (!_frameRenderHandler) {
-    _frameRenderHandler = onFrameRender;
-    document.addEventListener('turbo:frame-render', _frameRenderHandler);
-  }
-  if (!_appointmentSavedHandler) {
-    _appointmentSavedHandler = onAppointmentSaved;
-    document.addEventListener('appointment:saved', _appointmentSavedHandler);
-  }
+  D = JSON.parse(raw.textContent);
+  t0 = Date.now();
+  AUJ = parse(D.today);
+  VETS = D.vets;
+  RDVS = []; BLOCS = []; loaded.clear(); pending.clear();
+  merge(D.range);
+  vue = D.view;
+  cur = parse(D.date);
+  moisVu = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  visibles = new Set(VETS.map((v) => v.id));
+  blocsOn = false; libresOn = false; durLibre = 20; popId = null;
+
+  calHead = $('#calHead'); calInner = $('#calInner'); calBody = $('#calBody');
+  pop = $('#rdvPop'); rdvVeilEl = $('#rdvVeil');
+
+  ac = new AbortController();
+  const { signal } = ac;
+
+  $('#btnAuj').addEventListener('click', () => { cur = new Date(AUJ); moisVu = new Date(AUJ.getFullYear(), AUJ.getMonth(), 1); fermerPop(); rendre(); }, { signal });
+  $('#btnPrev').addEventListener('click', () => { cur = addD(cur, vue === 'week' ? -7 : -1); moisVu = new Date(cur.getFullYear(), cur.getMonth(), 1); fermerPop(); rendre(); }, { signal });
+  $('#btnNext').addEventListener('click', () => { cur = addD(cur, vue === 'week' ? 7 : 1); moisVu = new Date(cur.getFullYear(), cur.getMonth(), 1); fermerPop(); rendre(); }, { signal });
+  $$('#vueSeg button').forEach((b) => b.addEventListener('click', () => {
+    vue = b.dataset.v;
+    $$('#vueSeg button').forEach((x) => x.classList.toggle('on', x === b));
+    fermerPop(); rendre();
+  }, { signal }));
+  $('#btnBlocs').addEventListener('click', (e) => { blocsOn = !blocsOn; e.currentTarget.classList.toggle('on', blocsOn); rendre(); }, { signal });
+  $('#btnLibres').addEventListener('click', (e) => {
+    libresOn = !libresOn;
+    e.currentTarget.classList.toggle('free-on', libresOn);
+    $('#durs').classList.toggle('on', libresOn);
+    rendre();
+  }, { signal });
+  $$('#durs button').forEach((b) => b.addEventListener('click', () => {
+    durLibre = +b.dataset.d;
+    $$('#durs button').forEach((x) => x.classList.toggle('on', x === b));
+    rendre();
+  }, { signal }));
+  $('#btnNouveau').addEventListener('click', nouveau, { signal });
+
+  document.addEventListener('click', (e) => { if (!(e.target instanceof Element) || (!e.target.closest('.pop') && !e.target.closest('.ev'))) fermerPop(); }, { signal });
+  document.addEventListener('click', (e) => { if (!(e.target instanceof Element) || !e.target.closest('.dp')) $$('.dp.open').forEach((x) => x.classList.remove('open')); }, { signal });
+  calBody.addEventListener('scroll', fermerPop, { signal });
+
+  bindModal(signal);
+
+  // Keys — captured before the shell, whose R would reload this page with ?new=1
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if ($('.dd.open,.dp.open,.tp.open')) return;
+      if (pop.classList.contains('open')) { e.stopPropagation(); fermerPop(); return; }
+      if (rdvVeilEl.classList.contains('open')) { e.stopPropagation(); fermerRdv(); return; }
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target instanceof Element && e.target.matches('input,textarea,select,[contenteditable]')) return;
+    if ($('.veil.open,.mveil.open,.racc-veil.open')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'r') { e.preventDefault(); e.stopPropagation(); nouveau(); }
+    if (k === 't') $('#btnAuj').click();
+    if (e.key === 'ArrowLeft') $('#btnPrev').click();
+    if (e.key === 'ArrowRight') $('#btnNext').click();
+  }, { signal, capture: true });
+
+  let resizeTmr;
+  window.addEventListener('resize', () => { clearTimeout(resizeTmr); resizeTmr = setTimeout(rendre, 60); }, { signal });
+  document.addEventListener('turbo:before-cache', () => { fermerPop(); fermerRdv(); }, { signal });
+
+  rendre();
+  const voitAuj = vue === 'week' ? AUJ >= lundiDe(cur) && AUJ < addD(lundiDe(cur), 7) : memeJour(cur, AUJ);
+  calBody.scrollTop = voitAuj ? Math.max(0, (nowMin() - START - 90) * PX) : 0;
+
+  // The now-line and the past / to-come states follow the clock
+  ticker = setInterval(() => { if (!rdvVeilEl.classList.contains('open') && !pop.classList.contains('open')) rendre(); }, 60000);
+
+  if (D.openNew) nouveau();
 }
 
 export function cleanup() {
-  delete window.togglePlanningOverlay;
-  delete window.toggleVet;
-  delete window.toggleAgendaSidebar;
-  delete window.closeAgendaSidebar;
-  delete window.closeAllPopups;
-  delete window.toggleFreeSlots;
-  delete window.setFreeDur;
-  delete window.openNewRdvGlobal;
-  delete window.editAppointment;
-  delete window.cancelAppointment;
-  delete window.cancelCancelConfirm;
-  delete window.confirmCancel;
-  delete window.__agendaVets;
-
-  if (_calendarSelectHandler) {
-    document.removeEventListener('calendar:select', _calendarSelectHandler);
-    _calendarSelectHandler = null;
-  }
-  if (_frameLoadHandler) {
-    document.removeEventListener('turbo:frame-load', _frameLoadHandler);
-    _frameLoadHandler = null;
-  }
-  if (_popstateHandler) {
-    window.removeEventListener('popstate', _popstateHandler);
-    _popstateHandler = null;
-  }
-  if (_navClickHandler) {
-    document.removeEventListener('click', _navClickHandler, true);
-    _navClickHandler = null;
-  }
-  if (_beforeFrameRenderHandler) {
-    document.removeEventListener('turbo:before-frame-render', _beforeFrameRenderHandler);
-    _beforeFrameRenderHandler = null;
-  }
-  if (_frameRenderHandler) {
-    document.removeEventListener('turbo:frame-render', _frameRenderHandler);
-    _frameRenderHandler = null;
-  }
-  if (_appointmentSavedHandler) {
-    document.removeEventListener('appointment:saved', _appointmentSavedHandler);
-    _appointmentSavedHandler = null;
-  }
-  _bootstrappedOnce = false;
-  _pendingNavDirection = null;
+  ac?.abort();
+  ac = null;
+  clearInterval(ticker);
+  ticker = null;
+  searchCtrl?.abort();
+  clearTimeout(searchTmr);
+  document.body.classList.remove('dragging');
+  D = null;
 }

@@ -102,6 +102,29 @@ final class AppointmentTest extends TestCase
         $appointment->reschedule($newTimeSlot);
     }
 
+    public function testChangeDetailsRewritesReasonAndNotes(): void
+    {
+        $appointment = $this->createSampleAppointment();
+
+        $appointment->changeDetails(' Vaccin ', 'Rappel CHPPiL');
+        self::assertSame('Vaccin', $appointment->reason());
+        self::assertSame('Rappel CHPPiL', $appointment->notes());
+
+        $appointment->changeDetails(null, '  ');
+        self::assertNull($appointment->reason());
+        self::assertNull($appointment->notes());
+    }
+
+    public function testCannotChangeDetailsOfTerminalAppointment(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Cannot change the details of a terminated appointment.');
+
+        $appointment = $this->createSampleAppointment();
+        $appointment->cancel();
+        $appointment->changeDetails('Vaccin', null);
+    }
+
     public function testChangePractitionerAssignee(): void
     {
         $appointment  = $this->createSampleAppointment();

@@ -76,6 +76,8 @@ final class AppointmentMapper
         $entity->setStartsAtUtc($appointment->timeSlot()->startsAtUtc());
         $entity->setDurationMinutes($appointment->timeSlot()->durationMinutes());
         $entity->setStatus($appointment->status());
+        $entity->setReason($appointment->reason());
+        $entity->setNotes($appointment->notes());
         $entity->setServiceStartedAt($appointment->serviceStartedAt());
         $entity->setLinkedAdmissionId(
             null !== $appointment->linkedAdmissionId()

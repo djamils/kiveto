@@ -1,0 +1,105 @@
+/* assets/styles/pages/scheduling/sched.css
+   Scheduling shell of the v-topbar design, shared by the agenda and the
+   planning (docs/frontend-theme/kiveto-theme/agenda-v-topbar_5.html and
+   planning-v-topbar_5.html, « Date picker » → « Coque de planification »):
+   date / time pickers, aside with mini-calendar and practitioner chips,
+   toolbar buttons and the hourly grid. Scoped under the page root `.sched`. */
+
+/* ═════════ Date picker / time picker ═════════ */
+.sched .dp{position:relative}
+.sched .dp-btn{gap:9px}
+.sched .dp-btn .dp-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sched .dp-btn .dp-ic{color:var(--encre-35);display:grid;place-items:center;flex:none}
+.sched .dp-btn em{font-style:normal;font-size:.7rem;font-weight:600;color:var(--pin);margin-left:4px}
+.sched .dp.open .dp-btn{border-color:var(--pin);background:var(--carte)}
+.sched .dp.open .dp-btn .dp-ic{color:var(--pin)}
+.sched .dp-pop{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:30;width:268px;padding:10px 10px 8px;background:var(--carte);border:1px solid var(--trait);border-radius:12px;box-shadow:0 14px 40px rgba(15,23,42,.18)}
+.sched .dp.open .dp-pop{display:block}
+.sched .dp-q{display:flex;gap:5px;padding-top:8px;margin-top:6px;border-top:1px solid var(--brume)}
+.sched .dp-q button{flex:1;height:26px;border-radius:6px;background:var(--brume);font-size:.7rem;font-weight:600;color:var(--encre-60)}
+.sched .dp-q button:hover{background:var(--pin-pale);color:var(--pin-fonce)}
+.sched .tp{position:relative}
+.sched .tp .finput{padding-left:34px;text-align:left;font-family:var(--font-data);cursor:pointer}
+.sched .tp-ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--encre-35);pointer-events:none;display:grid}
+.sched .tp.open .finput{border-color:var(--pin);background:var(--carte)}
+.sched .tp.open .tp-ic{color:var(--pin)}
+.sched .tp-pop{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:30;min-width:100%;width:max-content;max-height:232px;overflow-y:auto;padding:4px;background:var(--carte);border:1px solid var(--trait);border-radius:10px;box-shadow:0 14px 40px rgba(15,23,42,.18)}
+.sched .tp.open .tp-pop{display:block}
+.sched .tp-pop button{display:flex;align-items:center;gap:14px;width:100%;padding:6px 10px;border-radius:6px;text-align:left}
+.sched .tp-pop button:hover{background:var(--pin-pale)}
+.sched .tp-pop button b{font-family:var(--font-data);font-size:.82rem;font-weight:500}
+.sched .tp-pop button i{margin-left:auto;font-style:normal;font-size:.7rem;color:var(--encre-35)}
+.sched .tp-pop button.on{background:var(--pin);color:#fff}
+.sched .tp-pop button.on i{color:#c7d2fe}
+
+/* ═════════ Coque de planification ═════════ */
+.sched{flex:1;min-height:0;display:flex}
+.sched .sch-aside{width:236px;flex:none;border-right:1px solid var(--trait);background:var(--carte);padding:14px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.sched .asd-lbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--encre-35);margin:0 4px 6px}
+.sched .mc-head{display:flex;align-items:center;gap:4px;margin:0 2px 6px}
+.sched .mc-head b{flex:1;font-family:var(--font-display);font-size:.9rem;font-weight:600;padding-left:4px}
+.sched .mc-nav{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--encre-60)}
+.sched .mc-nav:hover{background:var(--brume)}
+.sched .mc-grid{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px}
+.sched .mc-dow{font-size:.62rem;font-weight:700;color:var(--encre-35);text-align:center;padding:2px 0 4px;text-transform:uppercase}
+.sched .mc-d{height:32px;font-size:.74rem;display:grid;place-items:center;color:var(--encre);font-family:var(--font-data);cursor:pointer;position:relative}
+.sched .mc-d span{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;transition:background .1s;position:relative;padding-bottom:5px}
+.sched .mc-d.has span::after{content:'';position:absolute;bottom:4px;left:50%;margin-left:-2px;width:4px;height:4px;border-radius:50%;background:#cbd5e1}
+.sched .mc-d:hover span{background:var(--brume)}
+.sched .mc-d.hors{color:var(--encre-35)}
+.sched .mc-d.hors.has span::after{opacity:.6}
+.sched .mc-d.wk{background:var(--pin-pale)}
+.sched .mc-d.wk:hover span{background:transparent}
+.sched .mc-d.wk-l{border-radius:8px 0 0 8px}
+.sched .mc-d.wk-r{border-radius:0 8px 8px 0}
+.sched .mc-d.wk.has span::after{background:#a5b4fc}
+.sched .mc-d.today span{color:var(--pin);font-weight:700}
+.sched .mc-d.today.has span::after{background:var(--pin)}
+.sched .mc-d.sel span{background:var(--pin);color:#fff;font-weight:700}
+.sched .mc-d.sel.has span::after{background:#fff;opacity:.85}
+.sched .vchip{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border-radius:7px;font-size:.82rem;font-weight:500;text-align:left;transition:background .1s}
+.sched .vchip:hover{background:var(--brume)}
+.sched .vchip .vdot{width:10px;height:10px;border-radius:3px;flex:none;border:1.5px solid transparent}
+.sched .vchip .vn{margin-left:auto;font-family:var(--font-data);font-size:.7rem;color:var(--encre-35)}
+.sched .vchip.off{color:var(--encre-35)}
+.sched .vchip.off .vdot{background:transparent!important}
+
+.sched .sch-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.sched .sch-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--trait);background:var(--carte);flex:none}
+.sched .hbtn{height:32px;padding:0 12px;border:1px solid var(--trait);border-radius:7px;background:var(--carte);font-size:.8rem;font-weight:600;color:var(--encre-60);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all .12s}
+.sched .hbtn:hover{background:var(--brume)}
+.sched .hbtn.ic{width:32px;padding:0;justify-content:center}
+.sched .hbtn svg{width:14px;height:14px;flex:none}
+.sched .hbtn.on{background:var(--pin-pale);border-color:rgba(67,56,202,.35);color:var(--pin-fonce)}
+.sched .sch-label{font-family:var(--font-display);font-size:1.02rem;font-weight:600;margin-left:6px;white-space:nowrap}
+.sched .sch-head .seg{padding:2px}
+.sched .sch-head .seg button{padding:5px 12px}
+.sched .sch-head .btn.primaire{height:32px;padding:0 13px;font-size:.8rem}
+
+/* grille horaire */
+.sched .cal{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--carte)}
+.sched .cal-head{display:grid;border-bottom:1px solid var(--trait);flex:none}
+.sched .cal-hd{padding:7px 6px 8px;text-align:center;border-left:1px solid var(--trait);min-width:0}
+.sched .cal-hd .dn{display:block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35)}
+.sched .cal-hd .dnum{display:inline-grid;place-items:center;min-width:30px;height:28px;margin-top:2px;padding:0 6px;border-radius:8px;font-family:var(--font-display);font-size:1.08rem;font-weight:600}
+.sched .cal-hd.auj .dn{color:var(--pin)}
+.sched .cal-hd.auj .dnum{background:var(--pin);color:#fff}
+.sched .cal-hd .cnt{display:block;font-size:.66rem;color:var(--encre-60);margin-top:2px}
+.sched .cal-hd.vet{display:flex;align-items:center;justify-content:center;gap:8px}
+.sched .cal-hd.vet .vav{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.66rem;font-weight:700;flex:none}
+.sched .cal-hd.vet b{font-size:.84rem;font-weight:600}
+.sched .cal-hd.vet .cnt{margin:0}
+.sched .cal-body{flex:1;overflow-y:auto;position:relative}
+.sched .cal-inner{display:grid;position:relative}
+.sched .gut{position:relative}
+.sched .gut span{position:absolute;right:8px;transform:translateY(-50%);font-family:var(--font-data);font-size:.66rem;color:var(--encre-35)}
+.sched .ccol{position:relative;border-left:1px solid #eef1f5;cursor:copy;
+  background-image:linear-gradient(#eef1f5 1px,transparent 1px),linear-gradient(#f7f8fa 1px,transparent 1px);
+  background-size:100% var(--hh),100% calc(var(--hh) / 2)}
+.sched .ccol.we{background-color:#fbfcfd}
+.sched .nowl{position:absolute;left:0;right:0;height:2px;background:var(--garance);z-index:6;pointer-events:none}
+.sched .nowl::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--garance)}
+.sched .ccol + .ccol .nowl::before{display:none}
+.sched .hover-slot.drag{background:rgba(67,56,202,.10);border:1.5px solid var(--pin);z-index:6;color:var(--pin-fonce);font-weight:700}
+body.dragging,body.dragging *{user-select:none;cursor:ns-resize!important}
+.sched .hover-slot{position:absolute;left:2px;right:2px;border-radius:6px;background:var(--pin-pale);border:1px dashed rgba(67,56,202,.4);pointer-events:none;display:none;z-index:1;font-size:.68rem;font-weight:600;color:var(--pin-fonce);padding:3px 6px;font-family:var(--font-data)}

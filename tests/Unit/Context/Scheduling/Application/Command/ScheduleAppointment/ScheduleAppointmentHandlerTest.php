@@ -304,6 +304,37 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
+    public function testCapacityCoversTheWholeBlock(): void
+    {
+        $command = new ScheduleAppointment(
+            clinicId: '11111111-1111-1111-1111-111111111111',
+            practitionerUserId: '44444444-4444-4444-4444-444444444444',
+            startsAtUtc: new \DateTimeImmutable('2026-02-01 10:00:00'),
+            durationMinutes: 30,
+        );
+
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-01-30 12:00:00'));
+        $this->membershipEligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->timezoneResolver->method('resolveTimezone')->willReturn(new \DateTimeZone('Europe/Paris'));
+        // 4 per hour over a 4-hour block: the 16th booking still fits
+        $this->planningBlockFinder->method('findActiveBlockFor')->willReturn(
+            new PlanningBlockReadModel(
+                id: 'aabbccdd-0000-0000-0000-000000000004',
+                type: PlanningBlockType::CONSULTATION,
+                capacityPerHour: 4,
+                currentAppointmentCount: 15,
+                acceptsAppointments: true,
+                durationMinutes: 240,
+            )
+        );
+        $this->uuidGenerator->method('generate')->willReturn('01234567-89ab-cdef-0123-456789abcdef');
+        $this->appointmentRepository->expects(self::once())->method('save');
+
+        self::assertSame('01234567-89ab-cdef-0123-456789abcdef', ($this->handler)($command));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
     public function testNoBlockAllowsAppointment(): void
     {
         $command = new ScheduleAppointment(

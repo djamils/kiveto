@@ -87,9 +87,11 @@ final readonly class ScheduleAppointmentHandler
                 );
             }
 
-            $slotDurationHours = $timeSlot->durationMinutes() / 60;
-            $capacityForSlot   = (int) floor($block->capacityPerHour * $slotDurationHours);
-            if ($capacityForSlot > 0 && $block->currentAppointmentCount >= $capacityForSlot) {
+            // The count covers the whole block occurrence, so does the capacity:
+            // « 4 per hour » on a 08:00–12:00 block holds 16 bookings.
+            $windowMinutes  = max($block->durationMinutes, $timeSlot->durationMinutes());
+            $capacityOfSpan = (int) floor($block->capacityPerHour * $windowMinutes / 60);
+            if ($capacityOfSpan > 0 && $block->currentAppointmentCount >= $capacityOfSpan) {
                 throw new \DomainException('Planning block capacity reached.');
             }
         }

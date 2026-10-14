@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
+use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
+use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
@@ -93,6 +95,11 @@ final class CreateAppointmentController extends AbstractController
         $ownerId  = $request->request->getString('ownerId') ?: null;
         $animalId = $request->request->getString('animalId') ?: null;
 
+        // The agenda books an animal: its owner is the animal's primary one.
+        if (null === $ownerId && null !== $animalId) {
+            $ownerId = $this->primaryOwnerOf($currentClinicId->toString(), $animalId);
+        }
+
         try {
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: $currentClinicId->toString(),
@@ -143,5 +150,18 @@ final class CreateAppointmentController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
+    }
+
+    private function primaryOwnerOf(string $clinicId, string $animalId): ?string
+    {
+        try {
+            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
+        } catch (\DomainException) {
+            return null;
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+
+        return $animal instanceof AnimalView ? $animal->primaryOwnerClientId() : null;
     }
 }

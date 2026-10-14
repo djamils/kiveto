@@ -65,6 +65,20 @@ final class DoctrineAppointmentRepositoryTest extends KernelTestCase
         self::assertSame(AppointmentStatus::CANCELLED, $loaded->status());
     }
 
+    public function testSaveUpdatesMotifAndNoteOfExistingAppointment(): void
+    {
+        $appointment = $this->makeAppointment();
+        $this->repository->save($appointment);
+
+        $appointment->changeDetails('Vaccin', 'Rappel annuel');
+        $this->repository->save($appointment);
+
+        $loaded = $this->repository->findById($appointment->id());
+        self::assertNotNull($loaded);
+        self::assertSame('Vaccin', $loaded->reason());
+        self::assertSame('Rappel annuel', $loaded->notes());
+    }
+
     public function testHydratedEntityExposesUpdatedAt(): void
     {
         // Cover AppointmentEntity::getUpdatedAt — the only entity getter that wasn't

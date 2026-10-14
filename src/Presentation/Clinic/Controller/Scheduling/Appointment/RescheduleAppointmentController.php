@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Scheduling\Appointment;
 
+use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
+use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Context\Scheduling\Application\Command\RescheduleAppointment\RescheduleAppointment;
@@ -101,6 +103,11 @@ final class RescheduleAppointmentController extends AbstractController
         $ownerId  = $request->request->getString('ownerId') ?: null;
         $animalId = $request->request->getString('animalId') ?: null;
 
+        // Another animal picked in the agenda: its owner is the animal's primary one.
+        if (null === $ownerId && null !== $animalId) {
+            $ownerId = $this->primaryOwnerOf($currentClinicId->toString(), $animalId);
+        }
+
         try {
             $this->commandBus->dispatch(new RescheduleAppointment(
                 clinicId: $currentClinicId->toString(),
@@ -110,6 +117,10 @@ final class RescheduleAppointmentController extends AbstractController
                 practitionerUserId: $practitionerUserId,
                 ownerId: $ownerId,
                 animalId: $animalId,
+                // The agenda's edit modal also rewrites the motif and the note
+                changeDetails: $request->request->has('reason'),
+                reason: $request->request->getString('reason'),
+                notes: $request->request->getString('notes'),
             ));
 
             $details = $this->queryBus->ask(new GetAppointmentDetails($appointmentId));
@@ -150,5 +161,18 @@ final class RescheduleAppointmentController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
+    }
+
+    private function primaryOwnerOf(string $clinicId, string $animalId): ?string
+    {
+        try {
+            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
+        } catch (\DomainException) {
+            return null;
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+
+        return $animal instanceof AnimalView ? $animal->primaryOwnerClientId() : null;
     }
 }

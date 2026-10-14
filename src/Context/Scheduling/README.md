@@ -24,9 +24,10 @@ Represents a scheduled patient visit. Carries: clinic ID, practitioner assignee,
 
 1. A practitioner cannot have overlapping appointments (enforced by `AppointmentConflictCheckerInterface`).
 2. Appointments cannot be scheduled inside a block that does not accept appointments.
-3. Appointments cannot exceed the block's capacity for the time slot.
+3. Appointments cannot exceed the block's capacity: capacity per hour × length of the block occurrence.
 4. Appointment status transitions are enforced by the domain (no arbitrary jumps).
-5. Rescheduling is only allowed on `PLANNED` appointments.
+5. Rescheduling (time, practitioner, patient, motif and note) is only allowed on `PLANNED` appointments.
+6. A booking can only be marked no-show once it has started.
 
 ## Application Ports
 

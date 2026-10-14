@@ -73,6 +73,32 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
+    public function testRewritesMotifAndNoteWhenAsked(): void
+    {
+        $appointment = $this->createFutureAppointment();
+
+        $this->repository->method('findById')->willReturn($appointment);
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:00:00'));
+        $this->eligibilityChecker->method('isUserEligibleForClinicAt')->willReturn(true);
+        $this->conflictChecker->method('hasOverlap')->willReturn(false);
+        $this->repository->expects(self::once())->method('save');
+
+        ($this->handler)(new RescheduleAppointment(
+            clinicId: self::CLINIC_ID,
+            appointmentId: self::APPOINTMENT_ID,
+            startsAtUtc: new \DateTimeImmutable('2026-04-11 09:00:00'),
+            durationMinutes: 30,
+            practitionerUserId: self::PRACTITIONER,
+            changeDetails: true,
+            reason: 'Vaccin',
+            notes: 'Rappel annuel',
+        ));
+
+        self::assertSame('Vaccin', $appointment->reason());
+        self::assertSame('Rappel annuel', $appointment->notes());
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
     public function testRejectsConflict(): void
     {
         $this->expectException(\DomainException::class);
