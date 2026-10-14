@@ -1,0 +1,27 @@
+{#
+ # Kiveto — templates/components/layout/shortcuts_modal.html.twig
+ # ──────────────────────────────────────────────────────────────
+ # « Raccourcis clavier » (`.racc-veil`), opened from « Aide » or with ?.
+ # The data-shortcut-* URLs are where the quick-action keys lead
+ # (assets/js/shell/shell.js).
+ #}
+<div class="racc-veil" id="veilRacc" role="dialog" aria-modal="true" aria-label="Raccourcis clavier"
+     data-shortcut-r="{{ path('clinic_scheduling_agenda', {new: 1}) }}"
+     data-shortcut-a="{{ path('clinic_admission_queue') }}"
+     data-shortcut-e="{{ path('clinic_invoices') }}">
+  <div class="racc">
+    <div class="racc-head"><b>Raccourcis clavier</b><button type="button" class="srch-close" id="raccClose" aria-label="Fermer">✕</button></div>
+    <div class="racc-grid">
+      <div class="racc-grp"><h4>Navigation</h4>
+        <div class="racc-l"><span>Centre de recherche</span><span><kbd>⌘</kbd><kbd>K</kbd></span></div>
+        <div class="racc-l"><span>Fermer / annuler</span><span><kbd>Échap</kbd></span></div>
+        <div class="racc-l"><span>Raccourcis clavier</span><span><kbd>?</kbd></span></div>
+      </div>
+      <div class="racc-grp"><h4>Actions rapides</h4>
+        <div class="racc-l"><span>Nouveau RDV</span><span><kbd>R</kbd></span></div>
+        <div class="racc-l"><span>Enregistrer une arrivée</span><span><kbd>A</kbd></span></div>
+        <div class="racc-l"><span>Encaisser</span><span><kbd>E</kbd></span></div>
+      </div>
+    </div>
+  </div>
+</div>

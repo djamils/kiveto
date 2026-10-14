@@ -1115,19 +1115,6 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .sb-logo {
-      width: 24px; height: 24px;
-      border-radius: 6px;
-      background: linear-gradient(135deg, var(--brand-600), var(--brand-400));
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: var(--text-sm);
-      font-weight: var(--weight-medium);
-      flex-shrink: 0;
-      letter-spacing: -.5px;
-    }
     .sb-clinic-name {
       font-size: var(--text-md);
       font-weight: var(--weight-medium);

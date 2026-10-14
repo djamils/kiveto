@@ -9,10 +9,13 @@
   <meta name="turbo-cache-control" content="no-preview">
   {% block head_meta %}{% endblock %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+  {# v-topbar design fonts (display / body / data) #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   {{ importmap('app') }}
   {% block stylesheets %}{% endblock %}
 </head>
-<body>
+<body{% block body_attributes %}{% endblock %}>
   {% block body %}{% endblock %}
 
   {# Toast container #}

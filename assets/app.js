@@ -1,6 +1,7 @@
 import './stimulus_bootstrap.js';
 import './styles/app.css';
 import { initUI } from 'kiveto/ui';
+import { initShell } from 'kiveto/shell';
 import { createIcons, icons } from 'lucide';
 
 /**
@@ -42,6 +43,9 @@ let currentCleanup = null;
 initUI();
 
 function onLoad() {
+  // App shell (sidebar, topbar, search palette, shortcuts): binds once, syncs per page
+  initShell();
+
   // Render Lucide icons in the new DOM with a default 16x16 size
   createIcons({ icons, attrs: { width: 16, height: 16 } });
 

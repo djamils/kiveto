@@ -1,352 +1,220 @@
 {#
  # Kiveto — templates/components/layout/sidebar.html.twig
- # ──────────────────────────────────────────────────────────
- # Full navigation sidebar.
+ # ──────────────────────────────────────────────────────
+ # v-topbar sidebar (`nav.sbar`): logo + collapse, clinic switcher with its
+ # popover, grouped navigation, footer drop-ups « Quoi de neuf » / « Aide ».
+ # Markup ported from docs/frontend-theme/kiveto-theme/*-v-topbar*.html.
  #
  # Parameters:
- #   clinic      object   { name, type }  — active clinic
- #   user        object   — logged-in user (app.user)
- #   active_item string   Active Symfony route (e.g. 'clinic_dashboard')
+ #   shell        ShellView  clinic_shell()
+ #   active_route string     current Symfony route (drives aria-current)
+ #
+ # Behaviour lives in assets/js/shell/shell.js (delegated, Turbo-safe).
  #}
 
-{# ── Inline SVG icons (Lucide) ── #}
-{% set icon_calendar %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-  </svg>
-{% endset %}
-{% set icon_users %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-  </svg>
-{% endset %}
-{# Lucide "stethoscope", same drawing as the Consultations page title #}
-{% set icon_stethoscope %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
-       stroke-linecap="round" stroke-linejoin="round">
-    <path d="M11 2v2"/><path d="M5 2v2"/>
-    <path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/>
-    <path d="M8 15a6 6 0 0 0 12 0v-3"/>
-    <circle cx="20" cy="10" r="2"/>
-  </svg>
-{% endset %}
-{% set icon_bed %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M3 9V4m0 16v-4m18 4V9M3 9h18M3 20h18M7 9V4m4 5V4m4 5V4"/>
-  </svg>
-{% endset %}
-{% set icon_clock %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/>
-  </svg>
-{% endset %}
-{% set icon_grid %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-  </svg>
-{% endset %}
-{% set icon_package %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
-  </svg>
-{% endset %}
-{% set icon_boxes %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"
-       stroke-linecap="round" stroke-linejoin="round">
-    <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-4.5-2.7a2 2 0 0 0-2.06 0z"/>
-    <path d="m7 16.5-4.74-2.85M7 16.5l5-3M7 16.5v5.17"/>
-    <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L18.5 10.8a2 2 0 0 0-2.06 0z"/>
-    <path d="m17 16.5-5-3m5 3 4.74-2.85M17 16.5v5.17"/>
-    <path d="M7.5 4.21 12 6.9l4.5-2.69M12 6.9v5.1"/>
-    <path d="M7.97 4.42A2 2 0 0 0 7 6.13v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0z"/>
-  </svg>
-{% endset %}
-{% set icon_pill %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h14a1 1 0 011 1v15l-3.3-2.2L13.4 20 10 17.8 6.6 20 4 18.2V5a1 1 0 011-1z"/>
-    <path stroke-linecap="round" stroke-linejoin="round" d="M8 9h8M8 13h5"/>
-  </svg>
-{% endset %}
-{% set icon_receipt %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2-3-2V4a1 1 0 011-1z"/>
-    <path stroke-linecap="round" stroke-linejoin="round" d="M8 8h8M8 12h8M8 16h4"/>
-  </svg>
-{% endset %}
-{% set icon_chart %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-  </svg>
-{% endset %}
-{% set icon_settings %}
-  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-{% endset %}
-{% set icon_chevron_down %}
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-text-subtle" aria-hidden="true">
-    <path d="m6 9 6 6 6-6"/>
-  </svg>
-{% endset %}
+{% set _route = active_route|default('') %}
 
-{% set icon_check %}
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-600 ml-auto shrink-0" aria-hidden="true">
-    <path d="M20 6 9 17l-5-5"/>
-  </svg>
-{% endset %}
-
-{% set icon_plus %}
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 5v14M5 12h14"/>
-  </svg>
-{% endset %}
-
-{# Real clinic data from backend (user's accessible clinics + active clinic ID) #}
-{% set _sidebar_data = clinic_sidebar_data() %}
-{% set _user_clinics = _sidebar_data.clinics %}
-{% set _active_clinic_id = _sidebar_data.activeClinicId %}
-
-{# Color palette for clinic logos #}
-{% set _clinic_colors = ['bg-brand-600', 'bg-success-600', 'bg-warning-600', 'bg-danger-600', 'bg-purple-600', 'bg-sky-600', 'bg-orange-600', 'bg-emerald-600'] %}
-
-{# ── Navigation structure (BC-aligned) ── #}
-{% set nav_items = [
-  { key: 'clinic_dashboard',              label: 'Tableau de bord',    icon: icon_grid,        route: 'clinic_dashboard' },
-
-  { section: 'Clinique' },
-  { key: 'clinic_scheduling_agenda',   label: 'Agenda',             icon: icon_calendar,    route: 'clinic_scheduling_agenda' },
-  { key: 'clinic_scheduling_planning',     label: 'Planning',           icon: icon_clock,       route: 'clinic_scheduling_planning' },
-  { key: 'clinic_admission_queue', label: 'Salle d\'attente',  icon: icon_clock,       route: 'clinic_admission_queue' },
-
-  { section: 'Médical' },
-  { key: 'clinic_clients_list',           label: 'Répertoire',         icon: icon_users,       route: 'clinic_clients_list', matches: ['clinic_clients_view', 'clinic_animals_view'] },
-  { key: 'clinic_consultations',           label: 'Consultations',      icon: icon_stethoscope, route: 'clinic_consultations', matches: ['clinic_consultation_details'] },
-  { key: 'clinic_prescriptions',          label: 'Ordonnances',        icon: icon_pill,        route: 'clinic_prescriptions', matches: ['clinic_prescription_details'] },
-  { key: 'clinic_hospitalisations',       label: 'Hospitalisations',   icon: icon_bed,         route: 'clinic_hospitalisations' },
-
-  { section: 'Gestion' },
-  { key: 'clinic_invoices',               label: 'Facturation',        icon: icon_receipt,     route: 'clinic_invoices', matches: ['clinic_invoice_details', 'clinic_checkout'] },
-  { key: 'clinic_catalogue',              label: 'Catalogue',          icon: icon_package,     route: 'clinic_catalogue', matches: ['clinic_catalogue_articles', 'clinic_catalogue_packages', 'clinic_catalogue_price_lists'] },
-  { key: 'clinic_stock',                  label: 'Stocks',             icon: icon_boxes,       route: 'clinic_stock', matches: ['clinic_stock_movements', 'clinic_stock_alerts'] },
-  { key: 'clinic_reporting',              label: 'Rapports',           icon: icon_chart,       route: 'clinic_reporting' },
+{# ── Navigation (labels and icons as in the mock-up; routes are the real ones).
+   `prefixes`: routes starting with one of them light the item up. #}
+{% set _nav = [
+  { label: 'Tableau de bord', route: 'clinic_dashboard', prefixes: ['clinic_dashboard', 'clinic_home'],
+    icon: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>' },
+  { group: 'Clinique' },
+  { label: 'Flux ambulatoire', route: 'clinic_admission_queue', prefixes: ['clinic_admission_'],
+    icon: '<path d="M2 12h4l2-7 4 14 2-7h4"/><circle cx="20.5" cy="12" r="1.5"/>' },
+  { label: 'Agenda', route: 'clinic_scheduling_agenda', prefixes: ['clinic_scheduling_agenda', 'clinic_scheduling_appointment_'],
+    icon: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>', round: true },
+  { label: 'Planning', route: 'clinic_scheduling_planning', prefixes: ['clinic_scheduling_planning', 'clinic_planning_'],
+    icon: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 13h3v3H8z"/>' },
+  { group: 'Médical' },
+  { label: 'Répertoire', route: 'clinic_clients_list', prefixes: ['clinic_clients_', 'clinic_animals_'],
+    icon: '<circle cx="11" cy="6" r="2.4"/><circle cx="5.5" cy="10" r="2"/><circle cx="16.5" cy="10" r="2"/><path d="M11 11c-3.6 0-6 2.6-6 5.2 0 1.6 1.3 2.8 3 2.8h6c1.7 0 3-1.2 3-2.8 0-2.6-2.4-5.2-6-5.2Z"/>', round: true },
+  { label: 'Consultations', route: 'clinic_consultations', prefixes: ['clinic_consultation'],
+    icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>' },
+  { label: 'Ordonnances', route: 'clinic_prescriptions', prefixes: ['clinic_prescription'],
+    icon: '<path d="M9 11H5a2 2 0 0 0-2 2v7c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/><path d="M9 11V5a3 3 0 0 1 6 0v6"/>' },
+  { label: 'Hospitalisations', route: 'clinic_hospitalisations', prefixes: ['clinic_hospitalisations'],
+    icon: '<path d="M3 19V7a2 2 0 0 1 2-2h6v14"/><path d="M11 11h8a2 2 0 0 1 2 2v6"/><path d="M2 19h20"/><path d="M6.5 8.5v3M5 10h3"/>' },
+  { group: 'Gestion' },
+  { label: 'Facturation', route: 'clinic_invoices', prefixes: ['clinic_invoice', 'clinic_checkout'],
+    icon: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z"/><path d="M9 8h6M9 12h6"/>' },
+  { label: 'Catalogue', route: 'clinic_catalogue', prefixes: ['clinic_catalogue'],
+    icon: '<path d="M6 3h9l4 4v14H6Z"/><path d="M9 12h6M9 16h4"/>' },
+  { label: 'Stocks', route: 'clinic_stock', prefixes: ['clinic_stock'], badge: shell.stockAlertCount,
+    icon: '<path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5M12 13v8"/>' },
+  { label: 'Rapports', route: 'clinic_reporting', prefixes: ['clinic_reporting'],
+    icon: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>', round: true },
 ] %}
 
-{# Settings belong to whoever administers the clinic: offering the door to
-   someone it would refuse is worse than not showing it. #}
-{% if clinic_can('manage_staff') %}
-  {% set nav_items = nav_items|merge([
-    { key: 'clinic_settings', label: 'Paramètres', icon: icon_settings, route: 'clinic_settings',
-      matches: ['clinic_settings_hours', 'clinic_settings_billing', 'clinic_settings_preferences', 'clinic_settings_team'] },
-  ]) %}
-{% endif %}
+{# ── « Quoi de neuf » — product news, app copy (newest first) #}
+{% set _news = [
+  { version: 'v0.8',   title: 'Prise de rendez-vous',  date: '10 octobre 2026', tag: 'nouveau',  tagLabel: 'Nouveau' },
+  { version: 'v0.7.2', title: 'Bons de commande stock', date: '6 octobre 2026',  tag: 'ameliore', tagLabel: 'Amélioré' },
+  { version: 'v0.7.1', title: "Salle d'attente",        date: '2 octobre 2026',  tag: 'corrige',  tagLabel: 'Corrigé' },
+] %}
 
-{# ── Flag SVGs (used in clinic switcher language section) ── #}
-{% set icon_fr_flag %}
-  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
-    <rect width="6" height="13" fill="#002395"/>
-    <rect x="6" width="6" height="13" fill="#fff"/>
-    <rect x="12" width="6" height="13" fill="#ED2939"/>
-  </svg>
-{% endset %}
-{% set icon_en_flag %}
-  <svg width="18" height="13" viewBox="0 0 18 13" aria-hidden="true" style="border-radius:2px;display:block;">
-    <rect width="18" height="13" fill="#012169"/>
-    <path d="M0 0l18 13M18 0L0 13" stroke="#fff" stroke-width="2.6"/>
-    <path d="M0 0l18 13M18 0L0 13" stroke="#C8102E" stroke-width="1.4"/>
-    <path d="M9 0v13M0 6.5h18" stroke="#fff" stroke-width="4"/>
-    <path d="M9 0v13M0 6.5h18" stroke="#C8102E" stroke-width="2.4"/>
-  </svg>
-{% endset %}
+{% set _star_on %}<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8L6.6 19.7l1-6L3.2 9.4l6.1-.9Z"/></svg>{% endset %}
+{% set _star_off %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8L6.6 19.7l1-6L3.2 9.4l6.1-.9Z"/></svg>{% endset %}
 
-{# Compact icon-rail mode on pages that need maximum horizontal space (e.g. scheduling). #}
-{% set _route = app.request.attributes.get('_route') %}
-{% set _rail = _route in ['clinic_scheduling_agenda', 'clinic_scheduling_planning', 'clinic_consultation_details'] %}
+{% macro star(clinic, on_svg, off_svg) %}
+  <span class="cs-star{{ clinic.isDefault ? ' on' }}" data-default-form="csDef-{{ clinic.id }}" role="button" tabindex="0"
+        title="{{ clinic.isDefault ? 'Clinique par défaut à la connexion' : 'Définir comme clinique par défaut' }}">{{ (clinic.isDefault ? on_svg : off_svg)|raw }}</span>
+{% endmacro %}
 
-<aside class="sidebar{% if _rail %} sidebar--rail{% endif %}" id="appSidebar" data-controller="sidebar">
+{% set _current = shell.currentClinic %}
+{% set _others = shell.otherClinics %}
 
-  {# ── Header: clinic switcher ── #}
-  <div class="sb-top">
-    {% set _active_clinic_name = clinic.name|default('Ma clinique') %}
-    {% for c in _user_clinics %}
-      {% if c.clinicId == _active_clinic_id %}
-        {% set _active_clinic_name = c.clinicName %}
-      {% endif %}
-    {% endfor %}
-    <button
-      class="sb-clinic-btn{% if _rail %} ki-tooltip{% endif %}"
-      {% if _rail %}data-tooltip="{{ _active_clinic_name }}" data-tooltip-pos="right"{% endif %}
-      type="button"
-      aria-label="Changer de clinique"
-      title="{{ _active_clinic_name }}"
-      data-popover-anchor="clinic-switcher-popover"
-      data-popover-align="left"
-    >
-      <span class="avatar avatar-sm" style="background:var(--brand-100);color:var(--brand-700);border-radius:var(--radius-sm);">
-        {{ _active_clinic_name|first|upper }}
-      </span>
-      <span class="truncate flex-1 min-w-0 text-left">
-        {{ _active_clinic_name }}
-      </span>
-      {{ icon_chevron_down|raw }}
+<nav class="sbar" aria-label="Navigation principale">
+  <div class="sb-logo"><span class="k">K</span><b>Kiveto</b>
+    <button type="button" class="sb-collapse" id="sbCollapse" title="Replier la barre ( [ )" aria-label="Replier la navigation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m14 10-2 2 2 2"/></svg>
     </button>
   </div>
 
-  {# Clinic switcher popover (opened by sb-clinic-btn, managed by popover.js) #}
-  <div class="popover clinic-switcher-popover hidden" id="clinic-switcher-popover" style="width: 256px;">
-    {# Section 1: clinic list #}
-    <div class="clinic-switcher-section">
-      <p class="popover-head">Cliniques</p>
-      {% for c in _user_clinics %}
-        {% set _is_active_clinic = c.clinicId == _active_clinic_id %}
-        {% set _color = _clinic_colors[loop.index0 % _clinic_colors|length] %}
-        <form method="post" action="{{ path('clinic_select_clinic_post') }}" style="display:contents;">
-          <input type="hidden" name="_token" value="{{ csrf_token('clinic_select_clinic') }}"/>
-          <input type="hidden" name="clinic_id" value="{{ c.clinicId }}"/>
-          <button type="submit" class="nav-item" title="{{ c.clinicName }}">
-            <span class="rounded-md text-white text-xs uppercase shrink-0 flex items-center justify-center {{ _color }}" style="width:20px;height:20px;">{{ c.clinicName|first|upper }}</span>
-            <span class="truncate flex-1 min-w-0 text-left">{{ c.clinicName }}</span>
-            {% if _is_active_clinic %}{{ icon_check|raw }}{% endif %}
-          </button>
-        </form>
-      {% endfor %}
-    </div>
-
-    <div class="popover-divider"></div>
-
-    {# Section 2: clinic settings #}
-    <div class="clinic-switcher-section">
-      <p class="popover-head">Gestion</p>
-      {% if clinic_can('manage_staff') %}
-        <a href="{{ path('clinic_settings') }}" class="nav-item">
-          {{ icon_settings|raw }}
-          <span>Paramètres de la clinique</span>
-        </a>
-        <a href="{{ path('clinic_settings_team') }}" class="nav-item">
-          {{ icon_users|raw }}
-          <span>Membres &amp; rôles</span>
-        </a>
-      {% else %}
-        <p class="popover-empty">Réservé aux membres qui gèrent la clinique</p>
-      {% endif %}
-    </div>
-
-    <div class="popover-divider"></div>
-
-    {# Section 3: language #}
-    <div class="clinic-switcher-section">
-      <p class="popover-head">Langue</p>
-      <button type="button" class="nav-item">
-        {{ icon_fr_flag|raw }}
-        <span class="flex-1 text-left">Français</span>
-        <i data-lucide="check" class="text-brand-600 shrink-0"></i>
-      </button>
-      <button type="button" class="nav-item">
-        {{ icon_en_flag|raw }}
-        <span class="flex-1 text-left">English</span>
-      </button>
-    </div>
-  </div>
-
-  {# ── Changelog popover (opened from sidebar footer) ── #}
-  <div class="popover hidden" id="app-changelog-popover" style="width: 280px;">
-    <p class="popover-head">Quoi de neuf</p>
-    <a href="#" class="nav-item">
-      <span class="flex-1 min-w-0">
-        <span class="block text-sm font-medium text-text-primary">v0.5.0 — Sélecteur de cliniques</span>
-        <span class="block text-xs text-text-subtle">5 avril 2026</span>
+  {# Clinic switcher (multi-clinic member) #}
+  <div class="sb-clinique" id="sbClinique">
+    <button type="button" class="sb-clin-btn" id="clinBtn" aria-haspopup="listbox" data-tip="Changer de clinique" data-tip-pos="right">
+      <span class="scb-sq" id="clinSq" style="background:{{ _current.color|default('var(--pin)') }}">{{ _current.initial|default('K') }}</span>
+      <span class="scb-txt">
+        <b id="clinNom">{{ _current.name|default('—') }}</b>
+        <span class="scb-pulse" id="clinPulse">
+          {%- if shell.isOpenNow is not null -%}
+            <span class="pv{{ shell.isOpenNow ? '' : ' off' }}"></span>{{ shell.isOpenNow ? 'ouverte' : 'fermée' }} ·&nbsp;
+          {%- endif -%}
+          <b>{{ shell.practitionerCount }}</b>&nbsp;{{ shell.practitionerCount > 1 ? 'praticiens' : 'praticien' }}
+        </span>
       </span>
-    </a>
-    <a href="#" class="nav-item">
-      <span class="flex-1 min-w-0">
-        <span class="block text-sm font-medium text-text-primary">v0.4.0 — Animations UI</span>
-        <span class="block text-xs text-text-subtle">3 avril 2026</span>
-      </span>
-    </a>
-    <div class="popover-divider"></div>
-    <a href="#" class="nav-item text-center justify-center text-sm text-brand-600">
-      Voir tout l'historique
-    </a>
-  </div>
-
-  {# ── Help popover (opened from sidebar footer) ── #}
-  <div class="popover hidden" id="app-help-popover" style="width: 220px;">
-    <a href="#" class="nav-item">
-      <i data-lucide="book-open"></i>
-      <span>Documentation</span>
-    </a>
-    <a href="#" class="nav-item">
-      <i data-lucide="message-circle"></i>
-      <span>Contacter le support</span>
-    </a>
-    <a href="#" class="nav-item">
-      <i data-lucide="keyboard"></i>
-      <span>Raccourcis clavier</span>
-    </a>
-  </div>
-
-  {# ── Search field (between clinic switcher and navigation) ── #}
-  <div class="sb-search">
-    <button
-      type="button"
-      class="sb-search-trigger"
-      aria-label="Ouvrir la recherche"
-      data-modal-open="search-modal"
-    >
-      <i data-lucide="search" class="sb-search-icon"></i>
-      <span class="sb-search-placeholder">Rechercher…</span>
+      <svg class="scb-chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
     </button>
-  </div>
-
-  {# ── Main navigation ── #}
-  <nav class="nav" aria-label="Navigation principale">
-    {% for item in nav_items %}
-      {% if item.section is defined %}
-        <p class="nav-section">{{ item.section }}</p>
-      {% else %}
-        {% set _is_active = active_item is defined and (active_item == item.key or active_item starts with item.key or (item.matches is defined and active_item in item.matches)) %}
-        <a
-          href="{{ item.route ? path(item.route) : '#' }}"
-          class="nav-item{% if _is_active %} active{% endif %}{% if _rail %} ki-tooltip{% endif %}"
-          {% if _rail %}data-tooltip="{{ item.label }}" data-tooltip-pos="right"{% endif %}
-          {% if _is_active %}aria-current="page"{% endif %}
-          {% if item.new_tab is defined and item.new_tab %}target="_blank" rel="noopener"{% endif %}
-        >
-          {{ item.icon|raw }}
-          <span>{{ item.label }}</span>
-          {% if item.badge is defined %}
-            <span class="nav-badge">{{ item.badge }}</span>
+    <div class="clin-pop" id="clinPop" role="listbox">
+      {% if _current %}
+        <div class="cs-cur" id="csCur">
+          <div class="cc-top">
+            <span class="cs-sq" style="background:{{ _current.color }}">{{ _current.initial }}</span>
+            <span class="cc-id"><b>{{ _current.name }}</b><span>{{ shell.address ?? _current.subtitle }}</span></span>
+            {{ _self.star(_current, _star_on, _star_off) }}
+          </div>
+          <div class="cc-stats">
+            {% if shell.appointmentsToday is not null %}
+              <span class="cc-stat"><b>{{ shell.appointmentsToday }}</b> RDV aujourd'hui</span>
+            {% endif %}
+            <span class="cc-stat"><b>{{ shell.practitionerCount }}</b> {{ shell.practitionerCount > 1 ? 'praticiens' : 'praticien' }}</span>
+          </div>
+          {% if clinic_can('manage_staff') %}
+            <div class="cc-acts">
+              <a class="cc-act" href="{{ path('clinic_settings') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>
+                Paramètres
+              </a>
+              <a class="cc-act" href="{{ path('clinic_settings_team') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.7 14.7c2.7.3 4.9 2.1 5.6 5.1"/></svg>
+                Équipe
+              </a>
+            </div>
           {% endif %}
+        </div>
+        <div class="cp-sep"></div>
+      {% endif %}
+
+      {% if _others is not empty %}
+        <div class="cs-head">Basculer vers</div>
+        <div id="csListe">
+          {% for c in shell.clinics %}
+            {% if c.isCurrent %}
+              <span hidden data-clinic-current="{{ loop.index0 }}"></span>
+            {% else %}
+              <form method="post" action="{{ path('clinic_select_clinic_post') }}" style="display:contents" data-clinic-index="{{ loop.index0 }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('clinic_select_clinic') }}">
+                <input type="hidden" name="clinic_id" value="{{ c.id }}">
+                <input type="hidden" name="_switch" value="1">
+                <button type="submit" class="cs-item" role="option" title="{{ c.name }} — {{ c.subtitle }}">
+                  <span class="cs-sq" style="background:{{ c.color }}">{{ c.initial }}</span>
+                  <span class="ci-txt"><b>{{ c.name }}</b><span>{{ c.subtitle }}</span></span>
+                  {{ _self.star(c, _star_on, _star_off) }}
+                </button>
+              </form>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="cp-sep"></div>
+        <button type="button" class="cs-ligne" aria-disabled="true" data-toast="Vue groupe — CA, stocks et équipe consolidés : bientôt disponible">
+          <span class="cs-lic">∑</span>
+          <span class="cs-ltxt"><b>Vue groupe</b><span>CA, stocks et équipe des {{ shell.clinics|length }} cliniques</span></span>
+        </button>
+      {% endif %}
+      <button type="button" class="cs-ligne" aria-disabled="true" data-toast="Création d'une clinique — passe par l'administration Kiveto pour le moment">
+        <span class="cs-lic ghost">＋</span>
+        <span class="cs-ltxt"><b>Ajouter une clinique</b></span>
+      </button>
+    </div>
+    {# The star of each clinic posts its own form (a form cannot sit in the switch button). #}
+    {% for c in shell.clinics %}
+      <form id="csDef-{{ c.id }}" method="post" action="{{ path('clinic_select_clinic_default') }}" hidden>
+        <input type="hidden" name="_token" value="{{ csrf_token('clinic_select_clinic') }}">
+        <input type="hidden" name="clinic_id" value="{{ c.id }}">
+      </form>
+    {% endfor %}
+  </div>
+
+  <div class="sb-nav">
+    {% for item in _nav %}
+      {% if item.group is defined %}
+        <div class="sb-grp">{{ item.group }}</div>
+      {% else %}
+        {% set _active = false %}
+        {% for p in item.prefixes %}{% if _route starts with p %}{% set _active = true %}{% endif %}{% endfor %}
+        <a class="sb-it" href="{{ path(item.route) }}"{% if _active %} aria-current="page"{% endif %} data-tip="{{ item.label }}" data-tip-pos="right">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"{% if item.round is not defined %} stroke-linejoin="round"{% endif %}>{{ item.icon|raw }}</svg>
+          {{ item.label }}{% if item.badge is defined and item.badge > 0 %}<span class="badge">{{ item.badge }}</span>{% endif %}
         </a>
       {% endif %}
     {% endfor %}
-  </nav>
+  </div>
 
-  {# ── Sidebar footer: changelog + help ── #}
-  <div class="sb-foot">
-    <button
-      type="button"
-      class="sb-foot-btn{% if _rail %} ki-tooltip{% endif %}"
-      {% if _rail %}data-tooltip="Quoi de neuf" data-tooltip-pos="right"{% endif %}
-      aria-label="Quoi de neuf"
-      data-popover-anchor="app-changelog-popover"
-    >
-      <i data-lucide="sparkles"></i>
-      <span>Quoi de neuf</span>
+  <div class="sb-foot sb-foot-row">
+
+    {# Drop-up « Quoi de neuf » #}
+    <div class="foot-pop" id="popQdn" style="width:310px">
+      <div class="fp-head">Quoi de neuf</div>
+      {% for n in _news %}
+        <button type="button" class="qdn-item" data-toast="Notes de version {{ n.version|trim('v', 'left') }} — bientôt en ligne">
+          <span class="qdn-txt"><b><span class="t">{{ n.version }} — {{ n.title }}</span><span class="qdn-tag {{ n.tag }}">{{ n.tagLabel }}</span></b><span>{{ n.date }}</span></span>
+        </button>
+      {% endfor %}
+      <div class="fp-sep"></div>
+      <button type="button" class="qdn-tout" data-toast="Historique complet des versions (page à venir)">Voir tout l'historique</button>
+    </div>
+
+    {# Drop-up « Aide » #}
+    <div class="foot-pop" id="popAide" style="width:250px">
+      <a class="fp-item" href="#" data-toast="Documentation Kiveto — bientôt en ligne">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+        <span class="noms"><b>Documentation</b><span>Guides par écran, pas à pas</span></span>
+        <span class="ext">↗</span>
+      </a>
+      <button type="button" class="fp-item" data-toast="Support — la messagerie intégrée arrive bientôt">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>
+        <span class="noms"><b>Contacter le support</b><span>Réponse médiane : 2 h ouvrées</span></span>
+      </button>
+      <button type="button" class="fp-item" id="btnRacc">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
+        <span class="noms"><b>Raccourcis clavier</b></span>
+        <kbd class="aide-kbd">?</kbd>
+      </button>
+      <div class="fp-sep"></div>
+      <div class="aide-statut">
+        <span class="pt-ok"></span>{{ _news[0].version }} · connecté à {{ _current.name|default('Kiveto') }}
+      </div>
+    </div>
+
+    <button type="button" class="sb-foot-btn" id="btnQdn" aria-label="Quoi de neuf" aria-haspopup="true" data-tip="Quoi de neuf" data-tip-pos="right">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg>
+      <span>Quoi de neuf</span><span class="qdn-dot" id="qdnDot" data-version="{{ _news[0].version }}"></span>
     </button>
-
     <div class="sb-foot-sep" aria-hidden="true"></div>
-
-    <button
-      type="button"
-      class="sb-foot-btn{% if _rail %} ki-tooltip{% endif %}"
-      {% if _rail %}data-tooltip="Aide" data-tooltip-pos="right"{% endif %}
-      aria-label="Aide"
-      data-popover-anchor="app-help-popover"
-    >
-      <i data-lucide="circle-help"></i>
+    <button type="button" class="sb-foot-btn" id="btnAide" aria-label="Aide" aria-haspopup="true" data-tip="Aide" data-tip-pos="right">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
       <span>Aide</span>
     </button>
   </div>
-
-</aside>
+</nav>
