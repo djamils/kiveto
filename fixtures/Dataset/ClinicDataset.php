@@ -17,6 +17,7 @@ use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
+use App\Fixtures\Context\Prescription\Story\PrescriptionRegisterStory;
 use App\Fixtures\Context\Scheduling\Story\CalmDayClinicStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
@@ -103,5 +104,9 @@ final class ClinicDataset extends Story
         // The three states of the client sheet (normal, busy, brand new): last,
         // so that the demo stories above never pick their visits as their own.
         ClientSheetStatesStory::load();
+
+        // The Paris register of ordonnances at full size, every state of the
+        // register and its sheet (after the visits sharing these animals).
+        PrescriptionRegisterStory::load();
     }
 }

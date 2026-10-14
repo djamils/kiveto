@@ -25,6 +25,7 @@ final readonly class PrescriptionLineView
         public string $prescriptionClassLabel,
         public bool $isControlled,
         public ?string $instructions,
+        public ?string $articleId,
     ) {
     }
 }

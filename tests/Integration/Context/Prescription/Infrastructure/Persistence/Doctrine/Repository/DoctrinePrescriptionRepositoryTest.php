@@ -298,6 +298,10 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         self::assertSame(365, $details->validityDays);
         self::assertSame('Sur ordonnance', $details->lines[0]->prescriptionClassLabel);
         self::assertSame('0,1 mg/kg, 1×/j, pendant 7 jours, voie per os', $details->lines[0]->posology);
+        self::assertNull($details->lines[0]->articleId);
+        self::assertSame(self::PRESCRIBER_ID, $details->prescriberId);
+        self::assertNull($details->patientAnimalId);
+        self::assertSame('28.5', $details->patientWeightKg);
         self::assertSame(self::CONSULTATION_ID, $details->consultationId);
     }
 
@@ -350,11 +354,59 @@ final class DoctrinePrescriptionRepositoryTest extends KernelTestCase
         );
         self::assertSame(0, $future['total']);
 
+        // The register's search also finds an ordonnance by one of its medicines.
+        $byMedicine = $this->read->search($this->clinic(), new SearchPrescriptionsCriteria(term: 'Keta'));
+        self::assertSame(1, $byMedicine['total']);
+        self::assertSame('Ketamine', $byMedicine['items'][0]->lines[0]->label);
+        self::assertSame('RX_NARCOTIC', $byMedicine['items'][0]->lines[0]->prescriptionClass);
+        self::assertSame(self::PRESCRIBER_ID, $byMedicine['items'][0]->prescriberId);
+
+        $byPrescriber = $this->read->search(
+            $this->clinic(),
+            new SearchPrescriptionsCriteria(prescriberId: self::PRESCRIBER_ID),
+        );
+        self::assertSame(3, $byPrescriber['total']);
+
+        $byAnotherPrescriber = $this->read->search(
+            $this->clinic(),
+            new SearchPrescriptionsCriteria(prescriberId: self::OTHER_CLINIC),
+        );
+        self::assertSame(0, $byAnotherPrescriber['total']);
+
         $upTo = $this->read->search(
             $this->clinic(),
             new SearchPrescriptionsCriteria(issuedTo: new \DateTimeImmutable('+1 day')),
         );
         self::assertSame(3, $upTo['total']);
+    }
+
+    public function testTheListTellsCurrentFromExpiredOrdonnances(): void
+    {
+        $old = $this->draft(patientName: 'Ancienne');
+        $old->addLine($this->line('Meloxidyl'), new \DateTimeImmutable('2020-01-10 10:00:00'));
+        $old->issue(PrescriptionNumber::of(2020, 1), new \DateTimeImmutable('2020-01-10 10:00:00'));
+        $this->prescriptions->save($old);
+
+        $current = $this->draft(consultationId: $this->uuids->generate(), patientName: 'Courante');
+        $current->addLine($this->line('Meloxidyl'), $this->now());
+        $current->issue(PrescriptionNumber::of(2026, 120), new \DateTimeImmutable('+1 day'));
+        $this->prescriptions->save($current);
+
+        $draft = $this->draft(consultationId: $this->uuids->generate(), patientName: 'Brouillon');
+        $draft->addLine($this->line('Meloxidyl'), $this->now());
+        $this->prescriptions->save($draft);
+
+        $expired = $this->read->search($this->clinic(), new SearchPrescriptionsCriteria(
+            validity: SearchPrescriptionsCriteria::VALIDITY_EXPIRED,
+        ));
+        self::assertSame(1, $expired['total']);
+        self::assertSame('Ancienne', $expired['items'][0]->patientName);
+
+        $valid = $this->read->search($this->clinic(), new SearchPrescriptionsCriteria(
+            validity: SearchPrescriptionsCriteria::VALIDITY_CURRENT,
+        ));
+        self::assertSame(1, $valid['total']);
+        self::assertSame('Courante', $valid['items'][0]->patientName);
     }
 
     public function testAnImpossibleDateRangeSkipsTheQuery(): void

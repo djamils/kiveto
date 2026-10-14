@@ -9,6 +9,7 @@ use App\Context\Prescription\Application\Query\GetPrescriptionDetails\Prescripti
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionLineView;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\RenewalView;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
+use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListLine;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\PrescriptionListRow;
 use App\Context\Prescription\Application\Query\SearchPrescriptions\SearchPrescriptionsCriteria;
 use App\Context\Prescription\Domain\Repository\PrescriptionRepositoryInterface;
@@ -69,6 +70,7 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
                 prescriptionClassLabel: $line->prescriptionClass()->label(),
                 isControlled: $line->isControlled(),
                 instructions: $line->instructions(),
+                articleId: $line->articleId(),
             ),
             $prescription->lines(),
         );
@@ -114,6 +116,9 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
             createdAt: $prescription->createdAt(),
             cancelledAt: $prescription->cancelledAt(),
             cancellationReason: $prescription->cancellationReason(),
+            prescriberId: $prescription->prescriber()->userId()->toString(),
+            patientAnimalId: $prescription->patient()->animalId(),
+            patientWeightKg: $prescription->patient()->weightKg(),
         );
     }
 
@@ -148,6 +153,7 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
                         p.renewals_allowed, p.renewals_used,
                         p.created_at, p.issued_at, p.valid_until,
                         BIN_TO_UUID(p.consultation_id) AS consultation_id,
+                        BIN_TO_UUID(p.prescriber_user_id) AS prescriber_id,
                         %s AS line_count,
                         %s AS controlled_count
                  FROM prescription__prescriptions p
@@ -168,14 +174,19 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
             $filter['types'],
         );
 
+        $lines = $this->linesOf(array_map(
+            static fn (array $row): string => RowAccessor::string($row, 'id'),
+            $rows,
+        ));
         $items = [];
 
         foreach ($rows as $row) {
+            $id    = RowAccessor::string($row, 'id');
             $title = RowAccessor::nullableString($row, 'prescriber_professional_title');
             $name  = RowAccessor::string($row, 'prescriber_display_name');
 
             $items[] = new PrescriptionListRow(
-                id: RowAccessor::string($row, 'id'),
+                id: $id,
                 number: RowAccessor::nullableString($row, 'number'),
                 status: RowAccessor::string($row, 'status'),
                 patientName: RowAccessor::string($row, 'patient_name'),
@@ -196,6 +207,8 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
                     ? new \DateTimeImmutable(RowAccessor::string($row, 'valid_until'))
                     : null,
                 consultationId: RowAccessor::string($row, 'consultation_id'),
+                prescriberId: RowAccessor::string($row, 'prescriber_id'),
+                lines: $lines[$id] ?? [],
             );
         }
 
@@ -244,7 +257,9 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
         $types  = [];
 
         if (null !== $criteria->term && '' !== $criteria->term) {
-            $where[]        = '(p.patient_name LIKE :term OR p.owner_name LIKE :term OR p.number LIKE :term)';
+            $where[] = '(p.patient_name LIKE :term OR p.owner_name LIKE :term OR p.number LIKE :term
+                         OR EXISTS (SELECT 1 FROM prescription__prescription_lines tl
+                                    WHERE tl.prescription_id = p.id AND tl.label LIKE :term))';
             $params['term'] = '%' . $criteria->term . '%';
         }
 
@@ -264,11 +279,55 @@ final readonly class DbalPrescriptionReadRepository implements PrescriptionReadR
             $params['to'] = $criteria->issuedTo->format('Y-m-d H:i:s');
         }
 
+        if (null !== $criteria->prescriberId) {
+            $where[]                = 'p.prescriber_user_id = :prescriberId';
+            $params['prescriberId'] = Uuid::fromString($criteria->prescriberId)->toBinary();
+        }
+
+        // Expiry is decided against the clock, as everywhere on the read side.
+        if (SearchPrescriptionsCriteria::VALIDITY_CURRENT === $criteria->validity) {
+            $where[]       = "p.status = 'ISSUED' AND p.valid_until >= :now";
+            $params['now'] = $this->clock->now()->format('Y-m-d H:i:s');
+        } elseif (SearchPrescriptionsCriteria::VALIDITY_EXPIRED === $criteria->validity) {
+            $where[]       = "p.status = 'ISSUED' AND p.valid_until < :now";
+            $params['now'] = $this->clock->now()->format('Y-m-d H:i:s');
+        }
+
         if (true === $criteria->controlledOnly) {
             $where[] = $this->controlledCountExpression() . ' > 0';
         }
 
         return ['where' => implode(' AND ', $where), 'params' => $params, 'types' => $types];
+    }
+
+    /**
+     * The medicines of one page of ordonnances, in one round trip.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, list<PrescriptionListLine>> prescription id => its lines
+     */
+    private function linesOf(array $ids): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(l.prescription_id) AS prescription_id, l.label, l.prescription_class
+             FROM prescription__prescription_lines l
+             WHERE l.prescription_id IN (:ids)
+             ORDER BY l.position ASC',
+            ['ids' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $ids)],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $lines = [];
+
+        foreach ($rows as $row) {
+            $lines[RowAccessor::string($row, 'prescription_id')][] = new PrescriptionListLine(
+                label: RowAccessor::string($row, 'label'),
+                prescriptionClass: RowAccessor::string($row, 'prescription_class'),
+            );
+        }
+
+        return $lines;
     }
 
     private function lineCountExpression(): string
