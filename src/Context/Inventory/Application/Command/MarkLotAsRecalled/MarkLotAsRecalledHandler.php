@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Context\Inventory\Application\Command\MarkLotAsRecalled;
 
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
-use App\Context\Inventory\Domain\StockItem\Exception\ConcurrentStockModificationException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockItemNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Repository\StockItemRepositoryInterface;
 use App\Context\Inventory\Domain\StockItem\ValueObject\LotId;
@@ -69,7 +68,7 @@ final class MarkLotAsRecalledHandler
                 quantity: $recalledQty,
                 occurredAt: $occurredAt,
                 reference: null,
-                performedBy: null,
+                performedBy: $command->performedBy,
                 note: $command->reason,
                 createdAt: $now,
             );
@@ -77,17 +76,13 @@ final class MarkLotAsRecalledHandler
 
         $capturedMovement = $movement;
 
-        try {
-            $this->entityManager->wrapInTransaction(function () use ($stockItem, $capturedMovement): void {
-                $this->stockItemRepository->save($stockItem);
+        $this->entityManager->wrapInTransaction(function () use ($stockItem, $capturedMovement): void {
+            $this->stockItemRepository->save($stockItem);
 
-                if (null !== $capturedMovement) {
-                    $this->stockMovementRepository->save($capturedMovement);
-                }
-            });
-        } catch (ConcurrentStockModificationException $e) {
-            throw $e;
-        }
+            if (null !== $capturedMovement) {
+                $this->stockMovementRepository->save($capturedMovement);
+            }
+        });
 
         $this->domainEventPublisher->publish($stockItem);
 

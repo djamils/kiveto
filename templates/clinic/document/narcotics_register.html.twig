@@ -1,0 +1,70 @@
+{#
+ # Kiveto — templates/clinic/document/narcotics_register.html.twig
+ # ──────────────────────────────────────────────────────────────
+ # The register of controlled substances (« registre des stupéfiants »): each
+ # product, then every entry and exit in the order they happened, numbered,
+ # with the balance after each movement.
+ #
+ # Variables:
+ #   products   list of {name, code, unit, lines: StockMovementPresenter::row()}
+ #   printedAt  \DateTimeImmutable
+ #   clinic     ClinicDto|null
+ #}
+{% extends 'clinic/document/_base.html.twig' %}
+{% import 'clinic/document/_macros.html.twig' as doc %}
+
+{% set UNITS = { 'VIAL': 'flacon', 'BOTTLE': 'flacon', 'AMPULE': 'ampoule', 'ML': 'mL', 'TABLET': 'cp', 'UNIT': 'unité', 'DOSE': 'dose' } %}
+
+{% block doc_title %}Registre des stupéfiants{% endblock %}
+
+{% block doc_kind %}Registre des stupéfiants{% endblock %}
+
+{% block doc_meta %}
+  Édité le {{ doc.longDate(printedAt) }}<br/>
+  {{ products|length }} produit{{ products|length > 1 ? 's' : '' }} · à conserver dix ans
+{% endblock %}
+
+{% block content %}
+
+  {% for product in products %}
+    <table class="h2"><tr>
+      <td>{{ product.name }}</td>
+      <td class="r">{{ product.code }} · en {{ UNITS[product.unit] ?? product.unit|lower }}</td>
+    </tr></table>
+
+    <table class="data">
+      <thead><tr>
+        <th style="width:9mm;">N°</th>
+        <th style="width:24mm;">Date</th>
+        <th>Mouvement</th>
+        <th style="width:24mm;">Lot</th>
+        <th>Animal, prescripteur ou référence</th>
+        <th class="num" style="width:18mm;">Entrée</th>
+        <th class="num" style="width:18mm;">Sortie</th>
+        <th class="num" style="width:18mm;">Solde</th>
+      </tr></thead>
+      <tbody>
+        {% for line in product.lines %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ line.d|date('d/m/Y') }} {{ line.h }}</td>
+            <td>{{ line.motif }}</td>
+            <td>{{ line.lot ?? '—' }}</td>
+            <td>{{ [line.ref, line.note]|filter(v => v is not null and v != '')|join(' · ')|default('—') }}{% if line.par %} <span class="muted">· {{ line.par.n }}</span>{% endif %}</td>
+            <td class="num">{{ line.q > 0 ? line.q|number_format(0, ',', ' ') : '' }}</td>
+            <td class="num">{{ line.q < 0 ? (-line.q)|number_format(0, ',', ' ') : '' }}</td>
+            <td class="num" style="font-weight:600;">{{ line.solde is not null ? line.solde|number_format(0, ',', ' ') : '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted" style="margin-top:6mm;">Aucun mouvement de stupéfiant n’a été enregistré.</p>
+  {% endfor %}
+
+  <p class="legal">
+    <b>Registre.</b> Entrées et sorties numérotées par produit, solde après chaque mouvement. Document à conserver dix ans
+    à compter de la dernière inscription.
+  </p>
+
+{% endblock %}

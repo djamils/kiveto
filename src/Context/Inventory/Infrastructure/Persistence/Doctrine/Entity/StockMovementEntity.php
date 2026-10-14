@@ -60,6 +60,9 @@ class StockMovementEntity
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $decrease = false;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -188,5 +191,15 @@ class StockMovementEntity
     public function setCreatedAt(\DateTimeImmutable $createdAt): void
     {
         $this->createdAt = $createdAt;
+    }
+
+    public function isDecrease(): bool
+    {
+        return $this->decrease;
+    }
+
+    public function setDecrease(bool $decrease): void
+    {
+        $this->decrease = $decrease;
     }
 }

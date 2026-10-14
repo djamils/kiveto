@@ -43,12 +43,15 @@ final class CreatePurchaseOrderHandlerTest extends TestCase
 
         $handler = $this->makeHandler($repository, $numberGenerator, $clinicProvider, $eventBus, $uuidGenerator);
 
-        ($handler)(new CreatePurchaseOrder(
+        $id = ($handler)(new CreatePurchaseOrder(
             clinicId: self::CLINIC_UUID,
             supplierId: self::SUPPLIER_UUID,
             supplierAccountId: self::ACCOUNT_UUID,
             deliveryAddress: ['street' => '1 Rue de la Paix', 'city' => 'Paris', 'postalCode' => '75001', 'countryCode' => 'FR'],
         ));
+
+        // The caller gets the new order's id: it fills the order next.
+        self::assertSame(self::PO_UUID, $id);
     }
 
     public function testItHandlesEmptyDeliveryAddress(): void

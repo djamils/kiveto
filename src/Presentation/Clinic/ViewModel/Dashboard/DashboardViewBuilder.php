@@ -11,6 +11,10 @@ use App\Context\Animal\Application\Query\GetAnimalById\AnimalView;
 use App\Context\Animal\Application\Query\GetAnimalById\GetAnimalById;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
+use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ArticleListRow;
+use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogListCriteria;
+use App\Context\Catalog\Application\Query\Catalog\ListCatalog\CatalogPage;
+use App\Context\Catalog\Application\Query\Catalog\ListCatalog\ListArticles;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\GetUserMembershipInClinic;
@@ -21,10 +25,10 @@ use App\Context\Consultation\Application\Query\GetConsultationTotalsForAdmission
 use App\Context\Consultation\Application\Query\GetConsultationTotalsForAdmissions\GetConsultationTotalsForAdmissions;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListItemView;
 use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultations;
-use App\Context\Inventory\Application\Query\GetActiveAlerts\GetActiveAlerts;
-use App\Context\Inventory\Domain\StockAlert\ReadModel\StockAlertView;
+use App\Context\Inventory\Application\Query\WatchStock\StockWatchKind;
+use App\Context\Inventory\Application\Query\WatchStock\StockWatchRow;
+use App\Context\Inventory\Application\Query\WatchStock\WatchStock;
 use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertSeverity;
-use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertType;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\GetPatientAnimalLink;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
@@ -55,6 +59,12 @@ final readonly class DashboardViewBuilder
 
     /** Individual tasks kept per source before the rest is summed up in one line. */
     private const int TASKS_PER_SOURCE = 4;
+
+    /** The units of the shelves, as the stock page says them. */
+    private const array UNITS = [
+        'TABLET' => 'cp', 'CAPSULE' => 'gélule', 'VIAL' => 'flacon', 'BOTTLE' => 'flacon', 'UNIT' => 'unité', 'BOX' => 'boîte',
+        'BAG'    => 'sac', 'PIPETTE' => 'pipette', 'DOSE' => 'dose', 'SACHET' => 'sachet', 'AMPULE' => 'ampoule', 'ML' => 'mL', 'L' => 'L', 'G' => 'g', 'KG' => 'kg',
+    ];
 
     private const array EMERGENCY_TRIAGE = ['emergency', 'vital_emergency'];
 
@@ -100,9 +110,11 @@ final readonly class DashboardViewBuilder
         $stats = $this->queryBus->ask(new GetBillingStats($clinicId, $midnight->setTimezone($utc), $now->setTimezone($utc)));
         \assert($stats instanceof BillingStats);
 
-        $alerts = $this->queryBus->ask(new GetActiveAlerts($clinicId));
+        // The stock tasks read the shelves as the stock page and the
+        // navigation badge do, so the three never disagree.
+        $alerts = $this->queryBus->ask(new WatchStock($clinicId, $timeZone->getName()));
         \assert(\is_array($alerts));
-        /** @var list<StockAlertView> $alerts */
+        /** @var list<StockWatchRow> $alerts */
         $upcoming = array_values(array_filter(
             $appointments,
             fn (AppointmentItem $item): bool => 'PLANNED' === $item->status
@@ -583,7 +595,7 @@ final readonly class DashboardViewBuilder
      * alerts, consultations left open from a previous day, unpaid invoices.
      *
      * @param list<WaitingRoomItemDto> $onSite
-     * @param list<StockAlertView>     $alerts
+     * @param list<StockWatchRow>      $alerts
      *
      * @return list<DashboardTask>
      */
@@ -625,11 +637,17 @@ final readonly class DashboardViewBuilder
 
         usort(
             $alerts,
-            static fn (StockAlertView $a, StockAlertView $b): int => self::severityRank($a->severity)
+            static fn (StockWatchRow $a, StockWatchRow $b): int => self::severityRank($a->severity)
                 <=> self::severityRank($b->severity),
         );
 
+        $names = $this->articleNames($clinicId, array_map(
+            static fn (StockWatchRow $alert): string => $alert->articleId,
+            \array_slice($alerts, 0, self::TASKS_PER_SOURCE),
+        ));
+
         foreach (\array_slice($alerts, 0, self::TASKS_PER_SOURCE) as $alert) {
+            $name    = $names[$alert->articleId] ?? 'article';
             $tasks[] = new DashboardTask(
                 group: match ($alert->severity) {
                     StockAlertSeverity::CRITICAL => 'urgent',
@@ -637,15 +655,21 @@ final readonly class DashboardViewBuilder
                     StockAlertSeverity::INFO     => 'fond',
                 },
                 icon: 'stock',
-                title: match ($alert->type) {
-                    StockAlertType::OUT_OF_STOCK => 'Rupture — ' . $alert->articleName,
-                    StockAlertType::LOW_STOCK    => 'Stock bas — ' . $alert->articleName,
-                    StockAlertType::LOW_EXPIRY   => 'Péremption proche — ' . $alert->articleName,
+                title: match ($alert->kind) {
+                    StockWatchKind::EXPIRED_LOT     => 'Lot périmé — ' . $name,
+                    StockWatchKind::OUT_OF_STOCK    => 'Rupture — ' . $name,
+                    StockWatchKind::BELOW_THRESHOLD => 'Stock bas — ' . $name,
+                    StockWatchKind::EXPIRING_LOT    => 'Péremption proche — ' . $name,
+                    StockWatchKind::RECALLED_LOT    => 'Lot rappelé — ' . $name,
                 },
                 subtitle: $this->alertDetail($alert),
                 audience: 'clinique',
                 assigneeUserId: null,
-                actionLabel: StockAlertType::LOW_EXPIRY === $alert->type ? 'Voir' : 'Commander',
+                actionLabel: match ($alert->kind) {
+                    StockWatchKind::OUT_OF_STOCK, StockWatchKind::BELOW_THRESHOLD => 'Commander',
+                    StockWatchKind::EXPIRED_LOT => 'Sortir',
+                    default                     => 'Voir',
+                },
                 actionUrl: $this->urls->generate('clinic_stock_alerts'),
             );
         }
@@ -746,19 +770,44 @@ final readonly class DashboardViewBuilder
         };
     }
 
-    private function alertDetail(StockAlertView $alert): string
+    private function alertDetail(StockWatchRow $alert): string
     {
-        if (StockAlertType::LOW_EXPIRY === $alert->type && null !== $alert->earliestExpiry) {
-            return 'Lot périmé le ' . SheetText::date($alert->earliestExpiry, 'd MMM yyyy');
+        if (null !== $alert->lotNumber && null !== $alert->expiryDate) {
+            $verb = null !== $alert->days && $alert->days < 0 ? 'périmé le ' : 'périme le ';
+
+            return 'Lot ' . $alert->lotNumber . ' · ' . (StockWatchKind::RECALLED_LOT === $alert->kind
+                ? 'retiré de la vente'
+                : $verb . SheetText::date(new \DateTimeImmutable($alert->expiryDate), 'd MMM yyyy'));
         }
 
-        if (null !== $alert->currentLevelAmount) {
-            $amount = rtrim(rtrim($alert->currentLevelAmount, '0'), '.');
+        $amount = rtrim(rtrim($alert->quantity, '0'), '.');
 
-            return 'Reste ' . ('' === $amount ? '0' : str_replace('.', ',', $amount)) . ' ' . mb_strtolower($alert->currentLevelUnit ?? '');
+        return 'Reste ' . ('' === $amount ? '0' : str_replace('.', ',', $amount)) . ' ' . (self::UNITS[$alert->unit] ?? mb_strtolower($alert->unit));
+    }
+
+    /**
+     * The names of the articles of the stock tasks.
+     *
+     * @param list<string> $articleIds
+     *
+     * @return array<string, string>
+     */
+    private function articleNames(string $clinicId, array $articleIds): array
+    {
+        if ([] === $articleIds) {
+            return [];
         }
 
-        return 'Détectée le ' . SheetText::date($alert->detectedAt, 'd MMM');
+        $page = $this->queryBus->ask(new ListArticles($clinicId, new CatalogListCriteria(status: null, articleIds: array_values(array_unique($articleIds)), perPage: 100)));
+        $out  = [];
+
+        foreach ($page instanceof CatalogPage ? $page->items : [] as $article) {
+            if ($article instanceof ArticleListRow) {
+                $out[$article->id] = $article->name;
+            }
+        }
+
+        return $out;
     }
 
     /**

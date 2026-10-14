@@ -53,6 +53,9 @@ class StockItemEntity
     #[ORM\Column(type: 'string', length: 16, options: ['default' => 'ACTIVE'])]
     private string $status;
 
+    #[ORM\Column(name: 'storage_location', type: 'string', length: 32, nullable: true)]
+    private ?string $storageLocation = null;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $version = 1;
@@ -191,6 +194,16 @@ class StockItemEntity
     public function setStatus(string $status): void
     {
         $this->status = $status;
+    }
+
+    public function getStorageLocation(): ?string
+    {
+        return $this->storageLocation;
+    }
+
+    public function setStorageLocation(?string $storageLocation): void
+    {
+        $this->storageLocation = $storageLocation;
     }
 
     public function getVersion(): int

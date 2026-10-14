@@ -42,7 +42,7 @@ final class CreateSupplierReceiptHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects(self::once())->method('publish');
 
-        ($this->makeHandler($repository, $eventBus))(new CreateSupplierReceipt(
+        $receiptId = ($this->makeHandler($repository, $eventBus))(new CreateSupplierReceipt(
             clinicId: self::CLINIC_UUID,
             supplierId: self::SUPPLIER_UUID,
             purchaseOrderId: self::PO_UUID,
@@ -68,6 +68,7 @@ final class CreateSupplierReceiptHandlerTest extends TestCase
 
         self::assertNotNull($savedReceipt);
         self::assertCount(1, $savedReceipt->lines());
+        self::assertSame($savedReceipt->id()->toString(), $receiptId);
     }
 
     public function testItCreatesReceiptWithLotInformation(): void

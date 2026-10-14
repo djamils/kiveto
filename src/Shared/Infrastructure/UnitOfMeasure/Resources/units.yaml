@@ -39,6 +39,10 @@ units:
     category: COUNT
     base_factor: ~
 
+  BAG:
+    category: COUNT
+    base_factor: ~
+
   ML:
     category: VOLUME
     base_factor: '0.001'

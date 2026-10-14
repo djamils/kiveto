@@ -15,6 +15,7 @@ final readonly class RecordPhysicalInventory
         public string $reason = 'PHYSICAL_INVENTORY',
         public ?string $occurredAt = null,
         public ?string $performedBy = null,
+        public ?string $reference = null,
     ) {
     }
 }

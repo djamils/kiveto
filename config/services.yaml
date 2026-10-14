@@ -713,6 +713,9 @@ services:
     App\Context\Procurement\Application\Port\SupplierReceiptReadRepositoryInterface:
         alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupplierReceiptReadRepository
 
+    App\Context\Procurement\Application\Port\OrderBookReadRepositoryInterface:
+        alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DbalOrderBookReadRepository
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

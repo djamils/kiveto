@@ -8,6 +8,7 @@ use App\Context\Inventory\Domain\Shared\ValueObject\ArticleId;
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
 use App\Context\Inventory\Domain\Shared\ValueObject\SupplierId;
 use App\Context\Inventory\Domain\StockItem\Entity\Lot;
+use App\Context\Inventory\Domain\StockItem\Event\ExpiredLotDiscarded;
 use App\Context\Inventory\Domain\StockItem\Event\LotAdded;
 use App\Context\Inventory\Domain\StockItem\Event\LotDepleted;
 use App\Context\Inventory\Domain\StockItem\Event\LotExpired;
@@ -16,6 +17,7 @@ use App\Context\Inventory\Domain\StockItem\Event\StockAdjusted;
 use App\Context\Inventory\Domain\StockItem\Event\StockConsumed;
 use App\Context\Inventory\Domain\StockItem\Event\StockItemArchived;
 use App\Context\Inventory\Domain\StockItem\Event\StockItemOpened;
+use App\Context\Inventory\Domain\StockItem\Event\StockItemRelocated;
 use App\Context\Inventory\Domain\StockItem\Event\StockItemRestored;
 use App\Context\Inventory\Domain\StockItem\Event\StockReceived;
 use App\Context\Inventory\Domain\StockItem\Event\StockReservationReleased;
@@ -25,6 +27,8 @@ use App\Context\Inventory\Domain\StockItem\Exception\ArchivedStockItemException;
 use App\Context\Inventory\Domain\StockItem\Exception\InconsistentLotDataException;
 use App\Context\Inventory\Domain\StockItem\Exception\InsufficientStockException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotAlreadyTerminatedException;
+use App\Context\Inventory\Domain\StockItem\Exception\LotExpiredException;
+use App\Context\Inventory\Domain\StockItem\Exception\LotNotExpiredException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Exception\NegativeQuantityException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockNotEmptyOnArchiveException;
@@ -38,6 +42,7 @@ use App\Context\Inventory\Domain\StockItem\ValueObject\Quantity;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemId;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemStatus;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockThreshold;
+use App\Context\Inventory\Domain\StockItem\ValueObject\StorageLocation;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
@@ -61,6 +66,7 @@ final class StockItem extends AggregateRoot
         private StockItemStatus $status,
         private readonly \DateTimeImmutable $createdAt,
         private \DateTimeImmutable $updatedAt,
+        private ?StorageLocation $location = null,
     ) {
     }
 
@@ -72,6 +78,7 @@ final class StockItem extends AggregateRoot
         StockThreshold $threshold,
         bool $trackStock,
         ClockInterface $clock,
+        ?StorageLocation $location = null,
     ): self {
         $now = $clock->now();
 
@@ -88,6 +95,7 @@ final class StockItem extends AggregateRoot
             status: StockItemStatus::ACTIVE,
             createdAt: $now,
             updatedAt: $now,
+            location: $location,
         );
 
         $stockItem->recordDomainEvent(new StockItemOpened(
@@ -123,6 +131,7 @@ final class StockItem extends AggregateRoot
         StockItemStatus $status,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
+        ?StorageLocation $location = null,
     ): self {
         return new self(
             id: $id,
@@ -137,6 +146,7 @@ final class StockItem extends AggregateRoot
             status: $status,
             createdAt: $createdAt,
             updatedAt: $updatedAt,
+            location: $location,
         );
     }
 
@@ -184,11 +194,15 @@ final class StockItem extends AggregateRoot
         $usedLotId   = null;
 
         if (null !== $existingLot) {
-            if (LotStatus::ACTIVE === $existingLot->status()) {
+            // A depleted lot comes back when more of it arrives — the same
+            // boxes, delivered late or found again; an expired or recalled one
+            // never does.
+            if (LotStatus::ACTIVE === $existingLot->status() || LotStatus::DEPLETED === $existingLot->status()) {
                 if ($existingLot->expiryDate()->format('Y-m-d') !== $expiryDate->format('Y-m-d')) {
                     throw new InconsistentLotDataException($lotNumber->toString());
                 }
                 $existingLot->incrementQuantity($quantity, $updatedAt);
+                $existingLot->markAs(LotStatus::ACTIVE, $updatedAt);
                 $usedLotId = $existingLot->id();
             } else {
                 throw new LotAlreadyTerminatedException($lotNumber->toString(), $existingLot->status()->value);
@@ -417,10 +431,20 @@ final class StockItem extends AggregateRoot
             throw new LotNotFoundException($lotId->toString());
         }
 
+        // An expired or recalled lot is out of the usable stock for good: a
+        // count cannot bring it back. A depleted one can — the box was found.
+        if (LotStatus::EXPIRED === $lot->status() || LotStatus::RECALLED === $lot->status()) {
+            throw new LotAlreadyTerminatedException($lot->number()->toString(), $lot->status()->value);
+        }
+
         /** @var numeric-string $deltaAmount */
         $deltaAmount = bcsub($newLotQuantity->amount(), $lot->quantity()->amount(), 6);
 
         $lot->setQuantity($newLotQuantity, $updatedAt);
+
+        if (LotStatus::DEPLETED === $lot->status() && !$newLotQuantity->isZero()) {
+            $lot->markAs(LotStatus::ACTIVE, $updatedAt);
+        }
 
         /** @var numeric-string $zero */
         $zero     = '0';
@@ -433,7 +457,7 @@ final class StockItem extends AggregateRoot
             $this->totalOnHand = $this->totalOnHand->subtract(Quantity::of($absAmount, $this->unit));
         }
 
-        if ($newLotQuantity->isZero()) {
+        if ($newLotQuantity->isZero() && LotStatus::DEPLETED !== $lot->status()) {
             $lot->markAs(LotStatus::DEPLETED, $updatedAt);
             $this->recordDomainEvent(new LotDepleted(
                 stockItemId: $this->id->toString(),
@@ -457,6 +481,162 @@ final class StockItem extends AggregateRoot
         ));
 
         $this->assertLotsSumConsistency();
+    }
+
+    /**
+     * Takes stock out of one given lot rather than the one FEFO would pick —
+     * what was actually taken off the shelf.
+     *
+     * @return list<LotConsumption> empty when stock is not tracked
+     */
+    public function consumeFromLot(
+        LotId $lotId,
+        Quantity $quantity,
+        \DateTimeImmutable $occurredAt,
+        \DateTimeImmutable $updatedAt,
+    ): array {
+        $this->assertNotArchived();
+
+        if (!$this->trackStock) {
+            return [];
+        }
+
+        $lot = $this->findLotById($lotId);
+
+        if (null === $lot) {
+            throw new LotNotFoundException($lotId->toString());
+        }
+
+        if (LotStatus::ACTIVE !== $lot->status()) {
+            throw new LotAlreadyTerminatedException($lot->number()->toString(), $lot->status()->value);
+        }
+
+        if ($lot->expiryDate()->format('Y-m-d') < $occurredAt->format('Y-m-d')) {
+            throw new LotExpiredException($lot->number()->toString());
+        }
+
+        if ($lot->quantity()->isLessThan($quantity)) {
+            throw new InsufficientStockException($lot->quantity()->amount(), $quantity->amount(), $this->unit->toString());
+        }
+
+        $lot->decrementQuantity($quantity, $updatedAt);
+
+        if ($lot->quantity()->isZero()) {
+            $lot->markAs(LotStatus::DEPLETED, $updatedAt);
+            $this->recordDomainEvent(new LotDepleted(
+                stockItemId: $this->id->toString(),
+                lotId: $lot->id()->toString(),
+                lotNumber: $lot->number()->toString(),
+            ));
+        }
+
+        $this->recordDomainEvent(new StockConsumed(
+            stockItemId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            articleId: $this->articleId->toString(),
+            lotId: $lot->id()->toString(),
+            quantityAmount: $quantity->amount(),
+            quantityUnit: $quantity->unit()->toString(),
+            occurredAt: $occurredAt->format(\DateTimeInterface::ATOM),
+        ));
+
+        $this->totalOnHand = $this->totalOnHand->subtract($quantity);
+        $this->updatedAt   = $updatedAt;
+
+        $this->assertLotsSumConsistency();
+
+        return [new LotConsumption($lot->id(), $quantity)];
+    }
+
+    /**
+     * Clears an expired lot from the shelf. A lot still marked active although
+     * its date has passed is expired on the way, so its quantity leaves the
+     * usable stock exactly once.
+     *
+     * @return Quantity the quantity expired by this call — zero when the lot
+     *                  had already been expired
+     */
+    public function discardExpiredLot(
+        LotId $lotId,
+        \DateTimeImmutable $today,
+        \DateTimeImmutable $updatedAt,
+    ): Quantity {
+        $this->assertNotArchived();
+
+        $lot = $this->findLotById($lotId);
+
+        if (null === $lot) {
+            throw new LotNotFoundException($lotId->toString());
+        }
+
+        $expiredNow = Quantity::zero($this->unit);
+        $pastDate   = $lot->expiryDate()->format('Y-m-d') < $today->format('Y-m-d');
+
+        if (LotStatus::ACTIVE === $lot->status() && $pastDate) {
+            $expiredNow = $lot->quantity();
+
+            $lot->markAs(LotStatus::EXPIRED, $updatedAt);
+            $this->totalOnHand = $this->totalOnHand->subtract($expiredNow);
+
+            $this->recordDomainEvent(new LotExpired(
+                stockItemId: $this->id->toString(),
+                clinicId: $this->clinicId->toString(),
+                lotId: $lot->id()->toString(),
+                lotNumber: $lot->number()->toString(),
+                quantityAtExpiry: $expiredNow->amount(),
+                quantityUnit: $expiredNow->unit()->toString(),
+                expiryDate: $lot->expiryDate()->format('Y-m-d'),
+            ));
+        }
+
+        if (LotStatus::EXPIRED !== $lot->status()) {
+            throw new LotNotExpiredException($lot->number()->toString());
+        }
+
+        if ($lot->quantity()->isZero()) {
+            throw new LotAlreadyTerminatedException($lot->number()->toString(), $lot->status()->value);
+        }
+
+        $discarded = $lot->quantity();
+
+        $lot->setQuantityZero($updatedAt);
+        $this->updatedAt = $updatedAt;
+
+        $this->recordDomainEvent(new ExpiredLotDiscarded(
+            stockItemId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            lotId: $lot->id()->toString(),
+            lotNumber: $lot->number()->toString(),
+            discardedQuantityAmount: $discarded->amount(),
+            discardedQuantityUnit: $discarded->unit()->toString(),
+            occurredAt: $today->format(\DateTimeInterface::ATOM),
+        ));
+
+        $this->assertLotsSumConsistency();
+
+        return $expiredNow;
+    }
+
+    /**
+     * Where the article is kept; null when the clinic has not said.
+     */
+    public function relocate(?StorageLocation $location, \DateTimeImmutable $updatedAt): void
+    {
+        $this->assertNotArchived();
+
+        if ($location === $this->location) {
+            return;
+        }
+
+        $this->location  = $location;
+        $this->updatedAt = $updatedAt;
+
+        $this->recordDomainEvent(new StockItemRelocated(
+            stockItemId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            articleId: $this->articleId->toString(),
+            location: $location?->value,
+        ));
     }
 
     public function changeThreshold(StockThreshold $threshold, \DateTimeImmutable $updatedAt): void
@@ -656,6 +836,11 @@ final class StockItem extends AggregateRoot
     public function updatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function location(): ?StorageLocation
+    {
+        return $this->location;
     }
 
     // -------------------------------------------------------------------------

@@ -11,7 +11,9 @@ use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsFo
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
-use App\Context\Inventory\Application\Query\GetActiveAlerts\GetActiveAlerts;
+use App\Context\Inventory\Application\Query\WatchStock\StockWatchRow;
+use App\Context\Inventory\Application\Query\WatchStock\WatchStock;
+use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertSeverity;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
@@ -24,8 +26,8 @@ use Symfony\Bundle\SecurityBundle\Security;
 /**
  * Builds what the application shell shows on every clinic page: the member's
  * clinics for the switcher, the member themselves for the topbar, and the few
- * live figures the shell surfaces (practitioners, today's appointments, stock
- * alerts). Every figure comes from a query; nothing is made up.
+ * live figures the shell surfaces (practitioners, today's appointments, critical
+ * stock alerts). Every figure comes from a query; nothing is made up.
  */
 final class ShellViewBuilder
 {
@@ -112,8 +114,14 @@ final class ShellViewBuilder
         $settings = $settings instanceof ClinicSettingsView ? $settings : null;
         $timeZone = new \DateTimeZone(null !== $settings ? $settings->timeZone : 'Europe/Paris');
 
-        $alerts = $this->queryBus->ask(new GetActiveAlerts($currentClinicId));
+        // The badge counts what the stock page files as critical: the same
+        // reading of the shelves, so the two never disagree.
+        $alerts = $this->queryBus->ask(new WatchStock($currentClinicId, $timeZone->getName()));
         \assert(\is_array($alerts));
+        $critical = \count(array_filter(
+            $alerts,
+            static fn ($alert): bool => $alert instanceof StockWatchRow && StockAlertSeverity::CRITICAL === $alert->severity,
+        ));
 
         return new ShellView(
             currentClinic: $current,
@@ -124,7 +132,7 @@ final class ShellViewBuilder
             appointmentsToday: $this->appointmentsToday($currentClinicId, $now, $timeZone),
             isOpenNow: null === $settings ? null : $this->isOpenNow($settings, $now->setTimezone($timeZone)),
             address: null === $settings ? null : $this->address($settings),
-            stockAlertCount: \count($alerts),
+            stockAlertCount: $critical,
         );
     }
 

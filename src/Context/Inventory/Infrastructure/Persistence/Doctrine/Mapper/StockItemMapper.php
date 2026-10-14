@@ -12,6 +12,7 @@ use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemId;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemStatus;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockThreshold;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockThresholdType;
+use App\Context\Inventory\Domain\StockItem\ValueObject\StorageLocation;
 use App\Context\Inventory\Infrastructure\Persistence\Doctrine\Entity\StockItemEntity;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
 use Symfony\Component\Uid\Uuid;
@@ -47,6 +48,7 @@ final readonly class StockItemMapper
         $entity->setThresholdType($stockItem->minimumThreshold()->type()->value);
         $entity->setTrackStock($stockItem->trackStock());
         $entity->setStatus($stockItem->status()->value);
+        $entity->setStorageLocation($stockItem->location()?->value);
         $entity->setCreatedAt($stockItem->createdAt());
         $entity->setUpdatedAt($stockItem->updatedAt());
 
@@ -114,6 +116,7 @@ final readonly class StockItemMapper
             status: StockItemStatus::from($entity->getStatus()),
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
+            location: null !== $entity->getStorageLocation() ? StorageLocation::from($entity->getStorageLocation()) : null,
         );
     }
 }

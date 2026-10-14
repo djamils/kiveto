@@ -7,7 +7,9 @@ namespace App\Context\Procurement\Infrastructure\Adapter\Supplier\Manual;
 use App\Context\Procurement\Application\Dto\CatalogEntryData;
 use App\Context\Procurement\Application\Dto\DeliveryNoteData;
 use App\Context\Procurement\Application\Dto\SendOrderResult;
+use App\Context\Procurement\Application\Port\SupplierCatalogReadRepositoryInterface;
 use App\Context\Procurement\Application\Port\SupplierIntegrationAdapterInterface;
+use App\Context\Procurement\Domain\PurchaseOrder\Entity\PurchaseOrderLine;
 use App\Context\Procurement\Domain\PurchaseOrder\PurchaseOrder;
 use App\Context\Procurement\Domain\PurchaseOrder\ValueObject\ExternalReference;
 use App\Context\Procurement\Domain\Supplier\Supplier;
@@ -23,8 +25,10 @@ use App\Shared\Domain\Storage\FileStorageInterface;
  */
 abstract class ManualExportAdapter implements SupplierIntegrationAdapterInterface
 {
-    public function __construct(protected readonly FileStorageInterface $fileStorage)
-    {
+    public function __construct(
+        protected readonly FileStorageInterface $fileStorage,
+        private readonly ?SupplierCatalogReadRepositoryInterface $catalog = null,
+    ) {
     }
 
     public function mode(): SupplierIntegrationMode
@@ -74,6 +78,25 @@ abstract class ManualExportAdapter implements SupplierIntegrationAdapterInterfac
     public function fetchCatalog(Supplier $supplier): array
     {
         return [];
+    }
+
+    /**
+     * What the supplier calls the product of an order line: its reference and
+     * name in the supplier's catalogue — the catalogue entry id and no name
+     * when the entry cannot be read.
+     *
+     * @return array{code: string, name: string}
+     */
+    protected function product(PurchaseOrderLine $line): array
+    {
+        $entry = $this->catalog?->findById($line->catalogEntryId()->toString());
+        $code  = $entry['productCode'] ?? null;
+        $name  = $entry['name'] ?? null;
+
+        return [
+            'code' => \is_string($code) ? $code : $line->catalogEntryId()->toString(),
+            'name' => \is_string($name) ? $name : '',
+        ];
     }
 
     /**

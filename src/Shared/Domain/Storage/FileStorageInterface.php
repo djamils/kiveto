@@ -15,4 +15,11 @@ interface FileStorageInterface
      * Returns the public URL or download path for a stored file identifier.
      */
     public function getUrl(string $fileIdentifier): string;
+
+    /**
+     * The content of a stored file.
+     *
+     * @throws \RuntimeException when there is no such file
+     */
+    public function read(string $fileIdentifier): string;
 }

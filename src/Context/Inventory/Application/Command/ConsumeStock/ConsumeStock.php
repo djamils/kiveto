@@ -16,6 +16,7 @@ final readonly class ConsumeStock
         public ?string $performedBy,
         public ?string $note,
         public string $reason = 'CONSUMPTION_CONSULTATION',
+        public ?string $lotId = null,
     ) {
     }
 }

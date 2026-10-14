@@ -35,7 +35,10 @@ final readonly class CreatePurchaseOrderHandler
     ) {
     }
 
-    public function __invoke(CreatePurchaseOrder $command): void
+    /**
+     * @return string the id of the new order
+     */
+    public function __invoke(CreatePurchaseOrder $command): string
     {
         $clinicId          = ClinicId::fromString($command->clinicId);
         $supplierId        = SupplierId::fromString($command->supplierId);
@@ -74,5 +77,7 @@ final readonly class CreatePurchaseOrderHandler
 
         \assert($po instanceof PurchaseOrder);
         $this->domainEventPublisher->publish($po);
+
+        return $poId->toString();
     }
 }

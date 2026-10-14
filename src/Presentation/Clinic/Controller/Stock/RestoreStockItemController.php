@@ -5,40 +5,34 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Stock;
 
 use App\Context\Inventory\Application\Command\RestoreStockItem\RestoreStockItem;
-use App\Presentation\Clinic\ViewModel\Stock\StockErrorMessage;
+use App\Presentation\Clinic\ViewModel\Stock\StockEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
+/** « Reprendre le suivi » of an article whose follow-up was stopped. */
 #[Route(path: '/stock/items/{stockItemId}/restore', name: 'clinic_stock_restore', methods: ['POST'])]
-final class RestoreStockItemController extends AbstractController
+final readonly class RestoreStockItemController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private StockEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $stockItemId): Response
+    public function __invoke(Request $request, string $stockItemId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
-
-        try {
-            $this->commandBus->dispatch(new RestoreStockItem(
-                stockItemId: $stockItemId,
-                clinicId: $currentClinicId->toString(),
-            ));
-        } catch (\LogicException $exception) {
-            $this->addFlash('error', StockErrorMessage::of($exception));
-
-            return $this->redirectToRoute('clinic_stock');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Suivi du stock rétabli.');
+        try {
+            $this->commandBus->dispatch(new RestoreStockItem(stockItemId: $stockItemId, clinicId: $this->endpoint->clinicId()));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
 
-        return $this->redirectToRoute('clinic_stock');
+        return $this->endpoint->ok();
     }
 }

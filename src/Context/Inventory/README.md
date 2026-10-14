@@ -108,6 +108,31 @@ Every command that changes stock produces a `StockMovement` record. The movement
 
 ---
 
+### What the stock page reads and writes
+
+- A `StockItem` may say where it is kept (`StorageLocation`: pharmacy, fridge,
+  narcotics safe, operating room, reception) — `RelocateStockItem`.
+- `ConsumeStock` takes an optional `lotId`: the stock leaves the lot that was
+  actually opened (`StockItem::consumeFromLot`) instead of the FEFO pick.
+- `DiscardExpiredLot` clears what is left of a lot past its date. A lot the
+  nightly expiry has not reached yet is expired on the way, so the trail keeps
+  exactly one « Perte — péremption » per lot.
+- A count (`RecordPhysicalInventory`) brings a depleted lot back when boxes are
+  found, and a receipt of a depleted lot number tops it up again; expired and
+  recalled lots never come back. The page's « Annuler » is a `CORRECTION`
+  count: the trail is never rewritten.
+- An adjustment movement records its sense (`decrease`): its quantity is always
+  positive.
+- `WatchStock` reads the shelves as they stand, in the clinic's calendar:
+  critical (a lot past its date still holding something, an article received
+  before and now without usable stock), to watch (at or under the threshold, a
+  usable lot expiring within 60 days), for information (a lot recalled during
+  the last 30 days). The navigation badge counts the critical ones; the
+  `StockAlert` projection still feeds the dashboard.
+- `GetClinicStock` gives the page every item of the clinic with its lots, its
+  weekly outflows over 12 weeks, its latest movements and the date of the last
+  count; `ListMovements` pages the trail with the balance after each movement.
+
 ## Console Commands
 
 | Command | Description |

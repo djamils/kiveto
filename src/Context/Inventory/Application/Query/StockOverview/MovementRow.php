@@ -22,12 +22,14 @@ final readonly class MovementRow
         public ?string $reference,
         public ?string $performedBy,
         public ?string $note,
+        public ?string $balance = null,
     ) {
     }
 
     /**
      * A receipt adds and a consumption removes, both recorded as a positive
-     * quantity. Only an adjustment carries its own sign.
+     * quantity. Only an adjustment carries its own sign; `balance` is what the
+     * article had in stock once the movement was done.
      */
     public function isIncoming(): bool
     {

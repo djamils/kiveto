@@ -41,4 +41,21 @@ final readonly class LocalFileSystemStorage implements FileStorageInterface
     {
         return rtrim($this->baseUrl, '/') . '/storage/' . ltrim($fileIdentifier, '/');
     }
+
+    public function read(string $fileIdentifier): string
+    {
+        // An identifier names a file under the storage, never a way out of it.
+        if (str_contains($fileIdentifier, '..')) {
+            throw new \RuntimeException(\sprintf('Invalid file identifier "%s".', $fileIdentifier));
+        }
+
+        $path    = $this->storagePath . '/' . ltrim($fileIdentifier, '/');
+        $content = is_file($path) ? file_get_contents($path) : false;
+
+        if (false === $content) {
+            throw new \RuntimeException(\sprintf('No stored file "%s".', $fileIdentifier));
+        }
+
+        return $content;
+    }
 }

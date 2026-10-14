@@ -12,6 +12,7 @@ final readonly class MarkLotAsRecalled
         public string $lotId,
         public string $reason,
         public ?string $occurredAt = null,
+        public ?string $performedBy = null,
     ) {
     }
 }

@@ -30,6 +30,7 @@ final class StockMovement extends AggregateRoot
         private readonly ?string $performedBy,
         private readonly ?string $note,
         private readonly \DateTimeImmutable $createdAt,
+        private readonly bool $decrease = false,
     ) {
     }
 
@@ -46,8 +47,15 @@ final class StockMovement extends AggregateRoot
         ?string $performedBy,
         ?string $note,
         \DateTimeImmutable $createdAt,
+        bool $decrease = false,
     ): self {
         self::assertTypeReasonCoherence($type, $reason);
+
+        // A receipt adds and a consumption removes by definition; only an
+        // adjustment needs to say which way it went.
+        if ($decrease && MovementType::ADJUSTMENT !== $type) {
+            throw new \InvalidArgumentException('Only an adjustment can record a decrease.');
+        }
 
         if ($quantity->isZero()) {
             throw new \InvalidArgumentException('StockMovement quantity must be greater than zero.');
@@ -66,6 +74,7 @@ final class StockMovement extends AggregateRoot
             performedBy: $performedBy,
             note: $note,
             createdAt: $createdAt,
+            decrease: $decrease,
         );
 
         $movement->recordDomainEvent(new StockMovementRecorded(
@@ -102,6 +111,7 @@ final class StockMovement extends AggregateRoot
         ?string $performedBy,
         ?string $note,
         \DateTimeImmutable $createdAt,
+        bool $decrease = false,
     ): self {
         return new self(
             id: $id,
@@ -116,6 +126,7 @@ final class StockMovement extends AggregateRoot
             performedBy: $performedBy,
             note: $note,
             createdAt: $createdAt,
+            decrease: $decrease,
         );
     }
 
@@ -168,6 +179,14 @@ final class StockMovement extends AggregateRoot
         return $this->reference;
     }
 
+    /**
+     * An adjustment that took stock away rather than adding it.
+     */
+    public function isDecrease(): bool
+    {
+        return $this->decrease;
+    }
+
     public function performedBy(): ?string
     {
         return $this->performedBy;
@@ -195,10 +214,12 @@ final class StockMovement extends AggregateRoot
             MovementReason::RECEIPT_RETURN_FROM_CLIENT => MovementType::IN,
 
             MovementReason::CONSUMPTION_CONSULTATION,
+            MovementReason::CONSUMPTION_INTERNAL,
             MovementReason::SALE_RETAIL,
             MovementReason::LOSS_EXPIRY,
             MovementReason::LOSS_BREAKAGE,
             MovementReason::LOSS_THEFT,
+            MovementReason::RETURN_TO_SUPPLIER,
             MovementReason::RECALL_RETURN_TO_SUPPLIER => MovementType::OUT,
 
             MovementReason::PHYSICAL_INVENTORY,

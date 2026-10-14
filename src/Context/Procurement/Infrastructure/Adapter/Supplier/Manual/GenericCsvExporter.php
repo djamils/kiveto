@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Procurement\Infrastructure\Adapter\Supplier\Manual;
 
+use App\Context\Procurement\Application\Port\SupplierCatalogReadRepositoryInterface;
 use App\Context\Procurement\Domain\PurchaseOrder\PurchaseOrder;
 use App\Context\Procurement\Domain\PurchaseOrder\ValueObject\PurchaseOrderLineStatus;
 use App\Context\Procurement\Domain\SupplierAccount\SupplierAccount;
@@ -17,9 +18,9 @@ use App\Shared\Domain\Storage\FileStorageInterface;
  */
 final class GenericCsvExporter extends ManualExportAdapter
 {
-    public function __construct(FileStorageInterface $fileStorage)
+    public function __construct(FileStorageInterface $fileStorage, ?SupplierCatalogReadRepositoryInterface $catalog = null)
     {
-        parent::__construct($fileStorage);
+        parent::__construct($fileStorage, $catalog);
     }
 
     public function identifier(): string
@@ -46,9 +47,11 @@ final class GenericCsvExporter extends ManualExportAdapter
                 continue;
             }
 
+            $product = $this->product($line);
+
             fputcsv($output, [
-                $line->catalogEntryId()->toString(),
-                '', // Product name is not stored on the line; a catalog lookup would be needed
+                $product['code'],
+                $product['name'],
                 $line->orderedAmount(),
                 $line->orderedUnit()->toString(),
                 number_format($line->unitPrice()->minorUnits() / 100, 2, '.', ''),
