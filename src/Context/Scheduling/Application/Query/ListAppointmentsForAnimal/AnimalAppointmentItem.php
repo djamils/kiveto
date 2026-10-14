@@ -13,6 +13,7 @@ final readonly class AnimalAppointmentItem
         public int $durationMinutes,
         public string $status,
         public ?string $reason,
+        public ?string $notes = null,
     ) {
     }
 }

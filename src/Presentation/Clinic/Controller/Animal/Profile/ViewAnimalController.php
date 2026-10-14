@@ -57,12 +57,14 @@ final class ViewAnimalController extends AbstractController
         $clinicTz = TimeZone::fromString($clinic->timeZone)->toNative();
         $now      = $this->clock->now();
 
+        $tab = $request->query->getString('tab');
+
         return $this->render('clinic/animals/view/index.html.twig', [
             'animal'            => $animal,
             'sheet'             => $this->sheetBuilder->build($animal, $clinicTz, $now),
-            'activeTab'         => $request->query->getString('tab', 'synthese'),
+            'activeTab'         => \in_array($tab, ['chrono', 'prev', 'courbes', 'docs'], true) ? $tab : 'chrono',
+            'savedCard'         => $request->query->getString('saved'),
             'today'             => $now->setTimezone($clinicTz)->format('Y-m-d'),
-            'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,
         ]);
     }

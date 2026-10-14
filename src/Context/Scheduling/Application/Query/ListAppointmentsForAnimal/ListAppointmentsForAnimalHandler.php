@@ -29,7 +29,8 @@ final readonly class ListAppointmentsForAnimalHandler
                 a.starts_at_utc,
                 a.duration_minutes,
                 a.status,
-                a.reason
+                a.reason,
+                a.notes
             FROM scheduling__appointments a
             WHERE a.clinic_id = UUID_TO_BIN(:clinicId)
               AND a.animal_id = UUID_TO_BIN(:animalId)
@@ -55,6 +56,7 @@ final readonly class ListAppointmentsForAnimalHandler
                 durationMinutes: RowAccessor::int($row, 'duration_minutes'),
                 status: RowAccessor::string($row, 'status'),
                 reason: RowAccessor::nullableString($row, 'reason'),
+                notes: RowAccessor::nullableString($row, 'notes'),
             ),
             $rows,
         );

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Animal\Infrastructure\Persistence\Doctrine\Entity;
 
 use App\Context\Animal\Domain\ValueObject\AnimalStatus;
+use App\Context\Animal\Domain\ValueObject\BodyDisposal;
+use App\Context\Animal\Domain\ValueObject\DeathCause;
 use App\Context\Animal\Domain\ValueObject\LifeStatus;
 use App\Context\Animal\Domain\ValueObject\RegistryType;
 use App\Context\Animal\Domain\ValueObject\ReproductiveStatus;
@@ -85,6 +87,18 @@ class AnimalEntity
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $missingSince = null;
+
+    #[ORM\Column(name: 'death_cause', type: 'string', length: 30, nullable: true, enumType: DeathCause::class)]
+    private ?DeathCause $deathCause = null;
+
+    #[ORM\Column(name: 'body_disposal', type: 'string', length: 30, nullable: true, enumType: BodyDisposal::class)]
+    private ?BodyDisposal $bodyDisposal = null;
+
+    #[ORM\Column(name: 'insurer_name', type: 'string', length: 80, nullable: true)]
+    private ?string $insurerName = null;
+
+    #[ORM\Column(name: 'insurance_policy_number', type: 'string', length: 30, nullable: true)]
+    private ?string $insurancePolicyNumber = null;
 
     #[ORM\Column(type: 'string', length: 50, enumType: TransferStatus::class)]
     private TransferStatus $transferStatus;
@@ -339,6 +353,46 @@ class AnimalEntity
     public function setMissingSince(?\DateTimeImmutable $missingSince): void
     {
         $this->missingSince = $missingSince;
+    }
+
+    public function getDeathCause(): ?DeathCause
+    {
+        return $this->deathCause;
+    }
+
+    public function setDeathCause(?DeathCause $deathCause): void
+    {
+        $this->deathCause = $deathCause;
+    }
+
+    public function getBodyDisposal(): ?BodyDisposal
+    {
+        return $this->bodyDisposal;
+    }
+
+    public function setBodyDisposal(?BodyDisposal $bodyDisposal): void
+    {
+        $this->bodyDisposal = $bodyDisposal;
+    }
+
+    public function getInsurerName(): ?string
+    {
+        return $this->insurerName;
+    }
+
+    public function setInsurerName(?string $insurerName): void
+    {
+        $this->insurerName = $insurerName;
+    }
+
+    public function getInsurancePolicyNumber(): ?string
+    {
+        return $this->insurancePolicyNumber;
+    }
+
+    public function setInsurancePolicyNumber(?string $insurancePolicyNumber): void
+    {
+        $this->insurancePolicyNumber = $insurancePolicyNumber;
     }
 
     public function getTransferStatus(): TransferStatus

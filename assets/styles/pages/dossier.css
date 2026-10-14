@@ -433,3 +433,20 @@
 .dossier a.dchip,.dossier a.btn{text-decoration:none}
 /* Not available yet: kept visible, plainly inert. */
 .dossier .dmenu .dd-it[aria-disabled="true"]:hover{background:none}
+/* Animal sheet: a report opens as a PDF, so its document card is a link. */
+.dossier a.doc{text-decoration:none;color:inherit}
+/* Owner picker of « Changer de propriétaire » (markup of client-search-autocomplete). */
+.dossier .combobox{position:relative}
+.dossier .autocomplete-listbox{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:40;list-style:none;margin:0;padding:4px;
+  background:var(--carte);border:1px solid var(--trait);border-radius:9px;box-shadow:0 12px 34px rgba(15,23,42,.16);
+  max-height:240px;overflow-y:auto;
+}
+.dossier .autocomplete-listbox.hidden{display:none}
+.dossier .autocomplete-listbox li{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:.84rem;cursor:pointer;transition:background .1s}
+.dossier .autocomplete-listbox li:hover,.dossier .autocomplete-listbox li[aria-selected="true"]{background:var(--pin-pale)}
+.dossier .autocomplete-listbox .avatar-mini{width:22px;height:22px;border-radius:50%;color:#fff;font-size:.6rem;font-weight:700;display:grid;place-items:center;flex:none}
+.dossier .autocomplete-option-label{font-weight:600}
+.dossier .autocomplete-option-meta{margin-left:auto;font-size:.72rem;color:var(--encre-35)}
+.dossier .autocomplete-empty{color:var(--encre-35);font-style:italic;cursor:default}
+.dossier .autocomplete-listbox li.autocomplete-empty:hover{background:none}

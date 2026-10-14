@@ -12,7 +12,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Forms of the animal sheet load the animal from the current clinic first,
- * then come back to the tab they were submitted from.
+ * then come back to the sheet, naming the card they were submitted from so
+ * that it flashes as saved.
  */
 abstract class AbstractAnimalSheetAction extends AbstractSheetAction
 {
@@ -55,18 +56,22 @@ abstract class AbstractAnimalSheetAction extends AbstractSheetAction
         return 'active' === $animal->status && 'alive' === $animal->lifeCycle->lifeStatus;
     }
 
-    protected function refuseClosedFile(string $animalId, string $tab = 'synthese'): RedirectResponse
+    protected function refuseClosedFile(string $animalId): RedirectResponse
     {
         $this->addFlash('error', 'Ce dossier est clos : l’animal est décédé ou sa fiche est archivée.');
 
-        return $this->backToSheet($animalId, $tab);
+        return $this->backToSheet($animalId);
     }
 
-    protected function backToSheet(string $animalId, string $tab = 'synthese'): RedirectResponse
+    /**
+     * @param ?string $savedCard the card that flashes as saved ('head', 'cSyn'…)
+     * @param ?string $tab       the tab the sheet reopens on ('prev', 'courbes'…)
+     */
+    protected function backToSheet(string $animalId, ?string $savedCard = null, ?string $tab = null): RedirectResponse
     {
         return $this->redirectToRoute(
             'clinic_animals_view',
-            'synthese' === $tab ? ['id' => $animalId] : ['id' => $animalId, 'tab' => $tab],
+            array_filter(['id' => $animalId, 'saved' => $savedCard, 'tab' => $tab], static fn (?string $v): bool => null !== $v),
             RedirectResponse::HTTP_SEE_OTHER,
         );
     }
