@@ -79,7 +79,7 @@ const TYP = (k) => TYPES.find((t) => t.k === k) || TYPES[0];
 const COURT = { consult: 'Consult.', chir: 'Chir.', garde: 'Garde', bilan: 'Bilan', admin: 'Admin.', formation: 'Form.', conge: 'Congé', pause: 'Pause' };
 /* Blocks open to any booking (free slots are searched there) */
 const RDV_OK = (t) => t === 'consult' || t === 'garde' || t === 'bilan';
-/* Blocks the domain refuses bookings in */
+/* Blocks the domain refuses bookings in (and real lunch-break blocks, see below) */
 const FERME = (t) => t === 'admin' || t === 'formation' || t === 'conge';
 
 let VETS = [];
@@ -100,14 +100,17 @@ const motifTxt = (r) => { const mo = MOT(r.m); return r.reason && r.reason !== m
 
 function blocsDe(vet, d) { const k = iso(d); return BLOCS.filter((b) => b.vet === vet && b.date === k).sort((x, y) => x.s - y.s); }
 
-/* Lunch break: any gap of 30 min to 2 h starting between 11:30 and 14:00 in a worked day */
+/* Lunch break: any gap of 30 min to 2 h starting between 11:30 and 14:00 in a worked day,
+   unless the planning already holds a break block there (`virt` marks the derived ones) */
 function pauses(dates) {
   const out = [];
   dates.forEach((dt) => VETS.forEach((v) => {
-    const bl = BLOCS.filter((b) => b.date === dt && b.vet === v.id && b.t !== 'conge' && b.t !== 'pause').sort((a, b) => a.s - b.s);
+    const du = BLOCS.filter((b) => b.date === dt && b.vet === v.id);
+    const bl = du.filter((b) => b.t !== 'conge' && b.t !== 'pause').sort((a, b) => a.s - b.s);
     for (let i = 0; i < bl.length - 1; i++) {
       const s = bl[i].e, e = bl[i + 1].s;
-      if (e - s >= 30 && e - s <= 120 && s >= 11 * 60 + 30 && s <= 14 * 60) out.push({ id: `p-${v.id}-${dt}-${s}`, date: dt, vet: v.id, s, e, t: 'pause', note: '' });
+      if (du.some((b) => b.t === 'pause' && b.s < e && b.e > s)) continue;
+      if (e - s >= 30 && e - s <= 120 && s >= 11 * 60 + 30 && s <= 14 * 60) out.push({ id: `p-${v.id}-${dt}-${s}`, date: dt, vet: v.id, s, e, t: 'pause', note: '', virt: true });
     }
   }));
   return out;
@@ -688,7 +691,7 @@ function majModale(sansInput) {
   const cf = conflits();
   const box = $('#rdvConflit');
   const bl = blocsDe(M.vet, d);
-  const ferme = bl.find((b) => FERME(b.t) && M.s < b.e && M.s + M.dur > b.s);
+  const ferme = bl.find((b) => (FERME(b.t) || (b.t === 'pause' && !b.virt)) && M.s < b.e && M.s + M.dur > b.s);
   const horsBloc = !bl.some((b) => (RDV_OK(b.t) || b.t === 'chir') && M.s >= b.s && M.s + M.dur <= b.e);
   let bloque = false;
   if (cf.length) {

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange;
 
+/**
+ * One occurrence of a planning block: `date` is the day it falls on,
+ * `baseDate` the day its series is anchored on (the same for a one-off block).
+ */
 final readonly class PlanningBlockView
 {
     public function __construct(
@@ -20,6 +24,7 @@ final readonly class PlanningBlockView
         public ?string $note,
         public bool $acceptsAppointments,
         public bool $hasCapacityLimit,
+        public string $baseDate,
     ) {
     }
 }

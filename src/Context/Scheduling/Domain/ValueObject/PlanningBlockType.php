@@ -14,11 +14,12 @@ enum PlanningBlockType: string
     case LEAVE        = 'leave';
     case TRAINING     = 'training';
     case ADMIN        = 'admin';
+    case BREAK        = 'break';
 
     public function acceptsAppointments(): bool
     {
         return match ($this) {
-            self::LEAVE, self::TRAINING, self::ADMIN => false,
+            self::LEAVE, self::TRAINING, self::ADMIN, self::BREAK => false,
             default => true,
         };
     }
@@ -26,7 +27,7 @@ enum PlanningBlockType: string
     public function hasCapacityLimit(): bool
     {
         return match ($this) {
-            self::LEAVE, self::TRAINING, self::ADMIN => false,
+            self::LEAVE, self::TRAINING, self::ADMIN, self::BREAK => false,
             default => true,
         };
     }

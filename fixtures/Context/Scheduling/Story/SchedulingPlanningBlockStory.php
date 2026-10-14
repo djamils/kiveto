@@ -56,6 +56,11 @@ final class SchedulingPlanningBlockStory extends Story
         [4, 'dupont', '18:00', '19:30', 'training', 0, 'Webinaire dermatologie'],
         [6, 'dupont', '12:30', '20:00', 'on_call', 2, 'Garde du week-end'],
         [7, 'dupont', '09:00', '20:00', 'on_call', 2, 'Garde du week-end'],
+        // Lunch breaks, appended so the ids of the rows above stay stable
+        [1, 'vet', '12:30', '14:00', 'break', 0, null],
+        [4, 'vet', '12:30', '14:00', 'break', 0, null],
+        [1, 'dupont', '12:00', '14:00', 'break', 0, null],
+        [4, 'dupont', '12:00', '14:00', 'break', 0, null],
     ];
 
     /** A Monday of the trame's first week: weekly blocks repeat on its weekdays. */

@@ -36,7 +36,10 @@ final class DeletePlanningBlockController extends AbstractController
         } catch (PlanningBlockNotFoundException $e) {
             return new JsonResponse(['error' => 'Not found'], 404);
         } catch (\DomainException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 422);
+            return new JsonResponse([
+                'error' => $e->getMessage(),
+                'code'  => new \ReflectionClass($e)->getShortName(),
+            ], 422);
         }
     }
 }
