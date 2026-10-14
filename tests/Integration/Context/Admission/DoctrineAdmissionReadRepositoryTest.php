@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Context\Admission;
 
 use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
+use App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
+use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Domain\ValueObject\ClosureReason;
 use App\Fixtures\Context\Admission\Factory\AdmissionEntityFactory;
 use App\Fixtures\Context\Patient\Factory\PatientEntityFactory;
@@ -51,6 +53,46 @@ final class DoctrineAdmissionReadRepositoryTest extends KernelTestCase
         ;
 
         self::assertSame([], $this->readRepository()->findClosedForClinicSince(self::CLINIC_ID, $midnight));
+    }
+
+    public function testFindAllActiveForClinicTellsSinceWhenThePatientIsWhereItIs(): void
+    {
+        AdmissionEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPatientId($this->patient('Simba'))
+            ->create([
+                'status'                  => AdmissionStatus::Active,
+                'closedAt'                => null,
+                'closureReason'           => null,
+                'openedAt'                => new \DateTimeImmutable('2026-03-04 10:05:00'),
+                'locationStatusEnteredAt' => new \DateTimeImmutable('2026-03-04 10:24:00'),
+            ])
+        ;
+
+        $items = $this->readRepository()->findAllActiveForClinic(self::CLINIC_ID);
+
+        self::assertCount(1, $items);
+        self::assertSame('2026-03-04T10:05:00+00:00', $items[0]->openedAt);
+        self::assertSame('2026-03-04T10:24:00+00:00', $items[0]->locationSince);
+    }
+
+    public function testTheRepositoryKnowsWhetherAPatientIsStillAdmitted(): void
+    {
+        $onSite = $this->patient('Rex');
+        AdmissionEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPatientId($onSite)
+            ->create(['status' => AdmissionStatus::Active, 'closedAt' => null, 'closureReason' => null])
+        ;
+        $this->closedAdmission('Parti', new \DateTimeImmutable('2026-03-04 09:00:00'));
+        $gone = $this->patient('Ailleurs');
+
+        $repository = static::getContainer()->get(AdmissionRepositoryInterface::class);
+        \assert($repository instanceof AdmissionRepositoryInterface);
+
+        self::assertTrue($repository->hasActiveAdmissionForPatient(ClinicId::fromString(self::CLINIC_ID), $onSite));
+        self::assertFalse($repository->hasActiveAdmissionForPatient(ClinicId::fromString(self::OTHER_CLINIC_ID), $onSite));
+        self::assertFalse($repository->hasActiveAdmissionForPatient(ClinicId::fromString(self::CLINIC_ID), $gone));
     }
 
     /**

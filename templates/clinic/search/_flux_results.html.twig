@@ -1,0 +1,26 @@
+{#
+ # Kiveto — templates/clinic/search/_flux_results.html.twig
+ # ─────────────────────────────────────────────────────────
+ # Patient options of the flow board's pickers (arrival, emergency,
+ # identification) — `.ci-opt` rows of the flux-ambulatoire mock-up. Only
+ # animal hits: the page module adds the « Créer » / « Aucune fiche » row.
+ #}
+{%- set _emoji = { dog: '🐕', cat: '🐈', nac: '🐇' } -%}
+{%- set _species = { dog: 'Chien', cat: 'Chat', nac: 'NAC', other: 'Animal' } -%}
+{%- for bucket in buckets -%}
+  {%- for hit in bucket.hits -%}
+    {%- set _sp = hit.metadata.species ?? 'other' -%}
+    {%- set _parts = (hit.subtitle ?? '')|split(' · ') -%}
+    {%- set _breed = _parts|length > 1 ? _parts|slice(1)|join(' · ') : (_species[_sp] ?? 'Animal') -%}
+    {%- set _owner = hit.context and hit.context != 'Sans propriétaire' ? hit.context : 'Sans propriétaire' -%}
+    <button type="button" class="ci-opt"
+            data-id="{{ hit.resourceId }}"
+            data-name="{{ hit.title }}"
+            data-emoji="{{ _emoji[_sp] ?? '🐾' }}"
+            data-breed="{{ _breed }}"
+            data-owner="{{ _owner }}">
+      <span class="oesp">{{ _emoji[_sp] ?? '🐾' }}</span>
+      <span class="otxt"><b>{{ hit.title }} · {{ _breed }}</b><span>{{ _owner }}</span></span>
+    </button>
+  {%- endfor -%}
+{%- endfor -%}

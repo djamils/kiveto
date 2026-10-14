@@ -25,6 +25,7 @@ final readonly class WaitingRoomItemDto
         public ?string $practitionerUserId = null,
         public ?string $closedAt = null,
         public ?string $closureReason = null,
+        public ?string $locationSince = null,
     ) {
     }
 }

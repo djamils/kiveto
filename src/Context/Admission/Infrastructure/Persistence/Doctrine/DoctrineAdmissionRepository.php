@@ -8,6 +8,7 @@ use App\Context\Admission\Domain\Admission;
 use App\Context\Admission\Domain\Exception\AdmissionNotFoundException;
 use App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface;
 use App\Context\Admission\Domain\ValueObject\AdmissionId;
+use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity\AdmissionEntity;
 use Doctrine\ORM\EntityManagerInterface;
@@ -85,5 +86,16 @@ final readonly class DoctrineAdmissionRepository implements AdmissionRepositoryI
         }
 
         return $this->mapper->toDomain($entity);
+    }
+
+    public function hasActiveAdmissionForPatient(ClinicId $clinicId, string $patientId): bool
+    {
+        $count = $this->entityManager->getRepository(AdmissionEntity::class)->count([
+            'clinicId'  => Uuid::fromString($clinicId->toString()),
+            'patientId' => Uuid::fromString($patientId),
+            'status'    => AdmissionStatus::Active,
+        ]);
+
+        return $count > 0;
     }
 }

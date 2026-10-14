@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Context\Admission\Application\Service;
 
 use App\Context\Admission\Application\Port\PatientCreationPort;
+use App\Context\Admission\Application\Port\PatientReadRepositoryPort;
 use App\Context\Admission\Domain\Admission;
 use App\Context\Admission\Domain\Event\AdmissionOpenedWithUnidentifiedPatient;
+use App\Context\Admission\Domain\Exception\PatientAlreadyAdmittedException;
 use App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface;
 use App\Context\Admission\Domain\ValueObject\AdmissionId;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
@@ -23,6 +25,7 @@ final class EmergencyAdmissionService
     public function __construct(
         private AdmissionRepositoryInterface $admissionRepository,
         private PatientCreationPort $patientCreationPort,
+        private PatientReadRepositoryPort $patientReadRepository,
         private UuidGeneratorInterface $uuidGenerator,
         private DomainEventPublisher $domainEventPublisher,
         private IntegrationEventPublisher $integrationEventPublisher,
@@ -48,7 +51,20 @@ final class EmergencyAdmissionService
 
         if (null !== $knownAnimalId) {
             \assert(null !== $animalName);
-            $patientId = $this->patientCreationPort->createIdentifiedPatient(
+            // A returning animal keeps its patient record: a new visit opens
+            // a new admission on it, unless it is already on site.
+            $patientId = $this->patientReadRepository->getActivePatientIdForAnimal(
+                $clinicId->toString(),
+                $knownAnimalId,
+            );
+            $onSite = null !== $patientId
+                && $this->admissionRepository->hasActiveAdmissionForPatient($clinicId, $patientId);
+
+            if ($onSite) {
+                throw new PatientAlreadyAdmittedException($patientId);
+            }
+
+            $patientId ??= $this->patientCreationPort->createIdentifiedPatient(
                 $clinicId->toString(),
                 $knownAnimalId,
                 $animalName,

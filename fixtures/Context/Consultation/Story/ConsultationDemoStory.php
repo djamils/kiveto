@@ -6,10 +6,15 @@ namespace App\Fixtures\Context\Consultation\Story;
 
 use App\Context\Admission\Application\Command\CloseAdmission\CloseAdmission;
 use App\Context\Admission\Application\Command\OpenAdmissionForWalkIn\OpenAdmissionForWalkIn;
+use App\Context\Admission\Application\Command\OpenEmergencyAdmission\OpenEmergencyAdmission;
 use App\Context\Admission\Application\Command\UpdateAdmissionLocationStatus\UpdateAdmissionLocationStatus;
+use App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity\AdmissionEntity;
 use App\Context\Animal\Application\Command\AddMedicalAlert\AddMedicalAlert;
+use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ActEntity;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
+use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
+use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Context\Consultation\Application\Command\AddDiagnosis\AddDiagnosis;
 use App\Context\Consultation\Application\Command\AddPlanAction\AddPlanAction;
 use App\Context\Consultation\Application\Command\AddPrescriptionLine\AddPrescriptionLine;
@@ -109,9 +114,9 @@ final class ConsultationDemoStory extends Story
         $this->buildEmptyOpenConsultation($minou, $vetUserId);
 
         // Waiting room, one card per triage level.
-        $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_ROCKY_ID, 'Rocky', 'vital_emergency', 'Crise convulsive survenue à domicile il y a 20 minutes.');
-        $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_MAX_ID, 'Max', 'priority', 'Vomissements répétés depuis ce matin, abattement.');
-        $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_FILOU_ID, 'Filou', 'standard', 'Contrôle post-opératoire, retrait des points.');
+        $rocky = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_ROCKY_ID, 'Rocky', 'vital_emergency', 'Crise convulsive survenue à domicile il y a 20 minutes.');
+        $max   = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_MAX_ID, 'Max', 'priority', 'Vomissements répétés depuis ce matin, abattement.');
+        $filou = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_FILOU_ID, 'Filou', 'standard', 'Contrôle post-opératoire, retrait des points.');
 
         // Surgery and hospitalisation columns.
         $luna = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_LUNA_ID, 'Luna', 'standard', 'Stérilisation programmée.');
@@ -157,6 +162,152 @@ final class ConsultationDemoStory extends Story
             'Vermifuge administré, poids stable.',
         );
         $this->closeAdmission(self::PARIS, $cannelle, 'released_to_owner');
+
+        $this->buildBusyParisFlow($vetUserId);
+
+        // Arrival times spread over the morning, so the board's chronos, the
+        // red « long wait » and the emergency banner (> 5 min) all show.
+        $this->backdateAdmission($rex, 55, 40);
+        $this->backdateAdmission($minou, 35, 22);
+        $this->backdateAdmission($luna, 70, 45);
+        $this->backdateAdmission($rocky, 18, 18);
+        $this->backdateAdmission($max, 12, 12);
+        $this->backdateAdmission($filou, 17, 17);
+        $this->backdateAdmission($pepere, 50, 6);
+    }
+
+    /**
+     * The extra patients of Paris' busy day on the flow board: a second
+     * emergency admitted before anyone could identify it, a longer normal
+     * queue, a third patient in a room, a second one at the desk and more
+     * departures. Their animals are created here, after the day's bookings,
+     * so none of them also waits in the « Planifié » column.
+     */
+    private function buildBusyParisFlow(string $vetUserId): void
+    {
+        $simba = $this->createPatient(self::PARIS, 'Inès', 'Torres', '+33698765432', 'Simba', 'cat', 'Maine coon', '2022-05-14');
+        $oslo  = $this->createPatient(self::PARIS, 'Julien', 'Girard', '+33612345678', 'Oslo', 'dog', 'Labrador', '2020-03-02');
+        $plume = $this->createPatient(self::PARIS, 'Paul', 'Weiss', '+33677889900', 'Plume', 'cat', 'Chartreux', '2014-09-21');
+        $pixel = $this->createPatient(self::PARIS, 'Linh', 'Nguyen', '+33766554433', 'Pixel', 'nac', 'Bélier nain', '2024-01-10');
+        $bisou = $this->createPatient(self::PARIS, 'Emma', 'Roux', '+33644556677', 'Bisou', 'cat', 'Européen', '2023-06-30');
+
+        $unknown = $this->commandBus->dispatch(new OpenEmergencyAdmission(
+            clinicId: self::PARIS,
+            intakeChannel: 'emergency',
+            triageLevel: 'emergency',
+            provisionalLabel: 'Urgence ' . new \DateTimeImmutable('-8 minutes', new \DateTimeZone('Europe/Paris'))->format('H:i'),
+            knownAnimalId: null,
+            animalName: null,
+            observedSpecies: 'Chien',
+            observedColor: null,
+            presenterName: null,
+            presenterPhone: null,
+            presenterRole: null,
+            physicalDescription: null,
+            triageNotes: 'Trauma / AVP — renversé devant la clinique.',
+        ));
+        \assert(\is_string($unknown));
+        $this->backdateAdmission($unknown, 8, 8);
+
+        $simbaVisit = $this->openAdmission(self::PARIS, $simba, 'Simba', 'standard', 'Boiterie antérieure gauche.');
+        $this->backdateAdmission($simbaVisit, 6, 6);
+
+        $osloVisit = $this->openAdmission(self::PARIS, $oslo, 'Oslo', 'standard', 'Otite externe, se gratte l\'oreille droite.');
+        $this->startConsultation($osloVisit, $vetUserId);
+        $this->backdateAdmission($osloVisit, 28, 14);
+
+        $plumeVisit = $this->openAdmission(self::PARIS, $plume, 'Plume', 'standard', 'Contrôle insuffisance rénale.');
+        $this->buildBillableConsultation(
+            self::PARIS,
+            $plumeVisit,
+            $vetUserId,
+            'Contrôle trimestriel de l\'insuffisance rénale.',
+            ['Suivi chronique'],
+            [['CONS_SUIVI', 'Consultation de suivi', 1.0]],
+            'Créatinine stable, poursuite du régime rénal.',
+        );
+        $this->backdateAdmission($plumeVisit, 40, 3);
+
+        foreach ([[$pixel, 'Pixel', 'Coupe des griffes.', 150], [$bisou, 'Bisou', 'Rappel vaccinal typhus-coryza.', 95]] as [$animalId, $name, $motif, $minutesAgo]) {
+            $visit = $this->openAdmission(self::PARIS, $animalId, $name, 'standard', $motif);
+            $this->closeAdmission(self::PARIS, $visit, 'released_to_owner');
+            $this->backdateAdmission($visit, $minutesAgo, $minutesAgo, $minutesAgo - 25);
+        }
+    }
+
+    private function createPatient(
+        string $clinicId,
+        string $firstName,
+        string $lastName,
+        string $phone,
+        string $animal,
+        string $species,
+        string $breed,
+        string $birthDate,
+    ): string {
+        $clientId = $this->commandBus->dispatch(new CreateClient(
+            clinicId: $clinicId,
+            firstName: $firstName,
+            lastName: $lastName,
+            contactMethods: [new ContactMethodDto(type: 'phone', label: 'mobile', value: $phone, isPrimary: true)],
+        ));
+        \assert(\is_string($clientId));
+
+        $animalId = $this->commandBus->dispatch(new CreateAnimal(
+            clinicId: $clinicId,
+            name: $animal,
+            species: $species,
+            sex: 'unknown',
+            reproductiveStatus: 'unknown',
+            isMixedBreed: false,
+            breedName: $breed,
+            birthDate: $birthDate,
+            color: null,
+            photoUrl: null,
+            microchipNumber: null,
+            tattooNumber: null,
+            passportNumber: null,
+            registryType: 'none',
+            registryNumber: null,
+            registryReference: null,
+            lifeStatus: 'alive',
+            deceasedAt: null,
+            missingSince: null,
+            transferStatus: 'none',
+            soldAt: null,
+            givenAt: null,
+            auxiliaryContactFirstName: null,
+            auxiliaryContactLastName: null,
+            auxiliaryContactPhoneNumber: null,
+            primaryOwnerClientId: $clientId,
+            secondaryOwnerClientIds: [],
+        ));
+        \assert(\is_string($animalId));
+
+        return $animalId;
+    }
+
+    /**
+     * Moves an admission's arrival (and the time it entered its current
+     * place) back in time; a departure also gets its leaving time.
+     */
+    private function backdateAdmission(string $admissionId, int $openedMinutesAgo, int $placeMinutesAgo, ?int $closedMinutesAgo = null): void
+    {
+        $entity = $this->entityManager->find(AdmissionEntity::class, Uuid::fromString($admissionId));
+
+        if (null === $entity) {
+            return;
+        }
+
+        $now = $entity->getCreatedAt();
+        $entity->setOpenedAt($now->modify(\sprintf('-%d minutes', $openedMinutesAgo)));
+        $entity->setLocationStatusEnteredAt($now->modify(\sprintf('-%d minutes', $placeMinutesAgo)));
+
+        if (null !== $closedMinutesAgo) {
+            $entity->setClosedAt($now->modify(\sprintf('-%d minutes', $closedMinutesAgo)));
+        }
+
+        $this->entityManager->flush();
     }
 
     private function buildLyonBoard(string $vetUserId): void

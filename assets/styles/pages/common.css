@@ -9,8 +9,6 @@
      uses :has() to propagate overflow/flex to parent containers. */
   main.app-body[data-page="clinic_scheduling_agenda"],
   main.app-body[data-page="clinic_scheduling_planning"],
-  main.app-body[data-page="clinic_scheduling_waiting_room"],
-  main.app-body[data-page="clinic_admission_queue"],
   main.app-body[data-page="clinic_hospitalisations"],
   main.app-body[data-page="clinic_clients_list"],
   main.app-body[data-page="clinic_clients_view"],
@@ -42,8 +40,6 @@
   /* Propagate full-height to scroll and main-wrap containers */
   .app-scroll:has(> main[data-page="clinic_scheduling_agenda"]),
   .app-scroll:has(> main[data-page="clinic_scheduling_planning"]),
-  .app-scroll:has(> main[data-page="clinic_scheduling_waiting_room"]),
-  .app-scroll:has(> main[data-page="clinic_admission_queue"]),
   .app-scroll:has(> main[data-page="clinic_hospitalisations"]),
   .app-scroll:has(> main[data-page="clinic_clients_list"]),
   .app-scroll:has(> main[data-page="clinic_clients_view"]),

@@ -53,7 +53,10 @@ final class CloseAdmissionController extends AbstractController
                 closureReason: $closureReason,
             ));
 
-            $this->addFlash('success', 'Admission clôturée avec succès.');
+            // From the flow board, an administrative closure is « Annuler l'arrivée ».
+            $this->addFlash('success', 'administrative_error' === $closureReason
+                ? 'Arrivée annulée — patient retiré de la file.'
+                : 'Admission clôturée avec succès.');
         } catch (AdmissionNotFoundException) {
             $this->addFlash('error', 'Admission introuvable.');
         } catch (AdmissionAlreadyClosedException) {

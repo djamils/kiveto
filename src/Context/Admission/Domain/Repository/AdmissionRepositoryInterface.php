@@ -19,4 +19,7 @@ interface AdmissionRepositoryInterface
     public function get(ClinicId $clinicId, AdmissionId $admissionId): Admission;
 
     public function findById(ClinicId $clinicId, AdmissionId $admissionId): ?Admission;
+
+    /** Whether the patient has an admission still open in the clinic. */
+    public function hasActiveAdmissionForPatient(ClinicId $clinicId, string $patientId): bool;
 }
