@@ -14,6 +14,7 @@ final readonly class InvoiceDetails
      * @param list<InvoiceLineView>                                                    $lines
      * @param list<PaymentView>                                                        $payments
      * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}> $taxBreakdown
+     * @param list<CreditNoteSummaryView>                                              $creditNotes
      */
     public function __construct(
         public string $id,
@@ -45,6 +46,10 @@ final readonly class InvoiceDetails
         public ?\DateTimeImmutable $paidAt,
         public ?\DateTimeImmutable $cancelledAt,
         public ?string $cancellationReason,
+        public int $creditedMinorUnits = 0,
+        public int $refundedMinorUnits = 0,
+        public int $creditableMinorUnits = 0,
+        public array $creditNotes = [],
     ) {
     }
 }

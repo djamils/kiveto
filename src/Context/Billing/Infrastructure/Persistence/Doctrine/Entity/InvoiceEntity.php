@@ -78,6 +78,12 @@ class InvoiceEntity
     #[ORM\Column(name: 'cancellation_reason', type: 'string', length: 255, nullable: true)]
     private ?string $cancellationReason = null;
 
+    #[ORM\Column(name: 'credited_minor_units', type: 'integer', options: ['default' => 0])]
+    private int $creditedMinorUnits = 0;
+
+    #[ORM\Column(name: 'refunded_minor_units', type: 'integer', options: ['default' => 0])]
+    private int $refundedMinorUnits = 0;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -272,5 +278,25 @@ class InvoiceEntity
     public function setCancellationReason(?string $cancellationReason): void
     {
         $this->cancellationReason = $cancellationReason;
+    }
+
+    public function getCreditedMinorUnits(): int
+    {
+        return $this->creditedMinorUnits;
+    }
+
+    public function setCreditedMinorUnits(int $creditedMinorUnits): void
+    {
+        $this->creditedMinorUnits = $creditedMinorUnits;
+    }
+
+    public function getRefundedMinorUnits(): int
+    {
+        return $this->refundedMinorUnits;
+    }
+
+    public function setRefundedMinorUnits(int $refundedMinorUnits): void
+    {
+        $this->refundedMinorUnits = $refundedMinorUnits;
     }
 }

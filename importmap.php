@@ -84,11 +84,8 @@ return [
     'pages/consultations' => [
         'path' => './assets/js/pages/consultations.js',
     ],
-    'pages/billing/list' => [
-        'path' => './assets/js/pages/billing/list.js',
-    ],
-    'pages/billing/checkout' => [
-        'path' => './assets/js/pages/billing/checkout.js',
+    'pages/billing/register' => [
+        'path' => './assets/js/pages/billing/register.js',
     ],
     'pages/prescription/register' => [
         'path' => './assets/js/pages/prescription/register.js',

@@ -6,6 +6,7 @@ namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Billing\Story\BillingDemoStory;
+use App\Fixtures\Context\Billing\Story\BillingRegisterStory;
 use App\Fixtures\Context\Billing\Story\DirectoryBalancesStory;
 use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
@@ -108,5 +109,9 @@ final class ClinicDataset extends Story
         // The Paris register of ordonnances at full size, every state of the
         // register and its sheet (after the visits sharing these animals).
         PrescriptionRegisterStory::load();
+
+        // The Paris register of invoices at full size, every state of the
+        // register, its sheet and the till (invoices the visits above).
+        BillingRegisterStory::load();
     }
 }

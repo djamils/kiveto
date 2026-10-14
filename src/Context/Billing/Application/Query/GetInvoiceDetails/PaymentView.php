@@ -13,6 +13,9 @@ final readonly class PaymentView
         public int $amountMinorUnits,
         public \DateTimeImmutable $receivedAt,
         public ?string $reference,
+        public ?string $recordedByUserId = null,
+        /** When the cheque went to the bank; null for any other payment, or a cheque still in the drawer. */
+        public ?\DateTimeImmutable $depositedAt = null,
     ) {
     }
 }

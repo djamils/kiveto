@@ -1,0 +1,163 @@
+{#
+ # Kiveto — templates/clinic/billing/index.html.twig
+ # ─────────────────────────────────────────────────
+ # Facturation — the register of the clinic's invoices and credit notes.
+ # Ported from docs/frontend-theme/kiveto-theme/facturation-v-topbar_3.html:
+ # page header (figures of the day, registry menu, « Clôturer la caisse »,
+ # « Vente au comptoir »), filter bar, the table and its pager, the bulk bar,
+ # the side sheet of one document, the paper preview, and the « Encaisser »,
+ # « Établir un avoir », « Vente au comptoir » and « Clôturer la caisse »
+ # windows.
+ #
+ # The table, the sheet and the windows are drawn by the page module from the
+ # payload; filters and pages are asked from clinic_invoices_search, a sheet
+ # from clinic_invoice_sheet / clinic_credit_note_sheet. Payments, checkouts,
+ # credit notes and counter sales post the form below to their single-action
+ # controllers, which come back to the document's page with a toast; the cheque
+ # remittance and the cash closing are posted in the background.
+ #
+ # Variables:
+ #   payload  App\Presentation\Clinic\ViewModel\Billing\BillingPageBuilder::page()
+ #
+ # Behaviour: assets/js/pages/billing/register.js — styles: assets/styles/shell/register.css + assets/styles/pages/billing.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt{% endblock %}
+{% block title %}Facturation{% endblock %}
+
+{% set _x = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>' %}
+
+{% block main %}
+<div class="reg fact" data-page="{{ app.request.attributes.get('_route') }}" data-payload="{{ payload|json_encode }}">
+
+  <div class="pagehead">
+    <h1>Facturation<small id="phSub">—</small></h1>
+    <div class="phk" id="phk"></div>
+    <div class="right">
+      <div class="hmenu" id="hmenu">
+        <button type="button" class="btn" id="hmenuBtn" data-tip="Exports et caisse" aria-label="Exports et caisse"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+        <div class="dd-menu">
+          <button type="button" class="dd-it" disabled data-tip="Le plan comptable de la clinique n'est pas encore paramétré"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg><span>Export comptable<small>Ventes et encaissements, pour votre expert-comptable (FEC) — bientôt disponible</small></span></button>
+          <button type="button" class="dd-it" disabled data-tip="La transmission à la plateforme agréée n'est pas encore branchée"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-5"/></svg><span>E-reporting<small>Ventes aux particuliers déclarées à l'administration — bientôt disponible</small></span></button>
+          <button type="button" class="dd-it" id="btnBord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h8M6 15h4"/></svg><span>Remise de chèques<small id="bordSub">—</small></span></button>
+          <button type="button" class="dd-it" id="btnClos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Clôtures de caisse<small>Journal des clôtures journalières, mensuelles et annuelles</small></span></button>
+        </div>
+      </div>
+      <button type="button" class="btn" id="btnClo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Clôturer la caisse</button>
+      <button type="button" class="btn primaire" id="btnVente"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Vente au comptoir</button>
+    </div>
+  </div>
+
+  <div class="cfil" id="cfil">
+    <div class="crech">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="N°, client, animal, motif…" autocomplete="off" value="{{ payload.filters.q }}">
+    </div>
+    <span class="lblf">Filtres</span>
+    <div id="fdd" style="display:flex;gap:8px;align-items:center"></div>
+  </div>
+
+  <main class="czone{{ payload.sheet ? ' ouvert' }}" id="czone">
+    <div class="ctw">
+      <div class="cscroll scr"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table><div id="cempty"></div></div>
+      <div class="cfoot" id="cfoot"></div>
+    </div>
+    <aside class="fiche" id="fiche"><div class="fi-in">
+      <div class="fi-head" id="fiHead"></div>
+      <div class="fi-body scr" id="fiBody"></div>
+      <div class="fi-foot" id="fiFoot"></div>
+    </div></aside>
+  </main>
+
+  <div class="bulk" id="bulk" role="toolbar" aria-label="Actions groupées">
+    <span class="bn" id="bulkN">0</span><span id="bulkL">sélectionnées</span>
+    <span class="bdiv"></span>
+    <button type="button" id="bkRel" disabled data-tip="Les relances par SMS et e-mail ne sont pas encore disponibles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Relancer</button>
+    <button type="button" id="bkSend" disabled data-tip="L'envoi par e-mail n'est pas encore disponible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Envoyer</button>
+    <button type="button" id="bkPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimer</button>
+    <button type="button" id="bkExp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>Exporter</button>
+    <span class="bdiv"></span>
+    <button type="button" id="bkX" data-tip="Désélectionner" aria-label="Désélectionner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+
+  {# Aperçu #}
+  <div class="mveil prev" id="mPrev"><div class="mbox" style="width:min(720px,94vw)">
+    <div class="mhead"><div class="mt"><b id="pvT">Facture</b><span id="pvS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody scr"><div class="paper" id="pvPaper"></div></div>
+    <div class="mfoot"><button type="button" class="btn" id="pvPdf">Télécharger le PDF</button><button type="button" class="btn primaire" id="pvPrint">Imprimer</button></div>
+  </div></div>
+
+  {# Encaisser #}
+  <div class="mveil" id="mPay"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Encaisser</b><span id="pySub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <div class="frow" id="pyRemRow" style="display:none"><label class="flbl">Remise <span class="opt">(facultatif)</span></label><div class="g2"><div class="inu"><input class="finput num" id="pyRem" inputmode="decimal" placeholder="0"><i>%</i></div><input class="finput" id="pyRemMotif" placeholder="Geste commercial, fidélité…" maxlength="255"></div></div>
+      <div class="frow"><label class="flbl">Moyen de paiement</label><div class="modes" id="pyMode"></div></div>
+      <div class="g2">
+        <div><label class="flbl" for="pyM">Montant <span class="req">*</span></label><div class="inu"><input class="finput num big" id="pyM" inputmode="decimal"><i>€</i></div></div>
+        <div id="pyXtra"></div>
+      </div>
+      <div id="pyRendu" class="rendu"></div>
+      <div class="frow" style="margin-top:12px"><div class="swrow off" style="border:none;padding:0" data-tip="Les échéanciers et leurs rappels SMS ne sont pas encore disponibles"><span class="sw" id="pyEch" role="switch" aria-checked="false" aria-disabled="true"></span><div><b>Régler en plusieurs fois</b><small>Le reste est réparti en échéances mensuelles, rappelées au client par SMS la veille.</small></div></div></div>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="pyOk">Encaisser</button></div>
+  </div></div>
+
+  {# Avoir #}
+  <div class="mveil" id="mAv"><div class="mbox" style="width:min(580px,94vw)">
+    <div class="mhead"><div class="mt"><b>Établir un avoir</b><span id="avSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody scr" style="max-height:70vh;overflow-y:auto">
+      <p class="hint" style="margin:0 0 10px">Une facture émise ne se modifie pas : on la corrige par un avoir, qui reçoit son propre numéro.</p>
+      <label class="flbl">Lignes à créditer</label>
+      <div id="avLines"></div>
+      <div class="frow" style="margin-top:12px"><label class="flbl">Motif <span class="req">*</span></label><div class="motifs" id="avMotif"></div></div>
+      <div class="frow" id="avRembRow"><label class="flbl" id="avRembLbl">Somme déjà réglée</label><div class="modes" id="avRemb"></div></div>
+    </div>
+    <div class="mfoot"><span class="vtot"><small>Avoir</small><b id="avTot">0,00 €</b></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="avOk" disabled>Établir l'avoir</button></div>
+  </div></div>
+
+  {# Vente au comptoir #}
+  <div class="mveil" id="mVente"><div class="mbox" style="width:min(600px,94vw)">
+    <div class="mhead"><div class="mt"><b>Vente au comptoir</b><span>Sans consultation · la facture est émise à l'encaissement</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody scr" style="max-height:72vh;overflow-y:auto">
+      <div class="frow"><label class="flbl">Client</label><div class="dd" id="vtCli"></div></div>
+      <div class="crech" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vtQ" placeholder="Scanner ou rechercher un article…" autocomplete="off"></div>
+      <div class="clist scr" id="vtRes" style="max-height:160px;margin-top:6px"></div>
+      <div class="vl" id="vtLines"></div>
+      <div class="frow" style="margin-top:12px"><label class="flbl">Moyen de paiement</label><div class="modes" id="vtMode"></div></div>
+    </div>
+    <div class="mfoot"><span class="vtot"><small>Total TTC</small><b id="vtTot">0,00 €</b></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="vtOk" disabled>Encaisser</button></div>
+  </div></div>
+
+  {# Clôture #}
+  <div class="mveil" id="mClo"><div class="mbox" style="width:min(620px,94vw)">
+    <div class="mhead"><div class="mt"><b>Clôturer la caisse</b><span id="cloSub">comptez ce qui est physiquement en caisse</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <table class="cltab" id="cloTab"></table>
+      <p class="hint">La clôture scelle la journée : les encaissements du jour ne sont plus modifiables, une correction passe par un avoir. Un écart non nul demande un commentaire.</p>
+      <div class="frow" id="cloComRow" style="display:none;margin-top:10px"><input class="finput" id="cloCom" placeholder="Explication de l'écart" maxlength="255"></div>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="cloOk">Clôturer la journée</button></div>
+  </div></div>
+
+  {# The one form every act on a document goes through #}
+  <form id="factForm" method="post" hidden>
+    <input type="hidden" name="_token" id="ffTok">
+    <input type="hidden" name="invoice_id" id="ffInvoice">
+    <input type="hidden" name="method" id="ffMethod">
+    <input type="hidden" name="amount" id="ffAmount">
+    <input type="hidden" name="reference" id="ffRef">
+    <input type="hidden" name="discount_percent" id="ffRem">
+    <input type="hidden" name="discount_reason" id="ffRemMotif">
+    <input type="hidden" name="lines" id="ffLines">
+    <input type="hidden" name="reason" id="ffReason">
+    <input type="hidden" name="refund" id="ffRefund">
+    <input type="hidden" name="mode" id="ffMode">
+    <input type="hidden" name="client" id="ffClient">
+  </form>
+</div>
+{% endblock %}

@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Context\Billing\Domain;
 
 use App\Context\Billing\Domain\Event\InvoiceCancelled;
+use App\Context\Billing\Domain\Event\InvoiceCredited;
 use App\Context\Billing\Domain\Event\InvoiceDrafted;
 use App\Context\Billing\Domain\Event\InvoiceIssued;
 use App\Context\Billing\Domain\Event\InvoicePaid;
 use App\Context\Billing\Domain\Event\PaymentRecorded;
+use App\Context\Billing\Domain\Exception\CreditExceedsInvoiceException;
 use App\Context\Billing\Domain\Exception\CurrencyMismatchException;
 use App\Context\Billing\Domain\Exception\InvoiceCannotBeCancelledException;
 use App\Context\Billing\Domain\Exception\InvoiceHasNoLinesException;
+use App\Context\Billing\Domain\Exception\InvoiceNotCreditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
@@ -35,7 +38,9 @@ use App\Shared\Money\Domain\ValueObject\Money;
  * The aggregate is deliberately two-phased. While it is a draft it is a working
  * document: lines come and go, a discount can be tried out, nothing is
  * committed. Issuing freezes it — it takes its number, its amounts stop moving,
- * and from then on the only thing that can change is how much of it is paid.
+ * and from then on the only things that can change are how much of it is paid
+ * and how much of it credit notes have cancelled out (an issued invoice is
+ * never edited: it is corrected by a credit note, which carries its own number).
  */
 final class Invoice extends AggregateRoot
 {
@@ -61,6 +66,8 @@ final class Invoice extends AggregateRoot
         private ?\DateTimeImmutable $paidAt,
         private ?\DateTimeImmutable $cancelledAt,
         private ?string $cancellationReason,
+        private int $creditedMinorUnits = 0,
+        private int $refundedMinorUnits = 0,
     ) {
     }
 
@@ -124,6 +131,8 @@ final class Invoice extends AggregateRoot
         ?\DateTimeImmutable $paidAt,
         ?\DateTimeImmutable $cancelledAt,
         ?string $cancellationReason,
+        int $creditedMinorUnits = 0,
+        int $refundedMinorUnits = 0,
     ): self {
         return new self(
             $id,
@@ -143,6 +152,8 @@ final class Invoice extends AggregateRoot
             $paidAt,
             $cancelledAt,
             $cancellationReason,
+            $creditedMinorUnits,
+            $refundedMinorUnits,
         );
     }
 
@@ -278,6 +289,13 @@ final class Invoice extends AggregateRoot
             );
         }
 
+        if ($this->creditedMinorUnits > 0) {
+            throw new InvoiceCannotBeCancelledException(
+                $this->id->toString(),
+                'a credit note was already issued against it',
+            );
+        }
+
         $reason = mb_trim($reason);
 
         if ('' === $reason) {
@@ -295,6 +313,79 @@ final class Invoice extends AggregateRoot
             reason: $reason,
             cancelledAt: $now->format(\DateTimeInterface::ATOM),
         ));
+    }
+
+    /**
+     * Cancels out part or all of the invoice — the effect of a credit note.
+     *
+     * What the client already paid beyond what is left to pay is either given
+     * back (refunded, by the credit note's own means) or kept as a credit in
+     * the client's favour. Crediting the whole invoice files it as « annulée
+     * par avoir »; crediting the part that was still owed settles it.
+     *
+     * @return Money the amount handed back to the client
+     */
+    public function credit(Money $amount, bool $refundOverpayment, \DateTimeImmutable $now): Money
+    {
+        if (!$this->status->isCreditable()) {
+            throw new InvoiceNotCreditableException($this->id->toString(), $this->status);
+        }
+
+        if (!$amount->currency()->equals($this->currency)) {
+            throw new CurrencyMismatchException($this->currency->toString(), $amount->currency()->toString());
+        }
+
+        $creditable = $this->creditableAmount()->minorUnits();
+
+        if (!$amount->isPositive() || $amount->minorUnits() > $creditable) {
+            throw new CreditExceedsInvoiceException($amount->minorUnits(), $creditable);
+        }
+
+        $this->creditedMinorUnits += $amount->minorUnits();
+
+        $overpaid = -$this->balanceDue()->minorUnits();
+        $refund   = $refundOverpayment && $overpaid > 0 ? $overpaid : 0;
+
+        $this->refundedMinorUnits += $refund;
+        $this->updatedAt = $now;
+
+        $this->recordDomainEvent(new InvoiceCredited(
+            invoiceId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            creditedMinorUnits: $amount->minorUnits(),
+            refundedMinorUnits: $refund,
+            currency: $this->currency->toString(),
+            creditedAt: $now->format(\DateTimeInterface::ATOM),
+        ));
+
+        if (!$this->creditableAmount()->isPositive()) {
+            $this->status = InvoiceStatus::CREDITED;
+        } elseif (!$this->balanceDue()->isPositive() && InvoiceStatus::PAID !== $this->status) {
+            $this->markPaid($now);
+        }
+
+        return Money::fromMinorUnits($refund, $this->currency);
+    }
+
+    /**
+     * What credit notes may still cancel out.
+     */
+    public function creditableAmount(): Money
+    {
+        return Money::fromMinorUnits(
+            $this->totalGross()->minorUnits() - $this->creditedMinorUnits,
+            $this->currency,
+        );
+    }
+
+    public function amountCredited(): Money
+    {
+        return Money::fromMinorUnits($this->creditedMinorUnits, $this->currency);
+    }
+
+    public function amountRefunded(): Money
+    {
+        return Money::fromMinorUnits($this->refundedMinorUnits, $this->currency);
     }
 
     public function totalNetBeforeDiscount(): Money
@@ -360,10 +451,16 @@ final class Invoice extends AggregateRoot
         return Money::fromMinorUnits($total, $this->currency);
     }
 
+    /**
+     * What the client still owes: the invoice, less what credit notes cancelled
+     * out, less what they paid and kept. Negative when they paid more than is
+     * left and kept the difference as a credit.
+     */
     public function balanceDue(): Money
     {
         return Money::fromMinorUnits(
-            $this->totalGross()->minorUnits() - $this->amountPaid()->minorUnits(),
+            $this->totalGross()->minorUnits() - $this->creditedMinorUnits
+                - $this->amountPaid()->minorUnits() + $this->refundedMinorUnits,
             $this->currency,
         );
     }

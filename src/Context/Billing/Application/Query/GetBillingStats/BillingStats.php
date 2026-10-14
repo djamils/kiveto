@@ -12,6 +12,9 @@ final readonly class BillingStats
         public int $issuedCount,
         public int $outstandingCount,
         public string $currency,
+        /** Outstanding invoices issued before the « overdue » limit asked for. */
+        public int $overdueCount = 0,
+        public int $overdueMinorUnits = 0,
     ) {
     }
 }

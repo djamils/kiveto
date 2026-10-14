@@ -13,4 +13,10 @@ interface PayerDirectoryInterface
      * intake by a passer-by, a stray brought in by the police.
      */
     public function forAdmission(string $admissionId, string $clinicId): ?PayerSnapshotDto;
+
+    /**
+     * A client of the clinic, for what is sold to them at the desk. Null when
+     * the client is not this clinic's.
+     */
+    public function forClient(string $clientId, string $clinicId): ?PayerSnapshotDto;
 }

@@ -12,6 +12,8 @@ final readonly class GetBillingStats implements QueryInterface
         public string $clinicId,
         public \DateTimeImmutable $from,
         public \DateTimeImmutable $to,
+        /** An outstanding invoice issued before this is overdue; null counts none. */
+        public ?\DateTimeImmutable $overdueIssuedBefore = null,
     ) {
     }
 }

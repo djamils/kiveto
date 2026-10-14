@@ -99,7 +99,10 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $uuids, $this->clock))(
+        $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
+        $admissions->expects(self::never())->method('closeAfterCheckout');
+
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
             new RecordInvoicePayment(
                 clinicId: self::CLINIC_ID,
                 invoiceId: self::INVOICE_ID,
@@ -124,9 +127,27 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         $this->expectException(\ValueError::class);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $this->createStub(AdmissionCoordinatorInterface::class), $uuids, $this->clock))(
             new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'BITCOIN', 100),
         );
+    }
+
+    public function testThePaymentThatSettlesAVisitLetsTheVisitGo(): void
+    {
+        $invoice = $this->issuedInvoice();
+        $this->invoices->method('get')->willReturn($invoice);
+
+        $uuids = $this->createMock(UuidGeneratorInterface::class);
+        $uuids->method('generate')->willReturn(self::NEW_ID);
+
+        $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
+        $admissions->expects(self::once())->method('closeAfterCheckout')->with(self::ADMISSION_ID, self::CLINIC_ID);
+
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
+            new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 6000),
+        );
+
+        self::assertSame(InvoiceStatus::PAID, $invoice->status());
     }
 
     // ── Cancel ──

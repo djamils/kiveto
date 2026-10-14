@@ -6,8 +6,14 @@ namespace App\Presentation\Clinic\Controller\Billing;
 
 use App\Context\Billing\Application\Command\ApplyInvoiceDiscount\ApplyInvoiceDiscount;
 use App\Context\Billing\Application\Command\CheckoutAdmission\CheckoutAdmission;
+use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
+use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
+use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Presentation\Clinic\Form\Shared\AmountParser;
+use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
+use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +28,7 @@ final class SubmitCheckoutController extends AbstractController
 {
     public function __construct(
         private readonly CommandBusInterface $commandBus,
+        private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
     ) {
@@ -44,7 +51,7 @@ final class SubmitCheckoutController extends AbstractController
         $invoiceId = $request->request->getString('invoice_id');
         $amount    = AmountParser::toMinorUnits($request->request->getString('amount'));
 
-        if ('' === $invoiceId || null === $amount) {
+        if ('' === $invoiceId || null === $amount || $amount < 0) {
             $this->addFlash('error', 'Le montant encaissé est invalide.');
 
             return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
@@ -52,6 +59,12 @@ final class SubmitCheckoutController extends AbstractController
 
         $user      = $this->getUser();
         $reference = mb_trim($request->request->getString('reference'));
+
+        if (null === PaymentMethod::tryFrom($request->request->getString('method'))) {
+            $this->addFlash('error', 'Moyen de paiement inconnu.');
+
+            return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
+        }
 
         try {
             $this->applyDiscount($request, $clinicId, $invoiceId);
@@ -64,17 +77,24 @@ final class SubmitCheckoutController extends AbstractController
                 reference: '' !== $reference ? $reference : null,
                 recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
             ));
-        } catch (\ValueError) {
-            $this->addFlash('error', 'Moyen de paiement inconnu.');
-
-            return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
         } catch (\DomainException $e) {
-            $this->addFlash('error', $e->getMessage());
+            $this->addFlash('error', BillingErrorMessage::of($e));
 
             return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
         }
 
-        $this->addFlash('success', 'Encaissement enregistré.');
+        $invoice = $this->queryBus->ask(new GetInvoiceDetails($clinicId, $invoiceId));
+
+        if ($invoice instanceof InvoiceDetails) {
+            $left = max(0, $invoice->balanceDueMinorUnits);
+
+            $this->addFlash('success', \sprintf(
+                '%s émise · %s encaissés%s',
+                $invoice->number ?? 'Facture',
+                BillingSheetBuilder::euros($amount),
+                $left > 0 ? ' · reste ' . BillingSheetBuilder::euros($left) : ' · visite clôturée',
+            ));
+        }
 
         return $this->redirectToRoute('clinic_invoice_details', ['invoiceId' => $invoiceId]);
     }

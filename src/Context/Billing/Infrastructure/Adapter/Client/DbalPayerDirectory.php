@@ -48,10 +48,31 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
             ],
         );
 
-        if (false === $row) {
-            return null;
-        }
+        return false === $row ? null : $this->snapshot($row);
+    }
 
+    public function forClient(string $clientId, string $clinicId): ?PayerSnapshotDto
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name,
+                    c.postal_address_street_line_1, c.postal_address_street_line_2,
+                    c.postal_address_postal_code, c.postal_address_city
+             FROM client__clients c
+             WHERE c.id = :clientId AND c.clinic_id = :clinicId',
+            [
+                'clientId' => Uuid::fromString($clientId)->toBinary(),
+                'clinicId' => Uuid::fromString($clinicId)->toBinary(),
+            ],
+        );
+
+        return false === $row ? null : $this->snapshot($row);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function snapshot(array $row): ?PayerSnapshotDto
+    {
         $name = mb_trim(
             RowAccessor::string($row, 'first_name') . ' ' . RowAccessor::string($row, 'last_name'),
         );

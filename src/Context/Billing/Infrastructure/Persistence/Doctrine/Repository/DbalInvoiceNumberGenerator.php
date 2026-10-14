@@ -13,7 +13,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Hands out invoice numbers from a row locked for the duration of the write.
+ * Hands out invoice and credit note numbers from a row locked for the duration of the write.
  *
  * Two receptionists cashing up at the same second must not be given the same
  * number, and the sequence must have no holes, so the counter lives in its own
@@ -22,6 +22,12 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGeneratorInterface
 {
+    private const string SERIES_INVOICE     = 'INVOICE';
+    private const string SERIES_CREDIT_NOTE = 'CREDIT_NOTE';
+
+    /** Credit notes print under their own prefix, whatever the clinic chose for invoices. */
+    private const string CREDIT_NOTE_PREFIX = 'AV';
+
     public function __construct(
         private Connection $connection,
         private UuidGeneratorInterface $uuidGenerator,
@@ -31,32 +37,43 @@ final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGenerato
 
     public function next(ClinicId $clinicId, int $year): InvoiceNumber
     {
+        return InvoiceNumber::of(
+            $year,
+            $this->advance($clinicId, self::SERIES_INVOICE, $year),
+            $this->prefixes->prefixFor($clinicId->toString()),
+        );
+    }
+
+    public function nextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber
+    {
+        return InvoiceNumber::of($year, $this->advance($clinicId, self::SERIES_CREDIT_NOTE, $year), self::CREDIT_NOTE_PREFIX);
+    }
+
+    private function advance(ClinicId $clinicId, string $series, int $year): int
+    {
         $clinicBinary = Uuid::fromString($clinicId->toString())->toBinary();
+        $key          = ['clinicId' => $clinicBinary, 'series' => $series, 'year' => $year];
 
         $this->connection->executeStatement(
-            'INSERT IGNORE INTO billing__number_sequences (id, clinic_id, `year`, `last_value`)
-             VALUES (:id, :clinicId, :year, 0)',
-            [
-                'id'       => Uuid::fromString($this->uuidGenerator->generate())->toBinary(),
-                'clinicId' => $clinicBinary,
-                'year'     => $year,
-            ],
+            'INSERT IGNORE INTO billing__number_sequences (id, clinic_id, series, `year`, `last_value`)
+             VALUES (:id, :clinicId, :series, :year, 0)',
+            ['id' => Uuid::fromString($this->uuidGenerator->generate())->toBinary()] + $key,
         );
 
         $current = $this->connection->fetchOne(
             'SELECT `last_value` FROM billing__number_sequences
-             WHERE clinic_id = :clinicId AND `year` = :year FOR UPDATE',
-            ['clinicId' => $clinicBinary, 'year' => $year],
+             WHERE clinic_id = :clinicId AND series = :series AND `year` = :year FOR UPDATE',
+            $key,
         );
 
         $next = (is_numeric($current) ? (int) $current : 0) + 1;
 
         $this->connection->executeStatement(
             'UPDATE billing__number_sequences SET `last_value` = :next
-             WHERE clinic_id = :clinicId AND `year` = :year',
-            ['next' => $next, 'clinicId' => $clinicBinary, 'year' => $year],
+             WHERE clinic_id = :clinicId AND series = :series AND `year` = :year',
+            ['next' => $next] + $key,
         );
 
-        return InvoiceNumber::of($year, $next, $this->prefixes->prefixFor($clinicId->toString()));
+        return $next;
     }
 }
