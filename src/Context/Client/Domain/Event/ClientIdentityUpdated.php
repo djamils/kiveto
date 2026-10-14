@@ -16,6 +16,7 @@ readonly class ClientIdentityUpdated extends AbstractDomainEvent
         private string $clinicId,
         private string $firstName,
         private string $lastName,
+        private string $civility = 'unspecified',
     ) {
     }
 
@@ -31,6 +32,7 @@ readonly class ClientIdentityUpdated extends AbstractDomainEvent
             'clinicId'  => $this->clinicId,
             'firstName' => $this->firstName,
             'lastName'  => $this->lastName,
+            'civility'  => $this->civility,
         ];
     }
 }

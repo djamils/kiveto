@@ -5,7 +5,7 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 ## Responsabilités
 
 - **Gestion des clients** : Création, modification, archivage des clients
-- **Identité client** : Prénom, nom
+- **Identité client** : Civilité, prénom, nom
 - **Moyens de contact** : Gestion des téléphones et emails avec labels et primaires
 - **Scoping multi-clinique** : Toutes les opérations sont scopées par `ClinicId`
 - **Integration Events** : Publication d'événements cross-BC (ex: archivage client)
@@ -17,7 +17,7 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **ContactMethod** : Moyen de contact (phone ou email) avec label, valeur et indicateur primary
 - **ContactMethodType** : `PHONE` | `EMAIL`
 - **ContactLabel** : `MOBILE` | `HOME` | `WORK` | `OTHER`
-- **ClientIdentity** : Prénom + Nom du client
+- **ClientIdentity** : Prénom + Nom du client, avec sa civilité (`Civility` : `MADAM` | `MISTER` | `UNSPECIFIED`, « Mme » / « M. » devant le nom)
 - **PostalAddress** : Adresse postale internationale (unique par client, optionnelle)
 - **AuthorizedPerson** : Personne autorisée à déposer et récupérer les animaux du dossier (une seule par client, optionnelle) — civilité, prénom, nom, lien (`AuthorizedPersonRelationship`), téléphone, date de désignation
 - **ContactChannel** : `SMS` | `EMAIL` | `PHONE` | `MAIL` ; seuls `SMS` et `EMAIL` sont automatisables

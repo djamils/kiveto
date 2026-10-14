@@ -40,7 +40,7 @@ final class RecordClientPaymentController extends AbstractClientSheetAction
         if (!$invoice instanceof InvoiceDetails || $invoice->payerClientId !== $id) {
             $this->addFlash('error', 'Cette facture n’appartient pas à ce client.');
 
-            return $this->backToSheet($id, 'facturation');
+            return $this->backToSheet($id);
         }
 
         $amount = AmountParser::toMinorUnits($request->request->getString('amount'));
@@ -48,7 +48,7 @@ final class RecordClientPaymentController extends AbstractClientSheetAction
         if (null === $amount || $amount <= 0) {
             $this->addFlash('error', 'Le montant du paiement est invalide.');
 
-            return $this->backToSheet($id, 'facturation');
+            return $this->backToSheet($id);
         }
 
         $user = $this->getUser();
@@ -66,10 +66,14 @@ final class RecordClientPaymentController extends AbstractClientSheetAction
             $this->addFlash('success', 'Paiement enregistré.');
         } catch (\ValueError) {
             $this->addFlash('error', 'Moyen de paiement inconnu.');
+
+            return $this->backToSheet($id);
         } catch (\DomainException $e) {
             $this->addFlash('error', $e->getMessage());
+
+            return $this->backToSheet($id);
         }
 
-        return $this->backToSheet($id, 'facturation');
+        return $this->backToSheet($id, 'cCompte');
     }
 }

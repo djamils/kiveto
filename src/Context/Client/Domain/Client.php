@@ -125,6 +125,7 @@ final class Client extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             firstName: $newIdentity->firstName,
             lastName: $newIdentity->lastName,
+            civility: $newIdentity->civility->value,
         ));
     }
 

@@ -9,6 +9,7 @@ use App\Fixtures\Context\Billing\Story\BillingDemoStory;
 use App\Fixtures\Context\Billing\Story\DirectoryBalancesStory;
 use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
+use App\Fixtures\Context\Client\Story\ClientSheetStatesStory;
 use App\Fixtures\Context\Client\Story\DirectoryCrowdStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
@@ -98,5 +99,9 @@ final class ClinicDataset extends Story
 
         // Stock last: it is built on the articles the catalogue tracks.
         InventoryDemoStory::load();
+
+        // The three states of the client sheet (normal, busy, brand new): last,
+        // so that the demo stories above never pick their visits as their own.
+        ClientSheetStatesStory::load();
     }
 }

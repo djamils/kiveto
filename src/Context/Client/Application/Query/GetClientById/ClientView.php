@@ -23,6 +23,7 @@ final readonly class ClientView
         public ?AuthorizedPersonDto $authorizedPerson = null,
         public ?string $preferredChannel = null,
         public array $consents = [],
+        public string $civility = 'unspecified',
     ) {
     }
 

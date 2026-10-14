@@ -42,6 +42,6 @@ final class LogClientCommunicationController extends AbstractClientSheetAction
             $this->addFlash('error', 'L’échange n’a pas pu être consigné : vérifiez l’objet et la longueur du contenu.');
         }
 
-        return $this->backToSheet($id, 'communications');
+        return $this->backToSheet($id);
     }
 }

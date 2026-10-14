@@ -77,6 +77,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 ),
                 $entity->getCommunicationPreferences()['consents'] ?? [],
             ),
+            civility: $entity->getCivility(),
         );
     }
 

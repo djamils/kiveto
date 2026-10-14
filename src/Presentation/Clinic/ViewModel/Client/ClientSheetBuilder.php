@@ -10,6 +10,7 @@ use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
+use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\ListClientCommunications\ClientCommunicationView;
 use App\Context\Client\Application\Query\ListClientCommunications\ListClientCommunications;
@@ -17,80 +18,100 @@ use App\Context\Client\Application\Query\ListClientNotes\ClientNoteView;
 use App\Context\Client\Application\Query\ListClientNotes\ListClientNotes;
 use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
-use App\Context\Client\Domain\ValueObject\ClientNoteKind;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
+use App\Context\Consultation\Domain\ValueObject\VitalType;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\ListAppointmentsForOwner;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\OwnerAppointmentItem;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Gathers everything the client sheet shows, section by section.
+ * Gathers everything the client sheet (client-v-topbar mock-up) shows, in the
+ * shape its page module renders: the household's animals, every visit —
+ * consultations with their report, prescriptions and invoice, counter sales,
+ * missed appointments, logged exchanges — the appointments to come, the
+ * account, and the rail cards (preferences, authorized person, internal note).
  *
- * The sheet is a read-only crossroads of six contexts. Each one is asked
- * through its query bus; the few facts no query exposes yet (which consultation
- * belongs to which animal, the prescriptions of a consultation list) are read
- * in one batched statement each, as the client directory already does.
+ * The sheet is a read-only crossroads of several contexts. Each one is asked
+ * through its query bus; the facts no query exposes yet (which consultation
+ * belongs to which animal, a consultation's motifs and diagnosis, an invoice's
+ * lines, the prevention due dates) are read in one batched statement each, as
+ * the client directory already does.
  */
 final readonly class ClientSheetBuilder
 {
     private const int ANIMAL_LIMIT  = 100;
     private const int INVOICE_LIMIT = 200;
 
+    /** Emoji of the mock-up's animal cards and history rows, by species. */
+    private const array EMOJI = ['dog' => '🐕', 'cat' => '🐈', 'nac' => '🐇'];
+
+    /** Motif words that file a visit under a vaccination or a hospitalisation. */
+    private const array VACCINATION_WORDS     = ['vaccin', 'rappel', 'primo'];
+    private const array HOSPITALISATION_WORDS = ['chirurg', 'hospitalis', 'dentaire', 'détartrage', 'anesthés', 'castration', 'stérilisation'];
+    private const array EXAM_WORDS            = ['imagerie', 'analyse', 'bilan sanguin', 'radiograph', 'échograph'];
+
     public function __construct(
         private QueryBusInterface $queryBus,
         private Connection $connection,
+        private UrlGeneratorInterface $urls,
+        private CsrfTokenManagerInterface $csrf,
     ) {
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function build(ClientView $client, \DateTimeZone $clinicTz, \DateTimeImmutable $now): array
+    public function build(ClientView $client, \DateTimeZone $tz, \DateTimeImmutable $now): array
     {
         $clinicId      = $client->clinicId;
+        $today         = $now->setTimezone($tz);
         $practitioners = $this->practitioners($clinicId);
         $animalItems   = $this->animalItems($clinicId, $client->id);
         $appointments  = $this->appointmentItems($clinicId, $client->id);
         $consultations = $this->consultationRows($clinicId, $client->id);
         $invoices      = $this->invoiceRows($clinicId, $client->id);
-        $prescriptions = $this->prescriptionRows($consultations);
         $notes         = $this->queryBus->ask(new ListClientNotes($clinicId, $client->id));
         $exchanges     = $this->queryBus->ask(new ListClientCommunications($clinicId, $client->id));
         \assert(\is_array($notes) && \is_array($exchanges));
 
-        $contact      = $this->contactView($client);
-        $rdv          = $this->appointmentsView($appointments, $practitioners, $clinicTz, $now);
-        $billing      = $this->billingView($invoices, $consultations, $clinicTz, $now);
-        $consultView  = $this->consultationsView($consultations, $invoices, $prescriptions, $practitioners, $clinicTz);
-        $consentsView = $this->consentsView($client, $clinicTz);
-        $animals      = $this->animalsView($animalItems, $consultations, $appointments, $clinicTz, $now);
-        $activeCount  = \count(array_filter($animals, static fn (array $a): bool => !$a['archived']));
+        $invoiceLines  = $this->invoiceLines($invoices);
+        $payments      = $this->lastPaymentMethods($invoices);
+        $prescriptions = $this->prescriptions($consultations);
+        $details       = $this->consultationDetails($consultations);
+
+        $ordos  = $this->ordosView($prescriptions, $tz);
+        $visits = [
+            ...$this->consultationVisits($consultations, $invoices, $invoiceLines, $payments, $prescriptions, $details, $practitioners, $tz),
+            ...$this->counterSaleVisits($consultations, $invoices, $invoiceLines, $payments, $tz),
+            ...$this->appointmentVisits($client, $appointments, $practitioners, $tz, $now),
+            ...$this->exchangeVisits($exchanges, $tz),
+        ];
+
+        $hasHistory = [] !== $consultations || [] !== array_filter($invoices, static fn (InvoiceListRow $i): bool => null !== $i->number);
+        $createdAt  = (new \DateTimeImmutable($client->createdAt))->setTimezone($tz);
 
         return [
-            'contact'          => $contact,
-            'since'            => $this->sinceLabel($client, $clinicTz, $now),
-            'openedOn'         => (new \DateTimeImmutable($client->createdAt))->setTimezone($clinicTz)->format('d/m/Y'),
-            'animals'          => $animals,
-            'practitioners'    => $practitioners,
-            'appointments'     => $rdv,
-            'authorizedPerson' => $this->authorizedPersonView($client, $clinicTz),
-            'consents'         => $consentsView,
-            'consultations'    => $consultView,
-            'billing'          => $billing,
-            'communications'   => $this->communicationsView($exchanges, $clinicTz),
-            'notes'            => $this->notesView($notes, $clinicTz),
-            'documents'        => $this->documentsView($consultations, $invoices, $prescriptions, $clinicTz),
-            'checklist'        => $this->checklist($client, $contact, $consentsView, $animals),
-            'safety'           => $this->safety($client, $billing, $consentsView, $activeCount, $consultations),
-            'choices'          => $this->choices(),
+            'today'   => $today->format('Y-m-d'),
+            'now'     => $today->format('H:i'),
+            'client'  => $this->clientView($client, $tz, $today, $createdAt, $hasHistory),
+            'animals' => $this->animalsView($animalItems, $consultations, $appointments, $tz, $now),
+            'visits'  => $visits,
+            'ordos'   => $ordos,
+            'account' => $this->accountView($invoices, $consultations, $tz, $now),
+            'prefs'   => $this->prefsView($client),
+            'pers'    => $this->personsView($client, $tz, $today),
+            'note'    => $this->noteView($notes, $tz, $today),
+            'choices' => $this->choices(),
         ];
     }
 
@@ -164,9 +185,11 @@ final readonly class ClientSheetBuilder
      *     practitionerUserId: string,
      *     status: string,
      *     startedAt: \DateTimeImmutable,
-     *     closedAt: ?\DateTimeImmutable,
      *     reason: ?string,
+     *     summary: ?string,
+     *     observations: ?string,
      *     weightKg: ?string,
+     *     temperature: ?string,
      *     animalId: string,
      *     animalName: string
      * }>
@@ -176,13 +199,15 @@ final readonly class ClientSheetBuilder
         $rows = $this->connection->fetchAllAssociative(
             "SELECT BIN_TO_UUID(c.id) AS id, BIN_TO_UUID(c.admission_id) AS admission_id,
                     BIN_TO_UUID(c.practitioner_user_id) AS practitioner_user_id, c.status,
-                    c.started_at_utc, c.closed_at_utc, c.chief_complaint, c.weight_kg,
+                    c.started_at_utc, c.chief_complaint, c.summary, c.objective_observations,
+                    c.weight_kg, c.temperature_c,
                     BIN_TO_UUID(a.id) AS animal_id, a.name AS animal_name
              FROM animal__ownerships o
              INNER JOIN animal__animals a ON a.id = o.animal_id
              INNER JOIN patient__patients p ON p.animal_link_id = a.id
              INNER JOIN consultation__consultations c ON c.patient_id = p.id
              WHERE o.client_id = :clientId AND o.status = 'active' AND c.clinic_id = :clinicId
+               AND c.status IN ('OPEN', 'CLOSED')
              ORDER BY c.started_at_utc DESC",
             [
                 'clientId' => Uuid::fromString($clientId)->toBinary(),
@@ -198,23 +223,19 @@ final readonly class ClientSheetBuilder
             \assert(\is_string($row['status']) && \is_string($row['started_at_utc']));
             \assert(\is_string($row['animal_id']) && \is_string($row['animal_name']));
 
-            $weight = $row['weight_kg'];
-
             $consultations[] = [
                 'id'                 => $row['id'],
                 'admissionId'        => \is_string($row['admission_id']) ? $row['admission_id'] : null,
                 'practitionerUserId' => $row['practitioner_user_id'],
                 'status'             => $row['status'],
                 'startedAt'          => new \DateTimeImmutable($row['started_at_utc'], $utc),
-                'closedAt'           => \is_string($row['closed_at_utc'])
-                    ? new \DateTimeImmutable($row['closed_at_utc'], $utc)
-                    : null,
-                'reason' => \is_string($row['chief_complaint']) && '' !== trim($row['chief_complaint'])
-                    ? $row['chief_complaint']
-                    : null,
-                'weightKg'   => \is_string($weight) || \is_float($weight) || \is_int($weight) ? (string) $weight : null,
-                'animalId'   => $row['animal_id'],
-                'animalName' => $row['animal_name'],
+                'reason'             => $this->text($row['chief_complaint']),
+                'summary'            => $this->text($row['summary']),
+                'observations'       => $this->text($row['objective_observations']),
+                'weightKg'           => is_numeric($row['weight_kg']) ? (string) $row['weight_kg'] : null,
+                'temperature'        => is_numeric($row['temperature_c']) ? (string) $row['temperature_c'] : null,
+                'animalId'           => $row['animal_id'],
+                'animalName'         => $row['animal_name'],
             ];
         }
 
@@ -222,7 +243,7 @@ final readonly class ClientSheetBuilder
     }
 
     /**
-     * @return list<InvoiceListRow>
+     * @return list<InvoiceListRow> newest first, cancelled ones left out
      */
     private function invoiceRows(string $clinicId, string $clientId): array
     {
@@ -232,17 +253,89 @@ final readonly class ClientSheetBuilder
         )));
         \assert($result instanceof InvoiceListItemView);
 
-        return $result->items;
+        return array_values(array_filter(
+            $result->items,
+            static fn (InvoiceListRow $invoice): bool => 'CANCELLED' !== $invoice->status,
+        ));
     }
 
     /**
-     * Issued prescriptions of the listed consultations, in one query.
+     * @param list<InvoiceListRow> $invoices
+     *
+     * @return array<string, list<array{0: string, 1: float, 2: float}>> invoice id => [label, quantity, gross]
+     */
+    private function invoiceLines(array $invoices): array
+    {
+        if ([] === $invoices) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(invoice_id) AS invoice_id, label, quantity, gross_minor_units
+             FROM billing__invoice_lines WHERE invoice_id IN (?) ORDER BY position ASC',
+            [array_map(static fn (InvoiceListRow $i): string => Uuid::fromString($i->id)->toBinary(), $invoices)],
+            [ArrayParameterType::BINARY],
+        );
+
+        $lines = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['invoice_id']) && \is_string($row['label']));
+
+            $quantity = is_numeric($row['quantity']) ? (float) $row['quantity'] : 1.0;
+            $gross    = is_numeric($row['gross_minor_units']) ? (int) $row['gross_minor_units'] : 0;
+
+            $lines[$row['invoice_id']][] = [$row['label'], $quantity, $gross / 100];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param list<InvoiceListRow> $invoices
+     *
+     * @return array<string, string> invoice id => label of the latest payment method
+     */
+    private function lastPaymentMethods(array $invoices): array
+    {
+        if ([] === $invoices) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(invoice_id) AS invoice_id, method
+             FROM billing__payments WHERE invoice_id IN (?) ORDER BY received_at ASC, position ASC',
+            [array_map(static fn (InvoiceListRow $i): string => Uuid::fromString($i->id)->toBinary(), $invoices)],
+            [ArrayParameterType::BINARY],
+        );
+
+        $methods = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['invoice_id']) && \is_string($row['method']));
+
+            // Ordered oldest first: the last one written wins.
+            $methods[$row['invoice_id']] = PaymentMethod::tryFrom($row['method'])?->label() ?? $row['method'];
+        }
+
+        return $methods;
+    }
+
+    /**
+     * Issued prescriptions of the listed consultations, with their lines.
      *
      * @param list<array{id: string, ...}> $consultations
      *
-     * @return array<string, list<array{id: string, number: string, issuedAt: \DateTimeImmutable, lineCount: int}>>
+     * @return array<string, list<array{
+     *     id: string,
+     *     number: string,
+     *     issuedAt: \DateTimeImmutable,
+     *     prescriber: ?string,
+     *     renewable: bool,
+     *     lines: list<array{0: string, 1: string, 2: string}>
+     * }>> consultation id => prescriptions
      */
-    private function prescriptionRows(array $consultations): array
+    private function prescriptions(array $consultations): array
     {
         if ([] === $consultations) {
             return [];
@@ -250,8 +343,7 @@ final readonly class ClientSheetBuilder
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT BIN_TO_UUID(pr.id) AS id, BIN_TO_UUID(pr.consultation_id) AS consultation_id,
-                    pr.number, pr.issued_at,
-                    (SELECT COUNT(*) FROM prescription__prescription_lines l WHERE l.prescription_id = pr.id) AS line_count
+                    pr.number, pr.issued_at, pr.prescriber_display_name, pr.renewals_allowed, pr.renewals_used
              FROM prescription__prescriptions pr
              WHERE pr.consultation_id IN (?) AND pr.status = 'ISSUED' AND pr.number IS NOT NULL
              ORDER BY pr.issued_at DESC",
@@ -259,17 +351,53 @@ final readonly class ClientSheetBuilder
             [ArrayParameterType::BINARY],
         );
 
+        if ([] === $rows) {
+            return [];
+        }
+
+        $lines = [];
+
+        $lineRows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(prescription_id) AS prescription_id, label, dose, frequency, duration_days, route, quantity
+             FROM prescription__prescription_lines WHERE prescription_id IN (?) ORDER BY position ASC',
+            [array_map(static function (array $row): string {
+                \assert(\is_string($row['id']));
+
+                return Uuid::fromString($row['id'])->toBinary();
+            }, $rows)],
+            [ArrayParameterType::BINARY],
+        );
+
+        foreach ($lineRows as $line) {
+            \assert(\is_string($line['prescription_id']) && \is_string($line['label']));
+
+            $posology = implode(', ', array_filter([
+                $this->text($line['dose']),
+                $this->text($line['frequency']),
+                is_numeric($line['duration_days']) ? \sprintf('%d j', (int) $line['duration_days']) : null,
+                $this->text($line['route']),
+            ]));
+            $quantity = is_numeric($line['quantity']) ? $this->number((float) $line['quantity']) : '—';
+
+            $lines[$line['prescription_id']][] = [$line['label'], '' === $posology ? '—' : $posology, $quantity];
+        }
+
         $prescriptions = [];
 
         foreach ($rows as $row) {
             \assert(\is_string($row['id']) && \is_string($row['consultation_id']));
             \assert(\is_string($row['number']) && \is_string($row['issued_at']));
 
+            $allowed = is_numeric($row['renewals_allowed']) ? (int) $row['renewals_allowed'] : 0;
+            $used    = is_numeric($row['renewals_used']) ? (int) $row['renewals_used'] : 0;
+
             $prescriptions[$row['consultation_id']][] = [
-                'id'        => $row['id'],
-                'number'    => $row['number'],
-                'issuedAt'  => new \DateTimeImmutable($row['issued_at']),
-                'lineCount' => is_numeric($row['line_count']) ? (int) $row['line_count'] : 0,
+                'id'         => $row['id'],
+                'number'     => $row['number'],
+                'issuedAt'   => new \DateTimeImmutable($row['issued_at']),
+                'prescriber' => $this->text($row['prescriber_display_name']),
+                'renewable'  => $allowed > $used,
+                'lines'      => $lines[$row['id']] ?? [],
             ];
         }
 
@@ -277,134 +405,649 @@ final readonly class ClientSheetBuilder
     }
 
     /**
-     * @return array{
-     *     mobile: ?string,
-     *     landline: ?string,
-     *     email: ?string,
-     *     address: ?string,
-     *     street: string,
-     *     postalCode: string,
-     *     city: string
-     * }
+     * Motifs, diagnoses and typed vitals of the listed consultations.
+     *
+     * @param list<array{id: string, ...}> $consultations
+     *
+     * @return array<string, array{motifs: list<string>, diagnosis: ?string, vitals: list<array{0: string, 1: string}>}>
      */
-    private function contactView(ClientView $client): array
+    private function consultationDetails(array $consultations): array
     {
-        $slots   = ClientContactSlots::fromContactMethods($client->contactMethods);
-        $address = $client->postalAddress;
-
-        return [
-            'mobile'   => $slots->mobile?->value,
-            'landline' => $slots->landline?->value,
-            'email'    => $slots->email?->value,
-            'address'  => null === $address
-                ? null
-                : trim(\sprintf('%s, %s %s', $address->streetLine1, $address->postalCode ?? '', $address->city)),
-            'street'     => $address->streetLine1 ?? '',
-            'postalCode' => $address->postalCode ?? '',
-            'city'       => $address->city ?? '',
-        ];
-    }
-
-    private function sinceLabel(ClientView $client, \DateTimeZone $tz, \DateTimeImmutable $now): string
-    {
-        $createdAt = (new \DateTimeImmutable($client->createdAt))->setTimezone($tz);
-
-        if ($createdAt->format('Y-m-d') === $now->setTimezone($tz)->format('Y-m-d')) {
-            return 'Aujourd’hui';
+        if ([] === $consultations) {
+            return [];
         }
 
-        return mb_convert_case(SheetText::date($createdAt, 'MMMM y'), \MB_CASE_TITLE);
+        $ids       = [array_map(static fn (array $c): string => Uuid::fromString($c['id'])->toBinary(), $consultations)];
+        $types     = [ArrayParameterType::BINARY];
+        $motifList = [];
+        $diagnosis = [];
+        $vitalList = [];
+
+        $motifs = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(consultation_id) AS consultation_id, label FROM consultation__motifs
+             WHERE consultation_id IN (?) ORDER BY position ASC',
+            $ids,
+            $types,
+        );
+
+        foreach ($motifs as $row) {
+            \assert(\is_string($row['consultation_id']) && \is_string($row['label']));
+            $motifList[$row['consultation_id']][] = $row['label'];
+        }
+
+        $diagnoses = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(consultation_id) AS consultation_id, label FROM consultation__diagnoses
+             WHERE consultation_id IN (?) ORDER BY is_primary DESC, position ASC',
+            $ids,
+            $types,
+        );
+
+        foreach ($diagnoses as $row) {
+            \assert(\is_string($row['consultation_id']) && \is_string($row['label']));
+            // The primary diagnosis comes first.
+            $diagnosis[$row['consultation_id']] ??= $row['label'];
+        }
+
+        $vitals = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(consultation_id) AS consultation_id, type, value FROM consultation__typed_vitals
+             WHERE consultation_id IN (?) ORDER BY position ASC',
+            $ids,
+            $types,
+        );
+
+        foreach ($vitals as $row) {
+            \assert(\is_string($row['consultation_id']) && \is_string($row['type']));
+
+            $type = VitalType::tryFrom($row['type']);
+
+            if (null === $type || !\is_scalar($row['value'])) {
+                continue;
+            }
+
+            $value = is_numeric($row['value']) ? $this->number((float) $row['value']) : (string) $row['value'];
+
+            $vitalList[$row['consultation_id']][] = [$type->label(), trim($value . ' ' . $type->unit())];
+        }
+
+        $details = [];
+
+        foreach ($consultations as $consultation) {
+            $details[$consultation['id']] = [
+                'motifs'    => $motifList[$consultation['id']] ?? [],
+                'diagnosis' => $diagnosis[$consultation['id']] ?? null,
+                'vitals'    => $vitalList[$consultation['id']] ?? [],
+            ];
+        }
+
+        return $details;
     }
 
     /**
-     * @param list<AnimalListItemView>                                                                             $items
-     * @param list<array{animalId: string, startedAt: \DateTimeImmutable, status: string, weightKg: ?string, ...}> $consultations
-     * @param list<OwnerAppointmentItem>                                                                           $appointments
+     * @param array<string, list<array{id: string, number: string, issuedAt: \DateTimeImmutable, prescriber: ?string, renewable: bool, lines: list<array{0: string, 1: string, 2: string}>}>> $prescriptions
      *
-     * @return list<array{
-     *     id: string,
-     *     name: string,
-     *     kind: string,
-     *     meta: string,
-     *     label: string,
-     *     archived: bool,
-     *     deceased: bool,
-     *     alerts: list<array{kind: string, label: string}>,
-     *     lastVisit: ?string,
-     *     inConsultation: bool,
-     *     nextAppointment: ?string,
-     *     microchip: ?string
-     * }>
+     * @return array<string, array<string, mixed>> prescription id => what the preview window shows
      */
-    private function animalsView(
-        array $items,
+    private function ordosView(array $prescriptions, \DateTimeZone $tz): array
+    {
+        $ordos = [];
+
+        foreach ($prescriptions as $list) {
+            foreach ($list as $prescription) {
+                $ordos[$prescription['id']] = [
+                    'num'    => $prescription['number'],
+                    'd'      => $prescription['issuedAt']->setTimezone($tz)->format('Y-m-d'),
+                    'v'      => $prescription['prescriber'] ?? '—',
+                    'lignes' => $prescription['lines'],
+                    'href'   => $this->urls->generate('clinic_prescription_details', ['prescriptionId' => $prescription['id']]),
+                    'pdf'    => $this->urls->generate('clinic_prescription_pdf', ['prescriptionId' => $prescription['id']]),
+                    'renew'  => $prescription['renewable'] ? [
+                        'url'   => $this->urls->generate('clinic_prescription_renew', ['prescriptionId' => $prescription['id']]),
+                        'token' => $this->csrf->getToken('prescription_renew_' . $prescription['id'])->getValue(),
+                    ] : null,
+                ];
+            }
+        }
+
+        return $ordos;
+    }
+
+    /**
+     * One history row per consultation: its synthesis, its documents and its invoice.
+     *
+     * @param list<array{id: string, admissionId: ?string, practitionerUserId: string, status: string, startedAt: \DateTimeImmutable, reason: ?string, summary: ?string, observations: ?string, weightKg: ?string, temperature: ?string, animalId: string, animalName: string}> $consultations
+     * @param list<InvoiceListRow>                                                                                                                                                                                                                                              $invoices
+     * @param array<string, list<array{0: string, 1: float, 2: float}>>                                                                                                                                                                                                         $lines
+     * @param array<string, string>                                                                                                                                                                                                                                             $payments
+     * @param array<string, list<array{id: string, number: string, ...}>>                                                                                                                                                                                                       $prescriptions
+     * @param array<string, array{motifs: list<string>, diagnosis: ?string, vitals: list<array{0: string, 1: string}>}>                                                                                                                                                         $details
+     * @param array<string, string>                                                                                                                                                                                                                                             $practitioners
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function consultationVisits(
         array $consultations,
-        array $appointments,
+        array $invoices,
+        array $lines,
+        array $payments,
+        array $prescriptions,
+        array $details,
+        array $practitioners,
         \DateTimeZone $tz,
-        \DateTimeImmutable $now,
     ): array {
-        $alerts       = $this->alertsPerAnimal($items);
-        $reproductive = $this->reproductiveStatusPerAnimal($items);
-        $animals      = [];
+        $invoiceByAdmission = [];
+
+        foreach ($invoices as $invoice) {
+            // Newest first: the latest invoice of a visit wins.
+            if (null !== $invoice->admissionId) {
+                $invoiceByAdmission[$invoice->admissionId] ??= $invoice;
+            }
+        }
+
+        $visits = [];
+
+        foreach ($consultations as $consultation) {
+            $startedAt = $consultation['startedAt']->setTimezone($tz);
+            $detail    = $details[$consultation['id']] ?? ['motifs' => [], 'diagnosis' => null, 'vitals' => []];
+            $open      = 'OPEN' === $consultation['status'];
+            $invoice   = null === $consultation['admissionId'] ? null : $invoiceByAdmission[$consultation['admissionId']] ?? null;
+
+            $syn = array_filter([
+                'Motif'      => $consultation['reason'],
+                'Examen'     => $consultation['observations'],
+                'Diagnostic' => $detail['diagnosis'],
+                'Conclusion' => $consultation['summary'],
+            ], static fn (?string $value): bool => null !== $value);
+
+            $mes = [];
+
+            if (null !== $consultation['weightKg']) {
+                $mes[] = ['Poids', $this->number((float) $consultation['weightKg']) . ' kg'];
+            }
+
+            if (null !== $consultation['temperature']) {
+                $mes[] = ['Température', $this->number((float) $consultation['temperature']) . ' °C'];
+            }
+
+            $docs = [];
+
+            if (!$open) {
+                $docs[] = [
+                    'Compte rendu de consultation',
+                    'doc',
+                    $this->urls->generate('clinic_consultation_report_pdf', ['consultationId' => $consultation['id']]),
+                ];
+            }
+
+            $visits[] = [
+                'id'     => 'c-' . $consultation['id'],
+                'd'      => $startedAt->format('Y-m-d'),
+                'h'      => $startedAt->format('H:i'),
+                'a'      => $consultation['animalId'],
+                'k'      => $this->visitKind($detail['motifs'], $consultation['reason']),
+                't'      => $this->visitTitle($detail['motifs'], $consultation['reason']),
+                'v'      => $practitioners[$consultation['practitionerUserId']] ?? '—',
+                'st'     => $open ? 'encours' : 'venu',
+                'syn'    => [] === $syn ? null : $syn,
+                'mes'    => [...$mes, ...$detail['vitals']],
+                'lignes' => null === $invoice ? null : $lines[$invoice->id] ?? [],
+                'total'  => null === $invoice ? 0 : $invoice->totalGrossMinorUnits / 100,
+                'fac'    => null === $invoice ? null : $this->facView($invoice, $payments, $tz),
+                'docs'   => $docs,
+                'ordos'  => array_map(static fn (array $p): string => $p['id'], $prescriptions[$consultation['id']] ?? []),
+                'href'   => $this->urls->generate('clinic_consultation_details', ['id' => $consultation['id']]),
+                'report' => $open ? null : $this->urls->generate('clinic_consultation_report_pdf', ['consultationId' => $consultation['id']]),
+            ];
+        }
+
+        return $visits;
+    }
+
+    /**
+     * Invoices that belong to no consultation of the file: sales at the desk.
+     *
+     * @param list<array{admissionId: ?string, ...}>                    $consultations
+     * @param list<InvoiceListRow>                                      $invoices
+     * @param array<string, list<array{0: string, 1: float, 2: float}>> $lines
+     * @param array<string, string>                                     $payments
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function counterSaleVisits(array $consultations, array $invoices, array $lines, array $payments, \DateTimeZone $tz): array
+    {
+        $visited = [];
+
+        foreach ($consultations as $consultation) {
+            if (null !== $consultation['admissionId']) {
+                $visited[$consultation['admissionId']] = true;
+            }
+        }
+
+        $visits = [];
+
+        foreach ($invoices as $invoice) {
+            if (null === $invoice->number || null === $invoice->issuedAt) {
+                continue;
+            }
+
+            if (null !== $invoice->admissionId && isset($visited[$invoice->admissionId])) {
+                continue;
+            }
+
+            $issuedAt = $invoice->issuedAt->setTimezone($tz);
+
+            $visits[] = [
+                'id'     => 'f-' . $invoice->id,
+                'd'      => $issuedAt->format('Y-m-d'),
+                'h'      => $issuedAt->format('H:i'),
+                'a'      => null,
+                'k'      => 'vente',
+                't'      => 'Achat au comptoir',
+                'v'      => null,
+                'st'     => 'venu',
+                'syn'    => null,
+                'mes'    => [],
+                'lignes' => $lines[$invoice->id] ?? [],
+                'total'  => $invoice->totalGrossMinorUnits / 100,
+                'fac'    => $this->facView($invoice, $payments, $tz),
+                'docs'   => [],
+                'ordos'  => [],
+                'href'   => null,
+                'report' => null,
+            ];
+        }
+
+        return $visits;
+    }
+
+    /**
+     * Appointments still to come, and the ones the client missed.
+     *
+     * @param list<OwnerAppointmentItem> $appointments
+     * @param array<string, string>      $practitioners
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function appointmentVisits(ClientView $client, array $appointments, array $practitioners, \DateTimeZone $tz, \DateTimeImmutable $now): array
+    {
+        $utc    = new \DateTimeZone('UTC');
+        $visits = [];
+
+        foreach ($appointments as $appointment) {
+            $startsAt = new \DateTimeImmutable($appointment->startsAtUtc, $utc);
+            $upcoming = 'PLANNED' === $appointment->status && $startsAt >= $now;
+            $missed   = 'NO_SHOW' === $appointment->status;
+
+            if (!$upcoming && !$missed) {
+                continue;
+            }
+
+            $local = $startsAt->setTimezone($tz);
+
+            $visits[] = [
+                'id'     => 'r-' . $appointment->id,
+                'd'      => $local->format('Y-m-d'),
+                'h'      => $local->format('H:i'),
+                'a'      => $appointment->animalId,
+                'k'      => $this->visitKind([], $appointment->reason),
+                't'      => $appointment->reason ?? 'Consultation',
+                'v'      => $practitioners[$appointment->practitionerUserId] ?? '—',
+                'st'     => $upcoming ? 'avenir' : 'absent',
+                'note'   => $appointment->notes ?? ($missed ? 'Non venu, sans prévenir' : null),
+                'syn'    => null,
+                'mes'    => [],
+                'lignes' => null,
+                'total'  => 0,
+                'fac'    => null,
+                'docs'   => [],
+                'ordos'  => [],
+                'href'   => null,
+                'report' => null,
+                'appt'   => [
+                    'id'     => $appointment->id,
+                    'cancel' => $upcoming
+                        ? $this->urls->generate('clinic_scheduling_appointment_cancel', ['appointmentId' => $appointment->id])
+                        : null,
+                    'move' => $this->urls->generate('clinic_scheduling_agenda', ['view' => 'day', 'date' => $local->format('Y-m-d')]),
+                    'book' => $this->urls->generate('clinic_scheduling_agenda', ['new' => 1, 'patient' => $client->lastName]),
+                ],
+            ];
+        }
+
+        return $visits;
+    }
+
+    /**
+     * Calls, messages and letters logged by the team.
+     *
+     * @param array<mixed> $exchanges
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function exchangeVisits(array $exchanges, \DateTimeZone $tz): array
+    {
+        $visits = [];
+
+        foreach ($exchanges as $exchange) {
+            \assert($exchange instanceof ClientCommunicationView);
+
+            $at = $exchange->occurredAt->setTimezone($tz);
+
+            $visits[] = [
+                'id'     => 'm-' . $exchange->id,
+                'd'      => $at->format('Y-m-d'),
+                'h'      => $at->format('H:i'),
+                'a'      => null,
+                'k'      => 'comm',
+                't'      => $exchange->subject,
+                'v'      => $exchange->authorName,
+                'st'     => 'venu',
+                'note'   => $exchange->body,
+                'canal'  => ContactChannel::from($exchange->channel)->label(),
+                'sens'   => CommunicationDirection::from($exchange->direction)->label(),
+                'syn'    => null,
+                'mes'    => [],
+                'lignes' => null,
+                'total'  => 0,
+                'fac'    => null,
+                'docs'   => [],
+                'ordos'  => [],
+                'href'   => null,
+                'report' => null,
+            ];
+        }
+
+        return $visits;
+    }
+
+    /**
+     * @param array<string, string> $payments
+     *
+     * @return array{num: string, st: string, p: string, invoiceId: string, balance: float, balanceInput: string, href: string}
+     */
+    private function facView(InvoiceListRow $invoice, array $payments, \DateTimeZone $tz): array
+    {
+        $issued = null !== $invoice->number && null !== $invoice->issuedAt;
+        $due    = $issued && $invoice->balanceDueMinorUnits > 0;
+
+        $state = match (true) {
+            !$issued => 'cours',
+            $due     => 'du',
+            default  => 'ok',
+        };
+
+        $detail = match ($state) {
+            'cours' => 'À encaisser en fin de consultation',
+            'du'    => $invoice->amountPaidMinorUnits > 0
+                ? \sprintf('Réglée en partie · reste %s', SheetText::money($invoice->balanceDueMinorUnits, $invoice->currency))
+                : \sprintf('Émise le %s', SheetText::date(($invoice->issuedAt ?? $invoice->createdAt)->setTimezone($tz), 'd MMM')),
+            default => $payments[$invoice->id] ?? 'Réglée',
+        };
+
+        return [
+            'num'          => $invoice->number ?? 'Brouillon',
+            'st'           => $state,
+            'p'            => $detail,
+            'invoiceId'    => $invoice->id,
+            'balance'      => $invoice->balanceDueMinorUnits / 100,
+            'balanceInput' => number_format($invoice->balanceDueMinorUnits / 100, 2, ',', ''),
+            'href'         => $this->urls->generate('clinic_invoice_details', ['invoiceId' => $invoice->id]),
+        ];
+    }
+
+    /**
+     * @param list<string> $motifs
+     */
+    private function visitKind(array $motifs, ?string $reason): string
+    {
+        $text = mb_strtolower(implode(' ', $motifs) . ' ' . ($reason ?? ''));
+
+        $kinds = [
+            'vacc' => self::VACCINATION_WORDS,
+            'hosp' => self::HOSPITALISATION_WORDS,
+            'labo' => self::EXAM_WORDS,
+        ];
+
+        foreach ($kinds as $kind => $words) {
+            foreach ($words as $word) {
+                if (str_contains($text, $word)) {
+                    return $kind;
+                }
+            }
+        }
+
+        return 'cons';
+    }
+
+    /**
+     * The motifs read as a short title (« Vaccination et bilan annuel »); the
+     * chief complaint stands in when none was picked.
+     *
+     * @param list<string> $motifs
+     */
+    private function visitTitle(array $motifs, ?string $reason): string
+    {
+        if ([] !== $motifs) {
+            $rest = array_map(static fn (string $m): string => mb_strtolower(mb_substr($m, 0, 1)) . mb_substr($m, 1), \array_slice($motifs, 1));
+
+            return implode(' et ', [$motifs[0], ...$rest]);
+        }
+
+        return null === $reason ? 'Consultation' : rtrim($reason, '. ');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function clientView(ClientView $client, \DateTimeZone $tz, \DateTimeImmutable $today, \DateTimeImmutable $createdAt, bool $hasHistory): array
+    {
+        $slots   = ClientContactSlots::fromContactMethods($client->contactMethods);
+        $address = $client->postalAddress;
+        $civ     = Civility::tryFrom($client->civility) ?? Civility::UNSPECIFIED;
+        $updated = (new \DateTimeImmutable($client->updatedAt))->setTimezone($tz);
+
+        return [
+            'id'           => $client->id,
+            'civ'          => $civ->honorific(),
+            'civility'     => $civ->value,
+            'prenom'       => $client->firstName,
+            'nom'          => $client->lastName,
+            'archived'     => 'archived' === $client->status,
+            'isNew'        => !$hasHistory && $createdAt > $today->modify('-30 days'),
+            'createdToday' => $createdAt->format('Y-m-d') === $today->format('Y-m-d'),
+            'depuis'       => $createdAt->format('Y-m-d'),
+            'adr1'         => $address->streetLine1 ?? '',
+            'adr2'         => $address->streetLine2 ?? '',
+            'cp'           => $address->postalCode ?? '',
+            'ville'        => $address->city ?? '',
+            'mob'          => $this->nationalPhone($slots->mobile?->value),
+            'fixe'         => $this->nationalPhone($slots->landline?->value),
+            'mail'         => $slots->email->value ?? '',
+            'metaCo'       => $updated === $createdAt ? null : $this->when($updated, $today) . ' à ' . $updated->format('H:i'),
+            'book'         => $this->urls->generate('clinic_scheduling_agenda', ['new' => 1, 'patient' => $client->lastName]),
+        ];
+    }
+
+    /**
+     * @param list<AnimalListItemView>                                                                                $items
+     * @param list<array{animalId: string, startedAt: \DateTimeImmutable, status: string, admissionId: ?string, ...}> $consultations
+     * @param list<OwnerAppointmentItem>                                                                              $appointments
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function animalsView(array $items, array $consultations, array $appointments, \DateTimeZone $tz, \DateTimeImmutable $now): array
+    {
+        $alerts     = $this->alertsPerAnimal($items);
+        $facts      = $this->animalFacts($items);
+        $prevention = $this->preventionPerAnimal($items);
+        $today      = $now->setTimezone($tz);
+        $utc        = new \DateTimeZone('UTC');
+        $animals    = [];
 
         foreach ($items as $item) {
-            $lastVisit      = null;
-            $weight         = null;
-            $inConsultation = false;
+            $kind     = \in_array($item->species, ['dog', 'cat'], true) ? $item->species : 'nac';
+            $deceased = 'deceased' === $item->lifeStatus;
+            $fact     = $facts[$item->id] ?? ['reproductive' => 'unknown', 'deceasedAt' => null];
 
-            // Consultations come newest first: the first hit is the latest.
+            $lastVisit = null;
+            $open      = false;
+
             foreach ($consultations as $consultation) {
                 if ($consultation['animalId'] !== $item->id) {
                     continue;
                 }
 
-                $lastVisit ??= $consultation['startedAt'];
-                $weight ??= $consultation['weightKg'];
-                $inConsultation = $inConsultation || 'OPEN' === $consultation['status'];
+                // Newest first: the first hit is the latest visit.
+                $lastVisit ??= $consultation['startedAt']->setTimezone($tz);
+                $open = $open || 'OPEN' === $consultation['status'];
             }
 
-            $next = null;
+            $missedOn = null;
 
             foreach ($appointments as $appointment) {
-                $startsAt = new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC'));
+                if ($appointment->animalId !== $item->id) {
+                    continue;
+                }
 
-                if ($appointment->animalId === $item->id && 'PLANNED' === $appointment->status && $startsAt >= $now) {
-                    // Appointments come newest first: keep overwriting down to the soonest.
-                    $next = $startsAt;
+                $startsAt = new \DateTimeImmutable($appointment->startsAtUtc, $utc);
+
+                // Newest first: only the latest settled appointment tells a missed visit.
+                if ($startsAt < $now && \in_array($appointment->status, ['COMPLETED', 'NO_SHOW'], true)) {
+                    $missedOn = 'NO_SHOW' === $appointment->status ? $startsAt->setTimezone($tz) : null;
+
+                    break;
                 }
             }
 
-            $sex  = $this->sexLabel($item->sex, $reproductive[$item->id] ?? 'unknown');
-            $meta = array_filter([
-                $item->breedName,
-                $sex,
-                $item->ageLabel($now),
-                null === $weight ? null : $this->formatWeight($weight),
-            ], static fn (?string $part): bool => null !== $part && '' !== $part);
+            // A visit since then settles the missed one.
+            if (null !== $missedOn && null !== $lastVisit && $lastVisit > $missedOn) {
+                $missedOn = null;
+            }
+
+            if ($deceased) {
+                $animals[] = [
+                    'id'  => $item->id,
+                    'e'   => self::EMOJI[$kind],
+                    'nom' => $item->name,
+                    'd'   => implode(' · ', array_filter([
+                        $this->speciesNoun($kind, $item->sex, $item->breedName),
+                        null === $fact['deceasedAt'] ? 'décédé' : 'décédé le ' . SheetText::date($fact['deceasedAt']->setTimezone($tz), 'd MMM y'),
+                    ])),
+                    'dcd'      => true,
+                    'archived' => 'active' !== $item->status,
+                    'tags'     => [],
+                    'kv'       => [],
+                    'href'     => $this->urls->generate('clinic_animals_view', ['id' => $item->id]),
+                ];
+
+                continue;
+            }
+
+            $tags = [];
+
+            if ($open) {
+                $tags[] = ['vig b', 'En consultation'];
+            }
+
+            foreach ($alerts[$item->id] ?? [] as $alert) {
+                $tags[] = 'ALLERGY' === $alert['kind']
+                    ? ['vig r', 'Allergie : ' . $alert['label']]
+                    : ['vig r', $alert['label']];
+            }
+
+            if ('active' !== $item->status) {
+                $tags[] = ['vig g', 'Archivé'];
+            } elseif (null === $lastVisit && null === $missedOn) {
+                $tags[] = ['vig g', 'Nouveau patient'];
+            } elseif (null !== $missedOn) {
+                $tags[] = ['vig g', 'Non venu le ' . $this->when($missedOn, $today)];
+            }
+
+            $next = $prevention[$item->id] ?? null;
 
             $animals[] = [
-                'id'    => $item->id,
-                'name'  => $item->name,
-                'kind'  => \in_array($item->species, ['dog', 'cat'], true) ? $item->species : 'nac',
-                'meta'  => implode(' · ', $meta),
-                'label' => implode(' — ', array_filter([
-                    $item->name,
-                    implode(', ', array_filter([$item->breedName, $item->ageLabel($now)])),
+                'id'  => $item->id,
+                'e'   => self::EMOJI[$kind],
+                'nom' => $item->name,
+                'd'   => implode(' · ', array_filter([
+                    // For a NAC the breed names the animal (« Lapin bélier »).
+                    'nac' === $kind ? $this->speciesNoun($kind, $item->sex, $item->breedName) : $this->speciesNoun($kind, $item->sex, null),
+                    'nac' === $kind || null === $item->breedName ? null : SheetText::sentence(mb_strtolower($item->breedName)),
+                    $this->age($item->birthDate, $today),
                 ])),
-                'archived'        => 'active' !== $item->status,
-                'deceased'        => 'deceased' === $item->lifeStatus,
-                'alerts'          => $alerts[$item->id] ?? [],
-                'lastVisit'       => null === $lastVisit ? null : SheetText::date($lastVisit->setTimezone($tz), 'd MMM y'),
-                'inConsultation'  => $inConsultation,
-                'nextAppointment' => null === $next ? null : SheetText::date($next->setTimezone($tz), 'd MMM y'),
-                'microchip'       => $item->microchipNumber,
+                'dcd'      => false,
+                'archived' => 'active' !== $item->status,
+                'tags'     => $tags,
+                'kv'       => [
+                    ['Dernière visite', match (true) {
+                        $open               => 'Aujourd’hui',
+                        null === $lastVisit => 'female' === $item->sex ? 'Jamais venue' : 'Jamais venu',
+                        default             => $lastVisit->format('Y-m-d') === $today->format('Y-m-d') ? 'Aujourd’hui' : $this->when($lastVisit, $today),
+                    }, false],
+                    null === $next
+                        ? $this->noPrevention($kind, $item->birthDate, $today)
+                        : ['Prévention', $next['due'] < $today->format('Y-m-d')
+                            ? $next['noun'] . ' en retard'
+                            : $next['noun'] . ' le ' . $this->when(new \DateTimeImmutable($next['due'], $tz), $today), $next['due'] < $today->format('Y-m-d')],
+                ],
+                'href' => $this->urls->generate('clinic_animals_view', ['id' => $item->id]),
             ];
         }
 
-        // Living, active animals first; the order inside each group stays alphabetical.
-        usort($animals, static fn (array $a, array $b): int => [$a['archived'], $a['deceased']] <=> [$b['archived'], $b['deceased']]);
+        // The one in consultation leads, then the living, active animals, then
+        // archived ones, the departed last; alphabetical inside each group.
+        usort($animals, static fn (array $a, array $b): int => [$a['dcd'], $a['archived'], 'En consultation' !== ($a['tags'][0][1] ?? null)]
+            <=> [$b['dcd'], $b['archived'], 'En consultation' !== ($b['tags'][0][1] ?? null)]);
 
         return $animals;
+    }
+
+    /**
+     * The age as the mock-up words it: weeks under three months, months under
+     * a year, « 1 an et 4 mois » in the second year, whole years after.
+     */
+    private function age(?string $birthDate, \DateTimeImmutable $today): ?string
+    {
+        if (null === $birthDate) {
+            return null;
+        }
+
+        $birth  = new \DateTimeImmutable(substr($birthDate, 0, 10), $today->getTimezone());
+        $diff   = $birth->diff($today);
+        $months = $diff->y * 12 + $diff->m;
+
+        return match (true) {
+            $months < 3   => SheetText::plural(intdiv((int) $diff->days, 7), 'semaine', 'semaines'),
+            $months >= 24 => $diff->y . ' ans',
+            $months >= 12 => '1 an' . (0 === $diff->m ? '' : \sprintf(' et %d mois', $diff->m)),
+            default       => $months . ' mois',
+        };
+    }
+
+    /**
+     * Nothing due on file: a dog or a cat in its first year has its first
+     * vaccinations to come; otherwise nothing is planned.
+     *
+     * @return array{0: string, 1: string, 2: bool}
+     */
+    private function noPrevention(string $kind, ?string $birthDate, \DateTimeImmutable $today): array
+    {
+        $young = null !== $birthDate
+            && new \DateTimeImmutable(substr($birthDate, 0, 10), $today->getTimezone()) > $today->modify('-1 year');
+
+        return 'nac' !== $kind && $young
+            ? ['Prévention', 'Primo-vaccination à faire', true]
+            : ['Prévention', 'Aucun rappel prévu', false];
+    }
+
+    private function speciesNoun(string $kind, string $sex, ?string $breed): string
+    {
+        $female = 'female' === $sex;
+
+        return match ($kind) {
+            'dog'   => ($female ? 'Chienne' : 'Chien') . (null === $breed ? '' : ' ' . mb_strtolower($breed)),
+            'cat'   => ($female ? 'Chatte' : 'Chat') . (null === $breed ? '' : ' ' . mb_strtolower($breed)),
+            default => null === $breed ? 'NAC' : SheetText::sentence(mb_strtolower($breed)),
+        };
     }
 
     /**
@@ -441,29 +1084,89 @@ final readonly class ClientSheetBuilder
     /**
      * @param list<AnimalListItemView> $animals
      *
-     * @return array<string, string>
+     * @return array<string, array{reproductive: string, deceasedAt: ?\DateTimeImmutable}>
      */
-    private function reproductiveStatusPerAnimal(array $animals): array
+    private function animalFacts(array $animals): array
     {
         if ([] === $animals) {
             return [];
         }
 
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(id) AS id, reproductive_status FROM animal__animals WHERE id IN (?)',
+            'SELECT BIN_TO_UUID(id) AS id, reproductive_status, deceased_at FROM animal__animals WHERE id IN (?)',
             [$this->binaryIds($animals)],
             [ArrayParameterType::BINARY],
         );
 
-        $statuses = [];
+        $facts = [];
 
         foreach ($rows as $row) {
             \assert(\is_string($row['id']) && \is_string($row['reproductive_status']));
 
-            $statuses[$row['id']] = $row['reproductive_status'];
+            $facts[$row['id']] = [
+                'reproductive' => $row['reproductive_status'],
+                'deceasedAt'   => \is_string($row['deceased_at']) ? new \DateTimeImmutable($row['deceased_at']) : null,
+            ];
         }
 
-        return $statuses;
+        return $facts;
+    }
+
+    /**
+     * The next preventive care due per animal: the soonest due date among the
+     * latest record of each care (a renewed vaccine replaces the older one).
+     *
+     * @param list<AnimalListItemView> $animals
+     *
+     * @return array<string, array{noun: string, due: string}>
+     */
+    private function preventionPerAnimal(array $animals): array
+    {
+        if ([] === $animals) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(animal_id) AS animal_id, kind, label, next_due_on
+             FROM animal__preventive_care_records
+             WHERE animal_id IN (?)
+             ORDER BY administered_on DESC, recorded_at DESC',
+            [$this->binaryIds($animals)],
+            [ArrayParameterType::BINARY],
+        );
+
+        $seen = [];
+        $next = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['animal_id']) && \is_string($row['kind']) && \is_string($row['label']));
+
+            $key = $row['animal_id'] . '|' . $row['kind'] . '|' . mb_strtolower($row['label']);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+
+            if (!\is_string($row['next_due_on'])) {
+                continue;
+            }
+
+            $due  = substr($row['next_due_on'], 0, 10);
+            $noun = match ($row['kind']) {
+                'vaccination'       => 'Vaccin',
+                'internal_parasite' => 'Vermifuge',
+                'external_parasite' => 'Antiparasitaire',
+                default             => SheetText::sentence($row['label']),
+            };
+
+            if (!isset($next[$row['animal_id']]) || $due < $next[$row['animal_id']]['due']) {
+                $next[$row['animal_id']] = ['noun' => $noun, 'due' => $due];
+            }
+        }
+
+        return $next;
     }
 
     /**
@@ -479,708 +1182,194 @@ final readonly class ClientSheetBuilder
         );
     }
 
-    private function sexLabel(string $sex, string $reproductiveStatus): ?string
-    {
-        $neutered = 'neutered' === $reproductiveStatus;
-
-        return match ($sex) {
-            'female' => $neutered ? 'femelle stérilisée' : 'femelle',
-            'male'   => $neutered ? 'mâle castré' : 'mâle',
-            default  => null,
-        };
-    }
-
-    private function formatWeight(string $raw): string
-    {
-        return rtrim(rtrim(number_format((float) $raw, 3, ',', ''), '0'), ',') . ' kg';
-    }
-
     /**
-     * @param list<OwnerAppointmentItem> $appointments
-     * @param array<string, string>      $practitioners
+     * The « Compte » card: what is owed, what is being billed, what was paid this year.
      *
-     * @return array{
-     *     rows: list<array<string, mixed>>,
-     *     upcomingCount: int,
-     *     next: array{when: string, detail: string}|null,
-     *     footer: ?string
-     * }
+     * @param list<InvoiceListRow>                                                         $invoices
+     * @param list<array{admissionId: ?string, animalName: string, animalId: string, ...}> $consultations
+     *
+     * @return array{due: float, dueCount: int, current: float, year: float, unpaid: list<array<string, mixed>>}
      */
-    private function appointmentsView(
-        array $appointments,
-        array $practitioners,
-        \DateTimeZone $tz,
-        \DateTimeImmutable $now,
-    ): array {
-        $utc       = new \DateTimeZone('UTC');
-        $upcoming  = [];
-        $cancelled = [];
-        $honoured  = 0;
-        $noShows   = 0;
-        $past      = 0;
+    private function accountView(array $invoices, array $consultations, \DateTimeZone $tz, \DateTimeImmutable $now): array
+    {
+        $animalByAdmission = [];
 
-        foreach ($appointments as $appointment) {
-            $startsAt = (new \DateTimeImmutable($appointment->startsAtUtc, $utc))->setTimezone($tz);
-            $isFuture = $startsAt >= $now;
-            $subject  = trim(($appointment->reason ?? 'Rendez-vous') . (null === $appointment->animalLabel ? '' : ' — ' . $appointment->animalLabel));
-
-            if ('PLANNED' === $appointment->status && $isFuture) {
-                $upcoming[] = [
-                    'id'       => $appointment->id,
-                    'day'      => $startsAt->format('d'),
-                    'title'    => $subject,
-                    'subtitle' => SheetText::sentence(implode(' · ', array_filter([
-                        SheetText::date($startsAt, "EEEE d MMMM, HH 'h' mm"),
-                        $practitioners[$appointment->practitionerUserId] ?? null,
-                        $appointment->durationMinutes . ' min',
-                    ]))),
-                    'badge'      => 'brand',
-                    'badgeLabel' => 'Planifié',
-                    'action'     => 'Déplacer',
-                    'date'       => $startsAt->format('Y-m-d'),
-                    'cancelled'  => false,
-                    'startsAt'   => $startsAt,
-                    'reason'     => $appointment->reason,
-                    'animal'     => $appointment->animalLabel,
-                ];
-
-                continue;
-            }
-
-            if ('CANCELLED' === $appointment->status && $isFuture) {
-                $cancelled[] = [
-                    'id'         => $appointment->id,
-                    'day'        => $startsAt->format('d'),
-                    'title'      => $subject,
-                    'subtitle'   => \sprintf('Prévu le %s · à reprogrammer', SheetText::date($startsAt, 'd MMMM')),
-                    'badge'      => 'crit',
-                    'badgeLabel' => 'Annulé',
-                    'action'     => 'Reprogrammer',
-                    'date'       => $startsAt->format('Y-m-d'),
-                    'cancelled'  => true,
-                    'startsAt'   => $startsAt,
-                    'reason'     => $appointment->reason,
-                    'animal'     => $appointment->animalLabel,
-                ];
-
-                continue;
-            }
-
-            if ($isFuture || 'CANCELLED' === $appointment->status) {
-                continue;
-            }
-
-            // A past appointment still marked as planned was never settled either way: it is left out.
-            if ('NO_SHOW' === $appointment->status) {
-                ++$past;
-                ++$noShows;
-            } elseif ('COMPLETED' === $appointment->status) {
-                ++$past;
-                ++$honoured;
+        foreach ($consultations as $consultation) {
+            if (null !== $consultation['admissionId']) {
+                $animalByAdmission[$consultation['admissionId']] ??= $consultation;
             }
         }
 
-        // The list arrives newest first: the soonest upcoming one must lead.
-        $upcoming = array_reverse($upcoming);
-        $next     = $upcoming[0] ?? null;
+        $due     = 0;
+        $current = 0;
+        $year    = 0;
+        $unpaid  = [];
+        $yearAgo = $now->modify('-12 months');
 
-        $footer = null;
+        foreach ($invoices as $invoice) {
+            if (null === $invoice->number || null === $invoice->issuedAt) {
+                $current += $invoice->totalGrossMinorUnits;
 
-        if ($past > 0) {
-            $footer = \sprintf(
-                '%d rendez-vous honoré%s sur %d%s.',
-                $honoured,
-                $honoured > 1 ? 's' : '',
-                $past,
-                0 === $noShows ? '' : \sprintf(' · %d absence%s non prévenue%s', $noShows, $noShows > 1 ? 's' : '', $noShows > 1 ? 's' : ''),
-            );
+                continue;
+            }
+
+            if ($invoice->issuedAt >= $yearAgo) {
+                $year += $invoice->amountPaidMinorUnits;
+            }
+
+            if ($invoice->balanceDueMinorUnits <= 0) {
+                continue;
+            }
+
+            $due += $invoice->balanceDueMinorUnits;
+            $visit = null === $invoice->admissionId ? null : $animalByAdmission[$invoice->admissionId] ?? null;
+
+            $unpaid[] = [
+                'visit'        => null === $visit ? 'f-' . $invoice->id : null,
+                'invoiceId'    => $invoice->id,
+                'num'          => $invoice->number,
+                'nom'          => $visit['animalName'] ?? 'Comptoir',
+                'amount'       => $invoice->balanceDueMinorUnits / 100,
+                'balanceInput' => number_format($invoice->balanceDueMinorUnits / 100, 2, ',', ''),
+                'd'            => $invoice->issuedAt->setTimezone($tz)->format('Y-m-d'),
+                'detail'       => $invoice->amountPaidMinorUnits > 0
+                    ? \sprintf('Réglée en partie (%s)', SheetText::money($invoice->amountPaidMinorUnits, $invoice->currency))
+                    : \sprintf('Impayée depuis %d j', max(0, (int) $invoice->issuedAt->diff($now)->days)),
+                'label' => \sprintf('%s · %s', $invoice->number, $visit['animalName'] ?? 'comptoir'),
+            ];
         }
+
+        // Oldest debt first, as the mock-up lists what is owed.
+        usort($unpaid, static fn (array $a, array $b): int => $a['d'] <=> $b['d']);
 
         return [
-            'rows'          => [...$upcoming, ...array_reverse($cancelled)],
-            'upcomingCount' => \count($upcoming),
-            'next'          => null === $next ? null : [
-                'when'   => SheetText::date($next['startsAt'], "EEEE d MMMM, HH 'h' mm"),
-                'detail' => implode(', ', array_filter([$next['animal'], $next['reason']])),
-            ],
-            'footer' => $footer,
+            'due'      => $due / 100,
+            'dueCount' => \count($unpaid),
+            'current'  => $current / 100,
+            'year'     => $year / 100,
+            'unpaid'   => $unpaid,
         ];
     }
 
     /**
-     * @return array{
-     *     initials: string,
-     *     name: string,
-     *     subtitle: string,
-     *     phoneNumber: ?string,
-     *     authorizedAt: string,
-     *     form: array{civility: string, firstName: string, lastName: string, relationship: string, phoneNumber: string}
-     * }|null
+     * The three switches of the « Préférences » card read the consents on file:
+     * SMS appointment reminders, documents by e-mail, payment reminders.
+     *
+     * @return array{sms: bool, mailFac: bool, relance: bool, consents: array<string, list<string>>, preferred: ?string}
      */
-    private function authorizedPersonView(ClientView $client, \DateTimeZone $tz): ?array
+    private function prefsView(ClientView $client): array
     {
-        $person = $client->authorizedPerson;
-
-        if (null === $person) {
-            return null;
-        }
-
-        $honorific = Civility::from($person->civility)->honorific();
-
-        return [
-            'initials'     => mb_strtoupper(mb_substr($person->firstName, 0, 1) . mb_substr($person->lastName, 0, 1)),
-            'name'         => trim($honorific . ' ' . $person->fullName()),
-            'subtitle'     => AuthorizedPersonRelationship::from($person->relationship)->label(),
-            'phoneNumber'  => $person->phoneNumber,
-            'authorizedAt' => SheetText::date((new \DateTimeImmutable($person->authorizedAt))->setTimezone($tz), 'd MMMM y'),
-            'form'         => [
-                'civility'     => $person->civility,
-                'firstName'    => $person->firstName,
-                'lastName'     => $person->lastName,
-                'relationship' => $person->relationship,
-                'phoneNumber'  => $person->phoneNumber ?? '',
-            ],
-        ];
-    }
-
-    /**
-     * @return array{
-     *     rows: list<array{kind: string, label: string, active: bool, detail: string, channels: list<string>}>,
-     *     missing: int,
-     *     remindersGranted: bool,
-     *     marketingGranted: bool,
-     *     preferredChannel: ?string,
-     *     preferredChannelLabel: ?string
-     * }
-     */
-    private function consentsView(ClientView $client, \DateTimeZone $tz): array
-    {
-        $rows    = [];
-        $missing = 0;
+        $consents = [];
 
         foreach (ConsentKind::cases() as $kind) {
             $consent = $client->consentFor($kind->value);
 
-            if (null === $consent) {
-                ++$missing;
-
-                $rows[] = [
-                    'kind'   => $kind->value,
-                    'label'  => $kind->label(),
-                    'active' => false,
-                    'detail' => ConsentKind::MARKETING === $kind
-                        ? 'Jamais recueilli · aucun envoi commercial autorisé'
-                        : 'Non recueilli — à demander au comptoir',
-                    'channels' => [],
-                ];
-
-                continue;
+            if (null !== $consent) {
+                $consents[$kind->value] = $consent->channels;
             }
-
-            $channels = array_map(
-                static fn (string $channel): string => ContactChannel::from($channel)->label(),
-                $consent->channels,
-            );
-
-            $rows[] = [
-                'kind'   => $kind->value,
-                'label'  => $kind->label(),
-                'active' => true,
-                'detail' => \sprintf(
-                    'Recueilli le %s · %s',
-                    SheetText::date((new \DateTimeImmutable($consent->grantedAt))->setTimezone($tz), 'd MMMM y'),
-                    implode(' et ', $channels),
-                ),
-                'channels' => $consent->channels,
-            ];
         }
-
-        $preferred = null === $client->preferredChannel ? null : ContactChannel::from($client->preferredChannel);
 
         return [
-            'rows'                  => $rows,
-            'missing'               => $missing,
-            'remindersGranted'      => null !== $client->consentFor(ConsentKind::APPOINTMENT_REMINDERS->value),
-            'marketingGranted'      => null !== $client->consentFor(ConsentKind::MARKETING->value),
-            'preferredChannel'      => $preferred?->value,
-            'preferredChannelLabel' => $preferred?->label(),
+            'sms'       => \in_array('sms', $consents[ConsentKind::APPOINTMENT_REMINDERS->value] ?? [], true),
+            'mailFac'   => \in_array('email', $consents[ConsentKind::CLINICAL_DOCUMENTS->value] ?? [], true),
+            'relance'   => [] !== ($consents[ConsentKind::BILLING->value] ?? []),
+            'consents'  => $consents,
+            'preferred' => $client->preferredChannel,
         ];
     }
 
     /**
-     * @param list<array{id: string, admissionId: ?string, practitionerUserId: string, status: string, startedAt: \DateTimeImmutable, closedAt: ?\DateTimeImmutable, reason: ?string, animalName: string, ...}> $consultations
-     * @param list<InvoiceListRow>                                                                                                                                                                              $invoices
-     * @param array<string, list<array{id: string, number: string, ...}>>                                                                                                                                       $prescriptions
-     * @param array<string, string>                                                                                                                                                                             $practitioners
-     *
-     * @return array{open: list<array<string, mixed>>, closed: list<array<string, mixed>>, total: int, firstVisit: ?string}
+     * @return array{list: list<array<string, string>>, meta: ?string}
      */
-    private function consultationsView(
-        array $consultations,
-        array $invoices,
-        array $prescriptions,
-        array $practitioners,
-        \DateTimeZone $tz,
-    ): array {
-        $invoiceByAdmission = [];
+    private function personsView(ClientView $client, \DateTimeZone $tz, \DateTimeImmutable $today): array
+    {
+        $person = $client->authorizedPerson;
 
-        foreach ($invoices as $invoice) {
-            // Invoices come newest first: the latest one still standing wins over a cancelled one.
-            if (null !== $invoice->admissionId && null !== $invoice->number && 'CANCELLED' !== $invoice->status) {
-                $invoiceByAdmission[$invoice->admissionId] ??= $invoice;
-            }
+        if (null === $person) {
+            return ['list' => [], 'meta' => null];
         }
 
-        $open   = [];
-        $closed = [];
-
-        foreach ($consultations as $consultation) {
-            $startedAt    = $consultation['startedAt']->setTimezone($tz);
-            $practitioner = $practitioners[$consultation['practitionerUserId']] ?? '—';
-            $reason       = $consultation['reason'] ?? 'Consultation';
-
-            if ('OPEN' === $consultation['status']) {
-                $open[] = [
-                    'id'       => $consultation['id'],
-                    'day'      => $startedAt->format('d'),
-                    'title'    => \sprintf('%s — %s', $consultation['animalName'], $reason),
-                    'subtitle' => \sprintf(
-                        '%s · %s · consultation ouverte',
-                        SheetText::sentence(SheetText::date($startedAt, "d MMMM, HH 'h' mm")),
-                        $practitioner,
-                    ),
-                ];
-
-                continue;
-            }
-
-            $invoice = null === $consultation['admissionId']
-                ? null
-                : $invoiceByAdmission[$consultation['admissionId']] ?? null;
-
-            $closed[] = [
-                'id'            => $consultation['id'],
-                'date'          => $startedAt->format('d/m/Y'),
-                'animalName'    => $consultation['animalName'],
-                'reason'        => $reason,
-                'practitioner'  => $practitioner,
-                'amount'        => $invoice?->totalGrossMinorUnits,
-                'currency'      => $invoice->currency ?? 'EUR',
-                'prescriptions' => $prescriptions[$consultation['id']] ?? [],
-                'invoiceId'     => $invoice?->id,
-            ];
-        }
-
-        $first = [] === $consultations ? null : $consultations[array_key_last($consultations)]['startedAt'];
+        $civility = Civility::tryFrom($person->civility) ?? Civility::UNSPECIFIED;
 
         return [
-            'open'       => $open,
-            'closed'     => $closed,
-            'total'      => \count($consultations),
-            'firstVisit' => null === $first ? null : SheetText::date($first->setTimezone($tz), 'd MMMM y'),
+            'list' => [[
+                'n'        => trim($civility->honorific() . ' ' . $person->firstName . ' ' . $person->lastName),
+                'ini'      => mb_strtoupper(mb_substr($person->firstName, 0, 1) . mb_substr($person->lastName, 0, 1)),
+                'l'        => (AuthorizedPersonRelationship::tryFrom($person->relationship) ?? AuthorizedPersonRelationship::OTHER)->label(),
+                'tel'      => $this->nationalPhone($person->phoneNumber),
+                'civility' => $civility->value,
+                'prenom'   => $person->firstName,
+                'nomP'     => $person->lastName,
+                'lien'     => $person->relationship,
+            ]],
+            'meta' => $this->when((new \DateTimeImmutable($person->authorizedAt))->setTimezone($tz), $today),
         ];
     }
 
     /**
-     * @param list<InvoiceListRow>                                                        $invoices
-     * @param list<array{admissionId: ?string, animalName: string, reason: ?string, ...}> $consultations
+     * The card shows the latest internal note; saving writes a new one.
      *
-     * @return array{
-     *     rows: list<array<string, mixed>>,
-     *     outstanding: list<array{id: string, number: string, balance: int, balanceInput: string}>,
-     *     balanceDue: int,
-     *     currency: string,
-     *     paidLastYear: int,
-     *     issuedCount: int,
-     *     firstYear: ?string,
-     *     oldestOutstandingDays: ?int,
-     *     outstandingCount: int
-     * }
+     * @param array<mixed> $notes newest first
+     *
+     * @return array{text: string, meta: ?string}
      */
-    private function billingView(array $invoices, array $consultations, \DateTimeZone $tz, \DateTimeImmutable $now): array
+    private function noteView(array $notes, \DateTimeZone $tz, \DateTimeImmutable $today): array
     {
-        $visitByAdmission = [];
+        $latest = $notes[0] ?? null;
 
-        foreach ($consultations as $consultation) {
-            if (null !== $consultation['admissionId']) {
-                $visitByAdmission[$consultation['admissionId']] ??= $consultation;
-            }
+        if (!$latest instanceof ClientNoteView) {
+            return ['text' => '', 'meta' => null];
         }
-
-        $rows         = [];
-        $outstanding  = [];
-        $balanceDue   = 0;
-        $paidLastYear = 0;
-        $issuedCount  = 0;
-        $currency     = 'EUR';
-        $firstIssued  = null;
-        $oldestDays   = null;
-        $yearAgo      = $now->modify('-12 months');
-
-        foreach ($invoices as $invoice) {
-            // Drafts and cancelled invoices are not owed and are not part of the history shown here.
-            if (null === $invoice->number || null === $invoice->issuedAt || 'CANCELLED' === $invoice->status) {
-                continue;
-            }
-
-            ++$issuedCount;
-            $currency    = $invoice->currency;
-            $firstIssued = null === $firstIssued || $invoice->issuedAt < $firstIssued ? $invoice->issuedAt : $firstIssued;
-            $visit       = null === $invoice->admissionId ? null : $visitByAdmission[$invoice->admissionId] ?? null;
-            $days        = max(0, (int) $invoice->issuedAt->diff($now)->days);
-            $isDue       = $invoice->balanceDueMinorUnits > 0;
-
-            if ($invoice->issuedAt >= $yearAgo) {
-                $paidLastYear += $invoice->amountPaidMinorUnits;
-            }
-
-            if ($isDue) {
-                $balanceDue += $invoice->balanceDueMinorUnits;
-                $oldestDays = null === $oldestDays ? $days : max($oldestDays, $days);
-
-                $outstanding[] = [
-                    'id'           => $invoice->id,
-                    'number'       => $invoice->number,
-                    'balance'      => $invoice->balanceDueMinorUnits,
-                    'balanceInput' => number_format($invoice->balanceDueMinorUnits / 100, 2, ',', ''),
-                ];
-            }
-
-            $rows[] = [
-                'id'         => $invoice->id,
-                'number'     => $invoice->number,
-                'date'       => $invoice->issuedAt->setTimezone($tz)->format('d/m/Y'),
-                'animalName' => $visit['animalName'] ?? '—',
-                'subject'    => $visit['reason'] ?? '—',
-                'amount'     => $invoice->totalGrossMinorUnits,
-                'currency'   => $invoice->currency,
-                'due'        => $isDue,
-                'badge'      => $isDue ? 'crit' : 'ok',
-                'badgeLabel' => match (true) {
-                    !$isDue                               => 'Acquittée',
-                    'PARTIALLY_PAID' === $invoice->status => \sprintf('Partielle · %d j', $days),
-                    default                               => \sprintf('Impayée · %d j', $days),
-                },
-            ];
-        }
-
-        // Unpaid invoices lead the table, as the mock-up puts what is owed first.
-        usort($rows, static fn (array $a, array $b): int => $b['due'] <=> $a['due']);
 
         return [
-            'rows'                  => $rows,
-            'outstanding'           => $outstanding,
-            'balanceDue'            => $balanceDue,
-            'currency'              => $currency,
-            'paidLastYear'          => $paidLastYear,
-            'issuedCount'           => $issuedCount,
-            'firstYear'             => $firstIssued?->setTimezone($tz)->format('Y'),
-            'oldestOutstandingDays' => $oldestDays,
-            'outstandingCount'      => \count($outstanding),
+            'text' => $latest->content,
+            'meta' => $this->when($latest->createdAt->setTimezone($tz), $today) . ' · ' . $latest->authorName,
         ];
     }
 
     /**
-     * @param array<mixed> $exchanges
-     *
-     * @return list<array{when: string, title: string, body: ?string, author: string, direction: string}>
-     */
-    private function communicationsView(array $exchanges, \DateTimeZone $tz): array
-    {
-        $rows = [];
-
-        foreach ($exchanges as $exchange) {
-            \assert($exchange instanceof ClientCommunicationView);
-
-            $rows[] = [
-                'when' => \sprintf(
-                    '%s · %s',
-                    SheetText::date($exchange->occurredAt->setTimezone($tz), "d MMMM y · HH 'h' mm"),
-                    mb_strtolower(ContactChannel::from($exchange->channel)->label()),
-                ),
-                'title'     => $exchange->subject,
-                'body'      => $exchange->body,
-                'author'    => $exchange->authorName,
-                'direction' => CommunicationDirection::from($exchange->direction)->label(),
-            ];
-        }
-
-        return $rows;
-    }
-
-    /**
-     * @param array<mixed> $notes
-     *
-     * @return list<array{attention: bool, heading: string, content: string}>
-     */
-    private function notesView(array $notes, \DateTimeZone $tz): array
-    {
-        $rows = [];
-
-        foreach ($notes as $note) {
-            \assert($note instanceof ClientNoteView);
-
-            $rows[] = [
-                'attention' => ClientNoteKind::ATTENTION->value === $note->kind,
-                'heading'   => \sprintf('%s — %s.', $note->createdAt->setTimezone($tz)->format('d/m/Y'), $note->authorName),
-                'content'   => $note->content,
-            ];
-        }
-
-        return $rows;
-    }
-
-    /**
-     * Reports, prescriptions and invoices are generated on demand: the sheet
-     * lists what can be produced for this client, newest first.
-     *
-     * @param list<array{id: string, admissionId: ?string, status: string, startedAt: \DateTimeImmutable, animalName: string, ...}> $consultations
-     * @param list<InvoiceListRow>                                                                                                  $invoices
-     * @param array<string, list<array{id: string, number: string, issuedAt: \DateTimeImmutable, lineCount: int}>>                  $prescriptions
-     *
-     * @return list<array{type: string, title: string, reference: string, date: string, animalName: string, id: string}>
-     */
-    private function documentsView(array $consultations, array $invoices, array $prescriptions, \DateTimeZone $tz): array
-    {
-        $documents      = [];
-        $animalByVisit  = [];
-        $animalByAdmiss = [];
-
-        foreach ($consultations as $consultation) {
-            $animalByVisit[$consultation['id']] = $consultation['animalName'];
-
-            if (null !== $consultation['admissionId']) {
-                $animalByAdmiss[$consultation['admissionId']] = $consultation['animalName'];
-            }
-
-            if ('CLOSED' !== $consultation['status']) {
-                continue;
-            }
-
-            $documents[] = [
-                'type'       => 'report',
-                'title'      => 'Compte rendu de consultation',
-                'reference'  => 'CR-' . mb_strtoupper(mb_substr($consultation['id'], -8)),
-                'sortKey'    => $consultation['startedAt'],
-                'animalName' => $consultation['animalName'],
-                'id'         => $consultation['id'],
-            ];
-        }
-
-        foreach ($prescriptions as $consultationId => $list) {
-            foreach ($list as $prescription) {
-                $documents[] = [
-                    'type'  => 'prescription',
-                    'title' => \sprintf(
-                        'Ordonnance — %d médicament%s',
-                        $prescription['lineCount'],
-                        $prescription['lineCount'] > 1 ? 's' : '',
-                    ),
-                    'reference'  => $prescription['number'],
-                    'sortKey'    => $prescription['issuedAt'],
-                    'animalName' => $animalByVisit[$consultationId] ?? '—',
-                    'id'         => $prescription['id'],
-                ];
-            }
-        }
-
-        foreach ($invoices as $invoice) {
-            if (null === $invoice->number || null === $invoice->issuedAt || 'CANCELLED' === $invoice->status) {
-                continue;
-            }
-
-            $documents[] = [
-                'type'  => 'invoice',
-                'title' => \sprintf(
-                    'Facture%s — %s €',
-                    $invoice->balanceDueMinorUnits > 0 ? '' : ' acquittée',
-                    number_format($invoice->totalGrossMinorUnits / 100, 2, ',', ' '),
-                ),
-                'reference'  => $invoice->number,
-                'sortKey'    => $invoice->issuedAt,
-                'animalName' => null === $invoice->admissionId ? '—' : $animalByAdmiss[$invoice->admissionId] ?? '—',
-                'id'         => $invoice->id,
-            ];
-        }
-
-        usort($documents, static fn (array $a, array $b): int => $b['sortKey'] <=> $a['sortKey']);
-
-        return array_map(static fn (array $document): array => [
-            'type'       => $document['type'],
-            'title'      => $document['title'],
-            'reference'  => $document['reference'],
-            'date'       => $document['sortKey']->setTimezone($tz)->format('d/m/Y'),
-            'animalName' => $document['animalName'],
-            'id'         => $document['id'],
-        ], $documents);
-    }
-
-    /**
-     * What still has to be collected for the file to be usable day to day.
-     *
-     * @param array{mobile: ?string, landline: ?string, email: ?string, address: ?string, ...} $contact
-     * @param array{remindersGranted: bool, ...}                                               $consents
-     * @param list<array{name: string, archived: bool, ...}>                                   $animals
-     *
-     * @return array{rows: list<array{done: bool, level: string, title: string, detail: string, action: ?string, modal: ?string}>, done: int, total: int, missing: int}
-     */
-    private function checklist(ClientView $client, array $contact, array $consents, array $animals): array
-    {
-        $hasPhone  = null !== $contact['mobile'] || null !== $contact['landline'];
-        $firstName = [] === $animals ? null : $animals[0]['name'];
-
-        $rows = [
-            [
-                'done'   => $consents['remindersGranted'],
-                'level'  => 'crit',
-                'title'  => $consents['remindersGranted'] ? 'Consentement aux rappels recueilli' : 'Consentements non recueillis',
-                'detail' => $consents['remindersGranted']
-                    ? 'Les rappels de rendez-vous peuvent être envoyés'
-                    : 'Sans accord, aucun rappel de rendez-vous ni de vaccination ne peut être envoyé.',
-                'action' => 'Recueillir',
-                'modal'  => 'fc-m-comm',
-            ],
-            [
-                'done'   => null !== $contact['email'],
-                'level'  => 'warn',
-                'title'  => null !== $contact['email'] ? 'Adresse e-mail renseignée' : 'Adresse e-mail manquante',
-                'detail' => null !== $contact['email']
-                    ? $contact['email']
-                    : 'Le compte rendu et la facture ne pourront être remis qu’en main propre.',
-                'action' => 'Renseigner',
-                'modal'  => 'fc-m-edit',
-            ],
-            [
-                'done'   => null !== $client->authorizedPerson,
-                'level'  => 'warn',
-                'title'  => null !== $client->authorizedPerson ? 'Personne autorisée désignée' : 'Aucune personne autorisée désignée',
-                'detail' => null !== $client->authorizedPerson
-                    ? $client->authorizedPerson->fullName()
-                    : \sprintf('Personne d’autre que %s ne pourra récupérer ses animaux.', $client->fullName()),
-                'action' => 'Désigner',
-                'modal'  => 'fc-m-edit',
-            ],
-            [
-                'done'  => $hasPhone && null !== $contact['address'],
-                'level' => 'warn',
-                'title' => $hasPhone && null !== $contact['address']
-                    ? 'Coordonnées principales renseignées'
-                    : 'Coordonnées principales incomplètes',
-                'detail' => $hasPhone && null !== $contact['address']
-                    ? 'Téléphone et adresse postale'
-                    : ($hasPhone ? 'Adresse postale manquante' : 'Aucun numéro de téléphone'),
-                'action' => 'Compléter',
-                'modal'  => 'fc-m-edit',
-            ],
-            [
-                'done'   => null !== $firstName,
-                'level'  => 'warn',
-                'title'  => null !== $firstName ? 'Premier animal rattaché' : 'Aucun animal rattaché',
-                'detail' => $firstName ?? 'Le dossier ne contient encore aucun animal.',
-                'action' => 'Ajouter',
-                'modal'  => 'fc-m-pet',
-            ],
-        ];
-
-        // What remains to be done leads; what is settled sinks to the bottom, as in the mock-up.
-        usort($rows, static fn (array $a, array $b): int => $a['done'] <=> $b['done']);
-
-        $done = \count(array_filter($rows, static fn (array $row): bool => $row['done']));
-
-        return ['rows' => $rows, 'done' => $done, 'total' => \count($rows), 'missing' => \count($rows) - $done];
-    }
-
-    /**
-     * The sticky strip: what must be known before speaking to this client.
-     *
-     * @param array{balanceDue: int, oldestOutstandingDays: ?int, currency: string, ...} $billing
-     * @param array{remindersGranted: bool, marketingGranted: bool, ...}                 $consents
-     * @param list<array{startedAt: \DateTimeImmutable, ...}>                            $consultations
-     *
-     * @return array{pills: list<array{level: string, label: string}>, meta: string}
-     */
-    private function safety(ClientView $client, array $billing, array $consents, int $animalCount, array $consultations): array
-    {
-        $pills = [];
-
-        if ('archived' === $client->status) {
-            $pills[] = ['level' => 'info', 'label' => 'Fiche archivée'];
-        }
-
-        if ($billing['balanceDue'] > 0) {
-            $pills[] = [
-                'level' => 'crit',
-                'label' => \sprintf(
-                    '%s € impayés depuis %d jour%s',
-                    number_format($billing['balanceDue'] / 100, 2, ',', ' '),
-                    $billing['oldestOutstandingDays'] ?? 0,
-                    ($billing['oldestOutstandingDays'] ?? 0) > 1 ? 's' : '',
-                ),
-            ];
-        }
-
-        if (!$consents['remindersGranted']) {
-            $pills[] = ['level' => 'warn', 'label' => 'Consentements non recueillis — aucun rappel ne peut être envoyé'];
-        } elseif (!$consents['marketingGranted']) {
-            $pills[] = ['level' => 'warn', 'label' => 'Consentement commercial non recueilli'];
-        }
-
-        $visits = \count($consultations);
-        $meta   = \sprintf('%d anima%s', $animalCount, $animalCount > 1 ? 'ux' : 'l');
-
-        if ($visits > 0) {
-            $first = $consultations[array_key_last($consultations)]['startedAt'];
-            $meta .= 1 === $visits
-                ? ' · première visite'
-                : \sprintf(' · %d visites depuis %s', $visits, $first->format('Y'));
-        }
-
-        return ['pills' => $pills, 'meta' => $meta];
-    }
-
-    /**
-     * @return array<string, array<string, string>>
+     * @return array{relationships: list<array{v: string, l: string}>}
      */
     private function choices(): array
     {
-        $civilities    = [];
         $relationships = [];
-        $channels      = [];
-        $consentKinds  = [];
-        $noteKinds     = [];
-        $directions    = [];
-
-        foreach (Civility::cases() as $case) {
-            $civilities[$case->value] = $case->label();
-        }
 
         foreach (AuthorizedPersonRelationship::cases() as $case) {
-            $relationships[$case->value] = $case->label();
+            $relationships[] = ['v' => $case->value, 'l' => $case->label()];
         }
 
-        foreach (ContactChannel::cases() as $case) {
-            $channels[$case->value] = $case->label();
+        return ['relationships' => $relationships];
+    }
+
+    /** « 12 mars » this year, « 12 mars 2025 » before. */
+    private function when(\DateTimeImmutable $date, \DateTimeImmutable $today): string
+    {
+        return SheetText::date($date, $date->format('Y') === $today->format('Y') ? 'd MMM' : 'd MMM y');
+    }
+
+    /** « +33612345678 » → « 06 12 34 56 78 »; foreign numbers stay as they are. */
+    private function nationalPhone(?string $value): string
+    {
+        if (null === $value) {
+            return '';
         }
 
-        foreach (ConsentKind::cases() as $case) {
-            $consentKinds[$case->value] = $case->label();
+        $compact = preg_replace('/[^\d+]/', '', $value) ?? $value;
+
+        if (1 === preg_match('/^\+33([1-9]\d{8})$/', $compact, $m)) {
+            return trim(chunk_split('0' . $m[1], 2, ' '));
         }
 
-        foreach (ClientNoteKind::cases() as $case) {
-            $noteKinds[$case->value] = $case->label();
-        }
+        return $value;
+    }
 
-        foreach (CommunicationDirection::cases() as $case) {
-            $directions[$case->value] = $case->label();
-        }
+    private function number(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, ',', ' '), '0'), ',');
+    }
 
-        return [
-            'civilities'    => $civilities,
-            'relationships' => $relationships,
-            'channels'      => $channels,
-            'consentKinds'  => $consentKinds,
-            'noteKinds'     => $noteKinds,
-            'directions'    => $directions,
-        ];
+    private function text(mixed $value): ?string
+    {
+        return \is_string($value) && '' !== trim($value) ? trim($value) : null;
     }
 }

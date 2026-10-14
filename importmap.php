@@ -72,6 +72,12 @@ return [
     'pages/clients/view' => [
         'path' => './assets/js/pages/clients/view.js',
     ],
+    'pages/clients/sheet' => [
+        'path' => './assets/js/pages/clients/sheet.js',
+    ],
+    'pages/dossier/kit' => [
+        'path' => './assets/js/pages/dossier/kit.js',
+    ],
     'pages/consultation' => [
         'path' => './assets/js/pages/consultation.js',
     ],

@@ -9,6 +9,7 @@ final readonly class ClientIdentity
     public function __construct(
         public string $firstName,
         public string $lastName,
+        public Civility $civility = Civility::UNSPECIFIED,
     ) {
         if ('' === trim($firstName)) {
             throw new \InvalidArgumentException('First name cannot be empty.');

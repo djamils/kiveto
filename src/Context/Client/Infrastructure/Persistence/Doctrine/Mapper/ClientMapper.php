@@ -45,6 +45,7 @@ final readonly class ClientMapper
             identity: new ClientIdentity(
                 firstName: $entity->getFirstName(),
                 lastName: $entity->getLastName(),
+                civility: Civility::tryFrom($entity->getCivility()) ?? Civility::UNSPECIFIED,
             ),
             status: $entity->getStatus(),
             contactMethods: $contactMethods,
@@ -66,6 +67,7 @@ final readonly class ClientMapper
         $clientEntity->setClinicId(Uuid::fromString($client->clinicId()->toString()));
         $clientEntity->setFirstName($client->identity()->firstName);
         $clientEntity->setLastName($client->identity()->lastName);
+        $clientEntity->setCivility($client->identity()->civility->value);
         $clientEntity->setStatus($client->status());
         $clientEntity->setCreatedAt($client->createdAt());
         $clientEntity->setUpdatedAt($client->updatedAt());

@@ -139,6 +139,7 @@
 @import "./pages/home.css";
 @import "./pages/clients/directory.css";
 @import "./pages/clients/view.css";
+@import "./pages/dossier.css";
 @import "./pages/animals/view.css";
 @import "./pages/consultation.css";
 @import "./pages/settings.css";

@@ -1,6 +1,6 @@
 /**
- * Page module — Client and animal sheets (new-gen v14 layout).
- * Both pages share the same `fc-` markup, so they share this script.
+ * Page module — animal sheet (new-gen v14 layout, `fc-` markup). The client
+ * sheet moved to the v-topbar design: pages/clients/sheet.js.
  * Loaded by the app.js dispatcher on turbo:load.
  *
  * Everything is wired through delegated listeners on the document, bound in
