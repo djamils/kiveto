@@ -36,6 +36,7 @@ final readonly class DoctrineClientRepository implements ClientRepositoryInterfa
         } else {
             $existingClient->setFirstName($clientEntity->getFirstName());
             $existingClient->setLastName($clientEntity->getLastName());
+            $existingClient->setCivility($clientEntity->getCivility());
             $existingClient->setStatus($clientEntity->getStatus());
             $existingClient->setPostalAddress($clientEntity->getPostalAddress());
             $existingClient->setAuthorizedPerson($clientEntity->getAuthorizedPerson());

@@ -53,6 +53,7 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
         $now    = new \DateTimeImmutable('2026-09-30T09:00:00+00:00');
         $client = $repository->get(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CLIENT_ID));
 
+        $client->updateIdentity(new ClientIdentity('Hélène', 'Lambert', Civility::MADAM), $now);
         $client->updatePostalAddress(
             PostalAddress::create(streetLine1: '24 rue Lepic', city: 'Paris', countryCode: 'FR', postalCode: '75018'),
             $now,
@@ -75,6 +76,8 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
         $this->entityManager()->clear();
 
         $reloaded = $repository->get(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CLIENT_ID));
+
+        self::assertSame(Civility::MADAM, $reloaded->identity()->civility);
 
         $address = $reloaded->postalAddress();
         self::assertNotNull($address);
@@ -147,7 +150,7 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
         $client = Client::create(
             ClientId::fromString(self::CLIENT_ID),
             ClinicId::fromString(self::CLINIC_ID),
-            new ClientIdentity('Hélène', 'Lambert'),
+            new ClientIdentity('Hélène', 'Lambert', Civility::MADAM),
             [ContactMethod::email(EmailAddress::fromString('h.lambert@example.com'), ContactLabel::HOME, true)],
             $now,
         );
@@ -173,6 +176,7 @@ final class DoctrineClientSheetFieldsTest extends KernelTestCase
         $view = $readRepository->findById(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CLIENT_ID));
 
         self::assertNotNull($view);
+        self::assertSame('madam', $view->civility);
         self::assertNotNull($view->authorizedPerson);
         self::assertSame('mister', $view->authorizedPerson->civility);
         self::assertSame('Marc', $view->authorizedPerson->firstName);

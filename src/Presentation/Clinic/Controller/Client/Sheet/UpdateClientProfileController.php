@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Client\Sheet;
 
-use App\Context\Client\Application\Command\ChangeClientAuthorizedPerson\AuthorizedPersonDto;
-use App\Context\Client\Application\Command\ChangeClientAuthorizedPerson\ChangeClientAuthorizedPerson;
 use App\Context\Client\Application\Command\ReplaceClientContactMethods\ReplaceClientContactMethods;
 use App\Context\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
 use App\Context\Client\Application\Command\UpdateClientPostalAddress\PostalAddressDto;
 use App\Context\Client\Application\Command\UpdateClientPostalAddress\UpdateClientPostalAddress;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
-use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
 use App\Presentation\Clinic\ViewModel\Client\ClientContactSlots;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -22,9 +19,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The "Modifier" dialog of the client sheet: identity, contact details,
- * postal address and authorized person in one form. Only what actually
- * changed is sent to the domain.
+ * The « Coordonnées » dialog of the client sheet: civility, identity,
+ * postal address and contact details in one form. Only what actually changed
+ * is sent to the domain.
  */
 #[Route('/clients/{id}/profile', name: 'clinic_clients_profile_update', methods: ['POST'])]
 final class UpdateClientProfileController extends AbstractClientSheetAction
@@ -49,7 +46,7 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
         $error = $this->validate($request, $client);
 
         if (null !== $error) {
-            $this->addFlash('error', 'La fiche n’a pas été enregistrée : ' . $error);
+            $this->addFlash('error', 'Les coordonnées n’ont pas été enregistrées : ' . $error);
 
             return $this->backToSheet($id);
         }
@@ -58,16 +55,17 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
             $this->updateIdentity($clinicId, $client, $request);
             $this->updateContactMethods($clinicId, $client, $request);
             $this->updateAddress($clinicId, $client, $request);
-            $this->updateAuthorizedPerson($clinicId, $client, $request);
         });
 
-        if ($saved) {
-            $this->addFlash('success', 'Fiche client mise à jour.');
-        } else {
-            $this->addFlash('error', 'La fiche n’a été enregistrée qu’en partie : vérifiez les coordonnées saisies.');
+        if (!$saved) {
+            $this->addFlash('error', 'Les coordonnées n’ont été enregistrées qu’en partie : vérifiez les valeurs saisies.');
+
+            return $this->backToSheet($id);
         }
 
-        return $this->backToSheet($id);
+        $this->addFlash('success', 'Coordonnées enregistrées.');
+
+        return $this->backToSheet($id, 'head');
     }
 
     /**
@@ -77,14 +75,19 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
      */
     private function validate(Request $request, ClientView $client): ?string
     {
-        $mobile   = $this->trimmed($request, 'mobile');
-        $landline = $this->trimmed($request, 'landline');
+        $mobile   = $this->phone($this->trimmed($request, 'mobile'));
+        $landline = $this->phone($this->trimmed($request, 'landline'));
         $email    = $this->email($request);
         $street   = $this->trimmed($request, 'street');
         $city     = $this->trimmed($request, 'city');
+        $civility = $this->trimmed($request, 'civility');
 
         if (null === $this->trimmed($request, 'first_name') || null === $this->trimmed($request, 'last_name')) {
             return 'le prénom et le nom sont obligatoires.';
+        }
+
+        if (null !== $civility && null === Civility::tryFrom($civility)) {
+            return 'la civilité est inconnue.';
         }
 
         $slots = ClientContactSlots::fromContactMethods($client->contactMethods);
@@ -101,7 +104,7 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
             return 'les deux numéros de téléphone sont identiques.';
         }
 
-        foreach ([$mobile, $landline, $this->trimmed($request, 'ap_phone')] as $phone) {
+        foreach ([$mobile, $landline] as $phone) {
             if (null !== $phone && 1 !== preg_match('/^\+[1-9]\d{6,14}$/', $phone)) {
                 return 'un numéro de téléphone est invalide.';
             }
@@ -111,20 +114,6 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
 
         if ((null === $street) !== (null === $city) || ($hasPostalCode && null === $street)) {
             return 'une adresse nécessite au moins la rue et la ville.';
-        }
-
-        $hasFirstName = null !== $this->trimmed($request, 'ap_first_name');
-        $hasLastName  = null !== $this->trimmed($request, 'ap_last_name');
-
-        if ($hasFirstName !== $hasLastName) {
-            return 'la personne autorisée doit avoir un prénom et un nom.';
-        }
-
-        $civility     = $this->trimmed($request, 'ap_civility') ?? Civility::UNSPECIFIED->value;
-        $relationship = $this->trimmed($request, 'ap_relationship') ?? AuthorizedPersonRelationship::OTHER->value;
-
-        if (null === Civility::tryFrom($civility) || null === AuthorizedPersonRelationship::tryFrom($relationship)) {
-            return 'la civilité ou le lien de la personne autorisée est inconnu.';
         }
 
         return null;
@@ -145,23 +134,24 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
     {
         $firstName = $this->trimmed($request, 'first_name') ?? '';
         $lastName  = $this->trimmed($request, 'last_name') ?? '';
+        $civility  = $this->trimmed($request, 'civility') ?? $client->civility;
 
-        if ($firstName === $client->firstName && $lastName === $client->lastName) {
+        if ($firstName === $client->firstName && $lastName === $client->lastName && $civility === $client->civility) {
             return;
         }
 
-        $this->commandBus->dispatch(new UpdateClientIdentity($clinicId, $client->id, $firstName, $lastName));
+        $this->commandBus->dispatch(new UpdateClientIdentity($clinicId, $client->id, $firstName, $lastName, $civility));
     }
 
     private function updateContactMethods(string $clinicId, ClientView $client, Request $request): void
     {
-        $mobile   = $this->trimmed($request, 'mobile');
-        $landline = $this->trimmed($request, 'landline');
+        $mobile   = $this->phone($this->trimmed($request, 'mobile'));
+        $landline = $this->phone($this->trimmed($request, 'landline'));
         $email    = $this->email($request);
         $slots    = ClientContactSlots::fromContactMethods($client->contactMethods);
 
-        $unchanged = $mobile === $slots->mobile?->value
-            && $landline === $slots->landline?->value
+        $unchanged = $mobile === $this->phone($slots->mobile?->value)
+            && $landline === $this->phone($slots->landline?->value)
             && $email === $slots->email?->value;
 
         if ($unchanged) {
@@ -178,6 +168,7 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
     private function updateAddress(string $clinicId, ClientView $client, Request $request): void
     {
         $street     = $this->trimmed($request, 'street');
+        $street2    = $this->trimmed($request, 'street2');
         $city       = $this->trimmed($request, 'city');
         $postalCode = $this->trimmed($request, 'postal_code');
         $current    = $client->postalAddress;
@@ -192,6 +183,7 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
 
         $unchanged = null !== $current
             && $current->streetLine1 === $street
+            && $current->streetLine2 === $street2
             && $current->city === $city
             && $current->postalCode === $postalCode;
 
@@ -202,49 +194,11 @@ final class UpdateClientProfileController extends AbstractClientSheetAction
         $this->commandBus->dispatch(new UpdateClientPostalAddress($clinicId, $client->id, new PostalAddressDto(
             streetLine1: $street,
             city: $city,
-            // The sheet edits the three usual lines; what it does not show is kept as it was.
+            // The sheet edits the usual lines; what it does not show is kept as it was.
             countryCode: $current->countryCode ?? 'FR',
-            streetLine2: $current?->streetLine2,
+            streetLine2: $street2,
             postalCode: $postalCode,
             region: $current?->region,
-        )));
-    }
-
-    private function updateAuthorizedPerson(string $clinicId, ClientView $client, Request $request): void
-    {
-        $firstName = $this->trimmed($request, 'ap_first_name');
-        $lastName  = $this->trimmed($request, 'ap_last_name');
-        $current   = $client->authorizedPerson;
-
-        if (null === $firstName || null === $lastName) {
-            if (null !== $current) {
-                $this->commandBus->dispatch(new ChangeClientAuthorizedPerson($clinicId, $client->id, null));
-            }
-
-            return;
-        }
-
-        $civility     = $this->trimmed($request, 'ap_civility') ?? 'unspecified';
-        $relationship = $this->trimmed($request, 'ap_relationship') ?? 'other';
-        $phone        = $this->trimmed($request, 'ap_phone');
-
-        $unchanged = null !== $current
-            && $current->firstName === $firstName
-            && $current->lastName === $lastName
-            && $current->civility === $civility
-            && $current->relationship === $relationship
-            && $current->phoneNumber === $phone;
-
-        if ($unchanged) {
-            return;
-        }
-
-        $this->commandBus->dispatch(new ChangeClientAuthorizedPerson($clinicId, $client->id, new AuthorizedPersonDto(
-            civility: $civility,
-            firstName: $firstName,
-            lastName: $lastName,
-            relationship: $relationship,
-            phoneNumber: $phone,
         )));
     }
 }

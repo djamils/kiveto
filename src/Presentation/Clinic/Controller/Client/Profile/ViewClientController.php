@@ -50,9 +50,10 @@ final class ViewClientController extends AbstractController
         $now      = $this->clock->now();
 
         return $this->render('clinic/clients/view/index.html.twig', [
-            'client'            => $client,
-            'sheet'             => $this->sheetBuilder->build($client, $clinicTz, $now),
-            'activeTab'         => $request->query->getString('tab', 'synthese'),
+            'client' => $client,
+            'sheet'  => $this->sheetBuilder->build($client, $clinicTz, $now),
+            // The card a form was just saved from, flashed green by the page.
+            'savedCard'         => $request->query->getString('saved'),
             'today'             => $now->setTimezone($clinicTz)->format('Y-m-d'),
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,

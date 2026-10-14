@@ -30,6 +30,7 @@ final readonly class ListAppointmentsForOwnerHandler
                 a.duration_minutes,
                 a.status,
                 a.reason,
+                a.notes,
                 BIN_TO_UUID(a.animal_id) as animal_id,
                 an.name as animal_label
             FROM scheduling__appointments a
@@ -60,6 +61,7 @@ final readonly class ListAppointmentsForOwnerHandler
                 reason: RowAccessor::nullableString($row, 'reason'),
                 animalId: RowAccessor::nullableString($row, 'animal_id'),
                 animalLabel: RowAccessor::nullableString($row, 'animal_label'),
+                notes: RowAccessor::nullableString($row, 'notes'),
             ),
             $rows,
         );

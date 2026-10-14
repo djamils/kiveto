@@ -34,12 +34,14 @@ final class AddClientNoteController extends AbstractClientSheetAction
             authorName: $this->staffNameResolver->resolve($clinicId, $this->getUser()),
         )));
 
-        if ($saved) {
-            $this->addFlash('success', 'Note ajoutée.');
-        } else {
+        if (!$saved) {
             $this->addFlash('error', 'La note n’a pas pu être enregistrée : vérifiez qu’elle n’est ni vide ni trop longue.');
+
+            return $this->backToSheet($id);
         }
 
-        return $this->backToSheet($id, 'communications');
+        $this->addFlash('success', 'Note interne · note mise à jour');
+
+        return $this->backToSheet($id, 'cNote');
     }
 }

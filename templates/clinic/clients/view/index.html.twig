@@ -1,80 +1,159 @@
 {#
  # Kiveto — templates/clinic/clients/view/index.html.twig
  # ─────────────────────────────────────────────────────
- # Client sheet, laid out after the new-gen v14 mock-up
- # (docs/frontend-theme/vetsaas-layouts/new-gen/vetos-fiche-client-v14.html):
- # a compact identity header, a sticky safety strip with the section tabs,
- # then five full-width panes.
+ # Client sheet, ported from docs/frontend-theme/kiveto-theme/client-v-topbar_5.html
+ # (and its -busy / -vierge variants, which are the same page with more or no
+ # data): identity header with the contact facts, the household's animals,
+ # the history of every visit (expandable rows), and the rail — appointments
+ # to come, account, preferences, authorized person, internal note.
+ #
+ # The page module (assets/js/pages/clients/sheet.js) renders the cards from
+ # the `data-sheet` payload built by ClientSheetBuilder, as the mock-up renders
+ # them from its demo data. Every change is a real form below, posted to its
+ # single-action controller, which comes back here with ?saved=<card>.
  #
  # Variables:
  #   client             ClientView
  #   sheet              array built by ClientSheetBuilder
- #   activeTab          string  one of the pane ids below
+ #   savedCard          string  card to flash as saved ('' if none)
  #   today              string  Y-m-d in clinic time
  #   currentClinicName  string
+ #
+ # Styles: assets/styles/pages/dossier.css (shared with the animal sheet).
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% set archived = client.status == 'archived' %}
-{% set tabs = {
-  synthese: 'Synthèse',
-  consultations: 'Consultations',
-  facturation: 'Facturation',
-  communications: 'Communications',
-  documents: 'Documents',
-} %}
-{% set current_tab = activeTab in tabs|keys ? activeTab : 'synthese' %}
-
+{% block page_body_class %}vt{% endblock %}
 {% block title %}{{ client.fullName }} — {{ currentClinicName }}{% endblock %}
 
-{% block page_title %}{{ client.fullName }}{% endblock %}
+{% set token = csrf_token('client_sheet') %}
+{% set archived = client.status == 'archived' %}
+{% set xb = '<button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' %}
 
-{% block content %}
-<div class="fc fc-page" data-fc-sheet>
+{% block main %}
+<div class="dossier" data-page="{{ app.request.attributes.get('_route') }}"
+     data-sheet="{{ sheet|json_encode }}"
+     data-saved="{{ savedCard }}"
+     data-appt-token="{{ csrf_token('appointment') }}">
 
-  {{ include('clinic/clients/view/_header.html.twig') }}
-
-  <div class="fc-scroll" data-fc-scroll>
-    <div class="fc-stuck">
-      <div class="fc-safety{{ sheet.safety.pills|filter(p => p.level == 'crit')|length == 0 ? ' fc-none' }}">
-        {% for pill in sheet.safety.pills %}
-          <span class="fc-sf fc-{{ pill.level }}">
-            {% if loop.first and pill.level != 'info' %}
-              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5.6v3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="currentColor"/><path d="M6.9 2.7L1.8 11.9a1.2 1.2 0 001 1.8h10.4a1.2 1.2 0 001-1.8L9.1 2.7a1.2 1.2 0 00-2.2 0z" stroke="currentColor" stroke-width="1.35"/></svg>
-            {% endif %}
-            {{ pill.label }}
-          </span>
-        {% endfor %}
-        <span class="fc-sf-meta">{{ sheet.safety.meta }}</span>
-      </div>
-      <div class="fc-tabs" role="tablist" aria-label="Sections du dossier">
-        {% for id, label in tabs %}
-          <button class="fc-tab" type="button" role="tab" id="fc-tab-{{ id }}" data-fc-tab="{{ id }}"
-                  aria-selected="{{ id == current_tab ? 'true' : 'false' }}" aria-controls="fc-p-{{ id }}"
-                  tabindex="{{ id == current_tab ? '0' : '-1' }}">
-            {{- label -}}
-            {%- if id == 'facturation' and sheet.billing.outstandingCount > 0 -%}
-              <span class="fc-n fc-hot">{{ sheet.billing.outstandingCount }}</span>
-            {%- elseif id == 'documents' and sheet.documents|length > 0 -%}
-              <span class="fc-n">{{ sheet.documents|length }}</span>
-            {%- endif -%}
-          </button>
-        {% endfor %}
-      </div>
+  <div class="pagehead dos-h">
+    <div class="ph-id"><span class="ph-av txt" id="phAv"></span><div style="min-width:0"><h1 id="phNom"></h1><div class="ph-facts" id="phFacts"></div></div></div>
+    <div class="right" style="align-items:center">
+      <button type="button" class="btn" id="btnMenu" aria-label="Plus d'actions">&#8943;</button>
+      {% if archived %}
+        <button type="button" class="btn primaire" disabled data-tip="Fiche archivée : désarchivez-la pour prendre rendez-vous"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Prendre RDV</button>
+      {% else %}
+        <a class="btn primaire" href="{{ sheet.client.book }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Prendre RDV</a>
+      {% endif %}
     </div>
-
-    {% for id in tabs|keys %}
-      <div class="fc-pane{{ id == current_tab ? ' fc-on' }}" id="fc-p-{{ id }}" role="tabpanel" aria-labelledby="fc-tab-{{ id }}">
-        {{ include('clinic/clients/view/_tab_' ~ id ~ '.html.twig') }}
-      </div>
-    {% endfor %}
+  </div>
+  {% if archived %}
+    <div class="dcd-band"><span>🗄</span><span><b>Fiche archivée</b> · masquée du répertoire, rien n'est supprimé. Dossier en lecture seule.</span><button type="button" class="lien" data-unarchive style="margin-left:auto">Désarchiver</button></div>
+  {% endif %}
+  <div class="dos">
+    <div class="col grow">
+      <div class="anis-h" id="anisH" hidden><h2>Animaux<span id="anisN"></span></h2>{% if not archived %}<button type="button" class="lien" id="aniAddL">+ Ajouter un animal</button>{% endif %}</div>
+      <div class="anis-w"><div class="anis-sc"><div class="anis" id="anis"></div><button type="button" class="anis-nav g" aria-label="Animaux précédents" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button><button type="button" class="anis-nav d" aria-label="Animaux suivants" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></button></div><span id="aniAddSlot" style="display:contents"></span></div>
+      <section class="card fill"><header><h2>Historique</h2><div class="r"><div class="fil chips" id="fil"></div></div></header><div class="cb scr"><div class="rows" id="hist"></div></div></section>
+    </div>
+    <div class="col rail scr">
+      <section class="card"><header><h2>Prochains rendez-vous</h2></header><div class="cb" id="rdvs"></div></section>
+      <section class="card" id="cCompte"><header><h2>Compte</h2><div class="r"><a class="lien" href="{{ path('clinic_invoices', {q: client.fullName}) }}">Facturation</a></div></header><div class="cb"><div class="kpis" id="kpis"></div><div class="imps" id="imps"></div></div></section>
+      <section class="card" id="cPref"></section>
+      <section class="card" id="cPers"></section>
+      <section class="card" id="cNote"></section>
+    </div>
   </div>
 
-</div>
-{% endblock %}
+  {# ══ Coordonnées ══ #}
+  <div class="mveil" id="mCoord"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="coT">
+    <div class="mhead"><div class="mt"><b id="coT">Coordonnées</b><span id="coSub">—</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="coForm" method="post" action="{{ path('clinic_clients_profile_update', {id: client.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="civility" id="coCiv">
+    </form>
+    <div class="mfoot"><span class="meta" id="coMeta"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="coOk">Enregistrer</button></div>
+  </div></div>
 
-{% block modals %}
-<div class="fc" data-fc-modals>
-  {{ include('clinic/clients/view/_modals.html.twig') }}
+  {# ══ Encaisser (one unpaid invoice) ══ #}
+  <div class="mveil" id="mEnc"><div class="mbox" style="width:min(440px,94vw)" role="dialog" aria-modal="true" aria-labelledby="encT">
+    <div class="mhead"><div class="mt"><b id="encT">Encaisser</b><span id="encS"></span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="encForm" method="post" action="{{ path('clinic_clients_payment_record', {id: client.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="invoice_id" id="encInv">
+      <input type="hidden" name="amount" id="encAmt">
+      <input type="hidden" name="method" id="encMeth" value="CARD">
+      <div class="enc-tot"><span>Montant dû</span><b id="encM"></b></div>
+      <div><label class="flbl">Mode de paiement</label><div class="seg" id="encMode"><button type="button" data-v="CARD" class="on">Carte</button><button type="button" data-v="CASH">Espèces</button><button type="button" data-v="CHECK">Chèque</button><button type="button" data-v="TRANSFER">Virement</button></div></div>
+      <p style="font-size:.76rem;color:var(--encre-60);line-height:1.5">La facture passe en réglée. Même encaissement que dans Facturation.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="encOk">Encaisser</button></div>
+  </div></div>
+
+  {# ══ Aperçu (ordonnance) ══ #}
+  <div class="mveil" id="mApercu"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="apT">
+    <div class="mhead"><div class="mt"><b id="apT"></b><span id="apS"></span></div>{{ xb|raw }}</div>
+    <div class="mbody" id="apB"></div>
+    <div class="mfoot" id="apF"></div>
+  </div></div>
+  <form id="renewForm" method="post" hidden><input type="hidden" name="_token" id="renewTok"></form>
+
+  {# ══ Nouvel animal ══ #}
+  <div class="mveil" id="mAni"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="aniT">
+    <div class="mhead"><div class="mt"><b id="aniT">Nouvel animal</b><span>Rattaché à {{ client.fullName }}</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="aniForm" method="post" action="{{ path('clinic_clients_animal_add', {id: client.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="species" value="dog">
+      <input type="hidden" name="sex" value="female">
+      <input type="hidden" name="neutered" value="0">
+      <div><label class="flbl">Espèce</label><div class="seg" data-seg="species"><button type="button" data-v="dog" class="on">Chien</button><button type="button" data-v="cat">Chat</button><button type="button" data-v="nac">NAC</button><button type="button" data-v="other">Autre</button></div></div>
+      <div class="f2">
+        <div><label class="flbl" for="f_aname">Nom <span class="req">*</span></label><input class="finput" id="f_aname" name="name" data-k="aname" data-m="txt" data-req="1" maxlength="255" autocomplete="off" spellcheck="false"><small class="ferr"></small></div>
+        <div><label class="flbl" for="f_abreed">Race <span class="opt">· facultatif</span></label><input class="finput" id="f_abreed" name="breed" data-k="abreed" data-m="txt" maxlength="255" autocomplete="off"><small class="ferr"></small></div>
+      </div>
+      <div class="f2">
+        <div><label class="flbl" for="f_abirth">Date de naissance <span class="opt">· facultatif</span></label><input class="finput" id="f_abirth" name="birth_date" type="date" max="{{ today }}" data-k="abirth" data-m="txt"><small class="ferr"></small></div>
+        <div><label class="flbl">Sexe</label><div class="seg" data-seg="sex"><button type="button" data-v="female" class="on">Femelle</button><button type="button" data-v="male">Mâle</button><button type="button" data-v="unknown">Inconnu</button></div></div>
+      </div>
+      <div class="swrow"><span class="sw" data-sw="neutered" role="switch" aria-checked="false" tabindex="0"></span><div><b>Stérilisé</b><small>Castration ou stérilisation déjà faite.</small></div></div>
+      <div><label class="flbl" for="f_apuce">Numéro de transpondeur <span class="opt">· facultatif</span></label><input class="finput" id="f_apuce" name="microchip" data-k="apuce" data-m="puce" inputmode="numeric" maxlength="15" autocomplete="off" placeholder="15 chiffres"><small class="ferr"></small></div>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="aniOk">Créer l'animal</button></div>
+  </div></div>
+
+  {# ══ Consigner un échange ══ #}
+  <div class="mveil" id="mMsg"><div class="mbox" style="width:min(520px,94vw)" role="dialog" aria-modal="true" aria-labelledby="msgT">
+    <div class="mhead"><div class="mt"><b id="msgT">Consigner un échange</b><span>Ajouté à l'historique · rien n'est envoyé au client</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="msgForm" method="post" action="{{ path('clinic_clients_communication_log', {id: client.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="channel" value="{{ sheet.prefs.preferred ?? 'phone' }}">
+      <input type="hidden" name="direction" value="outbound">
+      <div class="f2">
+        <div><label class="flbl">Canal</label><div class="seg" data-seg="channel">{% for v, l in {phone: 'Téléphone', sms: 'SMS', email: 'E-mail', mail: 'Courrier'} %}<button type="button" data-v="{{ v }}"{{ v == (sheet.prefs.preferred ?? 'phone') ? ' class="on"' }}>{{ l }}</button>{% endfor %}</div></div>
+        <div><label class="flbl">Sens</label><div class="seg" data-seg="direction"><button type="button" data-v="outbound" class="on">Émis</button><button type="button" data-v="inbound">Reçu</button></div></div>
+      </div>
+      <div><label class="flbl" for="f_msub">Objet <span class="req">*</span></label><input class="finput" id="f_msub" name="subject" data-k="msub" data-m="txt" data-req="1" maxlength="160" autocomplete="off" placeholder="Ex. résultats d'analyse communiqués"><small class="ferr"></small></div>
+      <div><label class="flbl" for="f_mbody">Contenu <span class="opt">· facultatif</span></label><textarea class="finput" id="f_mbody" name="body" rows="4" maxlength="4000" style="resize:vertical" placeholder="Ce qui a été dit ou écrit, et la suite prévue"></textarea></div>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="msgOk">Consigner</button></div>
+  </div></div>
+
+  {# ══ Forms the rail cards and the menu post ══ #}
+  <form id="prefForm" method="post" action="{{ path('clinic_clients_communication_preferences_update', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="preferred_channel" value="{{ sheet.prefs.preferred ?? '' }}">
+  </form>
+  <form id="persForm" method="post" action="{{ path('clinic_clients_authorized_person_update', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+    {% for f in ['ap_civility', 'ap_first_name', 'ap_last_name', 'ap_relationship', 'ap_phone'] %}<input type="hidden" name="{{ f }}">{% endfor %}
+  </form>
+  <form id="noteForm" method="post" action="{{ path('clinic_clients_note_add', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="kind" value="information">
+    <input type="hidden" name="content">
+  </form>
+  <form id="archForm" method="post" action="{{ path(archived ? 'clinic_clients_unarchive' : 'clinic_clients_archive', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ csrf_token('clinic_client_form') }}">
+  </form>
 </div>
 {% endblock %}

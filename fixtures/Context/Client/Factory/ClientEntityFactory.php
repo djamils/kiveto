@@ -38,6 +38,21 @@ final class ClientEntityFactory extends PersistentProxyObjectFactory
         ]);
     }
 
+    /** 'madam' | 'mister' | 'unspecified' */
+    public function withCivility(string $civility): self
+    {
+        return $this->with(['civility' => $civility]);
+    }
+
+    /** Client on file since that date (last changed on the same day unless told otherwise). */
+    public function since(string $createdAt, ?string $updatedAt = null): self
+    {
+        return $this->with([
+            'createdAt' => new \DateTimeImmutable($createdAt),
+            'updatedAt' => new \DateTimeImmutable($updatedAt ?? $createdAt),
+        ]);
+    }
+
     public function active(): self
     {
         return $this->with(['status' => ClientStatus::ACTIVE]);

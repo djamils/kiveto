@@ -144,6 +144,7 @@ final class ClientEventsTest extends TestCase
         self::assertSame('clinic-456', $payload['clinicId']);
         self::assertSame('Jane', $payload['firstName']);
         self::assertSame('Smith', $payload['lastName']);
+        self::assertSame('unspecified', $payload['civility']);
     }
 
     public function testClientPostalAddressUpdatedImplementsDomainEventInterface(): void

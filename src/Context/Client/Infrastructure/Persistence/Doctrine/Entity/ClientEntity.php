@@ -30,6 +30,9 @@ class ClientEntity
     #[ORM\Column(type: 'string', length: 255)]
     private string $lastName;
 
+    #[ORM\Column(type: 'string', length: 20, options: ['default' => 'unspecified'])]
+    private string $civility = 'unspecified';
+
     #[ORM\Embedded(class: PostalAddressEmbeddable::class, columnPrefix: false)]
     private PostalAddressEmbeddable $postalAddress;
 
@@ -111,6 +114,16 @@ class ClientEntity
     public function setLastName(string $lastName): void
     {
         $this->lastName = $lastName;
+    }
+
+    public function getCivility(): string
+    {
+        return $this->civility;
+    }
+
+    public function setCivility(string $civility): void
+    {
+        $this->civility = $civility;
     }
 
     public function getPostalAddress(): PostalAddressEmbeddable

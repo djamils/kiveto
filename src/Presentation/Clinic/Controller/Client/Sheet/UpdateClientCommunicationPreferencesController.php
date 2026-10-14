@@ -43,12 +43,14 @@ final class UpdateClientCommunicationPreferencesController extends AbstractClien
             channelsByConsentKind: $channelsByKind,
         )));
 
-        if ($saved) {
-            $this->addFlash('success', 'Préférences de communication enregistrées.');
-        } else {
+        if (!$saved) {
             $this->addFlash('error', 'Les préférences de communication n’ont pas pu être enregistrées.');
+
+            return $this->backToSheet($id);
         }
 
-        return $this->backToSheet($id);
+        $this->addFlash('success', 'Préférences enregistrées.');
+
+        return $this->backToSheet($id, 'cPref');
     }
 }

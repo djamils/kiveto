@@ -9,6 +9,7 @@ use App\Context\Client\Application\Command\UpdateClientIdentity\UpdateClientIden
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Exception\ClientClinicMismatchException;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
@@ -83,6 +84,21 @@ final class UpdateClientIdentityHandlerTest extends TestCase
         $handler($command);
     }
 
+    public function testHandleSetsTheCivilityWhenGiven(): void
+    {
+        $saved = $this->handleOn(new ClientIdentity('John', 'Doe'), 'madam');
+
+        self::assertSame(Civility::MADAM, $saved->identity()->civility);
+        self::assertSame('Jane', $saved->identity()->firstName);
+    }
+
+    public function testHandleKeepsTheCivilityOnFileWhenNoneIsGiven(): void
+    {
+        $saved = $this->handleOn(new ClientIdentity('John', 'Doe', Civility::MISTER), null);
+
+        self::assertSame(Civility::MISTER, $saved->identity()->civility);
+    }
+
     public function testHandleThrowsExceptionWhenClinicMismatch(): void
     {
         $correctClinicId = ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0');
@@ -120,5 +136,36 @@ final class UpdateClientIdentityHandlerTest extends TestCase
 
         $handler = new UpdateClientIdentityHandler($clientRepository, new DomainEventPublisher($eventBus), $clock);
         $handler($command);
+    }
+
+    private function handleOn(ClientIdentity $identity, ?string $civility): Client
+    {
+        $clinicId  = ClinicId::fromString('12345678-9abc-def0-1234-56789abcdef0');
+        $createdAt = new \DateTimeImmutable('2024-01-01 10:00:00');
+        $client    = Client::reconstitute(
+            ClientId::fromString('01234567-89ab-cdef-0123-456789abcdef'),
+            $clinicId,
+            $identity,
+            ClientStatus::ACTIVE,
+            [ContactMethod::email(EmailAddress::fromString('john@example.com'), ContactLabel::WORK, true)],
+            $createdAt,
+            $createdAt,
+        );
+
+        $repository = $this->createStub(ClientRepositoryInterface::class);
+        $repository->method('get')->willReturn($client);
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2024-01-02 14:00:00'));
+
+        $handler = new UpdateClientIdentityHandler($repository, new DomainEventPublisher($this->createStub(EventBusInterface::class)), $clock);
+        $handler(new UpdateClientIdentity(
+            clinicId: '12345678-9abc-def0-1234-56789abcdef0',
+            clientId: '01234567-89ab-cdef-0123-456789abcdef',
+            firstName: 'Jane',
+            lastName: 'Smith',
+            civility: $civility,
+        ));
+
+        return $client;
     }
 }

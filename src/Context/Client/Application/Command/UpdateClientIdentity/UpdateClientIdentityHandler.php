@@ -6,6 +6,7 @@ namespace App\Context\Client\Application\Command\UpdateClientIdentity;
 
 use App\Context\Client\Domain\Exception\ClientClinicMismatchException;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClinicId;
@@ -40,6 +41,9 @@ final readonly class UpdateClientIdentityHandler
         $newIdentity = new ClientIdentity(
             firstName: $command->firstName,
             lastName: $command->lastName,
+            civility: null === $command->civility
+                ? $client->identity()->civility
+                : Civility::from($command->civility),
         );
 
         $client->updateIdentity($newIdentity, $this->clock->now());

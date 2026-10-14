@@ -32,7 +32,7 @@ final class ListAppointmentsForOwnerHandlerTest extends KernelTestCase
         ]);
 
         $this->appointment(self::CLINIC_ID, self::OWNER_ID, '2026-04-10 09:00:00', AppointmentStatus::COMPLETED, null, null);
-        $this->appointment(self::CLINIC_ID, self::OWNER_ID, '2026-09-19 07:30:00', AppointmentStatus::PLANNED, self::ANIMAL_ID, 'Contrôle rénal');
+        $this->appointment(self::CLINIC_ID, self::OWNER_ID, '2026-09-19 07:30:00', AppointmentStatus::PLANNED, self::ANIMAL_ID, 'Contrôle rénal', 'Venir à jeun');
         // Another owner and another clinic must not leak into the list.
         $this->appointment(self::CLINIC_ID, '99999999-9999-7999-8999-999999999999', '2026-09-20 09:00:00', AppointmentStatus::PLANNED, null, null);
         $this->appointment('88888888-8888-7888-8888-888888888888', self::OWNER_ID, '2026-09-21 09:00:00', AppointmentStatus::PLANNED, null, null);
@@ -48,6 +48,7 @@ final class ListAppointmentsForOwnerHandlerTest extends KernelTestCase
         self::assertSame(self::PRACTITIONER_ID, $items[0]->practitionerUserId);
         self::assertSame(self::ANIMAL_ID, $items[0]->animalId);
         self::assertSame('Roxy', $items[0]->animalLabel);
+        self::assertSame('Venir à jeun', $items[0]->notes);
         self::assertTrue(Uuid::isValid($items[0]->id));
 
         self::assertSame('2026-04-10 09:00:00', $items[1]->startsAtUtc);
@@ -55,6 +56,7 @@ final class ListAppointmentsForOwnerHandlerTest extends KernelTestCase
         self::assertNull($items[1]->reason);
         self::assertNull($items[1]->animalId);
         self::assertNull($items[1]->animalLabel);
+        self::assertNull($items[1]->notes);
     }
 
     public function testHonoursTheLimit(): void
@@ -80,16 +82,18 @@ final class ListAppointmentsForOwnerHandlerTest extends KernelTestCase
         AppointmentStatus $status,
         ?string $animalId,
         ?string $reason,
+        ?string $notes = null,
     ): void {
         AppointmentEntityFactory::new()
             ->withClinicId($clinicId)
             ->withPractitionerUserId(self::PRACTITIONER_ID)
             ->startingAt(new \DateTimeImmutable($startsAtUtc), 45)
             ->withStatus($status)
-            ->afterInstantiate(static function (AppointmentEntity $entity) use ($ownerId, $animalId, $reason): void {
+            ->afterInstantiate(static function (AppointmentEntity $entity) use ($ownerId, $animalId, $reason, $notes): void {
                 $entity->setOwnerId(Uuid::fromString($ownerId));
                 $entity->setAnimalId(null === $animalId ? null : Uuid::fromString($animalId));
                 $entity->setReason($reason);
+                $entity->setNotes($notes);
             })
             ->create()
         ;

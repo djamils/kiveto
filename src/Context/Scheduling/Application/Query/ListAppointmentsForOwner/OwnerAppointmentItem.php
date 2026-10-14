@@ -15,6 +15,7 @@ final readonly class OwnerAppointmentItem
         public ?string $reason,
         public ?string $animalId,
         public ?string $animalLabel,
+        public ?string $notes = null,
     ) {
     }
 }

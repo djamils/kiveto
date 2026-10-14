@@ -11,6 +11,8 @@ final readonly class UpdateClientIdentity
         public string $clientId,
         public string $firstName,
         public string $lastName,
+        // Null keeps the civility on file.
+        public ?string $civility = null,
     ) {
     }
 }
