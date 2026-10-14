@@ -51,6 +51,7 @@ final class AddClinicalNoteHandlerTest extends TestCase
 
         ($this->handler)(new AddClinicalNote(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             noteType: 'DIAGNOSIS',
             content: 'Otitis externa',
             createdByUserId: self::USER_ID,
@@ -67,8 +68,45 @@ final class AddClinicalNoteHandlerTest extends TestCase
 
         ($this->handler)(new AddClinicalNote(
             consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
             noteType: 'DIAGNOSIS',
             content: 'Otitis externa',
+            createdByUserId: self::USER_ID,
+        ));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testRefusesAnUnknownNoteType(): void
+    {
+        $this->consultations->expects(self::once())->method('findById')->willReturn($this->makeConsultation());
+        $this->consultations->expects(self::never())->method('save');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown note type');
+
+        ($this->handler)(new AddClinicalNote(
+            consultationId: self::CONSULTATION_ID,
+            clinicId: self::CLINIC_ID,
+            noteType: 'GOSSIP',
+            content: 'Note',
+            createdByUserId: self::USER_ID,
+        ));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testFailsWhenConsultationBelongsToAnotherClinic(): void
+    {
+        $this->consultations->expects(self::once())->method('findById')->willReturn($this->makeConsultation());
+        $this->consultations->expects(self::never())->method('save');
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Consultation not found');
+
+        ($this->handler)(new AddClinicalNote(
+            consultationId: self::CONSULTATION_ID,
+            clinicId: '77777777-7777-4777-8777-777777777777',
+            noteType: 'GENERAL',
+            content: 'Note',
             createdByUserId: self::USER_ID,
         ));
     }

@@ -31,7 +31,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
         $actSql = \sprintf(
             "SELECT BIN_TO_UUID(id) AS id, 'ACT' AS type, name, code, status,
                     base_price_minor_units, base_price_currency, tax_category_code,
-                    0 AS requires_prescription
+                    0 AS requires_prescription, NULL AS article_kind
             FROM catalog__acts
             WHERE tenant_id = :tenantId AND name LIKE :pattern
             LIMIT %d",
@@ -41,7 +41,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
         $articleSql = \sprintf(
             "SELECT BIN_TO_UUID(id) AS id, 'ARTICLE' AS type, name, code, status,
                     base_price_minor_units, base_price_currency, tax_category_code,
-                    COALESCE(drug_requires_rx, 0) AS requires_prescription
+                    COALESCE(drug_requires_rx, 0) AS requires_prescription, kind AS article_kind
             FROM catalog__articles
             WHERE tenant_id = :tenantId AND name LIKE :pattern
             LIMIT %d",
@@ -67,6 +67,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
                 basePriceCurrency: RowAccessor::string($row, 'base_price_currency'),
                 taxCategoryCode: RowAccessor::string($row, 'tax_category_code'),
                 requiresPrescription: 1 === RowAccessor::int($row, 'requires_prescription'),
+                articleKind: RowAccessor::nullableString($row, 'article_kind'),
             );
         }
 

@@ -11,6 +11,8 @@ namespace App\Context\Consultation\Domain\ValueObject;
  */
 enum BodySystem: string
 {
+    /** Overall exam: alertness, mucous membranes, lymph nodes, auscultation, palpation. */
+    case GENERAL        = 'GENERAL';
     case CARDIOVASCULAR = 'CARDIOVASCULAR';
     case RESPIRATORY    = 'RESPIRATORY';
     case DIGESTIVE      = 'DIGESTIVE';
@@ -20,11 +22,13 @@ enum BodySystem: string
     case SKIN           = 'SKIN';
     case OPHTHALMIC     = 'OPHTHALMIC';
     case DENTAL         = 'DENTAL';
+    case EARS           = 'EARS';
     case INTEGUMENT     = 'INTEGUMENT';
 
     public function label(): string
     {
         return match ($this) {
+            self::GENERAL        => 'Examen général',
             self::CARDIOVASCULAR => 'Cardiovasculaire',
             self::RESPIRATORY    => 'Respiratoire',
             self::DIGESTIVE      => 'Digestif',
@@ -34,6 +38,7 @@ enum BodySystem: string
             self::SKIN           => 'Cutané',
             self::OPHTHALMIC     => 'Ophtalmologique',
             self::DENTAL         => 'Dentaire',
+            self::EARS           => 'Oreilles',
             self::INTEGUMENT     => 'Tégument / Carapace',
         };
     }
@@ -41,6 +46,7 @@ enum BodySystem: string
     public function icon(): string
     {
         return match ($this) {
+            self::GENERAL        => 'sparkle',
             self::CARDIOVASCULAR => 'heart',
             self::RESPIRATORY    => 'wind',
             self::DIGESTIVE      => 'gi',
@@ -50,6 +56,7 @@ enum BodySystem: string
             self::SKIN           => 'sparkle',
             self::OPHTHALMIC     => 'eye',
             self::DENTAL         => 'tooth',
+            self::EARS           => 'ear',
             self::INTEGUMENT     => 'shell',
         };
     }
@@ -64,8 +71,8 @@ enum BodySystem: string
             self::CARDIOVASCULAR => 'cardio',
             self::LOCOMOTOR      => 'loco',
             self::SKIN, self::INTEGUMENT => 'derma',
-            self::RESPIRATORY, self::DIGESTIVE, self::URINARY,
-            self::NEUROLOGICAL, self::OPHTHALMIC, self::DENTAL => null,
+            self::GENERAL, self::RESPIRATORY, self::DIGESTIVE, self::URINARY,
+            self::NEUROLOGICAL, self::OPHTHALMIC, self::DENTAL, self::EARS => null,
         };
     }
 }

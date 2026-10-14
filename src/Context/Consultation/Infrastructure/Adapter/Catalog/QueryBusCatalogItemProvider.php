@@ -54,6 +54,7 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
                 currency: $result->basePriceCurrency,
                 taxCategoryCode: $result->taxCategoryCode,
                 status: $result->status,
+                articleKind: $result->articleKind,
             );
         }
 
@@ -98,6 +99,7 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
             currency: $view->basePriceCurrency,
             taxCategoryCode: $view->taxCategoryCode,
             status: $view->status,
+            articleKind: $view->kind,
         );
     }
 

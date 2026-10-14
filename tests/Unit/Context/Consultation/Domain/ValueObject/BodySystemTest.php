@@ -21,6 +21,7 @@ final class BodySystemTest extends TestCase
      */
     public static function provideLabelCases(): iterable
     {
+        yield 'general' => [BodySystem::GENERAL, 'Examen général'];
         yield 'cardiovascular' => [BodySystem::CARDIOVASCULAR, 'Cardiovasculaire'];
         yield 'respiratory' => [BodySystem::RESPIRATORY, 'Respiratoire'];
         yield 'digestive' => [BodySystem::DIGESTIVE, 'Digestif'];
@@ -30,6 +31,7 @@ final class BodySystemTest extends TestCase
         yield 'skin' => [BodySystem::SKIN, 'Cutané'];
         yield 'ophthalmic' => [BodySystem::OPHTHALMIC, 'Ophtalmologique'];
         yield 'dental' => [BodySystem::DENTAL, 'Dentaire'];
+        yield 'ears' => [BodySystem::EARS, 'Oreilles'];
         yield 'integument' => [BodySystem::INTEGUMENT, 'Tégument / Carapace'];
     }
 
@@ -44,6 +46,7 @@ final class BodySystemTest extends TestCase
      */
     public static function provideIconCases(): iterable
     {
+        yield 'general' => [BodySystem::GENERAL, 'sparkle'];
         yield 'cardiovascular' => [BodySystem::CARDIOVASCULAR, 'heart'];
         yield 'respiratory' => [BodySystem::RESPIRATORY, 'wind'];
         yield 'digestive' => [BodySystem::DIGESTIVE, 'gi'];
@@ -53,6 +56,7 @@ final class BodySystemTest extends TestCase
         yield 'skin' => [BodySystem::SKIN, 'sparkle'];
         yield 'ophthalmic' => [BodySystem::OPHTHALMIC, 'eye'];
         yield 'dental' => [BodySystem::DENTAL, 'tooth'];
+        yield 'ears' => [BodySystem::EARS, 'ear'];
         yield 'integument' => [BodySystem::INTEGUMENT, 'shell'];
     }
 
@@ -77,6 +81,8 @@ final class BodySystemTest extends TestCase
         yield 'neurological' => [BodySystem::NEUROLOGICAL, null];
         yield 'ophthalmic' => [BodySystem::OPHTHALMIC, null];
         yield 'dental' => [BodySystem::DENTAL, null];
+        yield 'general' => [BodySystem::GENERAL, null];
+        yield 'ears' => [BodySystem::EARS, null];
     }
 
     #[DataProvider('provideEveryCaseExposesMetadataCases')]

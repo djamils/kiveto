@@ -10,6 +10,7 @@ final readonly class AddClinicalNote implements CommandInterface
 {
     public function __construct(
         public string $consultationId,
+        public string $clinicId,
         public string $noteType,
         public string $content,
         public string $createdByUserId,

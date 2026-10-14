@@ -10,12 +10,14 @@ use App\Context\Consultation\Application\Query\GetConsultationDetails\Consultati
 use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultation;
+use App\Presentation\Clinic\ViewModel\Consultation\CockpitContextBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitPatientBuilder;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitReferenceData;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitStateBuilder;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,6 +30,7 @@ final class ConsultationDetailsController extends AbstractController
         private readonly CockpitStateBuilder $stateBuilder,
         private readonly CockpitPatientBuilder $patientBuilder,
         private readonly CockpitReferenceData $referenceData,
+        private readonly CockpitContextBuilder $contextBuilder,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -48,7 +51,12 @@ final class ConsultationDetailsController extends AbstractController
 
         \assert($consultation instanceof ConsultationDetailsDTO);
 
-        $patient = $this->patientBuilder->build($consultation->patientId, $clinicId, $id);
+        $patient    = $this->patientBuilder->build($consultation->patientId, $clinicId, $id);
+        $letterhead = $this->contextBuilder->letterhead($clinicId);
+        $animalId   = \is_string($patient['patient']['animalId'] ?? null) ? $patient['patient']['animalId'] : null;
+        $clientId   = \is_string($patient['owner']['clientId'] ?? null) ? $patient['owner']['clientId'] : null;
+        $team       = $this->stateBuilder->team($clinicId);
+        $user       = $this->getUser();
 
         return $this->render('clinic/consultation/detail/index.html.twig', [
             'consultation' => $consultation,
@@ -63,6 +71,23 @@ final class ConsultationDetailsController extends AbstractController
                 'serverNowUtc' => $this->clock->now()->format('Y-m-d H:i:s'),
                 'endpoints'    => $this->endpoints($id),
                 'documents'    => $this->documents($id, $clinicId, $consultation->admissionId),
+                'context'      => [
+                    'origin'       => $this->contextBuilder->origin($consultation, $letterhead['timeZone']),
+                    'letterhead'   => $letterhead,
+                    'due'          => $this->contextBuilder->due($animalId, $clinicId),
+                    'practitioner' => $team[$consultation->practitionerUserId] ?? null,
+                    'team'         => array_values($team),
+                    'me'           => $user instanceof SecurityUser ? ($team[$user->id()] ?? null) : null,
+                    'urls'         => [
+                        'flux'      => $this->generateUrl('clinic_admission_queue'),
+                        'animal'    => null !== $animalId ? $this->generateUrl('clinic_animals_view', ['id' => $animalId]) : null,
+                        'client'    => null !== $clientId ? $this->generateUrl('clinic_clients_view', ['id' => $clientId]) : null,
+                        'checkout'  => $this->generateUrl('clinic_checkout', ['admissionId' => $consultation->admissionId]),
+                        'prescribe' => $this->generateUrl('clinic_prescription_prepare', ['consultationId' => $id]),
+                        'agenda'    => $this->generateUrl('clinic_scheduling_agenda'),
+                        'catalog'   => $this->generateUrl('clinic_catalogue'),
+                    ],
+                ],
             ],
             'pageTitle' => 'Consultation',
         ]);
@@ -149,6 +174,8 @@ final class ConsultationDetailsController extends AbstractController
             'prescriptionLineRemove' => 'clinic_consultation_remove_prescription_line',
             'teamMemo'               => 'clinic_consultation_update_team_memo',
             'catalogSearch'          => 'clinic_consultation_catalog_search',
+            'noteAdd'                => 'clinic_consultation_add_note',
+            'addendum'               => 'clinic_consultation_add_addendum',
             'close'                  => 'clinic_consultation_close',
         ];
 

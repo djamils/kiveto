@@ -1,3480 +1,1264 @@
-// assets/js/pages/consultation.js
-// Consultation cockpit — full vanilla JS ported from
-// docs/frontend-theme/vetsaas-layouts/vetos-consultation.html
-//
-// All state, modals, list rendering, and interactions are scoped
-// inside init() so Stimulus / Turbo can mount + cleanup safely.
-
-let _mounted = false;
-// Teardown callbacks registered during init() (document-level listeners,
-// intervals, observers). Flushed by cleanup() on turbo:before-cache.
-const _cleanups = [];
-
-export function init() {
-  if (_mounted) return;
-  _mounted = true;
-
-  // ═══════════════════════════════════════════════
-  //  SHARED PAGE INFRASTRUCTURE
-  //  Visible from every IIFE below (closure over init scope).
-  // ═══════════════════════════════════════════════
-
-  // Server → JS hydration payload (see #consultation-data in index.html.twig)
-  const HYDRATION = (() => {
-    try {
-      return JSON.parse(document.getElementById('consultation-data')?.textContent || '{}');
-    } catch {
-      return {};
-    }
-  })();
-
-  function registerCleanup(fn) {
-    _cleanups.push(fn);
-  }
-
-  // Document-level listeners MUST go through this helper so cleanup()
-  // removes them (raw document.addEventListener leaks across Turbo visits).
-  function onDocument(type, handler) {
-    document.addEventListener(type, handler);
-    registerCleanup(() => document.removeEventListener(type, handler));
-  }
-
-  // ── Toast system (shared by all blocks) ──
-  const Toast = (() => {
-    let container = null;
-    function ensure() {
-      if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-      }
-      return container;
-    }
-    function show(message, type = 'success') {
-      const c = ensure();
-      const t = document.createElement('div');
-      t.className = `toast toast-${type}`;
-      const icon = {
-        success: '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 8l3 3 6-6"/></svg>',
-        info:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 11h.01"/></svg>',
-        warn:    '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01"/></svg>',
-        error:   '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l10 10M13 3L3 13"/></svg>',
-      }[type] || '';
-      t.innerHTML = icon + ' ' + message;
-      c.appendChild(t);
-      requestAnimationFrame(() => t.classList.add('show'));
-      setTimeout(() => {
-        t.classList.remove('show');
-        setTimeout(() => t.remove(), 220);
-      }, 2400);
-    }
-    registerCleanup(() => {
-      if (container) { container.remove(); container = null; }
-    });
-    return {
-      success: m => show(m, 'success'),
-      info:    m => show(m, 'info'),
-      warn:    m => show(m, 'warn'),
-      error:   m => show(m, 'error'),
-    };
-  })();
-
-  // ── Save-state indicator (topbar chip, fed by api()) ──
-  const SaveState = (() => {
-    const el = document.getElementById('save-state');
-    const LABELS = {
-      idle:   'Brouillon',
-      saving: 'Enregistrement…',
-      saved:  'Enregistré',
-      error:  'Erreur de sauvegarde',
-    };
-    let lastSavedAt = null;
-    function set(state) {
-      if (!el) return;
-      el.dataset.state = state;
-      const label = el.querySelector('.save-state-label');
-      if (label) label.textContent = LABELS[state] || LABELS.idle;
-      if (state === 'saved') lastSavedAt = new Date();
-    }
-    return { set, get lastSavedAt() { return lastSavedAt; } };
-  })();
-
-  // ── api() — JSON mutation helper with per-consultation FIFO queue ──
-  // Mutations are serialized (one in-flight request at a time) so debounced
-  // auto-saves can never race a line-add against the aggregate's optimistic
-  // lock. A 409 CONFLICT response is retried once transparently.
-  const api = (() => {
-    let chain = Promise.resolve();
-    function csrfToken() {
-      return document.getElementById('consultation-csrf')?.value || '';
-    }
-    async function send(url, data) {
-      const body = new URLSearchParams();
-      Object.entries(data || {}).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        if (Array.isArray(value)) {
-          value.forEach(entry => body.append(`${key}[]`, entry));
-          return;
-        }
-        if (typeof value === 'object') {
-          Object.entries(value).forEach(([subKey, subValue]) => {
-            if (subValue !== undefined && subValue !== null) body.append(`${key}[${subKey}]`, subValue);
-          });
-          return;
-        }
-        body.append(key, value);
-      });
-      body.append('_token', csrfToken());
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body,
-      });
-      let payload = null;
-      try { payload = await response.json(); } catch { /* non-JSON response */ }
-      return { status: response.status, payload };
-    }
-    // Domain messages are English by project convention, so the UI maps the
-    // error code to French copy instead of echoing them.
-    const ERROR_COPY = {
-      CSRF_INVALID: 'Session expirée — rechargez la page.',
-      CONFLICT:     'Modification concurrente — réessayez.',
-      DOMAIN_ERROR: 'Modification refusée dans l\'état actuel de la consultation.',
-      VALIDATION:   'Valeur invalide — vérifiez la saisie.',
-    };
-
-    // `data` may be a builder: a queued mutation deriving its payload from the
-    // current state must read it AFTER the previous one landed.
-    function mutate(url, data) {
-      const run = async () => {
-        if (!url) return { success: false, errorCode: 'NO_ENDPOINT' };
-        const payload = typeof data === 'function' ? data() : data;
-        SaveState.set('saving');
-        try {
-          let result = await send(url, payload);
-          if (result.status === 409 && result.payload?.errorCode === 'CONFLICT') {
-            result = await send(url, payload);
-          }
-          if (result.payload?.success) {
-            SaveState.set('saved');
-            return result.payload;
-          }
-          SaveState.set('error');
-          Toast.error(ERROR_COPY[result.payload?.errorCode] || 'Erreur lors de la sauvegarde');
-          return result.payload || { success: false, errorCode: 'HTTP_' + result.status };
-        } catch {
-          SaveState.set('error');
-          Toast.error('Connexion perdue — modification non enregistrée');
-          return { success: false, errorCode: 'NETWORK' };
-        }
-      };
-      chain = chain.then(run, run);
-      return chain;
-    }
-    async function get(url, params) {
-      try {
-        const query = new URLSearchParams(params || {});
-        const response = await fetch(`${url}?${query.toString()}`, {
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        });
-        return await response.json();
-      } catch {
-        return null;
-      }
-    }
-
-    return { mutate, get };
-  })();
-
-  // Parses a server datetime as UTC even when the string carries no zone
-  // marker (the read side emits "YYYY-MM-DD HH:MM:SS" in UTC).
-  function parseUtcDate(value) {
-    if (!value) return null;
-    const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : value.replace(' ', 'T') + 'Z';
-    const date = new Date(normalized);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  // ── Live consultation timer (topbar, from startedAtUtc) ──
-  (() => {
-    const timerEl = document.getElementById('consultation-timer');
-    const consultation = HYDRATION.consultation || {};
-    const startedAt = parseUtcDate(consultation.startedAtUtc);
-    if (!timerEl || !startedAt) return;
-    const closedAt = parseUtcDate(consultation.closedAtUtc);
-    // Compensate client clock skew against the server's notion of "now"
-    const serverNow = parseUtcDate(HYDRATION.serverNowUtc);
-    const clockOffsetMs = serverNow ? serverNow.getTime() - Date.now() : 0;
-    const render = () => {
-      const end = closedAt || new Date(Date.now() + clockOffsetMs);
-      const totalSeconds = Math.max(0, Math.floor((end - startedAt) / 1000));
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      const pad = n => String(n).padStart(2, '0');
-      timerEl.textContent = h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-    };
-    render();
-    if (!closedAt) {
-      const interval = setInterval(render, 1000);
-      registerCleanup(() => clearInterval(interval));
-    }
-  })();
-
-  // ═══════════════════════════════════════════════
-  //  SERVER STATE
-  //  Single source of truth for the whole page: the hydration payload,
-  //  replaced wholesale by the `consultation` object every mutation returns.
-  //  Each block registers a renderer so one save repaints everything.
-  // ═══════════════════════════════════════════════
-  const REF = HYDRATION.reference || {};
-  const EP = HYDRATION.endpoints || {};
-  const PATIENT = HYDRATION.patient || {};
-  const OWNER = HYDRATION.owner || null;
-  const HISTORY = HYDRATION.history || [];
-  const DOCUMENTS = HYDRATION.documents || { report: null, bundle: null, prescriptions: [], invoice: null };
-
-  let SERVER = HYDRATION.consultation || {};
-  const serverRenderers = [];
-
-  function onServerState(fn) {
-    serverRenderers.push(fn);
-  }
-
-  function renderFromServer() {
-    serverRenderers.forEach(fn => fn());
-  }
-
-  function isClosed() {
-    return SERVER.isClosed === true;
-  }
-
-  /**
-   * Every mutation goes through here: refused on a closed consultation (the
-   * server refuses it too), queued, then the refreshed state is applied.
-   */
-  function save(url, data) {
-    if (isClosed()) {
-      Toast.warn('Consultation clôturée — lecture seule');
-      return Promise.resolve({ success: false, errorCode: 'CLOSED' });
-    }
-    return api.mutate(url, data).then(payload => {
-      if (payload?.success && payload.consultation) {
-        SERVER = payload.consultation;
-        renderFromServer();
-      }
-      return payload;
-    });
-  }
-
-  function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-    }[c]));
-  }
-
-  function money(minorUnits, currency) {
-    const symbol = { EUR: '€', CHF: 'CHF', USD: '$', GBP: '£' }[currency || 'EUR'] || (currency || '');
-    const negative = minorUnits < 0;
-    const absolute = Math.abs(Number(minorUnits) || 0);
-    const int = String(Math.trunc(absolute / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
-    return `${negative ? '-' : ''}${int},${String(absolute % 100).padStart(2, '0')}\u00a0${symbol}`;
-  }
-
-  function frNumber(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return String(value ?? '');
-    return String(Number(n.toFixed(3))).replace('.', ',');
-  }
-
-  // Catalogue rows are fetched once per modal opening and filtered client-side,
-  // so the search feels instant exactly as the prototype did.
-  const Catalog = (() => {
-    let acts = [];
-    let articles = [];
-
-    async function load(term = '') {
-      const payload = await api.get(EP.catalogSearch, { term });
-      const items = payload?.items || [];
-      acts = items.filter(i => i.itemType === 'ACT');
-      articles = items.filter(i => i.itemType === 'ARTICLE');
-      return { acts, articles };
-    }
-
-    return {
-      load,
-      get acts() { return acts; },
-      get articles() { return articles; },
-      find(code) { return [...acts, ...articles].find(i => i.code === code) || null; },
-    };
-  })();
-
-(() => {
-  'use strict';
-
-  // ═══════════════════════════════════════════════
-  //  STATE — patient identity, from the server
-  // ═══════════════════════════════════════════════
-  const state = {
-    patient: {
-      name: PATIENT.name || 'Patient',
-      species: PATIENT.speciesLabel || '',
-      breed: PATIENT.breed || '',
-      age: PATIENT.ageLabel || '',
-      sex: PATIENT.sexLabel || '',
-      microchip: PATIENT.microchip || '',
-      color: PATIENT.color || '',
-      isIdentified: PATIENT.isIdentified === true,
-      get weight() {
-        return SERVER.vitals?.weightKg !== undefined && SERVER.vitals?.weightKg !== null
-          ? Number(SERVER.vitals.weightKg)
-          : null;
-      },
-      get lastWeight() {
-        const previous = HISTORY.find(row => row.weightKg !== null && row.weightKg !== undefined);
-        return previous ? Number(previous.weightKg) : null;
-      },
-      get allergies() {
-        return (SERVER.medicalAlerts || [])
-          .filter(alert => alert.kind === 'ALLERGY')
-          .map(alert => alert.label);
-      },
-      get conditions() {
-        return (SERVER.medicalAlerts || [])
-          .filter(alert => alert.kind === 'CHRONIC_CONDITION')
-          .map(alert => alert.label);
-      },
-    },
-  };
-
-  // ═══════════════════════════════════════════════
-  //  DATA — reference lists served by the server
-  // ═══════════════════════════════════════════════
-
-  // Same shape as the former mock so every modal body below is unchanged.
-  const VITAL_TYPES = (REF.vitalTypes || []).map(v => ({
-    id: v.id, label: v.label, unit: v.unit, range: v.range, def: v.default,
-  }));
-
-  const PRESET_MOTIFS = REF.presetMotifs || [];
-
-  // How many pills the constants card shows before the empty slots stop being
-  // laid out: past that, the row is full and the add button is enough.
-  const SLOTTED_UP_TO = 3;
-
-  const HISTORY_DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-
-  function fmtHistoryDate(value) {
-    const date = parseUtcDate(value);
-    return date ? HISTORY_DATE_FMT.format(date) : '';
-  }
-
-  const PAST_CONSULTATIONS = HISTORY.map(row => ({
-    date: fmtHistoryDate(row.startedAtUtc),
-    motif: row.motif || 'Consultation',
-    summary: row.summary || '',
-    url: row.url,
-    startedAtUtc: row.startedAtUtc,
-    weightKg: row.weightKg,
-  }));
-
-  // ═══════════════════════════════════════════════
-  //  MODAL SYSTEM
-  // ═══════════════════════════════════════════════
-  const Modal = (() => {
-    let mount = null;
-    let escHandler = null;
-    function open({ title, body, footer, width = '' }) {
-      close();
-      mount = document.createElement('div');
-      mount.className = 'modal-overlay';
-      const wClass = width === 'wide' ? 'modal-wide' : (width === 'narrow' ? 'modal-narrow' : '');
-      mount.innerHTML = `
-        <div class="modal ${wClass}">
-          <div class="modal-head">
-            <span class="modal-title">${title}</span>
-            <button class="btn btn-ghost btn-icon btn-sm" data-close title="Fermer">
-              <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-            </button>
-          </div>
-          <div class="modal-body">${body}</div>
-          ${footer ? `<div class="modal-foot">${footer}</div>` : ''}
-        </div>
-      `;
-      document.body.appendChild(mount);
-      mount.addEventListener('click', e => {
-        if (e.target === mount || e.target.closest('[data-close]')) close();
-      });
-      escHandler = e => { if (e.key === 'Escape') close(); };
-      document.addEventListener('keydown', escHandler);
-      // The modal may already be closed when this fires.
-      setTimeout(() => {
-        const f = mount?.querySelector('input,textarea');
-        if (f) f.focus();
-      }, 60);
-      return mount;
-    }
-    function close() {
-      if (mount) { mount.remove(); mount = null; }
-      if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
-    }
-    function getEl(sel) { return mount ? mount.querySelector(sel) : null; }
-    return { open, close, getEl, get el() { return mount; } };
-  })();
-
-  // ═══════════════════════════════════════════════
-  //  DROPDOWN SYSTEM
-  // ═══════════════════════════════════════════════
-  const Dropdown = (() => {
-    let menu = null;
-    let docHandler = null;
-    function open(anchor, items, opts = {}) {
-      close();
-      menu = document.createElement('div');
-      menu.className = 'dropdown-menu';
-      menu.innerHTML = items.map(it => {
-        if (it.divider) return '<div class="dropdown-divider"></div>';
-        const cls = 'dropdown-item' + (it.danger ? ' is-danger' : '');
-        return `<div class="${cls}" data-action="${it.action}">
-          ${it.icon ? `<svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${it.icon}</svg>` : ''}
-          <span>${it.label}</span>
-          ${it.shortcut ? `<span class="dropdown-shortcut">${it.shortcut}</span>` : ''}
-        </div>`;
-      }).join('');
-      document.body.appendChild(menu);
-      const r = anchor.getBoundingClientRect();
-      const align = opts.align || 'right';
-      menu.style.top = (r.bottom + 4) + 'px';
-      if (align === 'right') {
-        menu.style.right = (window.innerWidth - r.right) + 'px';
-      } else {
-        menu.style.left = r.left + 'px';
-      }
-      menu.addEventListener('click', e => {
-        const it = e.target.closest('.dropdown-item');
-        if (!it) return;
-        const action = it.dataset.action;
-        close();
-        if (opts.onSelect) opts.onSelect(action);
-      });
-      // close when click elsewhere
-      docHandler = e => { if (menu && !menu.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) close(); };
-      setTimeout(() => document.addEventListener('click', docHandler), 0);
-    }
-    function close() {
-      if (menu) { menu.remove(); menu = null; }
-      if (docHandler) { document.removeEventListener('click', docHandler); docHandler = null; }
-    }
-    return { open, close };
-  })();
-
-  // ═══════════════════════════════════════════════
-  //  HELPERS
-  // ═══════════════════════════════════════════════
-  function fmtPrice(n) {
-    return n.toFixed(2).replace('.', ',') + ' €';
-  }
-  // HT / TVA / TTC come from the Taxation-resolved totals computed server-side.
-  function recomputeBillTotal() {
-    const totals = SERVER.totals || {};
-    const currency = totals.currency || 'EUR';
-    const totalEl = document.querySelector('.bill-total-amount');
-    const subEl = document.querySelector('.bill-total div div:nth-child(2)');
-    if (totalEl) totalEl.textContent = money(totals.totalTtcMinorUnits || 0, currency);
-    if (subEl) {
-      subEl.textContent = `HT ${money(totals.totalHtMinorUnits || 0, currency)} · TVA ${money(totals.totalTvaMinorUnits || 0, currency)}`;
-    }
-    renderClosureNote();
-  }
-
-  // What closing is about to produce, said before the button is pressed.
-  function renderClosureNote() {
-    const note = document.getElementById('closure-note');
-    if (!note) return;
-
-    const lines = (SERVER.billingLines || []).length;
-    const drugs = (SERVER.prescriptionLines || []).length;
-
-    const parts = [];
-    if (lines > 0) parts.push(`<strong>${lines} ligne${lines > 1 ? 's' : ''} facturée${lines > 1 ? 's' : ''}</strong>`);
-    if (drugs > 0) parts.push(`${drugs} médicament${drugs > 1 ? 's' : ''} délivré${drugs > 1 ? 's' : ''}`);
-
-    // A closed consultation has nothing left to announce: it states what it
-    // produced, in the past.
-    if (isClosed()) {
-      note.innerHTML = parts.length ? `${parts.join(' · ')}.` : '';
-      return;
-    }
-
-    if (lines === 0 && drugs === 0) {
-      note.innerHTML = 'La clôture génère le compte rendu de la consultation.';
-      return;
-    }
-
-    const documents = drugs > 0
-      ? 'la facture, l’ordonnance et le compte rendu'
-      : 'la facture et le compte rendu';
-
-    note.innerHTML = `${parts.join(' · ')} — la clôture génère ${documents}.`;
-  }
-  function highlightNew(el) {
-    el.classList.add('is-just-added');
-    setTimeout(() => el.classList.remove('is-just-added'), 1500);
-  }
-
-  // ═══════════════════════════════════════════════
-  //  RENDERERS — same markup as the layout, fed by the server
-  // ═══════════════════════════════════════════════
-
-  // Chips are inserted before the "+ ajouter" chip so they stay direct flex
-  // children of .strip-content, exactly as in the layout.
-  function renderMotifStrip() {
-    const strip = document.querySelector('.wcard-motif .strip-content');
-    const addChip = strip?.querySelector('.chip-add');
-    if (!strip || !addChip) return;
-
-    strip.querySelectorAll('.chip:not(.chip-add)').forEach(chip => chip.remove());
-    addChip.insertAdjacentHTML('beforebegin', (SERVER.motifs || []).map(motif =>
-      `<button class="chip is-selected" data-motif-id="${escapeHtml(motif.id)}">${escapeHtml(motif.label)}</button>`).join(''));
-    strip.querySelectorAll('.chip:not(.chip-add)').forEach(wireMotifChip);
-  }
-
-  function renderVitalsStrip() {
-    const strip = document.querySelector('.vitals-strip');
-    const addChip = strip?.querySelector('.chip-add');
-    if (!strip || !addChip) return;
-
-    strip.querySelectorAll('.vital-pill').forEach(pill => pill.remove());
-
-    const pills = [];
-    const weight = SERVER.vitals?.weightKg;
-    const temperature = SERVER.vitals?.temperatureC;
-
-    pills.push(weightPillHtml(weight));
-
-    if (temperature !== null && temperature !== undefined) {
-      pills.push(vitalPillHtml('temperature', 'Température', frNumber(temperature), '°C'));
-    }
-
-    (SERVER.typedVitals || []).forEach(vital => {
-      const def = VITAL_TYPES.find(v => v.id === vital.type);
-      pills.push(vitalPillHtml(vital.type, def?.label || vital.type, vital.value, def?.unit || ''));
-    });
-
-    // A couple of constants that were never taken are laid out as empty slots:
-    // the shortest way to record one is to click where it will be shown.
-    if (!isClosed() && pills.length < SLOTTED_UP_TO) {
-      const recorded = new Set((SERVER.typedVitals || []).map(v => v.type));
-      let room = SLOTTED_UP_TO - pills.length;
-
-      if (temperature === null || temperature === undefined) {
-        pills.push(emptyVitalSlotHtml('temperature', 'Temp.'));
-        room -= 1;
-      }
-
-      VITAL_TYPES
-        .filter(v => !recorded.has(v.id) && v.id !== 'temperature')
-        .slice(0, Math.max(0, room))
-        .forEach(v => pills.push(emptyVitalSlotHtml(v.id, v.label)));
-    }
-
-    addChip.insertAdjacentHTML('beforebegin', pills.join(''));
-    strip.querySelectorAll('.vital-pill:not(.is-empty)').forEach(wireVitalPill);
-    strip.querySelectorAll('.vital-pill.is-empty').forEach(wireEmptyVitalSlot);
-    syncConstanteAddHeight();
-  }
-
-  function emptyVitalSlotHtml(id, label) {
-    return `
-      <button class="vital-pill is-empty" data-slot="${escapeHtml(id)}" title="Saisir : ${escapeHtml(label)}">
-        <span class="vital-pill-label">${escapeHtml(label)}</span>
-        <span class="vital-pill-value">—</span>
-      </button>`;
-  }
-
-  function wireEmptyVitalSlot(slot) {
-    slot.addEventListener('click', () => {
-      const vt = VITAL_TYPES.find(v => v.id === slot.dataset.slot);
-      if (vt) openVitalValueModal(vt);
-      else if (slot.dataset.slot === 'temperature') openEditWeightModal();
-    });
-  }
-
-  // The add button takes the exact height of a pill, whatever the card
-  // stretches to and whatever fonts have loaded.
-  function syncConstanteAddHeight() {
-    const pill = document.querySelector('.vitals-strip .vital-pill');
-    const btn = document.getElementById('constante-add');
-    if (pill && btn) btn.style.height = `${pill.offsetHeight}px`;
-  }
-
-  function weightPillHtml(weight) {
-    const value = (weight === null || weight === undefined) ? '—' : frNumber(weight);
-    const last = state.patient.lastWeight;
-    let delta = '';
-    if (weight !== null && weight !== undefined && last !== null) {
-      const diff = Number(weight) - last;
-      if (Math.abs(diff) >= 0.05) {
-        delta = `<span class="vital-pill-delta ${diff < 0 ? 'is-down' : 'is-up'}">${diff < 0 ? '−' : '+'}${frNumber(Math.abs(diff))} kg</span>`;
-      }
-    }
-    return `
-      <div class="vital-pill" data-vital="weight">
-        <div class="vital-pill-label">Poids</div>
-        <div class="vital-pill-value">${escapeHtml(value)} <span class="unit">kg</span></div>
-        ${delta}
-      </div>`;
-  }
-
-  function vitalPillHtml(id, label, value, unit) {
-    const removable = id !== 'weight' && id !== 'temperature';
-    const valueDisplay = unit
-      ? `${escapeHtml(value)} <span class="unit">${escapeHtml(unit)}</span>`
-      : `<span style="font-size:var(--text-sm)">${escapeHtml(value)}</span>`;
-    return `
-      <div class="vital-pill" data-vital="${escapeHtml(id)}">
-        <div class="vital-pill-label">${escapeHtml(label)}</div>
-        <div class="vital-pill-value">${valueDisplay}</div>
-        ${removable ? `<button class="row-x" title="Retirer cette constante" aria-label="Retirer ${escapeHtml(label)}">
-          <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>` : ''}
-      </div>`;
-  }
-
-  function renderPrescription() {
-    const list = document.querySelector('.rp-block .rx-list');
-    if (!list) return;
-    const lines = SERVER.prescriptionLines || [];
-
-    list.innerHTML = lines.map(line => `
-        <div class="rx-item has-row-x" data-line-id="${escapeHtml(line.id)}" data-code="${escapeHtml(line.code || '')}">
-          <div class="rx-item-row">
-            <span class="rx-name">${escapeHtml(line.label)}</span>
-            <span class="rx-price">${escapeHtml(money(line.unitPriceMinorUnits, line.currency))}</span>
-            <button class="row-x" title="Retirer ce médicament" aria-label="Retirer ce médicament">
-              <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
-            </button>
-          </div>
-          <div class="rx-poso">${escapeHtml(posologyLabel(line))}</div>
-        </div>`).join('');
-
-    list.querySelectorAll('.rx-item').forEach(item => wireRxItem(item));
-
-    const titleEl = document.querySelector('.rp-block .rp-block-title');
-    if (titleEl) {
-      titleEl.textContent = lines.length === 0
-        ? 'Ordonnance'
-        : `Ordonnance · ${lines.length} médicament${lines.length > 1 ? 's' : ''}`;
-    }
-
-    renderAllergyBanner();
-  }
-
-  function posologyLabel(line) {
-    return [
-      line.dose,
-      line.frequency,
-      line.durationDays ? `${line.durationDays} ${line.durationDays > 1 ? 'jours' : 'jour'}` : null,
-      line.route,
-    ].filter(Boolean).join(' · ') || '—';
-  }
-
-  function renderAllergyBanner() {
-    const banner = document.querySelector('.rx-warning');
-    if (!banner) return;
-    const allergies = state.patient.allergies;
-    const conflicts = SERVER.allergyWarnings || [];
-
-    if (allergies.length === 0) {
-      banner.style.display = 'none';
-      return;
-    }
-
-    banner.style.display = '';
-    const icon = '<svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>';
-
-    if (conflicts.length === 0) {
-      banner.innerHTML = `${icon}
-        <span><strong style="font-weight:var(--weight-medium)">${escapeHtml(allergies.join(', '))} allergique</strong> — molécules incompatibles filtrées du catalogue.</span>`;
-      return;
-    }
-
-    const detail = [...new Set(conflicts.map(c => `${c.medication} (${c.substance})`))].join(', ');
-    banner.innerHTML = `${icon}
-      <span><strong style="font-weight:var(--weight-medium)">${escapeHtml(conflicts[0].alertLabel)} allergique</strong> — vérifiez ${escapeHtml(detail)}.</span>`;
-  }
-
-  function renderBill() {
-    const billList = document.querySelector('.bill-list');
-    if (!billList) return;
-
-    billList.innerHTML = (SERVER.billingLines || []).map(line => `
-        <div class="bill-row" data-code="${escapeHtml(line.code || '')}">
-          <div class="bill-name">
-            ${escapeHtml(line.label)}
-            <span class="bill-qty">${escapeHtml(line.code || line.source)}${Number(line.quantity) !== 1 ? ` · ×${frNumber(line.quantity)}` : ''}</span>
-          </div>
-          <div class="bill-price">${escapeHtml(money(line.totalMinorUnits, line.currency))}</div>
-        </div>`).join('');
-
-    recomputeBillTotal();
-  }
-
-  function renderChiefComplaint() {
-    const field = document.getElementById('motif-free');
-    if (field && field !== document.activeElement) field.value = SERVER.chiefComplaint || '';
-  }
-
-  onServerState(renderMotifStrip);
-  onServerState(renderVitalsStrip);
-  onServerState(renderPrescription);
-  onServerState(renderBill);
-  onServerState(renderChiefComplaint);
-
-  // ═══════════════════════════════════════════════
-  //  ACTIONS — domain operations
-  // ═══════════════════════════════════════════════
-
-  // Add a medication: persists the prescription line, the billing draft is
-  // re-derived server-side.
-  function addMedication(item, posology) {
-    return save(EP.prescriptionLineAdd, {
-      articleId: item.itemId,
-      dose: posology.dose,
-      frequency: posology.freq,
-      durationDays: posology.days,
-      route: posology.route,
-      quantity: 1,
-    }).then(payload => {
-      if (!payload?.success) return payload;
-      const added = document.querySelector('.rx-item:last-child');
-      const billRow = document.querySelector('.bill-list .bill-row:last-child');
-      if (added) highlightNew(added);
-      if (billRow) highlightNew(billRow);
-      Toast.success(`${item.name} ajouté à l'ordonnance et à la facture`);
-      return payload;
-    });
-  }
-
-  function removeMedication(lineId) {
-    return save(EP.prescriptionLineRemove, { prescriptionLineId: lineId }).then(payload => {
-      if (payload?.success) Toast.info('Médicament retiré');
-      return payload;
-    });
-  }
-
-  // Add a constante (vital pill)
-  function addVitalPill(vt, value) {
-    return save(EP.typedVitalRecord, { type: vt.id, value }).then(payload => {
-      if (!payload?.success) return payload;
-      const pill = document.querySelector(`.vital-pill[data-vital="${vt.id}"]`);
-      if (pill) highlightNew(pill);
-      Toast.success(`${vt.label} ajoutée : ${value} ${vt.unit}`);
-      return payload;
-    });
-  }
-
-  // ═══════════════════════════════════════════════
-  //  MODAL TEMPLATES
-  // ═══════════════════════════════════════════════
-
-  // — Add Motif —
-  function openAddMotifModal() {
-    const html = PRESET_MOTIFS.map(cat => `
-      <div class="m-list-section">${cat.category}</div>
-      ${cat.items.map(item => `<div class="m-item" data-motif="${item}"><div class="m-item-content"><span class="m-item-name">${item}</span></div></div>`).join('')}
-    `).join('');
-    const body = `
-      <div class="modal-search">
-        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-        <input type="text" placeholder="Rechercher un motif…" id="motif-search">
-      </div>
-      <div class="m-list" id="motif-list">${html}</div>
-    `;
-    Modal.open({ title: 'Ajouter un motif de consultation', body });
-
-    // search filter
-    Modal.getEl('#motif-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
-      Modal.getEl('#motif-list').querySelectorAll('.m-item').forEach(it => {
-        it.style.display = it.dataset.motif.toLowerCase().includes(q) ? '' : 'none';
-      });
-    });
-    // select
-    Modal.getEl('#motif-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const motif = it.dataset.motif;
-      const already = (SERVER.motifs || []).some(m => m.label.toLowerCase() === motif.toLowerCase());
-      Modal.close();
-      if (already) {
-        Toast.info(`"${motif}" déjà présent`);
-        return;
-      }
-      // The payload is built inside the queue so two quick picks never
-      // overwrite each other with a stale list.
-      save(EP.motifs, () => ({ labels: [...(SERVER.motifs || []).map(m => m.label), motif] }))
-        .then(payload => { if (payload?.success) Toast.success(`Motif ajouté : ${motif}`); });
-    });
-  }
-
-  function lastWeighingLabel() {
-    const previous = HISTORY.find(row => row.weightKg !== null && row.weightKg !== undefined);
-    return previous
-      ? `${frNumber(previous.weightKg)} kg · ${fmtHistoryDate(previous.startedAtUtc)}`
-      : 'aucune pesée antérieure';
-  }
-
-  // — Edit Weight —
-  function openEditWeightModal() {
-    const body = `
-      <div class="form-row">
-        <span class="form-row-label">Poids actuel</span>
-        <input type="text" class="inline-num-input" id="weight-input" value="${state.patient.weight ?? ''}">
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Unité</span>
-        <span class="form-hint">kg</span>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Dernière pesée</span>
-        <span class="form-hint">${lastWeighingLabel()}</span>
-      </div>
-      <div style="padding:var(--space-3);background:var(--brand-50);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--brand-700);margin-top:var(--space-3)">
-        ℹ Le nouveau poids sert au recalcul automatique des dosages dans l'ordonnance.
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="weight-save">Enregistrer</button>
-    `;
-    Modal.open({ title: 'Modifier le poids', body, footer, width: 'narrow' });
-    Modal.getEl('#weight-save').addEventListener('click', () => {
-      const v = Modal.getEl('#weight-input').value.replace(',', '.');
-      const newW = parseFloat(v);
-      if (isNaN(newW) || newW <= 0) { Toast.error('Poids invalide'); return; }
-      const last = state.patient.lastWeight;
-      Modal.close();
-      save(EP.vitals, {
-        weightKg: newW,
-        temperatureC: SERVER.vitals?.temperatureC ?? '',
-      }).then(payload => {
-        if (!payload?.success) return;
-        const delta = last !== null ? newW - last : null;
-        Toast.success(delta === null
-          ? `Poids enregistré : ${frNumber(newW)} kg`
-          : `Poids enregistré : ${frNumber(newW)} kg (${delta >= 0 ? '+' : ''}${frNumber(Number(delta.toFixed(1)))})`);
-      });
-    });
-  }
-
-  // — Add Constante —
-  function openAddConstanteModal() {
-    const existing = [...document.querySelectorAll('.vital-pill[data-vital]')].map(p => p.dataset.vital);
-    const available = VITAL_TYPES.filter(v => !existing.includes(v.id));
-    if (available.length === 0) {
-      Modal.open({
-        title: 'Ajouter une constante',
-        body: '<div class="m-empty">Toutes les constantes disponibles ont été ajoutées.</div>',
-        footer: '<button class="btn btn-secondary" data-close>OK</button>',
-      });
-      return;
-    }
-    const html = available.map(v => `
-      <div class="m-item" data-vital="${v.id}">
-        <div class="m-item-content">
-          <span class="m-item-name">${v.label}</span>
-          <span class="m-item-meta">Plage normale : ${v.range}${v.unit ? ' ' + v.unit : ''}</span>
-        </div>
-        <span class="m-item-tag">${v.unit || '—'}</span>
-      </div>
-    `).join('');
-    Modal.open({
-      title: 'Ajouter une constante',
-      body: `<div class="m-list">${html}</div>`,
-    });
-    Modal.getEl('.m-list').addEventListener('click', e => {
-      const it = e.target.closest('.m-item');
-      if (!it) return;
-      const vt = VITAL_TYPES.find(v => v.id === it.dataset.vital);
-      Modal.close();
-      // ouvrir un input pour la valeur
-      openVitalValueModal(vt);
-    });
-  }
-
-  function openVitalValueModal(vt) {
-    const body = `
-      <div class="form-row">
-        <span class="form-row-label">${vt.label}</span>
-        <input type="text" class="inline-num-input" id="vital-input" value="${vt.def}">
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Unité</span>
-        <span class="form-hint">${vt.unit || '—'}</span>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Normale</span>
-        <span class="form-hint">${vt.range}</span>
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="vital-save">Ajouter</button>
-    `;
-    Modal.open({ title: vt.label, body, footer, width: 'narrow' });
-    Modal.getEl('#vital-save').addEventListener('click', () => {
-      const value = Modal.getEl('#vital-input').value.trim();
-      if (!value) { Toast.error('Valeur requise'); return; }
-      Modal.close();
-      addVitalPill(vt, value);
-    });
-  }
-
-  // — Add Medication —
-  function openAddMedicationModal() {
-    const allergies = state.patient.allergies;
-    const body = `
-      <div class="modal-search">
-        <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-        <input type="text" placeholder="Rechercher dans le catalogue…" id="med-search">
-      </div>
-      ${allergies.length ? `<div style="padding:var(--space-2) var(--space-3);background:var(--color-warning-bg);border:1px solid var(--color-warning-border);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-warning-text);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-        Allergie déclarée : <strong>${escapeHtml(allergies.join(', '))}</strong> — molécules incompatibles filtrées.
-      </div>` : ''}
-      <div class="m-list" id="med-list"><div class="m-empty">Chargement du catalogue…</div></div>
-    `;
-    Modal.open({ title: 'Ajouter un médicament', body, width: 'wide' });
-
-    const renderList = () => {
-      const listEl = Modal.getEl('#med-list');
-      if (!listEl) return;
-      const groups = [
-        ['Sur ordonnance', Catalog.articles.filter(a => a.requiresPrescription)],
-        ['Sans ordonnance', Catalog.articles.filter(a => !a.requiresPrescription)],
-      ].filter(([, items]) => items.length > 0);
-
-      if (groups.length === 0) {
-        listEl.innerHTML = '<div class="m-empty">Aucun médicament dans le catalogue de la clinique.</div>';
-        return;
-      }
-
-      listEl.innerHTML = groups.map(([label, items]) => `
-        <div class="m-list-section">${escapeHtml(label)}</div>
-        ${items.map(m => {
-          const blocked = (m.allergyConflicts || []).length > 0;
-          return `
-          <div class="m-item ${blocked ? 'is-disabled' : ''}" data-code="${escapeHtml(m.code)}" ${blocked ? 'data-blocked="1"' : ''}>
-            <div class="m-item-content">
-              <span class="m-item-name">${escapeHtml(m.name)}</span>
-              <span class="m-item-meta">${escapeHtml(m.code)}</span>
-            </div>
-            ${blocked ? `<span class="m-item-warn">filtré : ${escapeHtml(m.allergyConflicts.join(', '))}</span>` : ''}
-            <span class="m-item-price">${escapeHtml(money(m.basePriceMinorUnits, m.currency))}</span>
-          </div>
-        `;
-        }).join('')}
-      `).join('');
-
-      listEl.querySelectorAll('.m-item').forEach(it => {
-        it.addEventListener('click', () => {
-          if (it.dataset.blocked) {
-            Toast.warn('Médicament incompatible avec les allergies du patient');
-            return;
-          }
-          const med = Catalog.find(it.dataset.code);
-          if (!med) return;
-          Modal.close();
-          openMedicationPosologyModal(med);
-        });
-      });
-    };
-
-    Catalog.load('').then(renderList);
-
-    Modal.getEl('#med-search').addEventListener('input', e => {
-      const q = e.target.value.toLowerCase();
-      const listEl = Modal.getEl('#med-list');
-      if (!listEl) return;
-      let visible = 0;
-      listEl.querySelectorAll('.m-item').forEach(it => {
-        const name = it.querySelector('.m-item-name').textContent.toLowerCase();
-        const shown = name.includes(q);
-        it.style.display = shown ? '' : 'none';
-        if (shown) visible += 1;
-      });
-      // Beyond the first page the catalogue is re-queried server-side.
-      if (visible === 0 && q.length >= 2) Catalog.load(e.target.value).then(renderList);
-    });
-  }
-
-  function openMedicationPosologyModal(med, existingLine = null) {
-    const weight = state.patient.weight;
-    const dose = existingLine?.dose ?? '';
-    const body = `
-      <div style="padding:var(--space-3);background:var(--brand-50);border:1px solid var(--brand-100);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
-        <div style="font-weight:var(--weight-medium);font-size:var(--text-md)">${escapeHtml(med.name)}</div>
-        <div style="font-size:var(--text-sm);color:var(--text-muted);margin-top:2px">${escapeHtml(med.code)}${med.requiresPrescription ? ' · sur ordonnance' : ''}</div>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Dose</span>
-        <div style="display:flex;gap:var(--space-2);align-items:center">
-          <input type="text" class="inline-num-input" id="poso-dose" value="${escapeHtml(dose)}" style="width:120px" placeholder="0,1 mg/kg">
-          <span class="form-hint" id="poso-dose-hint">${weight !== null ? `poids actuel ${frNumber(weight)} kg` : 'poids non renseigné'}</span>
-        </div>
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Voie</span>
-        <input type="text" class="inline-num-input" id="poso-route" value="${escapeHtml(existingLine?.route ?? 'per os')}">
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Fréquence</span>
-        <input type="text" class="inline-num-input" id="poso-freq" value="${escapeHtml(existingLine?.frequency ?? '1×/j')}">
-      </div>
-      <div class="form-row">
-        <span class="form-row-label">Durée</span>
-        <div style="display:flex;gap:var(--space-2);align-items:center">
-          <input type="text" class="inline-num-input" id="poso-days" value="${escapeHtml(existingLine?.durationDays ?? 7)}" style="width:80px">
-          <span class="form-hint">jours</span>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--space-3);border-top:1px solid var(--border-light)">
-        <span style="font-size:var(--text-sm);color:var(--text-muted)">Coût catalogue</span>
-        <span style="font-family:'DM Mono',monospace;font-size:var(--text-lg);font-weight:var(--weight-medium)">${escapeHtml(money(med.basePriceMinorUnits, med.currency))}</span>
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="poso-save">${existingLine ? 'Enregistrer' : 'Ajouter à l\'ordonnance'}</button>
-    `;
-    Modal.open({ title: 'Posologie', body, footer });
-    Modal.getEl('#poso-save').addEventListener('click', () => {
-      const posology = {
-        dose: Modal.getEl('#poso-dose').value,
-        route: Modal.getEl('#poso-route').value,
-        freq: Modal.getEl('#poso-freq').value,
-        days: parseInt(Modal.getEl('#poso-days').value, 10) || '',
-      };
-      Modal.close();
-      if (existingLine) {
-        // No update endpoint for a prescription line: re-issuing it also
-        // re-snapshots the price, which is what an edit means here.
-        removeMedication(existingLine.id).then(() => addMedication(med, posology));
-        return;
-      }
-      addMedication(med, posology);
-    });
-  }
-
-  // — Print —
-  // Every document is a PDF rendered server-side; the modal only opens them.
-  function openPrintModal() {
-    const prescriptions = DOCUMENTS.prescriptions || [];
-    const invoice = DOCUMENTS.invoice;
-    const hasExtra = prescriptions.length > 0 || invoice;
-
-    const card = (doc, icon, title, meta, disabled) => `
-      <button class="print-card" data-doc="${doc}"${disabled ? ' disabled' : ''}>
-        <span class="print-card-title">${icon} ${title}</span>
-        <span class="print-card-meta">${meta}</span>
-      </button>
-    `;
-
-    const body = `
-      <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-        Chaque document s'ouvre en PDF, prêt à imprimer ou à enregistrer.
-      </div>
-      <div class="print-grid">
-        ${card('report', '📋', 'Compte rendu de consultation', 'Synthèse SOAP, en-tête de la clinique', false)}
-        ${prescriptions.length
-          ? prescriptions.map((p, i) => card(
-              'prescription:' + i, '💊', 'Ordonnance ' + p.number,
-              p.lineCount + ' médicament' + (p.lineCount > 1 ? 's' : '') + ' · format légal FR', false,
-            )).join('')
-          : card('none-prescription', '💊', 'Ordonnance',
-              'Aucune ordonnance signée — créez-la depuis le bloc Ordonnance', true)}
-        ${invoice
-          ? card('invoice', '🧾', 'Facture ' + invoice.number, 'Détail des prestations et règlement', false)
-          : card('none-invoice', '🧾', 'Facture',
-              'Aucune facture émise — passez par l\'encaissement', true)}
-        ${card('bundle', '📦', 'Dossier complet',
-          hasExtra ? 'Compte rendu, ordonnances et facture en un seul PDF' : 'Compte rendu seul pour le moment', false)}
-      </div>
-    `;
-
-    Modal.open({ title: 'Imprimer / Télécharger', body });
-    Modal.getEl('.print-grid').addEventListener('click', e => {
-      const card = e.target.closest('.print-card');
-      if (!card || card.disabled) return;
-
-      const doc = card.dataset.doc;
-      let url = null;
-
-      if (doc === 'report') url = DOCUMENTS.report;
-      else if (doc === 'bundle') url = DOCUMENTS.bundle;
-      else if (doc === 'invoice') url = invoice && invoice.url;
-      else if (doc.startsWith('prescription:')) {
-        const chosen = prescriptions[Number(doc.split(':')[1])];
-        url = chosen && chosen.url;
-      }
-
-      if (!url) return;
-
-      Modal.close();
-      window.open(url, '_blank', 'noopener');
-    });
-  }
-
-  // — Historique —
-  function openHistoryModal() {
-    const html = PAST_CONSULTATIONS.map((c, index) => `
-      <div class="tl-item" data-index="${index}">
-        <span class="tl-date">${escapeHtml(c.date)}</span>
-        <div class="tl-content">
-          <span class="tl-motif">${escapeHtml(c.motif)}</span>
-          <span class="tl-summary">${escapeHtml(c.summary)}</span>
-        </div>
-      </div>
-    `).join('');
-    Modal.open({
-      title: `Historique — ${state.patient.name}`,
-      body: PAST_CONSULTATIONS.length
-        ? `<div class="timeline">${html}</div>`
-        : '<div class="m-empty">Aucune consultation antérieure pour ce patient.</div>',
-      width: 'wide',
-    });
-    Modal.getEl('.timeline')?.addEventListener('click', e => {
-      const item = e.target.closest('.tl-item');
-      if (!item) return;
-      const target = PAST_CONSULTATIONS[Number(item.dataset.index)];
-      if (!target?.url) return;
-      Modal.close();
-      if (window.Turbo) window.Turbo.visit(target.url); else window.location.assign(target.url);
-    });
-  }
-
-  // — Patient File (Dossier complet) —
-  function openPatientFileModal() {
-    const p = state.patient;
-    const row = (label, value) => `<div class="form-row"><span class="form-row-label">${escapeHtml(label)}</span><span>${escapeHtml(value || '—')}</span></div>`;
-    const body = `
-      <div style="display:flex;align-items:center;gap:var(--space-4);padding-bottom:var(--space-4);border-bottom:1px solid var(--border-light);margin-bottom:var(--space-4)">
-        <div class="pb-photo" style="width:72px;height:72px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="${escapeHtml(p.species || 'Patient')}">
-            <path d="M10 5.172A4 4 0 0 1 14 5l3 1.5"/>
-            <path d="M5.5 9.172a3 3 0 0 1 0-4 3 3 0 0 1 4.5 0L11 6.5"/>
-            <path d="M19 9.172a3 3 0 0 0 0-4 3 3 0 0 0-4.5 0L13 6.5"/>
-            <path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/>
-            <path d="M8 14v.5"/>
-            <path d="M16 14v.5"/>
-            <path d="M11.25 16.25h1.5L12 17z"/>
-          </svg>
-        </div>
-        <div>
-          <div style="font-size:var(--text-xl);font-weight:var(--weight-medium);letter-spacing:-.3px">${escapeHtml(p.name)}</div>
-          <div style="color:var(--text-muted);margin-top:2px">${escapeHtml([p.breed, p.age, p.weight !== null ? `${frNumber(p.weight)} kg` : null].filter(Boolean).join(' · '))}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:var(--text-sm);color:var(--text-subtle);margin-top:2px">${escapeHtml(p.microchip || '')}</div>
-        </div>
-      </div>
-
-      <div class="m-list-section" style="padding-left:0">Identité</div>
-      ${row('Nom', p.name)}
-      ${row('Espèce', p.species)}
-      ${row('Race', p.breed)}
-      ${row('Naissance', PATIENT.birthDate ? `${fmtHistoryDate(PATIENT.birthDate)}${p.age ? ` (${p.age})` : ''}` : null)}
-      ${row('Sexe', p.sex ? `${p.sex}${PATIENT.sterilized ? ' stérilisé(e)' : ''}` : null)}
-      ${row('Couleur', p.color)}
-      <div class="form-row"><span class="form-row-label">Propriétaire</span><span style="color:var(--brand-600);cursor:pointer" id="patient-file-owner">${escapeHtml(OWNER ? OWNER.fullName : '—')}${OWNER ? ' →' : ''}</span></div>
-
-      <div class="m-list-section" style="padding-left:0;margin-top:var(--space-3)">Médical</div>
-      <div class="form-row"><span class="form-row-label">Allergies</span><span style="color:var(--color-danger-text)">${escapeHtml(p.allergies.join(', ') || 'aucune')}</span></div>
-      ${row('Conditions', p.conditions.join(', ') || 'aucune')}
-      <div class="form-row"><span class="form-row-label">Vaccinations</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
-      <div class="form-row"><span class="form-row-label">Vermifuge</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
-
-      <div class="m-list-section" style="padding-left:0;margin-top:var(--space-3)">Activité</div>
-      ${row('Consultations', `${PAST_CONSULTATIONS.length} antérieure${PAST_CONSULTATIONS.length > 1 ? 's' : ''}`)}
-      ${row('Dernière visite', PAST_CONSULTATIONS[0]?.date)}
-    `;
-    const footer = `
-      <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-primary" id="patient-file-edit">Modifier le dossier</button>
-    `;
-    Modal.open({ title: 'Dossier patient', body, footer, width: 'wide' });
-    Modal.getEl('.modal-body')?.addEventListener('click', e => {
-      if (e.target.closest('[data-soon]')) Toast.info('Fonctionnalité à venir');
-    });
-    Modal.getEl('#patient-file-owner')?.addEventListener('click', () => { Modal.close(); openOwnerModal(); });
-    Modal.getEl('#patient-file-edit')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
-  }
-
-  // — Owner —
-  function openOwnerModal() {
-    if (!OWNER) {
-      Toast.info('Aucun propriétaire rattaché à ce patient');
-      return;
-    }
-    const initials = OWNER.fullName.split(/\s+/).map(part => part.charAt(0).toUpperCase()).slice(0, 2).join('');
-    const body = `
-      <div style="display:flex;align-items:center;gap:var(--space-3);padding-bottom:var(--space-3);border-bottom:1px solid var(--border-light);margin-bottom:var(--space-3)">
-        <span class="avatar avatar-lg">${escapeHtml(initials)}</span>
-        <div>
-          <div style="font-size:var(--text-lg);font-weight:var(--weight-medium)">${escapeHtml(OWNER.fullName)}</div>
-          <div style="color:var(--text-muted);font-size:var(--text-sm)">Propriétaire de ${escapeHtml(state.patient.name)}</div>
-        </div>
-      </div>
-      <div class="form-row"><span class="form-row-label">Téléphone</span><span style="color:var(--brand-600)">${escapeHtml(OWNER.phone || '—')}</span></div>
-      <div class="form-row"><span class="form-row-label">Email</span><span style="color:var(--brand-600)">${escapeHtml(OWNER.email || '—')}</span></div>
-      <div class="form-row"><span class="form-row-label">Adresse</span><span>${escapeHtml(OWNER.address || '—')}</span></div>
-      <div class="form-row"><span class="form-row-label">Solde</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
-      <div class="form-row"><span class="form-row-label">Préférences</span><span data-soon style="cursor:pointer;color:var(--text-muted)">à venir</span></div>
-    `;
-    const footer = `
-      <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-primary" id="owner-full">Voir fiche complète</button>
-    `;
-    Modal.open({ title: 'Propriétaire', body, footer });
-    Modal.getEl('.modal-body')?.addEventListener('click', e => {
-      if (e.target.closest('[data-soon]')) Toast.info('Fonctionnalité à venir');
-    });
-    Modal.getEl('#owner-full')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
-  }
-
-  // — Allergie info —
-  function openAllergieInfoModal(alert) {
-    const body = `
-      <div style="padding:var(--space-3);background:var(--color-danger-bg);border:1px solid var(--color-danger-border);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
-        <div style="display:flex;align-items:center;gap:var(--space-2);color:var(--color-danger-text);font-weight:var(--weight-medium);margin-bottom:var(--space-1)">
-          <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>
-          Allergie ${escapeHtml(alert.label)}
-        </div>
-        <div style="font-size:var(--text-sm);color:var(--color-danger-text)">${escapeHtml(alert.note || 'Aucune précision enregistrée.')}</div>
-      </div>
-      <div style="font-size:var(--text-sm);color:var(--text-muted);line-height:var(--lh-loose)">
-        Cette allergie est <strong style="font-weight:var(--weight-medium);color:var(--text-primary)">automatiquement appliquée</strong> au catalogue de médicaments dans la modale d'ajout d'ordonnance. Les molécules incompatibles apparaissent grisées et non sélectionnables.
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-secondary" data-close>Fermer</button>
-      <button class="btn btn-ghost" id="allergy-edit">Modifier</button>
-    `;
-    Modal.open({ title: 'Détails de l\'allergie', body, footer, width: 'narrow' });
-    Modal.getEl('#allergy-edit')?.addEventListener('click', () => Toast.info('Fonctionnalité à venir'));
-  }
-
-  function openConditionInfoModal(alert) {
-    const body = `
-      <div style="padding:var(--space-3);background:var(--color-info-bg);border:1px solid var(--color-info-border);border-radius:var(--radius-md);margin-bottom:var(--space-3)">
-        <div style="display:flex;align-items:center;gap:var(--space-2);color:var(--color-info-text);font-weight:var(--weight-medium);margin-bottom:var(--space-1)">
-          <svg class="icon-14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>
-          ${escapeHtml(alert.label)}
-        </div>
-        <div style="font-size:var(--text-sm);color:var(--color-info-text)">${escapeHtml(alert.note || 'Aucune précision enregistrée.')}</div>
-      </div>
-    `;
-    Modal.open({
-      title: 'Suivi en cours',
-      body,
-      footer: '<button class="btn btn-secondary" data-close>Fermer</button>',
-      width: 'narrow',
-    });
-  }
-
-  // — Clôturer la consultation —
-  function openCloseConsultationModal() {
-    if (isClosed()) {
-      Toast.warn('Consultation déjà clôturée');
-      return;
-    }
-
-    const motifs = (SERVER.motifs || []).length;
-    const vitals = (SERVER.typedVitals || []).length + (SERVER.vitals ? 1 : 0);
-    const exams = (SERVER.examSystems || []).length;
-    const dxCount = (SERVER.diagnoses || []).length;
-    const planCount = (SERVER.planActions || []).length;
-    const rxCount = (SERVER.prescriptionLines || []).length;
-    const total = money((SERVER.totals || {}).totalTtcMinorUnits || 0, (SERVER.totals || {}).currency);
-
-    function check(label, ok, extra) {
-      return `<div class="check-item ${ok ? '' : 'is-fail'}">
-        <svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">${ok ? '<path d="M3.5 8l3 3 6-6"/>' : '<circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 11h.01"/>'}</svg>
-        <span>${label}</span>
-        ${extra ? `<span class="check-item-extra">${extra}</span>` : ''}
-      </div>`;
-    }
-
-    const body = `
-      <div class="checklist">
-        ${check('Motif renseigné', motifs >= 1, motifs + ' chip(s)')}
-        ${check('Au moins une constante', vitals >= 1, vitals + ' mesure(s)')}
-        ${check('Examen objectif renseigné', exams >= 1, exams + ' système(s)')}
-        ${check('Au moins un diagnostic', dxCount >= 1, dxCount + ' dx')}
-        ${check('Plan défini', planCount >= 1, planCount + ' action(s)')}
-        ${check('Facturation établie', true, total)}
-      </div>
-      <div class="m-list-section" style="padding-left:0">Finalisation</div>
-      <div class="field-block">
-        <label class="field-label-mini" for="close-summary">Compte-rendu de sortie</label>
-        <textarea class="modal-textarea" id="close-summary" rows="3" placeholder="Synthèse remise au propriétaire…">${escapeHtml(SERVER.summary || '')}</textarea>
-      </div>
-      <div class="field-block">
-        <label class="field-label-mini" for="close-memo">Mémo équipe <span style="color:var(--text-subtle);font-weight:var(--weight-normal)">— interne, non remis au propriétaire</span></label>
-        <textarea class="modal-textarea" id="close-memo" rows="2" placeholder="Ce que l'équipe doit savoir pour la suite…">${escapeHtml(SERVER.teamMemo || '')}</textarea>
-      </div>
-      <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked data-soon> <span>Envoyer la facture par email${OWNER ? ` à ${escapeHtml(OWNER.fullName)}` : ''}</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked data-soon> <span>Envoyer l'ordonnance par email</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" data-soon> <span>Programmer le RDV de recontrôle</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);cursor:pointer">
-        <input type="checkbox" checked data-soon> <span>Programmer rappel SMS</span>
-      </label>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn btn-primary" id="close-confirm">Clôturer et envoyer</button>
-    `;
-    Modal.open({ title: 'Clôture de la consultation', body, footer });
-    Modal.getEl('#close-confirm').addEventListener('click', () => {
-      const summary = Modal.getEl('#close-summary')?.value || '';
-      const memo = Modal.getEl('#close-memo')?.value ?? null;
-      Modal.close();
-
-      // The memo is a note of its own: it is saved even if it was the only
-      // thing the vet changed in the dialog.
-      const saved = (null !== memo && memo !== (SERVER.teamMemo || ''))
-        ? save(EP.teamMemo, { memo })
-        : Promise.resolve();
-
-      saved.then(() => closeConsultation(summary));
-    });
-  }
-
-  function closeConsultation(summary) {
-    SaveState.set('saving');
-    const body = new URLSearchParams();
-    body.append('summary', summary);
-    body.append('_token', document.getElementById('consultation-csrf')?.value || '');
-    fetch(EP.close, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body })
-      .then(response => {
-        if (!response.ok && response.status >= 400) throw new Error('close failed');
-        SaveState.set('saved');
-        openConsultationClosedModal();
-      })
-      .catch(() => {
-        SaveState.set('error');
-        Toast.error('La clôture a échoué — réessayez');
-      });
-  }
-
-  function openConsultationClosedModal() {
-    const body = `
-      <div style="text-align:center;padding:var(--space-6) var(--space-4)">
-        <div style="width:64px;height:64px;border-radius:var(--radius-full);background:var(--color-success-bg);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--space-3)">
-          <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="var(--color-success-600)" stroke-width="2"><path d="M3 8l3 3 7-7"/></svg>
-        </div>
-        <div style="font-size:var(--text-lg);font-weight:var(--weight-medium);margin-bottom:var(--space-2)">Consultation clôturée</div>
-        <div style="font-size:var(--text-md);color:var(--text-muted);line-height:var(--lh-loose)">
-          Le dossier passe en lecture seule.${OWNER ? `<br>Les documents seront transmis à <strong style="color:var(--text-primary);font-weight:var(--weight-medium)">${escapeHtml(OWNER.fullName)}</strong>.` : ''}
-        </div>
-      </div>
-    `;
-    const footer = `
-      <button class="btn btn-ghost" id="stay-here">Rester ici</button>
-      <button class="btn btn-primary" id="next-patient">Patient suivant →</button>
-    `;
-    Modal.open({ title: '', body, footer, width: 'narrow' });
-    Modal.getEl('#stay-here').addEventListener('click', () => {
-      Modal.close();
-      window.location.reload();
-    });
-    Modal.getEl('#next-patient').addEventListener('click', () => {
-      Modal.close();
-      if (window.Turbo) window.Turbo.visit(EP.admissionQueue); else window.location.assign(EP.admissionQueue);
-    });
-  }
-
-  function openConfirmModal({ title, message, confirmLabel = 'Confirmer', danger = false, onConfirm }) {
-    const body = `<div style="font-size:var(--text-md);color:var(--text-secondary);line-height:var(--lh-loose);padding:var(--space-2) 0">${message}</div>`;
-    const footer = `
-      <button class="btn btn-ghost" data-close>Annuler</button>
-      <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="confirm-yes">${confirmLabel}</button>
-    `;
-    Modal.open({ title, body, footer, width: 'narrow' });
-    Modal.getEl('#confirm-yes').addEventListener('click', () => {
-      Modal.close();
-      if (onConfirm) onConfirm();
-    });
-  }
-
-  // ═══════════════════════════════════════════════
-  //  WIRING — handlers attachés au DOM
-  // ═══════════════════════════════════════════════
-
-  // Motif chip: clicking it drops the motif from the consultation.
-  function wireMotifChip(chip) {
-    chip.addEventListener('click', () => {
-      const id = chip.dataset.motifId;
-      if (!id) return;
-      chip.classList.remove('is-selected');
-      save(EP.motifs, () => ({
-        labels: (SERVER.motifs || []).filter(m => m.id !== id).map(m => m.label),
-      }));
-    });
-  }
-
-  function wireVitalPill(pill) {
-    pill.addEventListener('click', e => {
-      // ignore click sur la croix
-      if (e.target.closest('.row-x')) return;
-      // une consultation clôturée est en lecture seule
-      if (isClosed()) return;
-      // pour le poids et la température, ouvrir l'éditeur dédié
-      if (!pill.dataset.vital || pill.dataset.vital === 'weight' || pill.dataset.vital === 'temperature') {
-        openEditWeightModal();
-      } else {
-        const vt = VITAL_TYPES.find(v => v.id === pill.dataset.vital);
-        if (vt) openVitalValueModal(vt);
-      }
-    });
-
-    const xBtn = pill.querySelector('.row-x');
-    if (xBtn) {
-      xBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const label = pill.querySelector('.vital-pill-label').textContent;
-        save(EP.typedVitalRemove, { type: pill.dataset.vital }).then(payload => {
-          if (payload?.success) Toast.info(`${label} retirée`);
-        });
-      });
-    }
-  }
-
-  function wireRxItem(item) {
-    item.addEventListener('click', e => {
-      // ignore les clics sur la croix
-      if (e.target.closest('.row-x')) return;
-      const line = (SERVER.prescriptionLines || []).find(l => l.id === item.dataset.lineId);
-      if (!line || !line.articleId) return;
-      const cached = Catalog.find(line.code);
-      const med = cached || {
-        itemId: line.articleId,
-        name: line.label,
-        code: line.code || '',
-        basePriceMinorUnits: line.unitPriceMinorUnits,
-        currency: line.currency,
-        requiresPrescription: true,
-      };
-      openMedicationPosologyModal(med, line);
-    });
-
-    const xBtn = item.querySelector('.row-x');
-    if (xBtn) {
-      xBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        removeMedication(item.dataset.lineId);
-      });
-    }
-  }
-
-  // ─── Topbar ───
-  document.querySelector('.crumb a')?.addEventListener('click', e => {
-    e.preventDefault();
-    const href = e.currentTarget.href;
-    openConfirmModal({
-      title: 'Quitter la consultation',
-      message: 'La consultation est en brouillon. Vous pouvez la reprendre depuis l\'agenda.',
-      confirmLabel: 'Quitter',
-      onConfirm: () => { window.Turbo ? window.Turbo.visit(href) : window.location.assign(href); },
-    });
-  });
-
-  // Topbar buttons
-  document.getElementById('btn-history')?.addEventListener('click', openHistoryModal);
-  document.getElementById('btn-print')?.addEventListener('click', openPrintModal);
-
-  // ─── Patient bar ───
-  document.querySelector('.pb-photo')?.addEventListener('click', () => Toast.info('Téléversement de photo (à implémenter)'));
-  document.querySelector('.pb-owner')?.addEventListener('click', openOwnerModal);
-  // The animal's standing warnings sit at the end of the constants card: they
-  // are read with the figures they bear on, and they disappear with their
-  // separator when there is nothing to warn about.
-  function renderVigilances() {
-    const host = document.getElementById('vigilance-list');
-    const sep = document.getElementById('vigilance-sep');
-    if (!host) return;
-
-    const alerts = SERVER.medicalAlerts || [];
-
-    host.innerHTML = alerts.map(alert => {
-      const isAllergy = alert.kind === 'ALLERGY';
-      const icon = isAllergy
-        ? '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 1.5L14.5 13h-13z"/><path d="M8 6v3M8 11h.01" stroke-width="2"/></svg>'
-        : '<svg class="icon-12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5l2 1.5"/></svg>';
-      const label = isAllergy ? `Allergie ${alert.label}` : `Suivi ${alert.label}`;
-      return `<button class="vg ${isAllergy ? 'vg-danger' : 'vg-amber'}" data-alert-id="${escapeHtml(alert.id)}" title="${escapeHtml(label)}">${icon}${escapeHtml(label)}</button>`;
-    }).join('');
-
-    host.classList.toggle('is-empty', alerts.length === 0);
-    if (sep) sep.classList.toggle('is-hidden', alerts.length === 0);
-  }
-
-  onServerState(renderVigilances);
-
-  document.getElementById('vigilance-list')?.addEventListener('click', e => {
-    const warn = e.target.closest('[data-alert-id]');
-    if (!warn) return;
-    const alert = (SERVER.medicalAlerts || []).find(a => a.id === warn.dataset.alertId);
-    if (!alert) return;
-    if (alert.kind === 'ALLERGY') openAllergieInfoModal(alert);
-    else openConditionInfoModal(alert);
-  });
-  // dossier complet
-  document.getElementById('btn-patient-file')?.addEventListener('click', openPatientFileModal);
-  // ⋯ menu
-  const moreBtn = document.getElementById('btn-patient-more');
-  if (moreBtn) moreBtn.addEventListener('click', e => {
-    Dropdown.open(e.currentTarget, [
-      { action: 'sms', icon: '<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M5 12l-1 2 4-2"/>', label: 'Envoyer un SMS au propriétaire' },
-      { action: 'email', icon: '<rect x="2" y="3" width="12" height="9" rx="1"/><path d="M2 4l6 5 6-5"/>', label: 'Envoyer un email' },
-      { action: 'tag', icon: '<path d="M3 3h6l5 5-5 5-6-6z"/><circle cx="6" cy="6" r="1"/>', label: 'Ajouter un tag' },
-      { divider: true },
-      { action: 'archive', icon: '<rect x="2" y="3" width="12" height="3"/><path d="M3 6v8h10V6M6 9h4"/>', label: 'Archiver le patient' },
-      { action: 'transfer', icon: '<path d="M2 8h12M9 4l5 4-5 4"/>', label: 'Transférer vers une autre clinique', danger: true },
-    ], { onSelect: () => Toast.info('Fonctionnalité à venir') });
-  });
-
-  // ─── Save state click → details ───
-  document.getElementById('save-state')?.addEventListener('click', () => {
-    const savedAt = SaveState.lastSavedAt;
-    Toast.info(savedAt
-      ? `Dernière sauvegarde à ${savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-      : 'Aucune modification enregistrée pour le moment');
-  });
-
-  // ─── Motif card ───
-  document.querySelector('.wcard-motif .chip-add')?.addEventListener('click', openAddMotifModal);
-
-  // The motif in one sentence is a plain field: it saves when it loses focus,
-  // and Escape puts back what the server holds.
-  const motifField = document.getElementById('motif-free');
-  if (motifField) {
-    motifField.dataset.persist = '1';
-    let lastSaved = motifField.value;
-
-    const commit = () => {
-      const value = motifField.value.trim();
-      if (value === lastSaved.trim()) return;
-      lastSaved = motifField.value;
-      save(EP.chiefComplaint, { chiefComplaint: value }).then(payload => {
-        if (payload?.success) Toast.success('Motif mis à jour');
-      });
-    };
-
-    motifField.addEventListener('blur', commit);
-    motifField.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); motifField.blur(); }
-      if (e.key === 'Escape') { e.preventDefault(); motifField.value = lastSaved; motifField.blur(); }
-    });
-  }
-
-  // ─── Constantes card ───
-  document.getElementById('constante-add')?.addEventListener('click', openAddConstanteModal);
-  window.addEventListener('resize', syncConstanteAddHeight);
-
-  // ─── SOAP S — dicter ───
-  const sQuad = document.querySelector('.quad[data-letter="S"]');
-  sQuad?.querySelector('.quad-action')?.addEventListener('click', () => {
-    Toast.warn('Dictée vocale activée (mock) — parlez maintenant');
-    setTimeout(() => Toast.success('Dictée transcrite'), 2000);
-  });
-
-  // ─── Right panel ───
-  // Print/view ordonnance
-  document.getElementById('btn-rx-print')?.addEventListener('click', openPrintModal);
-
-  // Add medication button
-  document.getElementById('btn-add-medication')?.addEventListener('click', openAddMedicationModal);
-
-  // Bill draft badge → status menu
-  const draftBadge = document.getElementById('bill-status-badge');
-  if (draftBadge) {
-    // There is no invoice state in the domain yet, so the badge can only
-    // report what is known: a closed consultation is no longer a draft.
-    onServerState(() => {
-      draftBadge.textContent = isClosed() ? 'clôturée' : 'brouillon';
-      draftBadge.style.cursor = isClosed() ? 'default' : 'pointer';
-    });
-    draftBadge.addEventListener('click', e => {
-      if (isClosed()) return;
-      Dropdown.open(e.currentTarget, [
-        { action: 'draft', label: '✏ Brouillon' },
-        { action: 'pending', label: '⏳ À facturer' },
-        { action: 'paid', label: '✓ Payée' },
-      ], { onSelect: () => Toast.info('Fonctionnalité à venir') });
-    });
-  }
-
-  // ─── Footer ───
-  document.getElementById('btn-close-consultation')?.addEventListener('click', openCloseConsultationModal);
-
-  // ─── Keyboard shortcuts ───
-  onDocument('keydown', e => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      openCloseConsultationModal();
-    }
-  });
-
-  // ─── SOAP free texts (auto-save) ───
-  function wireAutoSave(selector, endpoint, field) {
-    const el = document.querySelector(selector);
-    if (!el) return;
-    let timer = null;
-    el.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => save(endpoint, { [field]: el.value }), 700);
-    });
-    registerCleanup(() => clearTimeout(timer));
-    onServerState(() => {
-      if (el !== document.activeElement) el.value = SERVER[field === 'text' ? textField(endpoint) : field] || '';
-    });
-  }
-
-  function textField(endpoint) {
-    return endpoint === EP.subjective ? 'subjectiveText' : 'objectiveObservations';
-  }
-
-  wireAutoSave('#q-subjective', EP.subjective, 'text');
-  wireAutoSave('#q-objective', EP.objective, 'text');
-
-  // ─── Read-only mode ───
-  onServerState(() => {
-    document.body.classList.toggle('consultation-readonly', isClosed());
-    if (!isClosed()) return;
-    ['#q-subjective', '#q-objective'].forEach(sel => {
-      document.querySelector(sel)?.setAttribute('readonly', 'readonly');
-    });
-    document.getElementById('btn-close-consultation')?.setAttribute('disabled', 'disabled');
-  });
-
-  // Close any floating UI left open when Turbo caches the page
-  registerCleanup(() => { Modal.close(); Dropdown.close(); });
-
-  // First paint from the hydration payload.
-  renderFromServer();
-
-})();
-
-
-/* ====================================================================
- * QUAD O — Objectif (Examen clinique)
- * Source : objectif-redesign-final.html — IDs préfixés qO-
- * ==================================================================== */
-(function() {
-'use strict';
-
-const ICONS = {
-  heart:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
-  wind:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>',
-  gi:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18"/><path d="M5 4v10a5 5 0 0 0 10 0V8a3 3 0 0 1 6 0v6"/></svg>',
-  droplet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
-  bone:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5z"/></svg>',
-  brain:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 0 0 12 18z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 0 1 12 18z"/></svg>',
-  sparkle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.94 14.06 2 22"/><path d="m12 7 3 3"/><path d="M19 2v8h-8"/><path d="m15 5-2.5 2.5"/><circle cx="6" cy="18" r="2"/></svg>',
-  eye:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
-  tooth:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5C12 4 14 2 16.5 2c2.8 0 4.5 2 4.5 5 0 3-1.5 5.5-2.5 9-.8 3-1 6-3 6-2 0-2-3-3.5-3s-1.5 3-3.5 3c-2 0-2.2-3-3-6-1-3.5-2.5-6-2.5-9 0-3 1.7-5 4.5-5C9.5 2 11.5 4 11.5 5.5"/></svg>',
-  shell:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="13" rx="9" ry="7"/><path d="M12 6v14M6 9l1 8M18 9l-1 8M9 7l-1 12M15 7l1 12"/></svg>',
-};
-
-// Body systems and species templates are served by the server; the shapes below
-// are the ones the render and modal code already expected.
-const SYSTEM_DEFS = (REF.bodySystems || []).reduce((acc, sys) => {
-  acc[sys.id] = { name: sys.label, icon: sys.icon, drilldown: sys.drilldown };
-  return acc;
-}, {});
-
-const TEMPLATES = (REF.speciesTemplates || []).reduce((acc, tpl) => {
-  acc[tpl.id] = { name: tpl.name, emoji: tpl.emoji, systems: tpl.systems, enabled: tpl.enabled };
-  return acc;
-}, {});
-
-let currentTemplate = (() => {
-  const species = (PATIENT.speciesLabel || '').toLowerCase();
-  if (species.startsWith('chat') && TEMPLATES.chat) return 'chat';
-  if (species.startsWith('nac') && TEMPLATES.reptile) return 'reptile';
-  return TEMPLATES.chien ? 'chien' : Object.keys(TEMPLATES)[0];
-})();
-
-const STATUS_FROM_SERVER = { NORMAL: 'normal', ANOMALY: 'anomaly', UNTESTED: 'untested' };
-const STATUS_TO_SERVER = { normal: 'NORMAL', anomaly: 'ANOMALY', untested: 'UNTESTED' };
-
-// Local mirror of the persisted exam, keyed like the layout expects.
-const state = {};
-
-function syncStateFromServer() {
-  Object.keys(SYSTEM_DEFS).forEach(id => {
-    state[id] = state[id] || { status: 'untested', notes: '', structured: {} };
-    state[id].status = 'untested';
-    state[id].notes = '';
-    state[id].structured = {};
-  });
-  (SERVER.examSystems || []).forEach(exam => {
-    state[exam.system] = {
-      status: STATUS_FROM_SERVER[exam.status] || 'untested',
-      notes: exam.notes || '',
-      structured: exam.structuredData || {},
-    };
-  });
-}
-
-syncStateFromServer();
-
-const STATUS_LABEL = { normal:'RAS', anomaly:'Anomalie', untested:'Non testé' };
-
-function $(s, r=document) { return r.querySelector(s); }
-function $$(s, r=document) { return [...r.querySelectorAll(s)]; }
-
-function toast(msg) {
-  const el = $('#qO-annotation');
-  el.textContent = msg;
-  el.classList.add('is-visible');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('is-visible'), 1700);
-}
-
-function isFilled(s) {
-  const hasStruct = s.structured && Object.values(s.structured).some(v => v !== '' && v !== null && v !== undefined);
-  return hasStruct || s.notes;
-}
-
-function currentSystems() {
-  const templateSystems = TEMPLATES[currentTemplate]?.systems || [];
-  // A system recorded under another template stays visible: hiding stored data
-  // would be worse than showing one extra row.
-  const recordedElsewhere = (SERVER.examSystems || [])
-    .map(exam => exam.system)
-    .filter(id => !templateSystems.includes(id));
-  return [...templateSystems, ...recordedElsewhere]
-    .filter(id => SYSTEM_DEFS[id])
-    .map(id => ({ id, ...SYSTEM_DEFS[id] }));
-}
-
-function stateToggleHTML(sysId, currentStatus) {
-  return `
-    <div class="state-toggle" data-sys="${sysId}">
-      <button class="state-btn ${currentStatus==='normal'?'is-active':''}" data-state="normal" type="button">RAS</button>
-      <button class="state-btn ${currentStatus==='anomaly'?'is-active':''}" data-state="anomaly" type="button">Anomalie</button>
-      <button class="state-btn ${currentStatus==='untested'?'is-active':''}" data-state="untested" type="button">Non testé</button>
-    </div>`;
-}
-
-// ════════════════════════════════════════════════════════════
-//  TEMPLATE BUTTON
-// ════════════════════════════════════════════════════════════
-function renderTemplateLabel() {
-  $('#qO-template-btn-name').textContent = TEMPLATES[currentTemplate].name;
-}
-function closeTemplateMenu() {
-  const m = document.querySelector('.template-menu');
-  if (m) m.remove();
-  $('#qO-template-btn').classList.remove('is-open');
-}
-function openTemplateMenu() {
-  const btn = $('#qO-template-btn');
-  if (btn.classList.contains('is-open')) { closeTemplateMenu(); return; }
-  btn.classList.add('is-open');
-  const rect = btn.getBoundingClientRect();
-  const menu = document.createElement('div');
-  menu.className = 'template-menu';
-  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-  menu.style.right = (window.innerWidth - rect.right) + 'px';
-  const itemsHTML = Object.entries(TEMPLATES).map(([id, tpl]) => {
-    const active = id === currentTemplate;
-    const dimmed = !tpl.enabled ? 'tm-item--secondary' : '';
-    return `
-      <div class="tm-item ${active?'is-active':''} ${dimmed}" data-tpl="${id}" data-enabled="${tpl.enabled}">
-        <span class="tm-emoji">${tpl.emoji}</span>
-        <div class="tm-content">
-          <div class="tm-name">${tpl.name}</div>
-          <div class="tm-meta">${tpl.systems.length} systèmes${!tpl.enabled?' · bientôt':''}</div>
-        </div>
-        ${active ? '<svg class="tm-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l3 3 7-7"/></svg>' : ''}
-      </div>`;
-  }).join('');
-  menu.innerHTML = `
-    <div class="tm-hint">Template d'examen</div>
-    ${itemsHTML}
-    <div class="tm-divider"></div>
-    <div class="tm-item tm-item--secondary" data-action="customize">
-      <span class="tm-emoji">⚙</span>
-      <div class="tm-content"><div class="tm-name">Personnaliser…</div></div>
-    </div>`;
-  document.body.appendChild(menu);
-  menu.addEventListener('click', e => {
-    const item = e.target.closest('.tm-item');
-    if (!item) return;
-    if (item.dataset.action === 'customize') {
-      closeTemplateMenu();
-      toast('Éditeur de template personnalisé (à implémenter)');
-      return;
-    }
-    const tplId = item.dataset.tpl;
-    if (item.dataset.enabled !== 'true') {
-      toast(`${TEMPLATES[tplId].name} — démo non implémentée`);
-      return;
-    }
-    closeTemplateMenu();
-    if (tplId === currentTemplate) return;
-    currentTemplate = tplId;
-    renderTemplateLabel();
-    renderList();
-    toast(`Template : ${TEMPLATES[tplId].name} (${TEMPLATES[tplId].systems.length} systèmes)`);
-  });
-}
-$('#qO-template-btn').addEventListener('click', e => {
-  e.stopPropagation();
-  openTemplateMenu();
-});
-onDocument('click', e => {
-  if (!e.target.closest('.template-menu') && !e.target.closest('#qO-template-btn')) {
-    closeTemplateMenu();
-  }
-});
-onDocument('keydown', e => {
-  if (e.key === 'Escape') closeTemplateMenu();
-});
-
-// ════════════════════════════════════════════════════════════
-//  RENDER LIST — synthèse = note uniquement
-// ════════════════════════════════════════════════════════════
-function renderList() {
-  const list = $('#qO-listF');
-  const systems = currentSystems();
-  list.innerHTML = systems.map(sys => {
-    const s = state[sys.id];
-    const cls = ['rowF', `is-${s.status}`];
-    const note = (s.status === 'anomaly' && s.notes) ? s.notes.split(/[.\n]/)[0].trim() : '';
-    const dotHTML = note ? '<span class="rowF-dot" aria-hidden="true"></span>' : '';
-    const titleAttr = note ? ` title="${note.replace(/"/g, '&quot;')}"` : '';
-    return `
-      <div class="${cls.join(' ')}" data-sys="${sys.id}"${titleAttr}>
-        <div class="rowF-icon">${ICONS[sys.icon]}</div>
-        <div class="rowF-name">${sys.shortName || sys.name}${dotHTML}</div>
-        <div style="flex:1"></div>
-        ${stateToggleHTML(sys.id, s.status)}
-      </div>`;
-  }).join('');
-
-  $$('.state-toggle').forEach(toggle => {
-    const sysId = toggle.dataset.sys;
-    toggle.querySelectorAll('.state-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        const newState = btn.dataset.state;
-        const sysName = SYSTEM_DEFS[sysId].name;
-        const wasAnomaly = state[sysId].status === 'anomaly';
-        if (newState === 'anomaly') {
-          if (!wasAnomaly) {
-            persistSystem(sysId, 'anomaly').then(() => {
-              toast(`${sysName} → Anomalie`);
-              setTimeout(() => openModal(sysId), 100);
-            });
-            return;
-          }
-          openModal(sysId);
-          return;
-        }
-        if (newState === state[sysId].status) return;
-        persistSystem(sysId, newState).then(payload => {
-          if (payload?.success) toast(`${sysName} → ${STATUS_LABEL[newState]}`);
-        });
-      });
-    });
-  });
-
-  $$('.rowF').forEach(row => {
-    const sysId = row.dataset.sys;
-    if (state[sysId].status !== 'anomaly') return;
-    row.addEventListener('click', () => openModal(sysId));
-  });
-}
-
-function persistSystem(sysId, status, notes, structured) {
-  const current = state[sysId] || {};
-  return save(EP.examSystem, {
-    system: sysId,
-    status: STATUS_TO_SERVER[status] || 'UNTESTED',
-    notes: notes !== undefined ? notes : (current.notes || ''),
-    structuredData: structured !== undefined ? structured : (current.structured || {}),
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  MODAL — drill-down complet, c'est ICI que tout vit
-// ════════════════════════════════════════════════════════════
-let editingSysId = null;
-let workingCopy = null;
-
-function openModal(sysId) {
-  const sys = { id: sysId, ...SYSTEM_DEFS[sysId] };
-  const s = state[sysId];
-  editingSysId = sysId;
-  workingCopy = {
-    notes: s.notes || '',
-    structured: { ...(s.structured || {}) },
-  };
-  $('#qO-modal-icon').innerHTML = ICONS[sys.icon];
-  $('#qO-modal-title').textContent = sys.name;
-
-  let structuredHTML = '';
-  if (sys.drilldown === 'cardio') {
-    structuredHTML = `
-      <div class="field-block">
-        <div class="field-row field-row--3">
-          <div>
-            <label class="field-label-mini">Fréquence (bpm)</label>
-            <input class="field-input-m mono" type="number" id="f-fc" placeholder="—" value="${workingCopy.structured.fc || ''}">
-          </div>
-          <div>
-            <label class="field-label-mini">Rythme</label>
-            <select class="field-select-m" id="f-rhythm">
-              <option value="">—</option>
-              <option value="Régulier" ${workingCopy.structured.rhythm==='Régulier'?'selected':''}>Régulier</option>
-              <option value="Arythmique" ${workingCopy.structured.rhythm==='Arythmique'?'selected':''}>Arythmique</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label-mini">Souffle (0-6)</label>
-            <select class="field-select-m" id="f-murmur">
-              <option value="">—</option>
-              ${[0,1,2,3,4,5,6].map(n => `<option value="${n}" ${workingCopy.structured.murmur==n?'selected':''}>${n}${n===0?' / absent':n===1?' / discret':n===2?' / modéré':n===3?' / fort':n===4?' / palpable':n===5?' / +pause':' / sans stétho'}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-      </div>`;
-  } else if (sys.drilldown === 'loco') {
-    const sd = workingCopy.structured;
-    structuredHTML = `
-      <div class="field-block">
-        <div class="field-row field-row--3">
-          <div>
-            <label class="field-label-mini">Membre</label>
-            <div class="limb-toggle" id="f-limb">
-              ${['AG','AD','PG','PD'].map(l => `<button type="button" class="limb-btn ${sd.limb===l?'is-active':''}" data-limb="${l}">${l}</button>`).join('')}
-            </div>
-          </div>
-          <div>
-            <label class="field-label-mini">Grade (1-4)</label>
-            <select class="field-select-m" id="f-grade">
-              <option value="">—</option>
-              <option value="1" ${sd.grade==1?'selected':''}>1 — légère, à la course</option>
-              <option value="2" ${sd.grade==2?'selected':''}>2 — visible au pas</option>
-              <option value="3" ${sd.grade==3?'selected':''}>3 — marquée en charge</option>
-              <option value="4" ${sd.grade==4?'selected':''}>4 — refus d'appui</option>
-            </select>
-          </div>
-          <div>
-            <label class="field-label-mini">Type</label>
-            <select class="field-select-m" id="f-type">
-              <option value="">—</option>
-              <option value="mechanical" ${sd.type==='mechanical'?'selected':''}>Mécanique</option>
-              <option value="inflammatory" ${sd.type==='inflammatory'?'selected':''}>Inflammatoire</option>
-              <option value="neurological" ${sd.type==='neurological'?'selected':''}>Neurologique</option>
-            </select>
-          </div>
-        </div>
-        <div class="field-row">
-          <div>
-            <label class="field-label-mini">Région suspectée</label>
-            <input class="field-input-m" id="f-region" placeholder="ex : grasset, hanche, épaule…" value="${sd.region || ''}">
-          </div>
-        </div>
-      </div>`;
-  } else if (sys.drilldown === 'derma') {
-    const sd = workingCopy.structured;
-    structuredHTML = `
-      <div class="field-block">
-        <div class="field-row field-row--2">
-          <div>
-            <label class="field-label-mini">Région</label>
-            <input class="field-input-m" id="f-region" placeholder="ex : dos, oreilles, abdomen…" value="${sd.region || ''}">
-          </div>
-          <div>
-            <label class="field-label-mini">Type de lésion</label>
-            <select class="field-select-m" id="f-lesion">
-              <option value="">—</option>
-              ${['Érythème','Croûte','Alopécie','Pustule','Lichénification'].map(v => `<option value="${v}" ${sd.lesion===v?'selected':''}>${v}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  $('#qO-modal-body').innerHTML = `
-    ${structuredHTML}
-    <div class="field-block">
-      <label class="field-label-mini">Observations détaillées</label>
-      <textarea class="modal-textarea" id="f-notes" rows="5" placeholder="Décris ce que tu observes…">${workingCopy.notes}</textarea>
-    </div>
-  `;
-
-  const limbToggle = $('#f-limb');
-  if (limbToggle) {
-    limbToggle.querySelectorAll('.limb-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        limbToggle.querySelectorAll('.limb-btn').forEach(b => b.classList.remove('is-active'));
-        btn.classList.add('is-active');
-        workingCopy.structured.limb = btn.dataset.limb;
-      });
-    });
-  }
-
-  $('#qO-modal-overlay').classList.add('is-open');
-  $('#f-notes').focus();
-}
-
-function saveModal() {
-  if (!editingSysId) return;
-  const sys = { id: editingSysId, ...SYSTEM_DEFS[editingSysId] };
-  const s = state[editingSysId];
-  const struct = {};
-  if (sys.drilldown === 'cardio') {
-    struct.fc = $('#f-fc')?.value || '';
-    struct.rhythm = $('#f-rhythm')?.value || '';
-    const m = $('#f-murmur')?.value;
-    struct.murmur = m === '' ? null : parseInt(m);
-  } else if (sys.drilldown === 'loco') {
-    struct.limb = workingCopy.structured.limb || '';
-    struct.grade = $('#f-grade')?.value ? parseInt($('#f-grade').value) : null;
-    struct.type = $('#f-type')?.value || '';
-    struct.region = $('#f-region')?.value || '';
-  } else if (sys.drilldown === 'derma') {
-    struct.region = $('#f-region')?.value || '';
-    struct.lesion = $('#f-lesion')?.value || '';
-  }
-  const notes = $('#f-notes')?.value || '';
-  closeModal();
-  persistSystem(sys.id, 'anomaly', notes, struct).then(payload => {
-    if (payload?.success) toast(`${sys.name} — détails enregistrés`);
-  });
-}
-
-function closeModal() {
-  $('#qO-modal-overlay').classList.remove('is-open');
-  editingSysId = null;
-  workingCopy = null;
-}
-
-$('#qO-modal-close').addEventListener('click', closeModal);
-$('#qO-modal-cancel').addEventListener('click', closeModal);
-$('#qO-modal-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-$('#qO-modal-save').addEventListener('click', saveModal);
-onDocument('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
-
-$('#qO-ras-all').addEventListener('click', () => {
-  save(EP.examSystemsAllNormal, () => ({ systems: currentSystems().map(sy => sy.id) })).then(payload => {
-    if (payload?.success) toast('Tous les systèmes restants marqués RAS');
-  });
-});
-
-onServerState(() => {
-  syncStateFromServer();
-  renderTemplateLabel();
-  renderList();
-});
-
-renderTemplateLabel();
-renderList();
-
-
-})();
-
-
-
-/* ====================================================================
- * QUAD A — Diagnostic (Quick-Add v3)
- * Source : diagnostic-redesign-v3.html — IDs préfixés qA-
- * ==================================================================== */
-(function() {
-'use strict';
-
-const ICONS = {
-  starOutline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-  starFilled:  '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-  sparkles:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>',
-  stethoscope: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2v2"/><path d="M5 2v2"/><path d="M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/></svg>',
-  search:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>',
-  close:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>',
-  check:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>',
-};
-
-const CERTAINTY_DEFS = {
-  CERTAIN:  { label: 'Certain',  short: 'Cert.',  cssKey: 'certain' },
-  PROBABLE: { label: 'Probable', short: 'Prob.', cssKey: 'probable' },
-  POSSIBLE: { label: 'Possible', short: 'Poss.', cssKey: 'possible' },
-  EXCLUDED: { label: 'Exclu',    short: 'Exclu',  cssKey: 'excluded' },
-};
-const CERTAINTY_ORDER = ['CERTAIN', 'PROBABLE', 'POSSIBLE', 'EXCLUDED'];
-
-const SOURCE_DEFS = {
-  MANUAL: 'Saisi manuellement',
-  AI_SUGGESTION: 'Suggestion IA acceptée',
-  TEMPLATE: 'Appliqué via template',
-};
-
-const NOMENCLATURE = REF.nomenclature || [];
-
-// The diagnosis list is the server's; the fields already match the layout's.
-let diagnoses = [];
-
-function syncDiagnosesFromServer() {
-  diagnoses = (SERVER.diagnoses || []).map(dx => ({ ...dx }));
-}
-
-syncDiagnosesFromServer();
-
-function $(s, r=document) { return r.querySelector(s); }
-function $$(s, r=document) { return [...r.querySelectorAll(s)]; }
-
-function toast(msg) {
-  const el = $('#qA-annotation');
-  el.textContent = msg;
-  el.classList.add('is-visible');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('is-visible'), 1500);
-}
-
-function sortedDx() {
-  return [...diagnoses].sort((a, b) => {
-    if (a.isPrimary && !b.isPrimary) return -1;
-    if (!a.isPrimary && b.isPrimary) return 1;
-    return 0;
-  });
-}
-
-function getDxByCode(code) { return diagnoses.find(d => d.code === code); }
-
-// ════════════════════════════════════════════════════════════
-//  RENDER MAIN LIST
-// ════════════════════════════════════════════════════════════
-function renderList() {
-  const list = $('#qA-dx-list');
-  $('#qA-dx-count').textContent = diagnoses.length === 0 ? 'vide' : (diagnoses.length + ' dx');
-
-  if (diagnoses.length === 0) {
-    list.innerHTML = `
-      <div class="dx-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div class="dx-empty-title">Aucun diagnostic posé</div>
-        <div class="dx-empty-sub">Ajoute un dx ou demande une suggestion IA</div>
-      </div>`;
-    return;
-  }
-
-  list.innerHTML = sortedDx().map(dx => {
-    const cert = CERTAINTY_DEFS[dx.certainty];
-    const cls = ['dx-row'];
-    if (dx.isPrimary) cls.push('is-primary');
-    if (dx.certainty === 'EXCLUDED') cls.push('is-excluded');
-
-    const noteHTML = dx.note
-      ? `<span class="dx-sep">·</span><span class="dx-note">${dx.note.split(/[.\n]/)[0].trim()}</span>`
-      : `<div style="flex:1"></div>`;
-
-    const sourceChip = dx.source === 'AI_SUGGESTION'
-      ? `<span class="dx-source-chip" title="${SOURCE_DEFS.AI_SUGGESTION}">${ICONS.sparkles} IA</span>`
-      : '';
-
-    return `
-      <div class="${cls.join(' ')}" data-id="${dx.id}">
-        <button class="dx-star ${dx.isPrimary?'is-on':''}" data-star="${dx.id}" aria-label="${dx.isPrimary?'Retirer principal':'Définir comme principal'}" title="${dx.isPrimary?'Diagnostic principal':'Définir comme principal'}">
-          ${dx.isPrimary ? ICONS.starFilled : ICONS.starOutline}
-        </button>
-        <span class="dx-name-wrap">
-          <span class="dx-name">${dx.label}</span>
-          <span class="dx-code-tooltip">${dx.code || ''}</span>
-        </span>
-        ${noteHTML}
-        ${sourceChip}
-        <span class="dx-certainty dx-certainty--${cert.cssKey}">${cert.short}</span>
-        <button class="dx-x" data-remove="${dx.id}" aria-label="Retirer">${ICONS.close}</button>
-      </div>`;
-  }).join('');
-
-  $$('.dx-row').forEach(el => {
-    el.addEventListener('click', e => {
-      if (e.target.closest('[data-remove]') || e.target.closest('[data-star]')) return;
-      openEditModal(el.dataset.id);
-    });
-  });
-  $$('[data-star]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = btn.dataset.star;
-      const dx = diagnoses.find(x => x.id === id);
-      if (!dx) return;
-      const wasPrimary = dx.isPrimary;
-      save(EP.diagnosisPrimary, { diagnosisId: wasPrimary ? '' : id }).then(payload => {
-        if (!payload?.success) return;
-        toast(wasPrimary
-          ? `${dx.label.slice(0, 30)}… retiré comme principal`
-          : `${dx.label.slice(0, 30)}… défini comme principal`);
-      });
-    });
-  });
-  $$('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = btn.dataset.remove;
-      const dx = diagnoses.find(x => x.id === id);
-      if (!dx) return;
-      save(EP.diagnosisRemove, { diagnosisId: id }).then(payload => {
-        if (payload?.success) toast(`Retiré : ${dx.label.slice(0, 40)}${dx.label.length > 40 ? '…' : ''}`);
-      });
-    });
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  QUICK-ADD MODAL
-// ════════════════════════════════════════════════════════════
-let quickAddInitialCount = 0;
-
-function openQuickAddModal() {
-  quickAddInitialCount = diagnoses.length;
-
-  $('#qA-modal').classList.add('modal--wide');
-  $('#qA-modal-icon').className = 'modal-head-icon';
-  $('#qA-modal-icon').innerHTML = ICONS.search;
-  $('#qA-modal-title').textContent = 'Ajouter des diagnostics';
-  $('#qA-modal-sub').textContent = 'Clic sur une certitude = ajout immédiat';
-  updateQuickAddCount();
-
-  $('#qA-modal-body').innerHTML = `
-    <div class="qa-search-wrap">
-      <span class="qa-search-icon">${ICONS.search}</span>
-      <input type="text" class="qa-search" id="qa-search-input" placeholder="Tapez un nom ou un code (ex : arthrose, M.LOC)…" autocomplete="off">
-    </div>
-    <div class="qa-list" id="qa-list"></div>
-  `;
-  $('#qA-modal-foot').innerHTML = `
-    <div class="modal-foot-hint">
-      Cliquez sur le <strong>nom du dx</strong> pour ouvrir l'édition complète (note, principal). <kbd>Échap</kbd> pour fermer.
-    </div>
-    <button class="btn btn-primary btn-sm" data-modal-close type="button">Terminer</button>
-  `;
-  $('[data-modal-close]').addEventListener('click', closeModal);
-
-  const searchInput = $('#qa-search-input');
-  searchInput.addEventListener('input', renderQuickAddList);
-  renderQuickAddList();
-
-  openModal();
-  setTimeout(() => searchInput.focus(), 100);
-}
-
-function updateQuickAddCount() {
-  const delta = diagnoses.length - quickAddInitialCount;
-  const headEl = $('#qA-modal-head-count');
-  if (delta > 0) {
-    headEl.style.display = 'inline-flex';
-    headEl.innerHTML = `${ICONS.check} ${delta} ajouté${delta > 1 ? 's' : ''}`;
-  } else {
-    headEl.style.display = 'none';
-  }
-}
-
-function renderQuickAddList() {
-  const q = $('#qa-search-input').value.toLowerCase().trim();
-  const filtered = NOMENCLATURE.filter(d =>
-    d.name.toLowerCase().includes(q) || d.code.toLowerCase().includes(q)
-  );
-
-  const listEl = $('#qa-list');
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="qa-empty">Aucun résultat. Essaie un autre terme.</div>';
-    return;
-  }
-
-  const grouped = filtered.reduce((acc, d) => {
-    (acc[d.system] = acc[d.system] || []).push(d);
-    return acc;
-  }, {});
-
-  listEl.innerHTML = Object.entries(grouped).map(([sys, items]) => `
-    <div class="qa-group-label">${sys}</div>
-    ${items.map(d => {
-      const existing = getDxByCode(d.code);
-      const isAdded = !!existing;
-      const currentCert = existing?.certainty;
-      const certButtons = CERTAINTY_ORDER.map(c => {
-        const def = CERTAINTY_DEFS[c];
-        const active = (currentCert === c) ? 'is-active' : '';
-        return `<button class="cert-mini ${active}" data-cert="${c}" data-code="${d.code}" type="button">${def.short}</button>`;
-      }).join('');
-      return `
-        <div class="qa-item ${isAdded?'is-added':''}" data-code="${d.code}">
-          <span class="qa-item-code">${d.code}</span>
-          <span class="qa-item-name" data-edit-code="${d.code}">${d.name}</span>
-          <div class="qa-item-actions">
-            ${certButtons}
-            ${isAdded ? `<button class="qa-item-x" data-remove-code="${d.code}" type="button" aria-label="Retirer">${ICONS.close}</button>` : ''}
-          </div>
-        </div>`;
-    }).join('')}
-  `).join('');
-
-  // Wire certainty mini buttons
-  listEl.querySelectorAll('.cert-mini').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const code = btn.dataset.code;
-      const cert = btn.dataset.cert;
-      const existing = getDxByCode(code);
-      const nomEntry = NOMENCLATURE.find(d => d.code === code);
-
-      if (existing) {
-        if (existing.certainty === cert) {
-          toast(`Déjà en ${CERTAINTY_DEFS[cert].label}`);
-          return;
-        }
-        save(EP.diagnosisUpdate, {
-          diagnosisId: existing.id,
-          code: existing.code || '',
-          label: existing.label,
-          certainty: cert,
-          note: existing.note || '',
-        }).then(payload => {
-          if (!payload?.success) return;
-          renderQuickAddList();
-          updateQuickAddCount();
-          toast(`${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} → ${CERTAINTY_DEFS[cert].label}`);
-        });
-        return;
-      }
-      save(EP.diagnosisAdd, {
-        code: nomEntry.code,
-        label: nomEntry.name,
-        certainty: cert,
-        note: '',
-        isPrimary: 0,
-        source: 'MANUAL',
-      }).then(payload => {
-        if (!payload?.success) return;
-        renderQuickAddList();
-        updateQuickAddCount();
-        toast(`+ ${nomEntry.name.slice(0, 35)}${nomEntry.name.length > 35 ? '…' : ''} en ${CERTAINTY_DEFS[cert].label}`);
-      });
-    });
-  });
-
-  // Wire remove buttons
-  listEl.querySelectorAll('[data-remove-code]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const code = btn.dataset.removeCode;
-      const dx = getDxByCode(code);
-      if (!dx) return;
-      save(EP.diagnosisRemove, { diagnosisId: dx.id }).then(payload => {
-        if (!payload?.success) return;
-        renderQuickAddList();
-        updateQuickAddCount();
-        toast(`Retiré : ${dx.label.slice(0, 35)}${dx.label.length > 35 ? '…' : ''}`);
-      });
-    });
-  });
-
-  // Wire dx name click → open edit modal
-  listEl.querySelectorAll('[data-edit-code]').forEach(name => {
-    name.addEventListener('click', () => {
-      const code = name.dataset.editCode;
-      const existing = getDxByCode(code);
-      const nomEntry = NOMENCLATURE.find(d => d.code === code);
-      closeModal();
-      setTimeout(() => {
-        if (existing) {
-          openEditModal(existing.id);
-        } else {
-          // Le dx n'est pas encore ajouté — l'ajouter en Probable puis ouvrir édition
-          save(EP.diagnosisAdd, {
-            code: nomEntry.code,
-            label: nomEntry.name,
-            certainty: 'PROBABLE',
-            note: '',
-            isPrimary: 0,
-            source: 'MANUAL',
-          }).then(payload => {
-            if (!payload?.success) return;
-            const created = diagnoses.find(d => d.code === nomEntry.code);
-            if (created) openEditModal(created.id);
-          });
-        }
-      }, 150);
-    });
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  EDIT MODAL — détailler un dx (note + primary)
-// ════════════════════════════════════════════════════════════
-let editingId = null;
-let workingCopy = null;
-
-function openEditModal(dxId) {
-  const dx = diagnoses.find(x => x.id === dxId);
-  if (!dx) return;
-  workingCopy = { ...dx };
-  editingId = dxId;
-
-  $('#qA-modal').classList.remove('modal--wide');
-  $('#qA-modal-icon').className = workingCopy.source === 'AI_SUGGESTION' ? 'modal-head-icon is-ai' : 'modal-head-icon';
-  $('#qA-modal-icon').innerHTML = workingCopy.source === 'AI_SUGGESTION' ? ICONS.sparkles : ICONS.stethoscope;
-  $('#qA-modal-title').textContent = 'Détailler le diagnostic';
-  $('#qA-modal-sub').textContent = workingCopy.source === 'AI_SUGGESTION' ? SOURCE_DEFS.AI_SUGGESTION : SOURCE_DEFS.MANUAL;
-  $('#qA-modal-head-count').style.display = 'none';
-
-  $('#qA-modal-body').innerHTML = `
-    <div class="field-block">
-      <label class="field-label-mini">Diagnostic</label>
-      <div class="dx-selected-card">
-        <div class="dx-selected-content">
-          <div class="dx-selected-name">${workingCopy.label}</div>
-          <div class="dx-selected-code">${workingCopy.code}</div>
-        </div>
-      </div>
-    </div>
-    <div class="field-block">
-      <label class="field-label-mini">Niveau de certitude</label>
-      <div class="certainty-grid">
-        ${CERTAINTY_ORDER.map(c => `<button class="cert-btn ${workingCopy.certainty === c ? 'is-active' : ''}" data-cert="${c}" type="button">${CERTAINTY_DEFS[c].label}</button>`).join('')}
-      </div>
-    </div>
-    <div class="field-block">
-      <label class="field-label-mini">Diagnostic principal ?</label>
-      <div class="primary-toggle ${workingCopy.isPrimary ? 'is-on' : ''}" id="primary-toggle">
-        <div class="primary-toggle-star">${workingCopy.isPrimary ? ICONS.starFilled : ICONS.starOutline}</div>
-        <div style="flex:1">
-          <div class="primary-toggle-label">${workingCopy.isPrimary ? 'Marqué comme principal' : 'Définir comme principal'}</div>
-          <div class="primary-toggle-desc">Le diagnostic principal apparaît en tête du compte-rendu propriétaire.</div>
-        </div>
-      </div>
-    </div>
-    <div class="field-block">
-      <label class="field-label-mini">Rationnel clinique</label>
-      <textarea class="field-textarea-m" id="f-note" rows="4" placeholder="Justification, éléments en faveur / contre, examens à mener…">${workingCopy.note || ''}</textarea>
-    </div>
-  `;
-
-  $$('.cert-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      workingCopy.certainty = btn.dataset.cert;
-      $$('.cert-btn').forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-    });
-  });
-  $('#primary-toggle').addEventListener('click', () => {
-    workingCopy.isPrimary = !workingCopy.isPrimary;
-    const t = $('#primary-toggle');
-    t.classList.toggle('is-on', workingCopy.isPrimary);
-    t.querySelector('.primary-toggle-star').innerHTML = workingCopy.isPrimary ? ICONS.starFilled : ICONS.starOutline;
-    t.querySelector('.primary-toggle-label').textContent = workingCopy.isPrimary ? 'Marqué comme principal' : 'Définir comme principal';
-  });
-
-  $('#qA-modal-foot').innerHTML = `
-    <button class="btn btn-ghost btn-sm btn-danger" data-action="delete" type="button">Supprimer</button>
-    <div style="flex:1"></div>
-    <button class="btn btn-ghost btn-sm" data-modal-close type="button">Annuler</button>
-    <button class="btn btn-primary btn-sm" data-action="save" type="button">Enregistrer</button>
-  `;
-  $('[data-modal-close]').addEventListener('click', closeModal);
-  $('[data-action="save"]').addEventListener('click', saveDx);
-  $('[data-action="delete"]').addEventListener('click', () => {
-    diagnoses = diagnoses.filter(x => x.id !== editingId);
-    closeModal();
-    renderList();
-    toast('Diagnostic supprimé');
-  });
-
-  openModal();
-  setTimeout(() => $('#f-note')?.focus(), 100);
-}
-
-function saveDx() {
-  workingCopy.note = $('#f-note')?.value?.trim() || '';
-  const id = editingId;
-  const wasPrimary = diagnoses.find(x => x.id === id)?.isPrimary === true;
-  const label = workingCopy.label;
-  closeModal();
-
-  save(EP.diagnosisUpdate, {
-    diagnosisId: id,
-    code: workingCopy.code || '',
-    label,
-    certainty: workingCopy.certainty,
-    note: workingCopy.note,
-  }).then(payload => {
-    if (!payload?.success) return;
-    if (workingCopy.isPrimary === wasPrimary) {
-      toast(`Modifié : ${label.slice(0, 40)}${label.length > 40 ? '…' : ''}`);
-      return;
-    }
-    save(EP.diagnosisPrimary, { diagnosisId: workingCopy.isPrimary ? id : '' }).then(() => {
-      toast(`Modifié : ${label.slice(0, 40)}${label.length > 40 ? '…' : ''}`);
-    });
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  AI MODAL
-// ════════════════════════════════════════════════════════════
-function openSuggestModal() {
-  $('#qA-modal').classList.remove('modal--wide');
-  $('#qA-modal-icon').className = 'modal-head-icon is-ai';
-  $('#qA-modal-icon').innerHTML = ICONS.sparkles;
-  $('#qA-modal-title').textContent = 'Suggestions diagnostiques (IA)';
-  $('#qA-modal-sub').textContent = 'Basé sur le SOAP et l\'historique patient';
-  $('#qA-modal-head-count').style.display = 'none';
-
-  $('#qA-modal-body').innerHTML = `<div class="ai-loading"><span class="ai-loading-dot"></span>Analyse en cours…</div>`;
-  $('#qA-modal-foot').innerHTML = `<button class="btn btn-ghost btn-sm" data-modal-close type="button">Fermer</button>`;
-  $('[data-modal-close]').addEventListener('click', closeModal);
-  openModal();
-
-  setTimeout(() => {
-    const suggestions = [
-      { code: 'M.LOC.05', name: 'Dysplasie de la hanche', score: 78,
-        reason: 'Race Beauceron prédisposée + âge + boiterie postérieure chronique + amyotrophie quadriceps.' },
-      { code: 'M.LOC.30', name: 'Tendinite calcanéenne', score: 64,
-        reason: 'Boiterie après effort + raideur matinale. À explorer.' },
-      { code: 'M.LOC.18', name: 'Rupture partielle ligament croisé', score: 52,
-        reason: 'Boiterie postérieure progressive. Tiroir antérieur à recontrôler.' },
-    ];
-    $('#qA-modal-body').innerHTML = suggestions.map(s => `
-      <div class="ai-suggestion" data-code="${s.code}">
-        <div class="ai-suggestion-content">
-          <div class="ai-suggestion-name">
-            <span>${s.name}</span>
-            <span class="ai-suggestion-code">${s.code}</span>
-          </div>
-          <div class="ai-suggestion-reason">${s.reason}</div>
-        </div>
-        <div class="ai-score">
-          <span class="ai-score-value">${s.score}%</span>
-          <div class="ai-score-bar"><div class="ai-score-bar-fill" style="width:${s.score}%"></div></div>
-        </div>
-      </div>
-    `).join('');
-
-    $$('.ai-suggestion').forEach(el => {
-      el.addEventListener('click', () => {
-        const code = el.dataset.code;
-        const s = suggestions.find(x => x.code === code);
-        if (diagnoses.find(d => d.code === code)) {
-          toast('Ce diagnostic est déjà dans la liste');
-          return;
-        }
-        closeModal();
-        save(EP.diagnosisAdd, {
-          code: s.code,
-          label: s.name,
-          certainty: 'PROBABLE',
-          note: s.reason,
-          isPrimary: 0,
-          source: 'AI_SUGGESTION',
-        }).then(payload => {
-          if (payload?.success) toast(`✨ ${s.name} ajouté en Probable`);
-        });
-      });
-    });
-  }, 700);
-}
-
-// ════════════════════════════════════════════════════════════
-//  MODAL helpers
-// ════════════════════════════════════════════════════════════
-function openModal() { $('#qA-modal-overlay').classList.add('is-open'); }
-function closeModal() {
-  $('#qA-modal-overlay').classList.remove('is-open');
-  $('#qA-modal').classList.remove('modal--wide');
-  $('#qA-modal-head-count').style.display = 'none';
-  editingId = null;
-  workingCopy = null;
-}
-
-$('#qA-modal-close').addEventListener('click', closeModal);
-$('#qA-modal-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-onDocument('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
-
-$('#qA-add-btn').addEventListener('click', openQuickAddModal);
-$('#qA-suggest-btn').addEventListener('click', openSuggestModal);
-
-onServerState(() => {
-  syncDiagnosesFromServer();
-  renderList();
-});
-
-renderList();
-
-
-})();
-
-
-
-/* ====================================================================
- * QUAD P — Plan (Proposition B-v2 : 2 zones asymétriques)
- * Source : plan-proposition-B-v2.html — IDs préfixés qP-
- * ==================================================================== */
-(function() {
-'use strict';
-
-const ICONS = {
-  act:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11.5V8a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4v8a4 4 0 0 0 4 4h4"/><path d="M14 4v4"/><path d="M10 4v4"/><path d="M18 18l4-4"/><path d="M18 14l4 4"/></svg>',
-  rx:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>',
-  apt:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
-  adv:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
-  oth:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
-  add:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>',
-  search: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>',
-  check:  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>',
-  chevron: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>',
-};
-
-const KIND_DEFS = {
-  PERFORMED_ACT: {
-    cssKey: 'act', icon: 'act', label: 'Actes', singular: 'Acte',
-    metaTemplate: () => 'facturé',
-  },
-  MEDICATION_PRESCRIPTION: {
-    cssKey: 'rx', icon: 'rx', label: 'Médicaments', singular: 'Médicament',
-    metaTemplate: () => 'ordonnance',
-  },
-  FOLLOW_UP_APPOINTMENT: {
-    cssKey: 'apt', icon: 'apt', label: 'RDV', singular: 'RDV',
-    metaTemplate: (item) => item.followUpDays ? `RDV J+${item.followUpDays}` : 'RDV',
-  },
-  ADVICE: {
-    cssKey: 'adv', icon: 'adv', label: 'Conseils', singular: 'Conseil',
-    metaTemplate: () => 'conseil',
-  },
-  OTHER: {
-    cssKey: 'oth', icon: 'oth', label: 'Autre', singular: 'Autre',
-    metaTemplate: () => 'autre',
-  },
-};
-
-// Suggestions par kind — acts and medications come from the clinic's catalogue,
-// the follow-up / advice / other lists are server-side reference data.
-const SUGGESTIONS = {
-  PERFORMED_ACT: [],
-  MEDICATION_PRESCRIPTION: [],
-  FOLLOW_UP_APPOINTMENT: (REF.planSuggestions || {}).FOLLOW_UP_APPOINTMENT || [],
-  ADVICE: (REF.planSuggestions || {}).ADVICE || [],
-  OTHER: (REF.planSuggestions || {}).OTHER || [],
-};
-
-function syncCatalogSuggestions() {
-  SUGGESTIONS.PERFORMED_ACT = Catalog.acts.map(a => ({
-    code: a.code, name: a.name, price: a.basePriceMinorUnits / 100, itemId: a.itemId,
-  }));
-  SUGGESTIONS.MEDICATION_PRESCRIPTION = Catalog.articles.map(a => ({
-    code: a.code, name: a.name, itemId: a.itemId, posology: a.requiresPrescription ? 'sur ordonnance' : null,
-  }));
-}
-
-const PLAN_TEMPLATES = (REF.planTemplates || []).reduce((acc, tpl) => {
-  acc[tpl.id] = { name: tpl.name, emoji: tpl.emoji, desc: tpl.description, items: tpl.items };
-  return acc;
-}, {});
-
-// ════════════════════════════════════════════════════════════
-//  STATE
-// ════════════════════════════════════════════════════════════
-// The plan is the server's; the field names already match the layout's.
-let planItems = [];
-
-function syncPlanFromServer() {
-  planItems = (SERVER.planActions || []).map(item => ({ ...item }));
-}
-
-syncPlanFromServer();
-
-function $(s, r=document) { return r.querySelector(s); }
-function $$(s, r=document) { return [...r.querySelectorAll(s)]; }
-
-function toast(msg) {
-  const el = $('#qP-annotation');
-  el.textContent = msg;
-  el.classList.add('is-visible');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('is-visible'), 1500);
-}
-
-function metaFor(item) { return KIND_DEFS[item.kind].metaTemplate(item); }
-
-// Combien de fois ce catalogCode est déjà dans le plan ?
-function getAddedCount(catalogCode) {
-  if (!catalogCode) return 0;
-  return planItems.filter(it => it.catalogCode === catalogCode).length;
-}
-
-// ════════════════════════════════════════════════════════════
-//  RENDER MAIN LIST
-// ════════════════════════════════════════════════════════════
-function renderList() {
-  const list = $('#qP-plan-list');
-  $('#qP-plan-count').textContent = planItems.length === 0 ? 'vide' : (planItems.length + ' action' + (planItems.length > 1 ? 's' : ''));
-
-  if (planItems.length === 0) {
-    list.innerHTML = `
-      <div class="plan-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="14" y2="14"/></svg>
-        <div class="plan-empty-title">Aucune action planifiée</div>
-        <div class="plan-empty-sub">Clic "Ajouter" pour ouvrir le panel multi-colonnes</div>
-      </div>`;
-    return;
-  }
-
-  list.innerHTML = planItems.map(item => {
-    const def = KIND_DEFS[item.kind];
-    return `
-      <div class="plan-item plan-item--${def.cssKey}" data-id="${item.id}">
-        <div class="plan-item-icon">${ICONS[def.icon]}</div>
-        <div class="plan-item-desc">${item.description}</div>
-        <span class="plan-item-meta">${metaFor(item)}</span>
-        <button class="plan-item-x" data-remove="${item.id}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </button>
-      </div>`;
-  }).join('');
-
-  $$('.plan-item').forEach(el => {
-    el.addEventListener('click', e => {
-      if (e.target.closest('[data-remove]')) return;
-      openEditModal(el.dataset.id);
-    });
-  });
-  $$('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const id = btn.dataset.remove;
-      const item = planItems.find(x => x.id === id);
-      if (!item) return;
-      save(EP.planActionRemove, { planActionId: id }).then(payload => {
-        if (payload?.success) toast(`Retiré : ${item.description.slice(0, 40)}${item.description.length > 40 ? '…' : ''}`);
-      });
-    });
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  QUICK-ADD MODAL MULTICOL
-// ════════════════════════════════════════════════════════════
-let quickAddInitialCount = 0;
-const KIND_ORDER = ['PERFORMED_ACT', 'MEDICATION_PRESCRIPTION', 'FOLLOW_UP_APPOINTMENT', 'ADVICE', 'OTHER'];
-
-function openQuickAddModal() {
-  quickAddInitialCount = planItems.length;
-
-  // The catalogue is fetched once per opening, then filtered client-side so the
-  // search stays instant.
-  Catalog.load('').then(() => {
-    syncCatalogSuggestions();
-    if ($('#qa-main-list')) renderMainList();
-  });
-
-  $('#qP-modal').classList.add('modal--xwide');
-  $('#qP-modal-icon').className = 'modal-head-icon is-quickadd';
-  $('#qP-modal-icon').innerHTML = ICONS.search;
-  $('#qP-modal-title').textContent = 'Ajouter au plan';
-  $('#qP-modal-sub').textContent = 'Actes, médicaments, RDV de suivi ou conseils à ajouter au plan';
-  updateQuickAddCount();
-
-  $('#qP-modal-body').className = 'modal-body modal-body--quickadd';
-  $('#qP-modal-body').innerHTML = `
-    <div class="qa-search-wrap">
-      <span class="qa-search-icon">${ICONS.search}</span>
-      <input type="text" class="qa-search" id="qa-search-input" placeholder="Rechercher dans le catalogue de la clinique…" autocomplete="off">
-    </div>
-    <div class="qa-split">
-      <div class="qa-main-area">
-        <div class="qa-main-header">
-          <span>Catalogue actes & médicaments</span>
-          <span class="qa-main-count" id="qa-main-count">0</span>
-        </div>
-        <div class="qa-main-list" id="qa-main-list"></div>
-      </div>
-      <div class="qa-side-area" id="qa-side-area"></div>
-    </div>
-    <div class="qa-ft-section">
-      <div class="qa-ft-label">Ajouter un item libre</div>
-      <div class="qa-ft-row">
-        <input type="text" class="qa-ft-input" id="qa-ft-input" placeholder="Tapez la description de l'item libre…" autocomplete="off">
-        <div class="qa-ft-chips">
-          <button class="kind-chip kind-chip--act" data-kind="PERFORMED_ACT" disabled type="button">${ICONS.act}<span>Acte</span></button>
-          <button class="kind-chip kind-chip--rx" data-kind="MEDICATION_PRESCRIPTION" disabled type="button">${ICONS.rx}<span>Médicament</span></button>
-          <div class="kind-chip kind-chip--apt kind-chip--compound is-disabled" data-kind="FOLLOW_UP_APPOINTMENT" role="button" tabindex="0" id="qa-ft-chip-apt">${ICONS.apt}<span>RDV J+</span><input type="number" class="kind-chip-num" id="qa-ft-apt-days" value="14" min="1" max="999" aria-label="Délai en jours"></div>
-          <button class="kind-chip kind-chip--adv" data-kind="ADVICE" disabled type="button">${ICONS.adv}<span>Conseil</span></button>
-          <button class="kind-chip kind-chip--oth" data-kind="OTHER" disabled type="button">${ICONS.oth}<span>Autre</span></button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  $('#qP-modal-foot').innerHTML = `
-    <div class="modal-foot-hint">
-      Clic sur ligne catalogue ou option dans un selector = ajout immédiat. Pour libre : tape + clic chip kind. <kbd>Échap</kbd> ferme.
-    </div>
-    <button class="btn btn-primary btn-sm" data-modal-close type="button">Terminer</button>
-  `;
-  $('[data-modal-close]').addEventListener('click', closeModal);
-
-  // Search wiring — filters the loaded page instantly, and re-queries the
-  // catalogue server-side once the local page runs out of matches.
-  const searchInput = $('#qa-search-input');
-  let catalogTimer = null;
-  searchInput.addEventListener('input', () => {
-    renderMainList();
-    renderSidePresets();
-    clearTimeout(catalogTimer);
-    const term = searchInput.value.trim();
-    if (term.length < 2) return;
-    catalogTimer = setTimeout(() => {
-      Catalog.load(term).then(() => {
-        syncCatalogSuggestions();
-        if ($('#qa-main-list')) renderMainList();
-      });
-    }, 250);
-  });
-  registerCleanup(() => clearTimeout(catalogTimer));
-
-  // Free-text wiring
-  const ftInput = $('#qa-ft-input');
-  const ftChips = $$('.qa-ft-chips .kind-chip');
-  const aptChip = $('#qa-ft-chip-apt');
-  const aptDaysInput = $('#qa-ft-apt-days');
-
-  const updateFtState = () => {
-    const hasText = !!ftInput.value.trim();
-    ftChips.forEach(c => {
-      if (c.classList.contains('kind-chip--compound')) {
-        c.classList.toggle('is-disabled', !hasText);
-      } else {
-        c.disabled = !hasText;
-      }
-    });
-  };
-  ftInput.addEventListener('input', updateFtState);
-
-  const triggerAddLibre = (kind) => {
-    const text = ftInput.value.trim();
-    if (!text) return;
-    const followUpDays = kind === 'FOLLOW_UP_APPOINTMENT' ? (parseInt(aptDaysInput.value, 10) || 14) : '';
-    ftInput.value = '';
-    updateFtState();
-    ftInput.focus();
-    persistPlanAction({ kind, description: text, followUpDays }).then(payload => {
-      if (!payload?.success) return;
-      if ($('#qa-main-list')) renderMainList();
-      if ($('#qa-side-area')) renderSidePresets();
-      updateQuickAddCount();
-      const metaLabel = followUpDays ? ` (J+${followUpDays})` : '';
-      toast(`+ ${text.slice(0, 35)}${text.length > 35 ? '…' : ''} en ${KIND_DEFS[kind].label}${metaLabel}`);
-    });
-  };
-
-  ftChips.forEach(chip => {
-    if (chip.classList.contains('kind-chip--compound')) return;
-    chip.addEventListener('click', () => {
-      if (chip.disabled) return;
-      triggerAddLibre(chip.dataset.kind);
-    });
-  });
-
-  aptChip.addEventListener('click', (e) => {
-    if (e.target.tagName === 'INPUT') return;
-    if (aptChip.classList.contains('is-disabled')) return;
-    triggerAddLibre('FOLLOW_UP_APPOINTMENT');
-  });
-  aptDaysInput.addEventListener('click', e => e.stopPropagation());
-
-  renderMainList();
-  renderSidePresets();
-  openModal();
-  setTimeout(() => searchInput.focus(), 100);
-}
-
-function updateQuickAddCount() {
-  const delta = planItems.length - quickAddInitialCount;
-  const headEl = $('#qP-modal-head-count');
-  if (delta > 0) {
-    headEl.style.display = 'inline-flex';
-    headEl.innerHTML = `${ICONS.check} ${delta} ajouté${delta > 1 ? 's' : ''}`;
-  } else {
-    headEl.style.display = 'none';
-  }
-}
-
-function renderMainList() {
-  const listEl = $('#qa-main-list');
-  const countEl = $('#qa-main-count');
-  const q = $('#qa-search-input').value.toLowerCase().trim();
-
-  const all = [
-    ...SUGGESTIONS.PERFORMED_ACT.map(s => ({ ...s, _kind: 'PERFORMED_ACT' })),
-    ...SUGGESTIONS.MEDICATION_PRESCRIPTION.map(s => ({ ...s, _kind: 'MEDICATION_PRESCRIPTION' })),
-  ];
-  const filteredAll = !q ? all : all.filter(s =>
-    s.name.toLowerCase().includes(q) ||
-    (s.posology && s.posology.toLowerCase().includes(q))
-  );
-
-  // Séparer ajoutés vs non ajoutés : les ajoutés remontent toujours en haut
-  const addedItems = filteredAll.filter(s => getAddedCount(s.code) > 0);
-  const notAddedItems = filteredAll.filter(s => getAddedCount(s.code) === 0);
-
-  // Adaptatif : toujours afficher minimum 5 items au total
-  // Si X ajoutés < 5 → ajoutés + (5 - X) favoris
-  // Si X ajoutés ≥ 5 → tous les ajoutés (pas de favoris en complément)
-  const TOTAL_DISPLAY = 5;
-  const remainingSlots = Math.max(0, TOTAL_DISPLAY - addedItems.length);
-  const filtered = !q
-    ? [...addedItems, ...notAddedItems.slice(0, remainingSlots)]
-    : [...addedItems, ...notAddedItems];
-
-  if (q) {
-    countEl.innerHTML = `<strong>${filteredAll.length}</strong> résultat${filteredAll.length > 1 ? 's' : ''}`;
-  } else {
-    const parts = [];
-    if (addedItems.length > 0) {
-      parts.push(`<strong>${addedItems.length}</strong> ajouté${addedItems.length > 1 ? 's' : ''}`);
-    }
-    if (remainingSlots > 0) {
-      parts.push(`<strong>${remainingSlots}</strong> favoris affichés`);
-    }
-    countEl.innerHTML = parts.join(' · ') || 'Catalogue vide';
-  }
-
-  if (filteredAll.length === 0) {
-    listEl.innerHTML = `<div class="qa-list-empty">Aucun résultat dans le catalogue.<br>↓ Tape ta description et clique le chip Acte ou Médicament pour créer un item libre.</div>`;
-    return;
-  }
-
-  // Render rows
-  const rowsHtml = filtered.map((s, idx) => {
-    const def = KIND_DEFS[s._kind];
-    let meta = '';
-    if (s.price != null) meta = `${s.price.toFixed(2).replace('.', ',')} €`;
-    else if (s.posology) {
-      meta = s.posology;
-      if (s.durationDays) meta += `  ·  ${s.durationDays} j`;
-    }
-
-    const addedCount = getAddedCount(s.code);
-    const isAdded = addedCount > 0;
-    const addedClass = isAdded ? 'is-added' : '';
-
-    // Séparateur visuel : juste après le dernier item ajouté (si y'a des non ajoutés en dessous)
-    const isLastAdded = isAdded && idx === addedItems.length - 1 && addedItems.length < filtered.length;
-    const sepClass = isLastAdded ? 'qa-row--last-added' : '';
-
-    // Zone droite : selon état
-    let rightHtml;
-    if (isAdded) {
-      rightHtml = `
-        <span class="qa-row-add" title="Cliquer la ligne pour ajouter encore">${addedCount > 1 ? `<strong>×${addedCount}</strong>` : ICONS.check}</span>
-        <button class="qa-row-remove" data-remove-code="${s.code}" type="button" title="Retirer le dernier ajout" aria-label="Retirer">×</button>
-      `;
-    } else {
-      rightHtml = `<span class="qa-row-add">${ICONS.add}</span>`;
-    }
-
-    return `
-      <div class="qa-row qa-row--${def.cssKey} ${addedClass} ${sepClass}" data-suggestion="${s.code}" data-kind="${s._kind}">
-        <div class="qa-row-icon">${ICONS[def.icon]}</div>
-        <div class="qa-row-content">
-          <div class="qa-row-name">${s.name}</div>
-          ${meta ? `<div class="qa-row-meta">${meta}</div>` : ''}
-        </div>
-        ${rightHtml}
-      </div>`;
-  }).join('');
-
-  listEl.innerHTML = rowsHtml;
-
-  // Hint si on n'affiche pas tout le catalogue
-  const hiddenFavorites = notAddedItems.length - remainingSlots;
-  if (!q && hiddenFavorites > 0) {
-    listEl.innerHTML += `<div class="qa-list-hint">↑ Recherchez pour accéder à vos <strong>${hiddenFavorites}</strong> autres favoris et à tout le catalogue</div>`;
-  }
-
-  listEl.querySelectorAll('.qa-row').forEach(row => {
-    row.addEventListener('click', () => {
-      addFromSuggestion(row.dataset.kind, row.dataset.suggestion);
-    });
-  });
-
-  // Wire remove buttons sur les rows ajoutées du catalogue
-  listEl.querySelectorAll('.qa-row-remove').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const code = btn.dataset.removeCode;
-      // Retire le dernier item ajouté avec ce code
-      for (let i = planItems.length - 1; i >= 0; i--) {
-        if (planItems[i].catalogCode === code) {
-          const removed = planItems[i];
-          save(EP.planActionRemove, { planActionId: removed.id }).then(payload => {
-            if (!payload?.success) return;
-            if ($('#qa-main-list')) renderMainList();
-            if ($('#qa-side-area')) renderSidePresets();
-            updateQuickAddCount();
-            toast(`Retiré : ${removed.description.slice(0, 40)}${removed.description.length > 40 ? '…' : ''}`);
-          });
-          return;
-        }
-      }
-    });
-  });
-}
-
-function renderSidePresets() {
-  const sideEl = $('#qa-side-area');
-  const sideKinds = ['FOLLOW_UP_APPOINTMENT', 'ADVICE', 'OTHER'];
-
-  // Préserver l'état ouvert
-  const openKinds = new Set();
-  sideEl.querySelectorAll('.qa-selector.is-open').forEach(s => openKinds.add(s.dataset.kind));
-
-  sideEl.innerHTML = `
-    <div class="qa-side-label">Suivi &amp; recommandations</div>
-    ${sideKinds.map(kind => {
-      const def = KIND_DEFS[kind];
-      const all = SUGGESTIONS[kind] || [];
-      const isOpen = openKinds.has(kind);
-      const addedItemsForKind = planItems.filter(item => item.kind === kind);
-      const addedCount = addedItemsForKind.length;
-
-      const baseLabel = kind === 'FOLLOW_UP_APPOINTMENT' ? 'Choisir un RDV de suivi'
-                       : kind === 'ADVICE' ? 'Choisir un conseil'
-                       : 'Autre action';
-
-      const chipsContainerClass = kind === 'FOLLOW_UP_APPOINTMENT' ? 'qa-selected-chips qa-selected-chips--cols-2' : 'qa-selected-chips';
-      const chipsHtml = addedCount === 0 ? '' : `
-        <div class="${chipsContainerClass}">
-          ${addedItemsForKind.map(item => {
-            let label = item.description;
-            if (kind === 'FOLLOW_UP_APPOINTMENT' && item.followUpDays) {
-              const isStandardRecontrole = item.description.toLowerCase().includes('recontrôle');
-              label = isStandardRecontrole
-                ? `J+${item.followUpDays}`
-                : `${item.description}  ·  J+${item.followUpDays}`;
-            }
-            return `
-              <div class="qa-selected-chip qa-selected-chip--${def.cssKey}">
-                <span class="qa-selected-chip-label" title="${item.description}${item.followUpDays ? ' · J+' + item.followUpDays : ''}">${label}</span>
-                <button class="qa-selected-chip-remove" data-remove-id="${item.id}" type="button" title="Retirer">×</button>
-              </div>`;
-          }).join('')}
-        </div>
-      `;
-
-      return `
-        <div class="qa-selector-block">
-          <div class="qa-selector qa-selector--${def.cssKey} ${isOpen ? 'is-open' : ''}" data-kind="${kind}">
-            <button class="qa-selector-trigger" type="button">
-              <span class="qa-selector-trigger-left">
-                <span class="qa-selector-trigger-icon">${ICONS[def.icon]}</span>
-                <span class="qa-selector-trigger-label">${baseLabel}</span>
-              </span>
-              <span class="qa-selector-trigger-meta">${addedCount > 0 ? `<strong>${addedCount}</strong> ajouté${addedCount > 1 ? 's' : ''} · ${all.length}` : `<strong>${all.length}</strong> preset${all.length > 1 ? 's' : ''}`}</span>
-              <span class="qa-selector-chevron">${ICONS.chevron}</span>
-            </button>
-            <div class="qa-selector-menu">
-              ${all.length === 0
-                ? `<div class="qa-selector-empty">Aucun preset</div>`
-                : all.map(s => {
-                    const isAdded = getAddedCount(s.code) > 0;
-                    let label = s.name;
-                    if (s.followUpDays) label = `${s.name}  ·  J+${s.followUpDays}`;
-                    return `
-                      <div class="qa-selector-option ${isAdded ? 'is-added' : ''}" data-suggestion="${s.code}" data-kind="${kind}">
-                        <span>${label}</span>
-                        <span class="qa-selector-option-check">${ICONS.check}</span>
-                      </div>`;
-                  }).join('')}
-            </div>
-          </div>
-          ${chipsHtml}
-        </div>`;
-    }).join('')}
-  `;
-
-  // Wire selectors
-  sideEl.querySelectorAll('.qa-selector').forEach(sel => {
-    const trigger = sel.querySelector('.qa-selector-trigger');
-    trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      sideEl.querySelectorAll('.qa-selector.is-open').forEach(s => {
-        if (s !== sel) s.classList.remove('is-open');
-      });
-      sel.classList.toggle('is-open');
-    });
-
-    sel.querySelectorAll('.qa-selector-option').forEach(opt => {
-      opt.addEventListener('click', (e) => {
-        e.stopPropagation();
-        addFromSuggestion(opt.dataset.kind, opt.dataset.suggestion);
-      });
-    });
-  });
-
-  // Wire remove sur chips ajoutés
-  sideEl.querySelectorAll('.qa-selected-chip-remove').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const itemId = btn.dataset.removeId;
-      const idx = planItems.findIndex(i => i.id === itemId);
-      if (idx >= 0) {
-        const removed = planItems[idx];
-        planItems.splice(idx, 1);
-        renderList();
-        renderMainList();
-        renderSidePresets();
-        updateQuickAddCount();
-        toast(`Retiré : ${removed.description.slice(0, 40)}${removed.description.length > 40 ? '…' : ''}`);
-      }
-    });
-  });
-}
-
-// Close any open selector on outside click (removed again by cleanup())
-onDocument('click', (e) => {
-  if (!e.target.closest('.qa-selector')) {
-    document.querySelectorAll('.qa-selector.is-open').forEach(s => s.classList.remove('is-open'));
-  }
-});
-
-function persistPlanAction(item) {
-  return save(EP.planActionAdd, {
-    kind: item.kind,
-    description: item.description,
-    catalogItemId: item.catalogItemId || '',
-    catalogCode: item.catalogCode || '',
-    posology: item.posology || '',
-    durationDays: item.durationDays || '',
-    followUpDays: item.followUpDays || '',
-    quantity: item.quantity || 1,
-  });
-}
-
-function addFromSuggestion(kind, code) {
-  const s = (SUGGESTIONS[kind] || []).find(x => x.code === code);
-  if (!s) return;
-
-  persistPlanAction({
-    kind,
-    description: s.name,
-    catalogItemId: s.itemId,
-    catalogCode: s.code,
-    posology: s.posology,
-    durationDays: s.durationDays,
-    followUpDays: s.followUpDays,
-  }).then(payload => {
-    if (!payload?.success) return;
-    if ($('#qa-main-list')) renderMainList();
-    if ($('#qa-side-area')) renderSidePresets();
-    updateQuickAddCount();
-    const metaLabel = s.followUpDays ? ` (J+${s.followUpDays})` : '';
-    toast(`+ ${s.name.slice(0, 35)}${s.name.length > 35 ? '…' : ''}${metaLabel}`);
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  EDIT MODAL
-// ════════════════════════════════════════════════════════════
-let editingId = null;
-let workingCopy = null;
-
-function openEditModal(itemId) {
-  const current = planItems.find(x => x.id === itemId);
-  if (!current) return;
-  workingCopy = { ...current };
-  editingId = itemId;
-
-  const def = KIND_DEFS[workingCopy.kind];
-  $('#qP-modal').classList.remove('modal--wide');
-  $('#qP-modal').classList.remove('modal--xwide');
-  $('#qP-modal-icon').className = `modal-head-icon is-${def.cssKey}`;
-  $('#qP-modal-icon').innerHTML = ICONS[def.icon];
-  $('#qP-modal-title').textContent = `Modifier · ${def.singular}`;
-  $('#qP-modal-sub').textContent = 'Détail de l\'action';
-  $('#qP-modal-head-count').style.display = 'none';
-  $('#qP-modal-body').className = 'modal-body';
-
-  let bodyHTML = '';
-  if (workingCopy.kind === 'PERFORMED_ACT') {
-    bodyHTML = `
-      <div class="field-block">
-        <label class="field-label-mini">Description de l'acte</label>
-        <input class="field-input-m" id="f-desc" value="${workingCopy.description || ''}" autocomplete="off">
-      </div>
-      <div style="padding:var(--space-3);background:var(--color-success-bg);border:1px solid var(--color-success-border);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-success-text);line-height:1.5">
-        ℹ Cet acte génèrera une ligne sur la facture à la clôture.
-      </div>`;
-  } else if (workingCopy.kind === 'MEDICATION_PRESCRIPTION') {
-    bodyHTML = `
-      <div class="field-block">
-        <label class="field-label-mini">Description / molécule</label>
-        <input class="field-input-m" id="f-desc" value="${workingCopy.description || ''}" autocomplete="off">
-      </div>
-      <div class="field-block">
-        <label class="field-label-mini">Posologie</label>
-        <input class="field-input-m mono" id="f-posology" placeholder="ex : 0,1 mg/kg · 1×/j · per os" value="${workingCopy.posology || ''}" autocomplete="off">
-      </div>
-      <div class="field-block">
-        <div class="field-row field-row--2">
-          <div>
-            <label class="field-label-mini">Durée (jours)</label>
-            <input class="field-input-m mono" type="number" id="f-duration" value="${workingCopy.durationDays || ''}">
-          </div>
-          <div>
-            <label class="field-label-mini">Renouvellements</label>
-            <input class="field-input-m mono" type="number" id="f-refills" value="${workingCopy.refills || ''}">
-          </div>
-        </div>
-      </div>`;
-  } else if (workingCopy.kind === 'FOLLOW_UP_APPOINTMENT') {
-    bodyHTML = `
-      <div class="field-block">
-        <label class="field-label-mini">Motif du recontrôle</label>
-        <input class="field-input-m" id="f-desc" value="${workingCopy.description || ''}" autocomplete="off">
-      </div>
-      <div class="field-block">
-        <label class="field-label-mini">Délai</label>
-        <div class="field-row field-row--2">
-          <select class="field-select-m" id="f-followup-preset">
-            <option value="">— préréglage —</option>
-            <option value="7">7 jours</option>
-            <option value="14">14 jours (2 sem.)</option>
-            <option value="21">21 jours (3 sem.)</option>
-            <option value="30">30 jours (1 mois)</option>
-            <option value="90">90 jours (3 mois)</option>
-            <option value="180">180 jours (6 mois)</option>
-            <option value="365">365 jours (1 an)</option>
-          </select>
-          <div style="display:flex;align-items:center;gap:var(--space-2)">
-            <span class="mono" style="font-size:var(--text-sm);color:var(--text-muted)">J +</span>
-            <input class="field-input-m mono" type="number" id="f-followup-days" value="${workingCopy.followUpDays || ''}" style="flex:1">
-          </div>
-        </div>
-      </div>`;
-  } else if (workingCopy.kind === 'ADVICE') {
-    bodyHTML = `
-      <div class="field-block">
-        <label class="field-label-mini">Conseil au propriétaire</label>
-        <textarea class="field-textarea-m" id="f-desc" rows="3">${workingCopy.description || ''}</textarea>
-      </div>`;
-  } else {
-    bodyHTML = `
-      <div class="field-block">
-        <label class="field-label-mini">Description</label>
-        <textarea class="field-textarea-m" id="f-desc" rows="3">${workingCopy.description || ''}</textarea>
-      </div>`;
-  }
-
-  $('#qP-modal-body').innerHTML = bodyHTML;
-
-  $('#qP-modal-foot').innerHTML = `
-    <button class="btn btn-ghost btn-sm btn-danger" data-action="delete" type="button">Supprimer</button>
-    <div style="flex:1"></div>
-    <button class="btn btn-ghost btn-sm" data-modal-close type="button">Annuler</button>
-    <button class="btn btn-primary btn-sm" data-action="save" type="button">Enregistrer</button>
-  `;
-  $('[data-modal-close]').addEventListener('click', closeModal);
-  $('[data-action="save"]').addEventListener('click', saveItem);
-  $('[data-action="delete"]').addEventListener('click', () => {
-    planItems = planItems.filter(x => x.id !== editingId);
-    closeModal();
-    renderList();
-    toast('Item supprimé');
-  });
-
-  if (workingCopy.kind === 'FOLLOW_UP_APPOINTMENT') {
-    $('#f-followup-preset').addEventListener('change', e => {
-      if (e.target.value) $('#f-followup-days').value = e.target.value;
-    });
-  }
-
-  openModal();
-  setTimeout(() => $('#f-desc')?.focus(), 100);
-}
-
-function saveItem() {
-  const desc = $('#f-desc')?.value?.trim();
-  if (!desc) { toast('La description est requise'); return; }
-  const item = { ...workingCopy, description: desc };
-  if (workingCopy.kind === 'MEDICATION_PRESCRIPTION') {
-    item.posology = $('#f-posology')?.value?.trim() || '';
-    item.durationDays = parseInt($('#f-duration')?.value) || null;
-    item.refills = parseInt($('#f-refills')?.value) || null;
-  }
-  if (workingCopy.kind === 'FOLLOW_UP_APPOINTMENT') {
-    item.followUpDays = parseInt($('#f-followup-days')?.value) || null;
-  }
-  const id = editingId;
-  closeModal();
-  save(EP.planActionUpdate, {
-    planActionId: id,
-    description: desc,
-    posology: item.posology || '',
-    durationDays: item.durationDays || '',
-    followUpDays: item.followUpDays || '',
-    quantity: item.quantity || 1,
-  }).then(payload => {
-    if (payload?.success) toast(`Modifié : ${desc.slice(0, 40)}${desc.length > 40 ? '…' : ''}`);
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-//  MODAL helpers
-// ════════════════════════════════════════════════════════════
-function openModal() { $('#qP-modal-overlay').classList.add('is-open'); }
-function closeModal() {
-  $('#qP-modal-overlay').classList.remove('is-open');
-  $('#qP-modal').classList.remove('modal--wide');
-  $('#qP-modal').classList.remove('modal--xwide');
-  $('#qP-modal-head-count').style.display = 'none';
-  $('#qP-modal-body').className = 'modal-body';
-  editingId = null;
-  workingCopy = null;
-}
-
-$('#qP-modal-close').addEventListener('click', closeModal);
-$('#qP-modal-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
-onDocument('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closeTemplateMenu(); }
-});
-
-// ════════════════════════════════════════════════════════════
-//  TEMPLATE menu
-// ════════════════════════════════════════════════════════════
-function closeTemplateMenu() {
-  const m = document.querySelector('.template-menu');
-  if (m) m.remove();
-  $('#qP-template-btn').classList.remove('is-open');
-}
-function openTemplateMenu() {
-  const btn = $('#qP-template-btn');
-  if (btn.classList.contains('is-open')) { closeTemplateMenu(); return; }
-  btn.classList.add('is-open');
-  const rect = btn.getBoundingClientRect();
-  const menu = document.createElement('div');
-  menu.className = 'template-menu';
-  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-  menu.style.right = (window.innerWidth - rect.right) + 'px';
-  menu.innerHTML = `
-    <div class="tm-hint">Appliquer un template</div>
-    ${Object.entries(PLAN_TEMPLATES).map(([id, tpl]) => `
-      <div class="tm-item" data-tpl="${id}">
-        <span class="tm-emoji">${tpl.emoji}</span>
-        <div class="tm-content">
-          <div class="tm-name">${tpl.name}</div>
-          <div class="tm-desc">${tpl.desc}</div>
-          <div class="tm-meta">${tpl.items.length} actions</div>
-        </div>
-      </div>`).join('')}
-  `;
-  document.body.appendChild(menu);
-  menu.addEventListener('click', e => {
-    const item = e.target.closest('[data-tpl]');
-    if (!item) return;
-    const tplId = item.dataset.tpl;
-    const tpl = PLAN_TEMPLATES[tplId];
-    closeTemplateMenu();
-    let added = 0;
-    tpl.items
-      .reduce(
-        (chain, it) => chain.then(() => persistPlanAction(it).then(payload => { if (payload?.success) added += 1; })),
-        Promise.resolve(),
-      )
-      .then(() => {
-        toast(added === tpl.items.length
-          ? `Template "${tpl.name}" appliqué (+${added} actions)`
-          : `Template "${tpl.name}" partiellement appliqué (${added}/${tpl.items.length})`);
-      });
-  });
-}
-
-$('#qP-template-btn').addEventListener('click', e => { e.stopPropagation(); openTemplateMenu(); });
-onDocument('click', e => {
-  if (!e.target.closest('.template-menu') && !e.target.closest('#qP-template-btn')) closeTemplateMenu();
-});
-
-$('#qP-add-btn').addEventListener('click', openQuickAddModal);
-
-onServerState(() => {
-  syncPlanFromServer();
-  renderList();
-});
-
-renderList();
-// toast au démarrage retiré
-
-
-})();
-
-
-
-/* ====================================================================
- * Modal template auto-open : le Modal du template original crée des
- * .modal-overlay dynamiquement SANS ajouter `is-open`. Avec notre CSS
- * design system qui requiert `is-open` pour la visibilité, ces modales
- * resteraient invisibles. On observe les ajouts au body pour les activer.
- * ==================================================================== */
-(function() {
-  'use strict';
-  if (typeof MutationObserver === 'undefined') return;
-  const observer = new MutationObserver(mutations => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        if (node.classList && node.classList.contains('modal-overlay') && !node.id) {
-          requestAnimationFrame(() => node.classList.add('is-open'));
-        }
-      }
-    }
-  });
-  observer.observe(document.body, { childList: true });
-  registerCleanup(() => observer.disconnect());
-})();
-
-
-
-
-
-
-
-
-}
+/**
+ * Kiveto — assets/js/pages/consultation.js
+ * ─────────────────────────────────────────
+ * Consultation cockpit, ported from
+ * docs/frontend-theme/kiveto-theme/consultation-v-topbar_8.html (and its
+ * -vierge / -cloturee variants). The mock-up renders from a demo state `C`;
+ * here every block renders from the server state of #consultation-data, and
+ * every change posts to its single-action cockpit endpoint, which answers with
+ * the refreshed state: the page re-renders from server truth.
+ *
+ * Controls whose backend does not exist yet (files, lab requests, e-mail,
+ * certificates, transfer / pause…) are drawn as in the mock-up but disabled.
+ */
+import { showToast, toastUndo, creerDropdown } from 'kiveto/shell';
+
+let mounted = false;
+const cleanups = [];
 
 export function cleanup() {
-  _mounted = false;
-  // Remove document-level listeners, intervals and observers registered
-  // during init(); element-bound listeners die with the body swap.
-  _cleanups.splice(0).forEach(fn => {
-    try { fn(); } catch { /* never block teardown */ }
+  cleanups.splice(0).forEach((fn) => { try { fn(); } catch { /* already gone */ } });
+  mounted = false;
+}
+
+export function init() {
+  const root = document.querySelector('.cs[data-page]');
+  if (!root || mounted) return;
+  mounted = true;
+
+  const $ = (id) => document.getElementById(id);
+  const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); cleanups.push(() => target.removeEventListener(type, fn, opts)); };
+
+  let H;
+  try { H = JSON.parse($('consultation-data').textContent || '{}'); } catch { H = {}; }
+  let S = H.consultation || {};
+  const REF = H.reference || {};
+  const EP = H.endpoints || {};
+  const P = H.patient || {};
+  const O = H.owner || null;
+  const HIST = H.history || [];
+  const DOCS = H.documents || { prescriptions: [], invoice: null };
+  const CTX = H.context || {};
+  const URLS = CTX.urls || {};
+  const LH = CTX.letterhead || { name: 'Clinique vétérinaire', lines: [] };
+  const VET = CTX.practitioner || null;
+  const VET_NAME = VET ? VET.name : 'Le praticien';
+  const TZ = LH.timeZone || 'Europe/Paris';
+
+  // ═════════ Référentiels ═════════
+  const ICO = {
+    heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    wind: '<path d="M12.8 19.6A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+    gi: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>',
+    droplet: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+    bone: '<path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z"/>',
+    brain: '<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M12 5v13"/>',
+    sparkle: '<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/>',
+    eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+    tooth: '<path d="M7 3c-2 0-4 1.5-4 4.5 0 3 1.5 4.5 2 7.5.4 2.5 1 6 2.5 6s1.8-3.5 2.5-5.5c.3-.9 1.7-.9 2 0 .7 2 1 5.5 2.5 5.5s2.1-3.5 2.5-6c.5-3 2-4.5 2-7.5C21 4.5 19 3 17 3c-2 0-3 1-5 1S9 3 7 3Z"/>',
+    ear: '<path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4"/>',
+    shell: '<path d="M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44"/>',
+  };
+  const svg = (p, s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" width="11" height="11"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  const W_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>';
+  const SYSTEMES = REF.systems || [];
+  const TEMPLATES = REF.examTemplates || [];
+  const VITAUX = REF.vitals || [];
+  const KINDS = {
+    MED: { l: 'Médicaments', s: 'Médicament', c: '#0891b2', bg: '#ecfeff', i: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7ZM8.5 8.5l7 7"/>' },
+    ACT: { l: 'Actes', s: 'Acte', c: '#4338ca', bg: '#eef2ff', i: '<path d="m18 2 4 4M17 7l3-3M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5M9 11l4 4M5 19l-3 3M14 4l6 6"/>' },
+    PRD: { l: 'Produits', s: 'Produit', c: '#b45309', bg: '#fff7ed', i: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>' },
+    RDV: { l: 'RDV de suivi', s: 'RDV', c: '#7c3aed', bg: '#f5f3ff', i: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' },
+    ADV: { l: 'Conseils', s: 'Conseil', c: '#059669', bg: '#ecfdf5', i: '<path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/>' },
+    OTH: { l: 'Autre', s: 'Autre', c: '#64748b', bg: '#f1f5f9', i: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>' },
+  };
+  const PLAN_KIND = { PERFORMED_ACT: 'ACT', MEDICATION_PRESCRIPTION: 'MED', FOLLOW_UP_APPOINTMENT: 'RDV', ADVICE: 'ADV', OTHER: 'OTH' };
+  const KIND_PLAN = { ACT: 'PERFORMED_ACT', MED: 'MEDICATION_PRESCRIPTION', RDV: 'FOLLOW_UP_APPOINTMENT', ADV: 'ADVICE', OTH: 'OTHER' };
+  const VOIES = ['Per os', 'Sous-cutanée', 'Intramusculaire', 'Intraveineuse', 'Cutanée', 'Auriculaire', 'Oculaire'];
+  const MOMENTS = ['Indifférent', 'Pendant le repas', 'À jeun', 'Le matin', 'Le soir'];
+  const FREQ = { '1×/j': { l: '1× par jour', pj: 1 }, '2×/j': { l: '2× par jour', pj: 2 }, '3×/j': { l: '3× par jour', pj: 3 }, '1×/sem': { l: '1× par semaine', pj: 1 / 7 }, 'dose unique': { l: 'Prise unique', pj: 0 } };
+  const ANA_RX = /bilan|biochim|nfs|urine|ecbu|t4 |t4$|fructos|sdma|sanguin/i;
+  const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const DAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  const STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8L6.6 19.7l1-6L3.2 9.4l6.1-.9Z"/></svg>';
+  const STAR_O = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8L6.6 19.7l1-6L3.2 9.4l6.1-.9Z"/></svg>';
+  const SPARK = '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>';
+
+  // ═════════ Utilitaires ═════════
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const fmtE = (minor) => (Math.round(Number(minor) || 0) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' €';
+  const fmtN = (x, d = 2) => String(Math.round(Number(x) * 10 ** d) / 10 ** d).replace('.', ',');
+  const num = (v) => parseFloat(String(v ?? '').replace(',', '.'));
+  const pad = (n) => String(n).padStart(2, '0');
+  const parseUtc = (v) => {
+    if (!v) return null;
+    const d = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(v) ? v : v.replace(' ', 'T') + 'Z');
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const hmOf = (d) => d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: TZ }) : '';
+  const dateOf = (d) => d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: TZ }) : '';
+  const fullDateOf = (d) => d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: TZ }) : '';
+  const serverNow = parseUtc(H.serverNowUtc);
+  const clockOffset = serverNow ? serverNow.getTime() - Date.now() : 0;
+  const now = () => new Date(Date.now() + clockOffset);
+  // Follow-up dates count from the day of the consultation (today while it is open).
+  const inDays = (j) => { const d = new Date((parseUtc(S.startedAtUtc) || now()).getTime()); d.setDate(d.getDate() + j); return d; };
+  const fmtCourt = (j) => { const d = inDays(j); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const fr = (j) => `${DAYS[inDays(j).getDay()]} ${fmtCourt(j)}`;
+  const visit = (url) => { if (window.Turbo?.visit) window.Turbo.visit(url); else window.location.href = url; };
+  const closed = () => S.isClosed === true;
+  const speciesKey = P.species === 'cat' ? 'chat' : P.species === 'dog' ? 'chien' : P.species === 'reptile' ? 'reptile' : P.species === 'nac' || P.species === 'rabbit' ? 'lapin' : 'chien';
+  const PNAME = P.name || 'le patient';
+
+  // ═════════ Autosave & minuteur ═════════
+  let lastSaved = null;
+  function setSave(state) {
+    const s = $('save');
+    if (closed()) { s.dataset.s = 'closed'; $('saveLbl').textContent = 'Clôturée · ' + hmOf(parseUtc(S.closedAtUtc)); return; }
+    s.dataset.s = state;
+    $('saveLbl').textContent = state === 'saving' ? 'Enregistrement…' : state === 'saved' ? 'Enregistré · ' + hmOf(lastSaved) : state === 'error' ? 'Non enregistré' : 'Brouillon';
+  }
+
+  const ERROR_COPY = {
+    CSRF_INVALID: 'Session expirée — rechargez la page.',
+    CONFLICT: 'Modification concurrente — réessayez.',
+    DOMAIN_ERROR: 'Modification refusée dans l\'état actuel de la consultation.',
+    VALIDATION: 'Valeur invalide — vérifiez la saisie.',
+  };
+  let chain = Promise.resolve();
+  async function send(url, data) {
+    const body = new URLSearchParams();
+    Object.entries(data || {}).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      if (Array.isArray(v)) { v.forEach((x) => body.append(`${k}[]`, x)); return; }
+      if (typeof v === 'object') { Object.entries(v).forEach(([sk, sv]) => { if (sv !== undefined && sv !== null) body.append(`${k}[${sk}]`, sv); }); return; }
+      body.append(k, v);
+    });
+    body.append('_token', $('consultation-csrf').value);
+    const r = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body });
+    let payload = null;
+    try { payload = await r.json(); } catch { /* not JSON */ }
+    return { status: r.status, payload };
+  }
+  /** Queues one mutation (one in flight at a time) and re-renders from the answer. */
+  function save(url, data, { render = true } = {}) {
+    const run = async () => {
+      if (!url) return { success: false };
+      setSave('saving');
+      try {
+        let res = await send(url, typeof data === 'function' ? data() : data);
+        if (res.status === 409 && res.payload?.errorCode === 'CONFLICT') res = await send(url, typeof data === 'function' ? data() : data);
+        if (res.payload?.success) {
+          lastSaved = now();
+          if (res.payload.consultation) { S = res.payload.consultation; if (render) rendreTout(); }
+          setSave('saved');
+          return res.payload;
+        }
+        setSave('error');
+        showToast((res.payload?.errorCode && ERROR_COPY[res.payload.errorCode]) || 'Erreur lors de l\'enregistrement', 'danger');
+        if (render) rendreTout();
+        return res.payload || { success: false };
+      } catch {
+        setSave('error');
+        showToast('Connexion perdue — modification non enregistrée', 'danger');
+        return { success: false };
+      }
+    };
+    chain = chain.then(run, run);
+    return chain;
+  }
+  async function getJson(url, params) {
+    try {
+      const r = await fetch(`${url}?${new URLSearchParams(params || {})}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      return await r.json();
+    } catch { return null; }
+  }
+  const debounces = {};
+  const later = (key, fn, ms = 700) => { clearTimeout(debounces[key]); debounces[key] = setTimeout(fn, ms); };
+  cleanups.push(() => Object.values(debounces).forEach(clearTimeout));
+
+  const startedAt = parseUtc(S.startedAtUtc);
+  function durationTxt() {
+    const end = parseUtc(S.closedAtUtc) || now();
+    const t = Math.max(0, Math.floor((end - startedAt) / 1000));
+    const h = Math.floor(t / 3600);
+    return h ? `${pad(h)}:${pad(Math.floor((t % 3600) / 60))}:${pad(t % 60)}` : `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
+  }
+  const tickTimer = () => { if (startedAt) $('timer').textContent = durationTxt(); };
+  tickTimer();
+  const timerInt = setInterval(() => { if (!closed()) tickTimer(); }, 1000);
+  cleanups.push(() => clearInterval(timerInt));
+
+  // ═════════ Menu flottant générique ═════════
+  const menu = $('menuPop');
+  function ouvrirMenu(anchor, html, bind) {
+    menu.innerHTML = html;
+    menu.classList.add('open');
+    const r = anchor.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+    let x = Math.min(r.left, window.innerWidth - w - 8), y = r.bottom + 6;
+    if (y + h > window.innerHeight - 8) y = r.top - h - 6;
+    menu.style.left = Math.max(8, x) + 'px';
+    menu.style.top = Math.max(8, y) + 'px';
+    bind(menu);
+  }
+  const fermerMenu = () => menu.classList.remove('open');
+  on(document, 'click', (e) => { if (!e.target.closest('.menu-pop') && !e.target.closest('[data-menu]')) fermerMenu(); });
+  on(document, 'scroll', (e) => { if (!e.target.closest || !e.target.closest('.menu-pop')) fermerMenu(); }, true);
+
+  /** Re-renders a block without losing the field being typed in. */
+  function keepFocus(container, fn) {
+    const a = document.activeElement;
+    const inside = a && container.contains(a) && (a.matches('input,textarea'));
+    const key = inside ? (a.id ? `#${a.id}` : a.dataset.note ? `[data-note="${a.dataset.note}"]` : null) : null;
+    const sel = inside ? [a.selectionStart, a.selectionEnd, a.value] : null;
+    fn();
+    if (key) {
+      const b = container.querySelector(key);
+      if (b) { b.value = sel[2]; b.focus(); try { b.setSelectionRange(sel[0], sel[1]); } catch { /* not a text field */ } }
+    }
+  }
+
+  // ═════════ Origine & motifs ═════════
+  function rendreOrigine() {
+    const o = CTX.origin || {};
+    $('motifOrig').textContent = o.type === 'rdv' ? `Depuis le RDV de ${o.at}` : o.type === 'urgence' ? `Urgence · sans RDV${o.at ? ` · arrivé à ${o.at}` : ''}` : `Sans RDV${o.at ? ` · arrivé à ${o.at}` : ''}`;
+  }
+  const motifLabels = () => (S.motifs || []).map((m) => m.label);
+  function saveMotifs(labels) { return save(EP.motifs, { labels }); }
+  function rendreMotifs() {
+    const s = $('motifStrip'), inp = $('motifFree');
+    s.querySelectorAll('.mchipx,.addchip').forEach((x) => x.remove());
+    const labels = motifLabels();
+    inp.insertAdjacentHTML('beforebegin', labels.map((m, i) => `<span class="mchipx">${esc(m)}<button type="button" class="edit-only" data-i="${i}" aria-label="Retirer">${X_SVG}</button></span>`).join('')
+      + '<button type="button" class="addchip edit-only" id="btnMotif" data-menu>+ ajouter</button>');
+    if (document.activeElement !== inp) inp.value = S.chiefComplaint || '';
+    s.querySelectorAll('.mchipx button').forEach((b) => b.addEventListener('click', () => {
+      const i = +b.dataset.i, m = labels[i], next = labels.filter((_, j) => j !== i);
+      saveMotifs(next);
+      toastUndo(`Motif retiré — ${m}`, () => saveMotifs(labels));
+    }));
+    $('btnMotif').addEventListener('click', (e) => {
+      e.stopPropagation();
+      ouvrirMenu(e.currentTarget, (REF.motifs || []).map((g) => `<div class="dd-titre">${esc(g.cat)}</div>` + g.items.filter((x) => !labels.includes(x)).map((x) => `<button type="button" class="dd-it" data-m="${esc(x)}">${esc(x)}</button>`).join('')).join(''), (m) => {
+        m.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => { fermerMenu(); saveMotifs([...motifLabels(), b.dataset.m]); }));
+      });
+    });
+  }
+  on($('motifFree'), 'input', (e) => { const v = e.target.value; setSave('saving'); later('motif', () => save(EP.chiefComplaint, { chiefComplaint: v })); });
+
+  // ═════════ Constantes & vigilances ═════════
+  let vitEdit = null;
+  const vitList = () => {
+    const out = [];
+    if (S.vitals?.weightKg != null && S.vitals.weightKg !== '') out.push({ id: 'POIDS', v: fmtN(S.vitals.weightKg, 2) });
+    if (S.vitals?.temperatureC != null && S.vitals.temperatureC !== '') out.push({ id: 'TEMP', v: fmtN(S.vitals.temperatureC, 1) });
+    (S.typedVitals || []).forEach((t) => out.push({ id: t.type, v: String(t.value).replace('.', ','), at: t.recordedAt }));
+    return out;
+  };
+  const range = (id) => (REF.normalRanges?.[speciesKey] || {})[id] || null;
+  const hors = (id, v) => { const r = range(id); return !!r && !Number.isNaN(num(v)) && (num(v) < r[0] || num(v) > r[1]); };
+  function poids() { const p = vitList().find((v) => v.id === 'POIDS'); return p ? num(p.v) : null; }
+  function saveVital(id, value) {
+    const cur = S.vitals || {};
+    if (id === 'POIDS' || id === 'TEMP') {
+      return save(EP.vitals, {
+        weightKg: id === 'POIDS' ? String(value).replace(',', '.') : (cur.weightKg ?? ''),
+        temperatureC: id === 'TEMP' ? String(value).replace(',', '.') : (cur.temperatureC ?? ''),
+      });
+    }
+    return save(EP.typedVitalRecord, { type: id, value: String(value).replace(',', '.') });
+  }
+  function removeVital(id) {
+    const cur = S.vitals || {};
+    if (id === 'POIDS' || id === 'TEMP') return save(EP.vitals, { weightKg: id === 'POIDS' ? '' : (cur.weightKg ?? ''), temperatureC: id === 'TEMP' ? '' : (cur.temperatureC ?? '') });
+    return save(EP.typedVitalRemove, { type: id });
+  }
+  function rendreVitaux() {
+    const s = $('vitStrip');
+    const list = vitList();
+    let html = list.map((x, i) => {
+      const vt = VITAUX.find((t) => t.id === x.id) || { c: x.id, l: x.id, u: '' };
+      const r = range(x.id);
+      if (vitEdit === x.id) return `<span class="vc-edit"><b>${esc(vt.c)}</b><input id="vitIn" value="${esc(x.v)}"><small>${esc(vt.u)}</small></span>`;
+      return `<span class="vc${hors(x.id, x.v) ? ' hors' : ''}" data-i="${i}" data-tip="${esc(vt.l)}${x.at ? ' · relevé à ' + hmOf(parseUtc(x.at)) : ''}${r ? ` · réf. ${fmtN(r[0], 1)}–${fmtN(r[1], 1)} ${vt.u}` : ''}"><b>${esc(vt.c)}</b><span class="v">${esc(x.v)}</span><small>${esc(vt.u)}</small><button type="button" class="edit-only" data-rm="${i}" aria-label="Retirer">${X_SVG}</button></span>`;
+    }).join('');
+    if (vitEdit && !list.find((x) => x.id === vitEdit)) {
+      const vt = VITAUX.find((t) => t.id === vitEdit);
+      html += `<span class="vc-edit"><b>${esc(vt.c)}</b><input id="vitIn" placeholder="—"><small>${esc(vt.u)}</small></span>`;
+    }
+    html += '<button type="button" class="addchip edit-only" id="btnVit" data-menu>+ constante</button>';
+    const alertes = S.medicalAlerts || [];
+    if (closed() && !list.length) html += '<span style="font-size:.78rem;color:var(--encre-35)">Aucune constante relevée</span>';
+    if (alertes.length) html += '<span class="vg-sep"></span>' + alertes.map((a) => `<span class="vg"${a.note ? ` data-tip="${esc(a.note)}"` : ''}>${W_SVG}${a.kind === 'ALLERGY' ? 'Allergie · ' : ''}${esc(a.label)}</span>`).join('');
+    s.innerHTML = html;
+    s.querySelectorAll('.vc').forEach((c) => c.addEventListener('click', (e) => {
+      if (e.target.closest('[data-rm]') || closed()) return;
+      vitEdit = list[+c.dataset.i].id; rendreVitaux();
+    }));
+    s.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const x = list[+b.dataset.rm], vt = VITAUX.find((t) => t.id === x.id);
+      removeVital(x.id);
+      toastUndo(`Constante retirée — ${vt ? vt.l : x.id}`, () => saveVital(x.id, x.v));
+    }));
+    const inp = $('vitIn');
+    if (inp) {
+      inp.focus(); inp.select();
+      let done = false;
+      const valider = () => {
+        if (done) return; done = true;
+        const v = inp.value.trim(), id = vitEdit, ex = list.find((x) => x.id === id);
+        vitEdit = null;
+        if (v && (!ex || ex.v !== v)) saveVital(id, v); else rendreVitaux();
+      };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); valider(); } if (e.key === 'Escape') { done = true; vitEdit = null; rendreVitaux(); } });
+      inp.addEventListener('blur', valider);
+    }
+    $('btnVit').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dispo = VITAUX.filter((t) => !list.find((x) => x.id === t.id));
+      ouvrirMenu(e.currentTarget, dispo.map((t) => `<button type="button" class="dd-it" data-v="${t.id}">${esc(t.l)}<span class="sub">${esc(t.u)}</span></button>`).join(''), (m) => {
+        m.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => { fermerMenu(); vitEdit = b.dataset.v; rendreVitaux(); }));
+      });
+    });
+  }
+
+  // ═════════ Examen clinique (O) ═════════
+  let TYPE_PERSO = {};
+  try { TYPE_PERSO = JSON.parse(localStorage.getItem('kiveto-examen-type') || '{}') || {}; } catch { TYPE_PERSO = {}; }
+  const U = { tpl: TEMPLATES.find((t) => t.v === speciesKey) ? speciesKey : (TEMPLATES[0]?.v || 'chien'), sysAjout: [], sysRetire: [] };
+  U.sysAjout = [...(TYPE_PERSO[U.tpl] || [])];
+  const tplOf = () => TEMPLATES.find((t) => t.v === U.tpl) || { base: ['GENERAL'], sugg: [], dispo: [], l: '' };
+  const tplName = () => tplOf().l.replace(/^\S+\s/, '');
+  const sameType = () => { const t = TYPE_PERSO[U.tpl] || []; return t.length === U.sysAjout.length && t.every((x) => U.sysAjout.includes(x)); };
+  const sysOf = (id) => SYSTEMES.find((x) => x.id === id) || { id, l: id, i: 'sparkle', h: '' };
+  const examMap = () => Object.fromEntries((S.examSystems || []).map((e) => [e.system, { st: e.status, note: e.notes || '', data: e.structuredData || {} }]));
+  const optimistic = {};
+  const exam = () => ({ ...examMap(), ...optimistic });
+  function sysVisibles() {
+    const E = exam(), out = [];
+    const add = (id) => { if (!out.find((x) => x.id === id)) out.push({ id }); };
+    tplOf().base.forEach(add);
+    Object.entries(E).forEach(([id, e]) => { if (e.st !== 'UNTESTED') add(id); });
+    U.sysAjout.forEach(add);
+    return out.filter((x) => !U.sysRetire.includes(x.id) || (E[x.id] && E[x.id].st !== 'UNTESTED'));
+  }
+  const sysIds = () => sysVisibles().map((x) => x.id);
+  function saveSystem(id, st, note) {
+    const cur = exam()[id] || {};
+    optimistic[id] = { st, note: note ?? cur.note ?? '', data: cur.data || {} };
+    return save(EP.examSystem, { system: id, status: st, notes: st === 'UNTESTED' ? '' : (note ?? cur.note ?? ''), structuredData: st === 'UNTESTED' ? {} : (cur.data || {}) })
+      .then((r) => { delete optimistic[id]; return r; });
+  }
+  let ddTpl = null;
+  if (!closed()) {
+    ddTpl = creerDropdown('ddTpl', TEMPLATES.map((t) => ({ v: t.v, l: t.l })), U.tpl, (v) => {
+      U.tpl = v; U.sysAjout = [...(TYPE_PERSO[v] || [])]; rendreExamen(); showToast('Examen de base : ' + tplName());
+    });
+  }
+  function rendreExamen() {
+    const L = $('sysList'), E = exam(), vis = sysVisibles(), T = tplOf();
+    const sugg = [];
+    motifLabels().forEach((m) => { const P2 = (REF.examByMotif || {})[m] || {}; [...(P2.p || []), ...(P2.s || [])].forEach((id) => sugg.push([id, m.toLowerCase()])); });
+    (T.sugg || []).forEach((id) => sugg.push([id, tplName().toLowerCase()]));
+    (S.medicalAlerts || []).forEach((al) => Object.entries(REF.examByAlert || {}).forEach(([w, ids]) => { if (norm(al.label).includes(norm(w))) ids.forEach((id) => sugg.push([id, al.label.toLowerCase()])); }));
+    const suggV = sugg.filter(([id], i) => !vis.find((x) => x.id === id) && sugg.findIndex((x) => x[0] === id) === i);
+    const restants = [...T.base, ...T.dispo].filter((id) => !vis.find((x) => x.id === id) && !suggV.find((x) => x[0] === id));
+    keepFocus(L, () => {
+      L.innerHTML = vis.map(({ id }) => {
+        const s = sysOf(id), e = E[id] || { st: 'UNTESTED', note: '' };
+        return `<div class="sys st-${e.st}" data-id="${id}">
+          <span class="sic">${svg(ICO[s.i] || ICO.sparkle)}</span>
+          <span class="sl">${esc(s.l)}${s.h && id === 'GENERAL' && e.st !== 'ANOMALY' ? `<small class="hint">${esc(s.h)}</small>` : ''}${e.st === 'ANOMALY' && e.note && closed() ? `<small>${esc(e.note)}</small>` : ''}</span>
+          ${!closed() && id !== 'GENERAL' ? `<button type="button" class="sys-rm" data-rm="${id}" data-tip="${e.st === 'UNTESTED' ? 'Retirer de l\'examen' : 'Retirer ce système et son résultat'}">${X_SVG}</button>` : ''}
+          ${closed() ? `<span class="res ${e.st}">${{ NORMAL: 'RAS', ANOMALY: 'Anomalie', UNTESTED: 'Non examiné' }[e.st]}</span>` : `<div class="tri">${[['NORMAL', 'RAS'], ['ANOMALY', 'Anomalie']].map(([k, l]) => `<button type="button" data-st="${k}" class="${e.st === k ? 'on' : ''}">${l}</button>`).join('')}</div>`}
+        </div>${e.st === 'ANOMALY' && !closed() ? `<div class="sys-note"><input data-note="${id}" placeholder="Décrire l'anomalie…" value="${esc(e.note)}"></div>` : ''}`;
+      }).join('') + (!closed() ? `<div class="sys-add">${suggV.length ? `<span>Suggérés</span>${suggV.map(([id, why]) => `<button type="button" class="sg" data-add="${id}" data-tip="Suggéré — ${esc(why)}">＋ ${esc(sysOf(id).l)}<i>${esc(why)}</i></button>`).join('')}` : ''}${restants.length ? '<button type="button" class="autre" data-menu id="btnAutreSys">＋ Autre système</button>' : ''}${U.sysAjout.length && !sameType() ? `<button type="button" class="autre type" id="btnType" data-tip="Ces systèmes seront ajoutés d'office à vos prochaines consultations ${esc(tplName().toLowerCase())}">☆ En faire mon examen type</button>` : ''}</div>` : '');
+    });
+    L.querySelectorAll('.tri button').forEach((b) => b.addEventListener('click', () => {
+      const id = b.closest('.sys').dataset.id, cur = (exam()[id] || {}).st;
+      const st = cur === b.dataset.st ? 'UNTESTED' : b.dataset.st;
+      saveSystem(id, st);
+      rendreExamen();
+      if (st === 'ANOMALY') setTimeout(() => { const i = L.querySelector(`[data-note="${id}"]`); if (i) i.focus(); }, 0);
+    }));
+    L.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.rm, avant = exam()[id] ? { ...exam()[id] } : null, etaitAjout = U.sysAjout.includes(id);
+      U.sysAjout = U.sysAjout.filter((x) => x !== id);
+      if (!U.sysRetire.includes(id)) U.sysRetire.push(id);
+      if (avant && avant.st !== 'UNTESTED') {
+        saveSystem(id, 'UNTESTED');
+        toastUndo(`${sysOf(id).l} retiré${avant.st === 'ANOMALY' ? ' avec son anomalie' : ''}`, () => {
+          U.sysRetire = U.sysRetire.filter((x) => x !== id); if (etaitAjout) U.sysAjout.push(id); saveSystem(id, avant.st, avant.note);
+        });
+      }
+      rendreExamen();
+    }));
+    const addSys = (id) => { U.sysRetire = U.sysRetire.filter((x) => x !== id); if (!U.sysAjout.includes(id)) U.sysAjout.push(id); rendreExamen(); };
+    L.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => addSys(b.dataset.add)));
+    const bT = $('btnType');
+    if (bT) bT.addEventListener('click', () => {
+      TYPE_PERSO[U.tpl] = [...U.sysAjout];
+      try { localStorage.setItem('kiveto-examen-type', JSON.stringify(TYPE_PERSO)); } catch { /* storage unavailable */ }
+      rendreExamen();
+      showToast(`Examen type enregistré — ${U.sysAjout.map((id) => sysOf(id).l).join(', ')} ajoutés d'office pour vos consultations ${tplName().toLowerCase()}`);
+    });
+    const bA = $('btnAutreSys');
+    if (bA) bA.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ouvrirMenu(bA, restants.map((id) => `<button type="button" class="dd-it" data-sy="${id}">${esc(sysOf(id).l)}</button>`).join(''), (m) => {
+        m.querySelectorAll('[data-sy]').forEach((b) => b.addEventListener('click', () => { fermerMenu(); addSys(b.dataset.sy); }));
+      });
+    });
+    L.querySelectorAll('[data-note]').forEach((i) => i.addEventListener('input', () => {
+      const id = i.dataset.note, v = i.value;
+      optimistic[id] = { ...(exam()[id] || {}), st: 'ANOMALY', note: v };
+      setSave('saving');
+      later('note-' + id, () => saveSystem(id, 'ANOMALY', v));
+    }));
+    const n = vis.filter((x) => E[x.id] && E[x.id].st !== 'UNTESTED').length;
+    const a = vis.filter((x) => E[x.id] && E[x.id].st === 'ANOMALY').length;
+    $('oCount').textContent = `${n}/${vis.length}` + (a ? ` · ${a} anomalie${a > 1 ? 's' : ''}` : '');
+  }
+  on($('btnRas'), 'click', () => {
+    const E = exam();
+    const ids = sysIds().filter((id) => !E[id] || E[id].st === 'UNTESTED');
+    if (!ids.length) { showToast('Tous les systèmes affichés sont déjà examinés'); return; }
+    ids.forEach((id) => { optimistic[id] = { st: 'NORMAL', note: '', data: {} }; });
+    rendreExamen(); majSortie();
+    save(EP.examSystemsAllNormal, { systems: ids }).then(() => ids.forEach((id) => delete optimistic[id]));
+    toastUndo(`${ids.length} système${ids.length > 1 ? 's' : ''} passé${ids.length > 1 ? 's' : ''} en RAS — anomalies conservées`, () => ids.forEach((id) => saveSystem(id, 'UNTESTED')));
   });
+
+  // ═════════ Diagnostic (A) ═════════
+  let dxAjout = false, iaOuvert = false;
+  const NOMEN = REF.nomenclature || [];
+  function suggestionsIA() {
+    const out = [];
+    const E = exam();
+    Object.entries(E).filter(([, e]) => e.st === 'ANOMALY').forEach(([sys]) => ((REF.suggestions || {})[sys] || []).forEach(([code, why]) => {
+      const n = NOMEN.find((x) => x[0] === code);
+      if (n && !out.find((o) => o.code === code)) out.push({ code, l: n[1], why: (E[sys].note ? E[sys].note.slice(0, 60) + ' · ' : '') + why });
+    }));
+    (S.medicalAlerts || []).filter((a) => a.kind === 'CHRONIC_CONDITION').forEach((a) => {
+      const n = NOMEN.find((x) => norm(x[1]).includes(norm(a.label)) || norm(a.label).includes(norm(x[1])));
+      if (n && !out.find((o) => o.code === n[0])) out.push({ code: n[0], l: n[1], why: `Antécédent au dossier${a.note ? ' (' + a.note.replace(/\.$/, '') + ')' : ''} — à reporter` });
+    });
+    return out.filter((s) => !(S.diagnoses || []).find((d) => d.code === s.code));
+  }
+  function addDx(dx) {
+    return save(EP.diagnosisAdd, { code: dx.code || '', label: dx.label, certainty: dx.certainty, note: dx.note || '', isPrimary: dx.isPrimary ? '1' : '', source: dx.source || 'MANUAL' });
+  }
+  function rendreDx() {
+    const B = $('aBody');
+    const DX = S.diagnoses || [];
+    let html = '';
+    if (iaOuvert && !closed()) {
+      const sg = suggestionsIA();
+      html += `<div class="iabox"><p>${svg(SPARK, 12)}Suggestions à partir de l'examen et du dossier</p>`
+        + (sg.length ? sg.map((s, i) => `<div class="iarow"><span>${esc(s.l)} <small>${esc(s.code)}</small><span class="why">${esc(s.why)}</span></span><button type="button" data-ia="${i}">+ Ajouter</button></div>`).join('') : '<div class="iarow"><span style="color:var(--encre-60)">Aucune nouvelle piste — signalez une anomalie à l\'examen ou toutes les suggestions sont déjà au différentiel.</span></div>')
+        + '</div>';
+    }
+    if (dxAjout) html += '<div class="addbox"><div class="ab-in"><span class="ab-k">Diagnostic</span><input id="dxIn" placeholder="Code ou libellé (ex. arthrose, M.CARDIO…)" autocomplete="off"></div><div class="ab-res scr" id="dxRes"></div></div>';
+    html += DX.length ? DX.map((d, i) => `<div class="dx${d.isPrimary ? ' primary' : ''}${d.certainty === 'EXCLUDED' ? ' excl' : ''}">
+        <button type="button" class="star" data-i="${i}" data-tip="${d.isPrimary ? 'Diagnostic principal' : 'Définir comme principal'}">${d.isPrimary ? STAR : STAR_O}</button>
+        <div class="dxt"><b title="${esc(d.label)}">${esc(d.label)}</b><div class="dxm"><small>${esc(d.code || 'Texte libre')}${d.source === 'AI_SUGGESTION' ? '<span class="ia-tag">IA</span>' : ''}${d.isPrimary ? ' · principal' : ''}</small>
+        ${closed() ? `<span class="res cert-${d.certainty}">${{ CERTAIN: 'Certain', PROBABLE: 'Probable', POSSIBLE: 'Possible', EXCLUDED: 'Exclu' }[d.certainty]}</span></div></div>` : `<div class="cert">${[['CERTAIN', 'Cert.'], ['PROBABLE', 'Prob.'], ['POSSIBLE', 'Poss.'], ['EXCLUDED', 'Exclu']].map(([k, l]) => `<button type="button" data-c="${k}" data-i="${i}" class="${d.certainty === k ? 'on' : ''}">${l}</button>`).join('')}</div></div></div>`}
+        <button type="button" class="rm edit-only" data-rm="${i}" aria-label="Retirer">${X_SVG}</button>
+      </div>`).join('') : (dxAjout || iaOuvert ? '' : `<div class="vide-q">${closed() ? 'Aucun diagnostic posé.' : 'Aucun diagnostic — ajoutez-en un ou demandez des suggestions.'}</div>`);
+    B.innerHTML = html;
+    $('aCount').textContent = `${DX.filter((d) => d.certainty !== 'EXCLUDED').length} dx`;
+    B.querySelectorAll('[data-ia]').forEach((b) => b.addEventListener('click', () => {
+      const s = suggestionsIA()[+b.dataset.ia];
+      addDx({ code: s.code, label: s.l, certainty: 'POSSIBLE', isPrimary: !DX.some((d) => d.isPrimary), source: 'AI_SUGGESTION' })
+        .then((r) => { if (r?.success) showToast(`Ajouté au différentiel — ${s.l} (possible)`); });
+    }));
+    B.querySelectorAll('.star').forEach((b) => b.addEventListener('click', () => {
+      if (closed()) return;
+      const d = DX[+b.dataset.i];
+      if (!d.isPrimary) save(EP.diagnosisPrimary, { diagnosisId: d.id });
+    }));
+    B.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => {
+      const d = DX[+b.dataset.i];
+      if (d.certainty === b.dataset.c) return;
+      d.certainty = b.dataset.c; rendreDx();
+      save(EP.diagnosisUpdate, { diagnosisId: d.id, code: d.code || '', label: d.label, certainty: b.dataset.c, note: d.note || '' });
+    }));
+    B.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+      const d = DX[+b.dataset.rm];
+      save(EP.diagnosisRemove, { diagnosisId: d.id }).then((r) => {
+        // The principal diagnosis passes to the next one, as in the mock-up.
+        const next = (S.diagnoses || []).find((x) => x.certainty !== 'EXCLUDED');
+        if (r?.success && d.isPrimary && next && !(S.diagnoses || []).some((x) => x.isPrimary)) save(EP.diagnosisPrimary, { diagnosisId: next.id });
+      });
+      toastUndo(`Diagnostic retiré — ${d.label}`, () => addDx(d));
+    }));
+    const dxIn = $('dxIn');
+    if (dxIn) {
+      const res = $('dxRes');
+      const ajouter = (code) => {
+        const n = NOMEN.find((x) => x[0] === code);
+        dxAjout = false;
+        addDx(n ? { code: n[0], label: n[1], certainty: 'PROBABLE', isPrimary: !DX.some((d) => d.isPrimary) } : { code: '', label: dxIn.value.trim(), certainty: 'PROBABLE', isPrimary: !DX.some((d) => d.isPrimary) });
+      };
+      const filtrer = () => {
+        const q = norm(dxIn.value.trim());
+        const r = NOMEN.filter(([c, l, s]) => !DX.find((d) => d.code === c) && (!q || norm(c + ' ' + l + ' ' + s).includes(q))).slice(0, 7);
+        res.innerHTML = r.map(([c, l, s], i) => `<button type="button" class="ab-opt${i === 0 ? ' focus' : ''}" data-c="${c}"><span>${esc(l)}<span class="sub">${esc(s)}</span></span><small>${esc(c)}</small></button>`).join('') || '<div class="ab-opt" style="color:var(--encre-35)">Aucun code — Entrée pour saisir en texte libre</div>';
+        res.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('mousedown', (e) => { e.preventDefault(); ajouter(b.dataset.c); }));
+      };
+      dxIn.addEventListener('input', filtrer);
+      dxIn.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { dxAjout = false; rendreDx(); }
+        if (e.key === 'Enter') { e.preventDefault(); const f = res.querySelector('[data-c]'); if (f) ajouter(f.dataset.c); else if (dxIn.value.trim()) ajouter(null); }
+      });
+      dxIn.addEventListener('blur', () => setTimeout(() => { if (dxAjout) { dxAjout = false; rendreDx(); } }, 150));
+      filtrer(); dxIn.focus();
+    }
+  }
+  on($('btnAddDx'), 'click', () => { dxAjout = true; rendreDx(); });
+  on($('btnIA'), 'click', (e) => { iaOuvert = !iaOuvert; e.currentTarget.classList.toggle('on', iaOuvert); rendreDx(); });
+
+  // ═════════ Plan (P) ═════════
+  const billingOf = (id) => (S.billingLines || []).find((b) => b.sourceLineId === id) || null;
+  const warningsOf = (id) => (S.allergyWarnings || []).filter((w) => w.prescriptionLineId === id);
+  /** One list for the whole plan: plan actions and prescription lines. */
+  function planItems() {
+    const items = [];
+    (S.planActions || []).forEach((a) => {
+      const k = PLAN_KIND[a.kind] || 'OTH';
+      items.push({ src: 'plan', id: a.id, k, d: a.description, posology: a.posology, duree: a.durationDays, fu: a.followUpDays, qte: a.quantity, pu: a.unitPriceMinorUnits, code: a.catalogCode, deliv: k === 'MED' ? 'ordo' : null, tot: billingOf(a.id)?.totalMinorUnits || 0 });
+    });
+    (S.prescriptionLines || []).forEach((l) => {
+      const k = l.articleKind && l.articleKind !== 'DRUG' ? 'PRD' : 'MED';
+      items.push({ src: 'rx', id: l.id, k, d: l.label, articleId: l.articleId, code: l.code, dose: l.dose, freq: l.frequency, duree: l.durationDays, voie: l.route, qte: l.quantity, pu: l.unitPriceMinorUnits, stock: l.stock, deliv: 'clinique', tot: billingOf(l.id)?.totalMinorUnits || 0 });
+    });
+    return items;
+  }
+  const posoRx = (p) => [p.dose, p.freq, p.duree ? p.duree + ' j' : null, p.voie ? String(p.voie).toLowerCase() : null].filter(Boolean).join(' · ');
+  function detail(p) {
+    if (p.k === 'MED') return p.src === 'rx' ? posoRx(p) || 'Posologie à préciser' : `${esc(p.posology || 'Posologie à préciser')} · <span class="ordo">ordonnance seule</span>`;
+    if (p.k === 'RDV') return p.fu ? `dans ${p.fu} j · ${fmtCourt(p.fu)}` : 'Date à préciser';
+    if (p.k === 'ACT') return `${esc(VET_NAME)}${ANA_RX.test(p.d) ? (closed() ? ' · <span class="anst">Non envoyé</span>' : ' · <span class="anst prep"><button type="button" disabled data-tip="Aucun appareil ni laboratoire connecté à la clinique">Laboratoire ▾</button><button type="button" class="go" disabled data-tip="Aucun appareil ni laboratoire connecté à la clinique">Envoyer</button></span>') : ''}`;
+    if (p.k === 'PRD') return esc(p.code || '');
+    return esc(p.posology || '');
+  }
+  function qteTxt(p) {
+    if (p.k === 'MED') return p.src === 'rx' ? `×${fmtN(p.qte)}` : '';
+    if (p.k === 'ACT' || p.k === 'PRD') return p.qte > 1 ? `×${fmtN(p.qte)}` : '';
+    return '';
+  }
+  function alertePresc(p) {
+    if (p.src !== 'rx') return '';
+    const w = warningsOf(p.id);
+    if (w.length) return `Allergie connue — ${w.map((x) => x.alertLabel).join(', ')} : ${p.d} contient ${w.map((x) => x.substance).join(', ')}, à vérifier`;
+    if (p.stock === 0) return 'Rupture de stock';
+    return '';
+  }
+  const dueIgnore = new Set();
+  function dus() {
+    const items = planItems();
+    return (CTX.due || []).filter((d) => !dueIgnore.has(d.id) && !items.some((p) => norm(p.d).includes(norm(d.label)) || norm(d.label).includes(norm(p.d))));
+  }
+  // ── Writes of the plan ──
+  function addItem(it) {
+    if ((it.k === 'MED' && it.deliv === 'clinique') || it.k === 'PRD') {
+      return save(EP.prescriptionLineAdd, { articleId: it.articleId, dose: it.dose || '', frequency: it.freq || '', durationDays: it.duree || '', route: it.voie || '', quantity: it.qte || 1 });
+    }
+    const posology = it.k === 'MED' ? (it.posology ?? posoRx(it)) : (it.posology || '');
+    return save(EP.planActionAdd, {
+      kind: KIND_PLAN[it.k], description: it.d, catalogItemId: it.k === 'ACT' ? (it.catalogItemId || '') : '', catalogCode: it.code || '',
+      posology, durationDays: it.duree || '', followUpDays: it.k === 'RDV' ? (it.fu || '') : '', quantity: it.qte || 1,
+    });
+  }
+  function removeItem(p) {
+    return p.src === 'rx' ? save(EP.prescriptionLineRemove, { prescriptionLineId: p.id }) : save(EP.planActionRemove, { planActionId: p.id });
+  }
+  /** Re-adds a removed line (undo): a billed act finds its catalog item again by code. */
+  async function readd(p) {
+    if (p.k === 'ACT' && p.code && p.pu != null) {
+      const r = await getJson(EP.catalogSearch, { term: p.d, kind: 'ACT' });
+      const hit = (r?.items || []).find((x) => x.code === p.code);
+      return addItem({ ...p, catalogItemId: hit?.itemId || '' });
+    }
+    return addItem({ ...p });
+  }
+  /** Ids added between two states, so a template can be undone as a whole. */
+  const allIds = () => planItems().map((p) => p.id);
+  async function catalogFirst(kind, term) {
+    const r = await getJson(EP.catalogSearch, { term, kind });
+    return (r?.items || [])[0] || null;
+  }
+  async function appliquerTemplate(t) {
+    const before = new Set(allIds());
+    for (const item of t.items) {
+      if (item.q) {
+        const hit = await catalogFirst(item.k, item.q);
+        if (item.k === 'MED') {
+          if (hit) await addItem({ k: 'MED', deliv: 'clinique', articleId: hit.itemId, dose: item.dose, freq: item.freq, duree: item.duree, voie: item.voie, qte: 1 });
+          else await addItem({ k: 'MED', deliv: 'ordo', d: item.q, dose: item.dose, freq: item.freq, duree: item.duree, voie: item.voie });
+        } else if (item.k === 'PRD') {
+          if (hit) await addItem({ k: 'PRD', articleId: hit.itemId, qte: 1 });
+        } else {
+          await addItem({ k: 'ACT', d: hit ? hit.name : item.q, catalogItemId: hit?.itemId || '', code: hit?.code || '', qte: 1 });
+        }
+      } else {
+        await addItem({ k: item.k, d: item.d, fu: item.fu });
+      }
+    }
+    const added = planItems().filter((p) => !before.has(p.id));
+    toastUndo(`Template « ${t.l.replace(/^\S+\s/, '')} » — ${added.length} ligne${added.length > 1 ? 's' : ''} ajoutée${added.length > 1 ? 's' : ''}`, () => added.forEach(removeItem));
+  }
+  let ddPlanTpl = null;
+  if (!closed()) {
+    ddPlanTpl = creerDropdown('ddPlanTpl', (REF.planTemplates || []).map((t) => ({ v: t.v, l: t.l })), '', (v) => {
+      const t = (REF.planTemplates || []).find((x) => x.v === v);
+      ddPlanTpl.set('');
+      if (t) appliquerTemplate(t);
+    }, 'Template');
+  }
+  function rendrePlan() {
+    const B = $('pBody');
+    const items = planItems();
+    let html = '';
+    const D = dus();
+    if (D.length && !closed()) html += `<div class="due"><span class="due-t">Dû selon le dossier</span>${D.map((d) => `<span class="due-it"><button type="button" data-due="${d.id}">＋ ${esc(d.label)}<i>${esc(d.why)}</i></button><button type="button" class="due-x" data-dux="${d.id}" data-tip="Ignorer pour cette consultation">${X_SVG}</button></span>`).join('')}</div>`;
+    const groupes = Object.keys(KINDS).filter((k) => items.some((p) => p.k === k));
+    if (!groupes.length) html += `<div class="vide-q">${closed() ? 'Aucune action au plan.' : 'Plan vide — ajoutez une ligne ou partez d\'un template.'}</div>`;
+    html += groupes.map((k) => {
+      const K = KINDS[k];
+      return `<div class="pgrp"><p class="pgt">${K.l}</p>` + items.filter((p) => p.k === k).map((p) => {
+        const al = alertePresc(p);
+        return `<div class="pit${al ? ' alerte' : ''}" data-id="${p.id}">
+          <span class="pk" style="background:${K.bg};color:${K.c}">${svg(K.i, 13)}</span>
+          <span class="pt"><b title="${esc(p.d)}">${esc(p.d)}</b>${detail(p) ? `<small>${detail(p)}</small>` : ''}</span>
+          ${qteTxt(p) ? `<span class="pq">${qteTxt(p)}</span>` : ''}
+          ${p.tot ? `<span class="pp" data-tip="Hors taxes">${fmtE(p.tot)}</span>` : ''}
+          <button type="button" class="rm edit-only" data-rm="${p.id}" aria-label="Retirer">${X_SVG}</button>
+          ${al ? `<div class="pal">${W_SVG}<span>${esc(al)}</span></div>` : ''}
+        </div>`;
+      }).join('') + '</div>';
+    }).join('');
+    html += `<div class="quick edit-only">${['MED', 'ACT', 'PRD', 'RDV', 'ADV'].map((k) => `<button type="button" data-q="${k}">${svg('<path d="M12 5v14M5 12h14"/>', 12)}${KINDS[k].s}</button>`).join('')}</div>`;
+    B.innerHTML = html;
+    $('pCount').textContent = `${items.length} ligne${items.length > 1 ? 's' : ''}`;
+    B.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const p = items.find((x) => x.id === b.dataset.rm);
+      removeItem(p);
+      toastUndo(`${KINDS[p.k].s} retiré — ${p.d}`, () => readd(p));
+    }));
+    B.querySelectorAll('[data-due]').forEach((b) => b.addEventListener('click', async () => {
+      const d = (CTX.due || []).find((x) => x.id === b.dataset.due);
+      const hit = await catalogFirst('ACT', d.label);
+      const before = new Set(allIds());
+      await addItem({ k: 'ACT', d: hit ? hit.name : d.label, catalogItemId: hit?.itemId || '', code: hit?.code || '', qte: 1 });
+      const it = planItems().find((p) => !before.has(p.id));
+      if (it) toastUndo(`Acte ajouté — ${it.d}`, () => removeItem(it));
+    }));
+    B.querySelectorAll('[data-dux]').forEach((b) => b.addEventListener('click', () => { dueIgnore.add(b.dataset.dux); rendrePlan(); }));
+    B.querySelectorAll('.pit').forEach((el) => el.addEventListener('click', (e) => {
+      if (e.target.closest('.pal,.anst,[data-rm]') || closed()) return;
+      ouvrirEditeur({ edit: items.find((p) => p.id === el.dataset.id) });
+    }));
+    B.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => ouvrirEditeur({ k: b.dataset.q })));
+  }
+  on($('btnAddPlan'), 'click', () => ouvrirEditeur({ k: 'MED' }));
+
+  // ═════════ Éditeur de ligne de plan ═════════
+  const edVeil = $('edVeil');
+  let ED = null;
+  const I_CALC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>';
+  const I_SRCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  const SOON = 'Bientôt disponible';
+  const stockPuce = (s) => s == null ? '' : s <= 0 ? '<span class="puce rappel">Rupture</span>' : s <= 2 ? `<span class="puce rappel">Stock ${fmtN(s, 0)}</span>` : `<span class="puce ok">Stock ${fmtN(s, 0)}</span>`;
+  function ouvrirEditeur(o) {
+    if (o.edit) ED = { mode: 'edit', k: o.edit.k, it: { ...o.edit }, ref: o.edit };
+    else ED = { mode: 'add', k: o.k, it: null, ref: null };
+    $('edKinds').style.display = ED.mode === 'add' ? '' : 'none';
+    rendreKinds(); rendreEd();
+    edVeil.classList.add('open');
+    if (ED.mode === 'add') setTimeout(() => { const i = $('edQ'); if (i) i.focus(); }, 30);
+  }
+  function fermerEd() { edVeil.classList.remove('open'); ED = null; }
+  function rendreKinds() {
+    const Sg = $('edKinds');
+    Sg.innerHTML = Object.entries(KINDS).map(([k, K]) => `<button type="button" data-k="${k}" class="${ED.k === k ? 'on' : ''}">${svg(K.i, 13)}${K.s}</button>`).join('');
+    Sg.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { ED.k = b.dataset.k; ED.it = null; rendreKinds(); rendreEd(); $('edQ')?.focus(); }));
+  }
+  const catalogKinds = { MED: 'MED', ACT: 'ACT', PRD: 'PRD' };
+  const fromCatalog = (k, c) => {
+    if (k === 'ACT') return { k, d: c.name, catalogItemId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, qte: 1 };
+    if (k === 'PRD') return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, stock: c.stock, qte: 1 };
+    return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, stock: c.stock, conflicts: c.allergyConflicts || [], dose: '', freq: '1×/j', duree: 7, voie: 'Per os', qte: 1, deliv: c.stock === 0 ? 'ordo' : 'clinique' };
+  };
+  function rendreEd() {
+    const K = KINDS[ED.k];
+    $('edTitre').textContent = ED.mode === 'add' ? 'Ajouter au plan' : `Modifier — ${K.s.toLowerCase()}`;
+    const w = poids();
+    $('edSous').textContent = [PNAME, (P.speciesLabel || '').toLowerCase(), w ? fmtN(w, 1) + ' kg' : null, ...(S.medicalAlerts || []).filter((a) => a.kind === 'CHRONIC_CONDITION').map((a) => a.label)].filter(Boolean).join(' · ');
+    $('edSuppr').style.display = ED.mode === 'edit' ? '' : 'none';
+    const pick = $('edPick'), form = $('edForm');
+    if (!ED.it) {
+      form.innerHTML = '';
+      pick.innerHTML = `<div class="ed-search">${I_SRCH}<input id="edQ" placeholder="Rechercher ${{ MED: 'un médicament', ACT: 'un acte', PRD: 'un produit', RDV: 'un motif de RDV', ADV: 'un conseil', OTH: 'une action' }[ED.k]}…" autocomplete="off"></div><div class="ed-res scr" id="edRes"></div>`;
+      const q = $('edQ'), res = $('edRes'), k = ED.k;
+      let rows = [];
+      const libre = (txt) => {
+        if (k === 'MED') choisir({ k: 'MED', d: txt, deliv: 'ordo', dose: '', freq: '1×/j', duree: 7, voie: 'Per os', qte: 1, libre: true });
+        else if (k === 'ACT') choisir({ k: 'ACT', d: txt, qte: 1, pu: null, libre: true });
+        else choisir({ k, d: txt, fu: 14, qte: 1 });
+      };
+      const draw = () => {
+        const s = norm(q.value.trim());
+        const r = catalogKinds[k] ? rows : (REF.planEntries?.[k] || []).filter((c) => !s || norm(c.d).includes(s));
+        res.innerHTML = (catalogKinds[k]
+          ? r.map((c, i) => `<button type="button" class="ed-opt${i === 0 ? ' focus' : ''}" data-i="${i}"><span><b>${esc(c.name)}</b><span class="sub">${esc(c.code)}${c.allergyConflicts?.length ? ` · <span style="color:#c2410c;font-weight:600">allergie ${esc(c.allergyConflicts.join(', '))}</span>` : ''}</span></span><span class="r">${k !== 'ACT' ? stockPuce(c.stock) : ''}<span class="pr">${fmtE(c.basePriceMinorUnits)}</span></span></button>`).join('')
+          : r.map((c, i) => `<button type="button" class="ed-opt${i === 0 ? ' focus' : ''}" data-i="${i}"><span><b>${esc(c.d)}</b>${c.fu ? `<span class="sub">dans ${c.fu} j · ${fmtCourt(c.fu)}</span>` : ''}</span></button>`).join(''))
+          + (!r.length && catalogKinds[k] && !q.value.trim() ? '<div class="ed-vide">Aucun article de ce type dans le catalogue de la clinique.</div>' : '')
+          + (q.value.trim() && k !== 'PRD' ? `<button type="button" class="ed-opt libre" data-libre>＋ Saisie libre « ${esc(q.value.trim())} »${k === 'MED' ? ' — ordonnance seule' : k === 'ACT' ? ' — non facturé' : ''}</button>` : '');
+        res.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => choisir(catalogKinds[k] ? fromCatalog(k, r[+b.dataset.i]) : { k, d: r[+b.dataset.i].d, fu: r[+b.dataset.i].fu || 14, qte: 1 })));
+        const lb = res.querySelector('[data-libre]'); if (lb) lb.addEventListener('click', () => libre(q.value.trim()));
+      };
+      const load = async () => {
+        if (!catalogKinds[k]) { draw(); return; }
+        const r = await getJson(EP.catalogSearch, { term: q.value.trim(), kind: catalogKinds[k] });
+        if (!ED || ED.it || ED.k !== k) return;
+        rows = r?.items || [];
+        draw();
+      };
+      q.addEventListener('input', () => { if (catalogKinds[k]) later('edq', load, 220); else draw(); });
+      q.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); const f = res.querySelector('[data-i]'); if (f) f.click(); else if (q.value.trim() && k !== 'PRD') libre(q.value.trim()); }
+      });
+      load();
+    } else { pick.innerHTML = ''; rendreForm(); }
+    majEd();
+  }
+  function choisir(it) { ED.it = it; rendreEd(); const f = document.querySelector('#edForm [data-autofocus]'); if (f) { f.focus(); if (f.select) f.select(); } }
+  const unitIn = (id, v, u, extra = '') => `<div class="unit"><input class="finput" id="${id}" value="${esc(v)}" inputmode="decimal" ${extra}><i>${u}</i></div>`;
+  const stepper = (id, v) => `<div class="step"><button type="button" data-st="-1" data-for="${id}">−</button><input id="${id}" value="${esc(v)}" inputmode="numeric"><button type="button" data-st="1" data-for="${id}">+</button></div>`;
+  const ckrow = (id, l, sub) => `<div class="ckrow off" id="${id}" data-tip="${SOON}"><span class="ck"></span><span>${l}${sub ? ` <small>${sub}</small>` : ''}</span></div>`;
+  function rendreForm() {
+    const it = ED.it, K = KINDS[ED.k], F = $('edForm');
+    const editable = ['ADV', 'OTH', 'RDV'].includes(ED.k) || it.libre || (ED.k === 'MED' && it.deliv === 'ordo' && ED.mode === 'edit' && !it.articleId);
+    let h = `<div class="ed-chosen"><span class="pk" style="background:${K.bg};color:${K.c}">${svg(K.i, 16)}</span>
+        <span style="flex:1;min-width:0">${editable ? `<input class="ed-name" id="fNom" value="${esc(it.d)}">` : `<b>${esc(it.d)}</b>`}<small>${it.code ? esc(it.code) : K.s}${it.libre ? ' · saisie libre' : ''}</small></span>
+        <span class="r">${ED.k === 'MED' || ED.k === 'PRD' ? stockPuce(it.stock) : ''}${ED.mode === 'add' ? '<button type="button" class="lnk" id="edChanger">Changer</button>' : ''}</span></div>`;
+    if (ED.k === 'MED') {
+      const w = poids();
+      h += `<div class="ed-sec"><p class="ed-st">Posologie<span class="r">${w ? `poids ${fmtN(w, 1)} kg · relevé aujourd'hui` : 'poids non relevé — à peser'}</span></p>
+        <div class="g3">
+          <div class="frow"><label class="flbl">Dose</label><input class="finput" id="fDose" value="${esc(it.dose || '')}" placeholder="ex. 0,1 mg/kg" data-autofocus></div>
+          <div class="frow"><label class="flbl">Voie</label><div class="dd" id="fVoie"></div></div>
+          <div class="frow"><label class="flbl">Moment</label><div class="dd off" id="fMoment" data-tip="${SOON}"></div></div>
+        </div>
+        <div class="g3" style="grid-template-columns:1fr 2fr">
+          <div class="frow"><label class="flbl">Fréquence</label><div class="dd" id="fFreq"></div></div>
+          <div class="frow" id="rowDuree"><label class="flbl">Durée</label>${unitIn('fDuree', it.duree || '', 'jours')}
+            <div class="mini-chips" id="chDuree">${[3, 5, 7, 10, 14, 28, 30].map((d) => `<button type="button" data-d="${d}" class="${+it.duree === d ? 'on' : ''}">${d} j</button>`).join('')}</div></div>
+        </div>
+        <div class="calc" id="fCalc"></div>
+      </div>
+      <div class="ed-sec"><p class="ed-st">Délivrance</p>
+        <div class="seg" id="fDeliv" style="margin-bottom:10px"><button type="button" data-v="clinique"${it.articleId ? '' : ` disabled data-tip="Choisissez le médicament dans le catalogue pour le délivrer ici"`}>Délivré par la clinique</button><button type="button" data-v="ordo">Ordonnance seule</button></div>
+        <div class="g3">
+          <div class="frow" id="rowQte"><label class="flbl">Quantité</label>${stepper('fQte', it.qte || 1)}</div>
+          <div class="frow" id="rowPu"><label class="flbl">Prix unitaire HT</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
+          <div class="frow"><label class="flbl">Renouvellements</label><div class="dd off" id="fRenouv" data-tip="Se règle sur l'ordonnance, à sa signature"></div></div>
+        </div>
+        <p class="qhint" id="fQhint" style="margin-top:-4px"></p>
+      </div>
+      <div class="frow"><label class="flbl">Instructions pour le propriétaire <span class="opt">(imprimées sur l'ordonnance)</span></label><textarea class="ftext" id="fInstr" disabled data-tip="Se rédigent sur l'ordonnance, à sa signature" placeholder="Ex. administrer sur la nourriture…"></textarea></div>
+      <div id="fWarn"></div>
+      ${ckrow('fCascade', 'Prescription hors AMM (cascade)', 'mention obligatoire ajoutée à l\'ordonnance')}`;
+    }
+    if (ED.k === 'ACT' || ED.k === 'PRD') {
+      h += `<div class="ed-sec"><p class="ed-st">Facturation</p><div class="g3">
+          <div class="frow"><label class="flbl">Quantité</label>${stepper('fQte', it.qte || 1)}</div>
+          <div class="frow"><label class="flbl">Prix unitaire HT</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
+          <div class="frow"><label class="flbl">Remise</label>${unitIn('fRemise', '0', '%', `disabled data-tip="${SOON}"`)}</div>
+        </div>${it.libre ? '<p class="qhint warn">Saisie libre : l\'acte figure au compte rendu mais n\'est pas facturé.</p>' : ''}</div>`;
+      if (ED.k === 'ACT') h += `<div class="g2"><div class="frow"><label class="flbl">Réalisé par</label><div class="dd off" id="fPar" data-tip="${SOON}"></div></div>
+          <div class="frow"><label class="flbl">Note <span class="opt">(optionnel)</span></label><input class="finput" id="fNote" disabled data-tip="${SOON}" placeholder="Ex. sous sédation légère"></div></div>`;
+    }
+    if (ED.k === 'RDV') {
+      h += `<div class="ed-sec"><p class="ed-st">Rendez-vous de suivi</p>
+        <div class="g3" style="grid-template-columns:1.4fr 1fr 1fr">
+          <div class="frow"><label class="flbl">Dans</label>${unitIn('fFu', it.fu || 14, 'jours', 'data-autofocus')}
+            <div class="mini-chips" id="chFu">${[7, 10, 14, 30, 90].map((d) => `<button type="button" data-d="${d}" class="${+it.fu === d ? 'on' : ''}">${d} j</button>`).join('')}</div></div>
+          <div class="frow"><label class="flbl">Praticien</label><div class="dd off" id="fVet" data-tip="Se choisit en prenant le RDV dans l'agenda"></div></div>
+          <div class="frow"><label class="flbl">Durée</label><div class="dd off" id="fDur" data-tip="Se choisit en prenant le RDV dans l'agenda"></div></div>
+        </div>
+        <div class="calc" id="fCalc"></div></div>
+        ${ckrow('fSms', 'Envoyer le lien de réservation par SMS à la clôture', 'le client choisit son créneau')}`;
+    }
+    if (ED.k === 'ADV') h += ckrow('fSurOrdo', 'Imprimer ce conseil sur l\'ordonnance');
+    if (ED.k === 'OTH') h += `<div class="frow"><label class="flbl">Précisions <span class="opt">(optionnel)</span></label><textarea class="ftext" id="fNote" placeholder="Ex. Dr Martin, orthopédie — Aix">${esc(it.posology || '')}</textarea></div>`;
+    F.innerHTML = h;
+
+    const n = (v) => { const x = num(v); return Number.isNaN(x) ? 0 : x; };
+    $('edChanger')?.addEventListener('click', () => { ED.it = null; rendreEd(); $('edQ')?.focus(); });
+    $('fNom')?.addEventListener('input', (e) => { it.d = e.target.value; majEd(); });
+    F.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => {
+      const inp = $(b.dataset.for); inp.value = Math.max(1, n(inp.value) + +b.dataset.st); inp.dispatchEvent(new Event('input'));
+    }));
+    if (ED.k === 'MED') {
+      creerDropdown('fVoie', VOIES.map((v) => ({ v, l: v })), VOIES.includes(it.voie) ? it.voie : (it.voie ? null : 'Per os'), (v) => { it.voie = v; majEd(); }, it.voie || 'Voie');
+      creerDropdown('fMoment', MOMENTS.map((v) => ({ v, l: v })), 'Indifférent', null);
+      creerDropdown('fFreq', Object.entries(FREQ).map(([v, f]) => ({ v, l: f.l })), FREQ[it.freq] ? it.freq : null, (v) => { it.freq = v; majEd(); }, it.freq || 'Fréquence');
+      creerDropdown('fRenouv', [{ v: '0', l: 'Aucun' }], '0', null);
+      $('fDose').addEventListener('input', (e) => { it.dose = e.target.value; majEd(); });
+      $('fDuree').addEventListener('input', (e) => { it.duree = Math.max(1, Math.round(n(e.target.value))) || ''; F.querySelectorAll('#chDuree button').forEach((b) => b.classList.toggle('on', +b.dataset.d === it.duree)); majEd(); });
+      F.querySelectorAll('#chDuree button').forEach((b) => b.addEventListener('click', () => { $('fDuree').value = b.dataset.d; $('fDuree').dispatchEvent(new Event('input')); }));
+      $('fQte').addEventListener('input', (e) => { it.qte = Math.max(1, Math.round(n(e.target.value))); majEd(); });
+      F.querySelectorAll('#fDeliv button').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { it.deliv = b.dataset.v; majEd(); } }));
+    }
+    if (ED.k === 'ACT' || ED.k === 'PRD') {
+      $('fQte').addEventListener('input', (e) => { it.qte = Math.max(1, Math.round(n(e.target.value))); majEd(); });
+      if (ED.k === 'ACT') creerDropdown('fPar', [{ v: 'p', l: VET_NAME }], 'p', null);
+    }
+    if (ED.k === 'RDV') {
+      creerDropdown('fVet', [{ v: 'p', l: VET_NAME }], 'p', null);
+      creerDropdown('fDur', [{ v: '30', l: '30 min' }], '30', null);
+      $('fFu').addEventListener('input', (e) => { it.fu = Math.max(1, Math.round(n(e.target.value))); F.querySelectorAll('#chFu button').forEach((b) => b.classList.toggle('on', +b.dataset.d === it.fu)); majEd(); });
+      F.querySelectorAll('#chFu button').forEach((b) => b.addEventListener('click', () => { $('fFu').value = b.dataset.d; $('fFu').dispatchEvent(new Event('input')); }));
+    }
+    if (ED.k === 'OTH') $('fNote').addEventListener('input', (e) => { it.posology = e.target.value; });
+  }
+  function totLigne(it) {
+    if (it.pu == null) return 0;
+    if (it.k === 'MED') return it.deliv === 'clinique' ? (it.qte || 1) * it.pu : 0;
+    if (it.k === 'ACT' || it.k === 'PRD') return (it.qte || 1) * it.pu;
+    return 0;
+  }
+  function majEd() {
+    const ok = $('edOk'), tot = $('edTot'), it = ED?.it;
+    if (!it) { ok.disabled = true; ok.textContent = 'Ajouter au plan'; tot.innerHTML = ''; return; }
+    if (ED.k === 'MED') {
+      const w = poids(), m = /([\d.,]+)\s*mg\s*\/\s*kg/i.exec(it.dose || ''), f = FREQ[it.freq];
+      const prises = f ? (f.pj === 0 ? 1 : Math.max(1, Math.round(f.pj * (it.duree || 1)))) : null;
+      $('rowDuree').style.opacity = it.freq === 'dose unique' ? 0.4 : 1;
+      $('fCalc').innerHTML = `${I_CALC}<span>${m && w ? `<b>${fmtN(num(m[1]) * w)} mg</b> par prise (${fmtN(w, 1)} kg) · ` : ''}${it.dose ? `<b>${esc(it.dose)}</b>` : 'dose à préciser'} · ${esc(it.freq || 'fréquence à préciser')}${it.freq === 'dose unique' ? '' : ` · ${it.duree || '?'} j`}${prises ? ` = <b>${prises} prise${prises > 1 ? 's' : ''}</b>` : ''}${m && !w ? ' <span style="opacity:.75">(pesez l\'animal pour calculer la quantité)</span>' : ''}</span>`;
+      document.querySelectorAll('#fDeliv button').forEach((b) => b.classList.toggle('on', b.dataset.v === it.deliv));
+      const cli = it.deliv === 'clinique';
+      $('rowQte').style.display = cli ? '' : 'none'; $('rowPu').style.display = cli ? '' : 'none';
+      $('fRenouv').closest('.g3').style.gridTemplateColumns = cli ? '' : '1fr';
+      const h = $('fQhint');
+      if (!cli) { h.className = 'qhint'; h.innerHTML = 'Le client achète le traitement en pharmacie — rien n\'est facturé ici.'; }
+      else if (it.stock != null && it.stock <= 0) { h.className = 'qhint warn'; h.innerHTML = 'Rupture de stock — basculez en « Ordonnance seule » ou commandez.'; }
+      else if (it.stock != null && it.qte > it.stock) { h.className = 'qhint warn'; h.innerHTML = `Seulement ${fmtN(it.stock, 0)} en stock.`; }
+      else { h.className = 'qhint'; h.innerHTML = it.stock != null ? `${fmtN(it.stock, 0)} en stock · facturé à la clôture.` : 'Facturé à la clôture.'; }
+      $('fWarn').innerHTML = (it.conflicts || []).length ? `<div class="rxw" style="margin-bottom:10px">${W_SVG}<span><b>Allergie connue : ${esc(it.conflicts.join(', '))}.</b> Ce médicament en contient — vérifiez avant de prescrire.</span></div>` : '';
+    }
+    if (ED.k === 'RDV') {
+      const d = inDays(it.fu || 0);
+      $('fCalc').innerHTML = `${I_CALC}<span>Visée : <b>${DAYS[d.getDay()]} ${fmtCourt(it.fu || 0)}</b>${d.getDay() === 0 ? ' (dimanche — décalez au lundi)' : ''} · le créneau se réserve dans l'agenda</span>`;
+    }
+    const t = totLigne(it);
+    tot.innerHTML = t ? `<small>${it.k === 'MED' ? 'Facturé HT' : 'Total ligne HT'}</small><b>${fmtE(t)}</b>` : (it.k === 'MED' && it.deliv === 'ordo' ? '<small>Non facturé</small><b>Ordonnance seule</b>' : '');
+    ok.disabled = !String(it.d || '').trim();
+    ok.textContent = ED.mode === 'edit' ? 'Enregistrer' : `Ajouter au plan${t ? ' — ' + fmtE(t) : ''}`;
+  }
+  on($('edOk'), 'click', async () => {
+    if (!ED || !ED.it) return;
+    const it = ED.it, k = ED.k, ref = ED.ref, mode = ED.mode;
+    fermerEd();
+    if (mode === 'add') {
+      const r = await addItem(it);
+      if (r?.success) showToast(`${KINDS[k].s} ajouté — ${it.d}`);
+      return;
+    }
+    // Plan actions are updated in place; a prescription line (no update
+    // endpoint) or a change of delivery is replaced by a new line.
+    const sameSource = (ref.src === 'rx') === ((k === 'MED' && it.deliv === 'clinique') || k === 'PRD');
+    let r;
+    if (ref.src === 'plan' && sameSource) {
+      r = await save(EP.planActionUpdate, {
+        planActionId: ref.id, description: it.d, posology: k === 'MED' ? posoRx(it) || it.posology || '' : (it.posology || ''),
+        durationDays: it.duree || '', followUpDays: k === 'RDV' ? (it.fu || '') : '', quantity: it.qte || 1,
+      });
+    } else {
+      r = await addItem(it);
+      if (r?.success) r = await removeItem(ref);
+    }
+    if (r?.success) showToast(`${KINDS[k].s} mis à jour — ${it.d}`);
+  });
+  on($('edSuppr'), 'click', () => {
+    const p = ED.ref; fermerEd();
+    removeItem(p);
+    toastUndo(`${KINDS[p.k].s} retiré — ${p.d}`, () => readd(p));
+  });
+  ['edX', 'edAnnuler'].forEach((id) => on($(id), 'click', fermerEd));
+  on(edVeil, 'click', (e) => { if (e.target === edVeil) fermerEd(); });
+
+  // ═════════ Sortie : ordonnance, facturation, check de clôture ═════════
+  const OI = { ordo: ['#ecfeff', '#0891b2', KINDS.MED.i], facture: ['#fff7ed', '#c2410c', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'], rdv: ['#f5f3ff', '#7c3aed', KINDS.RDV.i], cons: ['#ecfdf5', '#059669', KINDS.ADV.i], cr: ['#eef2ff', '#4338ca', '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>'] };
+  const ttc = () => S.totals?.totalTtcMinorUnits || 0;
+  function majSortie() {
+    const items = planItems();
+    const meds = items.filter((p) => p.k === 'MED'), delivres = meds.filter((m) => m.src === 'rx'), rdv = items.filter((p) => p.k === 'RDV'), cons = items.filter((p) => p.k === 'ADV');
+    const lignes = S.billingLines || [];
+    const nAl = items.filter(alertePresc).length;
+    const hasConsult = lignes.some((l) => /^consultation/i.test(l.label));
+    const row = (k, t, sub, ap, warn) => { const [bg, c, ic] = OI[k]; return `<button type="button" class="orow" ${ap ? `data-ap="${ap}"` : ''}><span class="oic" style="background:${bg};color:${c}">${svg(ic, 14)}</span><span class="ot"><b>${esc(t)}</b><small>${esc(sub)}</small>${warn ? `<small class="ow">${esc(warn)}</small>` : ''}</span>${ap ? '<span class="oap">Aperçu</span>' : ''}</button>`; };
+    const signed = DOCS.prescriptions || [];
+    $('outList').innerHTML =
+      (meds.length ? row('ordo', 'Ordonnance', closed() && signed.length ? `${signed.map((x) => x.number).join(', ')} · signée` : `${meds.length} médicament${meds.length > 1 ? 's' : ''}${delivres.length ? ` · ${delivres.length} délivré${delivres.length > 1 ? 's' : ''} ici` : ''}`, 'ordo', nAl ? `${nAl} alerte${nAl > 1 ? 's' : ''} à vérifier dans le plan` : '') : '')
+      + row('facture', 'Facture', closed() ? (DOCS.invoice ? `${DOCS.invoice.number} · émise` : `${lignes.length} ligne${lignes.length > 1 ? 's' : ''} · à encaisser à l'accueil`) : lignes.length ? `${lignes.length} ligne${lignes.length > 1 ? 's' : ''}${hasConsult ? '' : ' · aucun acte de consultation'}` : 'Vide — ajoutez un acte de consultation', 'facture')
+      + rdv.map((r) => row('rdv', r.d, r.fu ? `${fr(r.fu)} · à réserver dans l'agenda` : 'Date à préciser', '')).join('')
+      + (cons.length ? row('cons', 'Conseils au propriétaire', `${cons.length} conseil${cons.length > 1 ? 's' : ''}`, 'conseils') : '')
+      + row('cr', 'Compte rendu', closed() ? `Signé · ${VET_NAME}` : 'Généré depuis S·O·A·P', 'cr')
+      + (!items.length ? '<p class="out-vide">Ordonnance, RDV de suivi et conseils apparaîtront ici au fil du plan.</p>' : '');
+    document.querySelectorAll('#outList [data-ap]').forEach((b) => b.addEventListener('click', () => apercuDoc(b.dataset.ap)));
+    $('totTtc').textContent = fmtE(ttc());
+    $('totHt').textContent = `HT ${fmtE(S.totals?.totalHtMinorUnits || 0)} · TVA ${fmtE(S.totals?.totalTvaMinorUnits || 0)}`;
+    const badge = $('billBadge');
+    badge.textContent = closed() ? 'à encaisser' : 'brouillon';
+    badge.className = closed() ? 'puce rappel' : 'puce';
+    const E = exam(), sys = sysIds();
+    const nt = sys.filter((id) => !E[id] || E[id].st === 'UNTESTED').length;
+    const anoms = Object.values(E).filter((e) => e.st === 'ANOMALY').length, prim = (S.diagnoses || []).some((d) => d.isPrimary);
+    const chk = [
+      [motifLabels().length > 0, motifLabels().length ? 'Motif renseigné' : 'Motif manquant'],
+      [nt === 0, nt === 0 ? 'Examen complet' : `${nt} système${nt > 1 ? 's' : ''} non examiné${nt > 1 ? 's' : ''} — « Tout RAS » ?`],
+      prim ? [true, 'Diagnostic principal posé'] : anoms ? [false, `${anoms} anomalie${anoms > 1 ? 's' : ''} sans diagnostic — à préciser ?`] : [true, 'Sans diagnostic — examen normal'],
+    ].concat(meds.length ? [[!nAl, nAl ? `${nAl} alerte${nAl > 1 ? 's' : ''} de prescription à vérifier` : 'Prescriptions vérifiées']] : []);
+    $('chk').innerHTML = closed() ? '' : chk.map(([ok, l]) => `<div class="${ok ? 'ok' : 'ko'}"><i>${ok ? '✓' : '!'}</i>${esc(l)}</div>`).join('');
+    const b = $('btnClore');
+    b.disabled = !closed() && !motifLabels().length;
+    b.textContent = closed() ? `Encaisser ${fmtE(ttc())} →` : 'Clôturer la consultation';
+    if (!closed()) b.dataset.tip = b.disabled ? 'Renseignez au moins un motif pour clôturer' : ''; else delete b.dataset.tip;
+  }
+
+  // ═════════ Aperçus papier ═════════
+  const prevVeil = $('prevVeil');
+  const ENTETE = `<div><b>${esc(LH.name)}</b><p>${(LH.lines || []).map(esc).join('<br>')}${LH.contact ? '<br>' + esc(LH.contact) : ''}${LH.siret ? '<br>SIRET ' + esc(LH.siret) : ''}</p></div>`;
+  const today = fullDateOf(now());
+  const animalLine = () => [`<b>${esc(PNAME)}</b> · ${esc([(P.speciesLabel || '').toLowerCase(), P.breed].filter(Boolean).join(' '))}`, [P.sexLabel ? (P.sexLabel === '♀' ? 'Femelle' : 'Mâle') + (P.sterilized ? (P.sexLabel === '♀' ? ' stérilisée' : ' castré') : '') : null, P.ageLabel, poids() ? fmtN(poids(), 1) + ' kg' : null].filter(Boolean).map(esc).join(' · '), P.microchip ? 'Puce ' + esc(P.microchip) : ''].filter(Boolean).join('<br>');
+  const ownerLine = () => O ? `<b>${esc(O.fullName)}</b>${O.address ? '<br>' + esc(O.address) : ''}` : '—';
+  function setPdf(url) {
+    const a = $('prevPdf');
+    if (url) { a.href = url; a.removeAttribute('aria-disabled'); a.removeAttribute('data-tip'); }
+    else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); a.dataset.tip = 'Le PDF existe une fois le document signé ou émis'; }
+  }
+  function apercuDoc(k) {
+    const Pp = $('paper'), br = !closed();
+    const T = $('prevTitre'), Su = $('prevSous');
+    const wm = br ? '<div class="wm">BROUILLON</div>' : '';
+    const items = planItems();
+    if (k === 'facture') {
+      const L = S.billingLines || [];
+      T.textContent = br || !DOCS.invoice ? 'Facture — brouillon' : `Facture ${DOCS.invoice.number}`;
+      Su.textContent = br ? 'Mis à jour en direct · numéro attribué à l\'émission' : DOCS.invoice ? 'Émise' : 'Émise à l\'accueil à l\'encaissement';
+      Pp.innerHTML = `${br || !DOCS.invoice ? '<div class="wm">BROUILLON</div>' : ''}
+        <div class="pp-head">${ENTETE}<div class="r"><div class="pp-doc">Facture</div><p>N° ${DOCS.invoice && !br ? esc(DOCS.invoice.number) : '— (à l\'émission)'}<br>Date : ${today}<br>Praticien : ${esc(VET_NAME)}</p></div></div>
+        <div class="pp-meta"><div><p class="k">Client</p><p>${ownerLine()}</p></div><div><p class="k">Animal</p><p>${animalLine()}</p></div></div>
+        <table class="pp-tab"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU HT</th><th class="n">Total HT</th></tr></thead><tbody>
+        ${L.map((l) => `<tr><td>${esc(l.label)}${l.code ? `<small>${esc(l.code)}</small>` : ''}</td><td class="n">${fmtN(l.quantity)}</td><td class="n">${fmtE(l.unitPriceMinorUnits)}</td><td class="n">${fmtE(l.totalMinorUnits)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#94a3b8">Aucune ligne facturable.</td></tr>'}
+        </tbody></table>
+        <div class="pp-tot"><div><span>Total HT</span><span>${fmtE(S.totals?.totalHtMinorUnits || 0)}</span></div><div><span>TVA</span><span>${fmtE(S.totals?.totalTvaMinorUnits || 0)}</span></div><div class="g"><span>Total TTC</span><span>${fmtE(ttc())}</span></div></div>
+        <div class="pp-foot"><span>${br ? 'Document provisoire — non valable comme facture.' : 'Règlement à réception.'}</span><span>Page 1/1</span></div>`;
+      setPdf(DOCS.invoice?.url || null);
+    } else if (k === 'ordo') {
+      const meds = items.filter((p) => p.k === 'MED');
+      const signedDoc = (DOCS.prescriptions || [])[0];
+      T.textContent = signedDoc ? `Ordonnance ${signedDoc.number}` : 'Ordonnance — brouillon';
+      Su.textContent = signedDoc ? `Signée · ${signedDoc.lineCount} ligne${signedDoc.lineCount > 1 ? 's' : ''}${br ? ' · le plan affiché ici peut avoir changé depuis' : ''}` : 'À signer depuis l\'ordonnance';
+      Pp.innerHTML = `${signedDoc ? '' : '<div class="wm">BROUILLON</div>'}
+        <div class="pp-head">${ENTETE}<div class="r"><div class="pp-doc">Ordonnance</div><p>${esc(VET_NAME)}${LH.ordinal ? '<br>N° ordinal ' + esc(LH.ordinal) : ''}<br>${LH.city ? esc(LH.city) + ', le ' : 'Le '}${today}</p></div></div>
+        <div class="pp-meta"><div><p class="k">Animal</p><p>${animalLine()}</p></div><div><p class="k">Détenteur</p><p>${ownerLine()}</p></div></div>
+        ${meds.map((m) => `<div class="pp-rx"><b>${esc(m.d)}</b>
+          <p>${esc(m.src === 'rx' ? posoRx(m) || 'Posologie à préciser' : m.posology || 'Posologie à préciser')}.</p>
+          <p class="q">${m.src === 'rx' ? `Qté : ${fmtN(m.qte)} · délivré par la clinique` : 'À acheter en pharmacie'}</p></div>`).join('') || '<p class="q">Aucun médicament.</p>'}
+        <div class="pp-foot"><span>Ne pas dépasser la posologie prescrite.<br>Tenir hors de portée des enfants.</span><div class="pp-sign">${signedDoc ? esc(VET_NAME) : 'signature à la validation de l\'ordonnance'}</div></div>`;
+      setPdf(signedDoc?.url || null);
+      if (!signedDoc && meds.some((m) => m.src === 'rx') && URLS.prescribe) {
+        Su.innerHTML = `${esc(Su.textContent)} · <a href="${esc(URLS.prescribe)}" style="color:var(--pin);font-weight:600">Préparer et signer</a>`;
+      }
+    } else if (k === 'cr') {
+      T.textContent = 'Compte rendu de consultation'; Su.textContent = br ? 'Généré depuis S·O·A·P · mis à jour en direct' : `Signé · ${VET_NAME}`;
+      const E = exam(), sys = sysIds();
+      const vits = vitList().map((v) => { const vt = VITAUX.find((t) => t.id === v.id); return vt ? `${vt.c} ${v.v} ${vt.u}` : ''; }).filter(Boolean).join(' · ');
+      Pp.innerHTML = `${wm}<div class="pp-head">${ENTETE}<div class="r"><div class="pp-doc">Compte rendu</div><p>Consultation du ${fullDateOf(startedAt)}<br>${esc(VET_NAME)}</p></div></div>
+        <div class="pp-meta"><div><p class="k">Animal</p><p>${animalLine()}${vits ? '<br>' + esc(vits) : ''}</p></div><div><p class="k">Motif</p><p>${esc(motifLabels().join(', ') || '—')}${S.chiefComplaint ? '<br>' + esc(S.chiefComplaint) : ''}</p></div></div>
+        <div class="pp-rx"><b>Anamnèse</b><p>${esc($('qS').value || '—')}</p></div>
+        <div class="pp-rx"><b>Examen clinique</b><p>${sys.filter((id) => E[id]?.st === 'ANOMALY').map((id) => `${esc(sysOf(id).l)} : ${esc(E[id].note || 'anomalie')}`).join('<br>') || 'RAS'}${sys.some((id) => E[id]?.st === 'NORMAL') ? `<br><span class="q">${sys.filter((id) => E[id]?.st === 'NORMAL').map((id) => esc(sysOf(id).l)).join(', ')} : RAS</span>` : ''}</p>${$('qO').value ? `<p>${esc($('qO').value)}</p>` : ''}</div>
+        <div class="pp-rx"><b>Diagnostic</b><p>${(S.diagnoses || []).filter((d) => d.certainty !== 'EXCLUDED').map((d) => `${esc(d.label)} (${{ CERTAIN: 'certain', PROBABLE: 'probable', POSSIBLE: 'possible' }[d.certainty]})${d.isPrimary ? ' — principal' : ''}`).join('<br>') || '—'}</p></div>
+        <div class="pp-rx"><b>Plan</b><p>${items.map((p) => '• ' + esc(p.d) + (p.k === 'MED' ? ' — ' + esc(p.src === 'rx' ? posoRx(p) : p.posology || '') : p.k === 'RDV' && p.fu ? ' — le ' + fmtCourt(p.fu) : '')).join('<br>') || '—'}</p></div>
+        ${(S.addenda || []).length ? `<div class="pp-rx"><b>Avenants</b>${S.addenda.map((a) => `<p><span class="q">${dateOf(parseUtc(a.at))} à ${hmOf(parseUtc(a.at))} · ${esc(a.author)} —</span> ${esc(a.text)}</p>`).join('')}</div>` : ''}
+        <div class="pp-foot"><span>Compte rendu destiné au propriétaire et aux confrères.</span><div class="pp-sign">${br ? 'signature à la clôture' : esc(VET_NAME)}</div></div>`;
+      setPdf(DOCS.report || null);
+    } else if (k === 'etiq') {
+      T.textContent = 'Étiquettes de délivrance'; Su.textContent = 'Format 70 × 37 mm · imprimante d\'étiquettes de l\'accueil';
+      Pp.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${items.filter((p) => p.k === 'MED' && p.src === 'rx').map((m) => `<div style="border:1px dashed #94a3b8;border-radius:6px;padding:10px 12px;font-size:.72rem;line-height:1.45"><b style="font-size:.8rem">${esc(m.d)}</b><br>Pour : <b>${esc(PNAME)}</b>${O ? ` (${esc(O.fullName)})` : ''}<br>${esc(posoRx(m))}<br><span style="color:#64748b">${esc(VET_NAME)} · ${today} · Usage vétérinaire</span></div>`).join('')}</div>`;
+      setPdf(null);
+    } else if (k === 'conseils') {
+      T.textContent = 'Fiche conseils propriétaire'; Su.textContent = 'Remise au client avec l\'ordonnance';
+      const r = items.find((p) => p.k === 'RDV');
+      Pp.innerHTML = `${wm}<div class="pp-head">${ENTETE}<div class="r"><div class="pp-doc">Vos conseils</div><p>Pour ${esc(PNAME)} · ${today}</p></div></div>
+        ${items.filter((p) => p.k === 'ADV').map((a) => `<div class="pp-rx"><b>${esc(a.d)}</b></div>`).join('')}
+        ${r && r.fu ? `<div class="pp-rx"><b>Prochain rendez-vous</b><p>${esc(r.d)} — à partir du ${fmtCourt(r.fu)}.</p></div>` : ''}
+        <div class="pp-foot"><span>${LH.contact ? 'Une question ? ' + esc(LH.contact) : ''}</span><span></span></div>`;
+      setPdf(null);
+    }
+    prevVeil.classList.add('open');
+  }
+  const fermerPrev = () => prevVeil.classList.remove('open');
+  ['prevX', 'prevFermer'].forEach((id) => on($(id), 'click', fermerPrev));
+  on(prevVeil, 'click', (e) => { if (e.target === prevVeil) fermerPrev(); });
+  on($('prevPrint'), 'click', () => {
+    document.body.classList.add('cs-print');
+    window.print();
+    document.body.classList.remove('cs-print');
+  });
+
+  // ═════════ Clôture ═════════
+  const cloVeil = $('cloVeil');
+  const CI = (bg, c, p) => `<span class="ci" style="background:${bg};color:${c}">${svg(p)}</span>`;
+  on($('btnClore'), 'click', () => {
+    const b = $('btnClore');
+    if (b.disabled) return;
+    if (closed()) { visit(URLS.checkout); return; }
+    const items = planItems();
+    const meds = items.filter((p) => p.k === 'MED'), rdv = items.find((p) => p.k === 'RDV');
+    $('conseq').innerHTML = [
+      meds.length ? `<div>${CI('#ecfeff', '#0891b2', KINDS.MED.i)}<span><b>Ordonnance à signer</b><small>${meds.length} médicament${meds.length > 1 ? 's' : ''} · depuis Documents, après la clôture</small></span></div>` : '',
+      `<div>${CI('#fff7ed', '#c2410c', OI.facture[2])}<span><b>Facture de ${fmtE(ttc())} prête à encaisser</b><small>${esc(PNAME)} passe en « Sortie » dans le flux ambulatoire</small></span></div>`,
+      rdv && rdv.fu ? `<div>${CI('#f5f3ff', '#7c3aed', KINDS.RDV.i)}<span><b>${esc(rdv.d)} à proposer le ${fmtCourt(rdv.fu)}</b><small>À réserver dans l'agenda avec le client</small></span></div>` : '',
+      `<div>${CI('#f1f5f9', '#334155', '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')}<span><b>Dossier verrouillé</b><small>Toute correction ultérieure passera par un avenant daté</small></span></div>`,
+    ].join('');
+    cloVeil.classList.add('open');
+  });
+  const fermerClo = () => cloVeil.classList.remove('open');
+  on($('cloX'), 'click', fermerClo);
+  on($('cloAnnuler'), 'click', fermerClo);
+  on(cloVeil, 'click', (e) => { if (e.target === cloVeil) fermerClo(); });
+  // Pending text saves must land before the record is frozen.
+  on($('cloForm'), 'submit', (e) => {
+    e.preventDefault();
+    const f = e.currentTarget;
+    $('cloOk').disabled = true;
+    flushText();
+    chain.then(() => f.submit(), () => f.submit());
+  });
+
+  // ═════════ Avenants ═════════
+  function rendreAvenants() {
+    $('avList').innerHTML = (S.addenda || []).map((a) => `<div class="aven"><span class="av-h"><b>Avenant</b> · ${dateOf(parseUtc(a.at))} à ${hmOf(parseUtc(a.at))} · ${esc(a.author)}</span><p>${esc(a.text)}</p></div>`).join('');
+  }
+  on($('btnAvenant'), 'click', () => { $('avBox').classList.add('on'); $('avIn').focus(); });
+  on($('avAnnuler'), 'click', () => { $('avBox').classList.remove('on'); $('avIn').value = ''; });
+  on($('avOk'), 'click', () => {
+    const t = $('avIn').value.trim(); if (!t) return;
+    save(EP.addendum, { content: t }).then((r) => {
+      if (!r?.success) return;
+      $('avBox').classList.remove('on'); $('avIn').value = '';
+      showToast('Avenant signé et ajouté au dossier — le compte rendu le mentionne');
+    });
+  });
+
+  // ═════════ Barre patient : historique, plus, dictée ═════════
+  on($('btnHisto'), 'click', (e) => {
+    e.stopPropagation();
+    ouvrirMenu(e.currentTarget, '<div class="dd-titre">Consultations précédentes</div>' + (HIST.length ? HIST.slice(0, 8).map((h, i) => `<button type="button" class="dd-it" data-h="${i}" style="flex-direction:column;align-items:flex-start;gap:1px"><b style="font-size:.8rem;font-weight:600">${esc(h.motif || h.summary || 'Consultation')}</b><span style="font-size:.7rem;color:var(--encre-60)">${fullDateOf(parseUtc(h.startedAtUtc))} · ${h.status === 'OPEN' ? 'en cours' : 'clôturée'}</span></button>`).join('') : '<div class="dd-it" style="color:var(--encre-35);cursor:default">Aucune consultation précédente</div>'), (m) => {
+      m.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => { fermerMenu(); visit(HIST[+b.dataset.h].url); }));
+    });
+  });
+  on($('btnPlus'), 'click', (e) => {
+    e.stopPropagation();
+    const soon = (l) => `<button type="button" class="dd-it" disabled data-tip="${SOON}">${l}<span class="soon">Bientôt</span></button>`;
+    ouvrirMenu(e.currentTarget, `${soon('Transférer à un confrère')}${soon('Mettre en pause')}${soon('Convertir en hospitalisation')}
+      <div class="dd-sep"></div>${URLS.agenda ? '<button type="button" class="dd-it" data-p="agenda">Ouvrir l\'agenda</button>' : ''}<button type="button" class="dd-it rouge" disabled data-tip="${SOON}">Annuler la consultation<span class="soon">Bientôt</span></button>`, (m) => {
+      m.querySelector('[data-p="agenda"]')?.addEventListener('click', () => { fermerMenu(); visit(URLS.agenda); });
+    });
+  });
+  // Dictation through the browser's speech recognition, when it has one.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const bDict = $('btnDicter');
+  if (!SR) { bDict.disabled = true; bDict.dataset.tip = 'Dictée non disponible sur ce navigateur'; }
+  let dictee = null;
+  on(bDict, 'click', () => {
+    if (!SR) return;
+    if (dictee) { dictee.stop(); return; }
+    const rec = new SR();
+    rec.lang = 'fr-FR'; rec.continuous = true; rec.interimResults = false;
+    bDict.dataset.html = bDict.innerHTML;
+    bDict.classList.add('rec'); bDict.innerHTML = '<span class="rdot"></span>Écoute… (cliquer pour arrêter)';
+    rec.onresult = (ev) => {
+      const txt = [...ev.results].slice(ev.resultIndex).filter((r) => r.isFinal).map((r) => r[0].transcript).join(' ').trim();
+      if (!txt) return;
+      const ta = $('qS');
+      ta.value = (ta.value ? ta.value.trim() + '\n' : '') + txt.charAt(0).toUpperCase() + txt.slice(1);
+      ta.dispatchEvent(new Event('input'));
+    };
+    rec.onend = () => { dictee = null; bDict.classList.remove('rec'); bDict.innerHTML = bDict.dataset.html; showToast('Dictée transcrite dans le Subjectif'); };
+    rec.onerror = () => { showToast('Dictée interrompue — micro indisponible', 'warning'); };
+    dictee = rec; rec.start();
+  });
+  cleanups.push(() => { if (dictee) dictee.abort(); });
+  const textFields = { qS: [EP.subjective, 'text'], qO: [EP.objective, 'text'] };
+  const pendingText = {};
+  function flushText() {
+    Object.keys(pendingText).forEach((id) => { clearTimeout(debounces['t-' + id]); const [url, key] = textFields[id]; save(url, { [key]: $(id).value }, { render: false }); delete pendingText[id]; });
+    if (debounces.motif) { clearTimeout(debounces.motif); save(EP.chiefComplaint, { chiefComplaint: $('motifFree').value }, { render: false }); }
+  }
+  Object.entries(textFields).forEach(([id, [url, key]]) => on($(id), 'input', () => {
+    pendingText[id] = true; setSave('saving');
+    later('t-' + id, () => { delete pendingText[id]; save(url, { [key]: $(id).value }, { render: false }); }, 900);
+  }));
+
+  // ═════════ Tiroir : notes internes, fichiers, documents ═════════
+  const drawer = $('drawer'), dwVeil = $('dwVeil');
+  let dwTab = 'notes';
+  const SV = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const I_EYE = SV('<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>');
+  const I_SEND = SV('<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>');
+  const I_PRINT = SV('<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>');
+  const I_UP = SV('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>');
+  const I_PDF = SV('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/>');
+  function ouvrirDrawer(t) {
+    const top = document.querySelector('.cs .pbar').getBoundingClientRect().bottom + 'px';
+    drawer.style.top = top; dwVeil.style.top = top;
+    dwTab = t; drawer.classList.add('open'); dwVeil.classList.add('open'); rendreDrawer();
+  }
+  function fermerDrawer() { drawer.classList.remove('open'); dwVeil.classList.remove('open'); majBtnsDw(); }
+  const notesAll = () => (S.teamMemo ? [{ id: 'memo', memo: true, text: S.teamMemo }] : []).concat(S.teamNotes || []);
+  function majBtnsDw() {
+    const o = drawer.classList.contains('open');
+    $('btnNotes').classList.toggle('on', o && dwTab === 'notes');
+    $('btnFiles').classList.toggle('on', o && dwTab === 'files');
+    $('btnDocs').classList.toggle('on', o && dwTab === 'docs');
+    const n = notesAll().length;
+    ['pcNotes', 'tcNotes'].forEach((id) => { $(id).textContent = n; });
+    ['pcFiles', 'tcFiles'].forEach((id) => { $(id).textContent = 0; });
+    $('pcNotes').classList.toggle('pin', !!S.teamMemo);
+  }
+  ['notes', 'files', 'docs'].forEach((t) => on($('btn' + t.charAt(0).toUpperCase() + t.slice(1)), 'click', () => (drawer.classList.contains('open') && dwTab === t ? fermerDrawer() : ouvrirDrawer(t))));
+  on($('dwX'), 'click', fermerDrawer);
+  on(dwVeil, 'click', fermerDrawer);
+  document.querySelectorAll('#dwTabs button').forEach((b) => on(b, 'click', () => { dwTab = b.dataset.t; rendreDrawer(); }));
+  function rendreDrawer() {
+    document.querySelectorAll('#dwTabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === dwTab));
+    ({ notes: rendreNotes, files: rendreFichiers, docs: rendreDocs })[dwTab]($('dwBody'), $('dwFoot'), $('dwSub'));
+    majBtnsDw();
+  }
+  // ── Notes internes ──
+  const mentions = (s) => esc(s).replace(/@([A-Za-zÀ-ÿ]+)/g, '<span class="men">@$1</span>');
+  function rendreNotes(B, F, Sub) {
+    Sub.textContent = 'Visibles par l\'équipe uniquement — jamais imprimées ni envoyées au client.';
+    B.innerHTML = notesAll().map((n) => n.memo
+      ? `<div class="note pin"><span class="av" style="background:#fef3c7;color:#92400e">MÉ</span><div class="nb"><div class="nh"><b>Mémo de la consultation</b><span class="vis clinique">Clinique</span><span class="vis" style="background:#fef3c7;color:#92400e">Épinglée</span></div><p>${mentions(n.text)}</p></div></div>`
+      : `<div class="note"><span class="av" style="background:${esc(n.color)}22;color:${esc(n.color)}">${esc(n.initials)}</span>
+        <div class="nb"><div class="nh"><b>${esc(n.author)}</b><span class="vis clinique">Clinique</span><time>${dateOf(parseUtc(n.at)) === dateOf(now()) ? hmOf(parseUtc(n.at)) : dateOf(parseUtc(n.at)) + ' ' + hmOf(parseUtc(n.at))}</time></div><p>${mentions(n.text)}</p></div></div>`).join('') || '<div class="vide-q">Aucune note pour l\'instant.</div>';
+    if (closed()) { F.innerHTML = '<p class="fhint" style="margin:0">Consultation clôturée — complétez le dossier par un avenant.</p>'; return; }
+    F.innerHTML = `<div class="compose" style="position:relative"><textarea id="noteIn" placeholder="Note pour l'équipe… @ pour mentionner"></textarea>
+        <div class="crow"><div class="seg" id="noteVis"><button type="button" class="on">Clinique</button><button type="button" disabled data-tip="${SOON}">ASV</button><button type="button" disabled data-tip="${SOON}">Vétos</button><button type="button" disabled data-tip="${SOON}">Privé</button></div>
+        <button type="button" class="btn primaire" id="notePub" disabled>Publier</button></div>
+        <div class="mention-pop" id="menPop"></div></div>
+      <div class="compose-opt"><div class="ckrow off" data-tip="${SOON}"><span class="ck"></span><span>Créer aussi une tâche « À traiter »</span></div><span class="kbd">Ctrl + Entrée</span></div>`;
+    const ta = $('noteIn'), pub = $('notePub'), mp = $('menPop');
+    const team = (CTX.team || []).filter((m) => !CTX.me || m.name !== CTX.me.name);
+    const publier = () => {
+      const t = ta.value.trim(); if (!t) return;
+      pub.disabled = true;
+      save(EP.noteAdd, { noteType: 'GENERAL', content: t }).then((r) => {
+        if (!r?.success) { pub.disabled = false; return; }
+        showToast('Note publiée pour l\'équipe');
+        if (drawer.classList.contains('open') && dwTab === 'notes') { rendreDrawer(); $('dwBody').scrollTop = 0; }
+      });
+    };
+    ta.addEventListener('input', () => {
+      pub.disabled = !ta.value.trim();
+      const m = ta.value.slice(0, ta.selectionStart).match(/@([A-Za-zÀ-ÿ]*)$/);
+      if (m) {
+        const q = norm(m[1]), opts = team.filter((A) => norm(A.name).includes(q));
+        mp.innerHTML = opts.map((A) => `<button type="button" class="dd-it" data-m="${esc(A.name.replace(/^(Dr|Pr)\.?\s+/i, '').split(' ').pop())}"><span class="av" style="width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.56rem;font-weight:700;background:${esc(A.color)}22;color:${esc(A.color)}">${esc(A.initials)}</span>${esc(A.name)}</button>`).join('');
+        mp.style.left = '8px'; mp.style.bottom = 'calc(100% + 4px)';
+        mp.classList.toggle('open', opts.length > 0);
+        mp.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          const pos = ta.selectionStart, avant = ta.value.slice(0, pos).replace(/@[A-Za-zÀ-ÿ]*$/, '@' + b.dataset.m + ' ');
+          ta.value = avant + ta.value.slice(pos); ta.selectionStart = ta.selectionEnd = avant.length; mp.classList.remove('open'); ta.focus();
+        }));
+      } else mp.classList.remove('open');
+    });
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); publier(); } if (e.key === 'Escape') mp.classList.remove('open'); });
+    pub.addEventListener('click', publier);
+  }
+  // ── Fichiers (no storage behind them yet) ──
+  function rendreFichiers(B, F, Sub) {
+    Sub.textContent = `Rattachés à cette consultation et visibles dans le dossier de ${PNAME}.`;
+    B.innerHTML = `<div class="drop off" data-tip="Le stockage des fichiers n'est pas encore disponible"><span class="di">${I_UP}</span><span><b>Glissez des fichiers ou parcourez</b><small>Radios DICOM, échos, PDF d'analyses, photos — bientôt disponible</small></span></div>
+      <div class="fcats"><button type="button" class="on">Tous<i>0</i></button></div>
+      <div class="vide-q">Aucun fichier joint à cette consultation.</div>`;
+    F.innerHTML = '';
+  }
+  // ── Documents (hub d'impression) ──
+  const docSel = new Set(['cr']);
+  const DOC_IC = { cr: OI.cr, ordo: OI.ordo, facture: OI.facture, etiq: ['#f0fdf4', '#15803d', '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>'], conseils: OI.cons };
+  function listeDocs() {
+    const items = planItems();
+    const meds = items.filter((p) => p.k === 'MED'), deliv = meds.filter((m) => m.src === 'rx'), cons = items.filter((p) => p.k === 'ADV');
+    const st = closed() ? 'Signé' : 'Brouillon';
+    const signed = DOCS.prescriptions || [];
+    return [
+      { k: 'cr', n: 'Compte rendu de consultation', s: `${st} · généré depuis S·O·A·P`, pdf: DOCS.report },
+      meds.length ? { k: 'ordo', n: 'Ordonnance', s: signed.length ? `Signée · ${signed.map((x) => x.number).join(', ')}` : `À signer · ${meds.length} médicament${meds.length > 1 ? 's' : ''}`, pdf: signed[0]?.url || null } : null,
+      { k: 'facture', n: 'Facture', s: `${DOCS.invoice ? DOCS.invoice.number : closed() ? 'Prête à encaisser' : 'Brouillon'} · ${fmtE(ttc())}`, pdf: DOCS.invoice?.url || null },
+      deliv.length ? { k: 'etiq', n: 'Étiquettes de délivrance', s: `${deliv.length} étiquette${deliv.length > 1 ? 's' : ''} · posologie + nom de l'animal` } : null,
+      cons.length ? { k: 'conseils', n: 'Fiche conseils propriétaire', s: `${cons.length} conseil${cons.length > 1 ? 's' : ''} · rappel du suivi` } : null,
+    ].filter(Boolean);
+  }
+  function rendreDocs(B, F, Sub) {
+    Sub.textContent = 'Tous les documents de la consultation, à jour en direct.';
+    const D = listeDocs();
+    [...docSel].forEach((k) => { if (!D.find((d) => d.k === k)) docSel.delete(k); });
+    B.innerHTML = '<p class="dgrp">De cette consultation</p>' + D.map((d) => { const [bg, c, p] = DOC_IC[d.k]; return `<div class="drow${docSel.has(d.k) ? ' sel' : ''}" data-k="${d.k}">
+        <span class="ck"></span><span class="dic" style="background:${bg};color:${c}">${SV(p)}</span>
+        <span class="dt"><b>${esc(d.n)}</b><small>${esc(d.s)}</small></span>
+        <span class="da"><button type="button" data-ap="${d.k}" data-tip="Aperçu">${I_EYE}</button>${d.pdf ? `<button type="button" data-pdf="${esc(d.pdf)}" data-tip="Télécharger le PDF">${I_PDF}</button>` : ''}<button type="button" disabled data-tip="Envoi au client par e-mail — bientôt disponible">${I_SEND}</button></span></div>`; }).join('')
+      + `<p class="dgrp" style="margin-top:8px">Générer un document</p><div class="gen">${['Certificat de bonne santé', 'Consentement éclairé (anesthésie)', 'Devis chirurgie', 'Lettre de référé', 'Certificat de vaccination'].map((g) => `<button type="button" disabled data-tip="${SOON}">＋ ${g}</button>`).join('')}</div>`;
+    const n = docSel.size;
+    F.innerHTML = `<p class="fhint">${n ? `${n} document${n > 1 ? 's' : ''} sélectionné${n > 1 ? 's' : ''}` : 'Sélectionnez des documents'}${O ? ` · ${esc(O.fullName)}${O.email ? ' · ' + esc(O.email) : ''}` : ''}</p>
+      <div class="fr"><button type="button" class="btn" id="docEnv" disabled data-tip="Envoi par e-mail — bientôt disponible">${I_SEND.replace('<svg', '<svg width="14" height="14"')}Envoyer par e-mail</button><button type="button" class="btn primaire" id="docPrint" ${n ? '' : 'disabled'} data-tip="${n > 1 || (n === 1 && !docSel.has('cr')) ? 'Dossier PDF : compte rendu, ordonnances signées et facture émise' : 'Compte rendu en PDF'}">${I_PRINT.replace('<svg', '<svg width="14" height="14"')}Imprimer${n ? ' (' + n + ')' : ''}</button></div>`;
+    B.querySelectorAll('.drow').forEach((r) => r.addEventListener('click', (e) => {
+      if (e.target.closest('.da')) return;
+      const k = r.dataset.k; if (docSel.has(k)) docSel.delete(k); else docSel.add(k); rendreDrawer();
+    }));
+    B.querySelectorAll('[data-ap]').forEach((b) => b.addEventListener('click', () => apercuDoc(b.dataset.ap)));
+    B.querySelectorAll('[data-pdf]').forEach((b) => b.addEventListener('click', () => window.open(b.dataset.pdf, '_blank', 'noopener')));
+    $('docPrint').addEventListener('click', () => {
+      const url = n === 1 && docSel.has('cr') ? DOCS.report : DOCS.bundle;
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  // ═════════ Clavier ═════════
+  on(document, 'keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    fermerMenu();
+    if (cloVeil.classList.contains('open')) { fermerClo(); return; }
+    if (edVeil.classList.contains('open')) { if (!document.querySelector('#edVeil .dd.open')) fermerEd(); return; }
+    if (prevVeil.classList.contains('open')) { fermerPrev(); return; }
+    if (drawer.classList.contains('open')) fermerDrawer();
+  });
+  cleanups.push(() => { fermerMenu(); fermerEd(); fermerPrev(); fermerClo(); fermerDrawer(); });
+
+  // ═════════ Init ═════════
+  function rendreTout() {
+    root.classList.toggle('cs-closed', closed());
+    rendreMotifs(); rendreVitaux(); rendreExamen(); rendreDx(); rendrePlan(); majSortie(); rendreAvenants(); majBtnsDw();
+    if (drawer.classList.contains('open') && dwTab !== 'notes') rendreDrawer();
+  }
+  if (closed()) {
+    const at = parseUtc(S.closedAtUtc);
+    $('closedTxt').textContent = `Consultation clôturée le ${dateOf(at)} à ${hmOf(at)} par ${VET_NAME} · durée ${durationTxt()}`;
+    const live = root.querySelector('.live'); if (live) live.style.cssText = 'background:var(--encre-35);animation:none';
+  }
+  rendreOrigine();
+  rendreTout();
+  setSave(closed() ? 'closed' : 'idle');
 }

@@ -15,6 +15,7 @@ use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ActEntity;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Consultation\Application\Command\AddConsultationAddendum\AddConsultationAddendum;
 use App\Context\Consultation\Application\Command\AddDiagnosis\AddDiagnosis;
 use App\Context\Consultation\Application\Command\AddPlanAction\AddPlanAction;
 use App\Context\Consultation\Application\Command\AddPrescriptionLine\AddPrescriptionLine;
@@ -400,10 +401,91 @@ final class ConsultationDemoStory extends Story
             createdByUserId: $vetUserId,
         ));
 
+        // A closed record with every block filled: the read-only cockpit shows
+        // results instead of toggles, and an addendum signed after closing.
+        $this->commandBus->dispatch(new UpdateSubjectiveText(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            text: 'Visite annuelle. Le propriétaire signale une mauvaise haleine depuis quelques semaines ; appétit et transit normaux.',
+        ));
+
+        $this->commandBus->dispatch(new RecordTypedVital(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            type: 'HEART_RATE',
+            value: '88',
+            recordedByUserId: $vetUserId,
+        ));
+
+        foreach ([['GENERAL', 'NORMAL', null], ['CARDIOVASCULAR', 'NORMAL', null], ['DENTAL', 'ANOMALY', 'Tartre modéré sur les carnassières, gingivite légère.']] as [$system, $status, $notes]) {
+            $this->commandBus->dispatch(new RecordExamSystem(
+                consultationId: $consultationId,
+                clinicId: $clinicId,
+                system: $system,
+                status: $status,
+                notes: $notes,
+                structuredData: [],
+                recordedByUserId: $vetUserId,
+            ));
+        }
+
+        $this->commandBus->dispatch(new UpdateObjectiveObservations(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            text: 'Chien en bon état général, note d\'état corporel 5/9.',
+        ));
+
+        $this->commandBus->dispatch(new AddDiagnosis(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            code: '',
+            label: 'Maladie parodontale stade 1',
+            certainty: 'PROBABLE',
+            note: null,
+            isPrimary: true,
+            source: 'MANUAL',
+            createdByUserId: $vetUserId,
+        ));
+
+        $this->commandBus->dispatch(new AddPrescriptionLine(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            articleId: $this->articleId($clinicId, 'FRONTLINE-CB'),
+            dose: '1 pipette',
+            frequency: '1×/mois',
+            durationDays: 90,
+            route: 'cutanée',
+            quantity: 1.0,
+            createdByUserId: $vetUserId,
+        ));
+
+        foreach ([['ADVICE', 'Brossage des dents 3×/semaine', null], ['FOLLOW_UP_APPOINTMENT', 'Rappel vaccin annuel', 365]] as [$kind, $description, $followUp]) {
+            $this->commandBus->dispatch(new AddPlanAction(
+                consultationId: $consultationId,
+                clinicId: $clinicId,
+                kind: $kind,
+                description: $description,
+                catalogItemId: null,
+                catalogCode: null,
+                posology: null,
+                durationDays: null,
+                followUpDays: $followUp,
+                quantity: 1.0,
+                createdByUserId: $vetUserId,
+            ));
+        }
+
         $this->commandBus->dispatch(new CloseConsultation(
             consultationId: $consultationId,
             closedByUserId: $vetUserId,
             summary: 'Vaccination CHPPiL réalisée. Poids stable à 28,8 kg. Aucun signe clinique anormal.',
+        ));
+
+        $this->commandBus->dispatch(new AddConsultationAddendum(
+            consultationId: $consultationId,
+            clinicId: $clinicId,
+            content: 'Le propriétaire a rappelé : détartrage à programmer à l\'automne, devis remis à l\'accueil.',
+            createdByUserId: $vetUserId,
         ));
 
         // Backdate so the history panel shows a plausible timeline.
@@ -770,6 +852,30 @@ final class ConsultationDemoStory extends Story
             closedByUserId: $vetUserId,
             summary: $summary,
         ));
+
+        $this->shortenToRealisticDuration($consultationId);
+    }
+
+    /**
+     * A consultation closed by the fixtures lasts a few milliseconds: start it
+     * 18 minutes before its closing, as the cockpit's timer would show.
+     */
+    private function shortenToRealisticDuration(string $consultationId): void
+    {
+        $entity = $this->entityManager->find(
+            ConsultationEntity::class,
+            Uuid::fromString($consultationId)->toBinary(),
+        );
+
+        if (null === $entity || null === $entity->getClosedAtUtc()) {
+            return;
+        }
+
+        $startedAt = $entity->getClosedAtUtc()->modify('-18 minutes -24 seconds');
+        $entity->setStartedAtUtc($startedAt);
+        $entity->setCreatedAtUtc($startedAt);
+
+        $this->entityManager->flush();
     }
 
     /**

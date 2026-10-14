@@ -58,11 +58,13 @@ final class DoctrineCatalogSearchRepositoryTest extends KernelTestCase
         self::assertSame('EUR', $byCode['ZZS-ACT']->basePriceCurrency);
         self::assertSame('veterinary.act.consultation', $byCode['ZZS-ACT']->taxCategoryCode);
         self::assertFalse($byCode['ZZS-ACT']->requiresPrescription);
+        self::assertNull($byCode['ZZS-ACT']->articleKind);
 
         self::assertSame('ARTICLE', $byCode['ZZS-RX']->type);
         self::assertSame(1250, $byCode['ZZS-RX']->basePriceMinorUnits);
         self::assertSame('veterinary.drug.prescription', $byCode['ZZS-RX']->taxCategoryCode);
         self::assertTrue($byCode['ZZS-RX']->requiresPrescription);
+        self::assertSame('DRUG', $byCode['ZZS-RX']->articleKind);
 
         self::assertSame('ARTICLE', $byCode['ZZS-CONS']->type);
         self::assertSame(350, $byCode['ZZS-CONS']->basePriceMinorUnits);

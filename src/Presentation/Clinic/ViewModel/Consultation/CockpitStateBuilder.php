@@ -6,9 +6,13 @@ namespace App\Presentation\Clinic\ViewModel\Consultation;
 
 use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\ListMedicalAlertsForAnimal;
 use App\Context\Animal\Application\Query\ListMedicalAlertsForAnimal\MedicalAlertView;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Consultation\Application\Port\CatalogItemProviderInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\ListStockItemsByClinic;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\StockItemSummaryView;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\GetPatientAnimalLink;
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -50,6 +54,7 @@ final readonly class CockpitStateBuilder
         $animalLink    = $this->animalLink($details);
         $animalId      = $animalLink?->animalId;
         $medicalAlerts = null !== $animalId ? $this->medicalAlerts($animalId, $details->clinicId) : [];
+        $team          = $this->team($details->clinicId);
 
         return [
             'consultationId'        => $details->consultationId,
@@ -71,12 +76,41 @@ final readonly class CockpitStateBuilder
             'examSystems'           => $details->examSystems,
             'diagnoses'             => $details->diagnoses,
             'planActions'           => $details->planActions,
-            'prescriptionLines'     => $details->prescriptionLines,
+            'prescriptionLines'     => $this->prescriptionLines($details),
             'billingLines'          => $details->billingLines,
             'totals'                => $details->totals,
             'medicalAlerts'         => $medicalAlerts,
             'allergyWarnings'       => $this->allergyWarnings($details, $medicalAlerts),
+            'teamNotes'             => $this->notes($details, $team, false),
+            'addenda'               => $this->notes($details, $team, true),
         ];
+    }
+
+    /**
+     * Name, initials and agenda colour of each practitioner of the clinic.
+     *
+     * @return array<string, array{name: string, initials: string, color: string}>
+     */
+    public function team(string $clinicId): array
+    {
+        $members = $this->queryBus->ask(new ListClinicVeterinarians($clinicId));
+        $team    = [];
+
+        foreach (\is_array($members) ? $members : [] as $member) {
+            if (!$member instanceof ClinicVeterinarianItem) {
+                continue;
+            }
+
+            $name = $member->displayName ?? 'Praticien';
+
+            $team[$member->userId] = [
+                'name'     => $name,
+                'initials' => self::initials($name),
+                'color'    => $member->agendaColor ?? '#4f86c6',
+            ];
+        }
+
+        return $team;
     }
 
     /**
@@ -102,6 +136,89 @@ final readonly class CockpitStateBuilder
         }
 
         return $labels;
+    }
+
+    /**
+     * Prescription lines with the kind of their article — a drug goes under
+     * « Médicaments » of the plan, anything else under « Produits » — and the
+     * quantity left in stock when the article is stock-tracked.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function prescriptionLines(ConsultationDetailsDTO $details): array
+    {
+        if ([] === $details->prescriptionLines) {
+            return [];
+        }
+
+        $stock = [];
+        $rows  = $this->queryBus->ask(new ListStockItemsByClinic($details->clinicId, null, 1000));
+
+        foreach (\is_array($rows) ? $rows : [] as $row) {
+            if ($row instanceof StockItemSummaryView && $row->trackStock) {
+                $stock[$row->articleId] = (float) $row->availableQuantityAmount;
+            }
+        }
+
+        $lines = [];
+
+        foreach ($details->prescriptionLines as $line) {
+            $article = null !== $line['articleId']
+                ? $this->catalogItems->detail('ARTICLE', $line['articleId'], $details->clinicId)
+                : null;
+
+            $lines[] = $line + [
+                'articleKind' => $article?->articleKind,
+                'stock'       => null !== $line['articleId'] ? ($stock[$line['articleId']] ?? null) : null,
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Team notes (every clinical note but the addenda) or the addenda signed
+     * after closing, newest first, with the author's name and agenda colour.
+     *
+     * @param array<string, array{name: string, initials: string, color: string}> $team
+     *
+     * @return list<array{id: string, text: string, at: string, author: string, initials: string, color: string}>
+     */
+    private function notes(ConsultationDetailsDTO $details, array $team, bool $addenda): array
+    {
+        $notes = [];
+
+        foreach ($details->notes as $note) {
+            if (('ADDENDUM' === $note['noteType']) !== $addenda) {
+                continue;
+            }
+
+            $author  = $team[$note['createdByUserId']] ?? ['name' => 'Équipe', 'initials' => 'EQ', 'color' => '#94a3b8'];
+            $notes[] = [
+                'id'       => $note['id'],
+                'text'     => $note['content'],
+                'at'       => $note['createdAt'],
+                'author'   => $author['name'],
+                'initials' => $author['initials'],
+                'color'    => $author['color'],
+            ];
+        }
+
+        return array_reverse($notes);
+    }
+
+    private static function initials(string $name): string
+    {
+        $words = array_values(array_filter(
+            preg_split('/[\s.\-_]+/u', $name, -1, \PREG_SPLIT_NO_EMPTY) ?: [],
+            static fn (string $word): bool => !\in_array(mb_strtolower($word), ['dr', 'pr'], true),
+        ));
+
+        if (\count($words) >= 2) {
+            return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[\count($words) - 1], 0, 1));
+        }
+
+        return mb_strtoupper(mb_substr($words[0] ?? $name, 0, 2));
     }
 
     private function animalLink(ConsultationDetailsDTO $details): ?PatientAnimalLinkDto

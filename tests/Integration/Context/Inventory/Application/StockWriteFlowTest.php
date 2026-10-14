@@ -8,8 +8,11 @@ use App\Context\Inventory\Application\Command\ChangeStockThreshold\ChangeStockTh
 use App\Context\Inventory\Application\Command\ConsumeStock\ConsumeStock;
 use App\Context\Inventory\Application\Command\OpenStockItem\OpenStockItem;
 use App\Context\Inventory\Application\Command\ReceiveStock\ReceiveStock;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\ListStockItemsByClinic;
+use App\Context\Inventory\Application\Query\ListStockItemsByClinic\StockItemSummaryView;
 use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -106,6 +109,27 @@ final class StockWriteFlowTest extends KernelTestCase
         self::assertSame('8.000000', $row['threshold_amount']);
 
         self::assertSame(1, $this->countLots($stockItemId), 'the lot is updated in place, not duplicated');
+    }
+
+    public function testTheClinicStockListShowsWhatIsAvailable(): void
+    {
+        $stockItemId = $this->open();
+        $this->receive($stockItemId, 'LOT-A', '10.000000');
+
+        $queryBus = self::getContainer()->get(QueryBusInterface::class);
+        \assert($queryBus instanceof QueryBusInterface);
+
+        $all = $queryBus->ask(new ListStockItemsByClinic($this->clinicId, null, 1000));
+        self::assertIsArray($all);
+        self::assertCount(1, $all);
+        self::assertInstanceOf(StockItemSummaryView::class, $all[0]);
+        self::assertSame($this->articleId, $all[0]->articleId);
+        self::assertSame(10.0, (float) $all[0]->availableQuantityAmount);
+        self::assertTrue($all[0]->trackStock);
+        self::assertSame(1, $all[0]->activeLotCount);
+
+        $archived = $queryBus->ask(new ListStockItemsByClinic($this->clinicId, 'ARCHIVED'));
+        self::assertSame([], $archived);
     }
 
     public function testASecondReceiptAddsItsOwnLotToTheSameItem(): void

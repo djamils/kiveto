@@ -2,7 +2,9 @@
  # Kiveto — templates/clinic/consultation/index.html.twig
  # ─────────────────────────────────────────────────────
  # Consultations — clinic-wide list, ported from
- # docs/frontend-theme/vetsaas-layouts/vetos-consultations-list.html.
+ # docs/frontend-theme/vetsaas-layouts/vetos-consultations-list.html and set in
+ # the v-topbar language of the consultation cockpit it leads to (shell
+ # `.pagehead`, kit buttons, cards on the mist background).
  #
  # Filtering, sorting and pagination are server-side: every control is a link
  # carrying the current query string, so Turbo navigation keeps the URL
@@ -19,11 +21,7 @@
 {% extends 'clinic/base.html.twig' %}
 
 {% block title %}Consultations{% endblock %}
-{% block show_topbar %}false{% endblock %}
-
-{% block stylesheets %}
-  <link rel="stylesheet" href="{{ asset('styles/pages/consultations.css') }}"/>
-{% endblock %}
+{% block page_body_class %}vt{% endblock %}
 
 {% set STATUS_LABELS = { 'OPEN': 'En cours', 'CLOSED': 'Terminée' } %}
 {% set PERIOD_LABELS = { 'today': "Aujourd'hui", 'week': 'Cette semaine', 'month': 'Ce mois' } %}
@@ -58,22 +56,14 @@
   </th>
 {% endmacro %}
 
-{% block content %}
+{% block main %}
+<div class="cl-page" data-page="{{ app.request.attributes.get('_route') }}">
 <div class="cl-root">
 
-  {# ── Topbar ── #}
-  <header class="topbar">
-    <button class="tb-toggle show-mobile" type="button" aria-label="Menu" data-action="click->sidebar#toggle">
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-      </svg>
-    </button>
-    <div class="tb-title">
-      <span class="topbar-icon" aria-hidden="true"><i data-lucide="stethoscope"></i></span>
-      <h1 class="topbar-title">Consultations</h1>
-      <span class="tb-title-count">{{ pagination.totalItems }}</span>
-    </div>
-    <div class="tb-spacer"></div>
+  {# ── Page header (shell .pagehead) ── #}
+  <div class="pagehead">
+    <h1>Consultations<small><span class="tb-title-count">{{ pagination.totalItems }}</span> consultation{{ pagination.totalItems > 1 ? 's' }} · une ligne ouvre le cockpit</small></h1>
+    <div class="right" style="align-items:center">
     {#
      # The input lives outside the frame on purpose: only the results are
      # swapped, so the caret and focus survive every keystroke. The page module
@@ -101,16 +91,17 @@
         {% endif %}
       {% endfor %}
     </form>
-    <button class="btn btn-ghost btn-sm" type="button" disabled title="Export CSV — bientôt disponible">
-      <i data-lucide="download"></i>
+    <button class="btn" type="button" disabled data-tip="Export CSV — bientôt disponible">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       Exporter
     </button>
-    <a class="btn btn-primary btn-sm" href="{{ path('clinic_admission_queue') }}"
-       title="Une consultation démarre depuis une admission du Flux du jour">
-      <i data-lucide="plus"></i>
+    <a class="btn primaire" href="{{ path('clinic_admission_queue', { arrivee: 1 }) }}"
+       data-tip="Une consultation démarre depuis une arrivée du flux ambulatoire">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Nouvelle consultation
     </a>
-  </header>
+    </div>
+  </div>
 
   {#
    # Filters, table and pagination are swapped together: the chips and the
@@ -367,17 +358,19 @@
                       <i data-lucide="pencil"></i> Reprendre
                     </a>
                   {% endif %}
-                  <span class="row-menu-item is-disabled" title="Bientôt disponible">
+                  <a class="row-menu-item" data-turbo="false" target="_blank" rel="noopener"
+                     href="{{ path('clinic_consultation_report_pdf', { consultationId: c.consultationId }) }}">
                     <i data-lucide="printer"></i> Imprimer le CR
-                  </span>
+                  </a>
                   <span class="row-menu-item is-disabled" title="Bientôt disponible">
                     <i data-lucide="copy"></i> Dupliquer
                   </span>
                   {% if c.status == 'CLOSED' %}
                     <div class="row-menu-sep"></div>
-                    <span class="row-menu-item is-disabled" title="Bientôt disponible">
-                      <i data-lucide="plus"></i> Ajouter un addendum
-                    </span>
+                    <a class="row-menu-item" data-turbo-frame="_top"
+                       href="{{ path('clinic_consultation_details', { id: c.consultationId }) }}">
+                      <i data-lucide="plus"></i> Ajouter un avenant
+                    </a>
                   {% endif %}
                 </div>
               </td>
@@ -486,4 +479,5 @@
   <span class="bulk-divider"></span>
   <button class="bulk-btn" type="button" id="bulk-clear">Annuler</button>
 </div>
+</div>{# /cl-page #}
 {% endblock %}

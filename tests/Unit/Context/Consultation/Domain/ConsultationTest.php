@@ -166,6 +166,51 @@ final class ConsultationTest extends TestCase
         self::assertInstanceOf(ConsultationClinicalNoteAdded::class, $events[0]);
     }
 
+    public function testAnOpenConsultationRefusesAnAddendumNote(): void
+    {
+        $consultation = $this->makeOpenConsultation();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('An addendum can only be added to a closed consultation');
+
+        $consultation->addClinicalNote(
+            NoteType::ADDENDUM,
+            'Complément',
+            UserId::fromString(self::USER_ID),
+            new \DateTimeImmutable('2026-04-10 09:15:00'),
+        );
+    }
+
+    public function testAddAddendumToAClosedConsultation(): void
+    {
+        $consultation = $this->makeOpenConsultation();
+        $consultation->close(UserId::fromString(self::USER_ID), null, new \DateTimeImmutable('2026-04-10 09:30:00'));
+        $pulled = $consultation->pullDomainEvents();
+        unset($pulled);
+
+        $consultation->addAddendum(
+            ' Radiographies relues. ',
+            UserId::fromString(self::USER_ID),
+            new \DateTimeImmutable('2026-04-10 11:00:00'),
+        );
+
+        $notes = $consultation->getNotes();
+        self::assertCount(1, $notes);
+        self::assertSame(NoteType::ADDENDUM, $notes[0]->getNoteType());
+        self::assertSame('Radiographies relues.', $notes[0]->getContent());
+        self::assertInstanceOf(ConsultationClinicalNoteAdded::class, $consultation->recordedDomainEvents()[0]);
+    }
+
+    public function testAddAddendumRefusesAnOpenConsultation(): void
+    {
+        $consultation = $this->makeOpenConsultation();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('An addendum can only be added to a closed consultation');
+
+        $consultation->addAddendum('Complément', UserId::fromString(self::USER_ID), new \DateTimeImmutable('2026-04-10 11:00:00'));
+    }
+
     public function testAddPerformedAct(): void
     {
         $consultation = $this->makeOpenConsultation();

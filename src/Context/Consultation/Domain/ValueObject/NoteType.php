@@ -12,4 +12,6 @@ enum NoteType: string
     case TREATMENT_PLAN = 'TREATMENT_PLAN';
     case FOLLOWUP       = 'FOLLOWUP';
     case GENERAL        = 'GENERAL';
+    /** Dated correction signed after closing; the closed record itself stays as it was. */
+    case ADDENDUM = 'ADDENDUM';
 }
