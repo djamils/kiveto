@@ -25,6 +25,8 @@
  *   → Automatically injected if absent.
  */
 
+import { showToast, toastUndo } from 'kiveto/shell';
+
 const DEFAULTS = {
   duration: 3500,
   maxVisible: 4,
@@ -57,6 +59,14 @@ function _getContainer() {
  * @param {string} [options.icon] - optional SVG string
  */
 function show(message, type = 'default', options = {}) {
+  // Clinic pages carry the v-topbar shell toast: every toast of the app
+  // speaks through it, with its « Annuler » for actions.
+  if (options.action) {
+    if (toastUndo(message, options.action.onClick, options.action.label)) return null;
+  } else if (showToast(message, type === 'default' || type === 'info' ? '' : type)) {
+    return null;
+  }
+
   const container = _getContainer();
   const duration = options.duration ?? DEFAULTS.duration;
 

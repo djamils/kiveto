@@ -10,6 +10,9 @@
  #}
 {% extends 'clinic/base.html.twig' %}
 
+{# Dashboard mock-up: the sidebar starts expanded #}
+{% block sidebar_mode %}full{% endblock %}
+
 {% block title %}Tableau de bord - {{ currentClinicName }}{% endblock %}
 
 {% block page_icon %}<i data-lucide="layout-grid"></i>{% endblock %}

@@ -131,6 +131,9 @@
 @import "./components/calendar.css";
 @import "./components/tooltip.css";
 
+/* Application shell — v-topbar (unlayered: wins over the layered components) */
+@import "./shell/shell.css";
+
 /* Pages */
 @import "./pages/common.css";
 @import "./pages/home.css";

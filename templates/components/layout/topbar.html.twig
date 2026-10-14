@@ -1,71 +1,97 @@
 {#
  # Kiveto — templates/components/layout/topbar.html.twig
- # ─────────────────────────────────────────────────────────
- # Common page topbar with 3 slots: left (icon + title),
- # center (search), right (actions/badges).
+ # ─────────────────────────────────────────────────────
+ # v-topbar `header.topbar` and its drop-downs (notifications, profile).
+ # Identical on every page of the mock-ups: the clinic, today, the member and
+ # the practitioners; the search palette trigger; bell, lock and avatar.
  #
- # All slots are optional. Pages fill them via Twig blocks
- # on the parent `clinic/base.html.twig`:
- #
- #   {% block page_icon %}<svg .../>{% endblock %}
- #   {% block page_title %}Clients & Patients{% endblock %}
- #   {% block topbar_search %}<input .../>{% endblock %}
- #   {% block topbar_actions %}<button .../>{% endblock %}
- #
- # Parameters (passed by the base template):
- #   burger         bool   Show burger button (mobile) (default: true)
- #   page_icon      string Raw HTML (usually an <svg>) — left of the title
- #   page_title     string Page title (required)
- #   topbar_search  string Raw HTML — rendered in the center
- #   topbar_actions string Raw HTML — rendered on the right
+ # Parameters:
+ #   shell   ShellView  clinic_shell()
+ #   brand   bool       show the « K » home square (pages without sidebar)
+ #   extra   string     raw HTML put in the topbar's `.right` slot (optional)
  #}
 
-{% set _burger = burger|default(true) %}
-{% set _icon = page_icon|default('')|trim %}
-{% set _title = page_title|default('')|trim %}
-{% set _search = topbar_search|default('')|trim %}
-{% set _actions = topbar_actions|default('')|trim %}
-
-{% set icon_burger %}
-  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-  </svg>
-{% endset %}
+{% set _current = shell.currentClinic %}
+{% set _user = shell.user %}
 
 <header class="topbar">
-
-  {# ── Left: burger + icon + title ── #}
-  <div class="topbar-left">
-    {% if _burger %}
-      <button
-        class="btn btn-ghost btn-icon btn-sm show-mobile"
-        type="button"
-        aria-label="Menu"
-        data-action="click->sidebar#toggle"
-      >
-        {{ icon_burger|raw }}
-      </button>
-    {% endif %}
-
-    {% if _icon %}
-      <span class="topbar-icon" aria-hidden="true">{{ _icon|raw }}</span>
-    {% endif %}
-
-    <h1 class="topbar-title">{{ _title }}</h1>
+  {% if brand|default(false) %}
+    <a class="tb-brand" href="{{ path('clinic_dashboard') }}" data-tip="Tableau de bord">K</a>
+  {% endif %}
+  <h1>{{ _current.name|default('Kiveto') }}<small>{{ shell.todayLabel }} · {{ _user.name }} · {{ shell.practitionerCount }} {{ shell.practitionerCount > 1 ? 'praticiens' : 'praticien' }}</small></h1>
+  <button type="button" class="search" id="openPalette" aria-haspopup="dialog">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    Rechercher un patient, un client, un acte…
+  </button>
+  <div class="right">
+    {{ extra|default('')|raw }}
   </div>
-
-  {# ── Center: optional search ── #}
-  {% if _search %}
-    <div class="topbar-center hide-mobile">
-      {{ _search|raw }}
-    </div>
-  {% endif %}
-
-  {# ── Right: optional actions ── #}
-  {% if _actions %}
-    <div class="topbar-right">
-      {{ _actions|raw }}
-    </div>
-  {% endif %}
-
+    <button type="button" class="tb-ic" id="btnNotif" aria-label="Notifications" aria-haspopup="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      {# The dot only shows unread notifications; there are none to read yet. #}
+      <span class="tb-dot" style="display:none"></span>
+    </button>
+    <div class="tb-sep"></div>
+    <a class="tb-ic" id="btnLock" href="{{ path('clinic_lock') }}" data-turbo="false" aria-label="Verrouiller la session" title="Verrouiller la session">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </a>
+    <button type="button" class="tb-av" id="btnProfil" aria-label="Profil" aria-haspopup="true">{{ _user.initials }}</button>
 </header>
+
+{# ── Drop-downs ── #}
+<div class="tb-pop" id="popNotif" style="width:350px">
+  <div class="nf-head">
+    <div class="r1">
+      <b>Notifications</b>
+      <button type="button" class="tout" id="nfToutLu">Tout marquer lu</button>
+    </div>
+    <span class="nf-filtre" role="tablist">
+      <button type="button" class="on" data-f="tout">Tout</button>
+      <button type="button" data-f="tache">Tâches</button>
+      <button type="button" data-f="activite">Activité</button>
+    </span>
+  </div>
+  <div id="nfListe"><div class="nf-vide">Rien ici — tout est lu.</div></div>
+  <div class="fp-sep"></div>
+  <button type="button" class="nf-histo" data-toast="Historique des notifications — 30 derniers jours (écran à venir)">Voir tout l'historique</button>
+</div>
+
+<div class="tb-pop" id="popProfil" style="width:250px">
+  <div class="fp-profil-head">
+    <span class="av">{{ _user.initials }}</span>
+    <span><b>{{ _user.name }}</b><span>{{ _user.email }}</span>{% if _user.roleLabel %}<span>{{ _user.roleLabel }}</span>{% endif %}</span>
+  </div>
+  <div class="fp-sep"></div>
+  <button type="button" class="fp-item" data-toast="Mon profil — coordonnées, n° Ordre, signature, couleur d'agenda (écran à venir)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c.9-3.6 3.8-6 8-6s7.1 2.4 8 6"/></svg>
+    <span class="noms"><b>Mon profil</b></span>
+  </button>
+  {% if clinic_can('manage_staff') %}
+    <a class="fp-item" href="{{ path('clinic_settings') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>
+      <span class="noms"><b>Paramètres</b></span>
+    </a>
+  {% endif %}
+  <div class="fp-sep"></div>
+  {% set _fr_flag = '<svg width="16" height="11" viewBox="0 0 18 13"><rect width="6" height="13" fill="#002395"/><rect x="6" width="6" height="13" fill="#fff"/><rect x="12" width="6" height="13" fill="#ED2939"/></svg>' %}
+  <button type="button" class="fp-row-lang" id="langRow" aria-expanded="false">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+    <span class="l">Langue</span>
+    <span class="lang-val" id="langVal">{{ _fr_flag|raw }}<span>Français</span></span>
+    <svg class="lang-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
+  {# Only the languages the interface is translated into. #}
+  <div class="lang-liste" id="langListe">
+    <button type="button" class="lang-item on" data-lang="fr" data-label="Français">{{ _fr_flag|raw }}<span>Français</span>
+      <span class="cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    </button>
+  </div>
+  <a class="fp-item" id="fpVerrouiller" href="{{ path('clinic_lock') }}" data-turbo="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span class="noms"><b>Verrouiller la session</b></span>
+  </a>
+  <a class="fp-item rouge" href="{{ logout_path('clinic') }}" data-turbo="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+    <span class="noms"><b>Se déconnecter</b></span>
+  </a>
+</div>

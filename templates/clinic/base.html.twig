@@ -1,64 +1,75 @@
 {#
  # Kiveto — templates/clinic/base.html.twig
  # ─────────────────────────────────────────
- # Base template for all authenticated clinic pages.
+ # Base template for all authenticated clinic pages: the v-topbar shell
+ # (docs/frontend-theme/kiveto-theme/*-v-topbar*.html) — sidebar `nav.sbar`,
+ # `header.topbar`, search palette, shortcuts modal and toast — around the page.
  # Inherit: {% extends 'clinic/base.html.twig' %}
  #
- # Available blocks:
- #   title         — Page <title>
- #   page_title    — Title displayed in the topbar (required)
- #   page_subtitle — Topbar subtitle (optional)
- #   topbar_search — bool: show search (default: false)
- #   topbar_actions — Topbar buttons
- #   breadcrumb    — Breadcrumb trail
- #   content_header — Full-width band above the work area (optional)
- #   content       — Main content (required)
- #   rpanel        — Optional right panel
- #   modals        — Page modals
- #   drawers       — Page drawers
- #   fab           — Optional mobile FAB
- #   stylesheets   — Additional CSS
- #   javascripts   — Additional JS
+ # Shell blocks:
+ #   sidebar_mode    — 'mini' (default, collapsed rail as in most mock-ups),
+ #                     'full' (expanded, dashboard / répertoire) or
+ #                     'none' (no sidebar, « K » square in the topbar — consultation)
+ #   page_body_class — extra <body> classes; a page ported to the v-topbar
+ #                     design adds `vt` (enables the kit `.btn`) and, if the
+ #                     whole page scrolls instead of its widgets, `page-scroll`
+ #   topbar_extra    — raw HTML in the topbar's (empty in the mock-ups) `.right`
+ #   main            — everything under the topbar. A ported page overrides it
+ #                     with its own markup (`.pagehead` + layout) and puts
+ #                     data-page="{{ app.request.attributes.get('_route') }}"
+ #                     on its root so its page module is loaded.
+ #
+ # Page blocks (legacy contract, rendered inside the default `main`):
+ #   title           — Page <title>
+ #   page_title      — Title of the page header (`.pagehead h1`)
+ #   page_subtitle   — Line under the title (optional)
+ #   page_tabs       — Tabs after the title, usually a `.ctabs` (optional)
+ #   topbar_actions  — Page actions, right of the page header
+ #   content_header  — Full-width band above the work area (optional)
+ #   content         — Main content (required)
+ #   rpanel          — Optional right panel
+ #   modals / drawers / fab — overlays, rendered after the shell
+ #   show_topbar     — 'false': the page draws its own header inside `content`
+ #   show_sidebar    — 'false': same as sidebar_mode 'none' (kept for old pages)
+ #   stylesheets / javascripts
  #}
 {% extends 'base.html.twig' %}
 
 {% block show_sidebar %}true{% endblock %}
 {% block show_topbar %}true{% endblock %}
+{% block sidebar_mode %}mini{% endblock %}
+
+{% block body_attributes %}
+  {%- set _mode = block('show_sidebar')|trim == 'false' ? 'none' : block('sidebar_mode')|trim -%}
+  {{- ' ' -}}class="shell{{ _mode == 'mini' ? ' sb-mini' }}{{ _mode == 'none' ? ' no-sb' }} {% block page_body_class %}{% endblock %}"
+{%- endblock %}
 
 {% block body %}
-{# ── App Root (header on top, then shell) ── #}
-<div class="app-root">
+{% set _shell = clinic_shell() %}
+{% set _route = app.request.attributes.get('_route') %}
+{% set _no_sidebar = block('show_sidebar')|trim == 'false' or block('sidebar_mode')|trim == 'none' %}
 
-  {# Global header #}
-  {{ include('components/layout/header.html.twig') }}
+{% if not _no_sidebar %}
+  {{ include('components/layout/sidebar.html.twig', { shell: _shell, active_route: _route }) }}
+{% endif %}
 
-  {# ── App Shell ── #}
-  <div class="app-shell">
-
-  {# Sidebar (desktop: fixed / mobile: drawer) — hidden on scheduling pages #}
-  {% if block('show_sidebar')|trim == 'true' %}
-  {{ include('components/layout/sidebar.html.twig', {
-    clinic: activeClinic|default({ name: 'Ma clinique', type: 'Vétérinaire' }),
-    user: app.user,
-    active_item: app.request.attributes.get('_route'),
+<div class="main app-content">
+  {{ include('components/layout/topbar.html.twig', {
+    shell: _shell,
+    brand: _no_sidebar,
+    extra: block('topbar_extra') is defined ? block('topbar_extra') : '',
   }) }}
 
-  {# Mobile sidebar overlay #}
-  <div class="sidebar-overlay" id="sidebarOverlay" data-action="click->sidebar#close"></div>
-  {% endif %}
-
-  {# Main area #}
-  <div class="app-content">
-
-    {# Topbar — hidden on pages with their own specialized topbar #}
-    {% if block('show_topbar')|trim == 'true' %}
-      {{ include('components/layout/topbar.html.twig', {
-        burger:         block('show_sidebar')|trim == 'true',
-        page_icon:      block('page_icon') is defined ? block('page_icon') : '',
-        page_title:     block('page_title') is defined ? block('page_title') : '',
-        topbar_search:  block('topbar_search') is defined ? block('topbar_search') : '',
-        topbar_actions: block('topbar_actions') is defined ? block('topbar_actions') : '',
-      }) }}
+  {% block main %}
+    {# Page header — pages that draw their own (show_topbar = false) skip it #}
+    {% if block('show_topbar')|trim == 'true' and block('page_title') is defined and block('page_title')|trim %}
+      <div class="pagehead">
+        <h1>{{ block('page_title') }}{% if block('page_subtitle') is defined and block('page_subtitle')|trim %}<small>{{ block('page_subtitle') }}</small>{% endif %}</h1>
+        {% block page_tabs %}{% endblock %}
+        {% if block('topbar_actions') is defined and block('topbar_actions')|trim %}
+          <div class="right">{{ block('topbar_actions') }}</div>
+        {% endif %}
+      </div>
     {% endif %}
 
     {# Full-width band above the work area — a page that needs a banner reaching
@@ -68,7 +79,7 @@
     {# Flex row: scroll area + optional right panel #}
     <div class="app-main-wrap">
       <div class="app-scroll">
-        <main class="app-body" id="main-content" data-page="{{ app.request.attributes.get('_route') }}">
+        <main class="app-body" id="main-content" data-page="{{ _route }}">
           {% block content %}{% endblock %}
         </main>
       </div>
@@ -77,12 +88,8 @@
 
     {# Overlay behind rpanel drawer on tablet #}
     <div class="rpanel-overlay" id="rpanelOverlay" onclick="document.getElementById('rpanel')?.classList.remove('open');this.classList.remove('is-open');"></div>
-
-  </div>{# /app-content #}
-
-  </div>{# /app-shell #}
-
-</div>{# /app-root #}
+  {% endblock %}
+</div>
 
 {# FAB mobile #}
 {% block fab %}{% endblock %}
@@ -90,9 +97,13 @@
 {# Page drawers #}
 {% block drawers %}{% endblock %}
 
-{# Global search modal #}
+{# Search palette (⌘K) and keyboard shortcuts (?) #}
 {{ include('components/layout/search_modal.html.twig') }}
+{{ include('components/layout/shortcuts_modal.html.twig') }}
 
 {# Page modals #}
 {% block modals %}{% endblock %}
+
+{# Shell toast — kiveto/toast and the page modules all speak through it #}
+<div class="toast" id="toast" role="status" data-shell-toast><span class="dot"></span><span id="toastMsg"></span></div>
 {% endblock %}

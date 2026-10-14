@@ -21,6 +21,13 @@ final class SearchController extends AbstractController
 {
     private const array VALID_MODES = ['navigate', 'pick'];
 
+    /** Result fragments by `format`: the default turbo frame, the pickers' dropdown and the shell's search palette. */
+    private const array TEMPLATES = [
+        'turboframe' => 'clinic/search/_results.html.twig',
+        'dropdown'   => 'clinic/search/_dropdown_results.html.twig',
+        'palette'    => 'clinic/search/_palette_results.html.twig',
+    ];
+
     /**
      * @param array<string, string> $bucketIcons
      * @param array<string, string> $routeMap
@@ -57,16 +64,13 @@ final class SearchController extends AbstractController
         $q        = trim((string) $request->query->get('q', ''));
         $type     = $request->query->has('type') ? (string) $request->query->get('type') : null;
         $pickerId = $request->query->has('pickerId') ? (string) $request->query->get('pickerId') : null;
-        $format   = 'dropdown' === $request->query->get('format') ? 'dropdown' : 'turboframe';
+        $format   = (string) $request->query->get('format', 'turboframe');
+        $template = self::TEMPLATES[$format] ?? self::TEMPLATES['turboframe'];
 
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $currentClinicId);
 
         if (!$this->normalizer->isExecutable($q)) {
-            $template = 'dropdown' === $format
-                ? 'clinic/search/_dropdown_results.html.twig'
-                : 'clinic/search/_results.html.twig';
-
             return $this->render($template, [
                 'buckets'     => [],
                 'mode'        => $mode,
@@ -88,10 +92,6 @@ final class SearchController extends AbstractController
         } else {
             $buckets = $this->searchEngine->searchAll($query);
         }
-
-        $template = 'dropdown' === $format
-            ? 'clinic/search/_dropdown_results.html.twig'
-            : 'clinic/search/_results.html.twig';
 
         return $this->render($template, [
             'buckets'     => $buckets,
