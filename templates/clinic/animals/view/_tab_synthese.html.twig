@@ -1,0 +1,184 @@
+{# Partial: "Synthèse" pane — owner and identity, active problems and treatments, weight and appointments. #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set owner = sheet.owner %}
+{% set chevron %}<svg class="fc-chev" width="13" height="13" fill="none" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 2.5L9.5 7 5 11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endset %}
+
+<div class="fc-col fc-c4">
+  <section class="fc-card">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Propriétaire et identité</span>
+      {% if sheet.editable %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-edit-an">Modifier</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b">
+      {% if owner %}
+        <a class="fc-own" href="{{ path('clinic_clients_view', {id: owner.id}) }}">
+          <div class="fc-pet-av fc-a-cli fc-own-av">{{ owner.initials }}</div>
+          <div style="flex:1;min-width:0;">
+            <p class="fc-own-n">{{ owner.name }}</p>
+            <p class="fc-own-m">
+              {%- if owner.phone %}{{ owner.phone|phone_display(false, false) }} · {% endif -%}
+              {%- if owner.email %}{{ owner.email }} · {% endif -%}
+              client depuis {{ owner.since }}
+            </p>
+          </div>
+          <svg width="14" height="14" fill="none" viewBox="0 0 14 14" style="color:#94a3b8;" aria-hidden="true"><path d="M5 2.5L9.5 7 5 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <div class="fc-fh-badges" style="margin-top:8px;">
+          {% if owner.balanceDue > 0 %}<span class="fc-badge fc-b-crit">{{ owner.balanceDue|money(owner.currency) }} impayés</span>{% endif %}
+          <span class="fc-badge fc-b-grey">{{ owner.animalCount }} anima{{ owner.animalCount > 1 ? 'ux' : 'l' }}</span>
+          {% if owner.archived %}<span class="fc-badge fc-b-grey">Fiche client archivée</span>{% endif %}
+        </div>
+        <p class="fc-sec-sep">Personne autorisée</p>
+        {% if owner.authorized %}
+          <div class="fc-note fc-grey">
+            <b>{{ owner.authorized.name }}</b> — {{ owner.authorized.relationship }}{% if owner.authorized.phone %} · {{ owner.authorized.phone|phone_display(false, false) }}{% endif %}<br>
+            Autorisé à déposer et récupérer {{ animal.name }}.
+          </div>
+        {% else %}
+          <div class="fc-note fc-grey">Aucune personne désignée : seul {{ owner.name }} peut déposer et récupérer {{ animal.name }}.</div>
+        {% endif %}
+      {% else %}
+        <div class="fc-note fc-warn">Aucun propriétaire n’est rattaché à cet animal.</div>
+      {% endif %}
+      <p class="fc-sec-sep">Identité de l’animal</p>
+      {% for row in sheet.identity %}
+        <div class="fc-kv">
+          <span>{{ row.label }}</span>
+          <span class="{{ row.value ? (row.mono ? 'fc-num') : 'fc-kv-empty' }}">{{ row.value ?? 'Non renseigné' }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="fc-col fc-c4">
+  <section class="fc-card" id="fc-s-pb">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Problèmes actifs</span>
+      {% if sheet.alerts|length > 0 %}<span class="fc-card-c">{{ sheet.alerts|length }}</span>{% endif %}
+      {% if sheet.editable %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-pb">Ajouter</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for alert in sheet.alerts %}
+        <div class="fc-acc">
+          <div class="fc-acc-h" role="button" tabindex="0" aria-expanded="false" data-fc-acc>
+            {{ chevron }}
+            <div class="fc-row-ico {{ alert.allergy ? 'fc-ico-crit' : 'fc-ico-warn' }}">{{ alert.allergy ? '!' : alert.label|first|upper }}</div>
+            <div class="fc-row-m"><p class="fc-row-t">{{ alert.allergy ? 'Allergie — ' }}{{ alert.label }}</p><p class="fc-row-s">{{ alert.allergy ? 'Vérifiée à la prescription' : 'À garder en tête à chaque visite' }}</p></div>
+            <span class="fc-badge {{ alert.allergy ? 'fc-b-crit' : 'fc-b-warn' }}">{{ alert.kindLabel }}</span>
+          </div>
+          <div class="fc-acc-b">
+            <p class="fc-txt">{{ alert.note ?? 'Aucune précision enregistrée.' }}</p>
+            {% if alert.allergy %}
+              <div class="fc-note fc-crit">Une ordonnance contenant cette substance est signalée à l’enregistrement.</div>
+            {% endif %}
+            {% if sheet.editable %}
+              <form class="fc-acc-actions" method="post" action="{{ path('clinic_animals_problem_resolve', {id: animal.id, alertId: alert.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('animal_sheet') }}">
+                <button class="fc-btn fc-btn-ghost fc-btn-xs" type="submit">Retirer du dossier</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        {{ ui.empty('Aucun problème actif', 'Allergies et affections à suivre apparaîtront ici et en tête de fiche.') }}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="fc-card" id="fc-s-ttt">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Traitements en cours</span>
+      {% if sheet.treatments|length > 0 %}<span class="fc-card-c">{{ sheet.treatments|length }}</span>{% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for treatment in sheet.treatments %}
+        <div class="fc-row">
+          <div class="fc-row-m">
+            <p class="fc-row-t">{{ treatment.title }}</p>
+            <p class="fc-row-s">{{ treatment.subtitle }}</p>
+            <div class="fc-progress">
+              <div class="fc-bar{{ treatment.percent >= 80 ? ' fc-warn' }}"><i style="width:{{ treatment.percent }}%"></i></div>
+              <span>j{{ treatment.day }}/{{ treatment.days }}</span>
+            </div>
+          </div>
+          <div class="fc-row-a"><a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_prescription_details', {prescriptionId: treatment.prescriptionId}) }}">Ordonnance</a></div>
+        </div>
+      {% else %}
+        {{ ui.empty('Aucun traitement en cours', 'Les médicaments prescrits s’affichent ici pendant la durée indiquée sur l’ordonnance.') }}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="fc-col fc-c4">
+  {% set weight = sheet.weight %}
+  <section class="fc-card" id="fc-s-poids">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Poids</span>
+      {% if weight and weight.trend %}<span class="fc-badge fc-b-{{ weight.trend.badge }}">{{ weight.trend.label }}</span>{% endif %}
+      {% if sheet.editable %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-poids">Nouvelle pesée</button></div>
+      {% endif %}
+    </div>
+    {% if weight %}
+      <div class="fc-card-b">
+        <svg viewBox="0 0 560 140" class="fc-chart" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Courbe de poids, {{ weight.count }} mesure{{ weight.count > 1 ? 's' }}, dernier poids {{ weight.lastLabel }}">
+          <defs><linearGradient id="fc-weight-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4338ca" stop-opacity=".15"/><stop offset="100%" stop-color="#4338ca" stop-opacity="0"/></linearGradient></defs>
+          {% for tick in weight.ticks %}
+            <line x1="30" y1="{{ tick.y }}" x2="548" y2="{{ tick.y }}" stroke="#eef1f5"/>
+            <text x="26" y="{{ tick.y + 3.5 }}" text-anchor="end" font-size="9.5" fill="#94a3b8">{{ tick.label }}</text>
+          {% endfor %}
+          {% if weight.count > 1 %}
+            <polygon points="{{ weight.polygon }}" fill="url(#fc-weight-fill)"/>
+            <polyline points="{{ weight.polyline }}" fill="none" stroke="#4338ca" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          {% endif %}
+          <circle cx="{{ weight.lastX }}" cy="{{ weight.lastY }}" r="4.5" fill="#fff" stroke="#4338ca" stroke-width="2.5"/>
+          <text x="{{ weight.lastX }}" y="{{ weight.lastY - 10 }}" text-anchor="end" font-size="10.5" font-weight="700" fill="#4338ca">{{ weight.lastLabel }}</text>
+          <text x="30" y="134" font-size="9.5" fill="#94a3b8">{{ weight.firstMonth }}</text>
+          <text x="548" y="134" text-anchor="end" font-size="9.5" fill="#94a3b8">{{ weight.lastMonth }}</text>
+        </svg>
+        <div class="fc-chart-foot">
+          <div><p class="fc-pf-l">Dernière pesée</p><p class="fc-pf-v">{{ weight.lastDate }}</p></div>
+          <div><p class="fc-pf-l">État corporel</p><p class="fc-pf-v{{ weight.scoreTone ? ' fc-' ~ weight.scoreTone }}">{{ weight.score ? weight.score ~ ' / 9' : '—' }}</p></div>
+          <div><p class="fc-pf-l">Mesures</p><p class="fc-pf-v">{{ weight.count }}</p></div>
+        </div>
+      </div>
+    {% else %}
+      <div class="fc-card-b fc-flush">
+        {{ ui.empty('Aucune pesée', 'La courbe se dessine à partir des pesées et des poids relevés en consultation.') }}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="fc-card" id="fc-s-an-rdv">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Rendez-vous</span>
+      {% if sheet.appointments.upcomingCount > 0 %}<span class="fc-card-c">{{ sheet.appointments.upcomingCount }} à venir</span>{% endif %}
+      {% if sheet.editable %}
+        <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-rdv">Nouveau</button></div>
+      {% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for row in sheet.appointments.rows %}
+        <div class="fc-row">
+          <div class="fc-row-ico {{ row.upcoming ? 'fc-ico-brand' : 'fc-ico-grey' }}">{{ row.day }}</div>
+          <div class="fc-row-m"><p class="fc-row-t">{{ row.title }}</p><p class="fc-row-s">{{ row.subtitle }}</p></div>
+          {% if row.badge %}<span class="fc-badge fc-b-{{ row.badge }}">{{ row.badgeLabel }}</span>{% endif %}
+          {% if row.upcoming %}
+            <div class="fc-row-a"><a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_scheduling_agenda', {view: 'day', date: row.date}) }}">Déplacer</a></div>
+          {% endif %}
+        </div>
+      {% else %}
+        {{ ui.empty('Aucun rendez-vous', 'Les rendez-vous de ' ~ animal.name ~ ' apparaîtront ici.', 'calendar') }}
+      {% endfor %}
+    </div>
+    {% if sheet.appointments.olderCount > 0 %}
+      <div class="fc-card-f">{{ sheet.appointments.olderCount }} rendez-vous antérieur{{ sheet.appointments.olderCount > 1 ? 's' }}.</div>
+    {% endif %}
+  </section>
+</div>

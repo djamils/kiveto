@@ -15,6 +15,7 @@ const PAGE_MODULES = {
   clinic_hospitalisations:       'pages/hospitalisations',
   clinic_clients_list:           'pages/clients/list',
   clinic_clients_view:           'pages/clients/view',
+  clinic_animals_view:           'pages/clients/view',
   clinic_consultation_details:   'pages/consultation',
   clinic_consultations:          'pages/consultations',
   clinic_invoices:               'pages/billing/list',

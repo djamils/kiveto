@@ -58,6 +58,13 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
   l'alerte contenu dans le nom de la substance). C'est volontairement naïf : le cockpit de
   consultation s'en sert pour un avertissement « à vérifier », pas pour un moteur d'interactions.
 
+### Pesées et prévention
+- **WeightRecord** : Pesée d'un animal prise hors consultation (accueil, visite ASV) — poids en grammes, note d'état corporel optionnelle (1 à 9), jour de la mesure, auteur
+- **PreventiveCareRecord** : Acte de prévention administré (vaccin, vermifuge, antiparasitaire externe) — type (`PreventiveCareKind`), protocole, jour d'administration, lot et prochaine échéance optionnels, auteur
+- **PreventiveCareKind** : `VACCINATION` | `INTERNAL_PARASITE` | `EXTERNAL_PARASITE` | `OTHER`
+- Ce sont des agrégats distincts de l'Animal, en ajout seul : une saisie erronée est suivie d'une nouvelle saisie, jamais corrigée
+- Les poids relevés en consultation restent dans le BC Consultation ; la courbe de la fiche animal réunit les deux sources
+
 ## Architecture
 
 ```
@@ -174,6 +181,14 @@ src/Animal/
 
 ### AuxiliaryContact
 1. Si présent, les 3 champs sont obligatoires : `firstName`, `lastName`, `phoneNumber`
+
+### WeightRecord et PreventiveCareRecord
+1. Rattachés à un animal **de la clinique** : le handler charge l'animal avant d'écrire
+2. Une pesée ou un acte ne peut pas être daté dans le futur (un jour de marge : le jour est saisi à l'heure de la clinique, l'horloge est en UTC)
+3. Poids entre 1 g et 2 000 kg ; note d'état corporel entre 1 et 9
+4. Protocole non vide (120 caractères max) ; lot 60 caractères max
+5. La prochaine échéance, si elle est donnée, est strictement postérieure à l'administration
+6. L'auteur est un nom figé à l'écriture
 
 ### Scoping
 - Toutes les opérations sont scopées par `ClinicId`
@@ -330,7 +345,36 @@ Archive un animal.
 
 ---
 
+#### RecordAnimalWeight
+Enregistre une pesée hors consultation.
+
+**Input:** `clinicId`, `animalId`, `weightGrams: int`, `measuredOn: string` (Y-m-d), `bodyConditionScore: ?int`, `authorName`
+
+**Output:** `string` (id de la pesée) — event `AnimalWeightRecorded`
+
+**Exceptions:** `AnimalNotFoundException`, `\InvalidArgumentException`
+
+---
+
+#### RecordPreventiveCare
+Enregistre un acte de prévention et, si elle est connue, sa prochaine échéance.
+
+**Input:** `clinicId`, `animalId`, `kind`, `label`, `administeredOn` (Y-m-d), `?batchNumber`, `?nextDueOn` (Y-m-d), `authorName`
+
+**Output:** `string` (id de l'acte) — event `PreventiveCareRecorded`
+
+**Exceptions:** `AnimalNotFoundException`, `\ValueError` (type inconnu), `\InvalidArgumentException`
+
+---
+
 ### Queries (Read Model)
+
+#### ListAnimalWeightRecords / ListAnimalPreventiveCare
+Pesées et actes de prévention d'un animal, du plus récent au plus ancien.
+
+**Input:** `clinicId`, `animalId`
+
+**Output:** `list<WeightRecordView>` (`id`, `weightGrams`, `bodyConditionScore`, `measuredOn`, `authorName`) / `list<PreventiveCareRecordView>` (`id`, `kind`, `label`, `administeredOn`, `batchNumber`, `nextDueOn`, `authorName`)
 
 #### GetAnimalById
 Retourne les détails complets d'un animal.
@@ -506,11 +550,18 @@ Recherche et pagine les animaux d'une clinique.
 - Validation avancée des numéros (format puce ISO, SIRE)
 - Export des données animal (PDF, fiche)
 - Gestion des décès avec motif/cause
-- Notifications aux propriétaires (rappels vaccins, etc.)
+- Notifications aux propriétaires : les échéances de prévention sont enregistrées, aucun rappel n'est encore envoyé
+- Protocoles de prévention référencés (aujourd'hui l'intitulé est libre)
 
 ---
 
 ## Changelog
+
+### 2026-10-10 - Fiche animal : pesées et prévention
+
+**Ajouts** :
+- ✨ Agrégat `WeightRecord` (table `animal__weight_records`), command `RecordAnimalWeight`, query `ListAnimalWeightRecords`
+- ✨ Agrégat `PreventiveCareRecord` (table `animal__preventive_care_records`), command `RecordPreventiveCare`, query `ListAnimalPreventiveCare`
 
 ### 2026-01-24 - Initial Release
 

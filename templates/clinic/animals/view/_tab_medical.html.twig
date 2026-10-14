@@ -1,0 +1,80 @@
+{# Partial: "Médical" pane — issued prescriptions and the consultation history. #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set chevron %}<svg class="fc-chev" width="13" height="13" fill="none" viewBox="0 0 14 14" aria-hidden="true"><path d="M5 2.5L9.5 7 5 11.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endset %}
+
+<div class="fc-col fc-c6">
+  <section class="fc-card" id="fc-s-ord">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Ordonnances</span>
+      {% if sheet.prescriptions|length > 0 %}<span class="fc-card-c">{{ sheet.prescriptions|length }}</span>{% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for prescription in sheet.prescriptions %}
+        <div class="fc-row">
+          <div class="fc-row-ico fc-tone-rose">℞</div>
+          <div class="fc-row-m">
+            <p class="fc-row-t">{{ prescription.summary ?: 'Ordonnance' }}</p>
+            <p class="fc-row-s">{{ prescription.date }} · {{ prescription.prescriber }} · {{ prescription.number }}</p>
+          </div>
+          <div class="fc-row-a">
+            <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_prescription_details', {prescriptionId: prescription.id}) }}">Ouvrir</a>
+            <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_prescription_pdf', {prescriptionId: prescription.id}) }}" target="_blank" rel="noopener" data-turbo="false">PDF</a>
+          </div>
+        </div>
+      {% else %}
+        {{ ui.empty('Aucune ordonnance', 'Les ordonnances émises en consultation sont listées ici.', 'sheet') }}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="fc-col fc-c6">
+  <section class="fc-card" id="fc-s-hist">
+    <div class="fc-card-h">
+      <span class="fc-card-t">Historique médical</span>
+      {% if sheet.history.total > 0 %}<span class="fc-card-c">{{ sheet.history.total }} consultation{{ sheet.history.total > 1 ? 's' }}</span>{% endif %}
+    </div>
+    <div class="fc-card-b fc-flush">
+      {% for visit in sheet.history.rows %}
+        <div class="fc-acc{{ loop.first ? ' fc-open' }}">
+          <div class="fc-acc-h" role="button" tabindex="0" aria-expanded="{{ loop.first ? 'true' : 'false' }}" data-fc-acc>
+            {{ chevron }}
+            <div class="fc-row-ico {{ loop.first ? 'fc-ico-brand' : 'fc-ico-grey' }}">{{ visit.day }}</div>
+            <div class="fc-row-m"><p class="fc-row-t">{{ visit.title }}</p><p class="fc-row-s">{{ visit.subtitle }}</p></div>
+            {% if visit.open %}<span class="fc-badge fc-b-brand">En cours</span>{% endif %}
+          </div>
+          <div class="fc-acc-b">
+            {% if visit.vitals|length > 0 %}
+              <div class="fc-split fc-split-box">
+                <div><p class="fc-sec-sep fc-sec-first">Compte rendu</p><p class="fc-txt">{{ visit.summary ?? 'Aucune synthèse rédigée.' }}</p></div>
+                <div>
+                  <p class="fc-sec-sep fc-sec-first">Constantes relevées</p>
+                  {% for vital in visit.vitals %}<div class="fc-kv"><span>{{ vital.label }}</span><span>{{ vital.value }}</span></div>{% endfor %}
+                </div>
+              </div>
+            {% else %}
+              <p class="fc-txt">{{ visit.summary ?? 'Aucune synthèse rédigée.' }}</p>
+            {% endif %}
+            <div class="fc-acc-actions">
+              <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_consultation_details', {id: visit.id}) }}">{{ visit.open ? 'Reprendre' : 'Ouvrir' }}</a>
+              {% if not visit.open %}
+                <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_consultation_report_pdf', {consultationId: visit.id}) }}" target="_blank" rel="noopener" data-turbo="false">Compte rendu</a>
+              {% endif %}
+              {% for prescription in visit.prescriptions %}
+                <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_prescription_pdf', {prescriptionId: prescription.id}) }}" target="_blank" rel="noopener" data-turbo="false">Ordonnance</a>
+              {% endfor %}
+              {% if visit.invoiceId %}
+                <a class="fc-btn fc-btn-ghost fc-btn-xs" href="{{ path('clinic_invoice_pdf', {invoiceId: visit.invoiceId}) }}" target="_blank" rel="noopener" data-turbo="false">Facture</a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% else %}
+        {{ ui.empty('Aucune consultation', 'Chaque consultation s’inscrira ici avec sa synthèse, ses constantes et ses documents.', 'sheet') }}
+      {% endfor %}
+    </div>
+    {% if sheet.history.firstVisit and sheet.history.total > 1 %}
+      <div class="fc-card-f">Première visite le {{ sheet.history.firstVisit }}.</div>
+    {% endif %}
+  </section>
+</div>

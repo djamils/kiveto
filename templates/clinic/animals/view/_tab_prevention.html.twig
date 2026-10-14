@@ -1,0 +1,57 @@
+{# Partial: "Prévention" pane — latest act of each protocol and what falls due. #}
+{% import 'clinic/clients/view/_macros.html.twig' as ui %}
+{% set prevention = sheet.prevention %}
+<section class="fc-card fc-c8" id="fc-s-prev">
+  <div class="fc-card-h">
+    <span class="fc-card-t">Prévention</span>
+    {% if prevention.lateCount > 0 %}<span class="fc-badge fc-b-crit">{{ prevention.lateCount }} en retard</span>{% endif %}
+    {% if sheet.editable %}
+      <div class="fc-card-x"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-prev">Enregistrer un acte</button></div>
+    {% endif %}
+  </div>
+  <div class="fc-card-b fc-flush">
+    {% if prevention.rows|length > 0 %}
+      <div class="fc-table-wrap">
+        <table class="fc-t">
+          <thead><tr><th>Protocole</th><th>Dernière administration</th><th>Lot</th><th>Prochaine échéance</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for row in prevention.rows %}
+              <tr>
+                <td><b>{{ row.label }}</b><br><span class="fc-cell-sub">{{ row.kindLabel }}</span></td>
+                <td>{{ row.administered }}<br><span class="fc-cell-sub">{{ row.author }}</span></td>
+                <td class="fc-cell-sub">{{ row.batch ?? '—' }}</td>
+                <td{{ row.late ? ' class="fc-bad"' }}>
+                  {%- if row.nextDue -%}
+                    {{ row.nextDue }}{% if row.late %} · retard de {{ row.lateDays }} j{% endif %}
+                  {%- else -%}
+                    Non planifiée
+                  {%- endif -%}
+                </td>
+                <td>{% if row.nextDue %}<span class="fc-badge fc-b-{{ row.badge }}">{{ row.badgeLabel }}</span>{% else %}<span class="fc-badge fc-b-grey">Sans rappel</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ ui.empty('Aucun acte de prévention', 'Vaccins et antiparasitaires s’enregistrent ici, avec la date de leur prochain rappel.') }}
+    {% endif %}
+  </div>
+</section>
+<section class="fc-card fc-c4">
+  <div class="fc-card-h"><span class="fc-card-t">Échéances</span></div>
+  <div class="fc-card-b fc-flush">
+    {% for item in prevention.due %}
+      <div class="fc-row">
+        <div class="fc-row-ico {{ item.late ? 'fc-ico-crit' : 'fc-ico-grey' }}">{{ item.late ? '!' : item.day }}</div>
+        <div class="fc-row-m"><p class="fc-row-t">{{ item.label }}</p><p class="fc-row-s">{{ item.detail }}</p></div>
+        {% if sheet.editable %}
+          <div class="fc-row-a"><button class="fc-btn fc-btn-ghost fc-btn-xs" type="button" data-fc-open="fc-m-rdv">Rendez-vous</button></div>
+        {% endif %}
+      </div>
+    {% else %}
+      {{ ui.empty('Rien à prévoir', 'Aucune échéance dépassée ni à venir dans les 30 jours.') }}
+    {% endfor %}
+  </div>
+  <div class="fc-card-f">Les dates saisies sont déclaratives : conservez une copie du carnet.</div>
+</section>
