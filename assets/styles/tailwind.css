@@ -145,7 +145,6 @@
 @import "./pages/settings.css";
 @import "./pages/consultations.css";
 @import "./pages/hospitalisations.css";
-@import "./pages/scheduling/_shared.css";
 @import "./pages/scheduling/sched.css";
 @import "./pages/scheduling/agenda.css";
 @import "./pages/scheduling/planning.css";

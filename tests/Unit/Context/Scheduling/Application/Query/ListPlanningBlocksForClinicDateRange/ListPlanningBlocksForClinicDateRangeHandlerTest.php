@@ -89,6 +89,7 @@ final class ListPlanningBlocksForClinicDateRangeHandlerTest extends TestCase
         self::assertSame('2026-04-28', $result[1]->date);
         self::assertSame('2026-05-05', $result[2]->date);
         self::assertSame('2026-05-12', $result[3]->date);
+        self::assertSame('2026-04-21', $result[3]->baseDate);
     }
 
     #[AllowMockObjectsWithoutExpectations]

@@ -77,6 +77,7 @@ final class AgendaViewBuilderTest extends TestCase
                     note: 'Garde du soir',
                     acceptsAppointments: true,
                     hasCapacityLimit: true,
+                    baseDate: '2026-04-21',
                 )];
             }
         };

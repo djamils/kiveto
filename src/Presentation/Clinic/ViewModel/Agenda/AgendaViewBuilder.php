@@ -52,6 +52,7 @@ final readonly class AgendaViewBuilder
         'admin'        => 'admin',
         'training'     => 'formation',
         'leave'        => 'conge',
+        'break'        => 'pause',
     ];
 
     private const array STATUS = ['CANCELLED' => 'annule', 'NO_SHOW' => 'absent', 'COMPLETED' => 'fait'];
@@ -181,35 +182,12 @@ final readonly class AgendaViewBuilder
     }
 
     /**
-     * @return AgendaAppointment
-     */
-    private function appointment(AppointmentItem $item, \DateTimeZone $tz): array
-    {
-        $start = new \DateTimeImmutable($item->startsAtUtc, new \DateTimeZone('UTC'))->setTimezone($tz);
-
-        return [
-            'id'       => $item->id,
-            'date'     => $start->format('Y-m-d'),
-            's'        => (int) $start->format('G') * 60 + (int) $start->format('i'),
-            'dur'      => $item->durationMinutes,
-            'vet'      => $item->practitionerUserId,
-            'a'        => $item->animalLabel,
-            'e'        => self::SPECIES_EMOJI[strtolower($item->animalSpecies ?? '')] ?? '🐾',
-            'cli'      => $item->ownerLabel,
-            'tel'      => null === $item->ownerPhone ? null : $this->phone($item->ownerPhone),
-            'animalId' => $item->animalId,
-            'ownerId'  => $item->ownerId,
-            'm'        => self::motif($item->reason),
-            'reason'   => $item->reason,
-            'note'     => $item->notes,
-            'st'       => self::STATUS[$item->status] ?? null,
-        ];
-    }
-
-    /**
+     * The clinic's practitioners shown in the agenda, in its colours
+     * (also the planning's columns).
+     *
      * @return list<AgendaVet>
      */
-    private function vets(string $clinicId, string $userId): array
+    public function vets(string $clinicId, string $userId): array
     {
         $items = $this->queryBus->ask(new ListClinicVeterinarians($clinicId));
         \assert(\is_array($items));
@@ -234,6 +212,32 @@ final readonly class AgendaViewBuilder
         }
 
         return $vets;
+    }
+
+    /**
+     * @return AgendaAppointment
+     */
+    private function appointment(AppointmentItem $item, \DateTimeZone $tz): array
+    {
+        $start = new \DateTimeImmutable($item->startsAtUtc, new \DateTimeZone('UTC'))->setTimezone($tz);
+
+        return [
+            'id'       => $item->id,
+            'date'     => $start->format('Y-m-d'),
+            's'        => (int) $start->format('G') * 60 + (int) $start->format('i'),
+            'dur'      => $item->durationMinutes,
+            'vet'      => $item->practitionerUserId,
+            'a'        => $item->animalLabel,
+            'e'        => self::SPECIES_EMOJI[strtolower($item->animalSpecies ?? '')] ?? '🐾',
+            'cli'      => $item->ownerLabel,
+            'tel'      => null === $item->ownerPhone ? null : $this->phone($item->ownerPhone),
+            'animalId' => $item->animalId,
+            'ownerId'  => $item->ownerId,
+            'm'        => self::motif($item->reason),
+            'reason'   => $item->reason,
+            'note'     => $item->notes,
+            'st'       => self::STATUS[$item->status] ?? null,
+        ];
     }
 
     private function monday(\DateTimeImmutable $day): \DateTimeImmutable

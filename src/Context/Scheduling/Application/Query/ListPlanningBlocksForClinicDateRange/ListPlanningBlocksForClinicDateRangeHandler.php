@@ -72,6 +72,7 @@ final readonly class ListPlanningBlocksForClinicDateRangeHandler
                     note: RowAccessor::nullableString($row, 'note'),
                     acceptsAppointments: $type->acceptsAppointments(),
                     hasCapacityLimit: $type->hasCapacityLimit(),
+                    baseDate: RowAccessor::string($row, 'date'),
                 );
             }
         }

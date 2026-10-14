@@ -33,6 +33,7 @@ final class PlanningBlockTypeCapabilityCompletenessTest extends TestCase
         yield 'LEAVE' => [PlanningBlockType::LEAVE,         false, false];
         yield 'TRAINING' => [PlanningBlockType::TRAINING,      false, false];
         yield 'ADMIN' => [PlanningBlockType::ADMIN,         false, false];
+        yield 'BREAK' => [PlanningBlockType::BREAK,         false, false];
     }
 
     public function testAllCasesAreCovered(): void
