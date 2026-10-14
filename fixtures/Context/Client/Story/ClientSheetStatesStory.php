@@ -8,7 +8,10 @@ use App\Context\Admission\Application\Command\CloseAdmission\CloseAdmission;
 use App\Context\Admission\Application\Command\OpenAdmissionForWalkIn\OpenAdmissionForWalkIn;
 use App\Context\Animal\Application\Command\AddMedicalAlert\AddMedicalAlert;
 use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
+use App\Context\Animal\Application\Command\RecordAnimalWeight\RecordAnimalWeight;
 use App\Context\Animal\Application\Command\RecordPreventiveCare\RecordPreventiveCare;
+use App\Context\Animal\Application\Command\UpdateAnimalInsurance\UpdateAnimalInsurance;
+use App\Context\Animal\Application\Command\UpdateAnimalLifeCycle\UpdateAnimalLifeCycle;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
@@ -30,6 +33,7 @@ use App\Context\Consultation\Application\Command\AddDiagnosis\AddDiagnosis;
 use App\Context\Consultation\Application\Command\AddPrescriptionLine\AddPrescriptionLine;
 use App\Context\Consultation\Application\Command\CloseConsultation\CloseConsultation;
 use App\Context\Consultation\Application\Command\RecordChiefComplaint\RecordChiefComplaint;
+use App\Context\Consultation\Application\Command\RecordTypedVital\RecordTypedVital;
 use App\Context\Consultation\Application\Command\RecordVitals\RecordVitals;
 use App\Context\Consultation\Application\Command\StartConsultationFromAdmission\StartConsultationFromAdmission;
 use App\Context\Consultation\Application\Command\UpdateConsultationMotifs\UpdateConsultationMotifs;
@@ -67,6 +71,13 @@ use Zenstruck\Foundry\Story;
  *   appointments, logged exchanges, four appointments to come;
  * - « vierge » — Mme Inès Barbier: created today with her puppy, nothing on
  *   file yet but a first appointment tomorrow.
+ *
+ * The same households carry one animal per state of the animal sheet
+ * (animal-v-topbar*.html): Minette (« normal » — a cat in consultation today,
+ * insured, with a full medical synthesis), Oscar (« busy » — a diabetic dog
+ * with a long synthesis, glycaemia curve and weighings) and Moka (« vierge » —
+ * a puppy with nothing on file but her first appointment); Tigrou and Filou
+ * show the read-only file of a departed animal.
  *
  * Loaded last: the visits go through the command bus (admission, consultation,
  * ordonnance) and are then moved back in time; their invoices are written
@@ -125,15 +136,27 @@ final class ClientSheetStatesStory extends Story
             ['appointment_reminders' => ['sms'], 'clinical_documents' => ['email'], 'billing' => ['sms', 'email']]
         );
 
-        $minette = $this->animal($client, 'Minette', 'cat', 'female', 'neutered', 'Maine coon', '-9 years -2 months');
-        $gaston  = $this->animal($client, 'Gaston', 'dog', 'male', 'intact', 'Beagle', '-3 years -5 months');
-        $this->animal($client, 'Tigrou', 'cat', 'male', 'neutered', 'Européen', '-14 years', deceasedAt: '-18 months');
+        $minette = $this->animal($client, 'Minette', 'cat', 'female', 'neutered', 'Maine coon', '-9 years -2 months', color: 'Tigré brun', microchip: '250268731000415');
+        $gaston  = $this->animal($client, 'Gaston', 'dog', 'male', 'intact', 'Beagle', '-3 years -5 months', color: 'Tricolore', microchip: '250268731000422');
+        $tigrou  = $this->animal($client, 'Tigrou', 'cat', 'male', 'neutered', 'Européen', '-14 years', deceasedAt: '-18 months', color: 'Roux', microchip: '250268731000439');
+        $this->death($tigrou, '-18 months', 'euthanasia', 'individual_cremation');
+        $this->insure($minette, 'Santévet', 'SV-2210-4471');
 
         $this->alert($minette, 'CHRONIC_CONDITION', 'IRC · IRIS 2', 'Contrôle trimestriel, aliment rénal.');
+        $this->alert($minette, 'CHRONIC_CONDITION', 'Arthrose coxo-fémorale', 'Depuis l’an dernier');
+        $this->alert($minette, 'LONG_TERM_TREATMENT', 'Semintra 4 mg/mL', '1 mg/kg/j · à renouveler tous les 6 mois');
+        $this->alert($minette, 'LONG_TERM_TREATMENT', 'Hill’s Prescription Diet k/d', '70 g par jour');
+        $this->alert($minette, 'ALLERGY', 'Méloxicam', 'Vomissements après AINS');
+        $this->alert($minette, 'BEHAVIOR', 'Griffe à la contention', 'Prévoir deux personnes et une serviette');
         $this->alert($gaston, 'ALLERGY', 'Pénicillines', 'Urticaire après une prise d’amoxicilline.');
+        $this->alert($tigrou, 'CHRONIC_CONDITION', 'Lymphome digestif', 'Diagnostiqué deux mois avant le décès');
 
         $this->care($minette, 'vaccination', 'Typhus-Coryza', '-155 days', '+210 days');
         $this->care($minette, 'internal_parasite', 'Vermifugation', '-100 days', '-10 days');
+        $this->care($minette, 'external_parasite', 'Bravecto chat · 3 mois', '-79 days', '+11 days');
+        $this->weigh($minette, '-3 years -5 months', 6400);
+        $this->weigh($minette, '-2 years -6 months', 6300);
+        $this->weigh($minette, '-1 year -7 months', 6100);
         $this->care($gaston, 'vaccination', 'CHPPiL', '-378 days', '+12 days');
         $this->care($gaston, 'internal_parasite', 'Vermifugation', '-60 days', '+30 days');
 
@@ -177,17 +200,39 @@ final class ClientSheetStatesStory extends Story
             landline: '+33142523318'
         );
 
-        $oscar  = $this->animal($client, 'Oscar', 'dog', 'male', 'neutered', 'Labrador', '-11 years -3 months');
+        $oscar  = $this->animal($client, 'Oscar', 'dog', 'male', 'neutered', 'Labrador retriever', '-11 years -3 months', color: 'Sable', microchip: '250268731000446');
         $nala   = $this->animal($client, 'Nala', 'cat', 'female', 'neutered', 'Européen', '-4 years -1 month');
         $pepito = $this->animal($client, 'Pepito', 'dog', 'male', 'intact', 'Jack Russell', '-2 years -2 months');
         $coco   = $this->animal($client, 'Coco', 'nac', 'male', 'unknown', 'Lapin bélier', '-5 years');
-        $this->animal($client, 'Filou', 'cat', 'male', 'neutered', 'Européen', '-15 years', deceasedAt: '-23 months');
+        $filou  = $this->animal($client, 'Filou', 'cat', 'male', 'neutered', 'Européen', '-15 years', deceasedAt: '-23 months', color: 'Noir et blanc');
+        $this->death($filou, '-23 months', 'euthanasia', 'collective_cremation');
+        $this->insure($oscar, 'Bulle Bleue', 'BB-77812-03');
+        $this->insure($pepito, 'Santévet', 'SV-3381-0912');
 
         $this->alert($oscar, 'CHRONIC_CONDITION', 'Diabète', 'Insulinothérapie, courbe de glycémie tous les 3 mois.');
+        $this->alert($oscar, 'CHRONIC_CONDITION', 'Hypothyroïdie', 'Depuis l’été');
+        $this->alert($oscar, 'CHRONIC_CONDITION', 'Arthrose des coudes', 'Anti-inflammatoire au long cours');
+        $this->alert($oscar, 'CHRONIC_CONDITION', 'Cataracte débutante', 'Bilatérale · secondaire au diabète');
+        $this->alert($oscar, 'CHRONIC_CONDITION', 'Souffle cardiaque 2/6', 'Noté il y a trois ans, non réévalué');
+        $this->alert($oscar, 'LONG_TERM_TREATMENT', 'Caninsulin 40 UI/mL', '12 UI matin et soir, pendant le repas');
+        $this->alert($oscar, 'LONG_TERM_TREATMENT', 'Forthyron 400 µg', '2 comprimés matin et soir');
+        $this->alert($oscar, 'LONG_TERM_TREATMENT', 'Librela 30 mg', 'Injection mensuelle');
+        $this->alert($oscar, 'LONG_TERM_TREATMENT', 'Hill’s Prescription Diet w/d', '360 g par jour en 2 repas');
+        $this->alert($oscar, 'ALLERGY', 'Céphalosporines', 'Œdème de la face');
+        $this->alert($oscar, 'BEHAVIOR', 'Mord à la contention', 'Muselière avant toute prise de sang');
+        $this->alert($oscar, 'BEHAVIOR', 'Sourd', 'Approcher de face, le toucher doucement');
+        $this->alert($pepito, 'BEHAVIOR', 'Très agité', 'Prévoir une friandise');
+        $this->alert($filou, 'CHRONIC_CONDITION', 'Insuffisance cardiaque', 'Stade terminal');
         $this->alert($nala, 'ALLERGY', 'Poulet', 'Allergie alimentaire suspectée, régime d’éviction.');
 
         $this->care($oscar, 'vaccination', 'CHPPiL', '-200 days', '+165 days');
         $this->care($oscar, 'internal_parasite', 'Vermifugation', '-110 days', '-20 days');
+        $this->care($oscar, 'vaccination', 'Leptospirose', '-200 days', '+165 days');
+        $this->care($oscar, 'vaccination', 'Rage', '-200 days', '+165 days');
+        $this->care($oscar, 'external_parasite', 'Simparica · 1 mois', '-37 days', '-7 days');
+        $this->weigh($oscar, '-2 years -2 months', 37200);
+        $this->weigh($oscar, '-1 year -2 months', 36800);
+        $this->weigh($oscar, '-36 days', 34900);
         $this->care($nala, 'vaccination', 'Typhus-Coryza', '-358 days', '+7 days');
         $this->care($pepito, 'internal_parasite', 'Vermifugation', '-95 days', '-5 days');
         $this->care($coco, 'vaccination', 'VHD et myxomatose', '-359 days', '+6 days');
@@ -202,21 +247,21 @@ final class ClientSheetStatesStory extends Story
         $this->visit($client, $who, $coco, 'Coco', $dupont, '-360 days 16:00', ['Vaccination'], 'VHD et myxomatose.', null, 'Vaccins faits.', [2.4, null], [['Vaccination lapin', 1, 5200]], 'CARD');
         $this->visit($client, $who, $oscar, 'Oscar', $rousseau, '-315 days 11:00', ['Boiterie', 'Imagerie'], 'Raideur des antérieurs au lever.', 'Douleur à la flexion des coudes.', 'Anti-inflammatoire au long cours, contrôle dans 2 mois.', [34.2, 38.5], [['Consultation', 1, 5000], ['Radiographie des coudes', 1, 7000]], 'CARD', diagnosis: 'Arthrose des coudes', prescribe: [['MELOXIDYL-1', '0,1 mg/kg', '1×/j', 60, 'per os', 2.0]]);
         $this->visit($client, $who, $nala, 'Nala', $dupont, '-270 days 18:00', ['Vaccination'], 'Rappel annuel.', null, 'Typhus-coryza fait.', [4.4, 38.6], [['Vaccination typhus-coryza', 1, 5800]], 'CARD');
-        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-245 days 10:00', ['Diabète', 'Bilan sanguin'], 'Boit et urine beaucoup, amaigrissement de 3 kg.', 'Cataracte débutante, état général conservé.', 'Insuline matin et soir, aliment adapté, courbe à 2 mois.', [34.0, 38.6], [['Consultation', 1, 5000], ['Biochimie complète', 1, 8800], ['Fructosamine', 1, 4200], ['Analyse d’urine', 1, 4200]], 'CARD', diagnosis: 'Diabète sucré insulinodépendant', prescribe: [['FOOD-RC', '360 g par jour', 'en 2 repas', 60, 'per os', 2.0]]);
+        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-245 days 10:00', ['Diabète', 'Bilan sanguin'], 'Boit et urine beaucoup, amaigrissement de 3 kg.', 'Cataracte débutante, état général conservé.', 'Insuline matin et soir, aliment adapté, courbe à 2 mois.', [34.0, 38.6], [['Consultation', 1, 5000], ['Biochimie complète', 1, 8800], ['Fructosamine', 1, 4200], ['Analyse d’urine', 1, 4200]], 'CARD', diagnosis: 'Diabète sucré insulinodépendant', glycemia: 25.5, prescribe: [['FOOD-RC', '360 g par jour', 'en 2 repas', 60, 'per os', 2.0]]);
         $this->missed($client, $pepito, $bernard, '-226 days 17:00', 'Consultation', 'Annulé moins de 2 h avant');
         $this->visit($client, $who, $coco, 'Coco', $dupont, '-209 days 14:00', ['Dentaire'], 'Joue gonflée, mange moins.', null, 'Drainage, antibiotique 10 jours.', [2.3, null], [['Consultation NAC', 1, 5500], ['Drainage d’abcès', 1, 4800]], 'CARD', diagnosis: 'Abcès de la 2e prémolaire');
         $this->visit($client, $who, $nala, 'Nala', $rousseau, '-194 days 18:15', ['Toux'], 'Toux sèche depuis 5 jours.', null, 'Anti-inflammatoire 5 jours.', [4.3, 38.9], [['Consultation', 1, 5000]], 'CARD', diagnosis: 'Trachéite');
-        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-175 days 09:30', ['Hospitalisation', 'Courbe de glycémie'], 'Ajustement de la dose d’insuline.', '9 glycémies de 8:00 à 18:00, nadir 1,6 g/L à 14:00.', 'Insuline 10 → 12 UI.', [34.5, 38.4], [['Hospitalisation à la journée', 1, 4500], ['Glycémie capillaire', 9, 600]], 'CARD');
+        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-175 days 09:30', ['Hospitalisation', 'Courbe de glycémie'], 'Ajustement de la dose d’insuline.', '9 glycémies de 8:00 à 18:00, nadir 1,6 g/L à 14:00.', 'Insuline 10 → 12 UI.', [34.5, 38.4], [['Hospitalisation à la journée', 1, 4500], ['Glycémie capillaire', 9, 600]], 'CARD', glycemia: 17.8);
         $this->visit($client, $who, $pepito, 'Pepito', $dupont, '-153 days 16:30', ['Vaccination', 'Rappel CHPPiL'], 'Rappel annuel.', null, 'CHPPiL fait. Vermifuge donné.', [7.1, 38.5], [['Vaccination CHPPiL', 1, 6200], ['Milbemax chien — comprimé', 1, 850]], 'CASH');
-        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-130 days 10:00', ['Contrôle diabète'], 'Contrôle à 4 mois du diagnostic.', null, 'Insuline passée à 12 UI matin et soir.', [34.9, 38.6], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200]], 'CARD', diagnosis: 'Diabète sucré, équilibre partiel');
+        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-130 days 10:00', ['Contrôle diabète'], 'Contrôle à 4 mois du diagnostic.', null, 'Insuline passée à 12 UI matin et soir.', [34.9, 38.6], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200]], 'CARD', diagnosis: 'Diabète sucré, équilibre partiel', glycemia: 13.9);
         $this->counterSale($client, $who, '-115 days 12:00', [['Caninsulin 40 UI/mL — flacon 10 mL', 2, 5490], ['Seringues U40 — boîte de 30', 2, 1450]], 'CARD');
         $this->missed($client, $coco, $rousseau, '-104 days 18:00', 'Consultation', 'Non venu, sans prévenir · SMS de relance envoyé le lendemain');
         $this->visit($client, $who, $nala, 'Nala', $dupont, '-88 days 09:00', ['Vomissements'], 'Vomissements 2 à 3 fois par semaine depuis 2 mois.', 'Bon état général, palpation abdominale souple.', 'Régime d’éviction 8 semaines (protéine hydrolysée).', [4.3, 38.5], [['Consultation', 1, 5000], ['Hill’s z/d chat — sac 2 kg', 1, 2450]], null, diagnosis: 'Allergie alimentaire suspectée', prescribe: [['CERENIA-10', '1 mg/kg', '1×/j', 5, 'SC', 1.0]]);
-        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-76 days 17:45', ['Bilan thyroïdien'], 'Prise de poids, poil terne, abattement.', null, 'Contrôle T4 dans 6 semaines.', [35.1, 38.3], [['Consultation de suivi', 1, 3500], ['T4 totale et TSH', 1, 6400]], 'CARD', diagnosis: 'Hypothyroïdie');
+        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-76 days 17:45', ['Bilan thyroïdien'], 'Prise de poids, poil terne, abattement.', null, 'Contrôle T4 dans 6 semaines.', [35.1, 38.3], [['Consultation de suivi', 1, 3500], ['T4 totale et TSH', 1, 6400]], 'CARD', diagnosis: 'Hypothyroïdie', glycemia: 11.2);
         $this->visit($client, $who, $pepito, 'Pepito', $rousseau, '-63 days 11:30', ['Boiterie'], 'Boiterie depuis une chute au parc.', 'Douleur à la flexion du carpe, pas de crépitation.', 'Repos strict 10 jours, anti-inflammatoire 5 jours.', [7.2, 38.6], [['Consultation', 1, 5000], ['Radiographie du carpe', 1, 4600]], null, diagnosis: 'Entorse du carpe gauche', prescribe: [['MELOXIDYL-1', '0,1 mg/kg', '1×/j', 5, 'per os', 1.0]]);
 
         // Today: Oscar is in the consultation room.
-        $this->visit($client, $who, $oscar, 'Oscar', $rousseau, 'now', ['Contrôle diabète'], 'Contrôle à 2 mois de l’ajustement d’insuline.', null, null, [34.6, 38.7], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200], ['Caninsulin 40 UI/mL — flacon 10 mL', 2, 5490], ['Seringues U40 — boîte de 30', 1, 1450]], null, open: true);
+        $this->visit($client, $who, $oscar, 'Oscar', $rousseau, 'now', ['Contrôle diabète'], 'Contrôle à 2 mois de l’ajustement d’insuline.', null, null, [34.6, 38.7], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200], ['Caninsulin 40 UI/mL — flacon 10 mL', 2, 5490], ['Seringues U40 — boîte de 30', 1, 1450]], null, open: true, glycemia: 9.8);
 
         $this->upcoming($client, $oscar, $bernard, '+3 days 09:00', 'Courbe de glycémie', 'Hospitalisation de jour · venir à jeun avec l’insuline', 480);
         $this->upcoming($client, $nala, $dupont, '+7 days 18:30', 'Rappel typhus-coryza', 'Rappel SMS prévu la veille à 18:00');
@@ -257,7 +302,7 @@ final class ClientSheetStatesStory extends Story
             ['appointment_reminders' => ['sms'], 'clinical_documents' => ['email'], 'billing' => ['sms', 'email']]
         );
 
-        $moka = $this->animal($client, 'Moka', 'dog', 'female', 'intact', 'Golden retriever', '-10 weeks');
+        $moka = $this->animal($client, 'Moka', 'dog', 'female', 'intact', 'Golden retriever', '-10 weeks', color: 'Crème', microchip: '250268731000453');
 
         $this->upcoming($client, $moka, $this->user('contractor@kiveto.local'), '+1 day 09:30', 'Première consultation', 'Bilan de santé et première injection · apporter le carnet de l’éleveur');
     }
@@ -317,6 +362,8 @@ final class ClientSheetStatesStory extends Story
         string $breed,
         string $born,
         ?string $deceasedAt = null,
+        ?string $color = null,
+        ?string $microchip = null,
     ): string {
         $animalId = $this->commandBus->dispatch(new CreateAnimal(
             clinicId: self::PARIS,
@@ -327,9 +374,9 @@ final class ClientSheetStatesStory extends Story
             isMixedBreed: false,
             breedName: $breed,
             birthDate: $this->at($born)->format('Y-m-d'),
-            color: null,
+            color: $color,
             photoUrl: null,
-            microchipNumber: null,
+            microchipNumber: $microchip,
             tattooNumber: null,
             passportNumber: null,
             registryType: 'none',
@@ -350,6 +397,36 @@ final class ClientSheetStatesStory extends Story
         \assert(\is_string($animalId));
 
         return $animalId;
+    }
+
+    private function death(string $animalId, string $when, string $cause, string $disposal): void
+    {
+        $this->commandBus->dispatch(new UpdateAnimalLifeCycle(
+            clinicId: self::PARIS,
+            animalId: $animalId,
+            lifeStatus: 'deceased',
+            deceasedAt: $this->at($when)->format('Y-m-d'),
+            missingSince: null,
+            deathCause: $cause,
+            bodyDisposal: $disposal,
+        ));
+    }
+
+    private function insure(string $animalId, string $insurer, string $policyNumber): void
+    {
+        $this->commandBus->dispatch(new UpdateAnimalInsurance(clinicId: self::PARIS, animalId: $animalId, insurerName: $insurer, policyNumber: $policyNumber));
+    }
+
+    private function weigh(string $animalId, string $when, int $grams): void
+    {
+        $this->commandBus->dispatch(new RecordAnimalWeight(
+            clinicId: self::PARIS,
+            animalId: $animalId,
+            weightGrams: $grams,
+            measuredOn: $this->at($when)->format('Y-m-d'),
+            bodyConditionScore: null,
+            authorName: 'Julie Martin',
+        ));
     }
 
     private function alert(string $animalId, string $kind, string $label, string $note): void
@@ -399,6 +476,7 @@ final class ClientSheetStatesStory extends Story
         bool $open = false,
         ?string $diagnosis = null,
         array $prescribe = [],
+        ?float $glycemia = null,
     ): void {
         $at = $this->at($when);
 
@@ -418,6 +496,10 @@ final class ClientSheetStatesStory extends Story
         $this->commandBus->dispatch(new RecordChiefComplaint(consultationId: $consultationId, clinicId: self::PARIS, chiefComplaint: $complaint));
         $this->commandBus->dispatch(new UpdateConsultationMotifs(consultationId: $consultationId, clinicId: self::PARIS, labels: $motifs));
         $this->commandBus->dispatch(new RecordVitals(consultationId: $consultationId, clinicId: self::PARIS, weightKg: $vitals[0], temperatureC: $vitals[1]));
+
+        if (null !== $glycemia) {
+            $this->commandBus->dispatch(new RecordTypedVital(consultationId: $consultationId, clinicId: self::PARIS, type: 'GLYCEMIA', value: (string) $glycemia, recordedByUserId: $vetUserId));
+        }
 
         if (null !== $observations) {
             $this->commandBus->dispatch(new UpdateObjectiveObservations(consultationId: $consultationId, clinicId: self::PARIS, text: $observations));

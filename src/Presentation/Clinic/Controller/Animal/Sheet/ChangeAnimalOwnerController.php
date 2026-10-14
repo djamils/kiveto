@@ -72,6 +72,6 @@ final class ChangeAnimalOwnerController extends AbstractAnimalSheetAction
             $this->addFlash('error', 'Le changement de propriétaire n’a pas pu être enregistré.');
         }
 
-        return $this->backToSheet($id);
+        return $this->backToSheet($id, $changed ? 'head' : null);
     }
 }

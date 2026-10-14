@@ -7,7 +7,9 @@ namespace App\Context\Animal\Application\Command\UpdateAnimalLifeCycle;
 use App\Context\Animal\Domain\Exception\AnimalClinicMismatchException;
 use App\Context\Animal\Domain\Repository\AnimalRepositoryInterface;
 use App\Context\Animal\Domain\ValueObject\AnimalId;
+use App\Context\Animal\Domain\ValueObject\BodyDisposal;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
+use App\Context\Animal\Domain\ValueObject\DeathCause;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\LifeStatus;
 use App\Shared\Application\Bus\EventBusInterface;
@@ -46,6 +48,8 @@ final readonly class UpdateAnimalLifeCycleHandler
             lifeStatus: LifeStatus::from($command->lifeStatus),
             deceasedAt: $command->deceasedAt ? new \DateTimeImmutable($command->deceasedAt) : null,
             missingSince: $command->missingSince ? new \DateTimeImmutable($command->missingSince) : null,
+            deathCause: null === $command->deathCause ? null : DeathCause::from($command->deathCause),
+            bodyDisposal: null === $command->bodyDisposal ? null : BodyDisposal::from($command->bodyDisposal),
         );
 
         $animal->updateLifeCycle($lifeCycle, $now);

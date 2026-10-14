@@ -316,6 +316,8 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
             lifeStatus: $entity->getLifeStatus()->value,
             deceasedAt: $entity->getDeceasedAt()?->format(\DateTimeInterface::ATOM),
             missingSince: $entity->getMissingSince()?->format(\DateTimeInterface::ATOM),
+            deathCause: $entity->getDeathCause()?->value,
+            bodyDisposal: $entity->getBodyDisposal()?->value,
         );
 
         $transfer = new TransferDto(
@@ -372,6 +374,8 @@ final readonly class DoctrineAnimalReadRepository implements AnimalReadRepositor
             ownerships: $ownerships,
             createdAt: $entity->getCreatedAt()->format(\DateTimeInterface::ATOM),
             updatedAt: $entity->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            insurerName: $entity->getInsurerName(),
+            insurancePolicyNumber: $entity->getInsurancePolicyNumber(),
         );
     }
 

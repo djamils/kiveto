@@ -9,6 +9,7 @@ use App\Context\Animal\Domain\ValueObject\AnimalId;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
+use App\Context\Animal\Domain\ValueObject\Insurance;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\MedicalAlert;
 use App\Context\Animal\Domain\ValueObject\Ownership;
@@ -37,6 +38,8 @@ final class AnimalMapper
             lifeStatus: $entity->getLifeStatus(),
             deceasedAt: $entity->getDeceasedAt(),
             missingSince: $entity->getMissingSince(),
+            deathCause: $entity->getDeathCause(),
+            bodyDisposal: $entity->getBodyDisposal(),
         );
 
         // Map transfer
@@ -108,6 +111,9 @@ final class AnimalMapper
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
             medicalAlerts: $medicalAlerts,
+            insurance: null === $entity->getInsurerName()
+                ? null
+                : new Insurance($entity->getInsurerName(), $entity->getInsurancePolicyNumber() ?? ''),
         );
     }
 
@@ -141,6 +147,12 @@ final class AnimalMapper
         $entity->setLifeStatus($lifeCycle->lifeStatus);
         $entity->setDeceasedAt($lifeCycle->deceasedAt);
         $entity->setMissingSince($lifeCycle->missingSince);
+        $entity->setDeathCause($lifeCycle->deathCause);
+        $entity->setBodyDisposal($lifeCycle->bodyDisposal);
+
+        // Insurance
+        $entity->setInsurerName($animal->insurance()?->insurerName);
+        $entity->setInsurancePolicyNumber($animal->insurance()?->policyNumber);
 
         // Transfer
         $transfer = $animal->transfer();

@@ -12,6 +12,8 @@ final readonly class LifeCycle
         public LifeStatus $lifeStatus,
         public ?\DateTimeImmutable $deceasedAt,
         public ?\DateTimeImmutable $missingSince,
+        public ?DeathCause $deathCause = null,
+        public ?BodyDisposal $bodyDisposal = null,
     ) {
     }
 
@@ -35,7 +37,7 @@ final readonly class LifeCycle
 
     private function ensureAlive(): void
     {
-        if (null !== $this->deceasedAt || null !== $this->missingSince) {
+        if (null !== $this->deceasedAt || null !== $this->missingSince || $this->hasDeathDetails()) {
             throw new InvalidLifeStatusException('ALIVE status requires deceasedAt and missingSince to be null.');
         }
     }
@@ -51,10 +53,16 @@ final readonly class LifeCycle
 
     private function ensureMissing(): void
     {
-        if (null !== $this->deceasedAt || null === $this->missingSince) {
+        if (null !== $this->deceasedAt || null === $this->missingSince || $this->hasDeathDetails()) {
             throw new InvalidLifeStatusException(
                 'MISSING status requires missingSince to be set and deceasedAt to be null.'
             );
         }
+    }
+
+    /** The circumstances of a death and the body's disposal only describe a death. */
+    private function hasDeathDetails(): bool
+    {
+        return null !== $this->deathCause || null !== $this->bodyDisposal;
     }
 }

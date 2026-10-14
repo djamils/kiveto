@@ -245,7 +245,7 @@ final readonly class DirectoryViewBuilder
                 )),
                 'follow' => array_values(array_map(
                     static fn ($a): string => $a->label,
-                    array_filter($fact->alerts, static fn ($a): bool => 'ALLERGY' !== $a->kind),
+                    array_filter($fact->alerts, static fn ($a): bool => 'CHRONIC_CONDITION' === $a->kind),
                 )),
                 'visit' => isset($visits[$animal->id])
                     ? $this->ago(new \DateTimeImmutable($visits[$animal->id], new \DateTimeZone('UTC')), $tz, $now)

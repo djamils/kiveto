@@ -852,13 +852,21 @@ export function init() {
   majStats();
   ticker = setInterval(tick, 1000);
 
-  // « Arrivée » from the dashboard or the A key elsewhere opens the modal.
+  // « Arrivée » from the dashboard or the A key elsewhere opens the modal;
+  // « Nouvelle consultation » on an animal sheet also names the patient to search.
   const params = new URLSearchParams(window.location.search);
   if (params.has('arrivee')) {
+    const patient = params.get('patient');
     params.delete('arrivee');
+    params.delete('patient');
     const q = params.toString();
     window.history.replaceState(window.history.state, '', window.location.pathname + (q ? '?' + q : ''));
     ouvrirArrivee();
+    if (patient) {
+      const input = $('#ciSearch');
+      input.value = patient;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 }
 

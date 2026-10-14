@@ -21,6 +21,7 @@ use App\Context\Animal\Domain\ValueObject\AnimalStatus;
 use App\Context\Animal\Domain\ValueObject\AuxiliaryContact;
 use App\Context\Animal\Domain\ValueObject\ClinicId;
 use App\Context\Animal\Domain\ValueObject\Identification;
+use App\Context\Animal\Domain\ValueObject\Insurance;
 use App\Context\Animal\Domain\ValueObject\LifeCycle;
 use App\Context\Animal\Domain\ValueObject\MedicalAlert;
 use App\Context\Animal\Domain\ValueObject\Ownership;
@@ -39,6 +40,8 @@ final class Animal extends AggregateRoot
 
     /** @var list<MedicalAlert> */
     private array $medicalAlerts = [];
+
+    private ?Insurance $insurance = null;
 
     private function __construct(
         private readonly AnimalId $id,
@@ -232,6 +235,11 @@ final class Animal extends AggregateRoot
         return $this->medicalAlerts;
     }
 
+    public function insurance(): ?Insurance
+    {
+        return $this->insurance;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -302,6 +310,15 @@ final class Animal extends AggregateRoot
         $lifeCycle->ensureConsistency();
 
         $this->lifeCycle = $lifeCycle;
+        $this->updatedAt = $now;
+    }
+
+    /** A null insurance means the animal is not insured (or no longer). */
+    public function updateInsurance(?Insurance $insurance, \DateTimeImmutable $now): void
+    {
+        $this->ensureNotArchived();
+
+        $this->insurance = $insurance;
         $this->updatedAt = $now;
     }
 
@@ -551,6 +568,7 @@ final class Animal extends AggregateRoot
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
         array $medicalAlerts = [],
+        ?Insurance $insurance = null,
     ): self {
         $animal = new self(
             id: $id,
@@ -575,6 +593,7 @@ final class Animal extends AggregateRoot
 
         $animal->ownerships    = $ownerships;
         $animal->medicalAlerts = $medicalAlerts;
+        $animal->insurance     = $insurance;
 
         return $animal;
     }

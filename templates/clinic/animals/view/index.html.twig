@@ -1,79 +1,180 @@
 {#
  # Kiveto — templates/clinic/animals/view/index.html.twig
  # ─────────────────────────────────────────────────────
- # Animal sheet, laid out after the new-gen v14 mock-up
- # (docs/frontend-theme/vetsaas-layouts/new-gen/vetos-fiche-animal-v14.html).
- # It shares its style sheet, macros and page script with the client sheet.
+ # Animal sheet, ported from docs/frontend-theme/kiveto-theme/animal-v-topbar_5.html
+ # (and its -busy / -vierge variants, which are the same page with more or no
+ # data): identity header, medical synthesis band (problems, long-term
+ # treatments, allergies, behaviour, next appointment), then four tabs —
+ # history with expandable rows, prevention, curves, documents.
+ #
+ # The page module (assets/js/pages/animals/sheet.js) renders it from the
+ # `data-sheet` payload built by AnimalSheetBuilder, as the mock-up renders it
+ # from its demo data. Every change is a real form below, posted to its
+ # single-action controller, which comes back here with ?saved=<card>.
  #
  # Variables:
  #   animal             AnimalView
  #   sheet              array built by AnimalSheetBuilder
- #   activeTab          string  one of the pane ids below
+ #   activeTab          string  chrono | prev | courbes | docs
+ #   savedCard          string  card to flash as saved ('' if none)
  #   today              string  Y-m-d in clinic time
  #   currentClinicName  string
+ #
+ # Styles: assets/styles/pages/dossier.css (shared with the client sheet).
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{% set tabs = {
-  synthese: 'Synthèse',
-  medical: 'Médical',
-  prevention: 'Prévention',
-  documents: 'Documents',
-} %}
-{% set current_tab = activeTab in tabs|keys ? activeTab : 'synthese' %}
-
+{% block page_body_class %}vt{% endblock %}
 {% block title %}{{ animal.name }} — {{ currentClinicName }}{% endblock %}
 
-{% block page_title %}{{ animal.name }}{% endblock %}
+{% set token = csrf_token('animal_sheet') %}
+{% set editable = sheet.animal.editable %}
+{% set xb = '<button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' %}
 
-{% block content %}
-<div class="fc fc-page" data-fc-sheet>
+{% block main %}
+<div class="dossier" data-page="{{ app.request.attributes.get('_route') }}"
+     data-sheet="{{ sheet|json_encode }}"
+     data-saved="{{ savedCard }}"
+     data-tab="{{ activeTab }}"
+     data-appt-token="{{ csrf_token('appointment') }}">
 
-  {{ include('clinic/animals/view/_header.html.twig') }}
-
-  <div class="fc-scroll" data-fc-scroll>
-    <div class="fc-stuck">
-      <div class="fc-safety{{ sheet.safety.pills|filter(p => p.level == 'crit')|length == 0 ? ' fc-none' }}">
-        {% for pill in sheet.safety.pills %}
-          <span class="fc-sf fc-{{ pill.level }}">
-            {% if pill.level == 'crit' %}
-              <svg width="12" height="12" fill="none" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5.6v3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="currentColor"/><path d="M6.9 2.7L1.8 11.9a1.2 1.2 0 001 1.8h10.4a1.2 1.2 0 001-1.8L9.1 2.7a1.2 1.2 0 00-2.2 0z" stroke="currentColor" stroke-width="1.35"/></svg>
-            {% endif %}
-            {{ pill.label }}
-          </span>
-        {% endfor %}
-        <span class="fc-sf-meta">{{ sheet.safety.meta }}</span>
-      </div>
-      <div class="fc-tabs" role="tablist" aria-label="Sections du dossier">
-        {% for id, label in tabs %}
-          <button class="fc-tab" type="button" role="tab" id="fc-tab-{{ id }}" data-fc-tab="{{ id }}"
-                  aria-selected="{{ id == current_tab ? 'true' : 'false' }}" aria-controls="fc-p-{{ id }}"
-                  tabindex="{{ id == current_tab ? '0' : '-1' }}">
-            {{- label -}}
-            {%- if id == 'medical' and sheet.history.total > 0 -%}
-              <span class="fc-n">{{ sheet.history.total }}</span>
-            {%- elseif id == 'prevention' and sheet.prevention.lateCount > 0 -%}
-              <span class="fc-n fc-hot">{{ sheet.prevention.lateCount }}</span>
-            {%- elseif id == 'documents' and sheet.documents|length > 0 -%}
-              <span class="fc-n">{{ sheet.documents|length }}</span>
-            {%- endif -%}
-          </button>
-        {% endfor %}
-      </div>
+  <div class="pagehead dos-h">
+    <div class="ph-id"><span class="ph-av" id="phAv"></span><div style="min-width:0"><h1 id="phNom"></h1><div class="ph-facts" id="phFacts"></div></div></div>
+    <div class="right" style="align-items:center">
+      <button type="button" class="btn" id="btnMenu" aria-label="Plus d'actions">&#8943;</button>
+      <a class="btn" id="btnRdv" href="{{ sheet.animal.urls.book }}"></a>
+      <a class="btn primaire" id="btnCons" href="{{ sheet.animal.urls.cons }}"></a>
     </div>
-
-    {% for id in tabs|keys %}
-      <div class="fc-pane{{ id == current_tab ? ' fc-on' }}" id="fc-p-{{ id }}" role="tabpanel" aria-labelledby="fc-tab-{{ id }}">
-        {{ include('clinic/animals/view/_tab_' ~ id ~ '.html.twig') }}
-      </div>
-    {% endfor %}
+  </div>
+  <div id="dcdBand"></div>
+  <div class="dos" style="flex-direction:column">
+    <section class="card synb" id="cSyn"></section>
+    <div class="dtabs" id="tabs">
+      <button type="button" data-t="chrono" class="on">Historique <span class="n" id="nChrono"></span></button>
+      <button type="button" data-t="prev">Vaccins et prévention <span class="n" id="nPrev"></span></button>
+      <button type="button" data-t="courbes">Courbes</button>
+      <button type="button" data-t="docs">Documents <span class="n" id="nDocs"></span></button>
+    </div>
+    <div class="tabp on" id="p-chrono"><section class="card"><header><div class="fil chips" id="fil"></div><div class="r"><span id="chronoInfo" style="font-size:.74rem;color:var(--encre-60)"></span></div></header><div class="cb scr"><div class="rows" id="rows"></div></div></section></div>
+    <div class="tabp" id="p-prev"><section class="card"><div class="cb scr" id="prev"></div></section></div>
+    <div class="tabp" id="p-courbes"><div class="charts scr" id="charts"></div></div>
+    <div class="tabp" id="p-docs"><section class="card"><div class="cb scr"><div class="docs" id="docs"></div></div></section></div>
   </div>
 
-</div>
-{% endblock %}
+  {# ══ Identité ══ #}
+  <div class="mveil" id="mId"><div class="mbox" style="width:min(600px,94vw)" role="dialog" aria-modal="true" aria-labelledby="idT">
+    <div class="mhead"><div class="mt"><b id="idT">Identité</b><span id="idSub">—</span></div>{{ xb|raw }}</div>
+    <div class="mbody fg" id="idForm"></div>
+    <div class="mfoot"><span class="meta" id="idMeta"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="idOk">Enregistrer</button></div>
+  </div></div>
+  <form id="idPost" method="post" action="{{ path('clinic_animals_profile_update', {id: animal.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+    {% for f in ['name', 'species', 'breed', 'color', 'sex', 'neutered', 'birth_date', 'microchip', 'insurer', 'policy_number'] %}<input type="hidden" name="{{ f }}">{% endfor %}
+  </form>
 
-{% block modals %}
-<div class="fc" data-fc-modals>
-  {{ include('clinic/animals/view/_modals.html.twig') }}
+  {# ══ Déclarer le décès ══ #}
+  <div class="mveil" id="mDcd"><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="dcdT">
+    <div class="mhead"><div class="mt"><b id="dcdT">Déclarer le décès</b><span id="dcdSub">—</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="dcdForm" method="post" action="{{ path('clinic_animals_death_declare', {id: animal.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="cause" value="euthanasia">
+      <input type="hidden" name="body" value="individual_cremation">
+      <div><label class="flbl" for="dcdDate">Date du décès</label><input class="finput" type="date" id="dcdDate" name="deceased_on" value="{{ today }}" max="{{ today }}" style="width:180px"></div>
+      <div><label class="flbl">Circonstances</label><div class="seg" id="dcdCause" data-seg="cause"><button type="button" data-v="euthanasia" class="on">Euthanasie</button><button type="button" data-v="natural">Mort naturelle</button><button type="button" data-v="accident">Accident</button><button type="button" data-v="unknown">Inconnues</button></div></div>
+      <div><label class="flbl">Devenir du corps</label><div class="seg" id="dcdCorps" data-seg="body"><button type="button" data-v="individual_cremation" class="on">Crémation individuelle</button><button type="button" data-v="collective_cremation">Crémation collective</button><button type="button" data-v="returned_to_owner">Restitué au propriétaire</button></div></div>
+      <p style="font-size:.8rem;color:var(--encre-60);line-height:1.5">Les rendez-vous à venir sont annulés et le dossier passe en lecture seule. Rien n'est supprimé.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="dcdOk">Enregistrer le décès</button></div>
+  </div></div>
+
+  {# ══ Changer de propriétaire ══ #}
+  <div class="mveil" id="mProprio"><div class="mbox" style="width:min(520px,94vw)" role="dialog" aria-modal="true" aria-labelledby="prT">
+    <div class="mhead"><div class="mt"><b id="prT">Changer de propriétaire</b><span>{{ animal.name }} · l'historique médical suit l'animal</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="prForm" method="post" action="{{ path('clinic_animals_owner_change', {id: animal.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <div class="combobox"
+           data-controller="client-search-autocomplete"
+           data-client-search-autocomplete-url-value="{{ path('api_clinic_clients_search') }}"
+           data-client-search-autocomplete-min-chars-value="2">
+        <label class="flbl" for="prSearch">Nouveau propriétaire <span class="req">*</span></label>
+        <input type="hidden" name="owner_id" id="prOwner" data-client-search-autocomplete-target="hiddenInput">
+        <input class="finput" id="prSearch" type="text" placeholder="Rechercher un client du répertoire…"
+               role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="prList" autocomplete="off"
+               data-client-search-autocomplete-target="input"
+               data-action="input->client-search-autocomplete#onInput keydown->client-search-autocomplete#onKeydown focus->client-search-autocomplete#onFocus">
+        <ul id="prList" class="autocomplete-listbox hidden" role="listbox" data-client-search-autocomplete-target="dropdown"></ul>
+        <div class="sr-only" aria-live="polite" data-client-search-autocomplete-target="liveRegion"></div>
+        <small class="ferr" id="prErr"></small>
+      </div>
+      <p style="font-size:.8rem;color:var(--encre-60);line-height:1.5">Cession ou don. Les factures déjà émises restent au nom de l'ancien propriétaire ; les rendez-vous pris ne changent pas. Si le client n'existe pas encore, créez sa fiche dans le répertoire.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="prOk">Transférer</button></div>
+  </div></div>
+
+  {# ══ Nouvelle pesée ══ #}
+  <div class="mveil" id="mPoids"><div class="mbox" style="width:min(480px,94vw)" role="dialog" aria-modal="true" aria-labelledby="wT">
+    <div class="mhead"><div class="mt"><b id="wT">Nouvelle pesée</b><span id="wSub">{{ animal.name }}</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="wForm" method="post" action="{{ path('clinic_animals_weight_record', {id: animal.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="body_condition_score" value="">
+      <div class="f2">
+        <div><label class="flbl" for="f_wkg">Poids (kg) <span class="req">*</span></label><input class="finput" id="f_wkg" name="weight" data-k="wkg" data-m="kg" data-req="1" inputmode="decimal" maxlength="8" autocomplete="off" placeholder="Ex. 14,2"><small class="ferr"></small></div>
+        <div><label class="flbl" for="f_wday">Date</label><input class="finput" id="f_wday" name="measured_on" type="date" value="{{ today }}" max="{{ today }}"><small class="ferr"></small></div>
+      </div>
+      <div><label class="flbl">Note d'état corporel <span class="opt">· facultatif</span></label><div class="seg" data-seg="body_condition_score"><button type="button" data-v="" class="on">—</button>{% for n in 1..9 %}<button type="button" data-v="{{ n }}">{{ n }}</button>{% endfor %}</div><small style="display:block;font-size:.72rem;color:var(--encre-60);margin-top:5px">Échelle de 1 à 9 · 4 à 5 correspond à un poids idéal.</small></div>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="wOk">Enregistrer la pesée</button></div>
+  </div></div>
+
+  {# ══ Vaccin ou antiparasitaire ══ #}
+  <div class="mveil" id="mPrev"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="pvT">
+    <div class="mhead"><div class="mt"><b id="pvT">Vaccin ou antiparasitaire</b><span>Administré à {{ animal.name }} · ajouté au tableau de prévention</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="pvForm" method="post" action="{{ path('clinic_animals_preventive_care_record', {id: animal.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="kind" value="vaccination">
+      <div><label class="flbl">Nature</label><div class="seg" data-seg="kind"><button type="button" data-v="vaccination" class="on">Vaccin</button><button type="button" data-v="internal_parasite">Vermifuge</button><button type="button" data-v="external_parasite">Puces et tiques</button><button type="button" data-v="other">Autre</button></div></div>
+      <div><label class="flbl" for="f_pvl">Protection <span class="req">*</span></label><input class="finput" id="f_pvl" name="label" data-k="pvl" data-m="txt" data-req="1" maxlength="120" autocomplete="off" placeholder="Ex. CHPPiL, Rage, Vermifugation"><small class="ferr"></small><small style="display:block;font-size:.72rem;color:var(--encre-60);margin-top:4px">Le même intitulé d'une fois sur l'autre : le tableau garde le dernier acte de chaque protection.</small></div>
+      <div class="f2">
+        <div><label class="flbl" for="f_pvd">Administré le <span class="req">*</span></label><input class="finput" id="f_pvd" name="administered_on" type="date" value="{{ today }}" max="{{ today }}" data-k="pvd" data-req="1"><small class="ferr"></small></div>
+        <div><label class="flbl" for="f_pvn">Prochaine échéance <span class="opt">· facultatif</span></label><input class="finput" id="f_pvn" name="next_due_on" type="date" min="{{ today }}"><small class="ferr"></small></div>
+      </div>
+      <div><label class="flbl" for="f_pvlot">Numéro de lot <span class="opt">· facultatif</span></label><input class="finput" id="f_pvlot" name="batch_number" maxlength="60" autocomplete="off"></div>
+      <p style="font-size:.76rem;color:var(--encre-60);line-height:1.5">Une date reportée d'un carnet est déclarative : elle ne vaut pas preuve de vaccination.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="pvOk">Enregistrer</button></div>
+  </div></div>
+
+  {# ══ Encaisser (unpaid invoice of a visit) ══ #}
+  <div class="mveil" id="mEnc"><div class="mbox" style="width:min(440px,94vw)" role="dialog" aria-modal="true" aria-labelledby="encT">
+    <div class="mhead"><div class="mt"><b id="encT">Encaisser</b><span id="encS"></span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="encForm" method="post" action="{{ path('clinic_animals_payment_record', {id: animal.id}) }}">
+      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="invoice_id" id="encInv">
+      <input type="hidden" name="amount" id="encAmt">
+      <input type="hidden" name="method" id="encMeth" value="CARD">
+      <div class="enc-tot"><span>Montant dû</span><b id="encM"></b></div>
+      <div><label class="flbl">Mode de paiement</label><div class="seg" id="encMode"><button type="button" data-v="CARD" class="on">Carte</button><button type="button" data-v="CASH">Espèces</button><button type="button" data-v="CHECK">Chèque</button><button type="button" data-v="TRANSFER">Virement</button></div></div>
+      <p style="font-size:.76rem;color:var(--encre-60);line-height:1.5">La facture passe en réglée. Même encaissement que dans Facturation.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="encOk">Encaisser</button></div>
+  </div></div>
+
+  {# ══ Aperçu (ordonnance) ══ #}
+  <div class="mveil" id="mApercu"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="apT">
+    <div class="mhead"><div class="mt"><b id="apT"></b><span id="apS"></span></div>{{ xb|raw }}</div>
+    <div class="mbody" id="apB"></div>
+    <div class="mfoot" id="apF"></div>
+  </div></div>
+  <form id="renewForm" method="post" hidden><input type="hidden" name="_token" id="renewTok"></form>
+
+  {# ══ Forms the synthesis card and the menu post ══ #}
+  <form id="synPost" method="post" action="{{ path('clinic_animals_synthesis_update', {id: animal.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+  </form>
+  {% if sheet.animal.archived == false %}
+    <form id="archForm" method="post" action="{{ path('clinic_animals_archive', {id: animal.id}) }}" hidden>
+      <input type="hidden" name="_token" value="{{ csrf_token('clinic_animal_form') }}">
+    </form>
+  {% endif %}
 </div>
 {% endblock %}

@@ -10,7 +10,7 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
 - **Cycle de vie** : Statut de vie (vivant/décédé/disparu) avec dates
 - **Transfert** : Statut de cession (vendu/donné) avec dates
 - **Ownerships** : Gestion des propriétaires primaires et secondaires
-- **Alertes médicales** : Allergies et affections chroniques durables du patient
+- **Alertes médicales** : Allergies, problèmes actifs, traitements au long cours et comportement du patient (les quatre colonnes de la synthèse médicale)
 - **Contact auxiliaire** : Contact local non-propriétaire optionnel
 - **Scoping multi-clinique** : Toutes les opérations sont scopées par `ClinicId`
 - **Integration Events** : Consommation d'événements cross-BC (archivage client)
@@ -37,6 +37,8 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
 - **LifeCycle** : Cycle de vie de l'animal
 - **LifeStatus** : `ALIVE` | `DECEASED` | `MISSING`
 - **DeceasedAt** : Date de décès (si DECEASED)
+- **DeathCause** / **BodyDisposal** : circonstances du décès (`euthanasia` | `natural` | `accident` | `unknown`) et devenir du corps (`individual_cremation` | `collective_cremation` | `returned_to_owner`), facultatifs, réservés à un animal décédé
+- **Insurance** : assurance santé de l'animal (assureur et n° de contrat de 4 à 20 caractères), modifiée par `UpdateAnimalInsurance` ; absente si l'animal n'est pas assuré
 - **MissingSince** : Date de disparition (si MISSING)
 - **Transfer** : Information de cession
 - **TransferStatus** : `NONE` | `SOLD` | `GIVEN`
@@ -51,7 +53,7 @@ Le Bounded Context **Animal** gère les patients animaux dans le système multi-
 
 ### Alertes médicales
 - **MedicalAlert** : Signalement médical durable porté par l'animal (identifiant, type, libellé, note optionnelle)
-- **MedicalAlertKind** : `ALLERGY` | `CHRONIC_CONDITION`
+- **MedicalAlertKind** : `ALLERGY` | `CHRONIC_CONDITION` | `LONG_TERM_TREATMENT` | `BEHAVIOR`
 - Un même couple type + libellé ne peut être enregistré deux fois (`DuplicateMedicalAlertException`)
 - Ajout et retrait interdits sur un animal archivé
 - `MedicalAlert::matchesSubstance()` fait une correspondance textuelle simple (le libellé de
@@ -170,7 +172,7 @@ src/Animal/
 3. `RegistryType≠NONE` ⇒ `RegistryNumber` peut être renseigné
 
 ### Cycle de vie
-1. `LifeStatus=ALIVE` ⇒ `DeceasedAt=null` et `MissingSince=null`
+1. `LifeStatus=ALIVE` ⇒ `DeceasedAt=null` et `MissingSince=null` (et ni circonstances ni devenir du corps)
 2. `LifeStatus=DECEASED` ⇒ `DeceasedAt≠null` et `MissingSince=null`
 3. `LifeStatus=MISSING` ⇒ `MissingSince≠null` et `DeceasedAt=null`
 

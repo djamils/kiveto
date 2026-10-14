@@ -10,6 +10,8 @@ final readonly class LifeCycleDto
         public string $lifeStatus,
         public ?string $deceasedAt,
         public ?string $missingSince,
+        public ?string $deathCause = null,
+        public ?string $bodyDisposal = null,
     ) {
     }
 }

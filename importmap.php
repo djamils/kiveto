@@ -69,8 +69,8 @@ return [
     'pages/clients/list' => [
         'path' => './assets/js/pages/clients/list.js',
     ],
-    'pages/clients/view' => [
-        'path' => './assets/js/pages/clients/view.js',
+    'pages/animals/sheet' => [
+        'path' => './assets/js/pages/animals/sheet.js',
     ],
     'pages/clients/sheet' => [
         'path' => './assets/js/pages/clients/sheet.js',

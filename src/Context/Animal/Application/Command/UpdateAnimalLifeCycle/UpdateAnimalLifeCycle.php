@@ -14,6 +14,8 @@ final readonly class UpdateAnimalLifeCycle implements CommandInterface
         public string $lifeStatus,
         public ?string $deceasedAt,
         public ?string $missingSince,
+        public ?string $deathCause = null,
+        public ?string $bodyDisposal = null,
     ) {
     }
 }

@@ -27,7 +27,7 @@ final class RecordAnimalPreventiveCareController extends AbstractAnimalSheetActi
         $animal = $this->animal($id);
 
         if (!$this->isOpen($animal)) {
-            return $this->refuseClosedFile($id, 'prevention');
+            return $this->refuseClosedFile($id);
         }
 
         $recorded = $this->attempt(fn () => $this->commandBus->dispatch(new RecordPreventiveCare(
@@ -51,6 +51,6 @@ final class RecordAnimalPreventiveCareController extends AbstractAnimalSheetActi
             );
         }
 
-        return $this->backToSheet($id, 'prevention');
+        return $this->backToSheet($id, $recorded ? 'p-prev' : null, 'prev');
     }
 }

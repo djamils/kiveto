@@ -29,6 +29,8 @@ final readonly class AnimalView
         public array $ownerships,
         public string $createdAt,
         public string $updatedAt,
+        public ?string $insurerName = null,
+        public ?string $insurancePolicyNumber = null,
     ) {
     }
 

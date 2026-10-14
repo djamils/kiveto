@@ -55,6 +55,6 @@ final class RecordAnimalWeightController extends AbstractAnimalSheetAction
             $this->addFlash('error', 'La pesée n’a pas pu être enregistrée : vérifiez le poids et la date, qui ne peut pas être future.');
         }
 
-        return $this->backToSheet($id);
+        return $this->backToSheet($id, $recorded ? 'head' : null, $recorded ? 'courbes' : null);
     }
 }
