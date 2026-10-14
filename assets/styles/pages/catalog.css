@@ -18,27 +18,12 @@
 /* ── Zone : tableau + fiche ── */
 .cata .czone{flex:1;min-height:0;display:flex;background:var(--carte)}
 .cata .ctw thead th.num{text-align:right}
-.cata .ctw thead th.sortable{cursor:pointer;user-select:none}
-.cata .ctw thead th.sortable:hover{color:var(--encre-60)}
-.cata .ctw thead th.son{color:var(--pin-fonce)}
-.cata .ctw thead th .sarr{display:inline-block;margin-left:4px;font-size:.7rem}
-.cata .ctw tbody tr.arch td{color:var(--encre-35)}
-.cata .ctw tbody tr.arch .cid b{color:var(--encre-60)}
-.cata .cid{display:flex;flex-direction:column;min-width:0;max-width:460px}
-.cata .cid > b{font-weight:600;font-size:.84rem;display:flex;align-items:center;gap:6px}
-.cata .cid > span{font-size:.73rem;color:var(--encre-60);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.45}
-.cata .czone.ouvert .cid{max-width:280px}
 .cata .cnum .fut{color:var(--pin);font-weight:600}
-.cata .cid code,.cata .code{font-family:var(--font-data);font-size:.7rem;color:var(--encre-60)}
 .cata .wdot{width:16px;height:16px;border-radius:50%;background:var(--ambre-pale);color:var(--ambre);display:inline-grid;place-items:center;flex:none}
 .cata .wdot svg{width:10px;height:10px}
-.cata .cnum b{display:block;font-family:var(--font-data);font-size:.82rem;font-weight:600;color:var(--encre);white-space:nowrap}
-.cata .cnum span{display:block;font-size:.7rem;color:var(--encre-35);margin-top:2px;white-space:nowrap}
-.cata .cnum.mute b{color:var(--encre-35);font-weight:500}
 .cata .puce.ag{background:#fef2f2;color:#b91c1c}
 .cata .puce.lg{background:#f0fdf4;color:#15803d}
 .cata .puce.asv{background:#ecfeff;color:#0e7490}
-.cata .puce.froid{background:#ecfeff;color:#0e7490}
 .cata .puce.int{background:#f5f3ff;color:#6d28d9}
 .cata .fam{font-size:.78rem;color:var(--encre-60);white-space:nowrap}
 .cata .fam i{font-style:normal;font-family:var(--font-data);font-size:.7rem;color:var(--encre-35);margin-left:4px}
@@ -58,7 +43,6 @@
 .cata .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:11px}
 .cata .fs .frow{margin-bottom:11px}
 .cata .fs .frow2:last-child,.cata .fs .frow3:last-child{margin-bottom:0}
-.cata .fs .finput{padding:8px 10px;font-size:.85rem}
 .cata .ro{display:flex;align-items:center;gap:7px;min-height:36px;padding:0 10px;border-radius:8px;background:#f8fafc;border:1px dashed var(--trait);font-size:.84rem;color:var(--encre)}
 .cata .ro svg{width:12px;height:12px;color:var(--encre-35);flex:none;margin-left:auto}
 .cata .ro.mono{font-family:var(--font-data);font-size:.78rem}
@@ -71,10 +55,6 @@
 .cata .calc .ok{color:#15803d}
 .cata .calc .ko{color:#b91c1c}
 .cata .bandeau.reg{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
-.cata .bandeau .act{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap}
-.cata .bandeau .act button{height:28px;padding:0 11px;border-radius:7px;font-size:.77rem;font-weight:600;background:var(--carte);border:1px solid currentColor}
-.cata .bandeau.warn .act button.p{background:#c2410c;border-color:#c2410c;color:#fff}
-.cata .bandeau.warn .act button.p:hover{background:#9a3412}
 .cata .lockt{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:4px;background:#f0fdf4;color:#15803d;font-size:.68rem;font-weight:600}
 .cata .lockt svg{width:10px;height:10px}
 .cata .tbl{width:100%;border-collapse:collapse;font-size:.8rem}
@@ -82,29 +62,9 @@
 .cata .tbl td{padding:5px 6px;border-top:1px solid var(--brume);vertical-align:middle}
 .cata .tbl .num{text-align:right}
 .cata .tbl .finput{padding:6px 8px;font-size:.8rem}
-.cata .lst{display:flex;flex-direction:column}
-.cata .addl{display:flex;align-items:center;gap:7px;margin-top:9px;height:32px;padding:0 11px;border-radius:8px;border:1px dashed #c7d2fe;color:var(--pin);font-size:.8rem;font-weight:600;width:100%}
-.cata .addl:hover{background:var(--pin-pale)}
-.cata .addl svg{width:14px;height:14px}
-.cata .hist{font-size:.76rem;color:var(--encre-60)}
-.cata .hist div{display:flex;gap:10px;padding:4px 0}
-.cata .hist div span:first-child{min-width:86px;font-family:var(--font-data);font-size:.72rem;color:var(--encre-35)}
-.cata .hist div b{font-family:var(--font-data);font-weight:500;color:var(--encre)}
 .cata .fi-foot .dirty{font-size:.74rem;color:var(--encre-60);display:none}
 .cata .fi-foot.d .dirty{display:block}
 /* ── Sélecteur de prestation (popover) ── */
-.cata .pick{position:fixed;z-index:130;width:380px;background:var(--carte);border:1px solid var(--trait);border-radius:11px;box-shadow:0 18px 50px rgba(15,23,42,.2);display:none;overflow:hidden}
-.cata .pick.open{display:block}
-.cata .pick .crech{max-width:none;margin:8px;background:var(--brume)}
-.cata .pick-l{max-height:290px;overflow-y:auto;padding:0 4px 4px}
-.cata .pick-it{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:7px;text-align:left}
-.cata .pick-it:hover,.cata .pick-it.hl{background:var(--pin-pale)}
-.cata .pick-it .lt{flex:1;min-width:0}
-.cata .pick-it .lt b{display:block;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cata .pick-it .lt span{display:block;font-size:.7rem;color:var(--encre-60)}
-.cata .pick-it .m{font-family:var(--font-data);font-size:.76rem;color:var(--encre-60)}
-.cata .pick-it .k{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:4px;background:var(--brume);color:var(--encre-60)}
-.cata .pick-vide{padding:16px;text-align:center;font-size:.8rem;color:var(--encre-60)}
 /* ── Grilles tarifaires ── */
 .cata .gview{flex:1;min-height:0;display:none;background:var(--brume)}
 .cata .gview.on{display:flex}
@@ -135,7 +95,6 @@
 .cata .rvprev .tbl td,.cata .rvprev .tbl th{padding:6px 10px}
 .cata .rvprev .tbl th{padding-top:8px;position:sticky;top:0;background:var(--carte)}
 .cata .mbox.large{width:min(640px,94vw)}
-.cata .mbody .seg{margin-top:0}
 /* ── What the clinic cannot set yet: drawn, but inert ── */
 .cata .soon{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:600;font-size:.66rem;color:var(--encre-35);background:var(--brume);border-radius:4px;padding:2px 7px}
 .cata .fs.off .finput,.cata .fs .off .finput,.cata .finput:disabled{background:#f8fafc;color:var(--encre-35);cursor:not-allowed}

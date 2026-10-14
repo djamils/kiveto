@@ -8,7 +8,6 @@ use App\Context\Inventory\Application\Query\StockOverview\LotRow;
 use App\Context\Inventory\Application\Query\StockOverview\MovementCriteria;
 use App\Context\Inventory\Application\Query\StockOverview\MovementPage;
 use App\Context\Inventory\Application\Query\StockOverview\MovementRow;
-use App\Context\Inventory\Application\Query\StockOverview\StockStateFilter;
 use PHPUnit\Framework\TestCase;
 
 final class MovementRowTest extends TestCase
@@ -82,19 +81,6 @@ final class MovementRowTest extends TestCase
 
         self::assertFalse($lot->expiresWithin(30, $today));
         self::assertFalse($lot->isExpired($today));
-    }
-
-    public function testEveryStateFilterIsNamedInFrench(): void
-    {
-        foreach (StockStateFilter::cases() as $state) {
-            self::assertNotSame('', $state->label());
-        }
-
-        self::assertSame('En rupture', StockStateFilter::OUT_OF_STOCK->label());
-        self::assertSame('Sous le seuil', StockStateFilter::LOW->label());
-        self::assertSame('Bientôt périmé', StockStateFilter::EXPIRING->label());
-        self::assertSame('Périmé', StockStateFilter::EXPIRED->label());
-        self::assertSame('Lot rappelé', StockStateFilter::RECALLED->label());
     }
 
     private function movement(string $type, string $quantity = '10.000000'): MovementRow

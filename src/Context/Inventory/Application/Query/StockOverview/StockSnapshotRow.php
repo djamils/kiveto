@@ -28,6 +28,7 @@ final readonly class StockSnapshotRow
         public ?string $earliestExpiry,
         public int $expiredLotCount,
         public int $recalledLotCount,
+        public ?string $location = null,
     ) {
     }
 

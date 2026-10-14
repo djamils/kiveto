@@ -13,10 +13,12 @@ enum MovementReason: string
 
     // OUT
     case CONSUMPTION_CONSULTATION  = 'CONSUMPTION_CONSULTATION';
+    case CONSUMPTION_INTERNAL      = 'CONSUMPTION_INTERNAL';
     case SALE_RETAIL               = 'SALE_RETAIL';
     case LOSS_EXPIRY               = 'LOSS_EXPIRY';
     case LOSS_BREAKAGE             = 'LOSS_BREAKAGE';
     case LOSS_THEFT                = 'LOSS_THEFT';
+    case RETURN_TO_SUPPLIER        = 'RETURN_TO_SUPPLIER';
     case RECALL_RETURN_TO_SUPPLIER = 'RECALL_RETURN_TO_SUPPLIER';
 
     // ADJUSTMENT

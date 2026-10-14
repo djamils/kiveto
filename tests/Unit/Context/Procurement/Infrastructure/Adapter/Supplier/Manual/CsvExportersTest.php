@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Procurement\Infrastructure\Adapter\Supplier\Manual;
 
+use App\Context\Procurement\Application\Port\SupplierCatalogReadRepositoryInterface;
 use App\Context\Procurement\Domain\PurchaseOrder\PurchaseOrder;
 use App\Context\Procurement\Domain\PurchaseOrder\ValueObject\ExternalReference;
 use App\Context\Procurement\Domain\PurchaseOrder\ValueObject\PurchaseOrderId;
@@ -82,6 +83,31 @@ final class CsvExportersTest extends TestCase
         // Active line included; cancelled line skipped
         self::assertStringContainsString(self::CATALOG_UUID, $capturedContent);
         self::assertSame(1, substr_count($capturedContent, self::CATALOG_UUID));
+    }
+
+    public function testTheFileNamesEachProductAsTheSupplierCatalogueDoes(): void
+    {
+        $files   = [];
+        $storage = $this->createStub(FileStorageInterface::class);
+        $storage->method('store')->willReturnCallback(static function (string $filename, string $content) use (&$files): string {
+            $files[] = $content;
+
+            return 'file-id';
+        });
+        $storage->method('getUrl')->willReturn('https://files.example/file-id');
+
+        $catalog = $this->createStub(SupplierCatalogReadRepositoryInterface::class);
+        $catalog->method('findById')->willReturn(['productCode' => 'TERRA-LA-100', 'name' => 'Terramycin LA']);
+
+        foreach ([new GenericCsvExporter($storage, $catalog), new CentravetCsvExporter($storage, $catalog), new AlcyonCsvExporter($storage, $catalog)] as $exporter) {
+            $exporter->sendOrder($this->makePurchaseOrderWithCancelledLine(), $this->makeAccount());
+        }
+
+        self::assertCount(3, $files);
+        self::assertStringContainsString('TERRA-LA-100,"Terramycin LA"', $files[0]);
+        self::assertStringContainsString('TERRA-LA-100,"Terramycin LA"', $files[1]);
+        self::assertStringContainsString('TERRA-LA-100', $files[2]);
+        self::assertStringNotContainsString(self::CATALOG_UUID, implode('', $files));
     }
 
     public function testAlcyonExporterIdentifierAndOutput(): void

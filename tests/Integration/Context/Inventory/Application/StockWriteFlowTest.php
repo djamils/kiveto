@@ -8,8 +8,13 @@ use App\Context\Inventory\Application\Command\ChangeStockThreshold\ChangeStockTh
 use App\Context\Inventory\Application\Command\ConsumeStock\ConsumeStock;
 use App\Context\Inventory\Application\Command\OpenStockItem\OpenStockItem;
 use App\Context\Inventory\Application\Command\ReceiveStock\ReceiveStock;
+use App\Context\Inventory\Application\Port\StockItemReadRepositoryInterface;
+use App\Context\Inventory\Application\Query\GetStockItem\GetStockItem;
+use App\Context\Inventory\Application\Query\GetStockItem\StockItemView;
 use App\Context\Inventory\Application\Query\ListStockItemsByClinic\ListStockItemsByClinic;
 use App\Context\Inventory\Application\Query\ListStockItemsByClinic\StockItemSummaryView;
+use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
+use App\Context\Inventory\Domain\StockItem\Exception\StockItemNotFoundException;
 use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -130,6 +135,44 @@ final class StockWriteFlowTest extends KernelTestCase
 
         $archived = $queryBus->ask(new ListStockItemsByClinic($this->clinicId, 'ARCHIVED'));
         self::assertSame([], $archived);
+    }
+
+    public function testOneItemIsReadBackWithItsLotsAndItsOutdatedOnesAreFound(): void
+    {
+        $stockItemId = $this->open();
+        $this->receive($stockItemId, 'LOT-A', '10.000000');
+
+        $this->commandBus->dispatch(new ReceiveStock(
+            stockItemId: $stockItemId,
+            clinicId: $this->clinicId,
+            lotNumber: 'LOT-OLD',
+            quantityAmount: '2.000000',
+            quantityUnit: 'UNIT',
+            expiryDate: (new \DateTimeImmutable('-3 days'))->format('Y-m-d'),
+            sourceSupplierId: null,
+            occurredAt: null,
+            reference: null,
+            performedBy: null,
+        ));
+
+        $queryBus = self::getContainer()->get(QueryBusInterface::class);
+        \assert($queryBus instanceof QueryBusInterface);
+
+        $item = $queryBus->ask(new GetStockItem($stockItemId, $this->clinicId));
+        self::assertInstanceOf(StockItemView::class, $item);
+        self::assertSame('UNIT', $item->totalOnHandUnit);
+        self::assertCount(2, $item->lots);
+
+        $reader = self::getContainer()->get(StockItemReadRepositoryInterface::class);
+        \assert($reader instanceof StockItemReadRepositoryInterface);
+
+        $outdated = ['stockItemId' => $stockItemId, 'clinicId' => $this->clinicId];
+        self::assertContains($outdated, $reader->findItemsWithExpiredLots(ClinicId::fromString($this->clinicId)));
+        self::assertContains($outdated, $reader->findItemsWithExpiredLots(null));
+
+        $this->expectException(StockItemNotFoundException::class);
+
+        $queryBus->ask(new GetStockItem(Uuid::v7()->toRfc4122(), $this->clinicId));
     }
 
     public function testASecondReceiptAddsItsOwnLotToTheSameItem(): void

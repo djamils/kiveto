@@ -16,6 +16,7 @@ use App\Context\Inventory\Domain\StockItem\ValueObject\Quantity;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemId;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockThreshold;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockThresholdType;
+use App\Context\Inventory\Domain\StockItem\ValueObject\StorageLocation;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
@@ -69,6 +70,7 @@ final class OpenStockItemHandler
             threshold: $threshold,
             trackStock: $command->trackStock,
             clock: $this->clock,
+            location: null !== $command->location ? StorageLocation::from($command->location) : null,
         );
 
         $this->stockItemRepository->save($stockItem);

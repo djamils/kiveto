@@ -76,11 +76,8 @@ final class RecordPhysicalInventoryHandler
         $movement = null;
 
         if (0 !== bccomp($absAmount, '0', 6)) {
-            $movementType = match (true) {
-                bccomp($deltaAmount, '0', 6) > 0 => MovementType::IN,
-                bccomp($deltaAmount, '0', 6) < 0 => MovementType::OUT,
-                default                          => MovementType::ADJUSTMENT,
-            };
+            // The delta is never zero here: it adds or it takes away.
+            $movementType = bccomp($deltaAmount, '0', 6) > 0 ? MovementType::IN : MovementType::OUT;
 
             // PHYSICAL_INVENTORY and CORRECTION must use ADJUSTMENT type
             if (MovementReason::PHYSICAL_INVENTORY === $reason || MovementReason::CORRECTION === $reason) {
@@ -99,10 +96,11 @@ final class RecordPhysicalInventoryHandler
                 reason: $reason,
                 quantity: $movementQty,
                 occurredAt: $occurredAt,
-                reference: null,
+                reference: $command->reference,
                 performedBy: $command->performedBy,
                 note: null,
                 createdAt: $now,
+                decrease: MovementType::ADJUSTMENT === $movementType && bccomp($deltaAmount, '0', 6) < 0,
             );
         }
 

@@ -6,8 +6,8 @@ namespace App\Tests\Integration\Context\Inventory\Infrastructure\Persistence\Doc
 
 use App\Context\Inventory\Application\Port\StockOverviewReadRepositoryInterface;
 use App\Context\Inventory\Application\Query\StockOverview\MovementCriteria;
-use App\Context\Inventory\Application\Query\StockOverview\StockStateFilter;
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
+use App\Context\Inventory\Infrastructure\Persistence\Doctrine\Entity\StockItemEntity;
 use App\Fixtures\Context\Inventory\Factory\LotEntityFactory;
 use App\Fixtures\Context\Inventory\Factory\StockItemEntityFactory;
 use App\Fixtures\Context\Inventory\Factory\StockMovementEntityFactory;
@@ -175,71 +175,99 @@ final class DbalStockOverviewReadRepositoryTest extends KernelTestCase
         self::assertFalse($row->isLow());
     }
 
-    // ── States ──
+    // ── The whole clinic ──
 
-    public function testTheArticlesOutOfStockAreListed(): void
+    public function testEveryItemOfTheClinicComesBackWithItsPlace(): void
     {
-        $out   = Uuid::v7()->toRfc4122();
-        $stood = Uuid::v7()->toRfc4122();
+        $kept = Uuid::v7()->toRfc4122();
+        StockItemEntityFactory::new()->withClinicId($this->clinicId)->withArticleId($kept)->create(['storageLocation' => 'FRIDGE']);
+        StockItemEntityFactory::new()->withClinicId($this->clinicId)->archived()->create();
+        StockItemEntityFactory::new()->withClinicId($this->otherClinicId)->create();
 
-        $this->stockItem($out, onHand: '0.000000', reserved: '0.000000', threshold: '5.000000');
-        $this->stockItem($stood, onHand: '20.000000', reserved: '0.000000', threshold: '5.000000');
+        $items = $this->stock->snapshotsOfClinic($this->clinic());
 
-        $ids = $this->stock->articleIdsInState($this->clinic(), StockStateFilter::OUT_OF_STOCK, 30);
-
-        self::assertSame([$out], $ids);
+        self::assertCount(2, $items);
+        self::assertSame('FRIDGE', $items[$kept]->location);
     }
 
-    public function testTheArticlesBelowTheirThresholdAreListedWithoutTheEmptyOnes(): void
+    public function testALotSaysWhereItCameFromAndWhyItWasRecalled(): void
     {
-        $low         = Uuid::v7()->toRfc4122();
-        $out         = Uuid::v7()->toRfc4122();
-        $stood       = Uuid::v7()->toRfc4122();
-        $noThreshold = Uuid::v7()->toRfc4122();
+        $articleId = Uuid::v7()->toRfc4122();
+        $item      = $this->stockItem($articleId);
+        $received  = LotEntityFactory::new()->create(['stockItem' => $item, 'receivedAt' => new \DateTimeImmutable('2026-07-02 09:30:00')])->_real();
+        $recalled  = LotEntityFactory::new()->create(['stockItem' => $item, 'status' => 'RECALLED', 'quantityAmount' => '0.000000'])->_real();
 
-        $this->stockItem($low, onHand: '4.000000', reserved: '0.000000', threshold: '5.000000');
-        $this->stockItem($out, onHand: '0.000000', reserved: '0.000000', threshold: '5.000000');
-        $this->stockItem($stood, onHand: '20.000000', reserved: '0.000000', threshold: '5.000000');
-        $this->stockItem($noThreshold, onHand: '1.000000', reserved: '0.000000', threshold: '0.000000');
+        $this->movement($articleId, 'IN', '20.000000', '-30 days', ['lotId' => $received->getId(), 'reference' => 'BL-2026-611', 'reason' => 'RECEIPT_SUPPLIER']);
+        $this->movement($articleId, 'OUT', '4.000000', '-1 day', ['lotId' => $recalled->getId(), 'reason' => 'RECALL_RETURN_TO_SUPPLIER', 'note' => 'Rappel fabricant']);
 
-        $ids = $this->stock->articleIdsInState($this->clinic(), StockStateFilter::LOW, 30);
+        $lots = [];
 
-        self::assertSame([$low], $ids);
+        \assert($item instanceof StockItemEntity);
+        $itemId = $item->getId()->toRfc4122();
+
+        foreach ($this->stock->lotsFor($this->clinic(), [$itemId])[$itemId] as $lot) {
+            $lots[$lot->status] = $lot;
+        }
+
+        self::assertSame('BL-2026-611', $lots['ACTIVE']->reference);
+        self::assertSame('2026-07-02 09:30:00', $lots['ACTIVE']->receivedAt);
+        self::assertNull($lots['ACTIVE']->recallReason);
+        self::assertSame('Rappel fabricant', $lots['RECALLED']->recallReason);
+        self::assertNotNull($lots['RECALLED']->changedAt);
     }
 
-    public function testTheArticlesExpiringWithinTheWindowAreListed(): void
+    public function testTheOutflowsAreCountedWeekByWeekAndTheUseOverThirtyDays(): void
     {
-        $soon  = Uuid::v7()->toRfc4122();
-        $later = Uuid::v7()->toRfc4122();
+        $articleId = Uuid::v7()->toRfc4122();
+        $today     = new \DateTimeImmutable('today 12:00');
 
-        $this->lot($this->stockItem($soon), '5.000000', '+10 days');
-        $this->lot($this->stockItem($later), '5.000000', '+200 days');
+        $this->movement($articleId, 'OUT', '3.000000', 'today 09:00', ['reason' => 'CONSUMPTION_CONSULTATION']);
+        $this->movement($articleId, 'OUT', '2.000000', '-8 days', ['reason' => 'SALE_RETAIL']);
+        $this->movement($articleId, 'OUT', '5.000000', '-9 days', ['reason' => 'LOSS_BREAKAGE']);
+        $this->movement($articleId, 'OUT', '7.000000', '-40 days', ['reason' => 'SALE_RETAIL']);
+        $this->movement($articleId, 'IN', '50.000000', '-2 days', ['reason' => 'RECEIPT_SUPPLIER']);
+        $this->movement($articleId, 'OUT', '9.000000', '-200 days', ['reason' => 'SALE_RETAIL']);
 
-        self::assertSame([$soon], $this->stock->articleIdsInState($this->clinic(), StockStateFilter::EXPIRING, 30));
-        self::assertSame([], $this->stock->articleIdsInState($this->clinic(), StockStateFilter::EXPIRING, 5));
+        $outflow = $this->stock->outflows($this->clinic(), $today, 12)[$articleId];
+
+        self::assertCount(12, $outflow->weekly);
+        self::assertSame('3.000000', $outflow->weekly[11]);
+        self::assertSame('7.000000', $outflow->weekly[10]);
+        self::assertSame('7.000000', $outflow->weekly[6]);
+        self::assertSame('5.000000', $outflow->usedLastThirtyDays);
+        self::assertSame([], $this->stock->outflows(ClinicId::fromString($this->otherClinicId), $today, 12));
     }
 
-    public function testTheArticlesHoldingAnExpiredOrRecalledLotAreListed(): void
+    public function testTheLatestMovementsOfEachArticleAreKeptNewestFirst(): void
     {
-        $expired  = Uuid::v7()->toRfc4122();
-        $recalled = Uuid::v7()->toRfc4122();
+        $first  = Uuid::v7()->toRfc4122();
+        $second = Uuid::v7()->toRfc4122();
 
-        LotEntityFactory::new()->expired()->create(['stockItem' => $this->stockItem($expired)]);
-        LotEntityFactory::new()->create(['stockItem' => $this->stockItem($recalled), 'status' => 'RECALLED']);
+        foreach (['-4 days', '-3 days', '-2 days'] as $when) {
+            $this->movement($first, 'OUT', '1.000000', $when, ['reason' => 'SALE_RETAIL']);
+        }
 
-        self::assertSame([$expired], $this->stock->articleIdsInState($this->clinic(), StockStateFilter::EXPIRED, 30));
-        self::assertSame([$recalled], $this->stock->articleIdsInState($this->clinic(), StockStateFilter::RECALLED, 30));
+        $this->movement($second, 'IN', '5.000000', '-1 day', ['reason' => 'RECEIPT_SUPPLIER']);
+
+        $latest = $this->stock->latestMovements($this->clinic(), 2);
+
+        self::assertCount(2, $latest[$first]);
+        self::assertSame('-2 days', $this->ago($latest[$first][0]->occurredAt));
+        self::assertCount(1, $latest[$second]);
     }
 
-    public function testTheStatesOfAnotherClinicAreInvisible(): void
+    public function testTheLastCountIsTheLatestPhysicalInventory(): void
     {
-        $this->stockItem(Uuid::v7()->toRfc4122(), onHand: '0.000000', reserved: '0.000000', threshold: '5.000000');
+        self::assertNull($this->stock->lastCountAt($this->clinic()));
 
-        self::assertSame([], $this->stock->articleIdsInState(
-            ClinicId::fromString($this->otherClinicId),
-            StockStateFilter::OUT_OF_STOCK,
-            30,
-        ));
+        $articleId = Uuid::v7()->toRfc4122();
+        $this->movement($articleId, 'ADJUSTMENT', '1.000000', '-20 days', ['reason' => 'PHYSICAL_INVENTORY']);
+        $this->movement($articleId, 'ADJUSTMENT', '1.000000', '-2 days', ['reason' => 'CORRECTION']);
+
+        self::assertSame(
+            new \DateTimeImmutable('-20 days')->format('Y-m-d'),
+            $this->stock->lastCountAt($this->clinic())?->format('Y-m-d'),
+        );
     }
 
     // ── Movements ──
@@ -331,6 +359,73 @@ final class DbalStockOverviewReadRepositoryTest extends KernelTestCase
         self::assertNotNull($row->lotId);
     }
 
+    public function testTheTrailCarriesTheBalanceAndTheSenseOfAnAdjustment(): void
+    {
+        $articleId = Uuid::v7()->toRfc4122();
+
+        $this->movement($articleId, 'IN', '10.000000', '-5 days', ['reason' => 'RECEIPT_SUPPLIER']);
+        $this->movement($articleId, 'OUT', '3.000000', '-4 days', ['reason' => 'SALE_RETAIL']);
+        $this->movement($articleId, 'ADJUSTMENT', '1.000000', '-3 days', ['reason' => 'PHYSICAL_INVENTORY', 'decrease' => true]);
+        $this->movement($articleId, 'ADJUSTMENT', '2.000000', '-2 days', ['reason' => 'CORRECTION']);
+
+        $rows = $this->stock->movements($this->clinic(), new MovementCriteria())['items'];
+
+        self::assertSame(['8.000000', '6.000000', '7.000000', '10.000000'], array_map(static fn ($row): ?string => $row->balance, $rows));
+        self::assertSame('-1.000000', $rows[1]->quantity);
+        self::assertFalse($rows[1]->isIncoming());
+
+        // A narrowing keeps the balance of the whole trail.
+        $outs = $this->stock->movements($this->clinic(), new MovementCriteria(types: ['OUT']))['items'];
+        self::assertSame('7.000000', $outs[0]->balance);
+    }
+
+    public function testTheTrailIsNarrowedByReasonAndNoLotsAreReadForNoItem(): void
+    {
+        $articleId = Uuid::v7()->toRfc4122();
+
+        $this->movement($articleId, 'OUT', '1.000000', '-2 days', ['reason' => 'SALE_RETAIL']);
+        $this->movement($articleId, 'OUT', '1.000000', '-1 day', ['reason' => 'CONSUMPTION_CONSULTATION', 'reference' => 'Rex (Dupont)']);
+
+        $consultations = $this->stock->movements($this->clinic(), new MovementCriteria(reasons: ['CONSUMPTION_CONSULTATION']));
+
+        self::assertSame(1, $consultations['total']);
+        self::assertSame('Rex (Dupont)', $consultations['items'][0]->reference);
+        self::assertSame([], $this->stock->lotsFor($this->clinic(), []));
+    }
+
+    public function testTheTrailIsSearchedOnLotReferenceNoteAndTheArticlesTheCatalogueNamed(): void
+    {
+        $articleId = Uuid::v7()->toRfc4122();
+        $named     = Uuid::v7()->toRfc4122();
+        $item      = $this->stockItem($articleId);
+        $lot       = LotEntityFactory::new()->create(['stockItem' => $item, 'lotNumber' => 'LOT-SY330'])->_real();
+
+        $this->movement($articleId, 'OUT', '1.000000', '-3 days', ['lotId' => $lot->getId(), 'reason' => 'SALE_RETAIL']);
+        $this->movement($articleId, 'OUT', '1.000000', '-2 days', ['reference' => 'Rocky (Bernard)', 'reason' => 'CONSUMPTION_CONSULTATION']);
+        $this->movement($articleId, 'OUT', '1.000000', '-1 day', ['note' => 'Flacon tombé au comptoir', 'reason' => 'LOSS_BREAKAGE']);
+        $this->movement($named, 'IN', '5.000000', '-1 day', ['reason' => 'RECEIPT_SUPPLIER']);
+
+        self::assertSame(1, $this->search('SY330'));
+        self::assertSame(1, $this->search('rocky'));
+        self::assertSame(1, $this->search('tombé'));
+        self::assertSame(1, $this->search('apoquel', [$named]));
+        self::assertSame(0, $this->search('100%'));
+        self::assertSame(1, $this->stock->movements($this->clinic(), new MovementCriteria(lotId: $lot->getId()->toRfc4122()))['total']);
+    }
+
+    /**
+     * @param list<string> $articleIds
+     */
+    private function search(string $term, array $articleIds = []): int
+    {
+        return $this->stock->movements($this->clinic(), new MovementCriteria(term: $term, termArticleIds: $articleIds))['total'];
+    }
+
+    private function ago(\DateTimeImmutable $when): string
+    {
+        return \sprintf('%+d days', (int) new \DateTimeImmutable('today')->diff($when->setTime(0, 0))->format('%r%a'));
+    }
+
     private function stockItem(
         string $articleId,
         string $onHand = '10.000000',
@@ -360,7 +455,10 @@ final class DbalStockOverviewReadRepositoryTest extends KernelTestCase
         ]);
     }
 
-    private function movement(string $articleId, string $type, string $quantity, string $when): void
+    /**
+     * @param array<string, mixed> $extra
+     */
+    private function movement(string $articleId, string $type, string $quantity, string $when, array $extra = []): void
     {
         StockMovementEntityFactory::new()->create([
             'clinicId'       => Uuid::fromString($this->clinicId),
@@ -368,7 +466,7 @@ final class DbalStockOverviewReadRepositoryTest extends KernelTestCase
             'type'           => $type,
             'quantityAmount' => $quantity,
             'occurredAt'     => new \DateTimeImmutable($when),
-        ]);
+        ] + $extra);
     }
 
     private function clinic(): ClinicId

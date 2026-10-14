@@ -68,7 +68,7 @@ const CLASSE_TXT = {
   RX_CONTROLLED: 'Ordonnance requise ; substance à délivrance contrôlée, suivie au registre.',
   RX_NARCOTIC: 'Ordonnance sécurisée, 28 jours maximum, sans renouvellement. Chaque entrée et sortie est inscrite au registre des stupéfiants ; stockage sous clé.',
 };
-const UOM = { UNIT: 'unité', BOX: 'boîte', TABLET: 'cp', CAPSULE: 'gélule', VIAL: 'flacon', BOTTLE: 'bouteille', SACHET: 'sachet', AMPULE: 'ampoule', DOSE: 'dose', PIPETTE: 'pipette', ML: 'mL', L: 'L', G: 'g', KG: 'kg' };
+const UOM = { UNIT: 'unité', BOX: 'boîte', TABLET: 'cp', CAPSULE: 'gélule', VIAL: 'flacon', BOTTLE: 'bouteille', BAG: 'sac', SACHET: 'sachet', AMPULE: 'ampoule', DOSE: 'dose', PIPETTE: 'pipette', ML: 'mL', L: 'L', G: 'g', KG: 'kg' };
 const NEWL = { actes: 'Nouvel acte', articles: 'Nouvel article', forfaits: 'Nouveau forfait', grilles: 'Nouvelle grille' };
 const PH = { actes: 'Rechercher un acte, un code…', articles: 'Libellé, code, code-barres (GTIN)…', forfaits: 'Rechercher un forfait…' };
 const STATUTS = [{ v: 'cat', l: 'Au catalogue' }, { v: 'arch', l: 'Archivés' }, { v: 'tous', l: 'Tous' }];
@@ -450,7 +450,7 @@ export function init() {
     ${sec('Stock', `
       ${sw('suivi', d.suivi, 'Suivre le stock', 'Entrées, sorties, lots et péremptions sont gérés dans Stock.')}
       ${d.suivi ? `<div class="frow2" style="margin-top:4px"><div>${lab('Seuil d\'alerte')}${ro(!ST.neuf && d.stock ? fmtN(d.stock.seuil, d.stock.seuil % 1 ? 1 : 0) : '—', 1)}</div><div>${lab('En stock')}<div class="ro mono">${ST.neuf || !d.stock ? '—' : `${fmtN(d.stock.q, d.stock.q % 1 ? 1 : 0)} · ${d.stock.lots} lot${d.stock.lots > 1 ? 's' : ''}`}</div></div></div>
-        ${!ST.neuf ? `<a class="lien" href="${esc(P.urls.stock)}">Ouvrir dans Stock ${ICO.ext}</a>` : ''}` : ''}`)}`;
+        ${!ST.neuf ? `<a class="lien" href="${esc(P.urls.stock)}?article=${encodeURIComponent(d.id)}">Ouvrir dans Stock ${ICO.ext}</a>` : ''}` : ''}`)}`;
   }
   function margeHtml(d, t) {
     if (!d.prix) return 'Renseignez le prix de vente.';
@@ -992,6 +992,8 @@ export function init() {
 
   /* ═════════ Démarrage ═════════ */
   rendre();
+  // ?article=<id> — the stock page's « Fiche dans le catalogue » opens the sheet.
+  try { const id = new URLSearchParams(location.search).get('article'), x = id && item(id); if (x) ouvrirFiche(x); } catch (_) { /* malformed address */ }
 }
 
 export function cleanup() {

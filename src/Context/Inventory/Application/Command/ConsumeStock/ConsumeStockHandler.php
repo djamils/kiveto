@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Context\Inventory\Application\Command\ConsumeStock;
 
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
-use App\Context\Inventory\Domain\StockItem\Exception\ConcurrentStockModificationException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockItemNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Repository\StockItemRepositoryInterface;
 use App\Context\Inventory\Domain\StockItem\Service\FefoSelector;
 use App\Context\Inventory\Domain\StockItem\ValueObject\LotConsumption;
+use App\Context\Inventory\Domain\StockItem\ValueObject\LotId;
 use App\Context\Inventory\Domain\StockItem\ValueObject\Quantity;
 use App\Context\Inventory\Domain\StockItem\ValueObject\StockItemId;
 use App\Context\Inventory\Domain\StockMovement\Repository\StockMovementRepositoryInterface;
@@ -59,12 +59,19 @@ final class ConsumeStockHandler
         $reason   = MovementReason::from($command->reason);
 
         /** @var list<LotConsumption> $lotConsumptions */
-        $lotConsumptions = $stockItem->consumeStock(
-            quantity: $quantity,
-            fefoSelector: $this->fefoSelector,
-            occurredAt: $occurredAt,
-            updatedAt: $now,
-        );
+        $lotConsumptions = null !== $command->lotId
+            ? $stockItem->consumeFromLot(
+                lotId: LotId::fromString($command->lotId),
+                quantity: $quantity,
+                occurredAt: $occurredAt,
+                updatedAt: $now,
+            )
+            : $stockItem->consumeStock(
+                quantity: $quantity,
+                fefoSelector: $this->fefoSelector,
+                occurredAt: $occurredAt,
+                updatedAt: $now,
+            );
 
         if ([] === $lotConsumptions) {
             // trackStock=false: save StockItem for updatedAt, no movements
@@ -96,17 +103,13 @@ final class ConsumeStockHandler
             );
         }
 
-        try {
-            $this->entityManager->wrapInTransaction(function () use ($stockItem, $movements): void {
-                $this->stockItemRepository->save($stockItem);
+        $this->entityManager->wrapInTransaction(function () use ($stockItem, $movements): void {
+            $this->stockItemRepository->save($stockItem);
 
-                foreach ($movements as $movement) {
-                    $this->stockMovementRepository->save($movement);
-                }
-            });
-        } catch (ConcurrentStockModificationException $e) {
-            throw $e;
-        }
+            foreach ($movements as $movement) {
+                $this->stockMovementRepository->save($movement);
+            }
+        });
 
         $this->domainEventPublisher->publish($stockItem);
 

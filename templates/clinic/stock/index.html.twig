@@ -1,528 +1,154 @@
 {#
  # Kiveto — templates/clinic/stock/index.html.twig
  # ──────────────────────────────────────────────
- # What the clinic holds: every tracked article of the catalogue, with the
- # figures Inventory keeps for it.
+ # Stocks — what the clinic holds, what moved and what needs attention. Ported
+ # from docs/frontend-theme/kiveto-theme/stock-v-topbar_3.html: page header
+ # (tabs « État du stock », « Mouvements », « Alertes » with their counters,
+ # « Inventaire », « Commande », « Réceptionner une livraison »), filter bar,
+ # the register band of controlled substances, the table with its pager, the
+ # side sheet of an article, the alerts by severity, the bulk bar, the order
+ # drawer, and the reception, withdrawal, count and recall windows.
  #
- # An article the clinic has never received is listed too, at zero — it is
- # exactly the one someone is looking for when a delivery arrives.
+ # The three routes (clinic_stock, clinic_stock_movements, clinic_stock_alerts)
+ # render this page on their tab. Everything below is drawn by the page module
+ # from the payload; every change is posted in the background to its
+ # single-action controller, then the module asks clinic_stock_data again.
  #
  # Variables:
- #   rows        list<{article: ArticleListRow, stock: StockSnapshotRow|null}>
- #   lots        map stockItemId => list<LotRow>
- #   page        CatalogPage
- #   state       StockStateFilter|null
- #   states      list<StockStateFilter>
- #   alertCount  int
- #   pageSizes   list<int>
- #   queryState  array
- #   expiringWithinDays int
+ #   payload  App\Presentation\Clinic\ViewModel\Stock\StockPageBuilder::page()
+ #
+ # Behaviour: assets/js/pages/stock.js — styles: assets/styles/shell/register.css + assets/styles/pages/stock.css
  #}
-{% extends 'clinic/stock/_shell.html.twig' %}
+{% extends 'clinic/base.html.twig' %}
 
-{% set KIND_LABELS = {
-  'DRUG': 'Médicament', 'CONSUMABLE': 'Consommable', 'FOOD': 'Alimentation', 'EQUIPMENT': 'Matériel'
-} %}
-{% set KIND_TONES = { 'DRUG': 'violet', 'CONSUMABLE': 'blue', 'FOOD': 'green', 'EQUIPMENT': 'slate' } %}
-{% set STATE_TONES = {
-  'OUT_OF_STOCK': 'red', 'LOW': 'amber', 'EXPIRING': 'amber', 'EXPIRED': 'red', 'RECALLED': 'pink'
-} %}
-{% set today = date('today') %}
+{% block page_body_class %}vt{% endblock %}
+{% block title %}Stocks{% endblock %}
 
-{% macro sortHead(column, label, cssClass, queryState) %}
-  {% set active = app.request.query.get('sort', 'name') == column %}
-  {% set descending = app.request.query.get('dir', 'asc') == 'desc' %}
-  {% set nextDir = active and not descending ? 'desc' : 'asc' %}
-  <th class="{{ cssClass }} sortable{{ active ? (descending ? ' is-sorted-desc' : ' is-sorted-asc') : '' }}">
-    <a href="{{ path('clinic_stock', queryState|merge({ sort: column, dir: nextDir })) }}">
-      {{ label }} <span class="sort-icon">▼</span>
-    </a>
-  </th>
-{% endmacro %}
+{% block main %}
+<div class="reg stock" data-page="{{ app.request.attributes.get('_route') }}" data-payload="{{ payload|json_encode }}">
 
-{% block stock_count %}{{ page.total }} article{{ page.total > 1 ? 's' : '' }} suivi{{ page.total > 1 ? 's' : '' }}{% endblock %}
+  <div class="pagehead">
+    <h1>Stocks<small id="phSub">—</small></h1>
+    <div class="ctabs" id="tabs">
+      <button type="button" data-t="etat"{{ payload.tab == 'etat' ? ' class="on"' }}>État du stock <span class="n" id="nEtat">0</span></button>
+      <button type="button" data-t="mvts"{{ payload.tab == 'mvts' ? ' class="on"' }}>Mouvements</button>
+      <button type="button" data-t="alertes"{{ payload.tab == 'alertes' ? ' class="on"' }}>Alertes <span class="n al" id="nAl">0</span></button>
+    </div>
+    <div class="right">
+      <button type="button" class="btn" id="btnInv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Inventaire</button>
+      <button type="button" class="btn" id="btnCmd"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>Commande<span class="bdg" id="cmdN"></span></button>
+      <button type="button" class="btn primaire" id="btnRecep"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>Réceptionner une livraison</button>
+    </div>
+  </div>
 
-{% block stock_search %}
-  <form class="tb-search" method="GET" action="{{ path('clinic_stock') }}" role="search">
-    <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" name="q" value="{{ app.request.query.get('q') }}"
-           placeholder="Rechercher un article, un code…" autocomplete="off">
-    {% for key, value in queryState %}
-      {% if key != 'q' %}
-        {% if value is iterable %}
-          {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
-        {% else %}
-          <input type="hidden" name="{{ key }}" value="{{ value }}">
-        {% endif %}
-      {% endif %}
-    {% endfor %}
-  </form>
-{% endblock %}
+  <div class="cfil" id="cfil">
+    <div class="crech">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" placeholder="Article, code, n° de lot…" autocomplete="off" aria-label="Rechercher">
+    </div>
+    <span class="lblf">Filtres</span>
+    <div id="fdd" style="display:flex;gap:8px;align-items:center"></div>
+  </div>
+  <div class="regbar" id="regbar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    <span><b>Registre des stupéfiants</b> · entrées et sorties numérotées, solde après chaque mouvement, à conserver 10 ans.</span>
+    <a class="btn" id="btnReg" href="{{ payload.urls.register }}" target="_blank" rel="noopener">Exporter le registre (PDF)</a>
+  </div>
 
-{% block stock_body %}
+  <main class="czone" id="czone">
+    <div class="ctw">
+      <div class="cscroll scr"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table><div id="cempty"></div></div>
+      <div class="cfoot" id="cfoot"></div>
+    </div>
+    <aside class="fiche" id="fiche"><div class="fi-in">
+      <div class="fi-head" id="fiHead"></div>
+      <div class="fi-body scr" id="fiBody"></div>
+      <div class="fi-foot" id="fiFoot"></div>
+    </div></aside>
+  </main>
+  <main class="azone scr" id="azone"></main>
 
-  <section class="filters">
-    <span class="filter-label">Filtres</span>
+  <div class="bulk" id="bulk" role="toolbar" aria-label="Actions groupées">
+    <span class="bn" id="bulkN">0</span><span id="bulkL">sélectionnés</span>
+    <span class="bdiv"></span>
+    <button type="button" id="bkCmd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>Ajouter à la commande</button>
+    <button type="button" id="bkInv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Compter</button>
+    <span class="bdiv"></span>
+    <button type="button" id="bkX" data-tip="Désélectionner" aria-label="Désélectionner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
 
-    {% if state %}
-      <span class="filter-chip">
-        <span class="chip-key">État :</span>
-        <span class="tone-dot tone-{{ STATE_TONES[state.value]|default('slate') }}"></span>
-        <span>{{ state.label }}</span>
-        <a class="chip-x" href="{{ path('clinic_stock', queryState|merge({ state: null })) }}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endif %}
+  <!-- Commande -->
+  <div class="cmdv" id="cmdV"></div>
+  <aside class="cmdp" id="cmdP">
+    <div class="fi-head"><div class="fi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div>
+      <div class="fi-t"><b>Commande en cours</b><span id="cmdSub">—</span></div><button type="button" class="fi-x" id="cmdX" data-tip="Fermer · Échap" aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="fi-body scr" id="cmdBody"></div>
+  </aside>
 
-    {% for kind in app.request.query.all('kind') %}
-      <span class="filter-chip">
-        <span class="chip-key">Type :</span>
-        <span class="tone-dot tone-{{ KIND_TONES[kind]|default('slate') }}"></span>
-        <span>{{ KIND_LABELS[kind]|default(kind) }}</span>
-        <a class="chip-x"
-           href="{{ path('clinic_stock', queryState|merge({ kind: app.request.query.all('kind')|filter(k => k != kind) })) }}"
-           aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endfor %}
-
-    <span class="filter-add-wrap">
-      <button class="filter-add{{ state ? ' is-active' : '' }}" type="button" data-filter-toggle="state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        État
-      </button>
-      <div class="filter-menu" data-filter-menu="state">
-        <div class="filter-menu-title">État du stock</div>
-        {% for candidate in states %}
-          <a class="filter-menu-item{{ state and state.value == candidate.value ? ' is-checked' : '' }}"
-             href="{{ path('clinic_stock', queryState|merge({ state: state and state.value == candidate.value ? null : candidate.value })) }}">
-            <span class="tone-dot tone-{{ STATE_TONES[candidate.value]|default('slate') }}"></span>
-            <span style="flex:1">{{ candidate.label }}</span>
-            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
-          </a>
-        {% endfor %}
+  <!-- Réception -->
+  <div class="mveil" id="mRecep"><div class="mbox xl">
+    <div class="mhead"><div class="mt"><b>Réceptionner une livraison</b><span>Chaque ligne crée un lot ; le stock sort ensuite par péremption la plus proche.</span></div><button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mbody scr">
+      <div class="g2">
+        <div><label class="flbl">Fournisseur</label><div class="dd" id="rcFourn"></div></div>
+        <div><label class="flbl">Bon de livraison <span class="opt">· facultatif</span></label><input class="finput" id="rcBl" placeholder="BL-{{ "now"|date("Y") }}-…" autocomplete="off"></div>
       </div>
-    </span>
-
-    <span class="filter-add-wrap">
-      <button class="filter-add{{ app.request.query.all('kind') is not empty ? ' is-active' : '' }}" type="button" data-filter-toggle="kind">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Type
-      </button>
-      <div class="filter-menu" data-filter-menu="kind">
-        <div class="filter-menu-title">Type d’article</div>
-        {% for value, label in KIND_LABELS %}
-          {% set checked = value in app.request.query.all('kind') %}
-          <a class="filter-menu-item{{ checked ? ' is-checked' : '' }}"
-             href="{{ path('clinic_stock', queryState|merge({ kind: checked ? app.request.query.all('kind')|filter(k => k != value) : app.request.query.all('kind')|merge([value]) })) }}">
-            <span class="tone-dot tone-{{ KIND_TONES[value] }}"></span>
-            <span style="flex:1">{{ label }}</span>
-            <svg class="check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 8l3 3 7-7"/></svg>
-          </a>
-        {% endfor %}
+      <div id="rcCmd" style="margin-top:12px"></div>
+      <div class="scan" style="margin-top:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M15 8v8M18 8v8"/></svg>
+        <input id="rcScan" placeholder="Scannez le DataMatrix de chaque boîte : article, lot et péremption se remplissent seuls">
+        <button type="button" class="btn" id="rcSim" disabled data-tip="Branchez une douchette : chaque scan remplit sa ligne">Simuler un scan</button>
       </div>
-    </span>
+      <table class="rtab" id="rcTab"></table>
+      <button type="button" class="addl" id="rcAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Ajouter un article à la main</button>
+    </div>
+    <div class="mfoot"><span class="inv-tot" id="rcTot"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="rcOk" disabled>Entrer en stock</button></div>
+  </div></div>
 
-    {% if queryState is not empty %}
-      <a class="filter-clear" href="{{ path('clinic_stock') }}">Tout effacer</a>
-    {% endif %}
-  </section>
-
-  <section class="table-wrapper">
-    {% if rows|length > 0 %}
-      <table class="stk-table">
-        <thead>
-          <tr>
-            {{ _self.sortHead('code', 'Code', 'col-code', queryState) }}
-            {{ _self.sortHead('name', 'Article', 'col-name', queryState) }}
-            {{ _self.sortHead('category', 'Type', 'col-kind', queryState) }}
-            <th class="col-qty">En stock</th>
-            <th class="col-qty">Disponible</th>
-            <th class="col-qty">Seuil</th>
-            <th class="col-expiry">Péremption</th>
-            <th class="col-actions"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-            {% set article = row.article %}
-            {% set stock = row.stock %}
-            {% set itemLots = stock ? lots[stock.stockItemId]|default([]) : [] %}
-            {% set out = stock and stock.isOutOfStock %}
-            {% set low = stock and stock.isLow %}
-            <tr data-article-id="{{ article.id }}"
-                data-article-name="{{ article.name }}"
-                data-unit="{{ stock ? stock.unit : article.unitOfMeasure }}"
-                {% if stock %}
-                  data-stock-item-id="{{ stock.stockItemId }}"
-                  data-current-threshold="{{ stock.threshold|number_format(2, ',', '') }}"
-                {% endif %}>
-              <td class="col-code">
-                {% if itemLots is not empty %}
-                  <button class="lots-toggle{{ state and state.value in ['EXPIRING', 'EXPIRED', 'RECALLED'] ? ' is-open' : '' }}"
-                          type="button" data-lots-toggle
-                          aria-label="Afficher les lots">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>
-                  </button>
-                {% endif %}
-                <span class="cell-code">{{ article.code }}</span>
-              </td>
-              <td class="col-name">
-                <span class="cell-name">{{ article.name }}</span>
-                {% if stock and stock.isArchived %}
-                  <span class="cell-sub">Suivi archivé</span>
-                {% elseif stock is null %}
-                  <span class="cell-sub">Jamais réceptionné</span>
-                {% elseif stock.activeLotCount > 0 %}
-                  <span class="cell-sub">
-                    {{ stock.activeLotCount }} lot{{ stock.activeLotCount > 1 ? 's' : '' }} en cours
-                    {%- if stock.hasExpiredLots %} · {{ stock.expiredLotCount }} périmé{{ stock.expiredLotCount > 1 ? 's' : '' }}{% endif -%}
-                    {%- if stock.hasRecalledLots %} · {{ stock.recalledLotCount }} rappelé{{ stock.recalledLotCount > 1 ? 's' : '' }}{% endif -%}
-                  </span>
-                {% endif %}
-              </td>
-              <td class="col-kind">
-                <span class="tag tone-{{ KIND_TONES[article.kind]|default('slate') }}">
-                  {{- KIND_LABELS[article.kind]|default(article.kind) -}}
-                </span>
-                {% if out %}
-                  <span class="tag tone-red">Rupture</span>
-                {% elseif low %}
-                  <span class="tag tone-amber">Sous le seuil</span>
-                {% endif %}
-              </td>
-              <td class="col-qty">
-                {% if stock %}
-                  <span class="cell-qty{{ out ? ' is-out' : (low ? ' is-low' : '') }}">
-                    {{ stock.onHand|number_format(2, ',', ' ') }}
-                    <span class="qty-unit">{{ stock.unit|lower }}</span>
-                    {% if stock.reserved != '0.000000' %}
-                      <span class="qty-sub">dont {{ stock.reserved|number_format(2, ',', ' ') }} réservé</span>
-                    {% endif %}
-                  </span>
-                  {% if stock.threshold > 0 %}
-                    {% set ratio = min(100, (stock.available / stock.threshold) * 50)|round %}
-                    <div class="gauge{{ out ? ' is-out' : (low ? ' is-low' : '') }}">
-                      <span style="width:{{ max(2, ratio) }}%"></span>
-                    </div>
-                  {% endif %}
-                {% else %}
-                  <span class="cell-qty is-untracked">—</span>
-                {% endif %}
-              </td>
-              <td class="col-qty">
-                <span class="cell-qty{{ out ? ' is-out' : '' }}">
-                  {{- stock ? stock.available|number_format(2, ',', ' ') : '—' -}}
-                </span>
-              </td>
-              <td class="col-qty">
-                <span class="cell-qty is-untracked">
-                  {{- stock and stock.threshold > 0 ? stock.threshold|number_format(2, ',', ' ') : '—' -}}
-                </span>
-              </td>
-              <td class="col-expiry">
-                {% if stock and stock.earliestExpiry %}
-                  {% set expiry = date(stock.earliestExpiry) %}
-                  {% set days = today.diff(expiry).days * (expiry < today ? -1 : 1) %}
-                  <span class="cell-expiry{{ expiry < today ? ' is-past' : (days <= expiringWithinDays ? ' is-soon' : '') }}">
-                    {{ expiry|date('d/m/Y') }}
-                    <span class="expiry-sub">
-                      {%- if expiry < today -%}
-                        périmé depuis {{ days * -1 }} j
-                      {%- elseif days == 0 -%}
-                        expire aujourd’hui
-                      {%- else -%}
-                        dans {{ days }} j
-                      {%- endif -%}
-                    </span>
-                  </span>
-                {% else %}
-                  <span class="cell-expiry">—</span>
-                {% endif %}
-              </td>
-              <td class="col-actions" style="position:relative">
-                <button class="row-actions-btn" type="button" data-row-menu-toggle title="Actions" aria-label="Actions">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                </button>
-                <div class="row-menu" data-row-menu>
-                  <button class="row-menu-item" type="button" data-receive
-                          data-action="{{ path('clinic_stock_receive', { articleId: article.id }) }}">
-                    <i data-lucide="package-plus"></i> Réceptionner
-                  </button>
-                  {% if stock and not stock.isArchived %}
-                    <button class="row-menu-item" type="button" data-consume
-                            data-action="{{ path('clinic_stock_consume', { stockItemId: stock.stockItemId }) }}">
-                      <i data-lucide="package-minus"></i> Sortie de stock
-                    </button>
-                    <button class="row-menu-item" type="button" data-threshold
-                            data-action="{{ path('clinic_stock_threshold', { stockItemId: stock.stockItemId }) }}">
-                      <i data-lucide="bell"></i> Seuil d’alerte
-                    </button>
-                    <div class="row-menu-sep"></div>
-                    <a class="row-menu-item" href="{{ path('clinic_stock_movements', { q: article.code }) }}">
-                      <i data-lucide="history"></i> Historique
-                    </a>
-                    <form method="POST" action="{{ path('clinic_stock_archive', { stockItemId: stock.stockItemId }) }}">
-                      <button class="row-menu-item is-danger" type="submit">
-                        <i data-lucide="archive"></i> Archiver le suivi
-                      </button>
-                    </form>
-                  {% elseif stock and stock.isArchived %}
-                    <form method="POST" action="{{ path('clinic_stock_restore', { stockItemId: stock.stockItemId }) }}">
-                      <button class="row-menu-item" type="submit">
-                        <i data-lucide="archive-restore"></i> Rétablir le suivi
-                      </button>
-                    </form>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-            {% if itemLots is not empty %}
-              <tr class="lots-row{{ state and state.value in ['EXPIRING', 'EXPIRED', 'RECALLED'] ? ' is-open' : '' }}">
-                <td colspan="8" style="padding:0">
-                  <div class="lots">
-                    <div class="lots-title">Lots</div>
-                    <ul class="lots-list">
-                      {% for lot in itemLots %}
-                        {% set lotExpiry = date(lot.expiryDate) %}
-                        <li class="lot-row">
-                          <span class="lot-number">{{ lot.number }}</span>
-                          <span class="lot-qty">
-                            {{ lot.quantity|number_format(2, ',', ' ') }} {{ lot.unit|lower }}
-                          </span>
-                          <span class="lot-expiry {{ lotExpiry < today ? 'is-past' : '' }}">
-                            {{ lotExpiry|date('d/m/Y') }}
-                          </span>
-                          {% if lot.status != 'ACTIVE' %}
-                            <span class="tag tone-{{ lot.status == 'RECALLED' ? 'pink' : 'slate' }}">
-                              {{- lot.status == 'RECALLED' ? 'Rappelé'
-                                : (lot.status == 'EXPIRED' ? 'Périmé' : 'Épuisé') -}}
-                            </span>
-                          {% endif %}
-                          {% if lot.isActive and stock and not stock.isArchived %}
-                            <span class="lot-actions">
-                              <button class="lot-action" type="button" data-count
-                                      data-action="{{ path('clinic_stock_count', { stockItemId: stock.stockItemId }) }}"
-                                      data-lot-id="{{ lot.id }}" data-lot-number="{{ lot.number }}"
-                                      data-lot-quantity="{{ lot.quantity|number_format(2, ',', '') }}"
-                                      data-unit="{{ lot.unit }}"
-                                      data-article-name="{{ article.name }}">
-                                <i data-lucide="clipboard-check"></i> Inventaire
-                              </button>
-                              <button class="lot-action is-danger" type="button" data-recall
-                                      data-action="{{ path('clinic_stock_lot_recall', { stockItemId: stock.stockItemId, lotId: lot.id }) }}"
-                                      data-lot-number="{{ lot.number }}"
-                                      data-article-name="{{ article.name }}">
-                                <i data-lucide="shield-alert"></i> Rappeler
-                              </button>
-                            </span>
-                          {% endif %}
-                        </li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-            {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div class="empty">
-        <div class="empty-icon"><i data-lucide="boxes"></i></div>
-        <div class="empty-title">Aucun article suivi</div>
-        <div class="empty-sub">
-          {% if queryState is not empty %}
-            Aucun article ne correspond à ces critères.
-          {% else %}
-            Le stock suit les articles du catalogue dont le suivi est activé.
-            Cochez « Suivre le stock » sur un article pour le voir apparaître ici.
-          {% endif %}
-        </div>
-        <a class="btn btn-primary btn-sm" href="{{ path('clinic_catalogue_articles') }}" style="margin-top:12px">
-          <i data-lucide="arrow-right"></i> Aller au catalogue
-        </a>
+  <!-- Sortie -->
+  <div class="mveil" id="mSortie"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Sortie de stock</b><span id="soSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mbody">
+      <div class="frow"><label class="flbl">Motif</label><div class="motifs" id="soMotif"></div></div>
+      <div class="g2">
+        <div><label class="flbl">Quantité <span class="req">*</span></label><div class="inu"><input class="finput num" id="soQ" inputmode="decimal"><i id="soU">—</i></div></div>
+        <div><label class="flbl">Lot</label><div class="dd" id="soLot"></div></div>
       </div>
-    {% endif %}
-  </section>
-
-  {{ include('clinic/stock/_pagination.html.twig', { route: 'clinic_stock' }) }}
-
-{% endblock %}
-
-{% block stock_modals %}
-
-  {# ── Réception ── #}
-  <div class="modal-overlay hidden" id="receive-modal">
-    <div class="modal">
-      <form method="POST" action="{{ path('clinic_stock') }}" id="receive-form">
-        <div class="modal-head">
-          <h2 class="modal-title">Réceptionner</h2>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="stk-form-hint" style="margin-bottom:var(--space-4)" data-target-name></p>
-          <div class="stk-form-grid">
-            <div class="field">
-              <label class="field-label" for="receive-lot">Numéro de lot</label>
-              <input class="form-input" id="receive-lot" name="lot_number" required maxlength="64" placeholder="LOT-2026-084">
-            </div>
-            <div class="field">
-              <label class="field-label" for="receive-expiry">Péremption</label>
-              <input class="form-input" id="receive-expiry" name="expiry_date" type="date" required>
-            </div>
-            <div class="field">
-              <label class="field-label" for="receive-quantity">Quantité reçue</label>
-              <input class="form-input" id="receive-quantity" name="quantity" required inputmode="decimal" placeholder="12">
-            </div>
-            <div class="field">
-              <label class="field-label" for="receive-reference">Bon de livraison <span class="field-optional">(facultatif)</span></label>
-              <input class="form-input" id="receive-reference" name="reference" maxlength="128">
-            </div>
-          </div>
-          <p class="stk-form-hint" style="margin-top:var(--space-3)">
-            Le lot entre en stock à sa date de péremption : c’est lui qui sortira en premier s’il périme avant les autres.
-          </p>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
-          <button class="btn btn-primary" type="submit">Enregistrer la réception</button>
-        </div>
-      </form>
+      <div class="frow" id="soStupRow" style="margin-top:12px;display:none"><label class="flbl">Animal et prescripteur <span class="req">*</span></label><input class="finput" id="soStup" placeholder="Animal (propriétaire) · Dr …" autocomplete="off"><p class="hint">Inscrit au registre des stupéfiants avec le solde après sortie.</p></div>
+      <div class="frow" style="margin-top:12px"><label class="flbl">Note <span class="opt">· facultatif</span></label><input class="finput" id="soNote"></div>
+      <p class="hint">Les sorties des consultations et des factures se font d'elles-mêmes. Ici : ce qui sort sans passer par une facture.</p>
     </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="soOk" disabled>Enregistrer la sortie</button></div>
+  </div></div>
+
+  <!-- Inventaire -->
+  <div class="mveil" id="mInv"><div class="mbox xl">
+    <div class="mhead"><div class="mt"><b>Inventaire</b><span id="invSub">Comptez, l'écart avec le théorique devient un ajustement</span></div><button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mbody scr">
+      <div class="chips" id="invEmpl"></div>
+      <table class="rtab" id="invTab"></table>
+    </div>
+    <div class="mfoot"><span class="inv-tot" id="invTot"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="invOk" disabled>Valider</button></div>
+  </div></div>
+
+  <!-- Rappel -->
+  <div class="mveil" id="mRappel"><div class="mbox">
+    <div class="mhead"><div class="mt"><b>Rappeler le lot</b><span id="raSub">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mbody">
+      <div class="frow"><label class="flbl">Motif du rappel <span class="req">*</span></label><input class="finput" id="raMotif" placeholder="Rappel laboratoire n° …"></div>
+      <div id="raAni"></div>
+      <p class="hint">La quantité restante sort du stock en « Retour fournisseur » et le lot ne peut plus être délivré.</p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn danger" id="raOk" disabled>Rappeler le lot</button></div>
+  </div></div>
+
+  <div class="pick" id="pick">
+    <div class="crech"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="pickQ" autocomplete="off" placeholder="Rechercher un article…"></div>
+    <div class="pick-l scr" id="pickL"></div>
   </div>
 
-  {# ── Sortie ── #}
-  <div class="modal-overlay hidden" id="consume-modal">
-    <div class="modal">
-      <form method="POST" action="{{ path('clinic_stock') }}" id="consume-form">
-        <div class="modal-head">
-          <h2 class="modal-title">Sortie de stock</h2>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="stk-form-hint" style="margin-bottom:var(--space-4)" data-target-name></p>
-          <div class="stk-form-grid">
-            <div class="field">
-              <label class="field-label" for="consume-quantity">Quantité sortie</label>
-              <input class="form-input" id="consume-quantity" name="quantity" required inputmode="decimal">
-            </div>
-            <div class="field">
-              <label class="field-label" for="consume-reason">Motif</label>
-              <select class="form-input" id="consume-reason" name="reason">
-                <option value="CONSUMPTION_CONSULTATION">Utilisé en consultation</option>
-                <option value="SALE_RETAIL">Vendu au comptoir</option>
-                <option value="LOSS_EXPIRY">Perte — péremption</option>
-                <option value="LOSS_BREAKAGE">Perte — casse</option>
-                <option value="LOSS_THEFT">Perte — vol</option>
-                <option value="RECALL_RETURN_TO_SUPPLIER">Retour fournisseur</option>
-              </select>
-            </div>
-            <div class="field span-2">
-              <label class="field-label" for="consume-note">Note <span class="field-optional">(facultatif)</span></label>
-              <input class="form-input" id="consume-note" name="note" maxlength="255">
-            </div>
-          </div>
-          <p class="stk-form-hint" style="margin-top:var(--space-3)">
-            Le lot qui périme en premier est celui qui est entamé.
-          </p>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
-          <button class="btn btn-primary" type="submit">Enregistrer la sortie</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ── Inventaire d'un lot ── #}
-  <div class="modal-overlay hidden" id="count-modal">
-    <div class="modal modal-narrow">
-      <form method="POST" action="{{ path('clinic_stock') }}" id="count-form">
-        <div class="modal-head">
-          <h2 class="modal-title">Inventaire du lot</h2>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="stk-form-hint" style="margin-bottom:var(--space-4)" data-target-name></p>
-          <input type="hidden" name="lot_id" data-lot-field>
-          <div class="field">
-            <label class="field-label" for="count-quantity">Quantité comptée</label>
-            <input class="form-input" id="count-quantity" name="quantity" required inputmode="decimal">
-            <span class="stk-form-hint">
-              L’écart avec la quantité théorique est enregistré comme un ajustement.
-            </span>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
-          <button class="btn btn-primary" type="submit">Enregistrer le comptage</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ── Seuil ── #}
-  <div class="modal-overlay hidden" id="threshold-modal">
-    <div class="modal modal-narrow">
-      <form method="POST" action="{{ path('clinic_stock') }}" id="threshold-form">
-        <div class="modal-head">
-          <h2 class="modal-title">Seuil d’alerte</h2>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="stk-form-hint" style="margin-bottom:var(--space-4)" data-target-name></p>
-          <div class="field">
-            <label class="field-label" for="threshold-amount">Prévenir en dessous de</label>
-            <input class="form-input" id="threshold-amount" name="threshold" required inputmode="decimal">
-            <span class="stk-form-hint">Zéro désactive l’alerte de stock bas.</span>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
-          <button class="btn btn-primary" type="submit">Enregistrer</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ── Rappel de lot ── #}
-  <div class="modal-overlay hidden" id="recall-modal">
-    <div class="modal modal-narrow">
-      <form method="POST" action="{{ path('clinic_stock') }}" id="recall-form">
-        <div class="modal-head">
-          <h2 class="modal-title">Rappeler le lot</h2>
-          <button class="btn btn-ghost btn-icon btn-sm" type="button" data-modal-close aria-label="Fermer">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="stk-form-hint" style="margin-bottom:var(--space-4)" data-target-name></p>
-          <div class="field">
-            <label class="field-label" for="recall-reason">Motif du rappel</label>
-            <input class="form-input" id="recall-reason" name="reason" required maxlength="255"
-                   placeholder="Rappel laboratoire n° …">
-            <span class="stk-form-hint">
-              La quantité restante sort du stock et le lot ne peut plus être délivré.
-            </span>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-ghost" type="button" data-modal-close>Annuler</button>
-          <button class="btn btn-primary" type="submit">Rappeler le lot</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
+</div>
 {% endblock %}

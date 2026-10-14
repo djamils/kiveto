@@ -6,7 +6,6 @@ namespace App\Context\Inventory\Application\Command\ReceiveStock;
 
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
 use App\Context\Inventory\Domain\Shared\ValueObject\SupplierId;
-use App\Context\Inventory\Domain\StockItem\Exception\ConcurrentStockModificationException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockItemNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Repository\StockItemRepositoryInterface;
 use App\Context\Inventory\Domain\StockItem\ValueObject\LotId;
@@ -95,14 +94,10 @@ final class ReceiveStockHandler
             createdAt: $now,
         );
 
-        try {
-            $this->entityManager->wrapInTransaction(function () use ($stockItem, $movement): void {
-                $this->stockItemRepository->save($stockItem);
-                $this->stockMovementRepository->save($movement);
-            });
-        } catch (ConcurrentStockModificationException $e) {
-            throw $e;
-        }
+        $this->entityManager->wrapInTransaction(function () use ($stockItem, $movement): void {
+            $this->stockItemRepository->save($stockItem);
+            $this->stockMovementRepository->save($movement);
+        });
 
         $this->domainEventPublisher->publish($stockItem);
         $this->domainEventPublisher->publish($movement);

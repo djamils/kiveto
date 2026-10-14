@@ -9,18 +9,25 @@ use App\Context\Inventory\Application\Exception\ArticleNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Exception\ArchivedStockItemException;
 use App\Context\Inventory\Domain\StockItem\Exception\ConcurrentStockModificationException;
 use App\Context\Inventory\Domain\StockItem\Exception\DuplicateStockItemException;
+use App\Context\Inventory\Domain\StockItem\Exception\InconsistentLotDataException;
 use App\Context\Inventory\Domain\StockItem\Exception\InsufficientStockException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotAlreadyTerminatedException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotExpiredException;
+use App\Context\Inventory\Domain\StockItem\Exception\LotNotExpiredException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Exception\LotRecalledException;
 use App\Context\Inventory\Domain\StockItem\Exception\NegativeQuantityException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockItemNotFoundException;
 use App\Context\Inventory\Domain\StockItem\Exception\StockNotEmptyOnArchiveException;
 use App\Context\Inventory\Domain\StockItem\Exception\UnitMismatchException;
+use App\Context\Procurement\Application\Exception\DiscontinuedCatalogEntryException;
+use App\Context\Procurement\Application\Exception\PurchaseOrderClosedOrCancelledException;
+use App\Context\Procurement\Application\Exception\ReceiptQuantityExceedsOrderedException;
+use App\Context\Procurement\Application\Exception\SupplierAccountDisabledException;
+use App\Context\Procurement\Domain\PurchaseOrder\Exception\InvalidPurchaseOrderStatusTransitionException;
 
 /**
- * Says in French what the Inventory domain refused.
+ * Says in French what the Inventory and Procurement domains refused.
  *
  * The bounded context speaks English to its developers; the dispensary speaks
  * French to its users. Mapping the exception type rather than rewording the
@@ -42,6 +49,19 @@ final class StockErrorMessage
             $exception instanceof LotRecalledException => 'Ce lot a été rappelé et ne peut plus être utilisé.',
 
             $exception instanceof LotAlreadyTerminatedException => 'Ce lot est déjà clos.',
+
+            $exception instanceof LotNotExpiredException => 'Ce lot n’est pas périmé.',
+
+            $exception instanceof InconsistentLotDataException => 'Ce numéro de lot est déjà en stock avec une autre date de péremption.',
+
+            $exception instanceof DiscontinuedCatalogEntryException => 'Le fournisseur ne référence plus cet article.',
+
+            $exception instanceof SupplierAccountDisabledException => 'Le compte chez ce fournisseur est désactivé.',
+
+            $exception instanceof InvalidPurchaseOrderStatusTransitionException,
+            $exception instanceof PurchaseOrderClosedOrCancelledException => 'Cette commande ne peut plus être modifiée.',
+
+            $exception instanceof ReceiptQuantityExceedsOrderedException => 'La quantité reçue dépasse ce qui a été commandé.',
 
             $exception instanceof LotNotFoundException => 'Ce lot est introuvable.',
 

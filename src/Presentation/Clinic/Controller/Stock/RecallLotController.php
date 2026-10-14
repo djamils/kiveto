@@ -5,64 +5,49 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Stock;
 
 use App\Context\Inventory\Application\Command\MarkLotAsRecalled\MarkLotAsRecalled;
-use App\Presentation\Clinic\ViewModel\Stock\StockErrorMessage;
+use App\Presentation\Clinic\ViewModel\Stock\StockEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * A lot is withdrawn from use. Its quantity leaves the stock and the reason is
- * kept: this is the kind of thing an inspection asks about.
+ * « Rappeler le lot »: what is left of it goes back to the supplier and the
+ * lot can no longer be used. The reason is kept — an inspection asks for it.
  */
-#[Route(
-    path: '/stock/items/{stockItemId}/lots/{lotId}/recall',
-    name: 'clinic_stock_lot_recall',
-    methods: ['POST'],
-)]
-final class RecallLotController extends AbstractController
+#[Route(path: '/stock/items/{stockItemId}/lots/{lotId}/recall', name: 'clinic_stock_lot_recall', methods: ['POST'])]
+final readonly class RecallLotController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
+        private CommandBusInterface $commandBus,
+        private StockEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request, string $stockItemId, string $lotId): Response
+    public function __invoke(Request $request, string $stockItemId, string $lotId): JsonResponse
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
+        }
 
-        $reason = mb_trim($request->request->getString('reason'));
+        $reason = StockEndpoint::text($request, 'reason');
 
-        if ('' === $reason) {
-            return $this->refuse('Indiquez le motif du rappel.');
+        if (null === $reason) {
+            return $this->endpoint->refuse('Indiquez le motif du rappel.');
         }
 
         try {
             $this->commandBus->dispatch(new MarkLotAsRecalled(
                 stockItemId: $stockItemId,
-                clinicId: $currentClinicId->toString(),
+                clinicId: $this->endpoint->clinicId(),
                 lotId: $lotId,
                 reason: $reason,
+                performedBy: $this->endpoint->performer(),
             ));
-        } catch (\ValueError $exception) {
-            return $this->refuse(StockErrorMessage::of($exception));
         } catch (\LogicException $exception) {
-            return $this->refuse(StockErrorMessage::of($exception));
+            return $this->endpoint->refuse($exception);
         }
 
-        $this->addFlash('success', 'Lot rappelé et retiré du stock.');
-
-        return $this->redirectToRoute('clinic_stock');
-    }
-
-    private function refuse(string $message): Response
-    {
-        $this->addFlash('error', $message);
-
-        return $this->redirectToRoute('clinic_stock');
+        return $this->endpoint->ok();
     }
 }

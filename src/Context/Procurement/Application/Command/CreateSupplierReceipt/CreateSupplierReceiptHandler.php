@@ -38,7 +38,10 @@ final readonly class CreateSupplierReceiptHandler
     ) {
     }
 
-    public function __invoke(CreateSupplierReceipt $command): void
+    /**
+     * @return string the id of the new receipt
+     */
+    public function __invoke(CreateSupplierReceipt $command): string
     {
         $now       = $this->clock->now();
         $receiptId = SupplierReceiptId::fromString($this->uuidGenerator->generate());
@@ -95,5 +98,7 @@ final readonly class CreateSupplierReceiptHandler
             $this->receiptRepository->save($receipt);
         });
         $this->domainEventPublisher->publish($receipt);
+
+        return $receiptId->toString();
     }
 }

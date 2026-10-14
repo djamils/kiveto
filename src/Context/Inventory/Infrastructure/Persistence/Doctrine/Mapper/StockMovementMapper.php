@@ -35,6 +35,7 @@ final readonly class StockMovementMapper
         $entity->setPerformedBy(null !== $movement->performedBy() ? Uuid::fromString($movement->performedBy()) : null);
         $entity->setNote($movement->note());
         $entity->setCreatedAt($movement->createdAt());
+        $entity->setDecrease($movement->isDecrease());
 
         return $entity;
     }
@@ -61,6 +62,7 @@ final readonly class StockMovementMapper
             performedBy: $entity->getPerformedBy()?->toString(),
             note: $entity->getNote(),
             createdAt: $entity->getCreatedAt(),
+            decrease: $entity->isDecrease(),
         );
     }
 }

@@ -14,6 +14,7 @@ final readonly class OpenStockItem
         public string $thresholdUnit,
         public string $thresholdType,
         public bool $trackStock,
+        public ?string $location = null,
     ) {
     }
 }

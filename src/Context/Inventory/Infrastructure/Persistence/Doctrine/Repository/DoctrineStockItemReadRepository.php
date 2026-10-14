@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Inventory\Application\Port\StockItemReadRepositoryInterface;
-use App\Context\Inventory\Application\Query\GetExpiringLots\ExpiringLotView;
 use App\Context\Inventory\Application\Query\GetStockItem\LotView;
 use App\Context\Inventory\Application\Query\GetStockItem\StockItemView;
 use App\Context\Inventory\Application\Query\ListStockItemsByClinic\StockItemSummaryView;
@@ -95,44 +94,6 @@ final readonly class DoctrineStockItemReadRepository implements StockItemReadRep
                 'stockItemId' => Uuid::fromBinary(RowAccessor::string($row, 'stock_item_id'))->toString(),
                 'clinicId'    => Uuid::fromBinary(RowAccessor::string($row, 'clinic_id'))->toString(),
             ],
-            $rows
-        );
-    }
-
-    /**
-     * @return list<ExpiringLotView>
-     */
-    public function findLotsExpiringWithin(ClinicId $clinicId, int $days): array
-    {
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT l.id, l.stock_item_id, l.lot_number, l.quantity_amount, l.quantity_unit, l.expiry_date,
-                    s.clinic_id, s.article_id,
-                    DATEDIFF(l.expiry_date, CURDATE()) AS days_until_expiry
-             FROM inventory__lots l
-             JOIN inventory__stock_items s ON s.id = l.stock_item_id
-             WHERE s.clinic_id = :clinicId
-               AND l.status = :status
-               AND l.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL :days DAY)
-             ORDER BY l.expiry_date ASC',
-            [
-                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
-                'status'   => 'ACTIVE',
-                'days'     => $days,
-            ]
-        );
-
-        return array_map(
-            static fn (array $row): ExpiringLotView => new ExpiringLotView(
-                lotId: Uuid::fromBinary(RowAccessor::string($row, 'id'))->toString(),
-                stockItemId: Uuid::fromBinary(RowAccessor::string($row, 'stock_item_id'))->toString(),
-                clinicId: Uuid::fromBinary(RowAccessor::string($row, 'clinic_id'))->toString(),
-                articleId: Uuid::fromBinary(RowAccessor::string($row, 'article_id'))->toString(),
-                lotNumber: RowAccessor::string($row, 'lot_number'),
-                quantityAmount: RowAccessor::string($row, 'quantity_amount'),
-                quantityUnit: RowAccessor::string($row, 'quantity_unit'),
-                expiryDate: RowAccessor::string($row, 'expiry_date'),
-                daysUntilExpiry: RowAccessor::int($row, 'days_until_expiry'),
-            ),
             $rows
         );
     }

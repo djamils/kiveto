@@ -19,6 +19,7 @@ use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionRegisterStory;
+use App\Fixtures\Context\Procurement\Story\ProcurementDemoStory;
 use App\Fixtures\Context\Scheduling\Story\CalmDayClinicStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
@@ -99,7 +100,10 @@ final class ClinicDataset extends Story
         BillingDemoStory::load();
         DirectoryBalancesStory::load();
 
-        // Stock last: it is built on the articles the catalogue tracks.
+        // The suppliers and what they sell, then the stock: both are built on
+        // the articles the catalogue tracks, the stock's receipts on the
+        // suppliers.
+        ProcurementDemoStory::load();
         InventoryDemoStory::load();
 
         // The three states of the client sheet (normal, busy, brand new): last,

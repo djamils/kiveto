@@ -70,7 +70,7 @@ final class YamlUnitOfMeasureRegistryTest extends TestCase
     {
         $all = $this->registry->all();
 
-        self::assertCount(14, $all);
+        self::assertCount(15, $all);
 
         $codes = array_map(static fn ($def) => $def->code->toString(), $all);
         self::assertContains('BOX', $codes);
@@ -80,6 +80,7 @@ final class YamlUnitOfMeasureRegistryTest extends TestCase
         self::assertContains('SACHET', $codes);
         self::assertContains('PIPETTE', $codes);
         self::assertContains('BOTTLE', $codes);
+        self::assertContains('BAG', $codes);
         self::assertContains('AMPULE', $codes);
         self::assertContains('UNIT', $codes);
         self::assertContains('DOSE', $codes);

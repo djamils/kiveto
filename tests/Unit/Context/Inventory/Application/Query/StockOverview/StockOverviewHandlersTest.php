@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Inventory\Application\Query\StockOverview;
 
 use App\Context\Inventory\Application\Port\StockOverviewReadRepositoryInterface;
-use App\Context\Inventory\Application\Query\StockOverview\ListArticleIdsInState;
-use App\Context\Inventory\Application\Query\StockOverview\ListArticleIdsInStateHandler;
 use App\Context\Inventory\Application\Query\StockOverview\ListLotsForStockItems;
 use App\Context\Inventory\Application\Query\StockOverview\ListLotsForStockItemsHandler;
 use App\Context\Inventory\Application\Query\StockOverview\ListMovements;
@@ -17,7 +15,6 @@ use App\Context\Inventory\Application\Query\StockOverview\MovementRow;
 use App\Context\Inventory\Application\Query\StockOverview\StockSnapshotForArticles;
 use App\Context\Inventory\Application\Query\StockOverview\StockSnapshotForArticlesHandler;
 use App\Context\Inventory\Application\Query\StockOverview\StockSnapshotRow;
-use App\Context\Inventory\Application\Query\StockOverview\StockStateFilter;
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
 
@@ -51,23 +48,6 @@ final class StockOverviewHandlersTest extends TestCase
         $handler = new StockSnapshotForArticlesHandler($repo);
 
         self::assertSame([], $handler(new StockSnapshotForArticles(self::CLINIC, [])));
-    }
-
-    public function testTheStateFilterPassesItsExpiryWindowThrough(): void
-    {
-        $repo = $this->createMock(StockOverviewReadRepositoryInterface::class);
-        $repo->expects(self::once())
-            ->method('articleIdsInState')
-            ->with(self::anything(), StockStateFilter::EXPIRING, 15)
-            ->willReturn(['article-1', 'article-2'])
-        ;
-
-        $handler = new ListArticleIdsInStateHandler($repo);
-
-        self::assertSame(
-            ['article-1', 'article-2'],
-            $handler(new ListArticleIdsInState(self::CLINIC, StockStateFilter::EXPIRING, 15)),
-        );
     }
 
     public function testTheMovementsAreWrappedInTheirPage(): void

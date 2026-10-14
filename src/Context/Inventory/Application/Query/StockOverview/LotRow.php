@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Inventory\Application\Query\StockOverview;
 
 /**
- * One lot of a stock item, as the count and recall forms need it.
+ * One lot of a stock item, as the stock page shows it: where it came from,
+ * and — for a recalled lot — why it was withdrawn.
  */
 final readonly class LotRow
 {
@@ -17,6 +18,10 @@ final readonly class LotRow
         public string $unit,
         public string $expiryDate,
         public string $status,
+        public ?string $receivedAt = null,
+        public ?string $reference = null,
+        public ?string $recallReason = null,
+        public ?string $changedAt = null,
     ) {
     }
 

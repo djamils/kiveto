@@ -219,3 +219,47 @@ body:has(.reg .bulk.on) > .toast{bottom:80px}
 .reg .puce.cl-l1{background:#fef2f2;color:#b91c1c}
 .reg .puce.cl-stup{background:#1e1b4b;color:#fff}
 .reg .puce.aic{background:#fff7ed;color:#c2410c}
+/* ── The pieces of the « Catalogue » kit the stock page shares with the
+   catalogue (sortable headers, archived rows, identity and figures cells, the
+   sheet's lists, bands with actions and history, the item picker) ── */
+.reg .ctw thead th.sortable{cursor:pointer;user-select:none}
+.reg .ctw thead th.sortable:hover{color:var(--encre-60)}
+.reg .ctw thead th.son{color:var(--pin-fonce)}
+.reg .ctw thead th .sarr{display:inline-block;margin-left:4px;font-size:.7rem}
+.reg .ctw tbody tr.arch td{color:var(--encre-35)}
+.reg .ctw tbody tr.arch .cid b{color:var(--encre-60)}
+.reg .cid{display:flex;flex-direction:column;min-width:0;max-width:460px}
+.reg .cid > b{font-weight:600;font-size:.84rem;display:flex;align-items:center;gap:6px}
+.reg .cid > span{font-size:.73rem;color:var(--encre-60);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.45}
+.reg .czone.ouvert .cid{max-width:280px}
+.reg .cid code,.reg .code{font-family:var(--font-data);font-size:.7rem;color:var(--encre-60)}
+.reg .cnum b{display:block;font-family:var(--font-data);font-size:.82rem;font-weight:600;color:var(--encre);white-space:nowrap}
+.reg .cnum span{display:block;font-size:.7rem;color:var(--encre-35);margin-top:2px;white-space:nowrap}
+.reg .cnum.mute b{color:var(--encre-35);font-weight:500}
+.reg .puce.froid{background:#ecfeff;color:#0e7490}
+.reg .fs .finput{padding:8px 10px;font-size:.85rem}
+.reg .bandeau .act{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap}
+.reg .bandeau .act button{height:28px;padding:0 11px;border-radius:7px;font-size:.77rem;font-weight:600;background:var(--carte);border:1px solid currentColor}
+.reg .bandeau.warn .act button.p{background:#c2410c;border-color:#c2410c;color:#fff}
+.reg .bandeau.warn .act button.p:hover{background:#9a3412}
+.reg .lst{display:flex;flex-direction:column}
+.reg .addl{display:flex;align-items:center;gap:7px;margin-top:9px;height:32px;padding:0 11px;border-radius:8px;border:1px dashed #c7d2fe;color:var(--pin);font-size:.8rem;font-weight:600;width:100%}
+.reg .addl:hover{background:var(--pin-pale)}
+.reg .addl svg{width:14px;height:14px}
+.reg .hist{font-size:.76rem;color:var(--encre-60)}
+.reg .hist div{display:flex;gap:10px;padding:4px 0}
+.reg .hist div span:first-child{min-width:86px;font-family:var(--font-data);font-size:.72rem;color:var(--encre-35)}
+.reg .hist div b{font-family:var(--font-data);font-weight:500;color:var(--encre)}
+.reg .pick{position:fixed;z-index:130;width:380px;background:var(--carte);border:1px solid var(--trait);border-radius:11px;box-shadow:0 18px 50px rgba(15,23,42,.2);display:none;overflow:hidden}
+.reg .pick.open{display:block}
+.reg .pick .crech{max-width:none;margin:8px;background:var(--brume)}
+.reg .pick-l{max-height:290px;overflow-y:auto;padding:0 4px 4px}
+.reg .pick-it{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:7px;text-align:left}
+.reg .pick-it:hover,.reg .pick-it.hl{background:var(--pin-pale)}
+.reg .pick-it .lt{flex:1;min-width:0}
+.reg .pick-it .lt b{display:block;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reg .pick-it .lt span{display:block;font-size:.7rem;color:var(--encre-60)}
+.reg .pick-it .m{font-family:var(--font-data);font-size:.76rem;color:var(--encre-60)}
+.reg .pick-it .k{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:4px;background:var(--brume);color:var(--encre-60)}
+.reg .pick-vide{padding:16px;text-align:center;font-size:.8rem;color:var(--encre-60)}
+.reg .mbody .seg{margin-top:0}
