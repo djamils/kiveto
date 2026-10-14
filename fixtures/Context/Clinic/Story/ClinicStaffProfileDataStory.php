@@ -116,6 +116,23 @@ final class ClinicStaffProfileDataStory extends Story
             isClinicAdministrator: true,
         ));
 
+        // ... and to the quiet clinic of the group (the dashboard's calm day).
+        $this->commandBus->dispatch(new OnboardStaffMember(
+            clinicId: ClinicDataStory::CALM_CLINIC_ID,
+            userId: $vetUser->getId()->toRfc4122(),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Éric',
+            lastName: 'Rousseau',
+            displayName: 'Rousseau',
+            agendaColor: '#4f86c6',
+            sortOrder: 0,
+            isVisibleInAgenda: true,
+            registrationNumber: 'FR-12345',
+            professionalTitle: ProfessionalTitle::DR,
+            isClinicAdministrator: true,
+        ));
+
         // Onboard the same veterinarian to Lyon clinic as well
         $this->commandBus->dispatch(new OnboardStaffMember(
             clinicId: ClinicDataStory::GROUP_CLINIC_ID,

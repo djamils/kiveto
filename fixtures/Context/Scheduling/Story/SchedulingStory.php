@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Context\Scheduling\Story;
 
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
+use App\Context\Scheduling\Application\Command\CompleteAppointment\CompleteAppointment;
 use App\Context\Scheduling\Application\Command\ScheduleAppointment\ScheduleAppointment;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
@@ -94,39 +95,12 @@ final class SchedulingStory extends Story
             $this->schedule($clinicId, $practitionerId, $localStart, $utcTz, $duration, $reason, $cancelled);
         }
 
-        // Whatever day the fixtures are loaded on, both clinics need a booked
-        // day: the daily board and the agenda open on today.
-        $today = $now->setTime(0, 0, 0);
-
-        $todayPlan = [
-            // [hour, minute, clinicId, practitionerId, duration, reason, cancelled]
-            [8,  30, $paris, $vetUserId,        30, 'Consultation vaccinale',    false],
-            [9,  15, $paris, $contractorUserId, 20, 'Contrôle post-opératoire',  false],
-            [11, 0,  $paris, $vetUserId,        30, 'Bilan annuel',              false],
-            [14, 30, $paris, $contractorUserId, 45, 'Détartrage',                false],
-            [16, 0,  $paris, $vetUserId,        20, 'Vaccin',                    false],
-            [9,  0,  $lyon,  $vetUserId,        30, 'Consultation',              false],
-            [10, 30, $lyon,  $lyonVetUserId,    60, 'Chirurgie de convenance',   false],
-            [15, 0,  $lyon,  $lyonVetUserId,    20, 'Contrôle de poids',         false],
-            [17, 0,  $lyon,  $vetUserId,        30, 'Consultation dermatologie', false],
-        ];
-
-        foreach ($todayPlan as [$hour, $minute, $clinicId, $practitionerId, $duration, $reason, $cancelled]) {
-            $this->schedule(
-                $clinicId,
-                $practitionerId,
-                $today->setTime($hour, $minute, 0),
-                $utcTz,
-                $duration,
-                $reason,
-                $cancelled,
-            );
-        }
-
         // A cancelled appointment, so the agenda and the board both show that
         // state. It is placed relative to the clock rather than at a fixed hour:
         // the domain refuses to cancel an appointment that has already passed,
-        // and the fixtures are loaded at any time of day.
+        // and the fixtures are loaded at any time of day. Booked before the
+        // day's plan: once cancelled it no longer holds the practitioner's
+        // slot, whereas a planned one would refuse it.
         $this->schedule(
             $paris,
             $vetUserId,
@@ -146,6 +120,57 @@ final class SchedulingStory extends Story
             'Contrôle annulé par le propriétaire',
             true,
         );
+
+        // Whatever day the fixtures are loaded on, both clinics need a booked
+        // day: the daily board and the agenda open on today.
+        $today = $now->setTime(0, 0, 0);
+
+        // Paris has a busy day (a long « Fil du jour » on the dashboard, a
+        // full agenda), Lyon a regular one; the calm day lives in
+        // CalmDayClinicStory.
+        $todayPlan = [
+            // [hour, minute, clinicId, practitionerId, duration, reason, cancelled]
+            [8,  30, $paris, $vetUserId,        30, 'Consultation vaccinale',    false],
+            [9,  15, $paris, $contractorUserId, 20, 'Contrôle post-opératoire',  false],
+            [9,  45, $paris, $vetUserId,        20, 'Rappel vaccinal',           false],
+            [10, 0,  $paris, $contractorUserId, 30, 'Consultation dermatologie', false],
+            [10, 15, $paris, $vetUserId,        30, 'Bilan gériatrique',         false],
+            [10, 45, $paris, $contractorUserId, 20, 'Retrait de points',         false],
+            [11, 0,  $paris, $vetUserId,        30, 'Bilan annuel',              false],
+            [11, 45, $paris, $vetUserId,        20, 'Contrôle de poids',         false],
+            [14, 0,  $paris, $vetUserId,        30, 'Primo-vaccination chaton',  false],
+            [14, 30, $paris, $contractorUserId, 45, 'Détartrage',                false],
+            [15, 0,  $paris, $vetUserId,        20, 'Otite — contrôle',          false],
+            [15, 30, $paris, $contractorUserId, 30, 'Consultation boiterie',     false],
+            [16, 0,  $paris, $vetUserId,        20, 'Vaccin',                    false],
+            [16, 30, $paris, $vetUserId,        30, 'Bilan sanguin',             false],
+            [17, 0,  $paris, $contractorUserId, 20, 'Vermifugation',             false],
+            [17, 30, $paris, $vetUserId,        20, 'Identification puce',       false],
+            [18, 15, $paris, $vetUserId,        30, 'Consultation comportement', false],
+            [9,  0,  $lyon,  $vetUserId,        30, 'Consultation',              false],
+            [10, 30, $lyon,  $lyonVetUserId,    60, 'Chirurgie de convenance',   false],
+            [15, 0,  $lyon,  $lyonVetUserId,    20, 'Contrôle de poids',         false],
+            [17, 0,  $lyon,  $vetUserId,        30, 'Consultation dermatologie', false],
+        ];
+
+        foreach ($todayPlan as [$hour, $minute, $clinicId, $practitionerId, $duration, $reason, $cancelled]) {
+            $localStart    = $today->setTime($hour, $minute, 0);
+            $appointmentId = $this->schedule(
+                $clinicId,
+                $practitionerId,
+                $localStart,
+                $utcTz,
+                $duration,
+                $reason,
+                $cancelled,
+            );
+
+            // What is already over when the fixtures load has been seen: the
+            // timeline shows it as « terminé ».
+            if ($localStart->modify(\sprintf('+%d minutes', $duration)) <= $now) {
+                $this->commandBus->dispatch(new CompleteAppointment($appointmentId));
+            }
+        }
     }
 
     /**
@@ -199,7 +224,7 @@ final class SchedulingStory extends Story
         int $durationMinutes,
         string $reason,
         bool $cancelled,
-    ): void {
+    ): string {
         // A booking is made for an animal and its owner. An agenda of anonymous
         // slots shows nothing of what the day holds.
         $patient = $this->nextPatient($clinicId);
@@ -222,5 +247,7 @@ final class SchedulingStory extends Story
                 appointmentId: $appointmentId,
             ));
         }
+
+        return $appointmentId;
     }
 }

@@ -14,6 +14,8 @@ final class ClinicDataStory extends Story
     public const string INDEPENDENT_CLINIC_ID = '01960000-0000-7000-8000-000000000001';
     public const string GROUP_ID              = '01960000-0000-7000-8000-000000000100';
     public const string GROUP_CLINIC_ID       = '01960000-0000-7000-8000-000000000101';
+    // A quiet clinic of the group: the « journée calme » of the dashboard.
+    public const string CALM_CLINIC_ID = '01960000-0000-7000-8000-000000000102';
 
     public function build(): void
     {
@@ -98,6 +100,53 @@ final class ClinicDataStory extends Story
                 email: 'contact@vetofrance-lyon.fr',
                 website: 'www.vetofrance.fr',
             ))
+            // Continuous hours on weekdays, so the dashboard can count the
+            // day's slots.
+            ->withOpeningHours([
+                'week' => [
+                    1 => [['opensAt' => '08:30', 'closesAt' => '19:00']],
+                    2 => [['opensAt' => '08:30', 'closesAt' => '19:00']],
+                    3 => [['opensAt' => '08:30', 'closesAt' => '19:00']],
+                    4 => [['opensAt' => '08:30', 'closesAt' => '19:00']],
+                    5 => [['opensAt' => '08:30', 'closesAt' => '19:00']],
+                    6 => [['opensAt' => '09:00', 'closesAt' => '12:00']],
+                ],
+                'closures' => [],
+            ])
+            ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
+        ;
+
+        ClinicEntityFactory::new()
+            ->withId(self::CALM_CLINIC_ID)
+            ->withSlug('clinic-calanques')
+            ->withName('Clinique des Calanques')
+            ->withGroupId(self::GROUP_ID)
+            ->withLetterhead(new LetterheadEmbeddable(
+                legalName: 'Réseau VetoFrance — Établissement de Cassis',
+                legalForm: 'SAS',
+                shareCapital: '150 000 €',
+                siret: '90112233400026',
+                vatNumber: 'FR62901122334',
+                rcsCity: 'Marseille',
+                rcsNumber: '901 122 334',
+                apeCode: '7500Z',
+                ordinalNumber: '13-0871',
+                streetLine1: '5 avenue de la Marne',
+                postalCode: '13260',
+                city: 'Cassis',
+                countryCode: 'FR',
+                phone: '+33442010203',
+                email: 'cassis@vetofrance.fr',
+                website: 'www.vetofrance.fr',
+            ))
+            // Every day of the week, so its calm day is today whatever today is.
+            ->withOpeningHours([
+                'week' => array_fill(1, 7, [
+                    ['opensAt' => '09:00', 'closesAt' => '12:00'],
+                    ['opensAt' => '14:00', 'closesAt' => '18:00'],
+                ]),
+                'closures' => [],
+            ])
             ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
         ;
 
