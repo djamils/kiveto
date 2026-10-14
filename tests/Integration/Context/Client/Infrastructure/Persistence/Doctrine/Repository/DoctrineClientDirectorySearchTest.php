@@ -86,6 +86,13 @@ final class DoctrineClientDirectorySearchTest extends KernelTestCase
         self::assertSame([self::MARIE], $this->idsFor(new SearchClientsCriteria(searchTerm: '612345678')));
     }
 
+    public function testFreeTextMatchesThePhoneAsDialledLocally(): void
+    {
+        $this->seed();
+
+        self::assertSame([self::MARIE], $this->idsFor(new SearchClientsCriteria(searchTerm: '06 12 34')));
+    }
+
     public function testStatusFilter(): void
     {
         $this->seed();
@@ -98,6 +105,42 @@ final class DoctrineClientDirectorySearchTest extends KernelTestCase
         $this->seed();
 
         self::assertSame([self::JEAN], $this->idsFor(new SearchClientsCriteria(cities: ['Aubagne'])));
+    }
+
+    public function testRestrictionKeepsOnlyTheGivenClients(): void
+    {
+        $this->seed();
+
+        self::assertSame(
+            [self::MARIE, self::JEAN],
+            $this->idsFor(new SearchClientsCriteria(restrictToIds: [self::MARIE, self::JEAN])),
+        );
+    }
+
+    public function testAnEmptyRestrictionMatchesNobody(): void
+    {
+        $this->seed();
+
+        self::assertSame([], $this->idsFor(new SearchClientsCriteria(restrictToIds: [])));
+        self::assertSame(
+            0,
+            $this->repository->countBy(ClinicId::fromString(self::CLINIC_ID), new SearchClientsCriteria(restrictToIds: [])),
+        );
+    }
+
+    public function testFreeTextAlsoKeepsTheClientsAnotherContextMatched(): void
+    {
+        $this->seed();
+
+        // "Rex" is nobody's name: only the owner the Animal context matched comes back.
+        self::assertSame(
+            [self::SOPHIE],
+            $this->idsFor(new SearchClientsCriteria(searchTerm: 'Rex', termMatchingIds: [self::SOPHIE])),
+        );
+        self::assertSame(
+            [self::MARIE, self::SOPHIE],
+            $this->idsFor(new SearchClientsCriteria(searchTerm: 'Lambert', termMatchingIds: [self::SOPHIE])),
+        );
     }
 
     public function testSortByCity(): void

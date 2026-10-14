@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Client\Application\Query\SearchClients;
 
 use App\Context\Client\Application\Port\ClientReadRepositoryInterface;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
+use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsHandler;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use PHPUnit\Framework\TestCase;
@@ -74,5 +75,24 @@ final class SearchClientsHandlerTest extends TestCase
         $result  = $handler($query);
 
         self::assertSame($expectedResult, $result);
+    }
+
+    public function testTheRestrictionsReachTheRepository(): void
+    {
+        $readRepository = $this->createMock(ClientReadRepositoryInterface::class);
+        $readRepository->expects(self::once())
+            ->method('search')
+            ->with(
+                self::anything(),
+                self::callback(static fn (SearchClientsCriteria $c): bool => ['a'] === $c->restrictToIds && ['b'] === $c->termMatchingIds),
+            )
+            ->willReturn(['items' => [], 'total' => 0])
+        ;
+
+        (new SearchClientsHandler($readRepository))(new SearchClients(
+            clinicId: '12345678-9abc-def0-1234-56789abcdef0',
+            restrictToIds: ['a'],
+            termMatchingIds: ['b'],
+        ));
     }
 }

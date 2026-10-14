@@ -11,8 +11,12 @@ final readonly class SearchClientsCriteria
     public const string SORT_CREATED = 'created';
 
     /**
-     * @param list<string> $statuses statuses to keep, empty means all
-     * @param list<string> $cities   cities to keep, empty means all
+     * @param list<string>  $statuses        statuses to keep, empty means all
+     * @param list<string>  $cities          cities to keep, empty means all
+     * @param ?list<string> $restrictToIds   clients the caller already narrowed down,
+     *                                       null when there is no such restriction
+     * @param list<string>  $termMatchingIds clients another context matched on the
+     *                                       free text, kept alongside the text matches
      */
     public function __construct(
         public ?string $searchTerm = null,
@@ -23,6 +27,8 @@ final readonly class SearchClientsCriteria
         public array $cities = [],
         public string $sort = self::SORT_NAME,
         public string $direction = 'asc',
+        public ?array $restrictToIds = null,
+        public array $termMatchingIds = [],
     ) {
         if ($page < 1) {
             throw new \InvalidArgumentException('Page must be >= 1.');

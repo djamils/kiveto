@@ -106,19 +106,8 @@ final class CreateAnimalController extends AbstractController
 
                 $this->addFlash('success', \sprintf('Animal "%s" créé avec succès.', $name));
 
-                if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
-                    $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
-
-                    return $this->render(
-                        'clinic/clients/list/_create_animal_success.stream.html.twig',
-                        ['targetUrl' => $targetUrl],
-                        new Response('', Response::HTTP_OK, [
-                            'Content-Type'   => TurboBundle::STREAM_MEDIA_TYPE,
-                            'Turbo-Location' => $targetUrl,
-                        ]),
-                    );
-                }
-
+                // Turbo follows the redirect: the list comes back with the new
+                // animal and the flash as a toast.
                 return $this->redirect($targetUrl, Response::HTTP_SEE_OTHER);
             }
         }

@@ -324,6 +324,9 @@ services:
 
     App\Context\Animal\Infrastructure\Persistence\Doctrine\PreventiveCareRecordMapper: ~
 
+    App\Context\Animal\Application\Port\AnimalDirectoryReadRepositoryInterface:
+        class: App\Context\Animal\Infrastructure\Persistence\Doctrine\DbalAnimalDirectoryReadRepository
+
     # ============================================================================
     # BOUNDED CONTEXT: SCHEDULING
     # ============================================================================

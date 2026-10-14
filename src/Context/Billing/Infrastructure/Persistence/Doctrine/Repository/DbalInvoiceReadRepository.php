@@ -305,6 +305,39 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         );
     }
 
+    public function outstandingByPayer(ClinicId $clinicId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT i.payer_client_id, i.discount_kind, i.discount_value,
+                        %s AS total_net, %s AS total_tax, %s AS total_paid
+                 FROM billing__invoices i
+                 WHERE i.clinic_id = :clinicId AND i.status IN (:statuses) AND i.payer_client_id IS NOT NULL',
+                $this->netExpression(),
+                $this->taxExpression(),
+                $this->paidExpression(),
+            ),
+            [
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+                'statuses' => [InvoiceStatus::ISSUED->value, InvoiceStatus::PARTIALLY_PAID->value],
+            ],
+            ['statuses' => ArrayParameterType::STRING],
+        );
+
+        $balances = [];
+
+        foreach ($rows as $row) {
+            $due = $this->grossAfterDiscount($row) - (int) round((float) RowAccessor::string($row, 'total_paid'));
+
+            if ($due > 0) {
+                $payer            = RowAccessor::uuid($row, 'payer_client_id');
+                $balances[$payer] = ($balances[$payer] ?? 0) + $due;
+            }
+        }
+
+        return $balances;
+    }
+
     /**
      * @return array{
      *     where: string,

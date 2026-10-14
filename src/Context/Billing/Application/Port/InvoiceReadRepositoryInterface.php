@@ -34,6 +34,14 @@ interface InvoiceReadRepositoryInterface
     public function stats(ClinicId $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $to): BillingStats;
 
     /**
+     * What each client still owes the clinic, in minor units, across their
+     * issued and partly paid invoices. Clients who owe nothing are left out.
+     *
+     * @return array<string, int> client id => balance due
+     */
+    public function outstandingByPayer(ClinicId $clinicId): array;
+
+    /**
      * The invoice raised for one visit, or null while the counter has not been
      * through it.
      */

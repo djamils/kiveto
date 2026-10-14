@@ -1,38 +1,20 @@
 {#
- # Modal: Nouveau client — the Répertoire design, wired to the Symfony form
- # through Turbo Streams.
+ # Modal: Nouveau client — shell kit (.mveil / .mbox), wired to the Symfony
+ # form through Turbo Streams (_create_client_error.stream on a 422).
  #}
-<div
-  class="modal-overlay hidden"
-  id="modal-new-client"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="modal-new-client-title"
->
-  <div class="modal">
-
-    <div class="modal-head">
-      <div class="modal-head-icon" aria-hidden="true"><i data-lucide="user-plus"></i></div>
-      <div class="modal-head-title" id="modal-new-client-title">
-        Nouveau client
-        <span class="modal-head-sub">Créer une fiche propriétaire</span>
-      </div>
-      <button class="modal-close" type="button" aria-label="Fermer" data-modal-close>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-      </button>
+<div class="mveil" id="modal-new-client" role="dialog" aria-modal="true" aria-labelledby="modal-new-client-title">
+  <div class="mbox">
+    <div class="mhead">
+      <span class="mic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span>
+      <div class="mt"><b id="modal-new-client-title">Nouveau client</b><span>Créer une fiche propriétaire</span></div>
+      <button type="button" class="mclose" aria-label="Fermer" data-close>{{ _svg.x|raw }}</button>
     </div>
-
-    <div class="modal-body">
-      {{ include('clinic/clients/list/_form_client_body.html.twig', {form: createClientForm}) }}
+    <div class="mbody">
+      {{ include('clinic/clients/list/_form_client_body.html.twig', { form: createClientForm }) }}
     </div>
-
-    <div class="modal-foot">
-      <button type="button" class="btn btn-secondary btn-sm" data-modal-close>Annuler</button>
-      <button type="submit" form="form-new-client" class="btn btn-primary btn-sm">
-        <i data-lucide="check"></i>
-        Créer le client
-      </button>
+    <div class="mfoot">
+      <button type="button" class="btn" data-close>Annuler</button>
+      <button type="submit" form="form-new-client" class="btn primaire">Créer le client</button>
     </div>
-
   </div>
 </div>

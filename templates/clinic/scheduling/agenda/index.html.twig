@@ -13,6 +13,7 @@
  # Variables from controller:
  #   agenda   payload of App\Presentation\Clinic\ViewModel\Agenda\AgendaViewBuilder::page()
  #   openNew  bool — ?new=1 (shell « R » shortcut, dashboard) opens the modal
+ #   newPatient string — ?patient=… (directory row action) pre-fills its patient search
  #
  # Behaviour: assets/js/pages/scheduling/agenda.js
  # Styles:    assets/styles/pages/scheduling/sched.css (shared shell with
@@ -28,6 +29,7 @@
 {% block main %}
 {% set _data = agenda|merge({
   openNew: openNew,
+  newPatient: newPatient ?? '',
   token: csrf_token('appointment'),
   urls: {
     range:      path('clinic_scheduling_agenda_range'),

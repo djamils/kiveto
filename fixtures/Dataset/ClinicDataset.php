@@ -6,8 +6,10 @@ namespace App\Fixtures\Dataset;
 
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Billing\Story\BillingDemoStory;
+use App\Fixtures\Context\Billing\Story\DirectoryBalancesStory;
 use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
+use App\Fixtures\Context\Client\Story\DirectoryCrowdStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
@@ -56,6 +58,9 @@ final class ClinicDataset extends Story
         // Create Animal BC data
         AnimalDataStory::load();
 
+        // The Paris directory at a realistic size (several pages, every facet)
+        DirectoryCrowdStory::load();
+
         // Seed Scheduling BC appointments (depends on users, memberships, owners, animals)
         SchedulingStory::load();
 
@@ -89,6 +94,7 @@ final class ClinicDataset extends Story
 
         // Invoice the visits that are over (needs their consultations)
         BillingDemoStory::load();
+        DirectoryBalancesStory::load();
 
         // Stock last: it is built on the articles the catalogue tracks.
         InventoryDemoStory::load();

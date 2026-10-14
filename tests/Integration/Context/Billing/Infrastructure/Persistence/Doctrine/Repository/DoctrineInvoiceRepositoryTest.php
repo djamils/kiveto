@@ -443,6 +443,34 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         self::assertSame($invoice->totalGross()->minorUnits(), $stats->outstandingMinorUnits);
     }
 
+    public function testEachPayerOwesWhatTheirOpenInvoicesStillCarry(): void
+    {
+        $partly = $this->draft(admissionId: null);
+        $partly->addLine($this->line(2000, 400, 2400), $this->now());
+        $partly->issue(InvoiceNumber::of(2026, 140), $this->now());
+        $partly->recordPayment($this->payment(400), $this->now());
+        $this->invoices->save($partly);
+
+        $issued = $this->draft(admissionId: null);
+        $issued->addLine($this->line(1000, 200, 1200), $this->now());
+        $issued->issue(InvoiceNumber::of(2026, 141), $this->now());
+        $this->invoices->save($issued);
+
+        // Settled and draft invoices owe nothing.
+        $paid = $this->draft(admissionId: null);
+        $paid->addLine($this->line(5000, 1000, 6000), $this->now());
+        $paid->issue(InvoiceNumber::of(2026, 142), $this->now());
+        $paid->recordPayment($this->payment(6000), $this->now());
+        $this->invoices->save($paid);
+
+        $draft = $this->draft(admissionId: null);
+        $draft->addLine($this->line(9000, 1800, 10800), $this->now());
+        $this->invoices->save($draft);
+
+        self::assertSame([self::CLIENT_ID => 3200], $this->read->outstandingByPayer($this->clinic()));
+        self::assertSame([], $this->read->outstandingByPayer(ClinicId::fromString(self::OTHER_CLINIC)));
+    }
+
     private function draft(
         ?string $admissionId = self::ADMISSION_ID,
         string $payerName = 'Sophie Dupont',

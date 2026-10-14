@@ -1,368 +1,222 @@
 {#
  # Kiveto — templates/clinic/clients/list/index.html.twig
  # ──────────────────────────────────────────────────────
- # Répertoire — clients and animals in one table, two modes. Ported from
- # docs/frontend-theme/vetsaas-layouts/vetos-repertoire-clients-animaux.html.
+ # Répertoire — clients and animals in one table, two views. Ported from
+ # docs/frontend-theme/kiveto-theme/repertoire-v-topbar_13.html: page header
+ # with the Clients / Animaux switch, filter bar (search, multi-choice pills,
+ # column picker), the table, its footer pager and the bulk bar, plus the two
+ # creation modals.
  #
- # Filtering, sorting and pagination are server-side: every control is a link
- # carrying the current query string, so the URL is shareable.
+ # Filtering and pagination are server-side: the filter bar is a GET form
+ # aimed at the results frame, the pager and the sort are links into it, so a
+ # view is a shareable URL. The column picker is a per-browser preference.
  #
- # Variables:
- #   mode              string  'clients' | 'animals'
- #   clients           ClientListItemView[]
- #   animals           AnimalListItemView[]
- #   clientCount       int     Total for the Clients side of the toggle
- #   animalCount       int     Total for the Animaux side
- #   animalSummaries   array   clientId => AnimalSummary[]
- #   ownerNames        array   clientId => "Prénom Nom"
- #   enrichment        array   clients: clientId => {startedAt, animalName}
- #                             animals: animalId => [{kind, label}]
- #   pagination        array   Page view model
- #   filters           array   Active filter values
- #   sort, direction   string  Active sort
+ # Variables (App\Presentation\Clinic\ViewModel\Directory\DirectoryViewBuilder::page()):
+ #   filters      DirectoryFilters
+ #   counts       {clients: int, animals: int} — the clinic's totals
+ #   cityOptions  list<string>
+ #   rows         list of client or animal rows
+ #   pagination   {total, page, pages, size, shown}
+ #   createClientForm / createAnimalForm
+ #
+ # Behaviour: assets/js/pages/clients/list.js — styles: assets/styles/pages/clients/directory.css
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{# Répertoire mock-up: the sidebar starts expanded #}
 {% block sidebar_mode %}full{% endblock %}
-
+{% block page_body_class %}vt{% endblock %}
 {% block title %}Répertoire{% endblock %}
-{% block show_topbar %}false{% endblock %}
 
-{% block stylesheets %}
-  <link rel="stylesheet" href="{{ asset('styles/pages/clients/directory.css') }}"/>
-{% endblock %}
+{% set f = filters %}
+{% set isClients = f.isClients %}
 
-{% set STATUS_LABELS  = { 'active': 'Actif', 'archived': 'Archivé' } %}
-{% set LIFE_LABELS    = { 'alive': 'Vivant', 'deceased': 'Décédé', 'missing': 'Disparu' } %}
-{% set LIFE_CLASSES   = { 'alive': 'active', 'deceased': 'deceased', 'missing': 'archived' } %}
-{% set SPECIES_LABELS = { 'dog': 'Chien', 'cat': 'Chat', 'nac': 'NAC', 'other': 'Autre' } %}
-{% set SPECIES_ICONS  = { 'dog': '🐕', 'cat': '🐈', 'nac': '🐹', 'other': '🐾' } %}
-{% set SEX_GLYPHS     = { 'female': '♀ Femelle', 'male': '♂ Mâle', 'unknown': 'Sexe inconnu' } %}
-{% set ALERT_LABELS   = { 'ALLERGY': 'Allergie', 'CHRONIC_CONDITION': 'Suivi' } %}
-{% set AVATAR_COLORS  = ['#4338ca', '#0891b2', '#ea580c', '#16a34a', '#dc2626', '#7c3aed', '#0284c7', '#c2410c', '#059669', '#b91c1c'] %}
+{% set _svg = {
+  chev:   '<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  lock:   '<svg class="vlock" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  plus:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  rdv:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M12 13v6M9 16h6"/></svg>',
+  open:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></svg>',
+  neutre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>',
+  haut:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>',
+  bas:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  gauche: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  droite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  x:      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+} %}
 
-{# Current query string, rebuilt for every link so the controls compose #}
-{% set qs = { mode: mode } %}
-{% if filters.q %}{% set qs = qs|merge({ q: filters.q }) %}{% endif %}
-{% if mode == 'clients' %}
-  {% if filters.status %}{% set qs = qs|merge({ status: filters.status }) %}{% endif %}
-  {% if filters.city %}{% set qs = qs|merge({ city: filters.city }) %}{% endif %}
-{% else %}
-  {% if filters.species %}{% set qs = qs|merge({ species: filters.species }) %}{% endif %}
-  {% if filters.life %}{% set qs = qs|merge({ life: filters.life }) %}{% endif %}
+{# The current view as query parameters, shared by every link of the frame #}
+{% set qs = { mode: f.mode } %}
+{% if f.search %}{% set qs = qs|merge({ q: f.search }) %}{% endif %}
+{% if isClients %}
+  {# An emptied status filter stays explicit, or the default would come back #}
+  {% set qs = qs|merge({ status: f.statuses ?: [''] }) %}
+  {% if f.cities %}{% set qs = qs|merge({ city: f.cities }) %}{% endif %}
 {% endif %}
-{% if sort != 'name' or direction != 'asc' %}{% set qs = qs|merge({ sort: sort, dir: direction }) %}{% endif %}
-{% if pagination.limit != 25 %}{% set qs = qs|merge({ per_page: pagination.limit }) %}{% endif %}
+{% if f.species %}{% set qs = qs|merge({ species: f.species }) %}{% endif %}
+{% if f.states %}{% set qs = qs|merge({ etat: f.states }) %}{% endif %}
+{# The name order is the default; a header click makes it explicit (and shown) #}
+{% set sorted = app.request.query.has('dir') %}
+{% if sorted %}{% set qs = qs|merge({ dir: f.direction }) %}{% endif %}
+{% if pagination.size != 10 %}{% set qs = qs|merge({ per_page: pagination.size }) %}{% endif %}
 
-{% set hasFilters = filters.q or (mode == 'clients' ? (filters.status or filters.city) : (filters.species or filters.life)) %}
+{# Multi-choice filter pill: « Libellé (n) », a menu of checkboxes, « Réinitialiser » #}
+{% macro pill(id, label, name, options, selected, svg, extra) %}
+  {% set n = selected|length %}
+  <div class="dd fpill{{ n ? ' actif' }}" id="{{ id }}" data-label="{{ label }}">
+    <button type="button" class="dd-btn"><span>{{ label }}</span>{% if n %}<span class="ddn">{{ n }}</span>{% endif %}{{ svg.chev|raw }}</button>
+    <div class="dd-menu" style="min-width:185px">
+      <div class="dd-titre">{{ label }}</div>
+      {% for value, text in options %}
+        <label class="dd-ck"><input type="checkbox" class="ck" name="{{ name }}[]" value="{{ value }}"{{ value in selected ? ' checked' }}><span>{{ text }}</span></label>
+      {% else %}
+        <div class="dd-ck verrou"><span>Aucune valeur renseignée</span></div>
+      {% endfor %}
+      {{ extra|default('')|raw }}
+      <div class="dd-sep"></div>
+      <button type="button" class="dd-it razBtn">Réinitialiser</button>
+    </div>
+  </div>
+{% endmacro %}
 
-{% import 'clinic/clients/list/_macros.html.twig' as ui %}
+{% block main %}
+{% set _cols = isClients
+  ? { lock: ['Client', 'Contact'], defs: [
+      { k: 'animaux', l: 'Animaux', on: true }, { k: 'visite', l: 'Dernière visite', on: true }, { k: 'solde', l: 'Solde', on: true },
+      { k: 'statut', l: 'Statut', on: false }, { k: 'depuis', l: 'Client depuis', on: false },
+    ] }
+  : { lock: ['Animal', 'Propriétaire'], defs: [
+      { k: 'ident', l: 'Identification', on: true }, { k: 'sante', l: 'Santé', on: true }, { k: 'passage', l: 'Dernier passage', on: true },
+      { k: 'ref', l: 'Vétérinaire référent', on: false, off: 'Vétérinaire référent — bientôt disponible' },
+    ] } %}
+{% set _on = _cols.defs|filter(c => c.on)|map(c => c.k) %}
 
-{% block content %}
-<div class="dir-root">
+<div class="rep" data-page="{{ app.request.attributes.get('_route') }}" data-mode="{{ f.mode }}" data-cols-default="{{ _on|join(',') }}">
 
-  {# ── Topbar ── #}
-  <header class="topbar">
-    <button class="tb-toggle show-mobile" type="button" aria-label="Menu" data-action="click->sidebar#toggle">
-      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-      </svg>
-    </button>
-    <div class="tb-title">
-      <span class="topbar-icon" aria-hidden="true"><i data-lucide="users-round"></i></span>
-      <h1 class="topbar-title">Répertoire</h1>
-      <span class="tb-title-sep">/</span>
-      <div class="mode-toggle" role="tablist">
-        <a class="mode-btn{{ mode == 'clients' ? ' is-active' : '' }}" role="tab"
-           aria-selected="{{ mode == 'clients' ? 'true' : 'false' }}"
-           href="{{ path('clinic_clients_list', { mode: 'clients' }|merge(filters.q ? { q: filters.q } : {})) }}">
-          <i data-lucide="users-round"></i>
-          Clients<span class="mode-count" data-count-clients>{{ clientCount }}</span>
-        </a>
-        <a class="mode-btn{{ mode == 'animals' ? ' is-active' : '' }}" role="tab"
-           aria-selected="{{ mode == 'animals' ? 'true' : 'false' }}"
-           href="{{ path('clinic_clients_list', { mode: 'animals' }|merge(filters.q ? { q: filters.q } : {})) }}">
-          <i data-lucide="paw-print"></i>
-          Animaux<span class="mode-count" data-count-animals>{{ animalCount }}</span>
-        </a>
+  <div class="pagehead">
+    <h1>Répertoire<small>Base de la clinique · {{ counts.clients }} client{{ counts.clients > 1 ? 's' }} · {{ counts.animals }} anima{{ counts.animals > 1 ? 'ux' : 'l' }}</small></h1>
+    <div class="switch" role="tablist">
+      <a id="vClients" role="tab" href="{{ path('clinic_clients_list', { mode: 'clients' }|merge(f.search ? { q: f.search } : {})) }}"
+         class="{{ isClients ? 'on' }}" aria-selected="{{ isClients ? 'true' : 'false' }}">Clients <span class="n">{{ counts.clients }}</span></a>
+      <a id="vAnimaux" role="tab" href="{{ path('clinic_clients_list', { mode: 'animals' }|merge(f.search ? { q: f.search } : {})) }}"
+         class="{{ not isClients ? 'on' }}" aria-selected="{{ not isClients ? 'true' : 'false' }}">Animaux <span class="n">{{ counts.animals }}</span></a>
+    </div>
+    <div class="right">
+      {% if isClients %}
+        <button type="button" class="btn primaire" data-open="modal-new-client">{{ _svg.plus|raw }} Nouveau client</button>
+      {% else %}
+        <button type="button" class="btn primaire" data-open="modal-new-animal">{{ _svg.plus|raw }} Nouvel animal</button>
+      {% endif %}
+    </div>
+  </div>
+
+  {#
+   # The filter bar lives outside the results frame, so typing never loses the
+   # caret and an open menu stays open while its boxes are ticked.
+   #}
+  <form class="filtres" id="repFiltres" method="get" action="{{ path('clinic_clients_list') }}" role="search"
+        data-turbo-frame="rep-results" data-turbo-action="advance">
+    <input type="hidden" name="mode" value="{{ f.mode }}">
+    <input type="hidden" name="dir" value="{{ f.direction }}" data-carry>
+    <input type="hidden" name="per_page" value="{{ pagination.size }}" data-carry>
+    <div class="recherche">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" name="q" value="{{ f.search }}" autocomplete="off" placeholder="Nom, animal, téléphone, n° de puce…">
+    </div>
+    <span class="flbl-f">Filtres</span>
+    {% if isClients %}
+      <input type="hidden" name="status[]" value="">
+      {{ _self.pill('ddStatut', 'Statut client', 'status', { active: 'Actif', archived: 'Archivé' }, f.statuses, _svg,
+        '<label class="dd-ck verrou" data-tip="Statut bloqué — bientôt disponible"><input type="checkbox" class="ck" disabled><span>Bloqué</span></label>') }}
+      {% set _villes = {} %}
+      {% for c in cityOptions %}{% set _villes = _villes|merge({ (c): c }) %}{% endfor %}
+      {{ _self.pill('ddVille', 'Ville', 'city', _villes, f.cities, _svg) }}
+    {% endif %}
+    {{ _self.pill('ddEspece', 'Espèce', 'species', { dog: '🐕 Chiens', cat: '🐈 Chats', nac: '🐇 Lapins & NAC', other: '🐾 Autres' }, f.species, _svg) }}
+    {{ _self.pill('ddEtat', 'État', 'etat', { rappel: 'Rappel de vaccin dû', impaye: 'Solde impayé', vig: 'Vigilance médicale' }, f.states, _svg) }}
+
+    {# Column picker: a preference of this browser, nothing is sent #}
+    <div class="dd fpill" id="ddCols" style="margin-left:auto">
+      <button type="button" class="dd-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+        <span>Colonnes</span><span class="ddn" hidden></span>{{ _svg.chev|raw }}
+      </button>
+      <div class="dd-menu droite" style="min-width:195px">
+        <div class="dd-titre">Colonnes affichées</div>
+        {% for l in _cols.lock %}
+          <label class="dd-ck verrou"><input type="checkbox" class="ck" checked disabled><span>{{ l }}</span>{{ _svg.lock|raw }}</label>
+        {% endfor %}
+        <div class="dd-sep"></div>
+        {% for c in _cols.defs %}
+          {% if c.off is defined %}
+            <label class="dd-ck verrou" data-tip="{{ c.off }}"><input type="checkbox" class="ck" disabled><span>{{ c.l }}</span></label>
+          {% else %}
+            <label class="dd-ck"><input type="checkbox" class="ck" data-k="{{ c.k }}"{{ c.on ? ' checked' }}><span>{{ c.l }}</span></label>
+          {% endif %}
+        {% endfor %}
       </div>
     </div>
-    <div class="tb-spacer"></div>
-    {#
-     # The input lives outside the frame on purpose: only the results are
-     # swapped, so the caret and focus survive every keystroke. The page module
-     # sets data-turbo-action on this form as you type.
-     #}
-    <form class="tb-search" method="GET" action="{{ path('clinic_clients_list') }}" role="search"
-          data-turbo-frame="directory-results" data-live-search>
-      <svg class="tb-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" name="q" id="search-input" value="{{ filters.q }}"
-             placeholder="{{ mode == 'clients' ? 'Rechercher un nom, email, téléphone, ville…' : 'Rechercher un animal, une race, un propriétaire…' }}"
-             autocomplete="off">
-      {% for key, value in qs %}
-        {% if key != 'q' %}
-          {% if value is iterable %}
-            {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}" data-search-carry>{% endfor %}
-          {% else %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}" data-search-carry>
-          {% endif %}
+  </form>
+
+  <main class="zone">
+    <turbo-frame id="rep-results" class="twidget" data-turbo-action="advance">
+      <div class="tscroll scr"><table>
+        {% if isClients %}
+          {{ include('clinic/clients/list/_tab_clients.html.twig') }}
+        {% else %}
+          {{ include('clinic/clients/list/_tab_animals.html.twig') }}
         {% endif %}
-      {% endfor %}
-    </form>
-    <button class="btn btn-ghost btn-sm" type="button" disabled title="Export CSV — bientôt disponible">
-      <i data-lucide="download"></i>
-      Exporter
-    </button>
-    {% if mode == 'clients' %}
-      <button class="btn btn-primary btn-sm" type="button" data-modal-open="modal-new-client">
-        <i data-lucide="plus"></i> Nouveau client
+      </table></div>
+      <div class="tfoot">
+        {% set _n = rows|length %}
+        <span id="footInfo">{{ _n }} {{ isClients ? (_n > 1 ? 'clients' : 'client') : (_n > 1 ? 'animaux' : 'animal') }} affiché{{ _n > 1 ? 's' }} sur {{ pagination.total }}</span>
+        <span class="pp"><span class="lbl">Par page :</span>
+          {% for size in [10, 25, 50, 100] %}
+            <a href="{{ path('clinic_clients_list', qs|merge({ per_page: size })) }}" class="{{ size == pagination.size ? 'on' }}">{{ size }}</a>
+          {% endfor %}
+        </span>
+        <span class="pages">
+          {% if pagination.page > 1 %}
+            <a class="pg fl" href="{{ path('clinic_clients_list', qs|merge({ page: pagination.page - 1 })) }}" aria-label="Page précédente">{{ _svg.gauche|raw }}</a>
+          {% else %}
+            <span class="pg fl" aria-disabled="true" aria-label="Page précédente">{{ _svg.gauche|raw }}</span>
+          {% endif %}
+          {% for p in pagination.shown %}
+            {% if not loop.first and p - pagination.shown[loop.index0 - 1] > 1 %}<span class="pg gap">…</span>{% endif %}
+            <a class="pg{{ p == pagination.page ? ' on' }}" href="{{ path('clinic_clients_list', qs|merge({ page: p })) }}"{{ p == pagination.page ? ' aria-current="page"' }}>{{ p }}</a>
+          {% endfor %}
+          {% if pagination.page < pagination.pages %}
+            <a class="pg fl" href="{{ path('clinic_clients_list', qs|merge({ page: pagination.page + 1 })) }}" aria-label="Page suivante">{{ _svg.droite|raw }}</a>
+          {% else %}
+            <span class="pg fl" aria-disabled="true" aria-label="Page suivante">{{ _svg.droite|raw }}</span>
+          {% endif %}
+        </span>
+      </div>
+    </turbo-frame>
+  </main>
+
+  <div class="bulk" id="bulkBar" role="toolbar" aria-label="Actions groupées">
+    <span class="bn" id="bulkN">0</span>
+    <span>sélectionné·e·s</span>
+    <span class="bdiv"></span>
+    <span class="dd bulk-dd" id="bulkDd">
+      <button type="button" id="bulkExport">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+        Exporter
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="m18 15-6-6-6 6"/></svg>
       </button>
-    {% else %}
-      <button class="btn btn-primary btn-sm" type="button" data-modal-open="modal-new-animal">
-        <i data-lucide="plus"></i> Nouvel animal
-      </button>
-    {% endif %}
-  </header>
-
-  {#
-   # Filters, table and pagination are swapped together: the chips and the
-   # links of the filter bar carry the active search term, so they would go
-   # stale if only the table were replaced.
-   #}
-  <turbo-frame id="directory-results" data-turbo-action="advance">
-
-  {# Read back by the page module to keep the toggle counters in sync #}
-  <span hidden data-results-clients="{{ clientCount }}" data-results-animals="{{ animalCount }}"></span>
-
-  {# ── Filters ── #}
-  <section class="filters">
-    <span class="filter-label">Filtres</span>
-
-    {% for value in (mode == 'clients' ? filters.status : []) %}
-      <span class="filter-chip">
-        <span class="chip-key">Statut :</span>
-        <span>{{ STATUS_LABELS[value] ?? value }}</span>
-        <a class="chip-x" href="{{ path('clinic_clients_list', qs|merge({ status: filters.status|filter(v => v != value) })) }}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endfor %}
-    {% for value in (mode == 'clients' ? filters.city : []) %}
-      <span class="filter-chip">
-        <span class="chip-key">Ville :</span>
-        <span>{{ value }}</span>
-        <a class="chip-x" href="{{ path('clinic_clients_list', qs|merge({ city: filters.city|filter(v => v != value) })) }}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endfor %}
-    {% for value in (mode == 'animals' ? filters.species : []) %}
-      <span class="filter-chip">
-        <span class="chip-key">Espèce :</span>
-        <span>{{ SPECIES_LABELS[value] ?? value }}</span>
-        <a class="chip-x" href="{{ path('clinic_clients_list', qs|merge({ species: filters.species|filter(v => v != value) })) }}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endfor %}
-    {% for value in (mode == 'animals' ? filters.life : []) %}
-      <span class="filter-chip">
-        <span class="chip-key">Statut :</span>
-        <span>{{ LIFE_LABELS[value] ?? value }}</span>
-        <a class="chip-x" href="{{ path('clinic_clients_list', qs|merge({ life: filters.life|filter(v => v != value) })) }}" aria-label="Retirer">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
-        </a>
-      </span>
-    {% endfor %}
-
-    {% if mode == 'clients' %}
-      {# Statut client #}
-      <span class="filter-add-wrap">
-        <button class="filter-add{{ filters.status ? ' is-active' : '' }}" type="button" data-filter-toggle="status">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Statut client
-        </button>
-        <div class="filter-menu" data-filter-menu="status">
-          <div class="filter-menu-title">Statut client</div>
-          {% for value in statusOptions %}
-            {{ ui.filterOption('status', value, STATUS_LABELS[value] ?? value, filters.status, qs) }}
-          {% endfor %}
-          {# No blocked client in the domain: a client is active or archived #}
-          <span class="filter-menu-item is-disabled" title="Pas de statut bloqué pour l'instant">
-            <span style="flex:1">Bloqué</span>
-          </span>
-        </div>
-      </span>
-
-      {# Ville #}
-      <span class="filter-add-wrap">
-        <button class="filter-add{{ filters.city ? ' is-active' : '' }}" type="button" data-filter-toggle="city"
-                {{ cityOptions|length == 0 ? 'disabled title="Aucune ville renseignée"' : '' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Ville
-        </button>
-        <div class="filter-menu" data-filter-menu="city">
-          <div class="filter-menu-title">Ville</div>
-          {% for value in cityOptions %}
-            {{ ui.filterOption('city', value, value, filters.city, qs) }}
-          {% endfor %}
-        </div>
-      </span>
-
-      {# Facturation — no invoice, payment or balance exists in the domain yet #}
-      <span class="filter-add-wrap">
-        <button class="filter-add" type="button" disabled title="Facturation — bientôt disponible">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Facturation
-        </button>
-      </span>
-    {% else %}
-      {# Statut animal #}
-      <span class="filter-add-wrap">
-        <button class="filter-add{{ filters.life ? ' is-active' : '' }}" type="button" data-filter-toggle="life">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Statut animal
-        </button>
-        <div class="filter-menu" data-filter-menu="life">
-          <div class="filter-menu-title">Statut animal</div>
-          {% for value in lifeStatusOptions %}
-            {{ ui.filterOption('life', value, LIFE_LABELS[value] ?? value, filters.life, qs) }}
-          {% endfor %}
-        </div>
-      </span>
-
-      {# Espèce #}
-      <span class="filter-add-wrap">
-        <button class="filter-add{{ filters.species ? ' is-active' : '' }}" type="button" data-filter-toggle="species">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Espèce
-        </button>
-        <div class="filter-menu" data-filter-menu="species">
-          <div class="filter-menu-title">Espèce</div>
-          {% for value in speciesOptions %}
-            {{ ui.filterOption('species', value, SPECIES_LABELS[value] ?? value, filters.species, qs) }}
-          {% endfor %}
-        </div>
-      </span>
-
-      {# No animal↔practitioner assignment and no due-date schedule in the domain #}
-      <span class="filter-add-wrap">
-        <button class="filter-add" type="button" disabled title="Vétérinaire de suivi — bientôt disponible">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Vétérinaire de suivi
-        </button>
-      </span>
-      <span class="filter-add-wrap">
-        <button class="filter-add" type="button" disabled title="Prochaine échéance — bientôt disponible">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Prochaine échéance
-        </button>
-      </span>
-    {% endif %}
-
-    {% if hasFilters %}
-      <a class="filter-clear" href="{{ path('clinic_clients_list', { mode: mode }) }}">Tout effacer</a>
-    {% endif %}
-  </section>
-
-  {# ── Table ── #}
-  <section class="table-wrapper">
-    {% if mode == 'clients' %}
-      {{ include('clinic/clients/list/_tab_clients.html.twig') }}
-    {% else %}
-      {{ include('clinic/clients/list/_tab_animals.html.twig') }}
-    {% endif %}
-  </section>
-
-  {# ── Pagination ── #}
-  <footer class="pagination">
-    <span class="pag-info">
-      {% if pagination.totalItems == 0 %}
-        Aucun résultat
-      {% else %}
-        {{ pagination.firstItem }}–{{ pagination.lastItem }} sur {{ pagination.totalItems }}
-      {% endif %}
+      <div class="bulk-menu">
+        <button type="button" class="dd-it" data-fmt="CSV">CSV <span style="color:var(--encre-35)">.csv</span></button>
+        <button type="button" class="dd-it" data-fmt="Excel" disabled data-tip="Export Excel — bientôt disponible">Excel <span style="color:var(--encre-35)">.xlsx</span></button>
+        <button type="button" class="dd-it" data-fmt="PDF" disabled data-tip="Export PDF — bientôt disponible">PDF <span style="color:var(--encre-35)">.pdf</span></button>
+      </div>
     </span>
-    <div class="pag-spacer"></div>
-    <form class="pag-size" method="GET" action="{{ path('clinic_clients_list') }}">
-      <span>Par page :</span>
-      <select name="per_page" data-auto-submit>
-        {% for size in pageSizes %}
-          <option value="{{ size }}"{{ size == pagination.limit ? ' selected' : '' }}>{{ size }}</option>
-        {% endfor %}
-      </select>
-      {% for key, value in qs %}
-        {% if key != 'per_page' %}
-          {% if value is iterable %}
-            {% for item in value %}<input type="hidden" name="{{ key }}[]" value="{{ item }}">{% endfor %}
-          {% else %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}">
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-    </form>
-    <div class="pag-controls">
-      {% if pagination.hasPreviousPage %}
-        <a class="pag-btn" href="{{ path('clinic_clients_list', qs|merge({ page: pagination.previousPage })) }}" aria-label="Précédent">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </a>
-      {% else %}
-        <button class="pag-btn" type="button" disabled aria-label="Précédent">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-      {% endif %}
+    <span class="bdiv"></span>
+    <button type="button" id="bulkClear">Annuler</button>
+  </div>
 
-      {# First, last and the current page's neighbours, with gaps collapsed #}
-      {% set shown = [1, pagination.totalPages, pagination.currentPage, pagination.currentPage - 1, pagination.currentPage + 1]|filter(p => p >= 1 and p <= pagination.totalPages)|sort %}
-      {% for p in shown %}
-        {% set previous = loop.first ? 0 : shown[loop.index0 - 1] %}
-        {% if p != previous %}
-          {% if p - previous > 1 and not loop.first %}<span class="pag-ellipsis">…</span>{% endif %}
-          {% if p == pagination.currentPage %}
-            <span class="pag-btn is-active">{{ p }}</span>
-          {% else %}
-            <a class="pag-btn" href="{{ path('clinic_clients_list', qs|merge({ page: p })) }}">{{ p }}</a>
-          {% endif %}
-        {% endif %}
-      {% endfor %}
-
-      {% if pagination.hasNextPage %}
-        <a class="pag-btn" href="{{ path('clinic_clients_list', qs|merge({ page: pagination.nextPage })) }}" aria-label="Suivant">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-      {% else %}
-        <button class="pag-btn" type="button" disabled aria-label="Suivant">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      {% endif %}
-    </div>
-  </footer>
-
-  </turbo-frame>
-
-</div>{# /dir-root #}
-
-{# ── Bulk actions — selection is live, the actions have no backend yet ── #}
-<div class="bulk-bar" id="bulk-bar">
-  <span class="bulk-count" id="bulk-count">0</span>
-  <span>sélectionné·e·s</span>
-  <span class="bulk-divider"></span>
-  <button class="bulk-btn" type="button" disabled title="Bientôt disponible">
-    <i data-lucide="mail"></i> Envoyer email
-  </button>
-  <button class="bulk-btn" type="button" disabled title="Bientôt disponible">
-    <i data-lucide="download"></i> Exporter
-  </button>
-  <span class="bulk-divider"></span>
-  <button class="bulk-btn" type="button" id="bulk-clear">Annuler</button>
-</div>
-{% endblock %}
-
-{% block modals %}
   {#
-   # Handover payload of "Ajouter un premier animal juste après": read once by
-   # the page module, which reopens the animal modal on the new owner.
+   # Handover payload of « Ajouter un premier animal juste après »: read once
+   # by the page module, which reopens the animal modal on the new owner.
    #}
   {% for payload in app.flashes('add_animal_for') %}
     <script type="application/json" data-chain-animal>{{ payload|raw }}</script>
@@ -370,4 +224,5 @@
 
   {{ include('clinic/clients/list/_modal_new_client.html.twig') }}
   {{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
+</div>
 {% endblock %}

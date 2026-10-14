@@ -1,81 +1,61 @@
-{# Path B (Turbo Streams) — plain wrapper div, no <turbo-frame>. #}
+{# Turbo Streams target: a plain wrapper, replaced whole on a 422. #}
 
 {#
- # Radio inputs written by hand: the form theme renders its own label next to
- # each input, which would sit beside the chip instead of inside it.
+ # Choices drawn as kit chips: a real radio input, visually replaced by its
+ # label. Hand-rendered fields are marked rendered, or form_end would print
+ # them again.
  #}
-{% macro radioChips(field) %}
-  {# Hand-rendered fields stay "unrendered" for Twig: without this, form_end
-     would print the whole radio list again at the bottom of the form. #}
+{% macro chips(field, emoji) %}
   {% do field.setRendered %}
-  {% for choice in field %}
-    <input type="radio" id="{{ choice.vars.id }}" name="{{ choice.vars.full_name }}"
-           value="{{ choice.vars.value }}"{{ choice.vars.checked ? ' checked' : '' }}>
-    <label class="radio-chip" for="{{ choice.vars.id }}">{{ choice.vars.label }}</label>
-  {% endfor %}
+  <div class="chips" role="radiogroup">
+    {% for choice in field.vars.choices %}
+      {% set id = field.vars.id ~ '_' ~ loop.index0 %}
+      <input type="radio" id="{{ id }}" name="{{ field.vars.full_name }}" value="{{ choice.value }}"{{ choice.value == field.vars.value ? ' checked' }}>
+      <label for="{{ id }}">{% if emoji[choice.value] is defined %}<span>{{ emoji[choice.value] }}</span>{% endif %}{{ choice.label }}</label>
+    {% endfor %}
+  </div>
 {% endmacro %}
 
 <div id="new-animal-form-body">
-  {{ form_start(form, {
-    'attr':   {'id': 'form-new-animal'},
-    'action': path('clinic_animals_create'),
-    'method': 'POST',
-  }) }}
+  {{ form_start(form, { attr: { id: 'form-new-animal' }, action: path('clinic_animals_create'), method: 'POST' }) }}
     {{ form_errors(form) }}
 
-    <div class="form-grid">
-      <div class="form-row">
-        {{ form_label(form.name, "Nom de l'animal", {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.name, {'attr': {'class': 'form-input', 'placeholder': 'Luna'}}) }}
-        {{ form_errors(form.name) }}
-      </div>
-      <div class="form-row">
-        {{ form_label(form.species, 'Espèce', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.species, {'attr': {'class': 'form-input'}}) }}
-        {{ form_errors(form.species) }}
-      </div>
+    <div class="frow">
+      {{ form_label(form.name, "Nom de l'animal", { label_attr: { class: 'flbl' } }) }}
+      {{ form_widget(form.name, { attr: { class: 'finput', placeholder: 'Luna' } }) }}
+      {{ form_errors(form.name) }}
     </div>
 
-    <div class="form-grid">
-      <div class="form-row">
-        {{ form_label(form.breedName, 'Race', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.breedName, {'attr': {'class': 'form-input', 'placeholder': 'ex : Beauceron, Européen…'}}) }}
+    <div class="frow">
+      <span class="flbl">Espèce <span class="req">*</span></span>
+      {{ _self.chips(form.species, { dog: '🐕', cat: '🐈', nac: '🐇', other: '🐾' }) }}
+      {{ form_errors(form.species) }}
+    </div>
+
+    <div class="g2 frow">
+      <div>
+        {{ form_label(form.breedName, 'Race', { label_attr: { class: 'flbl' } }) }}
+        {{ form_widget(form.breedName, { attr: { class: 'finput', placeholder: 'ex : Beauceron, Européen…' } }) }}
         {{ form_errors(form.breedName) }}
       </div>
-      <div class="form-row">
-        {# The layout asks for a birth year; a full date is stored, so the
-           picker stays. #}
-        {{ form_label(form.birthDate, 'Date de naissance', {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.birthDate, {'attr': {'class': 'form-input'}}) }}
+      <div>
+        {{ form_label(form.birthDate, 'Date de naissance', { label_attr: { class: 'flbl' } }) }}
+        {{ form_widget(form.birthDate, { attr: { class: 'finput' } }) }}
         {{ form_errors(form.birthDate) }}
       </div>
     </div>
 
-    <div class="form-grid">
-      <div class="form-row">
-        <span class="form-label">Sexe <span class="req">*</span></span>
-        <div class="radio-group" role="radiogroup">
-          {{ _self.radioChips(form.sex) }}
-        </div>
+    <div class="g2 frow">
+      <div>
+        <span class="flbl">Sexe <span class="req">*</span></span>
+        {{ _self.chips(form.sex, {}) }}
         {{ form_errors(form.sex) }}
       </div>
-      <div class="form-row">
-        <span class="form-label">Stérilisé·e</span>
-        <div class="radio-group" role="radiogroup">
-          {{ _self.radioChips(form.reproductiveStatus) }}
-        </div>
+      <div>
+        <span class="flbl">Stérilisé·e</span>
+        {{ _self.chips(form.reproductiveStatus, {}) }}
         {{ form_errors(form.reproductiveStatus) }}
       </div>
-    </div>
-
-    {#
-     # No practitioner is assigned to a patient yet. The weight of the layout is
-     # not asked for at all: it belongs to a consultation, not to the animal.
-     #}
-    <div class="form-row">
-      <span class="form-label">Vétérinaire de suivi</span>
-      <input class="form-input" disabled placeholder="Bientôt disponible"
-             title="Le vétérinaire de suivi n'est pas encore géré">
     </div>
 
     {{ form_widget(form.primaryOwnerClientId) }}

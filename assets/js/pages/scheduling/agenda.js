@@ -894,7 +894,14 @@ export function init() {
   // The now-line and the past / to-come states follow the clock
   ticker = setInterval(() => { if (!rdvVeilEl.classList.contains('open') && !pop.classList.contains('open')) rendre(); }, 60000);
 
-  if (D.openNew) nouveau();
+  if (D.openNew) {
+    nouveau().then(() => {
+      // From the directory: the patient search starts on who the visitor picked.
+      if (!D.newPatient || !psIn) return;
+      psIn.value = D.newPatient;
+      psIn.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
 }
 
 export function cleanup() {

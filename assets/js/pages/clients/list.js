@@ -1,56 +1,344 @@
 /**
- * Page module — Répertoire (clients & animals).
- * Loaded by app.js dispatcher on turbo:load.
+ * Page module — Répertoire (repertoire-v-topbar_13 mock-up).
+ * Loaded by the app.js dispatcher on turbo:load.
  *
- * Filtering, sorting, the mode toggle and pagination are plain links handled
- * by the server, so this module only covers what needs a client: live search,
- * opening the dropdowns, row selection and its bulk bar, and Escape.
+ * Filtering, sorting and pagination are server-side: the filter bar is a GET
+ * form aimed at the results frame, the pager and the sort are links into it.
+ * This module brings the rest of the mock-up to life:
+ * - live search (debounced) and the multi-choice filter pills, whose count
+ *   badge follows the ticked boxes while their menu stays open;
+ * - the column picker, remembered per view in this browser;
+ * - row selection and its bulk bar (CSV export of the selected rows);
+ * - a click on a row opens its sheet;
+ * - the two creation modals, and the « Ajouter un premier animal juste
+ *   après » handover from the client modal to the animal one.
+ * Listeners are bound in init() and released in cleanup().
  */
+import { showToast } from 'kiveto/shell';
 
-const FRAME_ID = 'directory-results';
-
-/** Idle time before a keystroke turns into a request. */
+const FRAME_ID = 'rep-results';
 const SEARCH_DEBOUNCE_MS = 250;
+const COLS_KEY = 'kiveto.repertoire.cols.';
 
+let ac = null;
+let root = null;
+let searchTimer = null;
 const selected = new Set();
 
-let searchTimer = null;
+const $ = (sel, scope = document) => scope.querySelector(sel);
+const $$ = (sel, scope = document) => [...scope.querySelectorAll(sel)];
 
 export function init() {
+  root = $('.rep');
+  if (!root) return;
+  ac = new AbortController();
+  const { signal } = ac;
+
   selected.clear();
-  resumeAnimalCreation();
-  document.addEventListener('click', onClick);
-  document.addEventListener('change', onChange);
-  document.addEventListener('input', onInput);
-  // Capture: Turbo stops the propagation of submit before it bubbles here.
-  document.addEventListener('submit', onSubmit, true);
-  document.addEventListener('keydown', onKeydown);
-  document.addEventListener('turbo:frame-load', onFrameLoad);
-  document.addEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker);
+  applyColumns();
   renderSelection();
+  resumeAnimalCreation();
+
+  document.addEventListener('click', onClick, { signal });
+  document.addEventListener('change', onChange, { signal });
+  document.addEventListener('input', onInput, { signal });
+  // Capture: Turbo stops the propagation of submit before it bubbles here.
+  document.addEventListener('submit', onSubmit, { signal, capture: true });
+  document.addEventListener('keydown', onKeydown, { signal });
+  document.addEventListener('turbo:frame-load', onFrameLoad, { signal });
+  document.addEventListener('turbo:before-cache', closeAll, { signal });
+  document.addEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker, { signal });
 }
 
 export function cleanup() {
-  document.removeEventListener('click', onClick);
-  document.removeEventListener('change', onChange);
-  document.removeEventListener('input', onInput);
-  document.removeEventListener('submit', onSubmit, true);
-  document.removeEventListener('keydown', onKeydown);
-  document.removeEventListener('turbo:frame-load', onFrameLoad);
-  document.removeEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker);
+  ac?.abort();
+  ac = null;
+  root = null;
   window.clearTimeout(searchTimer);
   searchTimer = null;
   selected.clear();
 }
 
-// ── Chained creation ──
+// ═════════ Filter bar ═════════
+
+const form = () => $('#repFiltres');
+
+/** The pill's count badge and tint follow its ticked boxes. */
+function syncPill(dd) {
+  const n = $$('input[name]:checked', dd).length;
+  dd.classList.toggle('actif', n > 0);
+  const btn = $('.dd-btn', dd);
+  let badge = $('.ddn', btn);
+  if (n && !badge) {
+    badge = document.createElement('span');
+    badge.className = 'ddn';
+    $('span', btn).after(badge);
+  }
+  if (badge) {
+    if (n) badge.textContent = String(n);
+    else badge.remove();
+  }
+}
+
+function submitFilters() {
+  window.clearTimeout(searchTimer);
+  searchTimer = null;
+  form()?.requestSubmit();
+}
+
+function onInput(e) {
+  if (!(e.target instanceof Element) || e.target.id !== 'q' || !e.target.closest('.rep')) return;
+
+  // Entering a search is a step of its own, refining one is not: the first
+  // keystroke pushes a history entry, the next ones overwrite it.
+  const f = form();
+  f.dataset.turboAction = new URLSearchParams(window.location.search).has('q') ? 'replace' : 'advance';
+
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => f.requestSubmit(), SEARCH_DEBOUNCE_MS);
+}
 
 /**
- * Picks up where "Ajouter un premier animal juste après" left off: the client
- * was created on the server, so reopen the animal modal already pointed at it.
+ * The sort and the page size are chosen inside the frame, by links: carry the
+ * current ones, and let a new filter start again from the first page.
+ */
+function onSubmit(e) {
+  if (e.target?.id !== 'repFiltres') return;
+  window.clearTimeout(searchTimer);
+  searchTimer = null;
+
+  const params = new URLSearchParams(window.location.search);
+  $$('[data-carry]', e.target).forEach((input) => {
+    if (params.has(input.name)) input.value = params.get(input.name);
+    input.disabled = !params.has(input.name);
+  });
+}
+
+// ═════════ Columns ═════════
+
+function readCols() {
+  const fallback = (root?.dataset.colsDefault || '').split(',').filter(Boolean);
+  try {
+    const raw = window.localStorage.getItem(COLS_KEY + root.dataset.mode);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function saveCols(cols) {
+  try {
+    window.localStorage.setItem(COLS_KEY + root.dataset.mode, JSON.stringify(cols));
+  } catch {
+    // Private mode or blocked storage: the choice lasts for this page only.
+  }
+}
+
+function applyColumns(cols = readCols()) {
+  if (!root) return;
+  const on = new Set(cols);
+  $$('[data-col]', root).forEach((cell) => { cell.hidden = !on.has(cell.dataset.col); });
+
+  const dd = $('#ddCols');
+  if (!dd) return;
+  $$('.ck[data-k]', dd).forEach((ck) => { ck.checked = on.has(ck.dataset.k); });
+
+  const defaults = (root.dataset.colsDefault || '').split(',').filter(Boolean);
+  const differs = defaults.length !== on.size || defaults.some((k) => !on.has(k));
+  dd.classList.toggle('actif', differs);
+  const badge = $('.ddn', dd);
+  badge.hidden = !differs;
+  badge.textContent = String(on.size);
+}
+
+// ═════════ Clicks ═════════
+
+function closeMenus(except) {
+  $$('.rep .dd.open').forEach((d) => { if (d !== except) d.classList.remove('open'); });
+}
+
+function onClick(e) {
+  if (!(e.target instanceof Element) || !root?.isConnected) return;
+  const t = e.target;
+
+  // Pills, column picker and the bulk export menu
+  const ddBtn = t.closest('.rep .dd > .dd-btn, #bulkExport');
+  if (ddBtn) {
+    const dd = ddBtn.closest('.dd');
+    closeMenus(dd);
+    dd.classList.toggle('open');
+    return;
+  }
+
+  const raz = t.closest('.rep .razBtn');
+  if (raz) {
+    const dd = raz.closest('.dd');
+    $$('input[name]:checked', dd).forEach((ck) => { ck.checked = false; });
+    syncPill(dd);
+    dd.classList.remove('open');
+    submitFilters();
+    return;
+  }
+
+  const fmt = t.closest('#bulkDd .dd-it[data-fmt]');
+  if (fmt) {
+    $('#bulkDd').classList.remove('open');
+    if (fmt.dataset.fmt === 'CSV') exportCsv();
+    return;
+  }
+
+  if (t.closest('#bulkClear')) {
+    $('#bulkDd')?.classList.remove('open');
+    selected.clear();
+    renderSelection();
+    return;
+  }
+
+  // Modals
+  const opener = t.closest('.rep [data-open]');
+  if (opener) {
+    openModal(opener.dataset.open);
+    return;
+  }
+  const veil = t.closest('.rep .mveil');
+  if (veil && (t === veil || t.closest('[data-close]'))) {
+    closeModal(veil);
+    return;
+  }
+
+  // A row opens its sheet; its own controls keep their job.
+  const row = t.closest('.rep tbody tr[data-url]');
+  if (row && !t.closest('a, button, input, label')) {
+    window.Turbo ? window.Turbo.visit(row.dataset.url) : (window.location.href = row.dataset.url);
+  }
+}
+
+function onChange(e) {
+  if (!(e.target instanceof Element) || !root?.isConnected) return;
+  const t = e.target;
+
+  // A filter box: the menu stays open while the table follows.
+  if (t.matches('#repFiltres .fpill input[name]')) {
+    syncPill(t.closest('.dd'));
+    submitFilters();
+    return;
+  }
+
+  if (t.matches('#ddCols .ck[data-k]')) {
+    const cols = $$('#ddCols .ck[data-k]').filter((ck) => ck.checked).map((ck) => ck.dataset.k);
+    saveCols(cols);
+    applyColumns(cols);
+    return;
+  }
+
+  if (t.id === 'ckAll') {
+    rowIds().forEach((id) => (t.checked ? selected.add(id) : selected.delete(id)));
+    renderSelection();
+    return;
+  }
+
+  if (t.matches('.rep .rowck')) {
+    const id = t.closest('tr').dataset.id;
+    t.checked ? selected.add(id) : selected.delete(id);
+    renderSelection();
+  }
+}
+
+function onKeydown(e) {
+  if (e.key !== 'Escape') return;
+  const open = $('.rep .mveil.open');
+  if (open) {
+    closeModal(open);
+    return;
+  }
+  $('#bulkDd')?.classList.remove('open');
+}
+
+function closeAll() {
+  closeMenus();
+  $$('.rep .mveil.open').forEach((v) => v.classList.remove('open'));
+}
+
+// ═════════ Selection & bulk bar ═════════
+
+function rowIds() {
+  return $$('.rep tbody tr[data-id]').map((row) => row.dataset.id);
+}
+
+function renderSelection() {
+  const ids = rowIds();
+  $$('.rep tbody tr[data-id]').forEach((row) => {
+    const on = selected.has(row.dataset.id);
+    row.classList.toggle('sel', on);
+    const ck = $('.rowck', row);
+    if (ck) ck.checked = on;
+  });
+
+  const all = $('#ckAll');
+  if (all) all.checked = ids.length > 0 && ids.every((id) => selected.has(id));
+
+  const n = $('#bulkN');
+  if (n) n.textContent = String(selected.size);
+  $('#bulkBar')?.classList.toggle('on', selected.size > 0);
+}
+
+/** The selected rows as they are shown: visible columns, one line per row. */
+function exportCsv() {
+  const table = $('.rep table');
+  if (!table || selected.size === 0) return;
+
+  const visible = (cells) => cells.filter((c, i, list) => i > 0 && i < list.length - 1 && !c.hidden);
+  const text = (cell) => cell.innerText.replace(/\s*\n\s*/g, ' · ').trim();
+  const quote = (s) => `"${s.replace(/"/g, '""')}"`;
+
+  const head = visible($$('thead th', table)).map((th) => quote(text(th)));
+  const lines = $$('tbody tr[data-id]', table)
+    .filter((row) => selected.has(row.dataset.id))
+    .map((row) => visible($$('td', row)).map((td) => quote(text(td))).join(';'));
+
+  const blob = new Blob(['﻿' + [head.join(';'), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `repertoire-${root.dataset.mode === 'animals' ? 'animaux' : 'clients'}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+
+  showToast(`Export CSV généré — ${selected.size} fiche·s sélectionnée·s`);
+}
+
+// ═════════ After the results frame is swapped ═════════
+
+function onFrameLoad(e) {
+  if (e.target?.id !== FRAME_ID) return;
+  applyColumns();
+  // Rows the new page no longer holds cannot stay selected.
+  const ids = new Set(rowIds());
+  [...selected].forEach((id) => { if (!ids.has(id)) selected.delete(id); });
+  renderSelection();
+}
+
+// ═════════ Modals ═════════
+
+function openModal(id, focus = 'input:not([type=hidden]):not([type=radio]):not([type=checkbox])') {
+  const veil = document.getElementById(id);
+  if (!veil) return;
+  closeMenus();
+  veil.classList.add('open');
+  window.setTimeout(() => $(focus, veil)?.focus(), 40);
+}
+
+function closeModal(veil) {
+  veil.classList.remove('open');
+}
+
+/**
+ * Picks up where « Ajouter un premier animal juste après » left off: the
+ * client was created on the server, so reopen the animal modal on them.
  */
 function resumeAnimalCreation() {
-  const payload = document.querySelector('[data-chain-animal]');
+  const payload = $('[data-chain-animal]');
   if (!payload) return;
 
   let owner;
@@ -60,246 +348,34 @@ function resumeAnimalCreation() {
     return;
   }
   payload.remove();
-
   if (!owner?.id) return;
 
-  const search = document.getElementById('na-owner-search');
-  const hidden = document.querySelector('input[name$="[primaryOwnerClientId]"]');
+  const search = $('#na-owner-search');
+  const hidden = $('#modal-new-animal input[name$="[primaryOwnerClientId]"]');
   if (search) search.value = owner.name ?? '';
   if (hidden) hidden.value = owner.id;
-
-  import('kiveto/modal').then(({ modal }) => modal.open('modal-new-animal'));
+  // The owner is settled: start on the animal's name.
+  openModal('modal-new-animal', 'input[name$="[name]"]');
 }
 
-// ── Owner picker: "Créer un nouveau client" ──
-
 /**
- * Hands the visitor over to the client modal, carrying what they had typed
- * into the owner box so they do not retype the name.
+ * Owner picker « Créer un nouveau client »: hands over to the client modal,
+ * carrying what was typed so the name is not typed twice.
  */
 function onCreateClientFromOwnerPicker(e) {
-  import('kiveto/modal').then(({ modal }) => {
-    modal.close('modal-new-animal');
+  const animal = $('#modal-new-animal');
+  if (animal) closeModal(animal);
 
-    const typed = (e.detail?.query || '').trim();
-    const first = document.querySelector('#modal-new-client input[name$="[firstName]"]');
-    const last = document.querySelector('#modal-new-client input[name$="[lastName]"]');
-
-    if (typed && first && last) {
-      const parts = typed.split(/\s+/);
-      first.value = parts.shift() ?? '';
-      last.value = parts.join(' ');
-    }
-
-    const chain = document.querySelector('#modal-new-client input[name$="[_thenAddAnimal]"]');
-    if (chain) chain.checked = true;
-
-    // Let the closing animation finish before the next one opens.
-    window.setTimeout(() => modal.open('modal-new-client'), 180);
-  });
-}
-
-// ── Live search ──
-
-function onInput(e) {
-  const form = e.target.closest?.('[data-live-search]');
-  if (!form) return;
-
-  // Entering a search is a step of its own, refining one is not: the first
-  // keystroke pushes a history entry, the following ones overwrite it. The
-  // back button then leaves the search instead of unspelling it letter by
-  // letter, without swallowing the sort or filter the visitor came from.
-  form.dataset.turboAction = new URLSearchParams(window.location.search).has('q') ? 'replace' : 'advance';
-
-  window.clearTimeout(searchTimer);
-  searchTimer = window.setTimeout(() => form.requestSubmit(), SEARCH_DEBOUNCE_MS);
-}
-
-/** Enter beats the timer: without this the form would be sent twice. */
-function onSubmit(e) {
-  if (!e.target?.matches?.('[data-live-search]')) return;
-
-  window.clearTimeout(searchTimer);
-  searchTimer = null;
-}
-
-/**
- * Rebuilds the filters the search form carries from the current address bar.
- *
- * The form lives outside the frame so typing never steals the caret, which
- * also means its hidden inputs are never re-rendered: without this the next
- * search would submit the filters of the first page load.
- */
-function syncSearchForm() {
-  const form = document.querySelector('[data-live-search]');
-  if (!form) return;
-
-  form.querySelectorAll('[data-search-carry]').forEach(input => input.remove());
-
-  const params = new URLSearchParams(window.location.search);
-
-  // Follow the address bar only when the visitor is not typing — a link such as
-  // "Tout effacer" has to empty the box, a keystroke must never be overwritten.
-  const box = form.querySelector('input[name="q"]');
-  if (box && document.activeElement !== box) box.value = params.get('q') ?? '';
-
-  params.delete('q');
-  params.delete('page');
-
-  params.forEach((value, name) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = name;
-    input.value = value;
-    input.setAttribute('data-search-carry', '');
-    form.appendChild(input);
-  });
-}
-
-// ── After the results frame is swapped ──
-
-function onFrameLoad(e) {
-  if (e.target?.id !== FRAME_ID) return;
-
-  // The mode toggle sits in the topbar, outside the frame.
-  const counts = document.querySelector('[data-results-clients]');
-  if (counts) {
-    const clients = document.querySelector('[data-count-clients]');
-    const animals = document.querySelector('[data-count-animals]');
-    if (clients) clients.textContent = counts.dataset.resultsClients;
-    if (animals) animals.textContent = counts.dataset.resultsAnimals;
+  const typed = (e.detail?.query || '').trim();
+  const first = $('#modal-new-client input[name$="[firstName]"]');
+  const last = $('#modal-new-client input[name$="[lastName]"]');
+  if (typed && first && last) {
+    const parts = typed.split(/\s+/);
+    first.value = parts.shift() ?? '';
+    last.value = parts.join(' ');
   }
+  const chain = $('#modal-new-client input[name$="[_thenAddAnimal]"]');
+  if (chain) chain.checked = true;
 
-  // Rows the new page no longer holds cannot stay selected.
-  const ids = new Set(rowIds());
-  selected.forEach(id => {
-    if (!ids.has(id)) selected.delete(id);
-  });
-  renderSelection();
-  syncSearchForm();
-
-  document.dispatchEvent(new CustomEvent('kiveto:icons-refresh'));
-}
-
-// ── Dropdowns ──
-
-function closeMenus(except) {
-  document.querySelectorAll('.filter-menu.is-open, .row-menu.is-open').forEach(menu => {
-    if (menu !== except) menu.classList.remove('is-open');
-  });
-}
-
-function onClick(e) {
-  const filterToggle = e.target.closest?.('[data-filter-toggle]');
-  if (filterToggle) {
-    const menu = filterToggle.parentElement?.querySelector('[data-filter-menu]');
-    const wasOpen = menu?.classList.contains('is-open');
-    closeMenus();
-    if (menu && !wasOpen) menu.classList.add('is-open');
-    return;
-  }
-
-  const rowToggle = e.target.closest?.('[data-row-menu-toggle]');
-  if (rowToggle) {
-    e.stopPropagation();
-    const menu = rowToggle.parentElement?.querySelector('[data-row-menu]');
-    const wasOpen = menu?.classList.contains('is-open');
-    closeMenus();
-    if (menu && !wasOpen) menu.classList.add('is-open');
-    return;
-  }
-
-  // A click inside an open menu is a navigation, leave it alone
-  if (e.target.closest?.('.filter-menu, .row-menu')) return;
-
-  closeMenus();
-
-  const checkAll = e.target.closest?.('#check-all');
-  if (checkAll) {
-    toggleAll();
-    return;
-  }
-
-  const check = e.target.closest?.('[data-check]');
-  if (check) {
-    e.stopPropagation();
-    toggle(check.dataset.check);
-    return;
-  }
-
-  if (e.target.closest?.('#bulk-clear')) {
-    selected.clear();
-    renderSelection();
-    return;
-  }
-
-  // Anywhere else on a row opens the consultation
-  const row = e.target.closest?.('tr[data-url]');
-  if (row) window.Turbo ? window.Turbo.visit(row.dataset.url) : (window.location.href = row.dataset.url);
-}
-
-// ── Page size selector submits its own form ──
-
-function onChange(e) {
-  const select = e.target.closest?.('[data-auto-submit]');
-  if (select) select.form?.requestSubmit();
-}
-
-// ── Selection ──
-
-function rowIds() {
-  return [...document.querySelectorAll('tr[data-id]')].map(row => row.dataset.id);
-}
-
-function toggle(id) {
-  if (selected.has(id)) selected.delete(id);
-  else selected.add(id);
-  renderSelection();
-}
-
-function toggleAll() {
-  const ids = rowIds();
-  const allSelected = ids.length > 0 && ids.every(id => selected.has(id));
-  ids.forEach(id => (allSelected ? selected.delete(id) : selected.add(id)));
-  renderSelection();
-}
-
-function renderSelection() {
-  const ids = rowIds();
-
-  document.querySelectorAll('tr[data-id]').forEach(row => {
-    const isSelected = selected.has(row.dataset.id);
-    row.classList.toggle('is-selected', isSelected);
-    const check = row.querySelector('[data-check]');
-    if (check) {
-      check.classList.toggle('is-checked', isSelected);
-      check.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-    }
-  });
-
-  const inPage = ids.filter(id => selected.has(id)).length;
-  const checkAll = document.getElementById('check-all');
-  if (checkAll) {
-    checkAll.classList.toggle('is-checked', ids.length > 0 && inPage === ids.length);
-    checkAll.classList.toggle('is-partial', inPage > 0 && inPage < ids.length);
-    checkAll.setAttribute('aria-checked', inPage === ids.length && ids.length > 0 ? 'true' : 'false');
-  }
-
-  const bar = document.getElementById('bulk-bar');
-  const count = document.getElementById('bulk-count');
-  if (count) count.textContent = String(selected.size);
-  if (bar) bar.classList.toggle('is-visible', selected.size > 0);
-}
-
-// ── Keyboard ──
-
-// Ctrl/Cmd+K is the global search modal's shortcut — this page must not take it.
-function onKeydown(e) {
-  if (e.key === 'Escape') {
-    closeMenus();
-    if (selected.size > 0) {
-      selected.clear();
-      renderSelection();
-    }
-  }
+  openModal('modal-new-client');
 }
