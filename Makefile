@@ -187,7 +187,7 @@ vendor:
 
 tailwind-build:
 	@$(call step,Compiling Tailwind CSS...)
-	$(Q)$(SYMFONY) tailwind:build --minify
+	$(Q)$(EXEC_PHP) php -d memory_limit=1G bin/console tailwind:build --minify
 	@$(call ok,Tailwind CSS compiled)
 
 assets: tailwind-build
