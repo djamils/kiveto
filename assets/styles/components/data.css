@@ -105,7 +105,6 @@
   .b-exam     { background: var(--color-info-bg);     color: var(--color-info-text); }
   .b-ok       { background: var(--color-success-bg);  color: var(--color-success-text); }
   .b-out      { background: var(--color-success-bg);  color: var(--color-success-text); }
-  .b-hosp     { background: var(--color-danger-bg);   color: var(--color-danger-text); }
   .b-alert    { background: var(--color-danger-bg);   color: var(--color-danger-text); }
   .b-urgence  { background: var(--color-danger-bg);   color: var(--color-danger-text); }
   .b-warn     { background: var(--color-warning-bg);  color: var(--color-warning-text); }

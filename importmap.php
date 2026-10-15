@@ -63,9 +63,6 @@ return [
     'pages/scheduling/planning' => [
         'path' => './assets/js/pages/scheduling/planning.js',
     ],
-    'pages/hospitalisations' => [
-        'path' => './assets/js/pages/hospitalisations.js',
-    ],
     'pages/clients/list' => [
         'path' => './assets/js/pages/clients/list.js',
     ],

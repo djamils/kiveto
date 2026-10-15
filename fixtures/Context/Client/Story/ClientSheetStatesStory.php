@@ -251,7 +251,7 @@ final class ClientSheetStatesStory extends Story
         $this->missed($client, $pepito, $bernard, '-226 days 17:00', 'Consultation', 'Annulé moins de 2 h avant');
         $this->visit($client, $who, $coco, 'Coco', $dupont, '-209 days 14:00', ['Dentaire'], 'Joue gonflée, mange moins.', null, 'Drainage, antibiotique 10 jours.', [2.3, null], [['Consultation NAC', 1, 5500], ['Drainage d’abcès', 1, 4800]], 'CARD', diagnosis: 'Abcès de la 2e prémolaire');
         $this->visit($client, $who, $nala, 'Nala', $rousseau, '-194 days 18:15', ['Toux'], 'Toux sèche depuis 5 jours.', null, 'Anti-inflammatoire 5 jours.', [4.3, 38.9], [['Consultation', 1, 5000]], 'CARD', diagnosis: 'Trachéite');
-        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-175 days 09:30', ['Hospitalisation', 'Courbe de glycémie'], 'Ajustement de la dose d’insuline.', '9 glycémies de 8:00 à 18:00, nadir 1,6 g/L à 14:00.', 'Insuline 10 → 12 UI.', [34.5, 38.4], [['Hospitalisation à la journée', 1, 4500], ['Glycémie capillaire', 9, 600]], 'CARD', glycemia: 17.8);
+        $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-175 days 09:30', ['Courbe de glycémie'], 'Ajustement de la dose d’insuline.', '9 glycémies de 8:00 à 18:00, nadir 1,6 g/L à 14:00.', 'Insuline 10 → 12 UI.', [34.5, 38.4], [['Hospitalisation à la journée', 1, 4500], ['Glycémie capillaire', 9, 600]], 'CARD', glycemia: 17.8);
         $this->visit($client, $who, $pepito, 'Pepito', $dupont, '-153 days 16:30', ['Vaccination', 'Rappel CHPPiL'], 'Rappel annuel.', null, 'CHPPiL fait. Vermifuge donné.', [7.1, 38.5], [['Vaccination CHPPiL', 1, 6200], ['Milbemax chien — comprimé', 1, 850]], 'CASH');
         $this->visit($client, $who, $oscar, 'Oscar', $bernard, '-130 days 10:00', ['Contrôle diabète'], 'Contrôle à 4 mois du diagnostic.', null, 'Insuline passée à 12 UI matin et soir.', [34.9, 38.6], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200]], 'CARD', diagnosis: 'Diabète sucré, équilibre partiel', glycemia: 13.9);
         $this->counterSale($client, $who, '-115 days 12:00', [['Caninsulin 40 UI/mL — flacon 10 mL', 2, 5490], ['Seringues U40 — boîte de 30', 2, 1450]], 'CARD');
@@ -263,7 +263,7 @@ final class ClientSheetStatesStory extends Story
         // Today: Oscar is in the consultation room.
         $this->visit($client, $who, $oscar, 'Oscar', $rousseau, 'now', ['Contrôle diabète'], 'Contrôle à 2 mois de l’ajustement d’insuline.', null, null, [34.6, 38.7], [['Consultation de suivi', 1, 3500], ['Fructosamine', 1, 4200], ['Caninsulin 40 UI/mL — flacon 10 mL', 2, 5490], ['Seringues U40 — boîte de 30', 1, 1450]], null, open: true, glycemia: 9.8);
 
-        $this->upcoming($client, $oscar, $bernard, '+3 days 09:00', 'Courbe de glycémie', 'Hospitalisation de jour · venir à jeun avec l’insuline', 480);
+        $this->upcoming($client, $oscar, $bernard, '+3 days 09:00', 'Courbe de glycémie', 'Dépôt à 8:00, sortie vers 18:00 · venir à jeun avec l’insuline', 480);
         $this->upcoming($client, $nala, $dupont, '+7 days 18:30', 'Rappel typhus-coryza', 'Rappel SMS prévu la veille à 18:00');
         $this->upcoming($client, $pepito, $dupont, '+14 days 08:00', 'Castration', 'À jeun depuis la veille 20:00 · dépôt à 8:00, sortie vers 17:00', 60);
         $this->upcoming($client, $coco, $rousseau, '+25 days 17:00', 'Coupe des dents', 'Incisives trop longues · apporter du foin dans la caisse');

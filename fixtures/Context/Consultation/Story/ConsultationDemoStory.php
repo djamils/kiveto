@@ -44,7 +44,7 @@ use Zenstruck\Foundry\Story;
  * Two things are covered at once: the cockpit's UI states (an empty open
  * consultation, a rich one with every block filled, closed ones that feed the
  * history panel) and every column of the daily board — waiting room at each
- * triage level, consultation room, surgery, hospitalisation, checkout queue and
+ * triage level, consultation room, surgery, checkout queue and
  * discharged.
  *
  * Everything goes through the command bus so the demo data is built by the same
@@ -119,13 +119,13 @@ final class ConsultationDemoStory extends Story
         $max   = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_MAX_ID, 'Max', 'priority', 'Vomissements répétés depuis ce matin, abattement.');
         $filou = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_FILOU_ID, 'Filou', 'standard', 'Contrôle post-opératoire, retrait des points.');
 
-        // Surgery and hospitalisation columns.
+        // Surgery and consultation room.
         $luna = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_LUNA_ID, 'Luna', 'standard', 'Stérilisation programmée.');
         $this->buildSurgeryConsultation(self::PARIS, $luna, $vetUserId);
         $this->moveTo(self::PARIS, $luna, 'in_surgery');
 
-        $caramel = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_CARAMEL_ID, 'Caramel', 'priority', 'Pancréatite aiguë, sous perfusion.');
-        $this->moveTo(self::PARIS, $caramel, 'in_hospitalization');
+        $caramel = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_CARAMEL_ID, 'Caramel', 'priority', 'Douleurs abdominales, abattement depuis hier.');
+        $this->moveTo(self::PARIS, $caramel, 'in_consultation_room');
 
         // Checkout queue: consultation closed, patient waiting to pay.
         $pepere = $this->openAdmission(self::PARIS, AnimalDataStory::ANIMAL_PEPERE_ID, 'Pépère', 'standard', 'Vaccination annuelle.');
@@ -321,8 +321,8 @@ final class ConsultationDemoStory extends Story
         $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_JAVA_ID, 'Java', 'standard', 'Boiterie légère depuis hier soir.');
         $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_SUSHI_ID, 'Sushi', 'vital_emergency', 'Chute de plusieurs étages, détresse respiratoire.');
 
-        $moka = $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_MOKA_ID, 'Moka', 'emergency', 'Blocage urinaire suspecté, sondage en cours.');
-        $this->moveTo(self::LYON, $moka, 'in_hospitalization');
+        $moka = $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_MOKA_ID, 'Moka', 'emergency', 'Blocage urinaire suspecté.');
+        $this->moveTo(self::LYON, $moka, 'in_consultation_room');
 
         $gribouille = $this->openAdmission(self::LYON, AnimalDataStory::ANIMAL_GRIBOUILLE_ID, 'Gribouille', 'standard', 'Coupe des incisives sous anesthésie.');
         $this->moveTo(self::LYON, $gribouille, 'in_surgery');

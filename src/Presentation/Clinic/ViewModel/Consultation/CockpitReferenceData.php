@@ -210,7 +210,6 @@ final class CockpitReferenceData
             ['k' => 'ACT', 'q' => 'perfusion'],
             ['k' => 'ACT', 'q' => 'Radiographie thorax'],
             ['k' => 'ACT', 'q' => 'Échographie abdominale'],
-            ['k' => 'OTH', 'd' => 'Programmer hospitalisation'],
         ]],
         ['v' => 'irc', 'l' => '🫘 Suivi IRC', 'items' => [
             ['k' => 'ACT', 'q' => 'Bilan rénal'],
@@ -237,7 +236,7 @@ final class CockpitReferenceData
         ],
         'OTH' => [
             ['d' => 'Référer chez un spécialiste'], ['d' => 'Demander avis confrère'],
-            ['d' => 'Programmer hospitalisation'], ['d' => 'Devis chirurgie à établir'],
+            ['d' => 'Devis chirurgie à établir'],
         ],
     ];
 

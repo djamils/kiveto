@@ -426,7 +426,7 @@ final class AnimalDataStory extends Story
 
         // Seven active animals for Aurélie — mix of dogs and cats covering the "+N" badge threshold.
         // The first three carry fixed ids: the admission board uses them to fill
-        // its surgery, hospitalisation and checkout columns.
+        // its surgery, consultation room and checkout columns.
         $aurelieAnimals = [
             ['Pépère', 'dog', null, 'Beige', self::ANIMAL_PEPERE_ID],
             ['Filou', 'cat', null, 'Roux', self::ANIMAL_FILOU_ID],

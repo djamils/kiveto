@@ -17,7 +17,6 @@ final readonly class DashboardKpi
         public string $label,
         public ?string $note = null,
         public string $noteTone = '',
-        public ?string $id = null,
     ) {
     }
 }

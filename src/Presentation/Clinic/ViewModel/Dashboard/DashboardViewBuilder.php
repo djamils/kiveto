@@ -92,15 +92,6 @@ final readonly class DashboardViewBuilder
         $active       = $this->admissions(new ListActiveAdmissions($clinicId));
         $closedToday  = $this->admissions(new ListAdmissionsClosedSince($clinicId, $midnight->setTimezone($utc)));
 
-        $hospitalised = array_values(array_filter(
-            $active,
-            static fn (WaitingRoomItemDto $item): bool => 'in_hospitalization' === $item->locationStatus,
-        ));
-        $onSite = array_values(array_filter(
-            $active,
-            static fn (WaitingRoomItemDto $item): bool => 'in_hospitalization' !== $item->locationStatus,
-        ));
-
         $animals = $this->animals($clinicId, $active);
         $opening = null === $settings ? null : $this->openingToday($settings, $now);
 
@@ -122,7 +113,7 @@ final readonly class DashboardViewBuilder
                 && $this->localStart($item, $timeZone) >= $now,
         ));
 
-        $isCalm = [] === $onSite && \count($upcoming) <= 2;
+        $isCalm = [] === $active && \count($upcoming) <= 2;
 
         $timeline = $this->timeline($appointments, $timeZone);
 
@@ -134,21 +125,18 @@ final readonly class DashboardViewBuilder
                 $appointments,
                 $opening,
                 \count($practitioners),
-                $onSite,
-                $hospitalised,
                 $active,
                 $closedToday,
                 $now,
                 $midnight,
                 $isCalm,
             ),
-            beds: array_map(fn (WaitingRoomItemDto $item): HospitalBed => $this->bed($item, $animals, $now), $hospitalised),
             timeline: $timeline,
             appointmentCount: \count($appointments),
             rest: $this->rest($appointments, $opening, $now, $timeZone),
-            flux: $this->flux($onSite, $animals, $now),
+            flux: $this->flux($active, $animals, $now),
             nextExpected: $this->nextExpected($upcoming, $timeZone),
-            tasks: $this->tasks($clinicId, $onSite, $alerts, $stats, $midnight->setTimezone($utc), $now),
+            tasks: $this->tasks($clinicId, $active, $alerts, $stats, $midnight->setTimezone($utc), $now),
             done: $this->done($clinicId, $closedToday, $appointments, $midnight->setTimezone($utc), $timeZone),
             isCalm: $isCalm,
             hasStockAlerts: [] !== $alerts,
@@ -251,8 +239,6 @@ final readonly class DashboardViewBuilder
     /**
      * @param list<AppointmentItem>      $appointments
      * @param list<array{int, int}>|null $opening
-     * @param list<WaitingRoomItemDto>   $onSite
-     * @param list<WaitingRoomItemDto>   $hospitalised
      * @param list<WaitingRoomItemDto>   $active
      * @param list<WaitingRoomItemDto>   $closedToday
      *
@@ -263,8 +249,6 @@ final readonly class DashboardViewBuilder
         array $appointments,
         ?array $opening,
         int $practitionerCount,
-        array $onSite,
-        array $hospitalised,
         array $active,
         array $closedToday,
         \DateTimeImmutable $now,
@@ -304,7 +288,7 @@ final readonly class DashboardViewBuilder
         }
 
         $waiting = array_values(array_filter(
-            $onSite,
+            $active,
             static fn (WaitingRoomItemDto $item): bool => 'in_waiting_room' === $item->locationStatus,
         ));
         $average = [] === $waiting ? 0 : intdiv(
@@ -317,8 +301,6 @@ final readonly class DashboardViewBuilder
             $average > self::LONG_WAIT_MINUTES ? SheetText::plural(\count($waiting), 'en salle', 'en salle') : null,
             $average > self::LONG_WAIT_MINUTES ? 'warn' : '',
         );
-
-        $kpis[] = new DashboardKpi((string) \count($hospitalised), \count($hospitalised) > 1 ? 'hospitalisés' : 'hospitalisé', id: 'kpiHospit');
 
         $walkIns = 0;
 
@@ -554,30 +536,6 @@ final readonly class DashboardViewBuilder
         }
 
         return $cards;
-    }
-
-    /**
-     * @param array<string, AnimalView> $animals
-     */
-    private function bed(WaitingRoomItemDto $item, array $animals, \DateTimeImmutable $now): HospitalBed
-    {
-        $animal = null === $item->knownAnimalId ? null : ($animals[$item->knownAnimalId] ?? null);
-        $opened = new \DateTimeImmutable($item->openedAt)->setTimezone($now->getTimezone());
-        $days   = (int) $opened->setTime(0, 0)->diff($now->setTime(0, 0))->days;
-
-        return new HospitalBed(
-            admissionId: $item->admissionId,
-            emoji: $this->emoji($animal?->species),
-            name: $item->displayLabel,
-            subtitle: $this->subtitle($item, $animal),
-            stayLabel: 'J' . ($days + 1),
-            admittedLabel: 0 === $days
-                ? 'aujourd\'hui ' . $opened->format('H:i')
-                : SheetText::date($opened, 'd MMM') . ' ' . $opened->format('H:i'),
-            sinceLabel: $this->duration($this->minutesSince($item->openedAt, $now)),
-            practitioner: $item->practitionerLabel ?? 'sans praticien',
-            animalId: $item->knownAnimalId,
-        );
     }
 
     private function subtitle(WaitingRoomItemDto $item, ?AnimalView $animal): string
