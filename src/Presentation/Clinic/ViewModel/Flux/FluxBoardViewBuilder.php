@@ -34,9 +34,6 @@ use App\Shared\Domain\Time\ClockInterface;
  * Client (species, breed, age, alerts, owner and phone), Consultation (the
  * open consultation of a patient taken in charge, what a patient at the desk
  * owes) and Clinic (time zone, practitioners).
- *
- * Hospitalised patients are not ambulatory: they live on the hospitalisation
- * page and stay out of the board.
  */
 final readonly class FluxBoardViewBuilder
 {
@@ -70,10 +67,7 @@ final readonly class FluxBoardViewBuilder
         $now      = $this->clock->now()->setTimezone($timeZone);
         $midnight = $now->setTime(0, 0)->setTimezone(new \DateTimeZone('UTC'));
 
-        $active = array_values(array_filter(
-            $this->admissions(new ListActiveAdmissions($clinicId)),
-            static fn (WaitingRoomItemDto $item): bool => 'in_hospitalization' !== $item->locationStatus,
-        ));
+        $active = $this->admissions(new ListActiveAdmissions($clinicId));
         $closed = $this->admissions(new ListAdmissionsClosedSince($clinicId, $midnight));
 
         $appointments = $this->plannedAppointments($clinicId, $now, $timeZone);

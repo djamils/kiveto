@@ -1,7 +1,7 @@
 /* assets/styles/pages/home.css
    Clinic dashboard — ported as-is from
    docs/frontend-theme/kiveto-theme/dashboard-v-topbar-calme_2.html:
-   KPI strip + quick actions, hospitalisation band, « Fil du jour » timeline
+   KPI strip + quick actions, « Fil du jour » timeline
    and its now-line, « Flux ambulatoire » cards, « À traiter » pile, calm-day
    states. The shell (sidebar, topbar, palette, toast, tooltips) lives in
    shell/shell.css.
@@ -203,54 +203,6 @@
 .dash .kpi .d.up{color:var(--pin)}
 .dash .kpi .d.warn{color:var(--ambre)}
 
-/* ───────── Hospitalisations : bande horizontale conditionnelle ───────── */
-.dash .hospit-band{
-  display:flex;align-items:stretch;gap:14px;
-  margin:16px 24px 0;padding:12px 14px;
-  background:var(--carte);border:1px solid var(--trait);
-  border-radius:var(--r-lg);box-shadow:var(--ombre);
-}
-.dash .hb-head{display:flex;flex-direction:column;justify-content:center;gap:4px;flex:none;padding-right:14px;border-right:1px solid var(--trait)}
-.dash .hb-head h2{font-family:var(--font-display);font-weight:600;font-size:.98rem;white-space:nowrap}
-.dash .hb-count{
-  font-family:var(--font-data);font-size:.74rem;color:var(--hospit);
-  background:var(--hospit-pale);border-radius:20px;padding:2px 9px;font-weight:600;align-self:flex-start;
-}
-.dash .hb-lits{display:flex;gap:10px;flex:1;overflow-x:auto;min-width:0}
-.dash .lit{
-  flex:1 1 0;min-width:300px;display:flex;flex-direction:column;gap:8px;
-  padding:10px 12px;border:1px solid var(--trait);border-left:4px solid var(--hospit);
-  border-radius:var(--r-md);background:var(--carte);
-}
-.dash .lit .top{display:flex;align-items:center;gap:10px}
-.dash .lit .esp{
-  width:34px;height:34px;border-radius:8px;background:var(--hospit-pale);
-  display:grid;place-items:center;font-size:17px;flex:none;
-}
-.dash .lit .id b{font-size:.88rem;font-weight:600}
-.dash .lit .id span{display:block;font-size:.74rem;color:var(--encre-60)}
-.dash .lit .box{
-  margin-left:auto;font-family:var(--font-data);font-size:.72rem;color:var(--encre-60);
-  background:var(--brume);border-radius:7px;padding:3px 8px;flex:none;
-}
-.dash .soin{
-  display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--encre-60);
-  background:var(--brume);border-radius:8px;padding:6px 10px;
-}
-.dash .soin b{color:var(--encre);font-weight:600}
-.dash .soin .quand{margin-left:auto;font-family:var(--font-data);font-size:.72rem;font-weight:600}
-.dash .soin.retard{background:var(--garance-pale)}
-.dash .soin.retard .quand{color:var(--garance)}
-.dash .lit .h-acts{display:flex;gap:7px;margin-top:auto}
-.dash .h-btn{
-  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
-  border:1px solid var(--trait);border-radius:8px;padding:7px 6px;
-  font-size:.76rem;font-weight:600;background:var(--carte);transition:background .12s;
-}
-.dash .h-btn:hover{background:var(--brume)}
-.dash .h-btn.fait{background:var(--hospit);border-color:var(--hospit);color:#fff}
-.dash .h-btn.fait:hover{background:#6d28d9}
-
 /* ───────── Parcours patient : étapes nommées ───────── */
 .dash .parcours{display:flex;gap:5px}
 .dash .pstep{
@@ -334,14 +286,14 @@
 .dash .qa2-btn.ghost:hover{color:var(--pin-fonce)}
 
 /* ───────── Responsive ───────── */
-@media (max-width:1180px){.dash .grid{grid-template-columns:1fr 1fr}.dash .col-3{grid-column:1/-1}.dash .hospit-band{flex-direction:column}.dash .hb-head{flex-direction:row;align-items:center;border-right:none;border-bottom:1px solid var(--trait);padding:0 0 8px}}
+@media (max-width:1180px){.dash .grid{grid-template-columns:1fr 1fr}.dash .col-3{grid-column:1/-1}}
 @media (max-width:820px){
   .dash .grid{grid-template-columns:1fr;padding:16px}
 }
 
 /* ═════════ Ajouts propres à l'intégration ═════════ */
 /* Links carry the mock-up's buttons where it navigated with onclick. */
-.dash a.qa2-btn,.dash a.mini-btn,.dash a.ambu,.dash a.h-btn,.dash a.go,.dash a.aside{text-decoration:none;color:inherit}
+.dash a.qa2-btn,.dash a.mini-btn,.dash a.ambu,.dash a.go,.dash a.aside{text-decoration:none;color:inherit}
 .dash a.mini-btn{display:inline-block;text-align:center}
 /* The check-in form must not break the hover actions' flex row. */
 .dash .rdv .acts form{display:contents}

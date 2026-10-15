@@ -27,10 +27,9 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class DossierVisitReader
 {
-    /** Motif words that file a visit under a vaccination or a hospitalisation. */
-    private const array VACCINATION_WORDS     = ['vaccin', 'rappel', 'primo'];
-    private const array HOSPITALISATION_WORDS = ['chirurg', 'hospitalis', 'dentaire', 'détartrage', 'anesthés', 'castration', 'stérilisation'];
-    private const array EXAM_WORDS            = ['imagerie', 'analyse', 'bilan sanguin', 'radiograph', 'échograph'];
+    /** Motif words that file a visit under a vaccination or an exam. */
+    private const array VACCINATION_WORDS = ['vaccin', 'rappel', 'primo'];
+    private const array EXAM_WORDS        = ['imagerie', 'analyse', 'bilan sanguin', 'radiograph', 'échograph'];
 
     public function __construct(
         private QueryBusInterface $queryBus,
@@ -448,7 +447,6 @@ final readonly class DossierVisitReader
 
         $kinds = [
             'vacc' => self::VACCINATION_WORDS,
-            'hosp' => self::HOSPITALISATION_WORDS,
             'labo' => self::EXAM_WORDS,
         ];
 

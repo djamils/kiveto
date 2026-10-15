@@ -1070,7 +1070,7 @@ export function init() {
   on($('btnPlus'), 'click', (e) => {
     e.stopPropagation();
     const soon = (l) => `<button type="button" class="dd-it" disabled data-tip="${SOON}">${l}<span class="soon">Bientôt</span></button>`;
-    ouvrirMenu(e.currentTarget, `${soon('Transférer à un confrère')}${soon('Mettre en pause')}${soon('Convertir en hospitalisation')}
+    ouvrirMenu(e.currentTarget, `${soon('Transférer à un confrère')}${soon('Mettre en pause')}
       <div class="dd-sep"></div>${URLS.agenda ? '<button type="button" class="dd-it" data-p="agenda">Ouvrir l\'agenda</button>' : ''}<button type="button" class="dd-it rouge" disabled data-tip="${SOON}">Annuler la consultation<span class="soon">Bientôt</span></button>`, (m) => {
       m.querySelector('[data-p="agenda"]')?.addEventListener('click', () => { fermerMenu(); visit(URLS.agenda); });
     });

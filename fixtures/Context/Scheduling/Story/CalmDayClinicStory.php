@@ -19,8 +19,8 @@ use Zenstruck\Foundry\Story;
 /**
  * The quiet clinic of the group, as the dashboard's « journée calme »
  * mock-up shows it: three appointments today — two seen in the morning, one
- * left for the afternoon — nobody on site, nothing hospitalised, no stock,
- * nothing unpaid. It exercises every empty and calm state of the dashboard.
+ * left for the afternoon — nobody on site, no stock, nothing unpaid. It
+ * exercises every empty and calm state of the dashboard.
  */
 final class CalmDayClinicStory extends Story
 {

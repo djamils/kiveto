@@ -3,9 +3,8 @@
  # ──────────────────────────────────────────────
  # Clinic dashboard, ported from
  # docs/frontend-theme/kiveto-theme/dashboard-v-topbar-calme_2.html:
- # « La journée en chiffres » strip with the quick actions, hospitalisation
- # band (only when someone is hospitalised), then three columns — « Fil du
- # jour » (timeline with the live now-line), « Flux ambulatoire » (patients on
+ # « La journée en chiffres » strip with the quick actions, then three
+ # columns — « Fil du jour » (timeline with the live now-line), « Flux ambulatoire » (patients on
  # site) and « À traiter » (tasks raised from the data, done today, calm-day
  # suggestions).
  #
@@ -43,7 +42,7 @@
   {# ── La journée en chiffres + actions rapides ── #}
   <div class="kpi-strip" aria-label="La journée en chiffres">
     {% for kpi in d.kpis %}
-      <div class="kpi"><span class="v"{% if kpi.id %} id="{{ kpi.id }}"{% endif %}>{{ kpi.value }}</span><span class="l">{{ kpi.label }}</span>{% if kpi.note %}<span class="d{{ kpi.noteTone ? ' ' ~ kpi.noteTone }}">{{ kpi.note }}</span>{% endif %}</div>
+      <div class="kpi"><span class="v">{{ kpi.value }}</span><span class="l">{{ kpi.label }}</span>{% if kpi.note %}<span class="d{{ kpi.noteTone ? ' ' ~ kpi.noteTone }}">{{ kpi.note }}</span>{% endif %}</div>
     {% endfor %}
     <div class="qa2">
       <a class="qa2-btn primaire" href="{{ path('clinic_scheduling_agenda', {new: 1}) }}" data-tip="Raccourci : R">
@@ -60,34 +59,6 @@
       </a>
     </div>
   </div>
-
-  {# ── Hospitalisations — horizontal band, only while someone is hospitalised ── #}
-  {% if d.beds is not empty %}
-    <section class="hospit-band" id="modHospit" aria-label="Hospitalisations en cours">
-      <div class="hb-head">
-        <h2>Hospitalisations</h2>
-        <span class="hb-count" id="hospitCount">{{ d.beds|length }} en cours</span>
-      </div>
-      <div class="hb-lits">
-        {% for bed in d.beds %}
-          <div class="lit">
-            <div class="top">
-              <span class="esp">{{ bed.emoji }}</span>
-              <span class="id"><b>{{ bed.name }}</b><span>{{ bed.subtitle }}</span></span>
-              <span class="box" title="Jour d'hospitalisation">{{ bed.stayLabel }}</span>
-            </div>
-            <div class="soin"><span>Admis <b>{{ bed.admittedLabel }}</b> · {{ bed.practitioner }}</span><span class="quand" title="Durée d'hospitalisation">{{ bed.sinceLabel }}</span></div>
-            <div class="h-acts">
-              {% if bed.animalId %}
-                <a class="h-btn" href="{{ path('clinic_animals_view', {id: bed.animalId}) }}">Dossier</a>
-              {% endif %}
-              <a class="h-btn fait" href="{{ path('clinic_admission_queue') }}">Suivi au flux</a>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    </section>
-  {% endif %}
 
   <main class="grid">
 

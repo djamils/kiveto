@@ -55,7 +55,6 @@ export const IC = {
   vacc: I('<path d="m18 2 4 4M17 7l3-3M19 9 8.7 19.3a2.4 2.4 0 0 1-3.4 0L4.7 18.7a2.4 2.4 0 0 1 0-3.4L15 5M9 11l4 4M5 19l-3 3M14 4l6 6"/>'),
   labo: I('<path d="M9 2v6l-5 9a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 20 17l-5-9V2M8 2h8M7 15h10"/>'),
   ordo: I('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h3"/>'),
-  hosp: I('<path d="M2 20V8l10-5 10 5v12"/><path d="M6 20v-6h12v6M10 10h4M12 8v4"/>'),
   doc: I('<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14 2v6h6"/>'),
   img: I('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>'),
   sign: I('<path d="M3 17c3-3 5-6 7-6s-1 6 2 6 4-4 6-4 2 2 3 2M3 21h18"/>'),
@@ -76,10 +75,10 @@ IC.comm = IC.mail;
 
 export const KTYPE = {
   cons: ['Consultation', '#eef2ff', '#4338ca'], vacc: ['Vaccination', '#ecfeff', '#0891b2'], labo: ['Examen', '#fff7ed', '#c2410c'],
-  ordo: ['Ordonnance', '#f0fdf4', '#15803d'], hosp: ['Hospitalisation', '#f5f3ff', '#6d28d9'], vente: ['Achat au comptoir', '#f8fafc', '#475569'],
+  ordo: ['Ordonnance', '#f0fdf4', '#15803d'], vente: ['Achat au comptoir', '#f8fafc', '#475569'],
   comm: ['Échange', '#f8fafc', '#475569'],
 };
-export const KPLUR = { cons: 'Consultations', vacc: 'Vaccinations', labo: 'Examens', ordo: 'Ordonnances', hosp: 'Hospitalisations', vente: 'Achats' };
+export const KPLUR = { cons: 'Consultations', vacc: 'Vaccinations', labo: 'Examens', ordo: 'Ordonnances', vente: 'Achats' };
 export const icT = k => `<span class="ic" style="background:${KTYPE[k][1]};color:${KTYPE[k][2]}">${IC[k]}</span>`;
 
 /* ═════════ Controlled inputs ═════════ */
