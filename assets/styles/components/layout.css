@@ -333,19 +333,6 @@
     @apply p-4;
   }
 
-  .widget-head {
-    @apply flex items-center justify-between py-3 px-4 border-b border-border-light;
-  }
-
-  .widget-title {
-    @apply text-xs font-medium text-text-subtle uppercase;
-    letter-spacing: .08em;
-  }
-
-  .widget-body {
-    @apply p-4;
-  }
-
   /* Simple card (without structured header) */
   .card {
     @apply bg-surface-card border border-border-light rounded-lg p-4;
