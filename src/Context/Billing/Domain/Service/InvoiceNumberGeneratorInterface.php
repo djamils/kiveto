@@ -23,4 +23,12 @@ interface InvoiceNumberGeneratorInterface
      * continuous series of their own, apart from the invoices.
      */
     public function nextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber;
+
+    /**
+     * The number the next invoice would carry, without handing it out: what
+     * the settings show as « prochain numéro ».
+     */
+    public function peekNext(ClinicId $clinicId, int $year): InvoiceNumber;
+
+    public function peekNextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber;
 }

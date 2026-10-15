@@ -21,6 +21,13 @@ final readonly class UpdateClinicBillingSettings
         public ?string $iban = null,
         public ?string $bic = null,
         public ?string $invoiceFooterNote = null,
+        public ?string $creditNotePrefix = null,
+        public ?int $professionalPaymentTermsDays = null,
+        /** MONTHLY, QUARTERLY or SIMPLIFIED; null when the clinic has not said. */
+        public ?string $vatRegime = null,
+        public bool $vatOnDebits = false,
+        /** @var list<string>|null CARD, CASH, CHECK, TRANSFER — null for all of them */
+        public ?array $acceptedPaymentMethods = null,
     ) {
     }
 }

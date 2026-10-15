@@ -39,6 +39,8 @@ final readonly class GetClinicHandler
             createdAt: $clinic->createdAt()->format('c'),
             updatedAt: $clinic->updatedAt()->format('c'),
             letterhead: LetterheadDto::fromDomain($clinic->letterhead()),
+            brandColor: $clinic->brandColor()?->toString(),
+            logoKey: $clinic->logoKey(),
         );
     }
 }

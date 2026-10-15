@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Clinic\Domain\Clinic;
+use App\Context\Clinic\Domain\Staff\ValueObject\HexColor;
 use App\Context\Clinic\Domain\ValueObject\BillingSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
 use App\Context\Clinic\Domain\ValueObject\OpeningHours;
+use App\Context\Clinic\Domain\ValueObject\VatRegime;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Shared\Domain\Localization\Locale;
@@ -42,6 +44,8 @@ final readonly class ClinicMapper
             letterhead: self::letterheadToDomain($entity->getLetterhead()),
             openingHours: self::openingHoursToDomain($entity->getOpeningHours()),
             billingSettings: self::billingSettingsToDomain($entity->getBillingSettings()),
+            brandColor: null !== $entity->getBrandColor() ? HexColor::fromString($entity->getBrandColor()) : null,
+            logoKey: $entity->getLogoKey(),
         );
     }
 
@@ -60,6 +64,8 @@ final readonly class ClinicMapper
         $entity->setLetterhead(self::letterheadToEntity($clinic->letterhead()));
         $entity->setOpeningHours($clinic->openingHours()->toArray());
         $entity->setBillingSettings(self::billingSettingsToArray($clinic->billingSettings()));
+        $entity->setBrandColor($clinic->brandColor()?->toString());
+        $entity->setLogoKey($clinic->logoKey());
         $entity->setCreatedAt($clinic->createdAt());
         $entity->setUpdatedAt($clinic->updatedAt());
 
@@ -114,7 +120,10 @@ final readonly class ClinicMapper
             }
         }
 
-        $terms = $stored['paymentTermsDays'] ?? null;
+        $terms    = $stored['paymentTermsDays'] ?? null;
+        $proTerms = $stored['professionalPaymentTermsDays'] ?? null;
+        $regime   = $stored['vatRegime'] ?? null;
+        $methods  = $stored['acceptedPaymentMethods'] ?? null;
 
         return BillingSettings::create(
             billingAddress: $address,
@@ -123,6 +132,11 @@ final readonly class ClinicMapper
             iban: self::stringOrNull($stored, 'iban'),
             bic: self::stringOrNull($stored, 'bic'),
             invoiceFooterNote: self::stringOrNull($stored, 'invoiceFooterNote'),
+            creditNotePrefix: self::stringOrNull($stored, 'creditNotePrefix'),
+            professionalPaymentTermsDays: \is_int($proTerms) ? $proTerms : null,
+            vatRegime: \is_string($regime) ? VatRegime::tryFrom($regime) : null,
+            vatOnDebits: true === ($stored['vatOnDebits'] ?? false),
+            acceptedPaymentMethods: \is_array($methods) ? $methods : null,
         );
     }
 
@@ -141,11 +155,16 @@ final readonly class ClinicMapper
                 'city'        => $address->city,
                 'countryCode' => $address->countryCode,
             ],
-            'invoiceNumberPrefix' => $settings->invoiceNumberPrefix,
-            'paymentTermsDays'    => $settings->paymentTermsDays,
-            'iban'                => $settings->iban,
-            'bic'                 => $settings->bic,
-            'invoiceFooterNote'   => $settings->invoiceFooterNote,
+            'invoiceNumberPrefix'          => $settings->invoiceNumberPrefix,
+            'paymentTermsDays'             => $settings->paymentTermsDays,
+            'iban'                         => $settings->iban,
+            'bic'                          => $settings->bic,
+            'invoiceFooterNote'            => $settings->invoiceFooterNote,
+            'creditNotePrefix'             => $settings->creditNotePrefix,
+            'professionalPaymentTermsDays' => $settings->professionalPaymentTermsDays,
+            'vatRegime'                    => $settings->vatRegime?->value,
+            'vatOnDebits'                  => $settings->vatOnDebits,
+            'acceptedPaymentMethods'       => $settings->acceptedPaymentMethods,
         ];
     }
 
@@ -193,6 +212,9 @@ final readonly class ClinicMapper
             phone: $embeddable->phone,
             email: $embeddable->email,
             website: $embeddable->website,
+            ordinalCouncil: $embeddable->ordinalCouncil,
+            liabilityInsurer: $embeddable->liabilityInsurer,
+            liabilityPolicyNumber: $embeddable->liabilityPolicyNumber,
         );
     }
 
@@ -216,6 +238,9 @@ final readonly class ClinicMapper
             phone: $letterhead->phone?->toString(),
             email: $letterhead->email?->toString(),
             website: $letterhead->website,
+            ordinalCouncil: $letterhead->ordinalCouncil?->value,
+            liabilityInsurer: $letterhead->liabilityInsurer,
+            liabilityPolicyNumber: $letterhead->liabilityPolicyNumber,
         );
     }
 }

@@ -72,6 +72,9 @@ final class UpdateClinicLetterheadHandler
             phone: $command->phone,
             email: $command->email,
             website: $command->website,
+            ordinalCouncil: $command->ordinalCouncil,
+            liabilityInsurer: $command->liabilityInsurer,
+            liabilityPolicyNumber: $command->liabilityPolicyNumber,
         );
     }
 

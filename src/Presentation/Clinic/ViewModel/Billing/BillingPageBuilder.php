@@ -10,6 +10,8 @@ use App\Context\Billing\Application\Query\GetCashDesk\CashDeskView;
 use App\Context\Billing\Application\Query\GetCashDesk\GetCashDesk;
 use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
+use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
+use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitContextBuilder;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -114,6 +116,7 @@ final readonly class BillingPageBuilder
                 'retard' => $stats->overdueCount,
             ],
             'caisse'  => $this->cashDesk($desk),
+            'modes'   => $this->acceptedModes($clinicId),
             'clients' => $this->clients($clinicId),
             'sheet'   => $sheet,
             'autoPay' => $autoPay && null !== $sheet,
@@ -137,6 +140,28 @@ final readonly class BillingPageBuilder
                 'close'      => $this->urls->generate('clinic_cash_closing'),
             ],
         ];
+    }
+
+    /**
+     * The desk modes the clinic takes, as the page names them; all of them
+     * when it has not said.
+     *
+     * @return list<string>
+     */
+    private function acceptedModes(string $clinicId): array
+    {
+        $settings = $this->queryBus->ask(new GetClinicSettings($clinicId));
+        $methods  = $settings instanceof ClinicSettingsView ? ($settings->billing['acceptedPaymentMethods'] ?? null) : null;
+
+        $modes = [];
+
+        foreach (self::DESK_METHODS as $method => $mode) {
+            if (!\is_array($methods) || \in_array($method, $methods, true)) {
+                $modes[] = $mode;
+            }
+        }
+
+        return $modes;
     }
 
     /**

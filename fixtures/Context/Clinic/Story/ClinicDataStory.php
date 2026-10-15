@@ -28,12 +28,15 @@ final class ClinicDataStory extends Story
                 legalName: 'Clinique Vétérinaire de Paris',
                 legalForm: 'SELARL',
                 shareCapital: '30 000 €',
-                siret: '81245690300027',
-                vatNumber: 'FR41812456903',
+                siret: '81245690300028',
+                vatNumber: 'FR20812456903',
                 rcsCity: 'Paris',
                 rcsNumber: '812 456 903',
                 apeCode: '7500Z',
-                ordinalNumber: '75-1284',
+                ordinalNumber: '21284',
+                ordinalCouncil: 'idf',
+                liabilityInsurer: 'MACSF',
+                liabilityPolicyNumber: '4401220788',
                 streetLine1: '18 rue des Abbesses',
                 postalCode: '75018',
                 city: 'Paris',
@@ -43,7 +46,7 @@ final class ClinicDataStory extends Story
                 website: 'www.vet-paris.fr',
             ))
             // Open six days a week, shut at lunch, closed on Sunday — and shut
-            // on Christmas Day, so the demo has a closure to show.
+            // over Christmas (three days, shown as one range) and on New Year's Day.
             ->withOpeningHours([
                 'week' => [
                     1 => [['opensAt' => '09:00', 'closesAt' => '12:30'], ['opensAt' => '14:00', 'closesAt' => '19:00']],
@@ -54,7 +57,9 @@ final class ClinicDataStory extends Story
                     6 => [['opensAt' => '09:00', 'closesAt' => '13:00']],
                 ],
                 'closures' => [
+                    ['date' => '2026-12-24', 'reason' => 'Noël'],
                     ['date' => '2026-12-25', 'reason' => 'Noël'],
+                    ['date' => '2026-12-26', 'reason' => 'Noël'],
                     ['date' => '2027-01-01', 'reason' => 'Jour de l\'an'],
                 ],
             ])
@@ -65,7 +70,14 @@ final class ClinicDataStory extends Story
                 'iban'                => 'FR7630006000011234567890189',
                 'bic'                 => 'AGRIFRPP',
                 'invoiceFooterNote'   => 'Règlement à réception. Aucun escompte pour paiement anticipé.',
+                'creditNotePrefix'    => 'AV',
+                // Breeders and shelters are given 45 days; the clinic files monthly.
+                'professionalPaymentTermsDays' => 45,
+                'vatRegime'                    => 'MONTHLY',
+                'vatOnDebits'                  => false,
+                'acceptedPaymentMethods'       => ['CARD', 'CASH', 'CHECK', 'TRANSFER'],
             ])
+            ->withBrandColor('#4f86c6')
             ->create(['timeZone' => 'Europe/Paris', 'locale' => 'fr-FR'])
         ;
 
@@ -85,12 +97,13 @@ final class ClinicDataStory extends Story
                 legalName: 'Réseau VetoFrance — Établissement de Lyon',
                 legalForm: 'SAS',
                 shareCapital: '150 000 €',
-                siret: '90112233400018',
-                vatNumber: 'FR62901122334',
+                siret: '90112233300015',
+                vatNumber: 'FR00901122333',
                 rcsCity: 'Lyon',
-                rcsNumber: '901 122 334',
+                rcsNumber: '901 122 333',
                 apeCode: '7500Z',
-                ordinalNumber: '69-0442',
+                ordinalNumber: '10442',
+                ordinalCouncil: 'ara',
                 streetLine1: '7 quai Saint-Antoine',
                 streetLine2: 'Bâtiment B',
                 postalCode: '69002',
@@ -125,12 +138,15 @@ final class ClinicDataStory extends Story
                 legalName: 'Réseau VetoFrance — Établissement de Cassis',
                 legalForm: 'SAS',
                 shareCapital: '150 000 €',
-                siret: '90112233400026',
-                vatNumber: 'FR62901122334',
+                siret: '90112233300023',
+                vatNumber: 'FR00901122333',
                 rcsCity: 'Marseille',
-                rcsNumber: '901 122 334',
+                rcsNumber: '901 122 333',
                 apeCode: '7500Z',
-                ordinalNumber: '13-0871',
+                ordinalNumber: '13871',
+                ordinalCouncil: 'paca',
+                liabilityInsurer: 'Groupama',
+                liabilityPolicyNumber: 'GPRC77120',
                 streetLine1: '5 avenue de la Marne',
                 postalCode: '13260',
                 city: 'Cassis',
@@ -139,6 +155,14 @@ final class ClinicDataStory extends Story
                 email: 'cassis@vetofrance.fr',
                 website: 'www.vetofrance.fr',
             ))
+            // Cheques are no longer taken at Cassis: the desk shows card, cash and transfer only.
+            ->withBillingSettings([
+                'invoiceNumberPrefix'    => 'CAS',
+                'paymentTermsDays'       => 0,
+                'vatRegime'              => 'SIMPLIFIED',
+                'acceptedPaymentMethods' => ['CARD', 'CASH', 'TRANSFER'],
+            ])
+            ->withBrandColor('#e07a5f')
             // Every day of the week, so its calm day is today whatever today is.
             ->withOpeningHours([
                 'week' => array_fill(1, 7, [

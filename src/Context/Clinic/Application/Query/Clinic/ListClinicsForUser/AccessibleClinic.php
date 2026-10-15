@@ -19,6 +19,8 @@ final readonly class AccessibleClinic
         public \DateTimeImmutable $validFrom,
         public ?\DateTimeImmutable $validUntil,
         public bool $isDefault,
+        /** The colour the clinic chose for the switcher, null when it has not. */
+        public ?string $brandColor = null,
     ) {
     }
 }

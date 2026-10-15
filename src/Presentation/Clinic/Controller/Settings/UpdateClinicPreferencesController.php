@@ -4,61 +4,50 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Settings;
 
-use App\Context\Clinic\Application\Command\Clinic\ChangeClinicLocale\ChangeClinicLocale;
-use App\Context\Clinic\Application\Command\Clinic\ChangeClinicTimeZone\ChangeClinicTimeZone;
-use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Context\Clinic\Application\Command\Staff\SetDefaultClinic\SetDefaultClinic;
+use App\Presentation\Clinic\ViewModel\Settings\SettingsEndpoint;
+use App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * The language the clinic works in and the clock it works by.
+ * « Mes préférences »: the clinic the member lands in at sign-in. It only
+ * concerns the member, so every member may change it — among the clinics they
+ * belong to, never another.
  */
 #[Route(path: '/settings/preferences', name: 'clinic_settings_preferences_save', methods: ['POST'])]
-final class UpdateClinicPreferencesController extends AbstractController
+final readonly class UpdateClinicPreferencesController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ClinicPermissionGuard $guard,
+        private CommandBusInterface $commandBus,
+        private SettingsEndpoint $endpoint,
+        private SettingsPageBuilder $page,
+        private Security $security,
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): JsonResponse
     {
-        $this->guard->require(ClinicPermissionGuard::MANAGE_STAFF);
-
-        $clinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $clinicId);
-
-        $locale   = mb_trim($request->request->getString('locale'));
-        $timeZone = mb_trim($request->request->getString('timeZone'));
-
-        try {
-            if ('' !== $locale) {
-                $this->commandBus->dispatch(new ChangeClinicLocale(
-                    clinicId: $clinicId->toString(),
-                    locale: $locale,
-                ));
-            }
-
-            if ('' !== $timeZone) {
-                $this->commandBus->dispatch(new ChangeClinicTimeZone(
-                    clinicId: $clinicId->toString(),
-                    timeZone: $timeZone,
-                ));
-            }
-        } catch (\InvalidArgumentException $exception) {
-            $this->addFlash('error', 'La langue ou le fuseau horaire choisi n’est pas reconnu.');
-
-            return $this->redirectToRoute('clinic_settings_preferences');
+        if (null !== $refused = $this->endpoint->guard($request, null)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Préférences enregistrées.');
+        $user = $this->security->getUser();
+        \assert($user instanceof SecurityUser);
 
-        return $this->redirectToRoute('clinic_settings_preferences');
+        $clinicId = SettingsEndpoint::text(SettingsEndpoint::values($request), 'moi.clin');
+        $mine     = array_column($this->page->preferences()['clinics'], 0);
+
+        if (null === $clinicId || !\in_array($clinicId, $mine, true)) {
+            return $this->endpoint->refuse('Choisissez une de vos cliniques.', 'moi.clin');
+        }
+
+        $this->commandBus->dispatch(new SetDefaultClinic(clinicId: $clinicId, userId: $user->id()));
+
+        return $this->endpoint->ok();
     }
 }

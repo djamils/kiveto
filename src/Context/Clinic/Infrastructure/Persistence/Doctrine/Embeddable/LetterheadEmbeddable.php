@@ -44,6 +44,12 @@ final class LetterheadEmbeddable
         public ?string $email = null,
         #[ORM\Column(name: 'letterhead_website', type: 'string', length: 255, nullable: true)]
         public ?string $website = null,
+        #[ORM\Column(name: 'letterhead_ordinal_council', type: 'string', length: 8, nullable: true)]
+        public ?string $ordinalCouncil = null,
+        #[ORM\Column(name: 'letterhead_liability_insurer', type: 'string', length: 80, nullable: true)]
+        public ?string $liabilityInsurer = null,
+        #[ORM\Column(name: 'letterhead_liability_policy_number', type: 'string', length: 40, nullable: true)]
+        public ?string $liabilityPolicyNumber = null,
     ) {
     }
 }

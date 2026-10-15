@@ -1,173 +1,139 @@
 /* assets/styles/pages/settings.css
-   Réglages de la clinique — identité, horaires, facturation, préférences.
+   Paramètres — the clinic's settings, section by section. Ported as-is from
+   docs/frontend-theme/kiveto-theme/parametres-v-topbar_5.html (« Paramètres »,
+   « Horaires » and « Listes éditables » sections, plus the logo and read-only
+   copy rows). The filter bar, chips, pickers and colour picker come from the
+   kit (shell/shell.css, shell/register.css); everything here is anchored on
+   the page root `.prm`. Keyframes carry a `prm` prefix so they never meet
+   another page's.
 
-   The page is a column of cards on the page ground, like the rest of the
-   application's list pages. */
+   The few rules marked « not in the mock-up » draw what the mock-up has no
+   state for: a section or a setting Kiveto does not handle yet, shown
+   disabled rather than with made-up values. */
 
-@layer components {
+.prm .pagehead h1{white-space:nowrap}
+.prm .saved{display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--encre-60);white-space:nowrap;opacity:.9;transition:opacity .2s}
+.prm .saved i{width:7px;height:7px;border-radius:50%;background:#16a34a;flex:none}
+.prm .saved.pulse i{animation:prmSvp .9s ease}
+@keyframes prmSvp{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}100%{box-shadow:0 0 0 8px rgba(22,163,74,0)}}
+.prm .saved button{color:var(--pin);font-weight:600;font-size:.76rem}
+.prm .saved button:hover{text-decoration:underline}
+/* not in the mock-up: a save on its way, or one the server refused */
+.prm .saved.busy i{background:var(--ambre)}
+.prm .saved.ko i{background:var(--garance)}
 
-  [data-page="clinic_settings"],
-  [data-page="clinic_settings_hours"],
-  [data-page="clinic_settings_billing"],
-  [data-page="clinic_settings_preferences"] {
+.prm .pzone{flex:1;min-height:0;display:flex;background:var(--brume)}
+.prm .pnav{width:262px;flex:none;background:var(--carte);border-right:1px solid var(--trait);display:flex;flex-direction:column;min-height:0}
+.prm .pnav .crech{margin:12px 12px 6px;max-width:none;flex:none}
+.prm .pnav .crech kbd{font-family:var(--font-data);font-size:.66rem;color:var(--encre-35);border:1px solid var(--trait);border-radius:4px;padding:0 5px}
+.prm .pnav-l{flex:1;overflow-y:auto;padding:4px 8px 16px;position:relative}
+.prm .pg-t{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--encre-35);padding:12px 10px 5px}
+.prm .pn-it{position:relative;display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:8px;font-size:.83rem;color:var(--encre-60);text-align:left;transition:background .12s,color .12s;z-index:1}
+.prm .pn-it svg{width:16px;height:16px;flex:none;color:var(--encre-35);transition:color .12s;display:inline}
+.prm .pn-it:hover{background:var(--brume);color:var(--encre)}
+.prm .pn-it.on{color:var(--pin-fonce);font-weight:600}
+.prm .pn-it.on svg{color:var(--pin)}
+.prm .pn-it .n{margin-left:auto;font-family:var(--font-data);font-size:.66rem;color:var(--encre-35)}
+/* not in the mock-up: a section Kiveto does not handle yet */
+.prm .pn-it.off{opacity:.5;cursor:not-allowed}
+.prm .pn-it.off:hover{background:none;color:var(--encre-60)}
+.prm .pn-ind{position:absolute;left:8px;right:8px;height:34px;border-radius:8px;background:var(--pin-pale);transition:top .22s cubic-bezier(.3,.7,.2,1),height .22s;z-index:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.prm .pn-ind{transition:none}}
 
-    .set-root {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
+.prm .pcont{flex:1;min-width:0;overflow-y:auto;padding:22px 28px 60px}
+.prm .pin{max-width:860px;margin:0 auto}
+.prm .pin.anim{animation:prmIn .22s cubic-bezier(.3,.7,.2,1)}
+@keyframes prmIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.prm .pin.anim{animation:none}}
+.prm .psh{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px}
+.prm .psh .ic{width:42px;height:42px;border-radius:11px;background:var(--carte);box-shadow:var(--ombre);display:grid;place-items:center;color:var(--pin);flex:none}
+.prm .psh .ic svg{width:20px;height:20px}
+.prm .psh h2{font-family:var(--font-display);font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
+.prm .psh p{font-size:.84rem;color:var(--encre-60);margin-top:3px;line-height:1.45;max-width:620px}
+.prm .pcard{background:var(--carte);border-radius:12px;box-shadow:var(--ombre);margin-bottom:14px;overflow:hidden}
+.prm .pcard > header{padding:14px 18px 4px}
+.prm .pcard > header h3{font-size:.92rem;font-weight:600}
+.prm .pcard > header p{font-size:.78rem;color:var(--encre-60);margin-top:2px}
+.prm .pcard > .pb{padding:6px 18px 14px}
+.prm .srow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;padding:12px 0;border-top:1px solid var(--brume)}
+.prm .srow:first-child{border-top:none}
+.prm .srow.col{grid-template-columns:1fr}
+.prm .srow .sl b{display:block;font-size:.86rem;font-weight:600}
+.prm .srow .sl small{display:block;font-size:.76rem;color:var(--encre-60);margin-top:2px;line-height:1.45}
+.prm .srow .sl .aff{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.prm .aff a,.prm .aff span{display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 7px;border-radius:4px;background:var(--brume);color:var(--encre-60);font-size:.66rem;font-weight:600;text-decoration:none}
+.prm .aff a:hover{background:var(--pin-pale);color:var(--pin-fonce)}
+.prm .aff a svg{width:9px;height:9px;display:inline}
+.prm .srow .sc{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+.prm .srow .sc .finput{width:260px;padding:8px 10px;font-size:.85rem;background:var(--carte)}
+/* not in the mock-up: a setting Kiveto does not handle yet */
+.prm .srow.off .sc{opacity:.45;pointer-events:none}
+.prm .srow .soon{display:inline-flex;align-items:center;height:17px;padding:0 6px;margin-left:6px;border-radius:4px;background:var(--brume);color:var(--encre-35);font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;vertical-align:1px}
+.prm .fld{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0}
+.prm .srow.col .fld{align-items:stretch}
+.prm .ferr{font-size:.72rem;color:#b91c1c;min-height:0;text-align:right}
+.prm .ferr:empty{display:none}
+.prm .srow.col .ferr{text-align:left}
+.prm .finput.ko{border-color:#ef4444!important;background:#fef2f2!important}
+.prm .adr{display:flex;flex-direction:column;gap:8px;width:100%;max-width:520px}
+.prm .adr .finput{width:100%!important}
+.prm .adr2{display:grid;grid-template-columns:120px 1fr;gap:8px}
+.prm .srow .sc textarea.finput{width:100%;min-height:70px;resize:vertical}
+.prm .srow.col .sc{justify-content:flex-start}
+.prm .srow.col .sc .finput{width:100%}
+.prm .srow .sc .inu{width:130px}
+.prm .srow .sc .inu .finput{width:100%}
+.prm .srow .sc .dd{width:260px}
+.prm .srow .sc .dd-btn{background:var(--carte)}
+.prm .srow .sc .seg{flex:none}
+.prm .srow .sc .seg button{flex:none;padding:6px 11px}
+.prm .numu{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--trait);border-radius:8px;background:var(--carte);cursor:text;transition:border-color .13s}
+.prm .numu:focus-within{border-color:var(--pin);box-shadow:0 0 0 3px rgba(67,56,202,.1)}
+.prm .numu input{width:44px;border:none;outline:none;background:transparent;font:inherit;font-size:.86rem;font-weight:600;text-align:right;padding:0}
+.prm .numu span{font-size:.8rem;color:var(--encre-60);white-space:nowrap}
+.prm a.pn-it{text-decoration:none}
+.prm .srow.hl{animation:prmHl 1.6s ease}
+@keyframes prmHl{0%,30%{background:var(--pin-pale);box-shadow:0 0 0 8px var(--pin-pale)}100%{background:transparent;box-shadow:0 0 0 8px transparent}}
+.prm mark{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
+.prm .res-h{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--encre-35);margin:18px 0 8px}
+.prm .res-h:first-child{margin-top:0}
+.prm .res-h button{margin-left:auto;font-size:.74rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--pin)}
+.prm .pvide{text-align:center;padding:60px 20px;color:var(--encre-60)}
+.prm .pvide b{display:block;color:var(--encre);font-size:1rem;margin-bottom:4px}
+.prm .rocopy{display:flex;align-items:center;gap:6px;width:100%}
+.prm .rocopy code{flex:1;min-width:0;font-family:var(--font-data);font-size:.76rem;background:var(--brume);border-radius:7px;padding:8px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-    /* ── Topbar ── */
-    .topbar {
-      height: 52px; flex-shrink: 0;
-      padding: 0 var(--space-6);
-      border-bottom: 1px solid var(--border-light);
-      background: var(--surface-card);
-      display: flex; align-items: center; gap: var(--space-4);
-    }
-    .tb-toggle {
-      width: 30px; height: 30px; flex-shrink: 0;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: transparent; border: 1px solid var(--border-light);
-      border-radius: var(--radius-md); color: var(--text-muted); cursor: pointer;
-    }
-    .tb-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
-    .tb-title { display: flex; align-items: center; gap: var(--space-2); }
-    .tb-title-count { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-    .tb-spacer { flex: 1; }
-    .tb-search { position: relative; width: 320px; }
-    .tb-search input {
-      width: 100%; height: 32px;
-      padding: 0 12px 0 32px;
-      background: var(--surface-subtle); border: 1px solid transparent;
-      border-radius: var(--radius-md);
-      font-size: var(--text-md); color: var(--text-primary);
-      outline: none; transition: var(--t-fast);
-    }
-    .tb-search input:hover { background: var(--surface-hover); }
-    .tb-search input:focus { background: var(--surface-card); border-color: var(--brand-400); box-shadow: var(--shadow-focus); }
-    .tb-search input::placeholder { color: var(--text-subtle); }
-    .tb-search-icon {
-      position: absolute; left: 10px; top: 50%;
-      transform: translateY(-50%); width: 14px; height: 14px;
-      color: var(--text-muted); pointer-events: none;
-    }
+/* Horaires */
+.prm .hgrid{display:flex;flex-direction:column}
+.prm .hday{display:grid;grid-template-columns:110px 44px 1fr;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--brume)}
+.prm .hday:first-child{border-top:none}
+.prm .hday b{font-size:.84rem;font-weight:600}
+.prm .hday .plages{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.prm .hday .pl{display:flex;align-items:center;gap:5px;background:var(--brume);border-radius:8px;padding:3px 4px 3px 8px}
+.prm .hday .pl input::-webkit-calendar-picker-indicator{display:none}
+.prm .hday .pl input{width:56px;border:none;background:transparent;font-family:var(--font-data);font-size:.78rem;outline:none;padding:4px 2px}
+.prm .hday .pl span{color:var(--encre-35);font-size:.74rem}
+.prm .hday .pl .rm{width:22px;height:22px}
+.prm .hday .ferme{font-size:.8rem;color:var(--encre-35)}
+.prm .addp{height:28px;padding:0 9px;border-radius:7px;border:1px dashed #c7d2fe;color:var(--pin);font-size:.74rem;font-weight:600}
+.prm .addp:hover{background:var(--pin-pale)}
+.prm .hday .tot{margin-left:auto;font-size:.72rem;color:var(--encre-35);white-space:nowrap}
 
-    /* ── Tabs ── */
-    .set-tabs {
-      display: flex;
-      align-items: stretch;
-      gap: var(--space-1);
-      padding: 0 var(--space-6);
-      border-bottom: 1px solid var(--border-light);
-      background: var(--surface-card);
-      flex-shrink: 0;
-    }
-    .set-tab {
-      display: inline-flex;
-      align-items: center;
-      padding: 10px 12px;
-      font-size: var(--text-md);
-      color: var(--text-muted);
-      text-decoration: none;
-      white-space: nowrap;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      transition: var(--t-fast);
-    }
-    .set-tab:hover { color: var(--text-primary); }
-    .set-tab.is-active {
-      color: var(--brand-700);
-      border-bottom-color: var(--brand-700);
-      font-weight: var(--weight-medium);
-    }
+/* Listes éditables */
+.prm .elist{display:flex;flex-direction:column}
+.prm .eli{display:grid;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--brume)}
+.prm .eli:first-child{border-top:none}
+.prm .eli .finput{padding:7px 9px;font-size:.83rem;background:var(--carte)}
+.prm .srow .sc input[type=time]::-webkit-calendar-picker-indicator{opacity:.4}
+.prm .eli.hd{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);padding-bottom:4px}
+.prm .fer-g{grid-template-columns:150px 150px minmax(0,1fr) 32px}
 
-    /* ── Scroll area ── */
-    .set-scroll {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: var(--space-5) var(--space-6) var(--space-8);
-      background: var(--surface-page);
-    }
+/* Apparence */
+.prm .logo-up{display:flex;align-items:center;gap:12px}
+.prm .logo-up .lg{width:56px;height:56px;border-radius:12px;display:grid;place-items:center;color:#fff;font-family:var(--font-display);font-weight:700;font-size:1.3rem;overflow:hidden}
+/* not in the mock-up: the uploaded logo itself, on a light ground */
+.prm .logo-up .lg.img{background:var(--carte)!important;box-shadow:inset 0 0 0 1px var(--trait)}
+.prm .logo-up .lg img{width:100%;height:100%;object-fit:contain}
 
-    .set-form { display: flex; flex-direction: column; gap: var(--space-4); max-width: 940px; }
-
-    /* ── Cards ── */
-    .set-card {
-      background: var(--surface-card);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm);
-      padding: var(--space-4) var(--space-5) var(--space-5);
-      max-width: 940px;
-    }
-    .set-card + .set-card { margin-top: 0; }
-    .set-card-flush { padding: var(--space-4) 0 0; }
-    .set-card-flush .set-card-head { padding: 0 var(--space-5); }
-    .set-card-head { margin-bottom: var(--space-4); }
-    .set-card-title {
-      font-size: var(--text-base);
-      font-weight: var(--weight-medium);
-      color: var(--text-primary);
-      margin: 0;
-    }
-    .set-card-sub {
-      font-size: var(--text-sm);
-      color: var(--text-muted);
-      line-height: var(--lh-normal);
-      margin: 2px 0 0;
-    }
-
-    /* ── Fields ── */
-    .set-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: var(--space-3) var(--space-4);
-    }
-    .set-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .set-field-wide { grid-column: 1 / -1; }
-    .set-label {
-      font-size: var(--text-xs);
-      font-weight: var(--weight-medium);
-      color: var(--text-subtle);
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-    .set-hint { font-size: var(--text-xs); color: var(--text-subtle); line-height: var(--lh-normal); }
-    .set-inline { display: inline-flex; align-items: center; gap: var(--space-2); }
-    .set-unit { font-size: var(--text-sm); color: var(--text-muted); }
-    .form-input.mono, .mono { font-family: 'DM Mono', monospace; }
-
-    .set-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: var(--space-2);
-      max-width: 940px;
-    }
-
-    /* ── Opening hours ── */
-    .hours-grid { display: flex; flex-direction: column; }
-    .hours-row {
-      display: grid;
-      grid-template-columns: 120px 1fr 80px;
-      align-items: center;
-      gap: var(--space-3);
-      padding: var(--space-2) 0;
-      border-bottom: 1px solid var(--border-light);
-    }
-    .hours-row:last-child { border-bottom: none; }
-    .hours-day { font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text-primary); }
-    .hours-slots { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-    .hours-slot { display: inline-flex; align-items: center; gap: var(--space-2); }
-    .hours-dash { color: var(--text-subtle); }
-    .hours-state { font-size: var(--text-sm); color: var(--text-subtle); text-align: right; }
-    .hours-row.is-closed .hours-day { color: var(--text-muted); }
-
-    .closures { display: flex; flex-direction: column; gap: var(--space-2); }
-    .closure-row { display: grid; grid-template-columns: 180px 1fr; gap: var(--space-3); max-width: 640px; }
-
-  }
-}
+.prm .btn:disabled{opacity:.45;cursor:not-allowed}
+.prm .btn.primaire:disabled:hover{background:var(--pin)}

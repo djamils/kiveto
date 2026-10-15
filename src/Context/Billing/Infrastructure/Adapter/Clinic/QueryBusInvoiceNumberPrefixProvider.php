@@ -10,7 +10,7 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSetti
 use App\Shared\Application\Bus\QueryBusInterface;
 
 /**
- * Asks the Clinic context what prefix the clinic set, through the query bus.
+ * Asks the Clinic context what prefixes the clinic set, through the query bus.
  */
 final readonly class QueryBusInvoiceNumberPrefixProvider implements InvoiceNumberPrefixProviderInterface
 {
@@ -21,13 +21,23 @@ final readonly class QueryBusInvoiceNumberPrefixProvider implements InvoiceNumbe
 
     public function prefixFor(string $clinicId): ?string
     {
+        return $this->setting($clinicId, 'invoiceNumberPrefix');
+    }
+
+    public function creditNotePrefixFor(string $clinicId): ?string
+    {
+        return $this->setting($clinicId, 'creditNotePrefix');
+    }
+
+    private function setting(string $clinicId, string $key): ?string
+    {
         $settings = $this->queryBus->ask(new GetClinicSettings($clinicId));
 
         if (!$settings instanceof ClinicSettingsView) {
             return null;
         }
 
-        $prefix = $settings->billing['invoiceNumberPrefix'] ?? null;
+        $prefix = $settings->billing[$key] ?? null;
 
         return \is_string($prefix) && '' !== $prefix ? $prefix : null;
     }

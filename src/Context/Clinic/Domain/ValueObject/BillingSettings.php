@@ -19,6 +19,9 @@ final readonly class BillingSettings
 {
     public const int MAX_PAYMENT_TERMS_DAYS = 365;
 
+    /** The ways of paying a clinic can choose to take at its desk. */
+    public const array PAYMENT_METHODS = ['CARD', 'CASH', 'CHECK', 'TRANSFER'];
+
     private const string PREFIX = '/^[A-Z0-9][A-Z0-9\-\/]{0,11}$/';
     private const string IBAN   = '/^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/';
     private const string BIC    = '/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/';
@@ -31,6 +34,20 @@ final readonly class BillingSettings
         public ?string $iban,
         public ?string $bic,
         public ?string $invoiceFooterNote,
+        /** Credit notes run in a series of their own, under their own prefix. */
+        public ?string $creditNotePrefix = null,
+        /** Breeders and shelters are often given longer to pay than households. */
+        public ?int $professionalPaymentTermsDays = null,
+        public ?VatRegime $vatRegime = null,
+        /** Opting for VAT on debits must be stated on every invoice. */
+        public bool $vatOnDebits = false,
+        /**
+         * The payment methods the desk takes; null when the clinic has not said,
+         * which means all of them.
+         *
+         * @var list<string>|null
+         */
+        public ?array $acceptedPaymentMethods = null,
     ) {
     }
 
@@ -39,6 +56,9 @@ final readonly class BillingSettings
         return new self(null, null, null, null, null, null);
     }
 
+    /**
+     * @param array<array-key, mixed>|null $acceptedPaymentMethods
+     */
     public static function create(
         ?PostalAddress $billingAddress = null,
         ?string $invoiceNumberPrefix = null,
@@ -46,20 +66,16 @@ final readonly class BillingSettings
         ?string $iban = null,
         ?string $bic = null,
         ?string $invoiceFooterNote = null,
+        ?string $creditNotePrefix = null,
+        ?int $professionalPaymentTermsDays = null,
+        ?VatRegime $vatRegime = null,
+        bool $vatOnDebits = false,
+        ?array $acceptedPaymentMethods = null,
     ): self {
-        $prefix = self::clean($invoiceNumberPrefix);
+        $prefix = self::prefix($invoiceNumberPrefix);
 
-        if (null !== $prefix) {
-            $prefix = mb_strtoupper($prefix);
-
-            if (1 !== preg_match(self::PREFIX, $prefix)) {
-                throw InvalidBillingSettingsException::malformedPrefix($prefix);
-            }
-        }
-
-        if (null !== $paymentTermsDays && ($paymentTermsDays < 0 || $paymentTermsDays > self::MAX_PAYMENT_TERMS_DAYS)) {
-            throw InvalidBillingSettingsException::implausiblePaymentTerms($paymentTermsDays);
-        }
+        self::checkTerms($paymentTermsDays);
+        self::checkTerms($professionalPaymentTermsDays);
 
         $iban = self::clean($iban);
 
@@ -88,7 +104,18 @@ final readonly class BillingSettings
             iban: $iban,
             bic: $bic,
             invoiceFooterNote: self::clean($invoiceFooterNote),
+            creditNotePrefix: self::prefix($creditNotePrefix),
+            professionalPaymentTermsDays: $professionalPaymentTermsDays,
+            vatRegime: $vatRegime,
+            vatOnDebits: $vatOnDebits,
+            acceptedPaymentMethods: self::methods($acceptedPaymentMethods),
         );
+    }
+
+    /** Whether the desk takes this payment method. */
+    public function accepts(string $method): bool
+    {
+        return null === $this->acceptedPaymentMethods || \in_array($method, $this->acceptedPaymentMethods, true);
     }
 
     public function isEmpty(): bool
@@ -98,7 +125,12 @@ final readonly class BillingSettings
             && null === $this->paymentTermsDays
             && null === $this->iban
             && null === $this->bic
-            && null === $this->invoiceFooterNote;
+            && null === $this->invoiceFooterNote
+            && null === $this->creditNotePrefix
+            && null === $this->professionalPaymentTermsDays
+            && null === $this->vatRegime
+            && false === $this->vatOnDebits
+            && null === $this->acceptedPaymentMethods;
     }
 
     public function equals(self $other): bool
@@ -112,7 +144,59 @@ final readonly class BillingSettings
             && $this->paymentTermsDays === $other->paymentTermsDays
             && $this->iban === $other->iban
             && $this->bic === $other->bic
-            && $this->invoiceFooterNote === $other->invoiceFooterNote;
+            && $this->invoiceFooterNote === $other->invoiceFooterNote
+            && $this->creditNotePrefix === $other->creditNotePrefix
+            && $this->professionalPaymentTermsDays === $other->professionalPaymentTermsDays
+            && $this->vatRegime === $other->vatRegime
+            && $this->vatOnDebits === $other->vatOnDebits
+            && $this->acceptedPaymentMethods === $other->acceptedPaymentMethods;
+    }
+
+    private static function prefix(?string $value): ?string
+    {
+        $prefix = self::clean($value);
+
+        if (null === $prefix) {
+            return null;
+        }
+
+        $prefix = mb_strtoupper($prefix);
+
+        if (1 !== preg_match(self::PREFIX, $prefix)) {
+            throw InvalidBillingSettingsException::malformedPrefix($prefix);
+        }
+
+        return $prefix;
+    }
+
+    private static function checkTerms(?int $days): void
+    {
+        if (null !== $days && ($days < 0 || $days > self::MAX_PAYMENT_TERMS_DAYS)) {
+            throw InvalidBillingSettingsException::implausiblePaymentTerms($days);
+        }
+    }
+
+    /**
+     * Known methods only, each once, in the order of PAYMENT_METHODS — so that
+     * two equal choices compare equal whatever order they were ticked in.
+     *
+     * @param array<array-key, mixed>|null $methods
+     *
+     * @return list<string>|null
+     */
+    private static function methods(?array $methods): ?array
+    {
+        if (null === $methods) {
+            return null;
+        }
+
+        foreach ($methods as $method) {
+            if (!\is_string($method) || !\in_array($method, self::PAYMENT_METHODS, true)) {
+                throw InvalidBillingSettingsException::unknownPaymentMethod(\is_string($method) ? $method : get_debug_type($method));
+            }
+        }
+
+        return array_values(array_filter(self::PAYMENT_METHODS, static fn (string $known): bool => \in_array($known, $methods, true)));
     }
 
     /** Blank inputs are stored as nothing rather than as empty strings. */

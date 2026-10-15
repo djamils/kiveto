@@ -24,6 +24,8 @@ final readonly class ClinicDto
         // Optional so the collection read, which has no aggregate at hand, can
         // skip it: only the document routes need the identity block.
         public ?LetterheadDto $letterhead = null,
+        public ?string $brandColor = null,
+        public ?string $logoKey = null,
     ) {
     }
 }

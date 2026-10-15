@@ -399,7 +399,10 @@ export function init() {
 
   const ouvrirModale = id => $(id).classList.add('open');
   const fermerModales = () => root.querySelectorAll('.mveil.open').forEach(m => m.classList.remove('open'));
-  const chipsModes = (id, sel, liste) => { $(id).innerHTML = liste.map(m => `<button type="button" class="chip${m === sel ? ' on' : ''}" data-m="${m}">${MODES[m].l}</button>`).join(''); };
+  // The desk only offers what the clinic takes (Paramètres › Facturation › Moyens acceptés).
+  const ACCEPT = Array.isArray(P.modes) && P.modes.length ? P.modes : ['cb', 'esp', 'chq', 'vir'];
+  const accepted = liste => { const l = liste.filter(m => ACCEPT.includes(m)); return l.length ? l : liste; };
+  const chipsModes = (id, sel, liste) => { $(id).innerHTML = accepted(liste).map(m => `<button type="button" class="chip${m === sel ? ' on' : ''}" data-m="${m}">${MODES[m].l}</button>`).join(''); };
 
   function ouvrirApercu(o) {
     $('pvT').textContent = `${o.kind === 'av' ? 'Avoir' : 'Facture'} ${o.num || '— brouillon'}`;
@@ -416,12 +419,12 @@ export function init() {
     const A = o.actions || {};
     const act = A.checkout || A.pay;
     if (!act) return;
-    PY = { o, act, draft: !!A.checkout, mode: 'cb' };
+    PY = { o, act, draft: !!A.checkout, mode: accepted(['cb', 'esp', 'chq', 'vir'])[0] };
     $('pySub').textContent = `${o.num || 'Brouillon'} · ${o.cli.n} · reste ${fmtE(o.du)}`;
     $('pyRemRow').style.display = PY.draft ? '' : 'none';
     $('pyRem').value = '';
     $('pyRemMotif').value = '';
-    chipsModes('pyMode', 'cb', ['cb', 'esp', 'chq', 'vir']);
+    chipsModes('pyMode', PY.mode, ['cb', 'esp', 'chq', 'vir']);
     $('pyM').value = fmtN(o.du / 100);
     majPay();
     ouvrirModale('mPay');
@@ -500,10 +503,10 @@ export function init() {
     }
   }
   function ouvrirVente() {
-    VT = { L: [], mode: 'cb', res: [] };
+    VT = { L: [], mode: accepted(['cb', 'esp', 'chq'])[0], res: [] };
     vtCli.set('');
     $('vtQ').value = '';
-    chipsModes('vtMode', 'cb', ['cb', 'esp', 'chq']);
+    chipsModes('vtMode', VT.mode, ['cb', 'esp', 'chq']);
     rendreVt();
     chercherArticles();
     ouvrirModale('mVente');

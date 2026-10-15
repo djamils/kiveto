@@ -31,6 +31,9 @@ final readonly class UpdateClinicLetterhead implements CommandInterface
         public ?string $phone = null,
         public ?string $email = null,
         public ?string $website = null,
+        public ?string $ordinalCouncil = null,
+        public ?string $liabilityInsurer = null,
+        public ?string $liabilityPolicyNumber = null,
     ) {
     }
 }

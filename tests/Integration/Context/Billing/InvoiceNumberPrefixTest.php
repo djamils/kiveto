@@ -76,4 +76,38 @@ final class InvoiceNumberPrefixTest extends KernelTestCase
         // not the prefix's.
         self::assertSame('F/2026-2026-000002', $second->toString());
     }
+
+    public function testACreditNoteCarriesItsOwnPrefixOrAV(): void
+    {
+        $clinic = ClinicId::fromString($this->clinicId);
+
+        self::assertSame('AV-2026-000001', $this->numbers->nextCreditNote($clinic, 2026)->toString());
+
+        $this->commandBus->dispatch(new UpdateClinicBillingSettings(
+            clinicId: $this->clinicId,
+            creditNotePrefix: 'avo',
+        ));
+
+        self::assertSame('AVO-2026-000002', $this->numbers->nextCreditNote($clinic, 2026)->toString());
+    }
+
+    public function testThePeekShowsTheNextNumbersWithoutHandingThemOut(): void
+    {
+        $clinic = ClinicId::fromString($this->clinicId);
+
+        self::assertSame('FAC-2026-000001', $this->numbers->peekNext($clinic, 2026)->toString());
+        self::assertSame('AV-2026-000001', $this->numbers->peekNextCreditNote($clinic, 2026)->toString());
+
+        $this->numbers->next($clinic, 2026);
+        $this->commandBus->dispatch(new UpdateClinicBillingSettings(
+            clinicId: $this->clinicId,
+            invoiceNumberPrefix: 'FA',
+            creditNotePrefix: 'AVR',
+        ));
+
+        self::assertSame('FA-2026-000002', $this->numbers->peekNext($clinic, 2026)->toString());
+        self::assertSame('FA-2026-000002', $this->numbers->peekNext($clinic, 2026)->toString());
+        self::assertSame('AVR-2026-000001', $this->numbers->peekNextCreditNote($clinic, 2026)->toString());
+        self::assertSame('FA-2026-000002', $this->numbers->next($clinic, 2026)->toString());
+    }
 }

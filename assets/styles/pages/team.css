@@ -1,9 +1,10 @@
 /* assets/styles/pages/team.css
    Équipe — the clinic's members, their roles and the role map. Ported as-is
    from docs/frontend-theme/kiveto-theme/equipe-v-topbar_5.html (« Équipe »
-   and « Sélecteur de couleur partagé » sections, plus the few catalogue-kit
+   section, plus the few catalogue-kit
    rules the member sheet uses: two-column rows, read-only fields, chips).
-   The table / side sheet kit is shell/register.css (anchored on `.reg`); the
+   The table / side sheet kit and the shared colour picker are
+   shell/register.css (anchored on `.reg`); the
    rules below are only the team page's, anchored on the page root `.eqp`.
    Keyframes carry an `eqp` prefix so they never meet another page's. */
 .eqp .frow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px}
@@ -13,26 +14,6 @@
 .eqp .fs .seg button{padding:6px 8px;font-size:.77rem}
 .eqp .chips.lock .chip{cursor:default}
 .eqp #fdd{display:flex;gap:8px}
-
-/* ═════════ Sélecteur de couleur partagé ═════════ */
-.eqp .swatch{width:26px;height:26px;border-radius:7px;flex:none;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);cursor:pointer;transition:transform .12s}
-.eqp .swatch:hover{transform:scale(1.06)}
-.eqp .cpop{position:fixed;z-index:140;width:268px;background:var(--carte);border:1px solid var(--trait);border-radius:12px;box-shadow:0 18px 50px rgba(15,23,42,.2);padding:12px;display:none}
-.eqp .cpop.open{display:block;animation:eqpCpIn .14s ease}
-@keyframes eqpCpIn{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}
-.eqp .cpop h4{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);margin-bottom:8px}
-.eqp .cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
-.eqp .cgrid button{position:relative;aspect-ratio:1;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);transition:transform .12s}
-.eqp .cgrid button:hover{transform:scale(1.08)}
-.eqp .cgrid button.on::after{content:'';position:absolute;inset:-3px;border-radius:10px;box-shadow:0 0 0 2px var(--encre)}
-.eqp .cgrid button.pris::before{content:'';position:absolute;right:-3px;top:-3px;width:14px;height:14px;border-radius:50%;background:var(--carte);box-shadow:0 0 0 1px var(--trait);
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M5 21c1-4 4-6 7-6s6 2 7 6'/%3E%3C/svg%3E");background-size:9px;background-position:center;background-repeat:no-repeat}
-.eqp .chex{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--brume)}
-.eqp .chex input{flex:1;min-width:0;border:1px solid var(--trait);border-radius:7px;padding:6px 8px;font-family:var(--font-data);font-size:.78rem;outline:none}
-.eqp .chex input:focus{border-color:var(--pin)}
-.eqp .chex .swatch{width:30px;height:30px;cursor:default}
-.eqp .cnote{font-size:.72rem;color:var(--encre-60);margin-top:8px;line-height:1.4;min-height:1em}
-.eqp .cnote.warn{color:#b45309}
 
 /* ═════════ Équipe ═════════ */
 .eqp .pagehead .btn,.eqp .pagehead h1{white-space:nowrap}

@@ -31,6 +31,10 @@ final readonly class LetterheadDto
         public ?string $phone,
         public ?string $email,
         public ?string $website,
+        /** The regional council of the Order, by name: « Île-de-France ». */
+        public ?string $ordinalCouncil = null,
+        public ?string $liabilityInsurer = null,
+        public ?string $liabilityPolicyNumber = null,
     ) {
     }
 
@@ -64,6 +68,9 @@ final readonly class LetterheadDto
             phone: $letterhead->phone?->toString(),
             email: $letterhead->email?->toString(),
             website: $letterhead->website,
+            ordinalCouncil: $letterhead->ordinalCouncil?->label(),
+            liabilityInsurer: $letterhead->liabilityInsurer,
+            liabilityPolicyNumber: $letterhead->liabilityPolicyNumber,
         );
     }
 
@@ -82,6 +89,21 @@ final readonly class LetterheadDto
             mb_substr($this->siret, 6, 3),
             mb_substr($this->siret, 9, 5),
         ]);
+    }
+
+    /**
+     * « Assurance RCP : MACSF, contrat n° 4401220788 » — what the law asks an
+     * invoice to say about who covers the clinic, when it has said.
+     */
+    public function liabilitySentence(): ?string
+    {
+        if (null === $this->liabilityInsurer) {
+            return null;
+        }
+
+        return null !== $this->liabilityPolicyNumber
+            ? \sprintf('Assurance responsabilité civile professionnelle : %s, contrat n° %s', $this->liabilityInsurer, $this->liabilityPolicyNumber)
+            : \sprintf('Assurance responsabilité civile professionnelle : %s', $this->liabilityInsurer);
     }
 
     /**

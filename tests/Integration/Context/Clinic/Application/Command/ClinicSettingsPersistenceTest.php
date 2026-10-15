@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Clinic\Application\Command;
 
+use App\Context\Clinic\Application\Command\Clinic\ChangeClinicBrandColor\ChangeClinicBrandColor;
+use App\Context\Clinic\Application\Command\Clinic\ChangeClinicLogo\ChangeClinicLogo;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicBillingSettings\UpdateClinicBillingSettings;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead\UpdateClinicLetterhead;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicOpeningHours\UpdateClinicOpeningHours;
 use App\Context\Clinic\Domain\Clinic;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Clinic\Domain\ValueObject\OrdinalCouncil;
+use App\Context\Clinic\Domain\ValueObject\VatRegime;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -111,6 +115,37 @@ final class ClinicSettingsPersistenceTest extends KernelTestCase
         self::assertSame('FR7630006000011234567890189', $settings->iban);
         self::assertSame('AGRIFRPP', $settings->bic);
         self::assertSame('Règlement à réception.', $settings->invoiceFooterNote);
+    }
+
+    public function testTheBrandingAndTheNewBillingChoicesSurviveTheSave(): void
+    {
+        $this->commandBus->dispatch(new ChangeClinicBrandColor($this->clinicId, '#E07A5F'));
+        $this->commandBus->dispatch(new ChangeClinicLogo($this->clinicId, '2026/10/15/clinic-logos/a.png'));
+        $this->commandBus->dispatch(new UpdateClinicLetterhead(
+            clinicId: $this->clinicId,
+            ordinalCouncil: 'paca',
+            liabilityInsurer: 'Groupama',
+            liabilityPolicyNumber: 'GPRC77120',
+        ));
+        $this->commandBus->dispatch(new UpdateClinicBillingSettings(
+            clinicId: $this->clinicId,
+            creditNotePrefix: 'av',
+            professionalPaymentTermsDays: 60,
+            vatRegime: 'QUARTERLY',
+            vatOnDebits: true,
+            acceptedPaymentMethods: ['CASH', 'CARD'],
+        ));
+
+        $clinic = $this->reload();
+
+        self::assertSame('#e07a5f', $clinic->brandColor()?->toString());
+        self::assertSame('2026/10/15/clinic-logos/a.png', $clinic->logoKey());
+        self::assertSame(OrdinalCouncil::PROVENCE_ALPES_COTE_D_AZUR, $clinic->letterhead()->ordinalCouncil);
+        self::assertSame('GPRC77120', $clinic->letterhead()->liabilityPolicyNumber);
+        self::assertSame('AV', $clinic->billingSettings()->creditNotePrefix);
+        self::assertSame(VatRegime::QUARTERLY, $clinic->billingSettings()->vatRegime);
+        self::assertTrue($clinic->billingSettings()->vatOnDebits);
+        self::assertSame(['CARD', 'CASH'], $clinic->billingSettings()->acceptedPaymentMethods);
     }
 
     public function testASlotThatClosesBeforeItOpensIsRefused(): void
