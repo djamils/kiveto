@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Consultation\Application\Port;
 
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\ListConsultationRegister\ConsultationRegisterCriteria;
+use App\Context\Consultation\Application\Query\ListConsultationRegister\ConsultationRegisterRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
 use App\Context\Consultation\Domain\ValueObject\AdmissionId;
@@ -110,4 +112,31 @@ interface ConsultationReadRepositoryInterface
      * @return array{items: list<ConsultationListRow>, total: int}
      */
     public function search(ClinicId $clinicId, SearchConsultationsCriteria $criteria): array;
+
+    /**
+     * One page of the clinic's register of consultations, plus the
+     * unpaginated total.
+     *
+     * @return array{items: list<ConsultationRegisterRow>, total: int}
+     */
+    public function register(ClinicId $clinicId, ConsultationRegisterCriteria $criteria): array;
+
+    /**
+     * Counters of the register's header: consultations in progress, to close
+     * (open since a previous day or whose visit is over), started today, and
+     * recorded by the clinic at all.
+     *
+     * @param list<string> $departedAdmissionIds
+     *
+     * @return array{inProgress: int, toClose: int, today: int, recorded: int}
+     */
+    public function registerCounters(ClinicId $clinicId, \DateTimeImmutable $dayStartUtc, array $departedAdmissionIds): array;
+
+    /**
+     * Visits of the clinic's consultations still open — a short list, since a
+     * consultation only stays open while it is being written.
+     *
+     * @return list<string>
+     */
+    public function openConsultationAdmissionIds(ClinicId $clinicId): array;
 }

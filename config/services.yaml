@@ -407,6 +407,12 @@ services:
     App\Context\Consultation\Application\Port\PatientIdsProviderInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Patient\DbalPatientIdsProvider
 
+    App\Context\Consultation\Application\Port\AdmissionFactsProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Admission\DbalAdmissionFactsProvider
+
+    App\Context\Consultation\Application\Port\ActCategoryProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusActCategoryProvider
+
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
