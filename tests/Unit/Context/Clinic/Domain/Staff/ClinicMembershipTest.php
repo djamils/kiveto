@@ -14,6 +14,7 @@ use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEnabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEngagementChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipRoleChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipValidityChanged;
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipWorkTimeChanged;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
@@ -142,6 +143,65 @@ final class ClinicMembershipTest extends TestCase
         $membership->changeEngagement(ClinicMembershipEngagement::EMPLOYEE);
 
         self::assertSame([], $membership->recordedDomainEvents());
+    }
+
+    public function testANewMembershipIsFullTime(): void
+    {
+        self::assertSame(100, $this->createMembership()->workTimePercent());
+    }
+
+    public function testChangeWorkTimeRecordsEvent(): void
+    {
+        $membership = $this->reconstitute();
+        $membership->changeWorkTime(80);
+
+        self::assertSame(80, $membership->workTimePercent());
+        $events = $membership->recordedDomainEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ClinicMembershipWorkTimeChanged::class, $events[0]);
+        self::assertSame(80, $events[0]->payload()['workTimePercent']);
+    }
+
+    public function testChangeWorkTimeIsIdempotent(): void
+    {
+        $membership = $this->reconstitute();
+        $membership->changeWorkTime(100);
+
+        self::assertSame([], $membership->recordedDomainEvents());
+    }
+
+    public function testChangeWorkTimeRefusesNothing(): void
+    {
+        $this->expectException(\DomainException::class);
+
+        $this->reconstitute()->changeWorkTime(0);
+    }
+
+    public function testChangeWorkTimeRefusesMoreThanFullTime(): void
+    {
+        $this->expectException(\DomainException::class);
+
+        $this->reconstitute()->changeWorkTime(101);
+    }
+
+    public function testReconstitutePreservesTheWorkTime(): void
+    {
+        $membership = ClinicMembership::reconstitute(
+            id: ClinicMembershipId::fromString(self::ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            userId: UserId::fromString(self::USER_ID),
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::PARTNER,
+            status: ClinicMembershipStatus::ACTIVE,
+            validFrom: new \DateTimeImmutable('2026-01-01'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01'),
+            isDefault: false,
+            isClinicAdministrator: false,
+            workTimePercent: 60,
+        );
+
+        self::assertSame(60, $membership->workTimePercent());
     }
 
     public function testChangeValidityWindowRecordsEvent(): void

@@ -53,6 +53,9 @@ class ClinicMembershipEntity
     #[ORM\Column(name: 'is_clinic_administrator', type: 'boolean', options: ['default' => false])]
     private bool $isClinicAdministrator = false;
 
+    #[ORM\Column(name: 'work_time_percent', type: 'smallint', options: ['default' => 100])]
+    private int $workTimePercent = 100;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -161,5 +164,15 @@ class ClinicMembershipEntity
     public function setIsClinicAdministrator(bool $isClinicAdministrator): void
     {
         $this->isClinicAdministrator = $isClinicAdministrator;
+    }
+
+    public function getWorkTimePercent(): int
+    {
+        return $this->workTimePercent;
+    }
+
+    public function setWorkTimePercent(int $workTimePercent): void
+    {
+        $this->workTimePercent = $workTimePercent;
     }
 }

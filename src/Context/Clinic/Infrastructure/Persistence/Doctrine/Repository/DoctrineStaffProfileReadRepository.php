@@ -40,7 +40,11 @@ final readonly class DoctrineStaffProfileReadRepository implements StaffProfileR
                 p.agenda_color,
                 p.sort_order,
                 p.is_visible_in_agenda,
-                p.registration_number
+                p.registration_number,
+                p.first_name,
+                p.last_name,
+                p.phone_number,
+                p.signature_image_key
             FROM %s p
             WHERE BIN_TO_UUID(p.membership_id) IN (:membershipIds)
         SQL,
@@ -78,6 +82,11 @@ final readonly class DoctrineStaffProfileReadRepository implements StaffProfileR
                 agendaColor: $row['agenda_color'],
                 sortOrder: (int) $sortOrder,
                 isVisibleInAgenda: (bool) $isVisibleInAgenda,
+                firstName: \is_string($row['first_name']) ? $row['first_name'] : '',
+                lastName: \is_string($row['last_name']) ? $row['last_name'] : '',
+                phone: \is_string($row['phone_number']) ? $row['phone_number'] : null,
+                registrationNumber: \is_string($row['registration_number']) ? $row['registration_number'] : null,
+                hasSignature: \is_string($row['signature_image_key']),
             );
         }
 

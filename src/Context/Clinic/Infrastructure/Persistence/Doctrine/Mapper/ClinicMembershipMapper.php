@@ -27,6 +27,7 @@ final class ClinicMembershipMapper
             createdAt: $entity->getCreatedAt(),
             isDefault: $entity->getIsDefault(),
             isClinicAdministrator: $entity->getIsClinicAdministrator(),
+            workTimePercent: $entity->getWorkTimePercent(),
         );
     }
 
@@ -44,6 +45,7 @@ final class ClinicMembershipMapper
         $entity->setCreatedAt($membership->createdAt());
         $entity->setIsDefault($membership->isDefault());
         $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
+        $entity->setWorkTimePercent($membership->workTimePercent());
 
         return $entity;
     }

@@ -22,8 +22,8 @@ Lightweight aggregate linking clinics under a shared brand or owner entity.
 ### Staff Sub-domain (`Domain/Staff/`)
 Manages who works at which clinic and in which capacity.
 
-- **ClinicMembership** — aggregate root. Tracks role, engagement type (`EMPLOYED | CONTRACTOR`), validity period, and lifecycle status (`PENDING | ACTIVE | INACTIVE | SUSPENDED`). Role changes and status transitions raise domain events consumed by the AccessControl BC to sync its RBAC projection.
-- **StaffProfile** — value object embedded in ClinicMembership. Holds professional titles, national registration numbers (e.g. RPPS, ORDRE), and agenda colour code.
+- **ClinicMembership** — aggregate root. Tracks role, engagement type (`PARTNER | EMPLOYEE | FIXED_TERM | CONTRACTOR | REPLACEMENT | INTERN` — the last three end by themselves, `isTemporary()`), work time (percent of a full-time week, 100 by default), validity period, and lifecycle status (`ACTIVE | DISABLED`). Role changes and status transitions raise domain events consumed by the AccessControl BC to sync its RBAC projection.
+- **StaffProfile** — aggregate linked to a ClinicMembership. Holds the member's name, phone, agenda colour and visibility, and — for a veterinarian only — the credentials (registration number with the Ordre, title, signature). Every role gets one through `OnboardStaffMember`, because the team page names everyone; `CreateClinicMembership` (back office) still creates a non-practitioner membership without one. Registering a new number or title keeps the signature on file.
 - **ClinicPermission** — enum of fine-grained permission slugs (e.g. `create_prescription`, `view_medical_record`).
 - **StaffRolePermissionMap** — static map: role → list of permissions, plus `administratorPermissions()` for the hat. Read by AccessControl BC at membership creation to seed role assignments; note that the AccessControl projection is keyed by role and therefore cannot express the per-membership hat.
 - **`ClinicMembership::permissions()`** — the single seam where a member's rights are resolved: the union of the role's permissions and, when the hat is worn, the administrator's.

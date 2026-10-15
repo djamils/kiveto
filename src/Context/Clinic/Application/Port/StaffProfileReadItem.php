@@ -15,6 +15,12 @@ final readonly class StaffProfileReadItem
         public string $agendaColor,
         public int $sortOrder,
         public bool $isVisibleInAgenda,
+        public string $firstName = '',
+        public string $lastName = '',
+        public ?string $phone = null,
+        // Set only while the member holds veterinary credentials.
+        public ?string $registrationNumber = null,
+        public bool $hasSignature = false,
     ) {
     }
 }

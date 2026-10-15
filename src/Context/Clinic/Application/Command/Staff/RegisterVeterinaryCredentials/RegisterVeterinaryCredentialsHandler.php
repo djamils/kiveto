@@ -47,9 +47,11 @@ final readonly class RegisterVeterinaryCredentialsHandler
             );
         }
 
+        // A new number or title keeps the signature already on file: only an
+        // explicit new image replaces it.
         $signatureImageKey = null !== $command->signatureImageKey
             ? SignatureImageKey::fromString($command->signatureImageKey)
-            : null;
+            : $profile->credentials()?->signatureImageKey();
 
         $credentials = new VeterinaryCredentials(
             registrationNumber: ProfessionalRegistrationNumber::fromString($command->registrationNumber),

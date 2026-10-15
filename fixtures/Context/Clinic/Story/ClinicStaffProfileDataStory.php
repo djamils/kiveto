@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Clinic\Story;
 
-use App\Context\Clinic\Application\Command\Staff\CreateClinicMembership\CreateClinicMembership;
 use App\Context\Clinic\Application\Command\Staff\OnboardStaffMember\OnboardStaffMember;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
@@ -76,12 +75,13 @@ final class ClinicStaffProfileDataStory extends Story
             ->create()
         ;
 
-        // Onboard veterinarian to Paris clinic with credentials
+        // Onboard veterinarian to Paris clinic with credentials — a partner of
+        // the practice he runs.
         $this->commandBus->dispatch(new OnboardStaffMember(
             clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
             userId: $vetUser->getId()->toRfc4122(),
             role: ClinicMemberRole::VETERINARY,
-            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            engagement: ClinicMembershipEngagement::PARTNER,
             firstName: 'Éric',
             lastName: 'Rousseau',
             displayName: 'Rousseau',
@@ -93,27 +93,38 @@ final class ClinicStaffProfileDataStory extends Story
             isClinicAdministrator: true,
         ));
 
-        $this->commandBus->dispatch(new CreateClinicMembership(
-            clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
-            userId: $managerUser->getId()->toRfc4122(),
-            role: ClinicMemberRole::MANAGER,
-            engagement: ClinicMembershipEngagement::EMPLOYEE,
-            isClinicAdministrator: true,
-        ));
+        // The manager and the reception are named on the team page like
+        // everyone else, so they get a profile too — kept out of the agenda,
+        // where only those who see patients have a column.
+        foreach ([ClinicDataStory::INDEPENDENT_CLINIC_ID, ClinicDataStory::GROUP_CLINIC_ID] as $clinicId) {
+            $this->commandBus->dispatch(new OnboardStaffMember(
+                clinicId: $clinicId,
+                userId: $managerUser->getId()->toRfc4122(),
+                role: ClinicMemberRole::MANAGER,
+                engagement: ClinicMembershipEngagement::EMPLOYEE,
+                firstName: 'Nadia',
+                lastName: 'Ferrand',
+                displayName: 'Nadia Ferrand',
+                agendaColor: '#c4895b',
+                sortOrder: 9,
+                isVisibleInAgenda: false,
+                phone: '+33611223344',
+                isClinicAdministrator: true,
+            ));
+        }
 
-        $this->commandBus->dispatch(new CreateClinicMembership(
+        $this->commandBus->dispatch(new OnboardStaffMember(
             clinicId: ClinicDataStory::INDEPENDENT_CLINIC_ID,
             userId: $receptionUser->getId()->toRfc4122(),
             role: ClinicMemberRole::RECEPTIONIST,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
-        ));
-
-        $this->commandBus->dispatch(new CreateClinicMembership(
-            clinicId: ClinicDataStory::GROUP_CLINIC_ID,
-            userId: $managerUser->getId()->toRfc4122(),
-            role: ClinicMemberRole::MANAGER,
-            engagement: ClinicMembershipEngagement::EMPLOYEE,
-            isClinicAdministrator: true,
+            firstName: 'Inès',
+            lastName: 'Moreau',
+            displayName: 'Inès Moreau',
+            agendaColor: '#4fb3bf',
+            sortOrder: 8,
+            isVisibleInAgenda: false,
+            phone: '+33656789012',
         ));
 
         // ... and to the quiet clinic of the group (the dashboard's calm day).

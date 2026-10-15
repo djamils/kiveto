@@ -41,6 +41,10 @@ abstract class UserEntity implements UserInterface, PasswordAuthenticatedUserInt
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     protected ?\DateTimeImmutable $emailVerifiedAt = null;
 
+    /** Written by DoctrineUserRepository::recordLogin(); read by the clinic team page. */
+    #[ORM\Column(name: 'last_login_at', type: 'datetime_immutable', nullable: true)]
+    protected ?\DateTimeImmutable $lastLoginAt = null;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     protected int $version = 1;

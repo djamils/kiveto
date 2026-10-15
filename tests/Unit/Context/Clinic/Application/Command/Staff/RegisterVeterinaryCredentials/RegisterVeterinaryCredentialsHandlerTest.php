@@ -17,9 +17,12 @@ use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\Staff\ValueObject\DisplayName;
 use App\Context\Clinic\Domain\Staff\ValueObject\HexColor;
+use App\Context\Clinic\Domain\Staff\ValueObject\ProfessionalRegistrationNumber;
 use App\Context\Clinic\Domain\Staff\ValueObject\ProfessionalTitle;
+use App\Context\Clinic\Domain\Staff\ValueObject\SignatureImageKey;
 use App\Context\Clinic\Domain\Staff\ValueObject\StaffProfileId;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
+use App\Context\Clinic\Domain\Staff\VeterinaryCredentials;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +31,7 @@ final class RegisterVeterinaryCredentialsHandlerTest extends TestCase
 {
     private const string PROFILE_ID    = '01912345-6789-7abc-8def-000000000010';
     private const string MEMBERSHIP_ID = '01912345-6789-7abc-8def-000000000020';
+    private const string SIGNATURE     = 'clinic/signatures/rousseau.png';
 
     public function testRegistersCredentialsForVeterinaryRole(): void
     {
@@ -77,6 +81,77 @@ final class RegisterVeterinaryCredentialsHandlerTest extends TestCase
             registrationNumber: 'FR-12345',
             professionalTitle: ProfessionalTitle::DR,
         ));
+    }
+
+    public function testANewNumberKeepsTheSignatureOnFile(): void
+    {
+        $profile = $this->makeProfile();
+        $profile->registerVeterinaryCredentials(new VeterinaryCredentials(
+            ProfessionalRegistrationNumber::fromString('FR-12345'),
+            ProfessionalTitle::DR,
+            SignatureImageKey::fromString(self::SIGNATURE),
+        ), new \DateTimeImmutable('2026-01-01T00:00:00Z'));
+
+        $handler = $this->makeHandler($profile, $this->makeMembership(ClinicMemberRole::VETERINARY));
+
+        $handler(new RegisterVeterinaryCredentials(
+            profileId: self::PROFILE_ID,
+            registrationNumber: 'FR-54321',
+            professionalTitle: ProfessionalTitle::PR,
+        ));
+
+        $credentials = $profile->credentials();
+        self::assertNotNull($credentials);
+        self::assertSame('FR-54321', $credentials->registrationNumber()->toString());
+        self::assertSame(ProfessionalTitle::PR, $credentials->professionalTitle());
+        self::assertSame(self::SIGNATURE, $credentials->signatureImageKey()?->toString());
+    }
+
+    public function testAnExplicitSignatureReplacesTheOneOnFile(): void
+    {
+        $profile = $this->makeProfile();
+        $handler = $this->makeHandler($profile, $this->makeMembership(ClinicMemberRole::VETERINARY));
+
+        $handler(new RegisterVeterinaryCredentials(
+            profileId: self::PROFILE_ID,
+            registrationNumber: 'FR-12345',
+            professionalTitle: ProfessionalTitle::DR,
+            signatureImageKey: self::SIGNATURE,
+        ));
+
+        self::assertSame(self::SIGNATURE, $profile->credentials()?->signatureImageKey()?->toString());
+    }
+
+    public function testThrowsWhenProfileNotFound(): void
+    {
+        $handler = $this->makeHandler(null, null);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $handler(new RegisterVeterinaryCredentials(self::PROFILE_ID, 'FR-12345', ProfessionalTitle::DR));
+    }
+
+    public function testThrowsWhenMembershipNotFound(): void
+    {
+        $handler = $this->makeHandler($this->makeProfile(), null);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $handler(new RegisterVeterinaryCredentials(self::PROFILE_ID, 'FR-12345', ProfessionalTitle::DR));
+    }
+
+    private function makeHandler(?StaffProfile $profile, ?ClinicMembership $membership): RegisterVeterinaryCredentialsHandler
+    {
+        $profileRepo = $this->createStub(StaffProfileRepositoryInterface::class);
+        $profileRepo->method('findById')->willReturn($profile);
+
+        $membershipRepo = $this->createStub(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('findById')->willReturn($membership);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-06-01T00:00:00Z'));
+
+        return new RegisterVeterinaryCredentialsHandler($profileRepo, $membershipRepo, $clock);
     }
 
     private function makeProfile(): StaffProfile

@@ -28,6 +28,10 @@ The **IdentityAccess** system context manages user identities, authentication, a
 4. On success it returns `AuthenticatedUser` (user ID, roles, display name). On failure it throws a typed exception (`InvalidCredentialsException`, `AccountStatusNotAllowedException`, `AuthenticationContextMismatchException`).
 5. The Symfony security system is then satisfied by the `UserProvider` which hydrates the security token from the returned `AuthenticatedUser`.
 
+## Sign-in trace
+
+Every successful sign-in (`LoginSuccessEvent`, any firewall) dispatches `RecordUserLogin`, which stamps the account's `last_login_at` through `UserRepositoryInterface::recordLogin()`. It is a trace of use kept out of the aggregate; the clinic team page reads it to tell who has started using their access and when they were last seen.
+
 ## Domain Events
 
 - `UserRegistered` — emitted when a new user account is created via `RegisterUser` command.

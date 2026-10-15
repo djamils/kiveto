@@ -1,0 +1,140 @@
+/* assets/styles/pages/team.css
+   Équipe — the clinic's members, their roles and the role map. Ported as-is
+   from docs/frontend-theme/kiveto-theme/equipe-v-topbar_5.html (« Équipe »
+   and « Sélecteur de couleur partagé » sections, plus the few catalogue-kit
+   rules the member sheet uses: two-column rows, read-only fields, chips).
+   The table / side sheet kit is shell/register.css (anchored on `.reg`); the
+   rules below are only the team page's, anchored on the page root `.eqp`.
+   Keyframes carry an `eqp` prefix so they never meet another page's. */
+.eqp .frow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px}
+.eqp .fs .frow2:last-child{margin-bottom:0}
+.eqp .ro{display:flex;align-items:center;gap:7px;min-height:36px;padding:0 10px;border-radius:8px;background:#f8fafc;border:1px dashed var(--trait);font-size:.84rem;color:var(--encre)}
+.eqp .ro svg{width:12px;height:12px;color:var(--encre-35);flex:none;margin-left:auto}
+.eqp .fs .seg button{padding:6px 8px;font-size:.77rem}
+.eqp .chips.lock .chip{cursor:default}
+.eqp #fdd{display:flex;gap:8px}
+
+/* ═════════ Sélecteur de couleur partagé ═════════ */
+.eqp .swatch{width:26px;height:26px;border-radius:7px;flex:none;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);cursor:pointer;transition:transform .12s}
+.eqp .swatch:hover{transform:scale(1.06)}
+.eqp .cpop{position:fixed;z-index:140;width:268px;background:var(--carte);border:1px solid var(--trait);border-radius:12px;box-shadow:0 18px 50px rgba(15,23,42,.2);padding:12px;display:none}
+.eqp .cpop.open{display:block;animation:eqpCpIn .14s ease}
+@keyframes eqpCpIn{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}
+.eqp .cpop h4{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);margin-bottom:8px}
+.eqp .cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.eqp .cgrid button{position:relative;aspect-ratio:1;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);transition:transform .12s}
+.eqp .cgrid button:hover{transform:scale(1.08)}
+.eqp .cgrid button.on::after{content:'';position:absolute;inset:-3px;border-radius:10px;box-shadow:0 0 0 2px var(--encre)}
+.eqp .cgrid button.pris::before{content:'';position:absolute;right:-3px;top:-3px;width:14px;height:14px;border-radius:50%;background:var(--carte);box-shadow:0 0 0 1px var(--trait);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M5 21c1-4 4-6 7-6s6 2 7 6'/%3E%3C/svg%3E");background-size:9px;background-position:center;background-repeat:no-repeat}
+.eqp .chex{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--brume)}
+.eqp .chex input{flex:1;min-width:0;border:1px solid var(--trait);border-radius:7px;padding:6px 8px;font-family:var(--font-data);font-size:.78rem;outline:none}
+.eqp .chex input:focus{border-color:var(--pin)}
+.eqp .chex .swatch{width:30px;height:30px;cursor:default}
+.eqp .cnote{font-size:.72rem;color:var(--encre-60);margin-top:8px;line-height:1.4;min-height:1em}
+.eqp .cnote.warn{color:#b45309}
+
+/* ═════════ Équipe ═════════ */
+.eqp .pagehead .btn,.eqp .pagehead h1{white-space:nowrap}
+.eqp .mem{display:flex;align-items:center;gap:11px;min-width:0}
+.eqp .avt{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:.74rem;font-weight:700;flex:none;position:relative}
+.eqp .avt.big{width:46px;height:46px;font-size:.95rem}
+.eqp .avt .dot{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--carte);background:#16a34a}
+.eqp .avt.off{filter:grayscale(1);opacity:.55}
+.eqp .mem b{display:block;font-size:.85rem;font-weight:600;white-space:nowrap}
+.eqp .mem > div > span{display:block;font-size:.72rem;color:var(--encre-60);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.eqp a.btn{text-decoration:none;color:inherit}
+.eqp .puce.r-admin{background:#1e1b4b;color:#fff}
+.eqp .puce.r-veto{background:var(--pin-pale);color:var(--pin-fonce)}
+.eqp .puce.r-asv{background:#ecfeff;color:#0e7490}
+.eqp .puce.r-accueil{background:#f0fdf4;color:#15803d}
+.eqp .puce.r-stag{background:#fff7ed;color:#c2410c}
+.eqp .puce.s-act{background:#f0fdf4;color:#15803d}
+.eqp .puce.s-inv{background:var(--pin-pale);color:var(--pin-fonce)}
+.eqp .puce.s-tmp{background:var(--ambre-pale);color:#c2410c}
+.eqp .puce.s-off{background:var(--brume);color:var(--encre-35)}
+.eqp .agc{display:flex;align-items:center;gap:8px;font-size:.76rem;color:var(--encre-60)}
+.eqp .agc .sw8{width:14px;height:14px;border-radius:4px;flex:none}
+.eqp .agc .blk{height:20px;padding:0 7px;border-radius:4px;display:inline-flex;align-items:center;font-size:.68rem;font-weight:600;border-left:3px solid}
+.eqp .clins{display:flex;gap:4px}
+.eqp .clins .tout{width:auto;padding:0 8px;background:var(--brume);color:var(--encre-60);font-size:.7rem;font-weight:600}
+.eqp .clins span{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:#fff;font-size:.62rem;font-weight:700}
+.eqp .sec2{display:flex;align-items:center;gap:6px;font-size:.76rem;white-space:nowrap}
+.eqp .sec2 svg{width:14px;height:14px}
+.eqp .sec2.ok{color:#15803d}
+.eqp .sec2.ko{color:#b45309}
+.eqp .last{font-size:.76rem;color:var(--encre-60);white-space:nowrap}
+.eqp .last b{color:#15803d;font-weight:600}
+.eqp tr.off td{opacity:.6}
+
+/* fiche */
+.eqp .fi-x{margin-left:auto}
+.eqp .eh{display:flex;align-items:center;gap:13px}
+.eqp .eh .t{flex:1;min-width:0}
+.eqp .eh .t b{display:block;font-family:var(--font-display);font-size:1.05rem;font-weight:600}
+.eqp .eh .t span{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.74rem;color:var(--encre-60);margin-top:4px}
+.eqp .colrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eqp .colprev{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:9px;background:#f8fafc}
+.eqp .colprev small{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35)}
+.eqp .colprev .ag{height:38px;border-radius:6px;padding:5px 8px;font-size:.72rem;line-height:1.3;border-left:3px solid}
+.eqp .colprev .ag b{display:block;font-size:.74rem}
+.eqp .colprev .pl{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--encre-60)}
+.eqp .colprev .pl i{flex:1;height:12px;border-radius:3px}
+.eqp .rsum{display:flex;flex-direction:column;border-radius:9px;background:#f8fafc;padding:4px 12px;margin-top:10px}
+.eqp .rsum div{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--brume);font-size:.8rem;line-height:1.4}
+.eqp .rsum div:first-child{border-top:none}
+.eqp .rsum span{flex:none;width:118px;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);padding-top:2px}
+.eqp .rsum p{flex:1;min-width:0;color:var(--encre)}
+.eqp .rsum p.no{color:var(--encre-35)}
+.eqp .chip[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.eqp .sig{height:64px;border-radius:9px;border:1px dashed var(--trait);display:flex;align-items:center;justify-content:center;font-family:'Segoe Script','Brush Script MT',cursive;font-size:1.5rem;color:#1e293b;background:#fcfcfd}
+.eqp .sess{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--brume);font-size:.8rem}
+.eqp .sess:first-child{border-top:none;padding-top:0}
+.eqp .sess .lt{flex:1}
+.eqp .sess .lt span{display:block;font-size:.72rem;color:var(--encre-60)}
+.eqp .sess .now{font-size:.66rem;font-weight:700;color:#15803d;background:#f0fdf4;border-radius:4px;padding:2px 6px}
+.eqp .fsaved{font-size:.74rem;color:var(--encre-60);display:flex;align-items:center;gap:6px}
+.eqp .fsaved i{width:7px;height:7px;border-radius:50%;background:#16a34a}
+.eqp .fsaved.pulse i{animation:eqpSvp .9s ease}
+@keyframes eqpSvp{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}100%{box-shadow:0 0 0 8px rgba(22,163,74,0)}}
+.eqp .clinck{display:flex;flex-direction:column;gap:6px}
+.eqp .clinck label{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;border:1px solid var(--trait);cursor:pointer;font-size:.82rem}
+.eqp .clinck label.on{border-color:rgba(67,56,202,.35);background:var(--pin-pale)}
+.eqp .clinck label span.sq{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:#fff;font-size:.62rem;font-weight:700}
+.eqp .clinck label small{margin-left:auto;font-size:.72rem;color:var(--encre-60)}
+
+/* matrice des rôles */
+.eqp .rzone{flex:1;min-height:0;overflow:auto;padding:16px 18px 40px;display:none;background:var(--brume)}
+.eqp .rzone.on{display:block}
+.eqp .rcard{background:var(--carte);border-radius:12px;box-shadow:var(--ombre);overflow:hidden;max-width:1100px;margin:0 auto}
+.eqp .rtab2{width:100%;border-collapse:collapse;font-size:.82rem}
+.eqp .rtab2 th{position:sticky;top:0;background:var(--carte);z-index:2;padding:14px 10px 10px;text-align:center;border-bottom:1px solid var(--trait);vertical-align:bottom}
+.eqp .rtab2 th:first-child{text-align:left;padding-left:18px;width:32%;min-width:260px}
+.eqp .rtab2 th b{display:block;white-space:nowrap;font-size:.84rem;font-weight:600}
+.eqp .rtab2 th small{display:block;font-size:.7rem;color:var(--encre-35);font-weight:400;margin-top:2px}
+.eqp .rtab2 td{padding:9px 10px;border-top:1px solid var(--brume);text-align:center}
+.eqp .rtab2 td:first-child{text-align:left;padding-left:18px}
+.eqp .rtab2 td:first-child small{display:block;font-size:.72rem;color:var(--encre-35);margin-top:1px}
+.eqp .rtab2 tr.grp td{background:#fafbfc;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--encre-35);padding-top:12px;padding-bottom:6px}
+.eqp .rtab2 .sw{display:inline-block;vertical-align:middle}
+.eqp .rtab2 .lockc{display:inline-flex;width:32px;justify-content:center;color:var(--encre-35)}
+.eqp .rtab2 .lockc svg{width:13px;height:13px}
+.eqp .rnote{max-width:1100px;margin:10px auto 0;font-size:.76rem;color:var(--encre-60)}
+.eqp .rbar{display:flex;align-items:center;gap:12px;padding:12px 14px 12px 18px;border-bottom:1px solid var(--trait)}
+.eqp .rbar p{flex:1;font-size:.8rem;color:var(--encre-60)}
+.eqp .rscroll{overflow-x:auto}
+.eqp .rtab2 th .rh{display:inline-flex;align-items:center;gap:2px}
+.eqp .rtab2 .hl{background:var(--pin-pale)}
+.eqp .rtab2 .hl.flash{animation:eqpHlf 1.6s ease}
+@keyframes eqpHlf{0%,30%{background:rgba(67,56,202,.22)}100%{background:var(--pin-pale)}}
+
+/* ── What the port adds to the mock-up ──
+   The manager role (« Gérant ») has no colour of its own in the mock-up: it
+   takes the intern's warm tone. The clinics of a member are read-only here
+   (an access to another clinic is given from that clinic's team), and the
+   role map is fixed by Kiveto, so its switches show without toggling. */
+.eqp .puce.r-gerant{background:#fff7ed;color:#c2410c}
+.eqp .clinck.ro-list label{cursor:default}
+.eqp .rtab2 .sw.fixe{cursor:default}
+.eqp .fs .finput:disabled{opacity:.6;cursor:not-allowed}
+.eqp .rtab2 .nil{color:var(--encre-35);font-size:.74rem}

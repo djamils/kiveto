@@ -15,6 +15,7 @@ use App\Fixtures\Context\Client\Story\DirectoryCrowdStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
+use App\Fixtures\Context\Clinic\Story\TeamDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
 use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
@@ -117,5 +118,10 @@ final class ClinicDataset extends Story
         // The Paris register of invoices at full size, every state of the
         // register, its sheet and the till (invoices the visits above).
         BillingRegisterStory::load();
+
+        // The team page in every state (arriving, never signed in, ended,
+        // switched off) and the sign-ins it reads: last, so that no story
+        // above picks one of these members for its visits or its stock.
+        TeamDemoStory::load();
     }
 }

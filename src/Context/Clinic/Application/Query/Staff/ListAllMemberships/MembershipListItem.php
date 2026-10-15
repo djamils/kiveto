@@ -23,6 +23,9 @@ final readonly class MembershipListItem
         public ?\DateTimeImmutable $validUntil,
         public \DateTimeImmutable $createdAt,
         public bool $isClinicAdministrator,
+        public int $workTimePercent = 100,
+        // When the member last signed in; null while they never have.
+        public ?\DateTimeImmutable $lastLoginAt = null,
     ) {
     }
 }

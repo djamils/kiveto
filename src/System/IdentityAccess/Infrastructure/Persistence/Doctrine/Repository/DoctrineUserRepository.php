@@ -70,4 +70,17 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
 
         return $this->mapper->toDomain($entity);
     }
+
+    public function recordLogin(UserId $id, \DateTimeImmutable $at): void
+    {
+        $this->em->createQueryBuilder()
+            ->update(UserEntity::class, 'u')
+            ->set('u.lastLoginAt', ':at')
+            ->where('u.id = :id')
+            ->setParameter('at', $at, 'datetime_immutable')
+            ->setParameter('id', Uuid::fromString($id->toString()), 'uuid')
+            ->getQuery()
+            ->execute()
+        ;
+    }
 }

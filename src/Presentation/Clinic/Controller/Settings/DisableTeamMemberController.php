@@ -5,47 +5,52 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Context\Clinic\Application\Command\Staff\DisableClinicMembership\DisableClinicMembership;
-use App\Context\Clinic\Application\Exception\LastClinicAdministratorException;
-use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\Team\TeamEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Le membre n’a plus accès à la clinique.
+ * « Désactiver l’accès »: the member can no longer sign in to this clinic.
  *
- * The membership is kept either way: what the member did stays attached to them.
+ * The membership is kept either way: what the member did stays signed with
+ * their name. One cannot switch off one's own access from here.
  */
 #[Route(path: '/settings/team/members/{membershipId}/disable', name: 'clinic_settings_team_disable', methods: ['POST'])]
-final class DisableTeamMemberController extends AbstractController
+final readonly class DisableTeamMemberController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly ClinicPermissionGuard $guard,
+        private CommandBusInterface $commandBus,
+        private TeamEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $membershipId): Response
+    public function __invoke(Request $request, string $membershipId): JsonResponse
     {
-        $this->guard->require(ClinicPermissionGuard::MANAGE_STAFF);
-
-        try {
-            $this->commandBus->dispatch(new DisableClinicMembership(membershipId: $membershipId));
-        } catch (LastClinicAdministratorException) {
-            // Extends RuntimeException per the folder convention, so it falls
-            // straight through the clause below and would become a 500.
-            $this->addFlash('error', 'Impossible : plus personne ne pourrait gérer la clinique.');
-
-            return $this->redirectToRoute('clinic_settings_team');
-        } catch (\DomainException $exception) {
-            $this->addFlash('error', $exception->getMessage());
-
-            return $this->redirectToRoute('clinic_settings_team');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Le membre n’a plus accès à la clinique.');
+        $member = $this->endpoint->member($membershipId);
 
-        return $this->redirectToRoute('clinic_settings_team');
+        if (null === $member) {
+            return $this->endpoint->unknown();
+        }
+
+        if ($this->endpoint->isViewer($member)) {
+            return $this->endpoint->refuse('Vous ne pouvez pas désactiver votre propre accès.');
+        }
+
+        try {
+            $this->commandBus->dispatch(new DisableClinicMembership(membershipId: $member->membershipId));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        } catch (\RuntimeException $exception) {
+            // Nobody would be left to manage the clinic.
+            return $this->endpoint->refuse($exception);
+        }
+
+        return $this->endpoint->ok();
     }
 }
