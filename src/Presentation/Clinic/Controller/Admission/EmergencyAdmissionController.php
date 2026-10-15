@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Admission;
 
 use App\Context\Admission\Application\Command\OpenEmergencyAdmission\OpenEmergencyAdmission;
 use App\Context\Admission\Domain\Exception\PatientAlreadyAdmittedException;
+use App\Presentation\Clinic\ViewModel\Flux\DeskRegistration;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -18,9 +19,11 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
  * « Admission d'urgence »: one screen where the motif comes first and the
- * identity can wait. A known animal is attached at once; otherwise the
- * patient is admitted under a provisional « Urgence HH:MM » label, to be
- * identified once stabilised.
+ * identity can wait. A known animal (searched, or found by its chip) is
+ * attached at once; otherwise the patient is admitted under a provisional
+ * « Urgence HH:MM » label with its species, who brought it (its owner, a
+ * third party — name and phone to call back —, the emergency services) and
+ * an unknown chip read at the desk, to be identified once stabilised.
  */
 #[Route('/admission/emergency', name: 'clinic_admission_emergency', methods: ['POST'])]
 final class EmergencyAdmissionController extends AbstractController
@@ -56,6 +59,12 @@ final class EmergencyAdmissionController extends AbstractController
         $knownAnimalId = $request->request->getString('known_animal_id') ?: null;
         $animalName    = $request->request->getString('animal_name') ?: null;
         $label         = null;
+        $broughtBy     = $request->request->getString('brought_by');
+        $declarant     = null === $knownAnimalId && 'tiers' === $broughtBy
+            ? (mb_substr(trim($request->request->getString('declarant_name')), 0, 80) ?: null)
+            : null;
+        $declarantTel = trim($request->request->getString('declarant_phone'));
+        $chip         = preg_replace('/\D/', '', $request->request->getString('scanned_microchip')) ?? '';
 
         if (null === $knownAnimalId) {
             $zone     = $request->request->getString('time_zone');
@@ -67,24 +76,29 @@ final class EmergencyAdmissionController extends AbstractController
         try {
             $this->commandBus->dispatch(new OpenEmergencyAdmission(
                 clinicId: $currentClinicId->toString(),
-                intakeChannel: $request->request->getString('intake_channel') ?: 'emergency',
+                intakeChannel: null === $knownAnimalId ? match ($broughtBy) {
+                    'tiers'   => 'emergency_by_third_party',
+                    'secours' => 'emergency_by_authority',
+                    default   => 'emergency',
+                } : 'emergency',
                 triageLevel: $request->request->getString('triage_level') ?: 'emergency',
                 provisionalLabel: $label,
                 knownAnimalId: $knownAnimalId,
                 animalName: $animalName,
                 observedSpecies: $request->request->getString('observed_species') ?: null,
                 observedColor: null,
-                presenterName: null,
-                presenterPhone: null,
-                presenterRole: null,
+                presenterName: $declarant,
+                presenterPhone: null === $declarant || '' === $declarantTel ? null : DeskRegistration::e164($declarantTel),
+                presenterRole: null === $declarant ? null : 'third_party',
                 physicalDescription: null,
                 triageNotes: $triageNotes,
+                scannedMicrochip: null === $knownAnimalId && 15 === \strlen($chip) ? $chip : null,
             ));
 
             $this->addFlash('success', \sprintf(
                 'Urgence admise — %s en tête de file%s.',
-                $animalName ?? $label,
-                null === $knownAnimalId ? ' · identification à régulariser' : '',
+                $animalName ?? 'patient inconnu',
+                null === $knownAnimalId ? ' · à identifier depuis sa carte' : '',
             ));
         } catch (PatientAlreadyAdmittedException) {
             $this->addFlash('error', \sprintf(

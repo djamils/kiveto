@@ -1,9 +1,10 @@
 /* assets/styles/pages/flux.css
    Ambulatory flow board (« Flux ambulatoire ») — ported as-is from
-   docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_6.html:
-   clock and day figures, live emergency banner, the four columns and their
-   cards, the « partis » bar, arrival / emergency modals, card action menu
-   and patient peek. The shell and its kit (page header, buttons, modals,
+   docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_8.html
+   (and its normal / calme variants): clock and day figures, live emergency
+   banner, the four columns and their cards, the « passages terminés » fold,
+   the arrival window of a booking, the arrival / emergency / identification
+   modals, card action menu and patient peek. The shell and its kit (page header, buttons, modals,
    dropdowns, chips, tooltips) live in shell/shell.css.
 
    Every rule is anchored on the page root `.flx`: the mock-up's generic
@@ -102,16 +103,6 @@
 .flx .pat .pmenu{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--encre-35);flex:none}
 .flx .pat .pmenu:hover{background:var(--brume);color:var(--encre-60)}
 .flx .pat.sortie{opacity:0;transform:translateX(14px)}
-
-.flx .partis{
-  flex:none;display:flex;align-items:center;gap:10px;margin:0 22px 16px;padding:9px 14px;
-  background:var(--carte);border:1px solid var(--trait);border-radius:var(--r-md);
-  font-size:.78rem;color:var(--encre-60);
-}
-.flx .partis b{font-family:var(--font-data);color:var(--encre)}
-.flx .partis .noms{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.flx .partis .aside{margin-left:auto;font-size:.76rem;font-weight:600;color:var(--pin);flex:none}
-.flx .partis .aside:hover{text-decoration:underline}
 
 /* ── Bouton danger ── */
 .flx .btn.danger{background:var(--garance);border-color:var(--garance);color:#fff}
@@ -261,7 +252,7 @@
 @media (max-width:1050px){.flx .board{flex-wrap:nowrap}.flx .kcol{min-width:270px;flex:0 0 270px}.flx .stats{display:none}}
 
 /* ── Scrollbars fines et discrètes (colonnes, board, menus, panneaux) ── */
-.flx .kliste,.flx .board,.flx .ci-menu,.flx .dbody,.flx .mbody{scrollbar-width:thin;scrollbar-color:#cfd8e3 transparent}
+@supports not selector(::-webkit-scrollbar){.flx .kliste,.flx .board,.flx .ci-menu,.flx .dbody,.flx .mbody{scrollbar-width:thin;scrollbar-color:#cfd8e3 transparent}}
 .flx .kliste::-webkit-scrollbar,.flx .ci-menu::-webkit-scrollbar,.flx .dbody::-webkit-scrollbar,.flx .mbody::-webkit-scrollbar{width:10px}
 .flx .board::-webkit-scrollbar{height:10px}
 .flx .kliste::-webkit-scrollbar-track,.flx .board::-webkit-scrollbar-track,.flx .ci-menu::-webkit-scrollbar-track,.flx .dbody::-webkit-scrollbar-track,.flx .mbody::-webkit-scrollbar-track{background:transparent}
@@ -276,3 +267,144 @@
 .flx .act-it[disabled]{opacity:.45;cursor:not-allowed}
 .flx .act-it[disabled]:hover{background:none}
 .flx .dd-it .ic{width:26px;height:26px;border-radius:7px;background:var(--celadon);display:grid;place-items:center;font-size:14px;flex:none}
+
+/* ════ v2 (flux-ambulatoire busy_8 / _3 / calme_4) — « flux-fit » ════ */
+
+/* Planifié : passages terminés et non venus, repliés en tête de colonne */
+.flx .kpas{display:flex;align-items:center;gap:8px;width:100%;padding:8px 11px;border-radius:9px;background:var(--brume);border:none;font-family:inherit;font-size:.76rem;color:var(--encre-60);text-align:left;cursor:pointer;flex:none}
+.flx .kpas .ok{color:#15803d;font-weight:700}
+.flx .kpas b{color:var(--encre);font-weight:600}
+.flx .kpas .tog{margin-left:auto;color:var(--pin);font-weight:600}
+.flx .kpas:hover .tog{text-decoration:underline}
+.flx .kpas-l{display:none;flex-direction:column;gap:6px}
+.flx .kpas-l.on{display:flex;animation:flx-kpIn .2s ease}
+@keyframes flx-kpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.flx .kpas-it{display:grid;grid-template-columns:42px 30px minmax(0,1fr) auto;gap:9px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--carte);border:1px solid var(--trait);opacity:.78;font-size:.78rem}
+.flx .kpas-it:hover{opacity:1}
+.flx .kpas-it time{font-family:var(--font-data);font-size:.76rem;font-weight:600;color:var(--encre)}
+.flx .kpas-it time .srdv{font-family:var(--font-body);font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;line-height:1.15;color:var(--encre-35);display:block}
+.flx .kpas-it .e{width:30px;height:30px;border-radius:8px;background:var(--brume);display:grid;place-items:center;font-size:15px}
+.flx .kpas-it b{display:block;font-weight:600;font-size:.82rem}
+.flx .kpas-it small{display:block;font-size:.7rem;color:var(--encre-60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flx .kpas-it .r{text-align:right;font-size:.7rem;color:var(--encre-60);white-space:nowrap}
+.flx .kpas-it .r a{display:block;color:var(--pin);font-weight:600;text-decoration:none;margin-top:2px}
+.flx .kpas-it .r a:hover{text-decoration:underline}
+.flx .kpas-it.nv{opacity:1;border-color:#fecaca;background:#fffafa}
+.flx .kpas-it.nv .r{color:#b91c1c;font-weight:600}
+.flx .puce.urgp{background:#fef2f2!important;color:#b91c1c!important;border:1px solid #fecaca}
+
+/* Arrivée d'un RDV : accueil rapide */
+.flx .ar-rec{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;background:var(--brume)}
+.flx .ar-rec .e{width:42px;height:42px;border-radius:10px;background:var(--carte);display:grid;place-items:center;font-size:21px;flex:none}
+.flx .ar-rec b{display:block;font-size:.95rem}
+.flx .ar-rec small{display:block;font-size:.76rem;color:var(--encre-60);margin-top:1px}
+.flx .ar-rec .rdv{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.flx .ar-rec .rdv small{font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--encre-35);margin:0}
+.flx .ar-rec .rdv b{font-family:var(--font-data);font-size:1rem;line-height:1;color:var(--encre);margin:0}
+.flx .ar-rec .rdv .ec{font-size:.68rem;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.flx .ar-rec .rdv .ec.ok{background:#f0fdf4;color:#15803d}
+.flx .ar-rec .rdv .ec.ret{background:#fffbeb;color:#92400e}
+.flx .ar-rec .rdv .ec.av{background:var(--carte);color:var(--encre-60);border:1px solid var(--trait)}
+.flx .ar-g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.flx .ar-sec{display:flex;flex-direction:column;gap:5px}
+.flx .ar-sec .flbl{margin:0}
+.flx .ar-sec small.h{font-size:.7rem;color:var(--encre-35)}
+.flx .ar-kg{display:flex;align-items:center;border:1px solid var(--trait);border-radius:8px;background:var(--carte);overflow:hidden;width:140px}
+.flx .ar-kg input{border:none;outline:none;padding:8px 10px;width:100%;font-family:var(--font-data);font-size:.9rem;background:transparent}
+.flx .ar-kg span{padding:0 10px;font-size:.78rem;color:var(--encre-60)}
+.flx .ar-kg:focus-within{border-color:var(--pin)}
+.flx .ar-kg.ko{border-color:#ef4444;background:#fef2f2}
+.flx .ar-chk{display:flex;flex-wrap:wrap;gap:6px}
+.flx .ar-chk button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--trait);background:var(--carte);font-size:.76rem;font-weight:600;color:var(--encre-60)}
+.flx .ar-chk button::before{content:'';width:12px;height:12px;border-radius:4px;border:1.5px solid var(--encre-35)}
+.flx .ar-chk button.on{border-color:var(--pin);background:var(--pin-pale);color:var(--pin-fonce)}
+.flx .ar-chk button.on::before{background:var(--pin);border-color:var(--pin);box-shadow:inset 0 0 0 2px var(--pin-pale)}
+.flx .ar-vig{display:flex;gap:6px;flex-wrap:wrap}
+.flx .ar-vig span{font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 9px;background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.flx .ar-du{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:#fef2f2;border:1px solid #fecaca;font-size:.78rem;color:#991b1b}
+.flx .ar-du b{color:#b91c1c}
+.flx .ar-du .bt{margin-left:auto;display:flex;gap:6px}
+.flx .ar-du button{font-size:.74rem;font-weight:600;border-radius:7px;padding:4px 9px;border:1px solid #fecaca;background:var(--carte);color:#b91c1c}
+.flx .ar-du button.on{background:#b91c1c;color:#fff;border-color:#b91c1c}
+.flx .ar-tel{display:flex;align-items:center;gap:8px;font-size:.8rem}
+.flx .ar-tel b{font-family:var(--font-data);font-weight:600}
+.flx .ar-tel button{font-size:.74rem;font-weight:600;color:var(--pin)}
+.flx .ar-note{width:100%;min-height:54px;resize:vertical;border:1px solid var(--trait);border-radius:8px;padding:8px 10px;font:inherit;font-size:.8rem}
+.flx .ar-note:focus{outline:none;border-color:var(--pin)}
+.flx .ar-kbd{font-size:.7rem;color:var(--encre-35);margin-right:auto;align-self:center}
+.flx .puce.kg{background:var(--brume);color:var(--encre-60)}
+.flx .puce.note{background:var(--pin-pale);color:var(--pin-fonce)}
+.flx .puce.retard{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+/* The phone corrected in place (« Modifier ») */
+.flx .ar-tel input{width:140px;border:1px solid var(--pin);border-radius:7px;padding:4px 8px;font-family:var(--font-data);font-size:.8rem;outline:none}
+.flx .ar-tel input.ko{border-color:#ef4444;background:#fef2f2}
+
+/* ════ « flux-id » — patient à identifier ════ */
+.flx .puce.aid{display:inline-flex;align-items:center;gap:5px;background:#fffbeb;color:#92400e;border:1px dashed #f59e0b;font-weight:700;cursor:pointer;font-family:inherit}
+.flx .puce.urgp{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.flx .puce.urgp svg{width:11px;height:11px}
+.flx .puce.aid:hover{background:#fef3c7}
+.flx .puce.aid svg{width:11px;height:11px}
+.flx .pat.inconnu .id b{color:var(--encre-60);font-style:italic;font-weight:600}
+.flx .u-scan{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;background:var(--carte);border:1px solid var(--trait);font-size:.74rem;font-weight:600;color:var(--pin-fonce)}
+.flx .u-scan:hover{border-color:var(--pin)}
+.flx .u-scan svg{width:13px;height:13px}
+.flx .u-scan.lit{color:var(--encre-60);pointer-events:none}
+.flx .u-scan.lit svg{animation:flx-idPulse .8s ease infinite}
+@keyframes flx-idPulse{50%{opacity:.25}}
+.flx .u-par{display:flex;align-items:center;gap:10px;margin-top:9px}
+.flx .u-par > span{font-size:.73rem;color:var(--encre-60);flex:none;width:86px}
+.flx .u-par .seg{flex:1}
+.flx .u-tiers[hidden]{display:none}
+.flx .u-tiers{display:grid;grid-template-columns:1fr 150px;gap:8px;margin-top:8px}
+.flx .u-aide{font-size:.72rem;color:var(--encre-35);margin-top:8px}
+/* Fenêtre d'identification */
+.flx .id-seg{margin:12px 0 12px}
+.flx .id-pane{display:none;min-height:186px}
+.flx .id-pane.on{display:block;animation:flx-kpIn .18s ease}
+.flx .id-lect{display:flex;align-items:center;gap:10px}
+.flx .id-lect .btn{flex:none;display:inline-flex;align-items:center;gap:7px}
+.flx .id-lect .btn svg{width:15px;height:15px}
+.flx .id-lect .btn.lit svg{animation:flx-idPulse .8s ease infinite}
+.flx .id-lect .ou{font-size:.74rem;color:var(--encre-35)}
+.flx .id-puce{flex:1;display:flex;align-items:center;border:1px solid var(--trait);border-radius:8px;background:var(--brume);padding:0 10px}
+.flx .id-puce:focus-within{border-color:var(--pin);background:var(--carte)}
+.flx .id-puce input{flex:1;border:none;background:transparent;outline:none;padding:9px 0;font-family:var(--font-data);font-size:.9rem;letter-spacing:.04em}
+.flx .id-puce small{font-size:.68rem;color:var(--encre-35);font-family:var(--font-data)}
+.flx .id-res{margin-top:12px}
+.flx .id-msg{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-radius:9px;background:var(--brume);font-size:.78rem;color:var(--encre-60);line-height:1.45}
+.flx .id-msg b{color:var(--encre)}
+.flx .id-msg.ko{background:#fffbeb;color:#92400e}
+.flx .id-msg.ko b{color:#78350f}
+.flx .id-msg .btn{margin-left:auto;flex:none}
+.flx .id-msg a{color:inherit;font-weight:700}
+.flx .id-src{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:5px;padding:1px 6px;margin-bottom:3px;background:var(--pin-pale);color:var(--pin-fonce)}
+.flx .id-src.icad{background:#ecfdf5;color:#047857}
+.flx .id-fiche{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;border:1px solid var(--trait);background:var(--carte)}
+.flx .id-fiche .oesp{width:38px;height:38px;border-radius:9px;background:var(--celadon);display:grid;place-items:center;font-size:19px;flex:none}
+.flx .id-fiche b{display:block;font-size:.88rem}
+.flx .id-fiche span.s{display:block;font-size:.74rem;color:var(--encre-60)}
+.flx .id-fiche .vg{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.flx .id-fiche .vg i{font-style:normal;font-size:.7rem;font-weight:700;border-radius:999px;padding:1px 8px;background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.flx .id-fiche .fx{margin-left:auto;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--encre-35);flex:none;align-self:flex-start}
+.flx .id-fiche .fx:hover{background:var(--brume);color:var(--encre)}
+.flx .id-list{display:flex;flex-direction:column;gap:2px;margin-top:8px;max-height:150px;overflow-y:auto}
+.flx .id-g{display:grid;grid-template-columns:96px 1fr 1fr;gap:8px}
+.flx .id-g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.flx .id-blk{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--encre-35);margin:12px 0 6px}
+.flx .id-blk:first-child{margin-top:0}
+.flx .id-tel{font-family:var(--font-data)}
+.flx .finput.ko{border-color:#ef4444;background:#fef2f2}
+.flx .id-dd{min-width:0}
+.flx .id-fact svg{width:14px;height:14px;flex:none}
+.flx .id-fact{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:8px;background:#fffbeb;color:#92400e;font-size:.76rem;font-weight:600;margin-bottom:10px}
+.flx .mchip.autre{border-style:dashed}
+.flx .m-prec{position:relative}
+.flx .m-prec .finput{padding-right:56px}
+.flx .m-prec small{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.66rem;color:var(--encre-35);font-family:var(--font-data)}
+.flx .m-prec.req .finput{border-color:var(--pin);background:var(--carte)}
+.flx .m-sel{display:none}
+/* The late pill of a booking is drawn by the server and kept live by the module. */
+.flx .puce.retard[hidden]{display:none}
+/* A long arrival note stays on the card's width; the peek shows it whole. */
+.flx .pat .infos .puce.note{display:inline-block;max-width:100%;line-height:20px;overflow:hidden;text-overflow:ellipsis}

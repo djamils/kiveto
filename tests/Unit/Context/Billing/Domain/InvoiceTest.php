@@ -14,6 +14,7 @@ use App\Context\Billing\Domain\Exception\InvoiceCannotBeCancelledException;
 use App\Context\Billing\Domain\Exception\InvoiceHasNoLinesException;
 use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
+use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
@@ -124,6 +125,35 @@ final class InvoiceTest extends TestCase
         $events = $invoice->pullDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(InvoiceIssued::class, $events[0]);
+    }
+
+    public function testTheInvoiceOfAVisitWithoutAnIdentifiedClientIsNotIssued(): void
+    {
+        $invoice = $this->draft();
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+        $invoice->changePayer(Payer::anonymous(), $this->now());
+
+        $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
+        $this->expectExceptionMessage('without an identified client');
+
+        $invoice->issue(InvoiceNumber::of(2026, 43), $this->now());
+    }
+
+    public function testACounterSaleToAPasserByIsIssued(): void
+    {
+        $invoice = Invoice::draft(
+            id: InvoiceId::fromString(self::INVOICE_ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            admissionId: null,
+            payer: Payer::anonymous(),
+            currency: CurrencyCode::fromString('EUR'),
+            now: $this->now(),
+        );
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+
+        $invoice->issue(InvoiceNumber::of(2026, 44), $this->now());
+
+        self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
     }
 
     public function testAnIssuedInvoiceCanNoLongerBeEdited(): void

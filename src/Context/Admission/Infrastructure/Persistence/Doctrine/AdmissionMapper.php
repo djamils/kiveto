@@ -6,6 +6,7 @@ namespace App\Context\Admission\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Admission\Domain\Admission;
 use App\Context\Admission\Domain\ValueObject\AdmissionId;
+use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Domain\ValueObject\LocationStatus;
 use App\Context\Admission\Domain\ValueObject\Presenter;
@@ -53,6 +54,8 @@ final readonly class AdmissionMapper
             closedAt: $entity->getClosedAt(),
             createdAt: $entity->getCreatedAt(),
             updatedAt: $entity->getUpdatedAt(),
+            arrivalCheckIn: null === $entity->getArrivalCheckIn() ? null : ArrivalCheckIn::fromArray($entity->getArrivalCheckIn()),
+            scannedMicrochip: $entity->getScannedMicrochip(),
         );
     }
 
@@ -93,6 +96,8 @@ final readonly class AdmissionMapper
         $entity->setClosedAt($admission->closedAt());
         $entity->setCreatedAt($admission->createdAt());
         $entity->setUpdatedAt($admission->updatedAt());
+        $entity->setArrivalCheckIn($admission->arrivalCheckIn()?->toArray());
+        $entity->setScannedMicrochip($admission->scannedMicrochip());
 
         return $entity;
     }

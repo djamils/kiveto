@@ -118,6 +118,41 @@ final readonly class PatientFactsReader
     }
 
     /**
+     * « 6,8 kg · mars », « 31,2 kg · ce matin », « 8,9 kg · 2025 ».
+     *
+     * @param list<WeightRecordView> $records
+     */
+    public static function lastWeight(array $records, \DateTimeImmutable $now): ?string
+    {
+        $last = null;
+
+        foreach ($records as $record) {
+            if (null === $last || $record->measuredOn > $last->measuredOn) {
+                $last = $record;
+            }
+        }
+
+        if (null === $last) {
+            return null;
+        }
+
+        $on   = $last->measuredOn->setTimezone($now->getTimezone());
+        $when = match (true) {
+            $on->format('Y-m-d') === $now->format('Y-m-d') => (int) $now->format('G') < 13 ? 'ce matin' : 'aujourd\'hui',
+            $on->format('Y') === $now->format('Y')         => SheetText::date($on, 'MMMM'),
+            default                                        => $on->format('Y'),
+        };
+
+        return self::kilograms($last->weightGrams) . ' kg · ' . $when;
+    }
+
+    /** « 6,8 », « 0,85 » (under a kilo, two decimals). */
+    public static function kilograms(int $grams): string
+    {
+        return number_format($grams / 1000, $grams < 1000 ? 2 : 1, ',', ' ');
+    }
+
+    /**
      * @return list<array{label: string, tone: 'a'|'r'}>
      */
     private function vigilance(string $clinicId, string $animalId): array
@@ -143,35 +178,15 @@ final readonly class PatientFactsReader
         return $out;
     }
 
-    /** « 6,8 kg · mars », « 31,2 kg · ce matin », « 8,9 kg · 2025 ». */
     private function weight(string $clinicId, string $animalId, \DateTimeImmutable $now): ?string
     {
         $records = $this->queryBus->ask(new ListAnimalWeightRecords($clinicId, $animalId));
         \assert(\is_array($records));
 
-        $last = null;
-
-        foreach ($records as $record) {
-            \assert($record instanceof WeightRecordView);
-
-            if (null === $last || $record->measuredOn > $last->measuredOn) {
-                $last = $record;
-            }
-        }
-
-        if (null === $last) {
-            return null;
-        }
-
-        $kg   = number_format($last->weightGrams / 1000, $last->weightGrams < 1000 ? 2 : 1, ',', ' ');
-        $on   = $last->measuredOn->setTimezone($now->getTimezone());
-        $when = match (true) {
-            $on->format('Y-m-d') === $now->format('Y-m-d') => (int) $now->format('G') < 13 ? 'ce matin' : 'aujourd\'hui',
-            $on->format('Y') === $now->format('Y')         => SheetText::date($on, 'MMMM'),
-            default                                        => $on->format('Y'),
-        };
-
-        return $kg . ' kg · ' . $when;
+        return self::lastWeight(array_values(array_filter(
+            $records,
+            static fn (mixed $record): bool => $record instanceof WeightRecordView,
+        )), $now);
     }
 
     /**

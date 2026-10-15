@@ -87,6 +87,17 @@ class AdmissionEntity
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
+    /**
+     * What the desk noted at arrival (ArrivalCheckIn::toArray()).
+     *
+     * @var array{fasting?: bool, newSymptom?: bool, documentsBrought?: bool, ongoingTreatment?: bool, weightGrams?: int|null, note?: string|null}|null
+     */
+    #[ORM\Column(name: 'arrival_check_in', type: 'json', nullable: true)]
+    private ?array $arrivalCheckIn = null;
+
+    #[ORM\Column(name: 'scanned_microchip', type: 'string', length: 15, nullable: true)]
+    private ?string $scannedMicrochip = null;
+
     public function getId(): Uuid
     {
         return $this->id;
@@ -245,6 +256,32 @@ class AdmissionEntity
     public function setTriageNotes(?string $triageNotes): void
     {
         $this->triageNotes = $triageNotes;
+    }
+
+    /**
+     * @return array{fasting?: bool, newSymptom?: bool, documentsBrought?: bool, ongoingTreatment?: bool, weightGrams?: int|null, note?: string|null}|null
+     */
+    public function getArrivalCheckIn(): ?array
+    {
+        return $this->arrivalCheckIn;
+    }
+
+    /**
+     * @param array{fasting?: bool, newSymptom?: bool, documentsBrought?: bool, ongoingTreatment?: bool, weightGrams?: int|null, note?: string|null}|null $arrivalCheckIn
+     */
+    public function setArrivalCheckIn(?array $arrivalCheckIn): void
+    {
+        $this->arrivalCheckIn = $arrivalCheckIn;
+    }
+
+    public function getScannedMicrochip(): ?string
+    {
+        return $this->scannedMicrochip;
+    }
+
+    public function setScannedMicrochip(?string $scannedMicrochip): void
+    {
+        $this->scannedMicrochip = $scannedMicrochip;
     }
 
     public function getVersion(): int

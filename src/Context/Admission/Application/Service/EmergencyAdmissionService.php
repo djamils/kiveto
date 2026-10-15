@@ -45,6 +45,7 @@ final class EmergencyAdmissionService
         ?string $observedColor,
         ?string $physicalDescription = null,
         ?string $triageNotes = null,
+        ?string $scannedMicrochip = null,
     ): AdmissionId {
         $now          = $this->clock->now();
         $isIdentified = null !== $knownAnimalId;
@@ -99,6 +100,7 @@ final class EmergencyAdmissionService
             appointmentId: null,
             physicalDescription: $physicalDescription,
             triageNotes: $triageNotes,
+            scannedMicrochip: $isIdentified ? null : $scannedMicrochip,
         );
 
         $this->admissionRepository->save($admission);

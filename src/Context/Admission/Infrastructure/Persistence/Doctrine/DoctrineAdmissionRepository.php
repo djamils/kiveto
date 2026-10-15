@@ -54,6 +54,7 @@ final readonly class DoctrineAdmissionRepository implements AdmissionRepositoryI
             $entity->setTriageNotes($admission->triageNotes());
             $entity->setClosedAt($admission->closedAt());
             $entity->setUpdatedAt($admission->updatedAt());
+            $entity->setArrivalCheckIn($admission->arrivalCheckIn()?->toArray());
         }
 
         $this->entityManager->flush();

@@ -7,10 +7,13 @@ namespace App\Tests\Integration\Context\Admission;
 use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
 use App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
+use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Domain\ValueObject\ClosureReason;
+use App\Context\Admission\Domain\ValueObject\PresenterRole;
 use App\Fixtures\Context\Admission\Factory\AdmissionEntityFactory;
 use App\Fixtures\Context\Patient\Factory\PatientEntityFactory;
+use App\Fixtures\Context\Scheduling\Factory\AppointmentEntityFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -74,6 +77,74 @@ final class DoctrineAdmissionReadRepositoryTest extends KernelTestCase
         self::assertCount(1, $items);
         self::assertSame('2026-03-04T10:05:00+00:00', $items[0]->openedAt);
         self::assertSame('2026-03-04T10:24:00+00:00', $items[0]->locationSince);
+    }
+
+    public function testAnUnidentifiedEmergencyCarriesWhoBroughtItAndWhatTheDeskSaw(): void
+    {
+        $patient = PatientEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->create(['displayLabelValue' => 'Urgence 10:28', 'observedSpecies' => 'Chat'])
+        ;
+
+        AdmissionEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPatientId($patient->getId()->toString())
+            ->create([
+                'status'           => AdmissionStatus::Active,
+                'closedAt'         => null,
+                'closureReason'    => null,
+                'presenterName'    => 'M. Garcia',
+                'presenterPhone'   => '+33645127790',
+                'presenterRole'    => PresenterRole::ThirdParty,
+                'scannedMicrochip' => '250268500112847',
+            ])
+        ;
+
+        $item = $this->readRepository()->findAllActiveForClinic(self::CLINIC_ID)[0];
+
+        self::assertSame('M. Garcia', $item->presenterName);
+        self::assertSame('+33645127790', $item->presenterPhone);
+        self::assertSame('third_party', $item->presenterRole);
+        self::assertSame('250268500112847', $item->scannedMicrochip);
+        self::assertSame('Chat', $item->observedSpecies);
+        self::assertNull($item->arrivalCheckIn);
+        self::assertNull($item->appointmentId);
+        self::assertNull($item->appointmentStartsAt);
+    }
+
+    public function testAnHonouredBookingCarriesItsTimeAndTheArrivalCheckIn(): void
+    {
+        $admission = AdmissionEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withPatientId($this->patient('Nori'))
+            ->create([
+                'status'         => AdmissionStatus::Active,
+                'closedAt'       => null,
+                'closureReason'  => null,
+                'arrivalCheckIn' => ArrivalCheckIn::record(true, false, true, false, 4100, 'à jeun')->toArray(),
+            ])
+        ;
+
+        $appointment = AppointmentEntityFactory::new()
+            ->withClinicId(self::CLINIC_ID)
+            ->withLinkedAdmissionId($admission->getId()->toString())
+            ->startingAt(new \DateTimeImmutable('2026-03-04 10:30:00'))
+            ->create()
+        ;
+
+        $item = $this->readRepository()->findAllActiveForClinic(self::CLINIC_ID)[0];
+
+        self::assertSame($appointment->getId()->toString(), $item->appointmentId);
+        self::assertSame('2026-03-04T10:30:00+00:00', $item->appointmentStartsAt);
+        self::assertNotNull($item->arrivalCheckIn);
+        self::assertTrue($item->arrivalCheckIn->fasting);
+        self::assertFalse($item->arrivalCheckIn->newSymptom);
+        self::assertTrue($item->arrivalCheckIn->documentsBrought);
+        self::assertFalse($item->arrivalCheckIn->ongoingTreatment);
+        self::assertSame(4100, $item->arrivalCheckIn->weightGrams);
+        self::assertSame('à jeun', $item->arrivalCheckIn->note);
+        self::assertNull($item->presenterRole);
+        self::assertNull($item->observedSpecies);
     }
 
     public function testTheRepositoryKnowsWhetherAPatientIsStillAdmitted(): void

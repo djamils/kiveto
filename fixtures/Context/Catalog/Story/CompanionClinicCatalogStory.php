@@ -41,6 +41,8 @@ final class CompanionClinicCatalogStory extends Story
     {
         $this->buildCatalogFor(ClinicDataStory::INDEPENDENT_CLINIC_ID);
         $this->buildCatalogFor(ClinicDataStory::GROUP_CLINIC_ID);
+        // The quiet clinic bills its morning bookings too (FluxDayStory).
+        $this->buildCatalogFor(ClinicDataStory::CALM_CLINIC_ID);
     }
 
     private function buildCatalogFor(string $clinicId): void

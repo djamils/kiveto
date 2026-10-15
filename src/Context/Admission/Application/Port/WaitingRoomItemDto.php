@@ -26,6 +26,17 @@ final readonly class WaitingRoomItemDto
         public ?string $closedAt = null,
         public ?string $closureReason = null,
         public ?string $locationSince = null,
+        // Who brought an emergency in (owner, third party, emergency services).
+        public ?string $presenterName = null,
+        public ?string $presenterPhone = null,
+        public ?string $presenterRole = null,
+        public ?ArrivalCheckInView $arrivalCheckIn = null,
+        public ?string $scannedMicrochip = null,
+        // The honoured booking, when the visit comes from one.
+        public ?string $appointmentId = null,
+        public ?string $appointmentStartsAt = null,
+        // What the desk saw of an unidentified patient (« Chat », « Chien »).
+        public ?string $observedSpecies = null,
     ) {
     }
 }
