@@ -1,0 +1,22 @@
+{#
+ # Kiveto — templates/clinic/home/_quick_look.html.twig
+ # The dashboard's « Aperçu rapide » of a patient (timeline row or flux card),
+ # kept in a <template> that assets/js/pages/home.js opens in its modal.
+ #
+ # Variables: id, esp, urg, nom, sous, etat (markup), t, long,
+ #   facts (PatientFacts|null), motif, sec / pri (markup), dossier (url|null)
+ #}
+<template id="{{ id }}">
+  <div class="qm-h"><span class="esp{{ urg ? ' urg' }}">{{ esp }}</span><div><b>{{ nom }}{% if urg %} <span class="badge-urg">Urgence</span>{% endif %}</b><span>{{ sous }}</span></div><button type="button" class="x" aria-label="Fermer">✕</button></div>
+  <div class="qm-b">
+    {%- if etat|trim is not empty %}<div class="qm-etat">{{ etat }}<span class="t{{ long ? ' long' }}">{{ t }}</span></div>{% endif %}
+    {% if facts and facts.vigilance is not empty %}<div class="qm-vig">{% for v in facts.vigilance %}<span class="{{ v.tone }}">{{ v.label }}</span>{% endfor %}</div>{% endif %}
+    <dl class="qm-dl">
+      {%- if motif %}<dt>Motif</dt><dd>{{ motif }}</dd>{% endif -%}
+      {%- if facts and facts.owner %}<dt>Client</dt><dd>{{ facts.owner }}{% if facts.phone %} · <a href="tel:{{ facts.dialable }}">{{ facts.phone }}</a>{% endif %}</dd>{% endif -%}
+      {%- if facts and facts.weight %}<dt>Dernier poids</dt><dd>{{ facts.weight }}</dd>{% endif -%}
+      {%- if facts %}<dt>Dernière visite</dt><dd>{{ facts.lastVisit }}</dd>{% endif -%}
+    </dl>
+  </div>
+  <div class="qm-f">{{ sec }}<span class="sp"></span>{% if dossier %}<a href="{{ dossier }}">Ouvrir le dossier</a>{% endif %}{{ pri }}</div>
+</template>

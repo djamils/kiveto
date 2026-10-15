@@ -130,8 +130,9 @@ final class SchedulingStory extends Story
         $today = $now->setTime(0, 0, 0);
 
         // Paris has a busy day (a long « Fil du jour » on the dashboard, a
-        // full agenda), Lyon a regular one; the calm day lives in
-        // CalmDayClinicStory.
+        // full agenda — the dashboard-v-topbar-busy mock-up), Lyon a regular
+        // one (the dashboard-v-topbar mock-up: about nine bookings, a
+        // surgery); the calm day lives in CalmDayClinicStory.
         $todayPlan = [
             // [hour, minute, clinicId, practitionerId, duration, reason, cancelled]
             [8,  30, $paris, $vetUserId,        30, 'Consultation vaccinale',    false],
@@ -152,8 +153,13 @@ final class SchedulingStory extends Story
             [17, 30, $paris, $vetUserId,        20, 'Identification puce',       false],
             [18, 15, $paris, $vetUserId,        30, 'Consultation comportement', false],
             [9,  0,  $lyon,  $vetUserId,        30, 'Consultation',              false],
+            [9,  30, $lyon,  $lyonVetUserId,    20, 'Rappel vaccinal',           false],
             [10, 30, $lyon,  $lyonVetUserId,    60, 'Chirurgie de convenance',   false],
+            [11, 15, $lyon,  $vetUserId,        30, 'Consultation — otite',      false],
+            [14, 0,  $lyon,  $lyonVetUserId,    20, 'Primo-vaccination chaton',  false],
             [15, 0,  $lyon,  $lyonVetUserId,    20, 'Contrôle de poids',         false],
+            [16, 0,  $lyon,  $vetUserId,        30, 'Bilan annuel',              false],
+            [16, 30, $lyon,  $lyonVetUserId,    20, 'Retrait de points',         false],
             [17, 0,  $lyon,  $vetUserId,        30, 'Consultation dermatologie', false],
         ];
 

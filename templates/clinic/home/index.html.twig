@@ -2,11 +2,14 @@
  # Kiveto — templates/clinic/home/index.html.twig
  # ──────────────────────────────────────────────
  # Clinic dashboard, ported from
- # docs/frontend-theme/kiveto-theme/dashboard-v-topbar-calme_2.html:
+ # docs/frontend-theme/kiveto-theme/dashboard-v-topbar_9.html (normal day),
+ # -busy_3 (loaded day) and -calme_3 (calm day) — the state follows the data:
  # « La journée en chiffres » strip with the quick actions, then three
- # columns — « Fil du jour » (timeline with the live now-line), « Flux ambulatoire » (patients on
- # site) and « À traiter » (tasks raised from the data, done today, calm-day
- # suggestions).
+ # columns — « Fil du jour » (what is left to do, the seen appointments
+ # folded under one line, the live now-line), « Flux ambulatoire » (five
+ # patients on site at most) and « À traiter » (tasks raised from the data,
+ # done today, calm-day suggestions). A click on a card opens its quick look
+ # (« Aperçu rapide ») instead of leaving the page.
  #
  # Variables from controller:
  #   dashboard  App\Presentation\Clinic\ViewModel\Dashboard\DashboardView
@@ -15,9 +18,10 @@
  #}
 {% extends 'clinic/base.html.twig' %}
 
-{# The dashboard mock-up shows the sidebar expanded and scrolls as a whole #}
+{# The dashboard mock-up shows the sidebar expanded; the page fits the
+   window and each column scrolls on its own (« dash-fit ») #}
 {% block sidebar_mode %}full{% endblock %}
-{% block page_body_class %}vt page-scroll{% endblock %}
+{% block page_body_class %}vt{% endblock %}
 
 {% block title %}Tableau de bord{% endblock %}
 
@@ -66,26 +70,36 @@
     <section class="col" aria-labelledby="h-jour">
       <div class="col-head">
         <h2 id="h-jour">Fil du jour</h2>
-        <span class="count">{{ d.appointmentCount }} rendez-vous</span>
+        <span class="count">{{ d.countLabel }}</span>
         <a class="aside" href="{{ path('clinic_scheduling_agenda') }}">Agenda complet</a>
       </div>
       <div class="timeline" id="timeline">
+        {# What has been seen folds under one line; the timeline shows what is left to do. #}
+        {% if d.doneCount > 0 %}
+          <button type="button" class="tl-faits" aria-expanded="false"><span class="ok">✓</span><b>{{ d.doneCount }} rendez-vous terminé{{ d.doneCount > 1 ? 's' }}</b> {{ d.doneWhen }}<span class="tog">Afficher</span></button>
+        {% endif %}
         {% if d.timeline is not empty %}
           <div class="now" id="nowLine" data-h="{{ d.nowLabel }}" aria-hidden="true"></div>
         {% endif %}
+        {% set _hm = d.nowLabel|split(':') %}
+        {% set _now_min = _hm[0] * 60 + _hm[1] %}
         {% for slot in d.timeline %}
-          <div class="slot" data-min="{{ slot.minutes }}" data-end="{{ slot.endMinutes }}"><div class="h">{{ slot.time }}</div><div class="body">
+          {# Folded: a slot whose appointments are all seen, or a free gap already over. #}
+          {% set _passe = slot.isFree
+            ? (d.doneCount > 0 and slot.endMinutes <= _now_min)
+            : slot.appointments|filter(a => not a.isDone)|length == 0 %}
+          <div class="slot{{ _passe ? ' tl-passe' }}" data-min="{{ slot.minutes }}" data-end="{{ slot.endMinutes }}"><div class="h">{{ slot.time }}</div><div class="body">
             {% if slot.isFree %}
               <div class="creux-mini">libre</div>
             {% else %}
               {% for a in slot.appointments %}
-                <div class="rdv consult{{ a.state in ['done', 'noshow'] ? ' done' }}" tabindex="0">
+                <div class="rdv {{ a.kind }}{{ a.isDone ? ' done' }}" tabindex="0" data-qm="qm-r-{{ a.id }}">
                   <div class="esp">{{ a.emoji }}</div>
                   <div class="txt"><b>{{ a.title }}</b><span>{{ a.subtitle }}</span></div>
-                  <div class="dur">{{ a.durationLabel }}</div>
+                  {% if a.tag %}<span class="tag">{{ a.tag }}</span>{% endif %}
+                  {% if a.durationLabel %}<div class="dur">{{ a.durationLabel }}</div>{% endif %}
                   {% if a.state == 'planned' %}
                     <div class="acts">
-                      {% if a.animalId %}<a class="mini-btn" href="{{ path('clinic_animals_view', {id: a.animalId}) }}">Dossier</a>{% endif %}
                       <form method="post" action="{{ path('clinic_admission_checkin') }}" data-turbo="false">
                         <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
                         <input type="hidden" name="appointmentId" value="{{ a.id }}">
@@ -96,7 +110,16 @@
                     </div>
                   {% elseif a.state == 'onsite' %}
                     <div class="acts">
-                      <a class="mini-btn" href="{{ path('clinic_admission_queue') }}">Voir au flux</a>
+                      {% if a.isWalkIn and a.location == 'in_waiting_room' %}
+                        <form method="post" action="{{ path('clinic_consultation_start_from_admission', {admissionId: a.admissionId}) }}" data-turbo="false">
+                          <input type="hidden" name="_token" value="{{ csrf_token('consultation_start') }}">
+                          <button type="submit" class="mini-btn primaire">Démarrer</button>
+                        </form>
+                      {% elseif a.consultationId %}
+                        <a class="mini-btn primaire" href="{{ path('clinic_consultation_details', {id: a.consultationId}) }}">Consultation</a>
+                      {% else %}
+                        <a class="mini-btn" href="{{ path('clinic_admission_queue') }}">Voir au flux</a>
+                      {% endif %}
                     </div>
                   {% endif %}
                 </div>
@@ -117,16 +140,17 @@
       </div>
     </section>
 
-    {# ── Colonne 2 : Flux patients ── #}
+    {# ── Colonne 2 : Flux patients — five cards at most, the flux page for the rest ── #}
+    {% set _flux_max = 5 %}
     <section class="col" aria-labelledby="h-flux">
       <div class="col-head">
         <h2 id="h-flux">Flux ambulatoire</h2>
         <span class="count" id="ambuN">{{ d.flux|length }} sur place</span>
         <a class="aside" href="{{ path('clinic_admission_queue') }}">Ouvrir le flux →</a>
       </div>
-      <div class="flux" id="ambuListe" data-flux-url="{{ path('clinic_admission_queue') }}">
-        {% for p in d.flux %}
-          <a class="ambu{{ p.isEmergency ? ' urg' }}" href="{{ path('clinic_admission_queue') }}" data-nom="{{ p.name }}" title="Ouvrir le flux ambulatoire — {{ p.name }}">
+      <div class="flux" id="ambuListe">
+        {% for p in d.flux|slice(0, _flux_max) %}
+          <button type="button" class="ambu{{ p.isEmergency ? ' urg' }}" data-qm="qm-f-{{ p.admissionId }}" title="Ouvrir le flux ambulatoire — {{ p.name }}">
             <span class="top">
               <span class="esp">{{ p.emoji }}</span>
               <span class="id"><b>{{ p.name }}{% if p.isEmergency %} <span class="badge-urg">Urgence</span>{% endif %}</b><span>{{ p.subtitle }}</span></span>
@@ -136,16 +160,20 @@
               {% for s in p.steps %}<span class="pstep{{ loop.index0 < p.currentStep ? ' done' : (loop.index0 == p.currentStep ? ' cur') }}">{{ s }}</span>{% endfor %}
             </span>
             <span class="ou"><b>{{ p.where }}</b><span class="sep">·</span>{{ p.who }}</span>
-          </a>
+          </button>
         {% else %}
           <div class="vide-col">
             <span class="vide-ic">🛋️</span>
             <b>Personne sur place</b>
             <span>Les patients enregistrés à l'arrivée apparaissent ici, étape par étape.</span>
-            <a class="mini-btn primaire" href="{{ path('clinic_admission_queue') }}">Enregistrer une arrivée</a>
+            <a class="mini-btn primaire" href="{{ path('clinic_admission_queue', {arrivee: 1}) }}">Enregistrer une arrivée</a>
             <span class="vide-note">{{ d.nextExpected ? 'Prochain patient attendu : ' ~ d.nextExpected : "Aucun autre rendez-vous aujourd'hui" }}</span>
           </div>
         {% endfor %}
+        {% if d.flux|length > _flux_max %}
+          {% set _n = d.flux|length - _flux_max %}
+          <a class="flux-plus" href="{{ path('clinic_admission_queue') }}">Voir {{ _n }} autre{{ _n > 1 ? 's' }} patient{{ _n > 1 ? 's' }} dans le flux →</a>
+        {% endif %}
       </div>
     </section>
 
@@ -163,8 +191,8 @@
       <div class="tk-compose" id="tkCompose" data-tip="Tâches manuelles — bientôt disponibles">
         <input id="tkInput" placeholder="＋ Nouvelle tâche… (bientôt disponible)" autocomplete="off" disabled>
       </div>
-      <div class="pile" id="tkPile" data-audiences="{{ d.myAudiences|join(' ') }}" data-me="{{ d.currentUserId }}">
-        {% for g in ['urgent', 'jour', 'fond'] %}
+      <div class="pile" id="tkPile" data-audiences="{{ d.myAudiences|join(' ') }}" data-me="{{ d.currentUserId }}"{{ d.tasks is empty ? ' hidden' }}>
+        {%- for g in ['urgent', 'jour', 'fond'] %}
           {% set _liste = d.tasks|filter(t => t.group == g) %}
           {% if _liste is not empty %}
             {% set st = _tk_style[g] %}
@@ -177,9 +205,9 @@
                 <span class="txt"><b>{{ t.title }}{% if t.audience != 'clinique' %}<span class="tk-vis {{ t.audience }}">{{ _vis_lbl[t.audience] }}</span>{% endif %}</b><span>{{ t.subtitle }}</span></span>
                 <a class="go" href="{{ t.actionUrl }}">{{ t.actionLabel }}</a>
               </div>
-            {% endfor %}
+            {%- endfor -%}
           {% endif %}
-        {% endfor %}
+        {%- endfor -%}
       </div>
       <div class="tk-vide{{ d.tasks is empty ? ' on' }}" id="tkVide">
         <span class="vi">✓</span>
@@ -203,5 +231,67 @@
     </section>
 
   </main>
+
+  {# ── Aperçus rapides: one template per card, opened in place of a redirect ── #}
+  <div class="qm-store" hidden>
+    {% for slot in d.timeline %}
+      {% for a in slot.appointments %}
+        {% set _owner = a.facts ? a.facts.owner : null %}
+        {% set etat %}{% if a.isWalkIn %}<span>Arrivée à <b>{{ a.time }}</b> · sans rendez-vous</span>{% elseif a.isDone %}<span>RDV de <b>{{ a.time }}</b> · {{ a.state == 'noshow' ? 'absent' : 'terminé' }}</span>{% else %}<span>RDV à <b>{{ a.time }}</b>{% if a.durationLabel starts with '+' %} · <b style="color:var(--garance)">retard {{ a.durationLabel }}</b>{% elseif a.durationLabel %} · {{ a.durationLabel }}{% endif %}</span>{% endif %}{% endset %}
+        {% set sec %}{% if a.isWalkIn %}<a href="{{ path('clinic_admission_queue') }}">Voir dans le flux</a>{% else %}<a href="{{ path('clinic_scheduling_agenda') }}">Voir dans l'agenda</a>{% endif %}{% endset %}
+        {% set pri %}
+          {%- if a.isDone -%}
+            {%- if a.consultationId %}<a class="pri" href="{{ path('clinic_consultation_details', {id: a.consultationId}) }}">Voir le compte rendu</a>{% endif -%}
+          {%- elseif a.state == 'planned' -%}
+            <form method="post" action="{{ path('clinic_admission_checkin') }}" data-turbo="false">
+              <input type="hidden" name="_token" value="{{ csrf_token('waiting_room_action') }}">
+              <input type="hidden" name="appointmentId" value="{{ a.id }}">
+              {% if a.animalId %}<input type="hidden" name="animalId" value="{{ a.animalId }}">{% endif %}
+              {% if a.animalName %}<input type="hidden" name="animalName" value="{{ a.animalName }}">{% endif %}
+              <button type="submit" class="pri">Enregistrer l'arrivée</button>
+            </form>
+          {%- elseif a.consultationId -%}
+            <a class="pri" href="{{ path('clinic_consultation_details', {id: a.consultationId}) }}">Ouvrir la consultation</a>
+          {%- elseif a.isWalkIn and a.location == 'in_waiting_room' -%}
+            <form method="post" action="{{ path('clinic_consultation_start_from_admission', {admissionId: a.admissionId}) }}" data-turbo="false">
+              <input type="hidden" name="_token" value="{{ csrf_token('consultation_start') }}">
+              <button type="submit" class="pri">Démarrer la consultation</button>
+            </form>
+          {%- elseif not a.isWalkIn -%}
+            <a class="pri" href="{{ path('clinic_admission_queue') }}">Voir dans le flux</a>
+          {%- endif -%}
+        {% endset %}
+        {{ include('clinic/home/_quick_look.html.twig', {
+          id: 'qm-r-' ~ a.id, esp: a.emoji, urg: a.kind == 'urg', nom: a.animalName ?? a.title,
+          sous: _owner ? a.breed ~ ' · ' ~ _owner : a.breed, etat: etat, t: a.tag ?? 'Consultation', long: false,
+          facts: a.facts, motif: a.motif, sec: sec, pri: pri,
+          dossier: a.animalId ? path('clinic_animals_view', {id: a.animalId}) : null,
+        }) }}
+      {% endfor %}
+    {% endfor %}
+    {% for p in d.flux|slice(0, _flux_max) %}
+      {% set etat %}<span>Étape {{ p.currentStep + 1 }}/{{ p.steps|length }} · <b>{{ p.where }}</b> · {{ p.who }}</span>{% endset %}
+      {% set sec %}<a href="{{ path('clinic_admission_queue') }}">Voir dans le flux</a>{% endset %}
+      {% set pri %}
+        {%- if p.location == 'in_waiting_room' -%}
+          <form method="post" action="{{ path('clinic_admission_move', {admissionId: p.admissionId}) }}" data-turbo="false">
+            <input type="hidden" name="_token" value="{{ csrf_token('flux_action') }}">
+            <input type="hidden" name="to" value="in_consultation_room">
+            <input type="hidden" name="name" value="{{ p.name }}">
+            <button type="submit" class="pri">Placer en consultation</button>
+          </form>
+        {%- elseif p.location == 'at_reception' -%}
+          <a class="pri" href="{{ path('clinic_checkout', {admissionId: p.admissionId}) }}">Encaisser</a>
+        {%- elseif p.consultationId -%}
+          <a class="pri" href="{{ path('clinic_consultation_details', {id: p.consultationId}) }}">Ouvrir la consultation</a>
+        {%- endif -%}
+      {% endset %}
+      {{ include('clinic/home/_quick_look.html.twig', {
+        id: 'qm-f-' ~ p.admissionId, esp: p.emoji, urg: p.isEmergency, nom: p.name, sous: p.subtitle,
+        etat: etat, t: '⏱ ' ~ p.chrono, long: p.isLong, facts: p.facts, motif: p.motif, sec: sec, pri: pri,
+        dossier: p.animalId ? path('clinic_animals_view', {id: p.animalId}) : null,
+      }) }}
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

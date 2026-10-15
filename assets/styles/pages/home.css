@@ -1,9 +1,11 @@
 /* assets/styles/pages/home.css
    Clinic dashboard — ported as-is from
-   docs/frontend-theme/kiveto-theme/dashboard-v-topbar-calme_2.html:
-   KPI strip + quick actions, « Fil du jour » timeline
-   and its now-line, « Flux ambulatoire » cards, « À traiter » pile, calm-day
-   states. The shell (sidebar, topbar, palette, toast, tooltips) lives in
+   docs/frontend-theme/kiveto-theme/dashboard-v-topbar_9.html (and its -busy_3
+   / -calme_3 states): KPI strip + quick actions, « Fil du jour » timeline and
+   its now-line, « Flux ambulatoire » cards, « À traiter » pile, calm-day
+   states, the page fitted to the window (« dash-fit ») and the quick look
+   (« Aperçu rapide »). The mock-up's hospitalisation band is not ported:
+   hospitalisation is not handled. The shell (sidebar, topbar, palette, toast, tooltips) lives in
    shell/shell.css.
 
    Every rule is anchored on the page root `.dash`: the mock-up's generic
@@ -291,9 +293,78 @@
   .dash .grid{grid-template-columns:1fr;padding:16px}
 }
 
+/* ═════════ Tableau de bord sans défilement de page ═════════ */
+.dash{min-height:0;overflow:hidden}
+.dash .kpi-strip{flex:none}
+.dash .grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch;padding:16px 24px 18px}
+.dash .col{min-height:0}
+.dash .col-head{flex:none}
+.dash .timeline{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#d5dde7 transparent}
+.dash .flux{flex:1;min-height:0;overflow-y:auto;padding:2px;margin:-2px;scrollbar-width:thin;scrollbar-color:#d5dde7 transparent}
+.dash .pile{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#d5dde7 transparent}
+.dash .tk-compose{flex:none}
+/* Plus de liseré coloré à gauche : l'état se lit dans le contenu */
+.dash .ambu.urg{border-left:1px solid #fecaca;border-color:#fecaca;background:#fffafa}
+.dash .ambu.urg:hover{border-color:#fca5a5}
+/* Plafonds : le reste se voit sur la page dédiée */
+.dash .flux-plus{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--trait);border-radius:var(--r-lg);font-size:.8rem;font-weight:600;color:var(--pin);transition:border-color .15s}
+.dash .flux-plus:hover{border-color:rgba(67,56,202,.4)}
+.dash .timeline{overflow-x:hidden}
+.dash .slot{grid-template-columns:62px minmax(0,1fr)}
+.dash .slot .body{min-width:0}
+.dash .rdv .txt{flex:1}
+.dash .rdv .tag{margin-left:auto}
+.qm{width:min(500px,94vw)}
+.qm-f a,.qm-f button{white-space:nowrap}
+/* Fil du jour : uniquement ce qui reste à faire */
+.dash .tl-faits{display:flex;align-items:center;gap:8px;margin:6px 12px 4px;padding:7px 11px;border-radius:9px;background:var(--brume);font-size:.76rem;color:var(--encre-60)}
+.dash .tl-faits b{color:var(--encre);font-weight:600}
+.dash .tl-faits{width:calc(100% - 24px);text-align:left;cursor:pointer;border:none;font-family:inherit;font-size:.76rem}
+.dash .tl-faits .ok{color:#15803d;font-weight:700}
+.dash .tl-faits .tog{margin-left:auto;color:var(--pin);font-weight:600}
+.dash .tl-faits:hover .tog{text-decoration:underline}
+.dash .slot.tl-passe{display:none}
+.dash .timeline.passes-on .slot.tl-passe{display:grid}
+.dash .badge-urg{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.58rem;padding:1px 6px}
+.qm-h b > .badge-urg{display:inline-block;margin:0;font-family:var(--font-body);font-size:.6rem;color:#b91c1c}
+/* The quick look opens outside .dash: its badge takes the card badge's look. */
+.qm-h .badge-urg{font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:6px;flex:none;background:#fef2f2;border:1px solid #fecaca;padding:1px 6px}
+.dash .rdv .tag{background:var(--carte)!important;border:1px solid currentColor;font-size:.6rem;padding:1px 6px}
+.dash .rdv.urg .tag{color:#b91c1c!important}
+.dash .rdv.chir .tag{color:var(--labo)!important}
+/* Aperçu rapide */
+.qm-veil{position:fixed;inset:0;z-index:150;background:rgba(15,23,42,.32);display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .18s}
+.qm-veil.on{opacity:1;pointer-events:auto}
+.qm{width:min(460px,94vw);background:var(--carte);border-radius:14px;box-shadow:0 24px 70px rgba(15,23,42,.28);transform:translateY(8px) scale(.98);transition:transform .2s cubic-bezier(.2,.8,.2,1);overflow:hidden}
+.qm-veil.on .qm{transform:none}
+.qm-h{display:flex;align-items:center;gap:12px;padding:16px 18px 12px}
+.qm-h .esp{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:22px;background:var(--celadon);flex:none}
+.qm-h .esp.urg{background:var(--garance-pale)}
+.qm-h b{display:flex;align-items:center;gap:7px;font-family:var(--font-display);font-size:1.05rem;font-weight:600}
+.qm-h span{display:block;font-size:.76rem;color:var(--encre-60);margin-top:2px}
+.qm-h .x{margin-left:auto;align-self:flex-start;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--encre-60)}
+.qm-h .x:hover{background:var(--brume)}
+.qm-b{padding:4px 18px 14px;display:flex;flex-direction:column;gap:12px}
+.qm-etat{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--brume);font-size:.8rem}
+.qm-etat b{color:var(--pin-fonce)}
+.qm-etat .t{margin-left:auto;font-family:var(--font-data);font-size:.74rem;color:var(--encre-60)}
+.qm-etat .t.long{color:var(--garance);font-weight:600}
+.qm-dl{display:grid;grid-template-columns:104px minmax(0,1fr);gap:7px 12px;font-size:.8rem;line-height:1.45}
+.qm-dl dt{color:var(--encre-60);font-size:.75rem;padding-top:1px}
+.qm-dl a{color:var(--pin);font-weight:600;text-decoration:none}
+.qm-vig{display:flex;gap:5px;flex-wrap:wrap}
+.qm-vig span{font-size:.7rem;font-weight:700;border-radius:999px;padding:2px 9px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.qm-vig span.a{background:#fffbeb;color:#92400e;border-color:#fde68a}
+.qm-f{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--trait);background:#fbfcfe}
+.qm-f .sp{flex:1}
+.qm-f a,.qm-f button{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid var(--trait);background:var(--carte);font-size:.8rem;font-weight:600;color:var(--encre);text-decoration:none}
+.qm-f .pri{background:var(--pin);border-color:var(--pin);color:#fff}
+.qm-f a:hover,.qm-f button:hover{filter:brightness(.97)}
+
 /* ═════════ Ajouts propres à l'intégration ═════════ */
 /* Links carry the mock-up's buttons where it navigated with onclick. */
-.dash a.qa2-btn,.dash a.mini-btn,.dash a.ambu,.dash a.go,.dash a.aside{text-decoration:none;color:inherit}
+.dash a.qa2-btn,.dash a.mini-btn,.dash a.go,.dash a.aside{text-decoration:none;color:inherit}
+.dash a.flux-plus{text-decoration:none}
 .dash a.mini-btn{display:inline-block;text-align:center}
 /* The check-in form must not break the hover actions' flex row. */
 .dash .rdv .acts form{display:contents}
@@ -303,7 +374,9 @@
 .dash .tk-compose:has(input:disabled){cursor:not-allowed}
 .dash .tk-compose input:disabled{cursor:not-allowed;background:transparent}
 /* « Pour moi » hides the tasks meant for someone else. */
-.dash .tk[hidden],.dash .tk-grp[hidden]{display:none}
+.dash .tk[hidden],.dash .tk-grp[hidden],.dash .pile[hidden]{display:none}
+/* The quick look's actions that post (check-in, move, start) are forms. */
+.qm-f form{display:contents}
 /* The now-line waits for the script to place it. */
 .dash .now:not([style*="top"]){visibility:hidden}
 /* The consultation history's legacy `.timeline` (layered) would otherwise
@@ -312,3 +385,10 @@
 /* A long patient line ellipsises inside its card instead of pushing the
    card past the timeline (the grid track would otherwise grow to fit it). */
 .dash .slot .body{min-width:0}
+/* Below the three-column width the columns stack: the page scrolls again
+   (the mock-up's fitted grid has a single row and would cut « À traiter »). */
+@media (max-width:1180px){
+  .dash{overflow-y:auto}
+  .dash .grid{flex:none;grid-template-rows:none;align-items:start}
+  .dash .timeline,.dash .flux,.dash .pile{flex:none;overflow:visible}
+}
