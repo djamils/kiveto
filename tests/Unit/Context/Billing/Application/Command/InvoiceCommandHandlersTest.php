@@ -22,6 +22,7 @@ use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Domain\Exception\InvalidDiscountException;
+use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
@@ -35,6 +36,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payer;
+use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -383,6 +385,34 @@ final class InvoiceCommandHandlersTest extends TestCase
         self::assertSame([], $invoice->payments());
     }
 
+    public function testAnUnidentifiedPatientIsNotCashed(): void
+    {
+        $invoice = Invoice::draft(
+            id: InvoiceId::fromString(self::INVOICE_ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            admissionId: AdmissionId::fromString(self::ADMISSION_ID),
+            payer: Payer::anonymous(),
+            currency: CurrencyCode::fromString('EUR'),
+            now: $this->now(),
+        );
+        $invoice->addLine($this->line(), $this->now());
+
+        $this->invoices->method('get')->willReturn($invoice);
+        $this->invoices->expects(self::never())->method('save');
+
+        $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
+        $numbers->method('next')->willReturn(InvoiceNumber::of(2026, 12));
+
+        $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
+        $admissions->expects(self::never())->method('closeAfterCheckout');
+
+        $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
+
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $this->createMock(UuidGeneratorInterface::class), $this->clock))(
+            new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
+        );
+    }
+
     public function testAnInvoiceWithoutAVisitClosesNothing(): void
     {
         $invoice = Invoice::draft(
@@ -420,7 +450,7 @@ final class InvoiceCommandHandlersTest extends TestCase
             id: InvoiceId::fromString(self::INVOICE_ID),
             clinicId: ClinicId::fromString(self::CLINIC_ID),
             admissionId: AdmissionId::fromString(self::ADMISSION_ID),
-            payer: Payer::anonymous(),
+            payer: Payer::create(PayerId::fromString(self::NEW_ID), 'Sophie Dupont'),
             currency: CurrencyCode::fromString('EUR'),
             now: $this->now(),
         );

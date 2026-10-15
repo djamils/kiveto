@@ -13,7 +13,8 @@ namespace App\Presentation\Clinic\ViewModel\Flux;
 final readonly class FluxPatient
 {
     /**
-     * @param list<string> $alerts medical alerts of the animal (« vigilances »)
+     * @param list<string> $alerts       medical alerts of the animal (« vigilances »)
+     * @param list<string> $arrivalChips what the desk noted at arrival (« ⚖ 4,2 kg », « 📝 à jeun · … »)
      */
     public function __construct(
         public string $key,
@@ -44,6 +45,15 @@ final readonly class FluxPatient
         public array $alerts,
         public ?string $amountLabel,
         public ?string $slotLabel,
+        public array $arrivalChips = [],
+        public ?FluxIntake $intake = null,
+        public ?string $ownerId = null,
+        // The arrival window of a booking: last weighing, surgery (fasting),
+        // what the owner still owes and the invoice to settle it.
+        public ?string $lastWeight = null,
+        public bool $isSurgical = false,
+        public ?string $balanceLabel = null,
+        public ?string $settleInvoiceId = null,
     ) {
     }
 }

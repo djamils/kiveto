@@ -17,7 +17,7 @@ final readonly class FluxBoardView
      * @param list<FluxPatient>                                                        $standard
      * @param list<FluxPatient>                                                        $inCharge
      * @param list<FluxPatient>                                                        $checkout
-     * @param list<FluxDeparture>                                                      $departed
+     * @param list<FluxPassage>                                                        $passages             seen and gone today and no-shows, by booking time
      * @param array<string, array{appointmentId: string, time: string, motif: string}> $appointmentsByAnimal
      */
     public function __construct(
@@ -32,12 +32,26 @@ final readonly class FluxBoardView
         public array $standard,
         public array $inCharge,
         public array $checkout,
-        public array $departed,
+        public array $passages,
+        public int $finishedCount,
+        public int $noShowCount,
         public int $onSiteCount,
         public int $averageWaitMinutes,
         public int $freePractitioners,
         public array $appointmentsByAnimal,
     ) {
+    }
+
+    /** The « Pris en charge » column splits into sections once an emergency is in it. */
+    public function hasUrgentInCharge(): bool
+    {
+        foreach ($this->inCharge as $patient) {
+            if ($patient->isEmergency) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function waitingCount(): int

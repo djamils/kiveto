@@ -53,6 +53,7 @@ final readonly class OpenEmergencyAdmissionHandler
             observedColor: $command->observedColor,
             physicalDescription: $command->physicalDescription,
             triageNotes: $command->triageNotes,
+            scannedMicrochip: $command->scannedMicrochip,
         );
 
         return $admissionId->value();

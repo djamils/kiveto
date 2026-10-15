@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Admission;
 use App\Context\Admission\Domain\Admission;
 use App\Context\Admission\Domain\ValueObject\AdmissionId;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
+use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Domain\ValueObject\ClosureReason;
 use App\Context\Admission\Domain\ValueObject\IntakeChannel;
@@ -107,11 +108,35 @@ final class AdmissionMapperTest extends TestCase
         self::assertNull($recoveredPresenter->phone());
     }
 
+    public function testMapperSymmetryWithArrivalCheckInAndScannedChip(): void
+    {
+        $checkIn  = ArrivalCheckIn::record(true, false, true, false, 4100, 'à jeun depuis hier');
+        $original = $this->makeAdmission(arrivalCheckIn: $checkIn, scannedMicrochip: '250268500112847');
+
+        $entity = $this->mapper->toEntity($original);
+        self::assertSame($checkIn->toArray(), $entity->getArrivalCheckIn());
+        self::assertSame('250268500112847', $entity->getScannedMicrochip());
+
+        $reconstituted = $this->mapper->toDomain($entity);
+        self::assertSame($checkIn->toArray(), $reconstituted->arrivalCheckIn()?->toArray());
+        self::assertSame('250268500112847', $reconstituted->scannedMicrochip());
+    }
+
+    public function testWithoutCheckInTheColumnStaysEmpty(): void
+    {
+        $entity = $this->mapper->toEntity($this->makeAdmission());
+
+        self::assertNull($entity->getArrivalCheckIn());
+        self::assertNull($this->mapper->toDomain($entity)->arrivalCheckIn());
+    }
+
     private function makeAdmission(
         AdmissionStatus $status = AdmissionStatus::Active,
         ?ClosureReason $closureReason = null,
         ?Presenter $presenter = null,
         ?string $appointmentId = null,
+        ?ArrivalCheckIn $arrivalCheckIn = null,
+        ?string $scannedMicrochip = null,
     ): Admission {
         $now = new \DateTimeImmutable('2024-06-01T10:00:00+00:00');
 
@@ -134,6 +159,8 @@ final class AdmissionMapperTest extends TestCase
             closedAt: AdmissionStatus::Closed === $status ? $now : null,
             createdAt: $now,
             updatedAt: $now,
+            arrivalCheckIn: $arrivalCheckIn,
+            scannedMicrochip: $scannedMicrochip,
         );
     }
 }

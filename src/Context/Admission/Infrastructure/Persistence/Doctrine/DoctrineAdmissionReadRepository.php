@@ -6,8 +6,10 @@ namespace App\Context\Admission\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Admission\Application\Port\AdmissionContextDto;
 use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
+use App\Context\Admission\Application\Port\ArrivalCheckInView;
 use App\Context\Admission\Application\Port\WaitingRoomItemDto;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
+use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\LocationStatusValue;
 use App\Context\Admission\Infrastructure\Persistence\Doctrine\Entity\AdmissionEntity;
 use Doctrine\DBAL\ArrayParameterType;
@@ -179,7 +181,7 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
 
         $labelRows = $conn->fetchAllAssociative(
             'SELECT BIN_TO_UUID(p.id) AS patient_id, p.display_label_value'
-                . ', BIN_TO_UUID(p.animal_link_id) AS animal_link_id'
+                . ', BIN_TO_UUID(p.animal_link_id) AS animal_link_id, p.observed_species'
                 . ' FROM patient__patients p WHERE p.id IN (?)',
             [$patientBinIds],
             [ArrayParameterType::STRING],
@@ -189,12 +191,18 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $labels = [];
         /** @var array<string, string|null> $animalIds */
         $animalIds = [];
+        /** @var array<string, string> $observedSpecies */
+        $observedSpecies = [];
 
         foreach ($labelRows as $row) {
             \assert(\is_string($row['patient_id']));
             \assert(\is_string($row['display_label_value']));
             $labels[$row['patient_id']]    = $row['display_label_value'];
             $animalIds[$row['patient_id']] = \is_string($row['animal_link_id']) ? $row['animal_link_id'] : null;
+
+            if (\is_string($row['observed_species'])) {
+                $observedSpecies[$row['patient_id']] = $row['observed_species'];
+            }
         }
 
         // Fetch practitioner label from linked appointment (display-only enrichment)
@@ -208,7 +216,8 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $practitionerRows = $conn->fetchAllAssociative(
             'SELECT BIN_TO_UUID(sa.linked_admission_id) AS admission_id, sp.display_name AS vet_name,
                     sa.reason AS appt_reason, sa.notes AS appt_notes,
-                    BIN_TO_UUID(sa.practitioner_user_id) AS practitioner_user_id
+                    BIN_TO_UUID(sa.practitioner_user_id) AS practitioner_user_id,
+                    BIN_TO_UUID(sa.id) AS appointment_id, sa.starts_at_utc
              FROM scheduling__appointments sa
              LEFT JOIN clinic__clinic_memberships cm ON cm.user_id = sa.practitioner_user_id AND cm.clinic_id = ?
              LEFT JOIN clinic__staff_profiles sp ON sp.membership_id = cm.id
@@ -225,8 +234,15 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
         $contextNotes = [];
         /** @var array<string, string> $practitionerUserIds */
         $practitionerUserIds = [];
+        /** @var array<string, array{string, string}> $appointments id and start (UTC) */
+        $appointments = [];
         foreach ($practitionerRows as $pr) {
             \assert(\is_string($pr['admission_id']));
+            \assert(\is_string($pr['appointment_id']) && \is_string($pr['starts_at_utc']));
+            $appointments[$pr['admission_id']] = [
+                $pr['appointment_id'],
+                new \DateTimeImmutable($pr['starts_at_utc'], new \DateTimeZone('UTC'))->format(\DateTimeInterface::ATOM),
+            ];
             if (\is_string($pr['vet_name'])) {
                 $practitionerLabels[$pr['admission_id']] = $pr['vet_name'];
             }
@@ -265,9 +281,37 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
                 closedAt: $entity->getClosedAt()?->format(\DateTimeInterface::ATOM),
                 closureReason: $entity->getClosureReason()?->value,
                 locationSince: $entity->getLocationStatusEnteredAt()->format(\DateTimeInterface::ATOM),
+                presenterName: $entity->getPresenterName(),
+                presenterPhone: $entity->getPresenterPhone(),
+                presenterRole: $entity->getPresenterRole()?->value,
+                arrivalCheckIn: $this->arrivalCheckIn($entity),
+                scannedMicrochip: $entity->getScannedMicrochip(),
+                appointmentId: $appointments[$admissionId][0] ?? null,
+                appointmentStartsAt: $appointments[$admissionId][1] ?? null,
+                observedSpecies: $observedSpecies[$patientUuid] ?? null,
             );
         }
 
         return $items;
+    }
+
+    private function arrivalCheckIn(AdmissionEntity $entity): ?ArrivalCheckInView
+    {
+        $data = $entity->getArrivalCheckIn();
+
+        if (null === $data) {
+            return null;
+        }
+
+        $checkIn = ArrivalCheckIn::fromArray($data);
+
+        return new ArrivalCheckInView(
+            fasting: $checkIn->fasting,
+            newSymptom: $checkIn->newSymptom,
+            documentsBrought: $checkIn->documentsBrought,
+            ongoingTreatment: $checkIn->ongoingTreatment,
+            weightGrams: $checkIn->weightGrams,
+            note: $checkIn->note,
+        );
     }
 }

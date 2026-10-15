@@ -115,6 +115,35 @@ final class EmergencyAdmissionServiceTest extends TestCase
         $this->open(self::ANIMAL_ID, 'Simba');
     }
 
+    public function testTheChipReadAtTheDeskStaysWithAnUnidentifiedPatientOnly(): void
+    {
+        $this->patientCreation->method('createUnidentifiedPatient')->willReturn(self::PATIENT_ID);
+        $this->patients->method('getActivePatientIdForAnimal')->willReturn(null);
+        $this->patientCreation->method('createIdentifiedPatient')->willReturn(self::PATIENT_ID);
+
+        $saved = [];
+        $this->admissions->method('save')->willReturnCallback(static function (Admission $a) use (&$saved): void {
+            $saved[] = $a->scannedMicrochip();
+        });
+
+        foreach ([null, self::ANIMAL_ID] as $animalId) {
+            $this->service->openEmergencyAdmission(
+                clinicId: ClinicId::fromString(self::CLINIC_ID),
+                channel: IntakeChannel::EmergencyByThirdParty,
+                triage: TriageLevel::Emergency,
+                presenter: null,
+                knownAnimalId: $animalId,
+                animalName: null === $animalId ? null : 'Ulysse',
+                provisionalLabel: null,
+                observedSpecies: 'Chat',
+                observedColor: null,
+                scannedMicrochip: '250268500112847',
+            );
+        }
+
+        self::assertSame(['250268500112847', null], $saved);
+    }
+
     public function testAnUnidentifiedPatientGetsAProvisionalLabelAndRaisesTheObligations(): void
     {
         $this->patientCreation->expects(self::once())

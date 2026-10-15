@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Dataset;
 
+use App\Fixtures\Context\Admission\Story\FluxDayStory;
 use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Billing\Story\BillingDemoStory;
 use App\Fixtures\Context\Billing\Story\BillingRegisterStory;
@@ -100,6 +101,10 @@ final class ClinicDataset extends Story
         // Invoice the visits that are over (needs their consultations)
         BillingDemoStory::load();
         DirectoryBalancesStory::load();
+
+        // The flow board's day: passages paid this morning, a no-show, a late
+        // booking, an arrival check-in, a booking with a balance due.
+        FluxDayStory::load();
 
         // The suppliers and what they sell, then the stock: both are built on
         // the articles the catalogue tracks, the stock's receipts on the

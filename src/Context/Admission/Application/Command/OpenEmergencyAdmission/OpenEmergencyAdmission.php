@@ -22,6 +22,8 @@ final readonly class OpenEmergencyAdmission implements CommandInterface
         public ?string $presenterRole = null,
         public ?string $physicalDescription = null,
         public ?string $triageNotes = null,
+        // A chip read at the desk that matched no file of the clinic.
+        public ?string $scannedMicrochip = null,
     ) {
     }
 }

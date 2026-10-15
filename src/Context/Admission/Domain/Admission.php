@@ -15,6 +15,7 @@ use App\Context\Admission\Domain\Exception\AdmissionReopenNotAllowedException;
 use App\Context\Admission\Domain\Exception\TriageDeescalationNotAllowedException;
 use App\Context\Admission\Domain\ValueObject\AdmissionId;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
+use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\ClinicId;
 use App\Context\Admission\Domain\ValueObject\ClosureReason;
 use App\Context\Admission\Domain\ValueObject\IntakeChannel;
@@ -45,9 +46,15 @@ final class Admission extends AggregateRoot
         private ?\DateTimeImmutable $closedAt,
         private readonly \DateTimeImmutable $createdAt,
         private \DateTimeImmutable $updatedAt,
+        private ?ArrivalCheckIn $arrivalCheckIn = null,
+        private readonly ?string $scannedMicrochip = null,
     ) {
     }
 
+    /**
+     * @param string|null $scannedMicrochip a chip read at the desk that no file of the clinic carries yet:
+     *                                      kept so the patient can be identified with it later
+     */
     public static function open(
         AdmissionId $id,
         ClinicId $clinicId,
@@ -60,7 +67,12 @@ final class Admission extends AggregateRoot
         ?string $appointmentId = null,
         ?string $physicalDescription = null,
         ?string $triageNotes = null,
+        ?string $scannedMicrochip = null,
     ): self {
+        if (null !== $scannedMicrochip && 1 !== preg_match('/^\d{15}$/', $scannedMicrochip)) {
+            throw new \InvalidArgumentException('Un numéro de puce compte 15 chiffres.');
+        }
+
         $locationStatus = new LocationStatus(LocationStatusValue::InWaitingRoom, $now);
 
         $admission = new self(
@@ -82,6 +94,7 @@ final class Admission extends AggregateRoot
             closedAt: null,
             createdAt: $now,
             updatedAt: $now,
+            scannedMicrochip: $scannedMicrochip,
         );
 
         $admission->recordDomainEvent(new AdmissionOpened(
@@ -161,6 +174,17 @@ final class Admission extends AggregateRoot
         $this->updatedAt   = $now;
     }
 
+    /** What the desk noted when the patient arrived; a new check-in replaces the previous one. */
+    public function recordArrivalCheckIn(ArrivalCheckIn $checkIn, \DateTimeImmutable $now): void
+    {
+        if (AdmissionStatus::Closed === $this->status) {
+            throw new AdmissionAlreadyClosedException($this->id->value());
+        }
+
+        $this->arrivalCheckIn = $checkIn;
+        $this->updatedAt      = $now;
+    }
+
     public function updatePresenter(Presenter $presenter, \DateTimeImmutable $now): void
     {
         $this->presenter = $presenter;
@@ -228,6 +252,8 @@ final class Admission extends AggregateRoot
         ?\DateTimeImmutable $closedAt,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
+        ?ArrivalCheckIn $arrivalCheckIn = null,
+        ?string $scannedMicrochip = null,
     ): self {
         return new self(
             id: $id,
@@ -248,6 +274,8 @@ final class Admission extends AggregateRoot
             closedAt: $closedAt,
             createdAt: $createdAt,
             updatedAt: $updatedAt,
+            arrivalCheckIn: $arrivalCheckIn,
+            scannedMicrochip: $scannedMicrochip,
         );
     }
 
@@ -314,6 +342,16 @@ final class Admission extends AggregateRoot
     public function triageNotes(): ?string
     {
         return $this->triageNotes;
+    }
+
+    public function arrivalCheckIn(): ?ArrivalCheckIn
+    {
+        return $this->arrivalCheckIn;
+    }
+
+    public function scannedMicrochip(): ?string
+    {
+        return $this->scannedMicrochip;
     }
 
     public function version(): int

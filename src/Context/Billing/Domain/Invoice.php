@@ -17,6 +17,7 @@ use App\Context\Billing\Domain\Exception\InvoiceHasNoLinesException;
 use App\Context\Billing\Domain\Exception\InvoiceNotCreditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
+use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
@@ -212,6 +213,12 @@ final class Invoice extends AggregateRoot
 
         if ([] === $this->lines) {
             throw new InvoiceHasNoLinesException($this->id->toString());
+        }
+
+        // The invoice of a visit is addressed to the animal's owner: nobody
+        // cashes a patient whose identity is still unknown.
+        if (null !== $this->admissionId && null === $this->payer->clientId()) {
+            throw new InvoiceRequiresIdentifiedPayerException($this->id->toString());
         }
 
         $this->number    = $number;

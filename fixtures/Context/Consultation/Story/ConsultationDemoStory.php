@@ -192,23 +192,28 @@ final class ConsultationDemoStory extends Story
         $pixel = $this->createPatient(self::PARIS, 'Linh', 'Nguyen', '+33766554433', 'Pixel', 'nac', 'Bélier nain', '2024-01-10');
         $bisou = $this->createPatient(self::PARIS, 'Emma', 'Roux', '+33644556677', 'Bisou', 'cat', 'Européen', '2023-06-30');
 
+        // A cat hit by a car, brought in by a passer-by who left a number; its
+        // chip is unknown to the clinic. Taken in charge before anyone could
+        // identify it: « À identifier » on its card, Urgences in « Pris en charge ».
         $unknown = $this->commandBus->dispatch(new OpenEmergencyAdmission(
             clinicId: self::PARIS,
-            intakeChannel: 'emergency',
+            intakeChannel: 'emergency_by_third_party',
             triageLevel: 'emergency',
-            provisionalLabel: 'Urgence ' . new \DateTimeImmutable('-8 minutes', new \DateTimeZone('Europe/Paris'))->format('H:i'),
+            provisionalLabel: 'Urgence ' . new \DateTimeImmutable('-14 minutes', new \DateTimeZone('Europe/Paris'))->format('H:i'),
             knownAnimalId: null,
             animalName: null,
-            observedSpecies: 'Chien',
+            observedSpecies: 'Chat',
             observedColor: null,
-            presenterName: null,
-            presenterPhone: null,
-            presenterRole: null,
+            presenterName: 'M. Garcia',
+            presenterPhone: '+33645127790',
+            presenterRole: 'third_party',
             physicalDescription: null,
-            triageNotes: 'Trauma / AVP — renversé devant la clinique.',
+            triageNotes: 'Trauma / AVP · renversé devant la clinique',
+            scannedMicrochip: '250268500112847',
         ));
         \assert(\is_string($unknown));
-        $this->backdateAdmission($unknown, 8, 8);
+        $this->startConsultation($unknown, $vetUserId);
+        $this->backdateAdmission($unknown, 14, 9);
 
         $simbaVisit = $this->openAdmission(self::PARIS, $simba, 'Simba', 'standard', 'Boiterie antérieure gauche.');
         $this->backdateAdmission($simbaVisit, 6, 6);

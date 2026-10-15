@@ -2,12 +2,16 @@
  # Kiveto — templates/clinic/admission/queue.html.twig
  # ─────────────────────────────────────────────────────
  # Ambulatory flow board (« Flux ambulatoire »), ported from
- # docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_6.html:
- # live clock and day figures, the banner of the emergencies nobody has taken
- # yet, four columns — Planifié (today's bookings by time), Salle d'attente
- # (emergencies, priority, normal queue), Pris en charge, Sortie — the « partis
- # aujourd'hui » bar, the arrival and emergency modals, the card action menu
- # and the patient peek. An empty column renders its dashed placeholder.
+ # docs/frontend-theme/kiveto-theme/flux-ambulatoire-v-topbar-busy_8.html
+ # (normal: flux-ambulatoire-v-topbar_3, calm: -calme_4): live clock and day
+ # figures, the banner of the emergencies nobody has taken yet, four columns —
+ # Planifié (the fold of today's passages and no-shows, then the bookings by
+ # time, late ones flagged), Salle d'attente (emergencies, priority, normal
+ # queue), Pris en charge (emergencies apart once one is there), Sortie — the
+ # arrival window of a booking, the arrival, emergency and identification
+ # modals, the card action menu and the patient peek. An unidentified patient
+ # carries « À identifier » everywhere. An empty column renders its dashed
+ # placeholder.
  #
  # Variables from controller:
  #   board  App\Presentation\Clinic\ViewModel\Flux\FluxBoardView
@@ -27,6 +31,9 @@
   eclair:  '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   croix:   '<path d="M18 6 6 18M6 6l12 12"/>',
   retour:  '<path d="M19 12H5m6-6-6 6 6 6"/>',
+  ident:   '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  scan:    '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  liste:   '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
 } %}
 
 {% macro idBloc(p) %}
@@ -39,9 +46,16 @@
 
 {% macro menuBtn(p) %}<button class="pmenu" data-key="{{ p.key }}" data-tip="Plus d'actions" aria-label="Plus d'actions" aria-haspopup="menu">⋯</button>{% endmacro %}
 
+{# « À identifier » leads the chips of an unknown patient #}
+{% macro aid(p, svg) %}{% if p.isUnidentified %}<button type="button" class="puce aid" data-aid="{{ p.key }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">{{ svg.ident|raw }}</svg>À identifier</button>{% endif %}{% endmacro %}
+
+{# What the desk noted at arrival: « ⚖ 4,2 kg », « 📝 à jeun · … » #}
+{% macro chips(p) %}{% for c in p.arrivalChips %}<span class="puce {{ c starts with '⚖' ? 'kg' : 'note' }}">{{ c }}</span>{% endfor %}{% endmacro %}
+
 {# One card, drawn like the mock-up's carte(): one layout per column #}
-{% macro card(p, svg) %}
+{% macro card(p, svg, now) %}
   {% if p.column == 'planifie' %}
+    {% set _late = (now - p.sinceEpoch) // 60 %}
     <article class="pat pat-mini" data-key="{{ p.key }}">
       <div class="top">
         <div class="esp">{{ p.emoji }}</div>
@@ -53,30 +67,32 @@
       </div>
       <div class="pm-foot">
         <span class="pm-sub">{{ p.motif }}{% if p.ownerShort %} · {{ p.ownerShort }}{% endif %}</span>
+        <span class="puce retard" data-rdv="{{ p.sinceEpoch }}"{% if _late < 1 %} hidden{% endif %}>En retard · {{ max(_late, 1) }} min</span>
         {% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}
       </div>
     </article>
   {% elseif p.column == 'charge' %}
-    <article class="pat" data-key="{{ p.key }}">
+    <article class="pat{{ p.isEmergency ? ' urg' }}{{ p.isUnidentified ? ' inconnu' }}" data-key="{{ p.key }}">
       <div class="top">{{ _self.idBloc(p) }}{{ _self.menuBtn(p) }}</div>
       <div class="infos">
-        <span class="puce motif">{{ p.motif }}</span>
+        {{ _self.aid(p, svg) }}<span class="puce motif">{{ p.motif }}</span>
         {% if p.location == 'in_surgery' %}<span class="puce">Au bloc</span>{% endif %}
-        <span class="qui">{{ p.practitioner ?? 'Sans praticien' }}</span>
+        <span class="qui">{{ p.practitioner ?? 'Sans praticien' }}</span>{{ _self.chips(p) }}
       </div>
     </article>
   {% elseif p.column == 'attente' %}
-    <article class="pat{{ p.isEmergency ? ' urg' }}" data-key="{{ p.key }}">
+    <article class="pat{{ p.isEmergency ? ' urg' }}{{ p.isUnidentified ? ' inconnu' }}" data-key="{{ p.key }}">
       <div class="top">{{ _self.idBloc(p) }}<span class="chrono{{ p.isLong ? ' long' }}" data-dep="{{ p.sinceEpoch }}">{{ p.waitLabel }}</span>
         <button class="av-ic avancer" data-key="{{ p.key }}" data-tip="Prendre en charge" aria-label="Prendre en charge — {{ p.name }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">{{ svg.fleche|raw }}</svg>
         </button>
       {{ _self.menuBtn(p) }}</div>
-      <div class="infos"><span class="puce motif">{{ p.motif }}</span>{% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}</div>
+      <div class="infos">{{ _self.aid(p, svg) }}<span class="puce motif">{{ p.motif }}</span>{% if p.practitioner %}<span class="qui">{{ p.practitioner }}</span>{% endif %}{{ _self.chips(p) }}</div>
     </article>
   {% else %}
-    <article class="pat" data-key="{{ p.key }}">
+    <article class="pat{{ p.isUnidentified ? ' inconnu' }}" data-key="{{ p.key }}">
       <div class="top">{{ _self.idBloc(p) }}{{ _self.menuBtn(p) }}</div>
+      {% if p.isUnidentified or p.arrivalChips|length %}<div class="infos">{{ _self.aid(p, svg) }}{{ _self.chips(p) }}</div>{% endif %}
       <div class="bas">
         <span class="qui">{{ p.practitioner ?? '' }}</span>
         <button class="avancer encaisser" data-key="{{ p.key }}">
@@ -88,10 +104,10 @@
   {% endif %}
 {% endmacro %}
 
-{% macro section(cls, label, icon, items, svg) %}
+{% macro section(cls, label, icon, items, svg, now) %}
   {% if items|length %}
     <div class="ksec {{ cls }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">{{ icon|raw }}</svg>{{ label }}<span class="kn">{{ items|length }}</span></div>
-    {% for p in items %}{{ _self.card(p, svg) }}{% endfor %}
+    {% for p in items %}{{ _self.card(p, svg, now) }}{% endfor %}
   {% endif %}
 {% endmacro %}
 
@@ -132,6 +148,8 @@
     checkout:  path('clinic_checkout', { admissionId: '__ID__' }),
     consultation: path('clinic_consultation_details', { id: '__ID__' }),
     animal:    path('clinic_animals_view', { id: '__ID__' }),
+    chip:      path('clinic_admission_chip_lookup'),
+    agendaNew: path('clinic_scheduling_agenda', { new: 1 }),
     agenda:    path('clinic_scheduling_agenda', { view: 'day', date: _now|date('Y-m-d') }),
     cancelRdv: path('clinic_scheduling_appointment_cancel', { appointmentId: '__ID__' }),
   },
@@ -178,13 +196,24 @@
   <main class="board" id="board">
     {# ── Planifié ── #}
     <section class="kcol" aria-label="Planifié">
-      <div class="khead"><span class="pastille" style="background:var(--encre-35)"></span><div><h2>Planifié</h2><span class="kmeta">{{ b.plannedCount }} rendez-vous à venir</span></div></div>
+      {% set _done = b.finishedCount %}
+      <div class="khead"><span class="pastille" style="background:var(--encre-35)"></span><div><h2>Planifié</h2><span class="kmeta">{{ b.plannedCount }} rendez-vous à venir{% if _done %} · {{ _done }} passé{{ _done > 1 ? 's' }}{% endif %}</span></div></div>
       <div class="kliste">
+        {% if b.passages|length %}
+          {% set _nv = b.noShowCount %}
+          <button class="kpas" type="button" aria-expanded="false"><span class="ok">✓</span><b>{{ _done }} passage{{ _done > 1 ? 's' }} terminé{{ _done > 1 ? 's' }}</b>{% if _nv %} · {{ _nv }} non venu{{ _nv > 1 ? 's' }}{% endif %}<span class="tog">Afficher</span></button>
+          <div class="kpas-l">
+            {% for x in b.passages %}
+              <div class="kpas-it{{ x.isNoShow ? ' nv' }}"><time>{% if x.appointmentTime %}{{ x.appointmentTime }}{% else %}<span class="srdv">Sans<br>RDV</span>{% endif %}</time><span class="e">{{ x.emoji }}</span><div><b>{{ x.name }}</b><small>{{ x.detail }}</small></div>
+                <div class="r">{% if x.isNoShow %}Non venu<a href="{{ path('clinic_scheduling_agenda', { new: 1, patient: x.name }) }}">Reprogrammer</a>{% else %}Parti à {{ x.departureTime }}{% if x.amountLabel %} · {{ x.amountLabel }}{% endif %}{% if x.consultationId %}<a href="{{ path('clinic_consultation_details', { id: x.consultationId }) }}">Compte rendu</a>{% endif %}{% endif %}</div></div>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% for slot in b.planned %}
           <div class="pslot"><span class="ph">{{ slot.time }}</span><span class="pline"></span></div>
-          {% for p in slot.patients %}{{ _self.card(p, _svg) }}{% endfor %}
+          {% for p in slot.patients %}{{ _self.card(p, _svg, b.nowEpoch) }}{% endfor %}
         {% else %}
-          <div class="kvide">Aucun RDV planifié aujourd'hui</div>
+          <div class="kvide">{{ b.passages|length ? 'Plus aucun rendez-vous à venir pour l\'instant' : 'Aucun RDV planifié aujourd\'hui' }}</div>
         {% endfor %}
       </div>
     </section>
@@ -194,9 +223,9 @@
       <div class="khead"><span class="pastille" style="background:var(--ambre)"></span><div><h2>Salle d'attente</h2><span class="kmeta">{{ _waiting }} patient{{ _waiting > 1 ? 's' }}{% if _urg %} · <span class="urgm">{{ _urg }} urgence{{ _urg > 1 ? 's' }}</span>{% endif %}</span></div></div>
       <div class="kliste">
         {% if _waiting %}
-          {{ _self.section('urg', 'Urgences', _svg.alerte, b.urgent, _svg) }}
-          {{ _self.section('prio', 'Prioritaires', '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', b.priority, _svg) }}
-          {{ _self.section('std', 'File normale', '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', b.standard, _svg) }}
+          {{ _self.section('urg', 'Urgences', _svg.alerte, b.urgent, _svg, b.nowEpoch) }}
+          {{ _self.section('prio', 'Prioritaires', _svg.ident, b.priority, _svg, b.nowEpoch) }}
+          {{ _self.section('std', 'File normale', _svg.liste, b.standard, _svg, b.nowEpoch) }}
         {% else %}
           <div class="kvide">Personne en attente</div>
         {% endif %}
@@ -207,7 +236,13 @@
     <section class="kcol" aria-label="Pris en charge">
       <div class="khead"><span class="pastille" style="background:var(--pin)"></span><div><h2>Pris en charge</h2><span class="kmeta">{{ b.inCharge|length }} patient{{ b.inCharge|length > 1 ? 's' }}</span></div></div>
       <div class="kliste">
-        {% for p in b.inCharge %}{{ _self.card(p, _svg) }}{% else %}<div class="kvide">Personne ici pour le moment</div>{% endfor %}
+        {% if b.hasUrgentInCharge %}
+          {# Same sections as the waiting room: an emergency taken in charge stays apart #}
+          {{ _self.section('urg', 'Urgences', _svg.alerte, b.inCharge|filter(p => p.isEmergency), _svg, b.nowEpoch) }}
+          {{ _self.section('std', 'Consultations', _svg.liste, b.inCharge|filter(p => not p.isEmergency), _svg, b.nowEpoch) }}
+        {% else %}
+          {% for p in b.inCharge %}{{ _self.card(p, _svg, b.nowEpoch) }}{% else %}<div class="kvide">Personne ici pour le moment</div>{% endfor %}
+        {% endif %}
       </div>
     </section>
 
@@ -215,22 +250,10 @@
     <section class="kcol" aria-label="Sortie">
       <div class="khead"><span class="pastille" style="background:var(--vert)"></span><div><h2>Sortie</h2><span class="kmeta">{{ b.checkout|length }} à encaisser</span></div></div>
       <div class="kliste">
-        {% for p in b.checkout %}{{ _self.card(p, _svg) }}{% else %}<div class="kvide">Personne en sortie</div>{% endfor %}
+        {% for p in b.checkout %}{{ _self.card(p, _svg, b.nowEpoch) }}{% else %}<div class="kvide">Personne en sortie</div>{% endfor %}
       </div>
     </section>
   </main>
-
-  <div class="partis" id="partis">
-    {% set _n = b.departed|length %}
-    {% if _n %}
-      <b id="partisN">{{ _n }}</b> patient{{ _n > 1 ? 's' }} parti{{ _n > 1 ? 's' }} aujourd'hui
-      <span class="noms" id="partisNoms">{{ b.departed|map(d => d.name ~ ' (' ~ d.time ~ ')')|join(' · ') }}</span>
-    {% else %}
-      <b id="partisN">0</b> patient parti aujourd'hui
-      <span class="noms" id="partisNoms">Les départs du jour s'afficheront ici.</span>
-    {% endif %}
-    <a class="aside" href="{{ path('clinic_consultations') }}">Voir l'historique</a>
-  </div>
 
   {# ═══ Modale Enregistrer une arrivée ═══ #}
   <div class="mveil" id="ciVeil" role="dialog" aria-modal="true" aria-label="Enregistrer une arrivée">
@@ -275,9 +298,10 @@
         </div>
 
         <div class="frow" style="margin-top:13px;margin-bottom:11px">
-          <label class="flbl" for="ciMotif">Motif</label>
+          <label class="flbl" for="ciPrec">Motif</label>
           <div class="mchips" id="ciChips"></div>
-          <input class="finput" id="ciMotif" placeholder="Ou décrivez librement — optionnel">
+          <input type="hidden" id="ciMotif">
+          <label class="m-prec"><input class="finput" id="ciPrec" maxlength="80" autocomplete="off"><small>0/80</small></label>
         </div>
         <div class="frow" style="margin-bottom:0">
           <label class="flbl">Priorité</label>
@@ -311,23 +335,29 @@
           Placé immédiatement en tête de file — l'identification peut attendre, pas le patient.
         </div>
         <div class="frow">
-          <label class="flbl" for="urgMotif">Que se passe-t-il ? <span class="req">*</span></label>
+          <label class="flbl" for="urgPrec">Que se passe-t-il ? <span class="req">*</span></label>
           <div class="mchips" id="urgChips"></div>
-          <input class="finput" id="urgMotif" placeholder="Symptômes observés…">
+          <input type="hidden" id="urgMotif">
+          <label class="m-prec"><input class="finput" id="urgPrec" maxlength="80" autocomplete="off"><small>0/80</small></label>
         </div>
         <div class="frow" style="margin-bottom:0">
-          <label class="flbl" for="urgSearch">Patient — optionnel, régularisable après stabilisation</label>
+          <label class="flbl" for="urgSearch">Patient — facultatif, identifiable plus tard depuis la carte</label>
           <div id="urgIdent">
             <div class="ci-tagwrap">
               <div class="ci-taginput">
-                <input type="search" id="urgSearch" placeholder="Puce, nom animal, propriétaire…" autocomplete="off">
+                <input type="search" id="urgSearch" placeholder="Nom, propriétaire, téléphone…" autocomplete="off">
+                <button type="button" class="u-scan" id="uScan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ _svg.scan|raw }}</svg><span>Lire la puce</span></button>
               </div>
               <div class="ci-menu" id="urgMenu"></div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-top:9px">
-              <span style="font-size:.73rem;color:var(--encre-60);flex:none">Espèce si connue :</span>
+              <span style="font-size:.73rem;color:var(--encre-60);flex:none;width:86px">Espèce</span>
               <div class="dd up" id="ddUrgEspece" style="flex:1;max-width:220px"></div>
             </div>
+            <div class="u-par"><span>Amené par</span><div class="seg" id="uPar">
+              <button type="button" data-v="proprio" class="on">Propriétaire</button><button type="button" data-v="tiers">Un tiers</button><button type="button" data-v="secours">Secours</button></div></div>
+            <div class="u-tiers" id="uTiers" hidden><input class="finput" id="uDec" placeholder="Nom du déclarant" maxlength="40"><input class="finput id-tel" id="uDecTel" placeholder="06 00 00 00 00" inputmode="numeric"></div>
+            <div class="u-aide" id="uAide">Sans fiche, le patient entre comme « Inconnu » : la carte invite à l'identifier dès que possible.</div>
           </div>
           <div id="urgFiche"></div>
         </div>
@@ -365,32 +395,17 @@
     </div>
   </div>
 
-  {# ═══ Modale Identifier le patient (urgence admise sans identité) ═══ #}
-  <div class="mveil" id="idVeil" role="dialog" aria-modal="true" aria-label="Identifier le patient">
-    <div class="mbox">
-      <div class="mhead">
-        <b id="idTitre">Identifier le patient</b>
-        <button class="mclose" id="idClose" type="button" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button>
-      </div>
-      <div class="mbody">
-        <div class="frow" style="margin-bottom:0">
-          <label class="flbl" for="idSearch">Fiche de l'animal</label>
-          <div class="ci-tagwrap">
-            <div class="ci-taginput">
-              <input type="search" id="idSearch" placeholder="Puce, nom animal, propriétaire…" autocomplete="off">
-            </div>
-            <div class="ci-menu" id="idMenu"></div>
-          </div>
-          <div id="idFiche"><div class="ci-vide">Recherchez la fiche de l'animal pour rattacher cette admission à son dossier.</div></div>
-        </div>
-      </div>
-      <div class="mfoot">
-        <button class="btn" id="idAnnuler" type="button">Annuler</button>
-        <button class="btn primaire" id="idValider" type="button" disabled>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">{{ _svg.ok|raw }}</svg>
-          <span id="idValiderTxt">Lier au dossier</span>
-        </button>
-      </div>
+  {# ═══ Arrivée d'un RDV : accueil rapide avant la salle d'attente (rempli par le module) ═══ #}
+  <div class="mveil" id="veilA" role="dialog" aria-modal="true" aria-label="Arrivée d'un rendez-vous">
+    <div class="mbox" style="width:min(540px,94vw)" id="boxA"></div>
+  </div>
+
+  {# ═══ Identifier le patient : puce, fiche existante ou nouvelle fiche ═══ #}
+  <div class="mveil" id="veilI" role="dialog" aria-modal="true" aria-label="Identifier le patient">
+    <div class="mbox" style="width:min(580px,94vw)">
+      <div class="mhead"><b>Identifier le patient</b><button class="mclose" id="iClose" type="button" aria-label="Fermer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">{{ _svg.croix|raw }}</svg></button></div>
+      <div class="mbody" id="iBody"></div>
+      <div class="mfoot"><span class="ar-kbd">Les soins continuent pendant l'identification</span><button class="btn" id="iPlus" type="button">Plus tard</button><button class="btn primaire" id="iOk" type="button" disabled>Rattacher</button></div>
     </div>
   </div>
 

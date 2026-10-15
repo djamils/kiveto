@@ -18,9 +18,10 @@ use Zenstruck\Foundry\Story;
 
 /**
  * The quiet clinic of the group, as the dashboard's « journée calme »
- * mock-up shows it: three appointments today — two seen in the morning, one
- * left for the afternoon — nobody on site, no stock, nothing unpaid. It
- * exercises every empty and calm state of the dashboard.
+ * mock-up shows it: three appointments today — two seen in the morning (their
+ * visits are played by FluxDayStory), one left for the afternoon — nobody on
+ * site, no stock, nothing unpaid. It exercises every empty and calm state of
+ * the dashboard and the flow board.
  */
 final class CalmDayClinicStory extends Story
 {
@@ -105,9 +106,10 @@ final class CalmDayClinicStory extends Story
             ));
             \assert(\is_string($appointmentId));
 
-            // The morning has been seen; the afternoon is still to come
-            // unless the fixtures are loaded after it.
-            if ($start->modify(\sprintf('+%d minutes', $duration)) <= $now || $hour < 12) {
+            // The morning has been seen — honoured, consulted and paid by
+            // FluxDayStory once the catalogue exists; the afternoon is still
+            // to come unless the fixtures are loaded after it.
+            if ($hour >= 12 && $start->modify(\sprintf('+%d minutes', $duration)) <= $now) {
                 $this->commandBus->dispatch(new CompleteAppointment($appointmentId));
             }
         }
