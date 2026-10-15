@@ -104,29 +104,44 @@ final class OnboardStaffMemberHandlerTest extends TestCase
         self::assertFalse($savedProfile->hasVeterinaryCredentials());
     }
 
-    public function testOnboardRejectsManagerRole(): void
+    public function testOnboardsAManagerWithAProfileAndNoCredentials(): void
     {
-        $clinicRepo     = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
         $membershipRepo = $this->createStub(ClinicMembershipRepositoryInterface::class);
-        $profileRepo    = $this->createStub(StaffProfileRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+
+        $savedProfile = null;
+        $profileRepo  = $this->createMock(StaffProfileRepositoryInterface::class);
+        $profileRepo->expects(self::once())->method('save')
+            ->willReturnCallback(static function (StaffProfile $p) use (&$savedProfile): void {
+                $savedProfile = $p;
+            })
+        ;
 
         $handler = $this->makeHandler($clinicRepo, $membershipRepo, $profileRepo);
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('MANAGER');
-
+        // A manager is named on the team page like everyone else; the number
+        // given by mistake is dropped, since the role cannot hold credentials.
         $handler(new OnboardStaffMember(
             clinicId: self::CLINIC_ID,
             userId: self::USER_ID,
             role: ClinicMemberRole::MANAGER,
             engagement: ClinicMembershipEngagement::EMPLOYEE,
-            firstName: 'Admin',
-            lastName: 'User',
-            displayName: 'Admin',
+            firstName: 'Nadia',
+            lastName: 'Ferrand',
+            displayName: 'Nadia Ferrand',
             agendaColor: '#111111',
             sortOrder: 0,
             isVisibleInAgenda: false,
+            registrationNumber: 'FR-00001',
+            professionalTitle: ProfessionalTitle::DR,
         ));
+
+        self::assertNotNull($savedProfile);
+        self::assertSame('Ferrand', $savedProfile->lastName());
+        self::assertFalse($savedProfile->hasVeterinaryCredentials());
     }
 
     public function testOnboardRejectsAlreadyExistingMembership(): void
@@ -156,6 +171,73 @@ final class OnboardStaffMemberHandlerTest extends TestCase
             sortOrder: 0,
             isVisibleInAgenda: true,
         ));
+    }
+
+    public function testOnboardRejectsAUserThatDoesNotExist(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $userChecker = $this->createStub(UserExistenceCheckerInterface::class);
+        $userChecker->method('exists')->willReturn(false);
+
+        $handler = $this->makeHandler(
+            $clinicRepo,
+            $this->createStub(ClinicMembershipRepositoryInterface::class),
+            $this->createStub(StaffProfileRepositoryInterface::class),
+            $userChecker,
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $handler(new OnboardStaffMember(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::RECEPTIONIST,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Inès',
+            lastName: 'Moreau',
+            displayName: 'Inès Moreau',
+            agendaColor: '#4fb3bf',
+            sortOrder: 0,
+            isVisibleInAgenda: false,
+        ));
+    }
+
+    public function testOnboardsAVeterinarianWithASignatureOnFile(): void
+    {
+        $clinicRepo = $this->createStub(ClinicRepositoryInterface::class);
+        $clinicRepo->method('findById')->willReturn($this->buildClinic());
+
+        $membershipRepo = $this->createStub(ClinicMembershipRepositoryInterface::class);
+        $membershipRepo->method('existsByClinicAndUser')->willReturn(false);
+
+        $savedProfile = null;
+        $profileRepo  = $this->createMock(StaffProfileRepositoryInterface::class);
+        $profileRepo->expects(self::once())->method('save')
+            ->willReturnCallback(static function (StaffProfile $p) use (&$savedProfile): void {
+                $savedProfile = $p;
+            })
+        ;
+
+        $this->makeHandler($clinicRepo, $membershipRepo, $profileRepo)(new OnboardStaffMember(
+            clinicId: self::CLINIC_ID,
+            userId: self::USER_ID,
+            role: ClinicMemberRole::VETERINARY,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            firstName: 'Claire',
+            lastName: 'Lambert',
+            displayName: 'Lambert',
+            agendaColor: '#4f86c6',
+            sortOrder: 0,
+            isVisibleInAgenda: true,
+            registrationNumber: '24871',
+            professionalTitle: ProfessionalTitle::DR,
+            signatureImageKey: 'signatures/lambert.png',
+        ));
+
+        self::assertNotNull($savedProfile);
+        self::assertSame('signatures/lambert.png', $savedProfile->credentials()?->signatureImageKey()?->toString());
     }
 
     public function testOnboardVeterinaryWithCredentials(): void

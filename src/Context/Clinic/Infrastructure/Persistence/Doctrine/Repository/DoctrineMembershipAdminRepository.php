@@ -84,7 +84,9 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
                 m.valid_from_utc,
                 m.valid_until_utc,
                 m.created_at_utc,
-                m.is_clinic_administrator
+                m.is_clinic_administrator,
+                m.work_time_percent,
+                u.last_login_at
             FROM %s m
             INNER JOIN %s c ON c.id = m.clinic_id
             INNER JOIN %s u ON u.id = m.user_id
@@ -113,6 +115,7 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
                 \assert(\is_string($row['status']) || \is_int($row['status']));
                 // MySQL hands TINYINT(1) back as int or bool depending on driver settings.
                 \assert(\is_int($row['is_clinic_administrator']) || \is_bool($row['is_clinic_administrator']));
+                \assert(\is_int($row['work_time_percent']) || \is_string($row['work_time_percent']));
 
                 return new MembershipListItem(
                     membershipId: $row['membership_id'],
@@ -133,6 +136,8 @@ final readonly class DoctrineMembershipAdminRepository implements MembershipAdmi
                         : null,
                     createdAt: new \DateTimeImmutable($row['created_at_utc']),
                     isClinicAdministrator: (bool) $row['is_clinic_administrator'],
+                    workTimePercent: (int) $row['work_time_percent'],
+                    lastLoginAt: \is_string($row['last_login_at']) ? new \DateTimeImmutable($row['last_login_at']) : null,
                 );
             },
             $results

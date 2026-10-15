@@ -12,6 +12,7 @@ use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEnabled;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipEngagementChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipRoleChanged;
 use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipValidityChanged;
+use App\Context\Clinic\Domain\Staff\Event\ClinicMembershipWorkTimeChanged;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipEngagement;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
@@ -22,6 +23,7 @@ use App\Shared\Domain\Aggregate\AggregateRoot;
 
 final class ClinicMembership extends AggregateRoot
 {
+    public const int FULL_TIME = 100;
     private ClinicMembershipId $id;
     private ClinicId $clinicId;
     private UserId $userId;
@@ -33,6 +35,9 @@ final class ClinicMembership extends AggregateRoot
     private \DateTimeImmutable $createdAt;
     private bool $isDefault;
     private bool $isClinicAdministrator;
+
+    /** Share of a full-time week the member works, in percent (100 = full time). */
+    private int $workTimePercent = self::FULL_TIME;
 
     private function __construct()
     {
@@ -90,6 +95,7 @@ final class ClinicMembership extends AggregateRoot
         \DateTimeImmutable $createdAt,
         bool $isDefault,
         bool $isClinicAdministrator,
+        int $workTimePercent = self::FULL_TIME,
     ): self {
         $membership                        = new self();
         $membership->id                    = $id;
@@ -103,6 +109,7 @@ final class ClinicMembership extends AggregateRoot
         $membership->createdAt             = $createdAt;
         $membership->isDefault             = $isDefault;
         $membership->isClinicAdministrator = $isClinicAdministrator;
+        $membership->workTimePercent       = $workTimePercent;
 
         return $membership;
     }
@@ -190,6 +197,35 @@ final class ClinicMembership extends AggregateRoot
             validFrom: $validFrom->format(\DateTimeInterface::ATOM),
             validUntil: $validUntil?->format(\DateTimeInterface::ATOM),
         ));
+    }
+
+    /**
+     * How much of a full-time week the member works. A part-time contract does
+     * not change what they may do, only how the team reads their presence.
+     */
+    public function changeWorkTime(int $workTimePercent): void
+    {
+        if ($workTimePercent < 1 || $workTimePercent > self::FULL_TIME) {
+            throw new \DomainException('Le temps de travail doit être compris entre 1 et 100 %.');
+        }
+
+        if ($workTimePercent === $this->workTimePercent) {
+            return;
+        }
+
+        $this->workTimePercent = $workTimePercent;
+
+        $this->recordDomainEvent(new ClinicMembershipWorkTimeChanged(
+            membershipId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            userId: $this->userId->toString(),
+            workTimePercent: $workTimePercent,
+        ));
+    }
+
+    public function workTimePercent(): int
+    {
+        return $this->workTimePercent;
     }
 
     public function isDefault(): bool

@@ -28,7 +28,6 @@
   main.app-body[data-page="clinic_settings_hours"],
   main.app-body[data-page="clinic_settings_billing"],
   main.app-body[data-page="clinic_settings_preferences"],
-  main.app-body[data-page="clinic_settings_team"],
   main.app-body[data-page="clinic_select_clinic"] {
     padding: 0 !important;
     @apply flex flex-col flex-1 overflow-hidden min-h-0;
@@ -56,7 +55,6 @@
   .app-scroll:has(> main[data-page="clinic_settings_hours"]),
   .app-scroll:has(> main[data-page="clinic_settings_billing"]),
   .app-scroll:has(> main[data-page="clinic_settings_preferences"]),
-  .app-scroll:has(> main[data-page="clinic_settings_team"]),
   .app-scroll:has(> main[data-page="clinic_select_clinic"]) {
     overflow: hidden !important;
     @apply flex flex-col flex-1 min-h-0;

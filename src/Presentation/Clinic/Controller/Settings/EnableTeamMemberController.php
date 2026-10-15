@@ -5,40 +5,40 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Context\Clinic\Application\Command\Staff\EnableClinicMembership\EnableClinicMembership;
-use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\Team\TeamEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-/**
- * Le membre a de nouveau accès à la clinique.
- *
- * The membership is kept either way: what the member did stays attached to them.
- */
+/** « Réactiver l’accès »: the member can sign in to this clinic again. */
 #[Route(path: '/settings/team/members/{membershipId}/enable', name: 'clinic_settings_team_enable', methods: ['POST'])]
-final class EnableTeamMemberController extends AbstractController
+final readonly class EnableTeamMemberController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly ClinicPermissionGuard $guard,
+        private CommandBusInterface $commandBus,
+        private TeamEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(string $membershipId): Response
+    public function __invoke(Request $request, string $membershipId): JsonResponse
     {
-        $this->guard->require(ClinicPermissionGuard::MANAGE_STAFF);
-
-        try {
-            $this->commandBus->dispatch(new EnableClinicMembership(membershipId: $membershipId));
-        } catch (\DomainException $exception) {
-            $this->addFlash('error', $exception->getMessage());
-
-            return $this->redirectToRoute('clinic_settings_team');
+        if (null !== $refused = $this->endpoint->guard($request)) {
+            return $refused;
         }
 
-        $this->addFlash('success', 'Le membre a de nouveau accès à la clinique.');
+        $member = $this->endpoint->member($membershipId);
 
-        return $this->redirectToRoute('clinic_settings_team');
+        if (null === $member) {
+            return $this->endpoint->unknown();
+        }
+
+        try {
+            $this->commandBus->dispatch(new EnableClinicMembership(membershipId: $member->membershipId));
+        } catch (\LogicException $exception) {
+            return $this->endpoint->refuse($exception);
+        }
+
+        return $this->endpoint->ok();
     }
 }

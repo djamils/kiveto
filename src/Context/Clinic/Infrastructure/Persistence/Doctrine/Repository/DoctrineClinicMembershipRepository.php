@@ -40,6 +40,7 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
             $entity->setValidUntil($membership->validUntil());
             $entity->setIsDefault($membership->isDefault());
             $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
+            $entity->setWorkTimePercent($membership->workTimePercent());
         }
 
         $this->entityManager->flush();
@@ -152,6 +153,7 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
                 $entity->setValidUntil($membership->validUntil());
                 $entity->setIsDefault($membership->isDefault());
                 $entity->setIsClinicAdministrator($membership->isClinicAdministrator());
+                $entity->setWorkTimePercent($membership->workTimePercent());
             }
         }
 

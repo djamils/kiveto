@@ -11,7 +11,6 @@ use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\Repository\StaffProfileRepositoryInterface;
 use App\Context\Clinic\Domain\Staff\StaffProfile;
-use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Context\Clinic\Domain\Staff\ValueObject\DisplayName;
 use App\Context\Clinic\Domain\Staff\ValueObject\HexColor;
@@ -27,6 +26,11 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * Someone joins the clinic with a profile: a name, a colour for the agenda and
+ * the planning, and — for a veterinarian — the credentials they prescribe under.
+ * Every role gets a profile, because the team shows everyone by name.
+ */
 #[AsMessageHandler]
 final readonly class OnboardStaffMemberHandler
 {
@@ -43,13 +47,6 @@ final readonly class OnboardStaffMemberHandler
 
     public function __invoke(OnboardStaffMember $command): string
     {
-        if (!\in_array($command->role, [ClinicMemberRole::VETERINARY, ClinicMemberRole::VETERINARY_ASSISTANT], true)) {
-            throw new \InvalidArgumentException(\sprintf(
-                'OnboardStaffMember only supports VETERINARY and VETERINARY_ASSISTANT roles. Got "%s".',
-                $command->role->value,
-            ));
-        }
-
         $clinicId = ClinicId::fromString($command->clinicId);
 
         $clinic = $this->clinicRepository->findById($clinicId);

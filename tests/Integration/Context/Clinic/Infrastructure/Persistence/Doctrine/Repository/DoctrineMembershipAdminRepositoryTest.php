@@ -11,6 +11,8 @@ use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
+use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
+use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -69,6 +71,43 @@ final class DoctrineMembershipAdminRepositoryTest extends KernelTestCase
 
         self::assertTrue($byEmail['hatted@kiveto.local']);
         self::assertFalse($byEmail['hatless@kiveto.local']);
+    }
+
+    public function testListAllCarriesTheWorkTimeAndTheLastSignIn(): void
+    {
+        $clinic   = ClinicEntityFactory::createOne(['slug' => 'admin-repo-activity-test']);
+        $seen     = ClinicUserFactory::new()->withEmail('seen@kiveto.local')->create();
+        $newcomer = ClinicUserFactory::new()->withEmail('newcomer@kiveto.local')->create();
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($seen->getId()->toRfc4122())
+            ->asReceptionist()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01'), 'workTimePercent' => 80])
+        ;
+
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinic->getId()->toRfc4122())
+            ->withUserId($newcomer->getId()->toRfc4122())
+            ->asReceptionist()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $users = static::getContainer()->get(UserRepositoryInterface::class);
+        \assert($users instanceof UserRepositoryInterface);
+        $users->recordLogin(UserId::fromString($seen->getId()->toRfc4122()), new \DateTimeImmutable('2026-10-14 08:30:00'));
+
+        $byEmail = [];
+        foreach ($this->repo()->listAll()->memberships as $item) {
+            $byEmail[$item->userEmail] = $item;
+        }
+
+        self::assertSame(80, $byEmail['seen@kiveto.local']->workTimePercent);
+        self::assertSame('2026-10-14 08:30:00', $byEmail['seen@kiveto.local']->lastLoginAt?->format('Y-m-d H:i:s'));
+        self::assertSame(100, $byEmail['newcomer@kiveto.local']->workTimePercent);
+        self::assertNull($byEmail['newcomer@kiveto.local']->lastLoginAt);
     }
 
     public function testListAllWithRoleFilter(): void
