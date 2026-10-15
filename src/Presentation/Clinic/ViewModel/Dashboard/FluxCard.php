@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\ViewModel\Dashboard;
 
 /**
- * A patient on site, as the « Flux ambulatoire » column shows it.
+ * A patient on site as the « Flux ambulatoire » card shows it, with its own
+ * sequence of steps (« Arrivée · Consult. · Règlement », or with « Soins » for
+ * an emergency or a surgery) and what its quick look offers next.
  */
 final readonly class FluxCard
 {
@@ -24,6 +26,11 @@ final readonly class FluxCard
         public int $currentStep,
         public string $where,
         public string $who,
+        public string $location = 'in_waiting_room',
+        public ?string $animalId = null,
+        public string $motif = '',
+        public ?string $consultationId = null,
+        public ?PatientFacts $facts = null,
     ) {
     }
 }

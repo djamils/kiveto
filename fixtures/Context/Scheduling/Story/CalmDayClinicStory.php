@@ -82,7 +82,17 @@ final class CalmDayClinicStory extends Story
                 ->create()
             ;
 
-            $start         = $today->setTime($hour, $minute);
+            $start = $today->setTime($hour, $minute);
+
+            // The afternoon booking stays ahead of the clock when the fixtures
+            // are loaded after it (the next half hour, an hour from now),
+            // as long as the clinic is still open then.
+            if ($hour >= 12 && $start < $now->modify('+1 hour')) {
+                $later = $now->modify('+1 hour');
+                $later = $later->setTime((int) $later->format('G'), (int) $later->format('i') > 30 ? 60 : 30);
+                $start = $later <= $today->setTime(17, 30) ? $later : $start;
+            }
+
             $appointmentId = $this->commandBus->dispatch(new ScheduleAppointment(
                 clinicId: self::CLINIC,
                 practitionerUserId: $vetUser->getId()->toRfc4122(),

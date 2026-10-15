@@ -18,6 +18,9 @@ final readonly class DashboardView
      * @param list<DashboardTask> $tasks
      * @param list<DoneItem>      $done
      * @param list<string>        $myAudiences audiences the current member belongs to (« Pour moi »)
+     * @param string              $countLabel  « 9 rendez-vous », « 5 à venir », « 16 RDV · +25 min »
+     * @param int                 $doneCount   rows of the timeline already seen, folded under one line
+     * @param string              $doneWhen    « ce matin » or « aujourd'hui »
      */
     public function __construct(
         public string $timeZone,
@@ -34,6 +37,9 @@ final readonly class DashboardView
         public bool $hasStockAlerts,
         public ?string $currentUserId,
         public array $myAudiences,
+        public string $countLabel = '',
+        public int $doneCount = 0,
+        public string $doneWhen = 'ce matin',
     ) {
     }
 }

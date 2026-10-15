@@ -19,6 +19,7 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettings
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\GetUserMembershipInClinic;
 use App\Context\Clinic\Application\Query\Staff\GetUserMembershipInClinic\MembershipDetails;
+use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ClinicVeterinarianItem;
 use App\Context\Clinic\Application\Query\Staff\ListClinicVeterinarians\ListClinicVeterinarians;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Consultation\Application\Query\GetConsultationTotalsForAdmissions\AdmissionTotal;
@@ -33,6 +34,9 @@ use App\Context\Patient\Application\Query\GetPatientAnimalLink\GetPatientAnimalL
 use App\Context\Patient\Application\Query\GetPatientAnimalLink\PatientAnimalLinkDto;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\AppointmentItem;
 use App\Context\Scheduling\Application\Query\GetAgendaForClinicDateRange\GetAgendaForClinicDateRange;
+use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\ListPlanningBlocksForClinicDateRange;
+use App\Context\Scheduling\Application\Query\ListPlanningBlocksForClinicDateRange\PlanningBlockView;
+use App\Presentation\Clinic\ViewModel\Agenda\AgendaViewBuilder;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -57,6 +61,15 @@ final readonly class DashboardViewBuilder
     /** A patient waiting longer than this gets the red chrono. */
     private const int LONG_WAIT_MINUTES = 15;
 
+    /** A booking this late shows its delay instead of its length. */
+    private const int LATE_SHOWN_MINUTES = 5;
+
+    /** The day runs late — the timeline count and the waiting KPI say it — from this delay on. */
+    private const int DELAY_SHOWN_MINUTES = 10;
+
+    /** A booking missed by more than this is no longer a delay but a patient who did not come. */
+    private const int LATE_HORIZON_MINUTES = 120;
+
     /** Individual tasks kept per source before the rest is summed up in one line. */
     private const int TASKS_PER_SOURCE = 4;
 
@@ -76,6 +89,7 @@ final readonly class DashboardViewBuilder
         private QueryBusInterface $queryBus,
         private ClockInterface $clock,
         private UrlGeneratorInterface $urls,
+        private PatientFactsReader $facts,
     ) {
     }
 
@@ -92,14 +106,53 @@ final readonly class DashboardViewBuilder
         $active       = $this->admissions(new ListActiveAdmissions($clinicId));
         $closedToday  = $this->admissions(new ListAdmissionsClosedSince($clinicId, $midnight->setTimezone($utc)));
 
-        $animals = $this->animals($clinicId, $active);
+        // Emergencies that walked in today without a booking join the « Fil du
+        // jour » at their arrival time.
+        $walkIns = array_values(array_filter(
+            [...$active, ...$closedToday],
+            static fn (WaitingRoomItemDto $item): bool => 'appointment_booked' !== $item->intakeChannel
+                && \in_array($item->triageLevel, self::EMERGENCY_TRIAGE, true)
+                && new \DateTimeImmutable($item->openedAt) >= $midnight,
+        ));
+
+        $animals = $this->animals($clinicId, [
+            ...array_map(static fn (WaitingRoomItemDto $item): ?string => $item->knownAnimalId, [...$active, ...$walkIns]),
+            ...array_map(static fn (AppointmentItem $item): ?string => $item->animalId, $appointments),
+        ]);
         $opening = null === $settings ? null : $this->openingToday($settings, $now);
+        $slots   = $this->bookableSlots($clinicId, $now);
 
         $practitioners = $this->queryBus->ask(new ListClinicVeterinarians($clinicId));
         \assert(\is_array($practitioners));
+        $vets = $this->vetNames($practitioners);
+
+        $facts = $this->facts->read($clinicId, $animals, $vets, $now);
+
+        $openConsultations = $this->openConsultations($clinicId);
+        $openByPatient     = [];
+        foreach ($openConsultations as $consultation) {
+            // Most recent first: the latest open consultation of a patient wins.
+            $openByPatient[$consultation->patientId] ??= $consultation->consultationId;
+        }
+
+        $admissionsById = [];
+        foreach ([...$closedToday, ...$active] as $item) {
+            $admissionsById[$item->admissionId] = $item;
+        }
+
+        $totals = $this->totals($clinicId, $active);
 
         $stats = $this->queryBus->ask(new GetBillingStats($clinicId, $midnight->setTimezone($utc), $now->setTimezone($utc)));
         \assert($stats instanceof BillingStats);
+
+        // The same weekday a week earlier, up to the same time: the takings
+        // compare with it.
+        $lastWeek = $this->queryBus->ask(new GetBillingStats(
+            $clinicId,
+            $midnight->modify('-7 days')->setTimezone($utc),
+            $now->modify('-7 days')->setTimezone($utc),
+        ));
+        \assert($lastWeek instanceof BillingStats);
 
         // The stock tasks read the shelves as the stock page and the
         // navigation badge do, so the three never disagree.
@@ -114,34 +167,54 @@ final readonly class DashboardViewBuilder
         ));
 
         $isCalm = [] === $active && \count($upcoming) <= 2;
+        $delay  = $this->delay($appointments, $admissionsById, $now, $timeZone);
 
-        $timeline = $this->timeline($appointments, $timeZone);
+        $timeline = $this->timeline($appointments, $walkIns, $timeZone, $now, $animals, $facts, $openByPatient, $admissionsById);
+
+        $rows = 0;
+        $done = 0;
+        foreach ($timeline as $slot) {
+            foreach ($slot->appointments as $row) {
+                ++$rows;
+                $done += $row->isDone() ? 1 : 0;
+            }
+        }
+
+        $count = $delay >= self::DELAY_SHOWN_MINUTES
+            ? \sprintf('%d RDV · +%s', $rows, $this->duration($delay))
+            : SheetText::plural($rows, 'rendez-vous', 'rendez-vous');
 
         return new DashboardView(
             timeZone: $timeZone->getName(),
             nowLabel: $now->format('H:i'),
             kpis: $this->kpis(
                 $stats,
+                $lastWeek,
                 $appointments,
                 $opening,
+                $slots,
                 \count($practitioners),
                 $active,
                 $closedToday,
                 $now,
                 $midnight,
                 $isCalm,
+                $delay,
             ),
             timeline: $timeline,
-            appointmentCount: \count($appointments),
+            appointmentCount: $rows,
             rest: $this->rest($appointments, $opening, $now, $timeZone),
-            flux: $this->flux($active, $animals, $now),
+            flux: $this->flux($active, $animals, $facts, $vets, $openByPatient, $totals, $now),
             nextExpected: $this->nextExpected($upcoming, $timeZone),
-            tasks: $this->tasks($clinicId, $active, $alerts, $stats, $midnight->setTimezone($utc), $now),
+            tasks: $this->tasks($clinicId, $active, $totals, $alerts, $stats, $openConsultations, $midnight->setTimezone($utc), $now),
             done: $this->done($clinicId, $closedToday, $appointments, $midnight->setTimezone($utc), $timeZone),
             isCalm: $isCalm,
             hasStockAlerts: [] !== $alerts,
             currentUserId: $userId,
             myAudiences: $this->audiences($clinicId, $userId),
+            countLabel: $done > 0 ? (string) preg_replace('/^\d+ (RDV|rendez-vous)/u', ($rows - $done) . ' à venir', $count) : $count,
+            doneCount: $done,
+            doneWhen: (int) $now->format('G') < 13 ? 'ce matin' : 'aujourd\'hui',
         );
     }
 
@@ -182,34 +255,6 @@ final readonly class DashboardViewBuilder
     }
 
     /**
-     * The identified animals among the admissions, by animal id.
-     *
-     * @param list<WaitingRoomItemDto> $admissions
-     *
-     * @return array<string, AnimalView>
-     */
-    private function animals(string $clinicId, array $admissions): array
-    {
-        $animals = [];
-
-        foreach ($admissions as $admission) {
-            $animalId = $admission->knownAnimalId;
-
-            if (null === $animalId || isset($animals[$animalId])) {
-                continue;
-            }
-
-            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
-
-            if ($animal instanceof AnimalView) {
-                $animals[$animalId] = $animal;
-            }
-        }
-
-        return $animals;
-    }
-
-    /**
      * Today's opening intervals in minutes since midnight, or an empty list on
      * a closed day; null when the clinic has not entered its hours.
      *
@@ -237,35 +282,198 @@ final readonly class DashboardViewBuilder
     }
 
     /**
-     * @param list<AppointmentItem>      $appointments
-     * @param list<array{int, int}>|null $opening
-     * @param list<WaitingRoomItemDto>   $active
-     * @param list<WaitingRoomItemDto>   $closedToday
+     * The identified animals of the day, by animal id.
+     *
+     * @param list<string|null> $animalIds
+     *
+     * @return array<string, AnimalView>
+     */
+    private function animals(string $clinicId, array $animalIds): array
+    {
+        $animals = [];
+
+        foreach ($animalIds as $animalId) {
+            if (null === $animalId || isset($animals[$animalId])) {
+                continue;
+            }
+
+            $animal = $this->queryBus->ask(new GetAnimalById($clinicId, $animalId));
+
+            if ($animal instanceof AnimalView) {
+                $animals[$animalId] = $animal;
+            }
+        }
+
+        return $animals;
+    }
+
+    /**
+     * « Dr Lambert » by user id, as the cards name practitioners.
+     *
+     * @param array<mixed> $practitioners
+     *
+     * @return array<string, string>
+     */
+    private function vetNames(array $practitioners): array
+    {
+        $names = [];
+
+        foreach ($practitioners as $item) {
+            \assert($item instanceof ClinicVeterinarianItem);
+            $title                = ['DR' => 'Dr ', 'PR' => 'Pr '][$item->professionalTitle ?? ''] ?? '';
+            $names[$item->userId] = $title . ($item->displayName ?? 'Praticien');
+        }
+
+        return $names;
+    }
+
+    /**
+     * Consultations still open, most recent first.
+     *
+     * @return list<ConsultationListItemView>
+     */
+    private function openConsultations(string $clinicId): array
+    {
+        $result = $this->queryBus->ask(new SearchConsultations($clinicId, statuses: ['OPEN'], sort: 'datetime', direction: 'desc', limit: 100));
+        \assert(\is_array($result) && \is_array($result['items'] ?? null));
+
+        return array_values(array_filter(
+            $result['items'],
+            static fn (mixed $item): bool => $item instanceof ConsultationListItemView,
+        ));
+    }
+
+    /**
+     * What each patient waiting at the desk owes, by admission id.
+     *
+     * @param list<WaitingRoomItemDto> $active
+     *
+     * @return array<string, AdmissionTotal>
+     */
+    private function totals(string $clinicId, array $active): array
+    {
+        $ids = [];
+        foreach ($active as $item) {
+            if ('at_reception' === $item->locationStatus) {
+                $ids[] = $item->admissionId;
+            }
+        }
+
+        if ([] === $ids) {
+            return [];
+        }
+
+        $totals = $this->queryBus->ask(new GetConsultationTotalsForAdmissions($clinicId, $ids));
+        \assert(\is_array($totals));
+
+        $byAdmission = [];
+        foreach ($totals as $total) {
+            \assert($total instanceof AdmissionTotal);
+            $byAdmission[$total->admissionId] = $total;
+        }
+
+        return $byAdmission;
+    }
+
+    /**
+     * How late the day runs: the longest wait past its booked time of an
+     * appointment not taken in charge yet — not arrived, or arrived and still
+     * in the waiting room. Bookings missed by more than LATE_HORIZON_MINUTES
+     * are no longer a delay but a patient who did not come.
+     *
+     * @param list<AppointmentItem>             $appointments
+     * @param array<string, WaitingRoomItemDto> $admissionsById
+     */
+    private function delay(array $appointments, array $admissionsById, \DateTimeImmutable $now, \DateTimeZone $timeZone): int
+    {
+        $delay = 0;
+
+        foreach ($appointments as $item) {
+            $late = $this->lateness($item, $admissionsById, $now, $timeZone);
+
+            if ($late <= self::LATE_HORIZON_MINUTES) {
+                $delay = max($delay, $late);
+            }
+        }
+
+        return $delay;
+    }
+
+    /**
+     * Minutes an appointment waits past its booked time, 0 once the patient
+     * is taken in charge (or the appointment is over).
+     *
+     * @param array<string, WaitingRoomItemDto> $admissionsById
+     */
+    private function lateness(AppointmentItem $item, array $admissionsById, \DateTimeImmutable $now, \DateTimeZone $timeZone): int
+    {
+        if ('PLANNED' !== $item->status) {
+            return 0;
+        }
+
+        $admission = null === $item->linkedAdmissionId ? null : ($admissionsById[$item->linkedAdmissionId] ?? null);
+
+        if (null !== $item->linkedAdmissionId && (null === $admission || 'in_waiting_room' !== $admission->locationStatus || null !== $admission->closedAt)) {
+            return 0;
+        }
+
+        return max(0, intdiv($now->getTimestamp() - $this->localStart($item, $timeZone)->getTimestamp(), 60));
+    }
+
+    /**
+     * @param list<AppointmentItem>        $appointments
+     * @param list<array{int, int}>|null   $opening
+     * @param list<array{int, int, float}> $slots        today's bookable blocks
+     * @param list<WaitingRoomItemDto>     $active
+     * @param list<WaitingRoomItemDto>     $closedToday
      *
      * @return list<DashboardKpi>
      */
     private function kpis(
         BillingStats $stats,
+        BillingStats $lastWeek,
         array $appointments,
         ?array $opening,
+        array $slots,
         int $practitionerCount,
         array $active,
         array $closedToday,
         \DateTimeImmutable $now,
         \DateTimeImmutable $midnight,
         bool $isCalm,
+        int $delay,
     ): array {
+        $trend = null;
+        $tone  = '';
+
+        if (!$isCalm && $lastWeek->collectedMinorUnits > 0) {
+            $change = (int) round(($stats->collectedMinorUnits - $lastWeek->collectedMinorUnits) * 100 / $lastWeek->collectedMinorUnits);
+            $trend  = ($change >= 0 ? '▲ ' : '▼ ') . abs($change) . ' %';
+            $tone   = $change >= 0 ? 'up' : 'warn';
+        }
+
         $kpis = [new DashboardKpi(
             value: $this->money($stats->collectedMinorUnits, $stats->currency),
             label: 'encaissés',
-            note: $isCalm ? 'journée calme' : null,
+            note: $isCalm ? 'journée calme' : $trend,
+            noteTone: $isCalm ? '' : $tone,
         )];
 
         $booked = \count($appointments);
 
         if (null !== $opening && [] !== $opening) {
-            $openMinutes = array_sum(array_map(static fn (array $i): int => max(0, $i[1] - $i[0]), $opening));
-            $capacity    = intdiv($openMinutes, self::SLOT_MINUTES) * max(1, $practitionerCount);
+            // The practitioners' bookable blocks of the day say how many
+            // appointments it holds; without a planning, the opening hours
+            // times the practitioners.
+            if ([] === $slots) {
+                $slots = [];
+                foreach ($opening as [$opens, $closes]) {
+                    $slots[] = [$opens, $closes, 60 / self::SLOT_MINUTES * max(1, $practitionerCount)];
+                }
+            }
+
+            $capacity  = $this->capacity($slots, 0);
+            $afternoon = $this->afternoonSlots($appointments, $slots, $now);
 
             $note = null;
             $tone = '';
@@ -273,8 +481,12 @@ final readonly class DashboardViewBuilder
             if ($booked >= $capacity && $capacity > 0) {
                 $note = 'complet';
                 $tone = 'warn';
-            } elseif ($this->afternoonIsFree($appointments, $opening, $now)) {
+            } elseif (null !== $afternoon && $afternoon['booked'] <= 1) {
+                // One booking at most: the afternoon is as good as free.
                 $note = 'après-midi libre';
+                $tone = 'up';
+            } elseif (null !== $afternoon && $afternoon['free'] > 0) {
+                $note = SheetText::plural($afternoon['free'], 'libre', 'libres') . ' cet aprem';
                 $tone = 'up';
             }
 
@@ -295,64 +507,144 @@ final readonly class DashboardViewBuilder
             array_sum(array_map(fn (WaitingRoomItemDto $item): int => $this->minutesSince($item->openedAt, $now), $waiting)),
             \count($waiting),
         );
+        $late   = $delay >= self::DELAY_SHOWN_MINUTES;
         $kpis[] = new DashboardKpi(
             $this->duration($average),
             'attente moyenne',
-            $average > self::LONG_WAIT_MINUTES ? SheetText::plural(\count($waiting), 'en salle', 'en salle') : null,
-            $average > self::LONG_WAIT_MINUTES ? 'warn' : '',
+            $late ? '+' . $this->duration($delay) : null,
+            $late ? 'warn' : '',
         );
 
-        $walkIns = 0;
+        $walkIns     = 0;
+        $emergencies = 0;
 
         foreach ([...$active, ...$closedToday] as $item) {
             if ('appointment_booked' !== $item->intakeChannel && new \DateTimeImmutable($item->openedAt) >= $midnight) {
                 ++$walkIns;
+                $emergencies += \in_array($item->triageLevel, self::EMERGENCY_TRIAGE, true) ? 1 : 0;
             }
         }
 
-        $kpis[] = new DashboardKpi((string) $walkIns, 'sans rendez-vous');
+        $kpis[] = new DashboardKpi(
+            (string) $walkIns,
+            'sans rendez-vous',
+            $emergencies > 0 ? SheetText::plural($emergencies, 'urgence', 'urgences') : null,
+            $emergencies > 0 ? 'warn' : '',
+        );
 
         return $kpis;
     }
 
     /**
-     * True when the clinic opens in the afternoon and nothing is booked then.
+     * Today's blocks open to bookings: [start, end] in minutes since the
+     * clinic's midnight and the appointments they hold per hour.
      *
-     * @param list<AppointmentItem> $appointments
-     * @param list<array{int, int}> $opening
+     * @return list<array{int, int, float}>
      */
-    private function afternoonIsFree(array $appointments, array $opening, \DateTimeImmutable $now): bool
+    private function bookableSlots(string $clinicId, \DateTimeImmutable $now): array
     {
-        $noon = 13 * 60;
+        $views = $this->queryBus->ask(new ListPlanningBlocksForClinicDateRange($clinicId, $now->format('Y-m-d'), $now->format('Y-m-d')));
+        \assert(\is_array($views));
 
-        if ([] === array_filter($opening, static fn (array $i): bool => $i[1] > $noon)) {
-            return false;
-        }
+        $slots = [];
 
-        foreach ($appointments as $appointment) {
-            if ($this->dayMinutes($this->localStart($appointment, $now->getTimezone())) >= $noon) {
-                return false;
+        foreach ($views as $view) {
+            \assert($view instanceof PlanningBlockView);
+
+            if ($view->acceptsAppointments) {
+                $slots[] = [
+                    $this->minutes($view->startTime),
+                    $this->minutes($view->endTime),
+                    $view->hasCapacityLimit ? (float) $view->capacityPerHour : 60 / self::SLOT_MINUTES,
+                ];
             }
         }
 
-        return true;
+        return $slots;
     }
 
     /**
-     * Appointments grouped by start time, with the free gaps between them.
+     * Appointments the slots hold from a time of day on.
      *
-     * @param list<AppointmentItem> $appointments
+     * @param list<array{int, int, float}> $slots
+     */
+    private function capacity(array $slots, int $from): int
+    {
+        $capacity = 0.0;
+
+        foreach ($slots as [$start, $end, $perHour]) {
+            $capacity += max(0, $end - max($start, $from)) / 60 * $perHour;
+        }
+
+        return (int) floor($capacity);
+    }
+
+    /**
+     * The afternoon's capacity (from 13:00) and how much of it is booked;
+     * null when nothing can be booked in the afternoon.
+     *
+     * @param list<AppointmentItem>        $appointments
+     * @param list<array{int, int, float}> $slots
+     *
+     * @return array{booked: int, free: int}|null
+     */
+    private function afternoonSlots(array $appointments, array $slots, \DateTimeImmutable $now): ?array
+    {
+        $noon     = 13 * 60;
+        $capacity = $this->capacity($slots, $noon);
+
+        if (0 === $capacity) {
+            return null;
+        }
+
+        $booked = 0;
+
+        foreach ($appointments as $appointment) {
+            if ($this->dayMinutes($this->localStart($appointment, $now->getTimezone())) >= $noon) {
+                ++$booked;
+            }
+        }
+
+        return ['booked' => $booked, 'free' => max(0, $capacity - $booked)];
+    }
+
+    /**
+     * Appointments and walk-in emergencies grouped by start time, with the
+     * free gaps between them.
+     *
+     * @param list<AppointmentItem>             $appointments
+     * @param list<WaitingRoomItemDto>          $walkIns
+     * @param array<string, AnimalView>         $animals
+     * @param array<string, PatientFacts>       $facts
+     * @param array<string, string>             $openByPatient
+     * @param array<string, WaitingRoomItemDto> $admissionsById
      *
      * @return list<TimelineSlot>
      */
-    private function timeline(array $appointments, \DateTimeZone $timeZone): array
-    {
-        /** @var array<string, list<AppointmentItem>> $byTime */
+    private function timeline(
+        array $appointments,
+        array $walkIns,
+        \DateTimeZone $timeZone,
+        \DateTimeImmutable $now,
+        array $animals,
+        array $facts,
+        array $openByPatient,
+        array $admissionsById,
+    ): array {
+        /** @var array<string, list<array{int, TimelineAppointment}>> $byTime */
         $byTime = [];
 
         foreach ($appointments as $appointment) {
-            $byTime[$this->localStart($appointment, $timeZone)->format('H:i')][] = $appointment;
+            $time            = $this->localStart($appointment, $timeZone)->format('H:i');
+            $byTime[$time][] = [$appointment->durationMinutes, $this->timelineAppointment($appointment, $time, $now, $timeZone, $facts, $openByPatient, $admissionsById)];
         }
+
+        foreach ($walkIns as $item) {
+            $time            = new \DateTimeImmutable($item->openedAt)->setTimezone($timeZone)->format('H:i');
+            $byTime[$time][] = [self::SLOT_MINUTES, $this->walkInRow($item, $time, $animals, $facts, $openByPatient)];
+        }
+
+        ksort($byTime);
 
         $slots   = [];
         $lastEnd = null;
@@ -366,16 +658,11 @@ final readonly class DashboardViewBuilder
 
             $end = $start;
 
-            foreach ($group as $item) {
-                $end = max($end, $start + $item->durationMinutes);
+            foreach ($group as [$duration]) {
+                $end = max($end, $start + $duration);
             }
 
-            $slots[] = new TimelineSlot(
-                (string) $time,
-                $start,
-                $end,
-                array_map(fn (AppointmentItem $item): TimelineAppointment => $this->timelineAppointment($item), $group),
-            );
+            $slots[] = new TimelineSlot((string) $time, $start, $end, array_map(static fn (array $row): TimelineAppointment => $row[1], $group));
 
             $lastEnd = max($lastEnd ?? 0, $end);
         }
@@ -383,8 +670,20 @@ final readonly class DashboardViewBuilder
         return $slots;
     }
 
-    private function timelineAppointment(AppointmentItem $item): TimelineAppointment
-    {
+    /**
+     * @param array<string, PatientFacts>       $facts
+     * @param array<string, string>             $openByPatient
+     * @param array<string, WaitingRoomItemDto> $admissionsById
+     */
+    private function timelineAppointment(
+        AppointmentItem $item,
+        string $time,
+        \DateTimeImmutable $now,
+        \DateTimeZone $timeZone,
+        array $facts,
+        array $openByPatient,
+        array $admissionsById,
+    ): TimelineAppointment {
         $state = match (true) {
             'COMPLETED' === $item->status     => 'done',
             'NO_SHOW' === $item->status       => 'noshow',
@@ -392,27 +691,93 @@ final readonly class DashboardViewBuilder
             default                           => 'planned',
         };
 
+        $fact      = null === $item->animalId ? null : ($facts[$item->animalId] ?? null);
+        $admission = null === $item->linkedAdmissionId ? null : ($admissionsById[$item->linkedAdmissionId] ?? null);
+        $late      = 'planned' === $state ? $this->lateness($item, $admissionsById, $now, $timeZone) : 0;
+        $kind      = match (AgendaViewBuilder::motif($item->reason)) {
+            'chir'  => 'chir',
+            'urg'   => 'urg',
+            default => 'consult',
+        };
+
         $name  = $item->animalLabel ?? 'Créneau sans patient';
-        $title = null !== $item->animalBreed && '' !== $item->animalBreed ? $name . ' · ' . $item->animalBreed : $name;
+        $breed = null !== $item->animalBreed && '' !== $item->animalBreed ? $item->animalBreed : '';
+        $owner = $fact->owner ?? (null === $item->ownerLabel ? null : $this->shortName($item->ownerLabel));
         $parts = array_filter(
-            [$item->reason, $item->ownerLabel],
+            [$item->reason, $owner],
             static fn (?string $part): bool => null !== $part && '' !== $part,
         );
+
+        $consultationId = match ($state) {
+            'done'   => $fact?->todayConsultationId,
+            'onsite' => null === $admission ? null : ($openByPatient[$admission->patientId] ?? null),
+            default  => null,
+        };
 
         return new TimelineAppointment(
             id: $item->id,
             emoji: $this->emoji($item->animalSpecies),
-            title: $title,
+            title: '' === $breed ? $name : $name . ' · ' . $breed,
             subtitle: [] === $parts ? 'Sans motif' : implode(' — ', $parts),
-            durationLabel: match ($state) {
-                'done'   => 'terminé',
-                'noshow' => 'absent',
-                'onsite' => 'sur place',
-                default  => $item->durationMinutes . ' min',
+            durationLabel: match (true) {
+                'done' === $state                                                        => 'terminé',
+                'noshow' === $state                                                      => 'absent',
+                'onsite' === $state                                                      => 'sur place',
+                $late >= self::LATE_SHOWN_MINUTES && $late <= self::LATE_HORIZON_MINUTES => '+' . $this->duration($late),
+                default                                                                  => $item->durationMinutes . ' min',
             },
             state: $state,
             animalId: $item->animalId,
             animalName: $item->animalLabel,
+            kind: $kind,
+            tag: ['chir' => 'Chirurgie', 'urg' => 'Urgence'][$kind] ?? null,
+            time: $time,
+            lateMinutes: $late,
+            admissionId: $item->linkedAdmissionId,
+            location: $admission?->locationStatus,
+            breed: '' === $breed ? 'Animal' : $breed,
+            motif: $item->reason ?? '',
+            consultationId: $consultationId,
+            facts: $fact,
+        );
+    }
+
+    /**
+     * An emergency that walked in without an appointment, as a timeline row.
+     *
+     * @param array<string, AnimalView>   $animals
+     * @param array<string, PatientFacts> $facts
+     * @param array<string, string>       $openByPatient
+     */
+    private function walkInRow(WaitingRoomItemDto $item, string $time, array $animals, array $facts, array $openByPatient): TimelineAppointment
+    {
+        $animal = null === $item->knownAnimalId ? null : ($animals[$item->knownAnimalId] ?? null);
+        $fact   = null === $item->knownAnimalId ? null : ($facts[$item->knownAnimalId] ?? null);
+        $breed  = null === $animal
+            ? ($item->physicalDescription ?? 'Non identifié')
+            : ($animal->breedName ?? self::SPECIES_LABEL[$animal->species] ?? 'Animal');
+        $closed = null !== $item->closedAt;
+        $motif  = $this->motif($item->appointmentReason ?? $item->triageNotes);
+
+        return new TimelineAppointment(
+            id: $item->admissionId,
+            emoji: $this->emoji($animal?->species),
+            title: $item->displayLabel . ' · ' . $breed,
+            subtitle: $motif . ' — sans rendez-vous',
+            durationLabel: $closed ? 'terminé' : null,
+            state: $closed ? 'done' : 'onsite',
+            animalId: $item->knownAnimalId,
+            animalName: $item->displayLabel,
+            kind: 'urg',
+            tag: 'Urgence',
+            time: $time,
+            isWalkIn: true,
+            admissionId: $item->admissionId,
+            location: $closed ? null : $item->locationStatus,
+            breed: $breed,
+            motif: $motif,
+            consultationId: $closed ? $fact?->todayConsultationId : ($openByPatient[$item->patientId] ?? null),
+            facts: $fact,
         );
     }
 
@@ -488,17 +853,23 @@ final readonly class DashboardViewBuilder
     }
 
     /**
-     * Patients on site, emergencies first, then by arrival.
+     * Patients on site, emergencies first, then by arrival. Each follows its
+     * own sequence: « Arrivée · Consult. · Règlement », with « Soins » for an
+     * emergency or a patient in surgery.
      *
-     * @param list<WaitingRoomItemDto>  $onSite
-     * @param array<string, AnimalView> $animals
+     * @param list<WaitingRoomItemDto>      $onSite
+     * @param array<string, AnimalView>     $animals
+     * @param array<string, PatientFacts>   $facts
+     * @param array<string, string>         $vets
+     * @param array<string, string>         $openByPatient
+     * @param array<string, AdmissionTotal> $totals
      *
      * @return list<FluxCard>
      */
-    private function flux(array $onSite, array $animals, \DateTimeImmutable $now): array
+    private function flux(array $onSite, array $animals, array $facts, array $vets, array $openByPatient, array $totals, \DateTimeImmutable $now): array
     {
         usort($onSite, static function (WaitingRoomItemDto $a, WaitingRoomItemDto $b): int {
-            $urgent = \in_array($b->triageLevel, self::EMERGENCY_TRIAGE, true) <=> \in_array($a->triageLevel, self::EMERGENCY_TRIAGE, true);
+            $urgent = (int) \in_array($b->triageLevel, self::EMERGENCY_TRIAGE, true) <=> (int) \in_array($a->triageLevel, self::EMERGENCY_TRIAGE, true);
 
             return 0 !== $urgent ? $urgent : $a->openedAt <=> $b->openedAt;
         });
@@ -506,62 +877,100 @@ final readonly class DashboardViewBuilder
         $cards = [];
 
         foreach ($onSite as $item) {
-            $animal  = null === $item->knownAnimalId ? null : ($animals[$item->knownAnimalId] ?? null);
-            $minutes = $this->minutesSince($item->openedAt, $now);
-            $steps   = ['Accueil', 'Attente', 'in_surgery' === $item->locationStatus ? 'Bloc' : 'Consultation', 'Sortie'];
+            $animal      = null === $item->knownAnimalId ? null : ($animals[$item->knownAnimalId] ?? null);
+            $fact        = null === $item->knownAnimalId ? null : ($facts[$item->knownAnimalId] ?? null);
+            $isEmergency = \in_array($item->triageLevel, self::EMERGENCY_TRIAGE, true);
+            $minutes     = $this->minutesSince($item->locationSince ?? $item->openedAt, $now);
+            $motif       = $this->motif($item->appointmentReason ?? $item->triageNotes);
+            $steps       = $isEmergency || 'in_surgery' === $item->locationStatus
+                ? ['Arrivée', 'Consult.', 'Soins', 'Règlement']
+                : ['Arrivée', 'Consult.', 'Règlement'];
             $current = match ($item->locationStatus) {
-                'in_consultation_room', 'in_surgery' => 2,
-                'at_reception' => 3,
-                default        => 1,
+                'in_waiting_room'      => 0,
+                'in_consultation_room' => 1,
+                'in_surgery'           => 2,
+                default                => \count($steps) - 1,
             };
+            $vet   = null === $item->practitionerUserId ? $item->practitionerLabel : ($vets[$item->practitionerUserId] ?? $item->practitionerLabel);
+            $total = $totals[$item->admissionId] ?? null;
+
+            $kind = null === $animal
+                ? ($item->physicalDescription ?? 'Non identifié')
+                : ($animal->breedName ?? self::SPECIES_LABEL[$animal->species] ?? 'Animal');
+            $age = null === $animal ? null : PatientFactsReader::age($animal, $now);
 
             $cards[] = new FluxCard(
                 admissionId: $item->admissionId,
                 emoji: $this->emoji($animal?->species),
                 name: $item->displayLabel,
-                subtitle: $this->subtitle($item, $animal),
-                isEmergency: \in_array($item->triageLevel, self::EMERGENCY_TRIAGE, true),
+                subtitle: implode(' · ', array_filter([$kind, $age, $fact?->owner], static fn (?string $part): bool => null !== $part && '' !== $part)),
+                isEmergency: $isEmergency,
                 chrono: $this->duration($minutes),
-                isLong: 1 === $current && $minutes > self::LONG_WAIT_MINUTES,
+                isLong: 0 === $current && $minutes > self::LONG_WAIT_MINUTES,
                 steps: $steps,
                 currentStep: $current,
                 where: match ($item->locationStatus) {
+                    'in_waiting_room'      => 'En salle d\'attente',
                     'in_consultation_room' => 'En consultation',
-                    'in_surgery'           => 'Au bloc',
-                    'at_reception'         => 'À l\'accueil',
-                    default                => 'Salle d\'attente',
+                    'in_surgery'           => 'En soins — ' . mb_strtolower($motif),
+                    default                => 'Règlement' . (null === $total ? '' : ' — ' . SheetText::money($total->totalTtcMinorUnits, $total->currency)),
                 },
-                who: $item->practitionerLabel ?? ('in_waiting_room' === $item->locationStatus ? 'à attribuer' : 'sans praticien'),
+                who: match ($item->locationStatus) {
+                    'in_waiting_room' => null === $vet ? 'à attribuer' : $vet . ' dès que libre',
+                    'in_consultation_room', 'in_surgery' => $vet ?? 'sans praticien',
+                    default => 'À l\'accueil',
+                },
+                location: $item->locationStatus,
+                animalId: $item->knownAnimalId,
+                motif: $motif,
+                consultationId: $openByPatient[$item->patientId] ?? null,
+                facts: $fact,
             );
         }
 
         return $cards;
     }
 
-    private function subtitle(WaitingRoomItemDto $item, ?AnimalView $animal): string
+    /** The motif as a short chip: the first sentence of a longer note. */
+    private function motif(?string $text): string
     {
-        $kind = null === $animal
-            ? ($item->physicalDescription ?? 'Non identifié')
-            : ($animal->breedName ?? self::SPECIES_LABEL[$animal->species] ?? 'Animal');
-        $motif = $item->appointmentReason ?? $item->triageNotes;
+        $text = trim((string) $text);
 
-        return null === $motif || '' === $motif ? $kind : $kind . ' · ' . $motif;
+        if ('' === $text) {
+            return 'Motif à préciser';
+        }
+
+        $first = preg_split('/(?<=[.!?])\s/u', $text)[0] ?? $text;
+
+        return rtrim($first, '.');
+    }
+
+    /** « Sophie Marie Dupont » reads « Sophie Dupont » on a card. */
+    private function shortName(string $name): string
+    {
+        $words = preg_split('/\s+/', trim($name)) ?: [];
+
+        return \count($words) > 2 ? $words[0] . ' ' . $words[\count($words) - 1] : trim($name);
     }
 
     /**
      * Tasks raised from the data: patients waiting at the desk to pay, stock
      * alerts, consultations left open from a previous day, unpaid invoices.
      *
-     * @param list<WaitingRoomItemDto> $onSite
-     * @param list<StockWatchRow>      $alerts
+     * @param list<WaitingRoomItemDto>       $onSite
+     * @param array<string, AdmissionTotal>  $totals
+     * @param list<StockWatchRow>            $alerts
+     * @param list<ConsultationListItemView> $openConsultations
      *
      * @return list<DashboardTask>
      */
     private function tasks(
         string $clinicId,
         array $onSite,
+        array $totals,
         array $alerts,
         BillingStats $stats,
+        array $openConsultations,
         \DateTimeImmutable $midnightUtc,
         \DateTimeImmutable $now,
     ): array {
@@ -572,19 +981,13 @@ final readonly class DashboardViewBuilder
             static fn (WaitingRoomItemDto $item): bool => 'at_reception' === $item->locationStatus,
         ));
 
-        $totals = [] === $atDesk ? [] : $this->queryBus->ask(new GetConsultationTotalsForAdmissions(
-            $clinicId,
-            array_map(static fn (WaitingRoomItemDto $item): string => $item->admissionId, $atDesk),
-        ));
-        \assert(\is_array($totals));
-
         foreach ($atDesk as $item) {
             $total   = $totals[$item->admissionId] ?? null;
             $tasks[] = new DashboardTask(
                 group: 'urgent',
                 icon: 'fact',
                 title: 'Encaisser ' . $item->displayLabel,
-                subtitle: ($total instanceof AdmissionTotal ? $this->money($total->totalTtcMinorUnits, $total->currency) . ' · ' : '')
+                subtitle: (null !== $total ? $this->money($total->totalTtcMinorUnits, $total->currency) . ' · ' : '')
                     . 'à l\'accueil depuis ' . $this->duration($this->minutesSince($item->openedAt, $now)),
                 audience: 'asv',
                 assigneeUserId: null,
@@ -646,7 +1049,7 @@ final readonly class DashboardViewBuilder
             );
         }
 
-        $tasks = [...$tasks, ...$this->openConsultationTasks($clinicId, $midnightUtc, $now)];
+        $tasks = [...$tasks, ...$this->openConsultationTasks($clinicId, $openConsultations, $midnightUtc, $now)];
 
         if ($stats->outstandingCount > 0) {
             $tasks[] = new DashboardTask(
@@ -667,18 +1070,16 @@ final readonly class DashboardViewBuilder
     /**
      * Consultations still open from a previous day: their record is unfinished.
      *
+     * @param list<ConsultationListItemView> $openConsultations most recent first
+     *
      * @return list<DashboardTask>
      */
-    private function openConsultationTasks(string $clinicId, \DateTimeImmutable $midnightUtc, \DateTimeImmutable $now): array
+    private function openConsultationTasks(string $clinicId, array $openConsultations, \DateTimeImmutable $midnightUtc, \DateTimeImmutable $now): array
     {
-        $result = $this->queryBus->ask(new SearchConsultations($clinicId, statuses: ['OPEN'], sort: 'datetime', direction: 'asc', limit: 100));
-        \assert(\is_array($result) && \is_array($result['items'] ?? null));
-
         $stale = [];
 
-        foreach ($result['items'] as $item) {
-            \assert($item instanceof ConsultationListItemView);
-
+        // Oldest first: the longest forgotten record comes first.
+        foreach (array_reverse($openConsultations) as $item) {
             if (new \DateTimeImmutable($item->startedAtUtc) < $midnightUtc) {
                 $stale[] = $item;
             }
