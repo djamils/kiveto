@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Admission\Application\Command\ReconcileAdmissionPatient;
 
+use App\Context\Admission\Application\Port\ConsultationPatientTransferPort;
 use App\Context\Admission\Application\Port\PatientCreationPort;
 use App\Context\Admission\Application\Port\PatientReadRepositoryPort;
 use App\Context\Admission\Domain\Repository\AdmissionRepositoryInterface;
@@ -20,6 +21,7 @@ final readonly class ReconcileAdmissionPatientHandler
         private AdmissionRepositoryInterface $admissionRepository,
         private PatientCreationPort $patientCreationPort,
         private PatientReadRepositoryPort $patientReadRepository,
+        private ConsultationPatientTransferPort $consultationPatientTransfer,
         private Connection $connection,
     ) {
     }
@@ -40,9 +42,10 @@ final readonly class ReconcileAdmissionPatientHandler
         );
 
         // If the reconcile path was taken (existing patient for the animal), the source patient
-        // is now archived and admission.patient_id must point to the target patient.
-        // PatientReconciledIntoIntegrationEvent handles this asynchronously via the worker,
-        // but we apply it synchronously here so the UI reflects the change immediately.
+        // is now archived: the admission AND its consultations (the patient may already be taken
+        // in charge) must point to the target patient. PatientReconciledIntoIntegrationEvent only
+        // catches up asynchronously via the worker, so both are moved synchronously here — the
+        // board and the cockpit match open consultations to admissions by patient id.
         $activePatientId = $this->patientReadRepository->getActivePatientIdForAnimal(
             $command->clinicId,
             $command->animalId,
@@ -57,6 +60,12 @@ final readonly class ReconcileAdmissionPatientHandler
                     'sourceId' => Uuid::fromString($sourcePatientId)->toBinary(),
                     'clinicId' => Uuid::fromString($command->clinicId)->toBinary(),
                 ],
+            );
+
+            $this->consultationPatientTransfer->transferConsultations(
+                $command->clinicId,
+                $sourcePatientId,
+                $activePatientId,
             );
         }
     }

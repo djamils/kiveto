@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Admission;
 
 use App\Context\Admission\Application\Command\ReconcileAdmissionPatient\ReconcileAdmissionPatient;
 use App\Context\Admission\Application\Command\ReconcileAdmissionPatient\ReconcileAdmissionPatientHandler;
+use App\Context\Admission\Application\Port\ConsultationPatientTransferPort;
 use App\Context\Admission\Application\Port\PatientCreationPort;
 use App\Context\Admission\Application\Port\PatientReadRepositoryPort;
 use App\Context\Admission\Domain\Admission;
@@ -24,6 +25,7 @@ final class ReconcileAdmissionPatientHandlerTest extends TestCase
     private AdmissionRepositoryInterface&MockObject $admissionRepository;
     private PatientCreationPort&MockObject $patientCreationPort;
     private PatientReadRepositoryPort&Stub $patientReadRepository;
+    private ConsultationPatientTransferPort&MockObject $consultationPatientTransfer;
     private Connection&MockObject $connection;
 
     private string $clinicId    = '12345678-9abc-def0-1234-56789abcdef0';
@@ -34,10 +36,11 @@ final class ReconcileAdmissionPatientHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->admissionRepository   = $this->createMock(AdmissionRepositoryInterface::class);
-        $this->patientCreationPort   = $this->createMock(PatientCreationPort::class);
-        $this->patientReadRepository = $this->createStub(PatientReadRepositoryPort::class);
-        $this->connection            = $this->createMock(Connection::class);
+        $this->admissionRepository         = $this->createMock(AdmissionRepositoryInterface::class);
+        $this->patientCreationPort         = $this->createMock(PatientCreationPort::class);
+        $this->patientReadRepository       = $this->createStub(PatientReadRepositoryPort::class);
+        $this->consultationPatientTransfer = $this->createMock(ConsultationPatientTransferPort::class);
+        $this->connection                  = $this->createMock(Connection::class);
     }
 
     public function testLinkPathDispatchesPortAndDoesNotUpdateAdmission(): void
@@ -49,6 +52,7 @@ final class ReconcileAdmissionPatientHandlerTest extends TestCase
         $this->patientReadRepository->method('getActivePatientIdForAnimal')->willReturn($this->patientId);
 
         $this->connection->expects(self::never())->method('executeStatement');
+        $this->consultationPatientTransfer->expects(self::never())->method('transferConsultations');
 
         ($this->makeHandler())(new ReconcileAdmissionPatient(
             clinicId: $this->clinicId,
@@ -76,6 +80,13 @@ final class ReconcileAdmissionPatientHandlerTest extends TestCase
             )
         ;
 
+        // The patient may already be taken in charge: its open consultation must follow the
+        // admission onto the identified record right away, not when the async worker runs.
+        $this->consultationPatientTransfer->expects(self::once())
+            ->method('transferConsultations')
+            ->with($this->clinicId, $this->patientId, $targetPatientId)
+        ;
+
         ($this->makeHandler())(new ReconcileAdmissionPatient(
             clinicId: $this->clinicId,
             admissionId: $this->admissionId,
@@ -90,6 +101,7 @@ final class ReconcileAdmissionPatientHandlerTest extends TestCase
             $this->admissionRepository,
             $this->patientCreationPort,
             $this->patientReadRepository,
+            $this->consultationPatientTransfer,
             $this->connection,
         );
     }

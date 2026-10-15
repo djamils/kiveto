@@ -4,32 +4,31 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Infrastructure\Messaging\Consumer;
 
+use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
+use App\Context\Consultation\Domain\ValueObject\ClinicId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Patient\Domain\Event\PatientReconciledIntoIntegrationEvent;
-use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Uid\Uuid;
 
+/**
+ * Catches up the consultations of a merged patient record, whatever merged
+ * it. The identification at the desk already transfers them synchronously
+ * (see ReconcileAdmissionPatientHandler), so this is then a no-op.
+ */
 #[AsMessageHandler(bus: 'messenger.bus.integration_event')]
 final readonly class PatientReconciledIntoHandler
 {
     public function __construct(
-        private Connection $connection,
+        private ConsultationRepositoryInterface $consultations,
     ) {
     }
 
     public function __invoke(PatientReconciledIntoIntegrationEvent $event): void
     {
-        $sourceBinary = Uuid::fromString($event->sourcePatientId)->toBinary();
-        $targetBinary = Uuid::fromString($event->targetPatientId)->toBinary();
-
-        // Bulk-update all consultations referencing the merged (source) patient
-        // to point to the surviving (target) patient.
-        $this->connection->executeStatement(
-            'UPDATE consultation__consultations SET patient_id = :targetId WHERE patient_id = :sourceId',
-            [
-                'targetId' => $targetBinary,
-                'sourceId' => $sourceBinary,
-            ],
+        $this->consultations->transferToPatient(
+            ClinicId::fromString($event->clinicId),
+            PatientId::fromString($event->sourcePatientId),
+            PatientId::fromString($event->targetPatientId),
         );
     }
 }
