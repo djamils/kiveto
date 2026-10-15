@@ -21,6 +21,8 @@ use PHPUnit\Framework\TestCase;
 
 final class CancelAppointmentHandlerTest extends TestCase
 {
+    private const string CLINIC = '22222222-2222-2222-2222-222222222222';
+
     private AppointmentRepositoryInterface&MockObject $appointmentRepository;
     private ClockInterface&MockObject $clock;
     private CancelAppointmentHandler $handler;
@@ -49,7 +51,7 @@ final class CancelAppointmentHandlerTest extends TestCase
         ;
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
 
-        ($this->handler)(new CancelAppointment($appointmentId->toString()));
+        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -60,7 +62,21 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Appointment with ID "11111111-1111-1111-1111-111111111111" does not exist.');
 
-        ($this->handler)(new CancelAppointment('11111111-1111-1111-1111-111111111111'));
+        ($this->handler)(new CancelAppointment('11111111-1111-1111-1111-111111111111', self::CLINIC));
+    }
+
+    public function testAppointmentOfAnotherClinicIsReportedAsMissing(): void
+    {
+        $appointmentId = AppointmentId::fromString('11111111-1111-1111-1111-111111111111');
+
+        $this->appointmentRepository->expects(self::once())->method('findById')->willReturn($this->makeAppointment($appointmentId));
+        $this->appointmentRepository->expects(self::never())->method('save');
+        $this->clock->expects(self::never())->method('now');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Appointment with ID "11111111-1111-1111-1111-111111111111" does not exist.');
+
+        ($this->handler)(new CancelAppointment($appointmentId->toString(), '99999999-9999-9999-9999-999999999999'));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -76,14 +92,14 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Impossible d\'annuler un rendez-vous passé.');
 
-        ($this->handler)(new CancelAppointment($appointmentId->toString()));
+        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
     }
 
     private function makeAppointment(AppointmentId $id): Appointment
     {
         return Appointment::schedule(
             id: $id,
-            clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
+            clinicId: ClinicId::fromString(self::CLINIC),
             practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
             reason: null,

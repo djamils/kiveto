@@ -21,7 +21,8 @@ use PHPUnit\Framework\TestCase;
 
 final class MarkAppointmentNoShowHandlerTest extends TestCase
 {
-    private const string ID = '11111111-1111-1111-1111-111111111111';
+    private const string ID     = '11111111-1111-1111-1111-111111111111';
+    private const string CLINIC = '22222222-2222-2222-2222-222222222222';
 
     private AppointmentRepositoryInterface&MockObject $appointmentRepository;
     private ClockInterface&MockObject $clock;
@@ -45,7 +46,7 @@ final class MarkAppointmentNoShowHandlerTest extends TestCase
         ;
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:45:00'));
 
-        ($this->handler)(new MarkAppointmentNoShow(self::ID));
+        ($this->handler)(new MarkAppointmentNoShow(self::ID, self::CLINIC));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -56,7 +57,19 @@ final class MarkAppointmentNoShowHandlerTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Appointment with ID "' . self::ID . '" does not exist.');
 
-        ($this->handler)(new MarkAppointmentNoShow(self::ID));
+        ($this->handler)(new MarkAppointmentNoShow(self::ID, self::CLINIC));
+    }
+
+    public function testAppointmentOfAnotherClinicIsReportedAsMissing(): void
+    {
+        $this->appointmentRepository->expects(self::once())->method('findById')->willReturn($this->makeAppointment());
+        $this->appointmentRepository->expects(self::never())->method('save');
+        $this->clock->expects(self::never())->method('now');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Appointment with ID "' . self::ID . '" does not exist.');
+
+        ($this->handler)(new MarkAppointmentNoShow(self::ID, '99999999-9999-9999-9999-999999999999'));
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -69,14 +82,14 @@ final class MarkAppointmentNoShowHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Impossible de marquer non venu un rendez-vous à venir.');
 
-        ($this->handler)(new MarkAppointmentNoShow(self::ID));
+        ($this->handler)(new MarkAppointmentNoShow(self::ID, self::CLINIC));
     }
 
     private function makeAppointment(): Appointment
     {
         return Appointment::schedule(
             id: AppointmentId::fromString(self::ID),
-            clinicId: ClinicId::fromString('22222222-2222-2222-2222-222222222222'),
+            clinicId: ClinicId::fromString(self::CLINIC),
             practitionerAssignee: new PractitionerAssignee(UserId::fromString('44444444-4444-4444-4444-444444444444')),
             timeSlot: new TimeSlot(new \DateTimeImmutable('2026-04-10 09:00:00'), 30),
             reason: null,

@@ -104,6 +104,18 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
         ($this->handler)($this->baseCommand(['recurrenceFreq' => 'DAILY']));
     }
 
+    #[AllowMockObjectsWithoutExpectations]
+    public function testBlockOfAnotherClinicIsReportedAsNotFound(): void
+    {
+        $this->repository->expects(self::once())->method('findById')->willReturn($this->sampleBlock());
+        $this->overlapChecker->expects(self::never())->method('hasOverlap');
+        $this->repository->expects(self::never())->method('save');
+
+        $this->expectException(PlanningBlockNotFoundException::class);
+
+        ($this->handler)($this->baseCommand(['clinicId' => '99999999-9999-9999-9999-999999999999']));
+    }
+
     private function sampleBlock(): PlanningBlock
     {
         return PlanningBlock::reconstitute(
@@ -125,7 +137,7 @@ final class UpdatePlanningBlockHandlerTest extends TestCase
     {
         return new UpdatePlanningBlock(
             blockId: '11111111-1111-1111-1111-111111111111',
-            clinicId: '22222222-2222-2222-2222-222222222222',
+            clinicId: \is_string($overrides['clinicId'] ?? null) ? $overrides['clinicId'] : '22222222-2222-2222-2222-222222222222',
             staffUserId: '33333333-3333-3333-3333-333333333333',
             type: \is_string($overrides['type'] ?? null) ? $overrides['type'] : 'consultation',
             date: \is_string($overrides['date'] ?? null) ? $overrides['date'] : '2026-04-21',

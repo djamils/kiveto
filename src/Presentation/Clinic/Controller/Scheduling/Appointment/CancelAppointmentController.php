@@ -52,7 +52,10 @@ final class CancelAppointmentController extends AbstractController
         }
 
         try {
-            $this->commandBus->dispatch(new CancelAppointment(appointmentId: $appointmentId));
+            $this->commandBus->dispatch(new CancelAppointment(
+                appointmentId: $appointmentId,
+                clinicId: $currentClinicId->toString(),
+            ));
 
             return new JsonResponse([
                 'success'          => true,

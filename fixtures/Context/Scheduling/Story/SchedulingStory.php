@@ -264,7 +264,7 @@ final class SchedulingStory extends Story
                     // A few past bookings are left unsettled: the agenda offers « Marquer non venu »
                     if ($isOver && 3 !== ++$done % 10) {
                         $this->commandBus->dispatch(7 === $done % 12
-                            ? new MarkAppointmentNoShow($id)
+                            ? new MarkAppointmentNoShow($id, $clinicId)
                             : new CompleteAppointment($id));
                     }
                 }
@@ -348,6 +348,7 @@ final class SchedulingStory extends Story
         if ($cancelled) {
             $this->commandBus->dispatch(new CancelAppointment(
                 appointmentId: $appointmentId,
+                clinicId: $clinicId,
             ));
         }
 
