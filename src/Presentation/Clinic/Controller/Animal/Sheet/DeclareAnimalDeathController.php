@@ -94,7 +94,7 @@ final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
             $upcoming = 'PLANNED' === $appointment->status
                 && new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC')) >= $now;
 
-            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id)))) {
+            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId)))) {
                 ++$cancelled;
             }
         }

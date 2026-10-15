@@ -10,6 +10,7 @@ final readonly class MarkAppointmentNoShow implements CommandInterface
 {
     public function __construct(
         public string $appointmentId,
+        public string $clinicId,
     ) {
     }
 }

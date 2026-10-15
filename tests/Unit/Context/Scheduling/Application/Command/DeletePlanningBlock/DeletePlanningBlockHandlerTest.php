@@ -70,6 +70,21 @@ final class DeletePlanningBlockHandlerTest extends TestCase
     }
 
     #[AllowMockObjectsWithoutExpectations]
+    public function testBlockOfAnotherClinicIsReportedAsNotFound(): void
+    {
+        $this->repository->expects(self::once())->method('findById')->willReturn($this->sampleBlock());
+        $this->counter->expects(self::never())->method('countActiveInWindow');
+        $this->repository->expects(self::never())->method('delete');
+
+        $this->expectException(PlanningBlockNotFoundException::class);
+
+        ($this->handler)(new DeletePlanningBlock(
+            blockId: '11111111-1111-1111-1111-111111111111',
+            clinicId: '99999999-9999-9999-9999-999999999999',
+        ));
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
     public function testBlockWithAppointmentsThrows(): void
     {
         $this->expectException(CannotDeletePlanningBlockWithAppointments::class);

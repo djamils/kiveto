@@ -52,7 +52,10 @@ final class MarkAppointmentNoShowController extends AbstractController
         }
 
         try {
-            $this->commandBus->dispatch(new MarkAppointmentNoShow(appointmentId: $appointmentId));
+            $this->commandBus->dispatch(new MarkAppointmentNoShow(
+                appointmentId: $appointmentId,
+                clinicId: $currentClinicId->toString(),
+            ));
 
             return new JsonResponse([
                 'success'       => true,

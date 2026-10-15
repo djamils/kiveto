@@ -28,11 +28,13 @@ final readonly class DeletePlanningBlockHandler
         $blockId = PlanningBlockId::fromString($command->blockId);
         $block   = $this->repository->findById($blockId);
 
-        if (null === $block) {
+        $clinicId = ClinicId::fromString($command->clinicId);
+
+        // A block of another clinic is reported as missing, never exposed
+        if (null === $block || !$block->clinicId()->equals($clinicId)) {
             throw new PlanningBlockNotFoundException(\sprintf('PlanningBlock "%s" not found.', $command->blockId));
         }
 
-        $clinicId = ClinicId::fromString($command->clinicId);
         $tz       = $this->timezoneResolver->resolveTimezone($clinicId);
         $startUtc = $block->timeRange()->toUtcStart($tz);
         $endUtc   = $block->timeRange()->toUtcEnd($tz);

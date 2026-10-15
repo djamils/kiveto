@@ -10,6 +10,7 @@ final readonly class CancelAppointment implements CommandInterface
 {
     public function __construct(
         public string $appointmentId,
+        public string $clinicId,
     ) {
     }
 }
