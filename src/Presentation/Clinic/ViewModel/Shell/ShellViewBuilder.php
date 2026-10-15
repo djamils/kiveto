@@ -31,7 +31,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  */
 final class ShellViewBuilder
 {
-    /** Square colours of the clinic switcher, handed out in the member's clinic order. */
+    /** Square colours of the clinic switcher, handed out in the member's clinic order to clinics that chose none. */
     private const array CLINIC_COLORS = [
         'var(--pin)', '#16a34a', 'var(--ambre)', 'var(--hospit)', 'var(--labo)', 'var(--garance)',
     ];
@@ -88,7 +88,7 @@ final class ShellViewBuilder
                 id: $clinic->clinicId,
                 name: $clinic->clinicName,
                 initial: mb_strtoupper(mb_substr($clinic->clinicName, 0, 1)),
-                color: self::CLINIC_COLORS[$index % \count(self::CLINIC_COLORS)],
+                color: $clinic->brandColor ?? self::CLINIC_COLORS[$index % \count(self::CLINIC_COLORS)],
                 subtitle: self::ROLE_LABELS[$clinic->memberRole->value],
                 isCurrent: $isCurrent,
                 isDefault: $clinic->isDefault,

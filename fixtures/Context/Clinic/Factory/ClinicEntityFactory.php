@@ -65,6 +65,12 @@ final class ClinicEntityFactory extends PersistentProxyObjectFactory
         return $this->with(['billingSettings' => $billingSettings]);
     }
 
+    /** The clinic's colour in the clinic switcher. */
+    public function withBrandColor(string $color): self
+    {
+        return $this->with(['brandColor' => $color]);
+    }
+
     public function suspended(): self
     {
         return $this->with(['status' => ClinicStatus::SUSPENDED]);

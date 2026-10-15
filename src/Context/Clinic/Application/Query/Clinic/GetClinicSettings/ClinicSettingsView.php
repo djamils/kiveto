@@ -14,7 +14,7 @@ final readonly class ClinicSettingsView
      * @param array<string, string|null>                                 $letterhead
      * @param array<int, list<array{opensAt: string, closesAt: string}>> $week
      * @param list<array{date: string, reason: string|null}>             $closures
-     * @param array<string, string|int|null>                             $billing
+     * @param array<string, string|int|bool|list<string>|null>           $billing
      */
     public function __construct(
         public string $id,
@@ -29,6 +29,9 @@ final readonly class ClinicSettingsView
         public array $week,
         public array $closures,
         public array $billing,
+        public ?string $brandColor = null,
+        /** The stored file of the logo, null when there is none. */
+        public ?string $logoKey = null,
     ) {
     }
 

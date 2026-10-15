@@ -64,6 +64,12 @@ class ClinicEntity
     #[ORM\Column(name: 'billing_settings', type: 'json', options: ['default' => '{}'])]
     private array $billingSettings = [];
 
+    #[ORM\Column(name: 'brand_color', type: 'string', length: 7, nullable: true)]
+    private ?string $brandColor = null;
+
+    #[ORM\Column(name: 'logo_key', type: 'string', length: 255, nullable: true)]
+    private ?string $logoKey = null;
+
     #[ORM\Version]
     #[ORM\Column(type: 'integer', options: ['default' => 1])]
     private int $version = 1;
@@ -221,6 +227,26 @@ class ClinicEntity
     public function setLetterhead(LetterheadEmbeddable $letterhead): void
     {
         $this->letterhead = $letterhead;
+    }
+
+    public function getBrandColor(): ?string
+    {
+        return $this->brandColor;
+    }
+
+    public function setBrandColor(?string $brandColor): void
+    {
+        $this->brandColor = $brandColor;
+    }
+
+    public function getLogoKey(): ?string
+    {
+        return $this->logoKey;
+    }
+
+    public function setLogoKey(?string $logoKey): void
+    {
+        $this->logoKey = $logoKey;
     }
 
     public function getVersion(): int

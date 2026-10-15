@@ -45,6 +45,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                 c.name AS clinic_name,
                 c.slug AS clinic_slug,
                 c.status AS clinic_status,
+                c.brand_color,
                 m.role,
                 m.engagement,
                 m.valid_from_utc,
@@ -96,6 +97,7 @@ final readonly class DoctrineClinicMembershipReadRepository implements ClinicMem
                         })($row['valid_until_utc'])
                         : null,
                     isDefault: (bool) $row['is_default'],
+                    brandColor: \is_string($row['brand_color']) ? $row['brand_color'] : null,
                 );
             },
             $results

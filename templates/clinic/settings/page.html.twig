@@ -1,0 +1,44 @@
+{#
+ # Kiveto — templates/clinic/settings/page.html.twig
+ # ─────────────────────────────────────────────────
+ # Paramètres — the clinic's settings, section by section. Ported from
+ # docs/frontend-theme/kiveto-theme/parametres-v-topbar_5.html: page header
+ # with the « saved » indicator (and its « Annuler »), the settings navigation
+ # with its search and sliding indicator, and the section cards.
+ #
+ # The four routes (clinic_settings, clinic_settings_hours,
+ # clinic_settings_billing, clinic_settings_preferences) render this page on
+ # their section. Everything inside is drawn by the page module from the
+ # payload; each change saves its whole section in the background.
+ #
+ # Variables:
+ #   payload  App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder::page()
+ #
+ # Behaviour: assets/js/pages/settings.js — styles: assets/styles/shell/register.css + assets/styles/pages/settings.css
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt{% endblock %}
+{% block title %}Paramètres{% endblock %}
+
+{% block main %}
+<div class="reg prm" data-page="{{ app.request.attributes.get('_route') }}" data-payload="{{ payload|json_encode }}">
+
+  <div class="pagehead">
+    <h1>Paramètres<small id="phSub">{{ payload.clinicName }}</small></h1>
+    <div class="right" style="align-items:center">
+      <span class="saved" id="saved" role="status"><i></i><span id="savedT">Tout est enregistré</span></span>
+    </div>
+  </div>
+  <main class="pzone">
+    <nav class="pnav" aria-label="Sections des paramètres">
+      <div class="crech"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="pq" placeholder="Rechercher un réglage…" autocomplete="off" aria-label="Rechercher un réglage"><kbd>/</kbd></div>
+      <div class="pnav-l scr" id="pnav"></div>
+    </nav>
+    <div class="pcont scr" id="pcont"><div class="pin" id="pin"></div></div>
+  </main>
+
+  <div class="cpop" id="cpop"></div>
+  <input type="file" id="logoFile" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+</div>
+{% endblock %}

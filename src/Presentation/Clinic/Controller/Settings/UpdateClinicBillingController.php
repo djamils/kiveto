@@ -6,89 +6,83 @@ namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicBillingSettings\UpdateClinicBillingSettings;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
+use App\Presentation\Clinic\ViewModel\Settings\SettingsEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Context\CurrentClinicContextInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Where the invoice is issued from, how its number is built and where the money
- * goes.
+ * The « Facturation et caisse » section, saved whole on every change: how the
+ * invoices and credit notes are numbered, when they are due, what the desk
+ * takes, the VAT regime, where the money goes and what is printed at the foot.
  */
 #[Route(path: '/settings/billing', name: 'clinic_settings_billing_save', methods: ['POST'])]
-final class UpdateClinicBillingController extends AbstractController
+final readonly class UpdateClinicBillingController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ClinicPermissionGuard $guard,
+        private CommandBusInterface $commandBus,
+        private SettingsEndpoint $endpoint,
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): JsonResponse
     {
-        $this->guard->require(ClinicPermissionGuard::MANAGE_BILLING);
+        if (null !== $refused = $this->endpoint->guard($request, ClinicPermissionGuard::MANAGE_BILLING)) {
+            return $refused;
+        }
 
-        $clinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $clinicId);
+        $v       = SettingsEndpoint::values($request);
+        $current = $this->endpoint->settings();
+        $methods = $v['fa.moyens'] ?? null;
 
-        $terms    = mb_trim($request->request->getString('paymentTermsDays'));
-        $termDays = '' !== $terms ? (int) $terms : null;
+        if (\is_array($methods) && [] === $methods) {
+            return $this->endpoint->refuse('Gardez au moins un moyen de paiement.', 'fa.moyens');
+        }
 
         try {
             $this->commandBus->dispatch(new UpdateClinicBillingSettings(
-                clinicId: $clinicId->toString(),
-                streetLine1: $this->field($request, 'streetLine1'),
-                streetLine2: $this->field($request, 'streetLine2'),
-                postalCode: $this->field($request, 'postalCode'),
-                city: $this->field($request, 'city'),
-                countryCode: $this->field($request, 'countryCode'),
-                invoiceNumberPrefix: $this->field($request, 'invoiceNumberPrefix'),
-                paymentTermsDays: $termDays,
-                iban: $this->field($request, 'iban'),
-                bic: $this->field($request, 'bic'),
-                invoiceFooterNote: $this->field($request, 'invoiceFooterNote'),
+                clinicId: $current->id,
+                streetLine1: SettingsEndpoint::text($v, 'fa.adr1'),
+                streetLine2: SettingsEndpoint::text($v, 'fa.adr2'),
+                postalCode: SettingsEndpoint::text($v, 'fa.cp'),
+                city: SettingsEndpoint::text($v, 'fa.ville'),
+                countryCode: $current->countryCode,
+                invoiceNumberPrefix: SettingsEndpoint::text($v, 'fa.prefixe'),
+                paymentTermsDays: SettingsEndpoint::int($v, 'fa.cond'),
+                iban: SettingsEndpoint::compact($v, 'fa.iban'),
+                bic: SettingsEndpoint::compact($v, 'fa.bic'),
+                invoiceFooterNote: \is_string($v['fa.mentions'] ?? null) && '' !== mb_trim($v['fa.mentions']) ? mb_trim($v['fa.mentions']) : null,
+                creditNotePrefix: SettingsEndpoint::text($v, 'fa.av'),
+                professionalPaymentTermsDays: SettingsEndpoint::int($v, 'fa.pro'),
+                vatRegime: SettingsEndpoint::text($v, 'fe.regime'),
+                vatOnDebits: true === ($v['fe.debits'] ?? false),
+                acceptedPaymentMethods: \is_array($methods) ? array_values(array_filter($methods, \is_string(...))) : null,
             ));
-        } catch (\DomainException $exception) {
-            $this->addFlash('error', $this->explain($exception));
+        } catch (\LogicException $exception) {
+            [$reason, $field] = self::explain($exception);
 
-            return $this->redirectToRoute('clinic_settings_billing');
+            return $this->endpoint->refuse($reason, $field);
         }
 
-        $this->addFlash('success', 'Paramètres de facturation enregistrés.');
-
-        return $this->redirectToRoute('clinic_settings_billing');
+        return $this->endpoint->ok();
     }
 
-    private function field(Request $request, string $name): ?string
-    {
-        $value = mb_trim($request->request->getString($name));
-
-        return '' !== $value ? $value : null;
-    }
-
-    private function explain(\DomainException $exception): string
+    /**
+     * @return array{0: string, 1: string|null}
+     */
+    private static function explain(\LogicException $exception): array
     {
         $message = $exception->getMessage();
 
-        if (str_contains($message, 'IBAN')) {
-            return 'L’IBAN saisi n’est pas un IBAN valide.';
-        }
-
-        if (str_contains($message, 'BIC')) {
-            return 'Le BIC saisi n’est pas un BIC valide.';
-        }
-
-        if (str_contains($message, 'prefix')) {
-            return 'Le préfixe de numérotation n’accepte que lettres, chiffres, tirets et barres obliques.';
-        }
-
-        if (str_contains($message, 'Payment terms')) {
-            return 'Le délai de règlement doit être compris entre 0 et 365 jours.';
-        }
-
-        return 'Les paramètres de facturation saisis sont invalides.';
+        return match (true) {
+            str_contains($message, 'IBAN')           => ['L’IBAN saisi n’est pas un IBAN valide.', 'fa.iban'],
+            str_contains($message, 'BIC')            => ['Le BIC saisi n’est pas un BIC valide.', 'fa.bic'],
+            str_contains($message, 'prefix')         => ['Le préfixe de numérotation n’accepte que lettres, chiffres, tirets et barres obliques.', 'fa.prefixe'],
+            str_contains($message, 'Payment terms')  => ['Le délai de règlement doit être compris entre 0 et 365 jours.', 'fa.pro'],
+            str_contains($message, 'Payment method') => ['Ce moyen de paiement n’est pas proposé.', 'fa.moyens'],
+            str_contains($message, 'VAT regime')     => ['Ce régime de TVA n’est pas reconnu.', 'fe.regime'],
+            default                                  => ['Les paramètres de facturation saisis sont invalides.', null],
+        };
     }
 }

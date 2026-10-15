@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Command\Clinic\UpdateClinicBillingSettings;
 
+use App\Context\Clinic\Domain\Exception\InvalidBillingSettingsException;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\BillingSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
+use App\Context\Clinic\Domain\ValueObject\VatRegime;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\PostalAddress;
@@ -64,7 +66,21 @@ final class UpdateClinicBillingSettingsHandler
             iban: $command->iban,
             bic: $command->bic,
             invoiceFooterNote: $command->invoiceFooterNote,
+            creditNotePrefix: $command->creditNotePrefix,
+            professionalPaymentTermsDays: $command->professionalPaymentTermsDays,
+            vatRegime: self::regime($command->vatRegime),
+            vatOnDebits: $command->vatOnDebits,
+            acceptedPaymentMethods: $command->acceptedPaymentMethods,
         );
+    }
+
+    private static function regime(?string $value): ?VatRegime
+    {
+        if (null === $value || '' === $value) {
+            return null;
+        }
+
+        return VatRegime::tryFrom($value) ?? throw InvalidBillingSettingsException::unknownVatRegime($value);
     }
 
     private static function trimmed(?string $value): ?string

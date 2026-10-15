@@ -8,7 +8,7 @@
  # HTML page with nothing pointing back at the application.
  #
  # Variables:
- #   clinic      ClinicDto|null   The current clinic (name, letterhead)
+ #   clinic      ClinicDto|null   The current clinic (name, letterhead, logo, colour)
  #
  # Blocks:
  #   doc_title   <title>, also the name suggested when the PDF is saved
@@ -31,7 +31,14 @@
 <table class="lh"><tr>
   <td style="width:60%;">
     <table style="border-collapse:collapse;"><tr>
-      <td style="width:11mm;"><div class="mark">{{ clinicName|slice(0, 1)|upper|default('K') }}</div></td>
+      {% set _logo = clinic is not null ? clinic_logo_data_uri(clinic.logoKey) : null %}
+      <td style="width:11mm;">
+        {%- if _logo -%}
+          <img class="mark-logo" src="{{ _logo }}" alt=""/>
+        {%- else -%}
+          <div class="mark"{% if clinic is not null and clinic.brandColor %} style="background:{{ clinic.brandColor }};"{% endif %}>{{ clinicName|slice(0, 1)|upper|default('K') }}</div>
+        {%- endif -%}
+      </td>
       <td style="padding-left:1mm;">
         <p class="clinic-name">{{ letterhead is not null and letterhead.legalName is not null ? letterhead.legalName : clinicName }}</p>
       </td>
@@ -50,6 +57,7 @@
         {% if identifiers is not empty %}{{ identifiers|join(' · ') }}<br/>{% endif %}
         {% if letterhead.ordinalNumber %}
           Établissement inscrit à l’Ordre des vétérinaires sous le n° {{ letterhead.ordinalNumber }}
+          {%- if letterhead.ordinalCouncil %} (conseil régional {{ letterhead.ordinalCouncil }}){% endif %}
         {% endif %}
       </p>
     {% endif %}

@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Settings;
 
-use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
-use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
-use App\Shared\Application\Bus\QueryBusInterface;
+use App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Who the clinic is: the name it goes by and the identity it prints.
+ * Paramètres, section « Identité »: the name the clinic goes by, the identity it
+ * prints on its documents and how it looks.
  */
 #[Route(path: '/settings', name: 'clinic_settings', methods: ['GET'])]
 final class ShowClinicIdentityController extends AbstractController
 {
     public function __construct(
-        private readonly QueryBusInterface $queryBus,
+        private readonly SettingsPageBuilder $page,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly ClinicPermissionGuard $guard,
     ) {
@@ -33,14 +32,8 @@ final class ShowClinicIdentityController extends AbstractController
         $clinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $clinicId);
 
-        $settings = $this->queryBus->ask(new GetClinicSettings($clinicId->toString()));
-
-        if (!$settings instanceof ClinicSettingsView) {
-            throw $this->createNotFoundException('Clinique introuvable.');
-        }
-
-        return $this->render('clinic/settings/identity.html.twig', [
-            'settings' => $settings,
+        return $this->render('clinic/settings/page.html.twig', [
+            'payload' => $this->page->page($clinicId->toString(), 'identite'),
         ]);
     }
 }

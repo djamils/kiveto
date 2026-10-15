@@ -227,6 +227,18 @@
       {%- if letterhead.formattedSiret %}, SIRET {{ letterhead.formattedSiret }}{% endif %}
       {%- if letterhead.vatNumber %}, TVA intracommunautaire {{ letterhead.vatNumber }}{% endif %}.<br/>
     {% endif %}
+    {% if letterhead is not null and letterhead.liabilitySentence %}
+      {{ letterhead.liabilitySentence }}.<br/>
+    {% endif %}
+    {% if billing is defined and billing is not null and billing.vatOnDebits %}
+      Option pour le paiement de la TVA d’après les débits.<br/>
+    {% endif %}
+    {% if billing is defined and billing is not null and billing.iban %}
+      <b>Règlement par virement.</b> IBAN {{ billing.iban }}{% if billing.bic %} · BIC {{ billing.bic }}{% endif %}.<br/>
+    {% endif %}
+    {% if billing is defined and billing is not null and billing.invoiceFooterNote %}
+      {{ billing.invoiceFooterNote }}<br/>
+    {% endif %}
     <b>Conditions de règlement.</b> Paiement comptant à réception des soins, sauf accord écrit préalable.
     En cas de retard de paiement, application de plein droit de pénalités calculées au taux d’intérêt légal
     majoré de trois points, ainsi que d’une indemnité forfaitaire de recouvrement de 40 € pour les clients

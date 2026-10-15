@@ -32,6 +32,11 @@ final readonly class Letterhead
         public ?PhoneNumber $phone,
         public ?EmailAddress $email,
         public ?string $website,
+        /** The regional council of the Order the company is registered with. */
+        public ?OrdinalCouncil $ordinalCouncil = null,
+        /** Who insures the clinic's professional liability, printed on invoices. */
+        public ?string $liabilityInsurer = null,
+        public ?string $liabilityPolicyNumber = null,
     ) {
     }
 
@@ -58,6 +63,9 @@ final readonly class Letterhead
         ?string $phone = null,
         ?string $email = null,
         ?string $website = null,
+        ?string $ordinalCouncil = null,
+        ?string $liabilityInsurer = null,
+        ?string $liabilityPolicyNumber = null,
     ): self {
         $normalizedSiret = self::digitsOnly($siret);
 
@@ -66,6 +74,12 @@ final readonly class Letterhead
                 'A SIRET is made of 14 digits, got: "%s".',
                 $siret ?? '',
             ));
+        }
+
+        $council = self::normalize($ordinalCouncil);
+
+        if (null !== $council && null === OrdinalCouncil::tryFrom($council)) {
+            throw new \InvalidArgumentException(\sprintf('Unknown regional council of the Order: "%s".', $council));
         }
 
         $normalizedPhone = self::normalize($phone);
@@ -85,6 +99,9 @@ final readonly class Letterhead
             phone: null !== $normalizedPhone ? PhoneNumber::fromString($normalizedPhone) : null,
             email: null !== $normalizedEmail ? EmailAddress::fromString($normalizedEmail) : null,
             website: self::normalize($website),
+            ordinalCouncil: null !== $council ? OrdinalCouncil::from($council) : null,
+            liabilityInsurer: self::normalize($liabilityInsurer),
+            liabilityPolicyNumber: self::upperNormalize($liabilityPolicyNumber),
         );
     }
 
@@ -102,7 +119,10 @@ final readonly class Letterhead
             && null === $this->address
             && null === $this->phone
             && null === $this->email
-            && null === $this->website;
+            && null === $this->website
+            && null === $this->ordinalCouncil
+            && null === $this->liabilityInsurer
+            && null === $this->liabilityPolicyNumber;
     }
 
     public function equals(self $other): bool
@@ -125,7 +145,10 @@ final readonly class Letterhead
             && $this->ordinalNumber === $other->ordinalNumber
             && $this->phone?->toString() === $other->phone?->toString()
             && $this->email?->toString() === $other->email?->toString()
-            && $this->website === $other->website;
+            && $this->website === $other->website
+            && $this->ordinalCouncil === $other->ordinalCouncil
+            && $this->liabilityInsurer === $other->liabilityInsurer
+            && $this->liabilityPolicyNumber === $other->liabilityPolicyNumber;
     }
 
     private static function normalize(?string $value): ?string

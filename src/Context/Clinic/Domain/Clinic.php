@@ -6,6 +6,7 @@ namespace App\Context\Clinic\Domain;
 
 use App\Context\Clinic\Domain\Event\ClinicActivated;
 use App\Context\Clinic\Domain\Event\ClinicBillingSettingsUpdated;
+use App\Context\Clinic\Domain\Event\ClinicBrandingChanged;
 use App\Context\Clinic\Domain\Event\ClinicClosed;
 use App\Context\Clinic\Domain\Event\ClinicCreated;
 use App\Context\Clinic\Domain\Event\ClinicLetterheadUpdated;
@@ -15,6 +16,7 @@ use App\Context\Clinic\Domain\Event\ClinicRenamed;
 use App\Context\Clinic\Domain\Event\ClinicSlugChanged;
 use App\Context\Clinic\Domain\Event\ClinicSuspended;
 use App\Context\Clinic\Domain\Event\ClinicTimeZoneChanged;
+use App\Context\Clinic\Domain\Staff\ValueObject\HexColor;
 use App\Context\Clinic\Domain\ValueObject\BillingSettings;
 use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
@@ -43,6 +45,10 @@ final class Clinic extends AggregateRoot
     private Letterhead $letterhead;
     private OpeningHours $openingHours;
     private BillingSettings $billingSettings;
+    /** The clinic's colour in the clinic switcher; null when it has not chosen one. */
+    private ?HexColor $brandColor = null;
+    /** The stored file of the logo it prints on its documents. */
+    private ?string $logoKey = null;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -111,6 +117,8 @@ final class Clinic extends AggregateRoot
         ?Letterhead $letterhead = null,
         ?OpeningHours $openingHours = null,
         ?BillingSettings $billingSettings = null,
+        ?HexColor $brandColor = null,
+        ?string $logoKey = null,
     ): self {
         $clinic                   = new self();
         $clinic->id               = $id;
@@ -126,6 +134,8 @@ final class Clinic extends AggregateRoot
         $clinic->letterhead       = $letterhead ?? Letterhead::empty();
         $clinic->openingHours     = $openingHours ?? OpeningHours::empty();
         $clinic->billingSettings  = $billingSettings ?? BillingSettings::empty();
+        $clinic->brandColor       = $brandColor;
+        $clinic->logoKey          = $logoKey;
         $clinic->createdAt        = $createdAt;
         $clinic->updatedAt        = $updatedAt;
 
@@ -281,6 +291,35 @@ final class Clinic extends AggregateRoot
         ));
     }
 
+    public function changeBrandColor(?HexColor $brandColor, \DateTimeImmutable $updatedAt): void
+    {
+        if ($brandColor?->toString() === $this->brandColor?->toString()) {
+            return;
+        }
+
+        $this->brandColor = $brandColor;
+        $this->updatedAt  = $updatedAt;
+
+        $this->recordBrandingChange();
+    }
+
+    /**
+     * The logo is a stored file; null takes it off the documents.
+     */
+    public function changeLogo(?string $logoKey, \DateTimeImmutable $updatedAt): void
+    {
+        $logoKey = null !== $logoKey && '' !== mb_trim($logoKey) ? mb_trim($logoKey) : null;
+
+        if ($logoKey === $this->logoKey) {
+            return;
+        }
+
+        $this->logoKey   = $logoKey;
+        $this->updatedAt = $updatedAt;
+
+        $this->recordBrandingChange();
+    }
+
     public function close(\DateTimeImmutable $updatedAt): void
     {
         if (ClinicStatus::CLOSED === $this->status) {
@@ -360,6 +399,16 @@ final class Clinic extends AggregateRoot
         return $this->billingSettings;
     }
 
+    public function brandColor(): ?HexColor
+    {
+        return $this->brandColor;
+    }
+
+    public function logoKey(): ?string
+    {
+        return $this->logoKey;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -368,5 +417,14 @@ final class Clinic extends AggregateRoot
     public function updatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    private function recordBrandingChange(): void
+    {
+        $this->recordDomainEvent(new ClinicBrandingChanged(
+            clinicId: $this->id->toString(),
+            brandColor: $this->brandColor?->toString(),
+            hasLogo: null !== $this->logoKey,
+        ));
     }
 }

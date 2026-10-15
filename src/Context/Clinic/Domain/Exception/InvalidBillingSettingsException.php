@@ -25,4 +25,14 @@ final class InvalidBillingSettingsException extends \DomainException
     {
         return new self(\sprintf('BIC "%s" does not look like a BIC.', $bic));
     }
+
+    public static function unknownPaymentMethod(string $method): self
+    {
+        return new self(\sprintf('Payment method "%s" is not one a clinic can take.', $method));
+    }
+
+    public static function unknownVatRegime(string $regime): self
+    {
+        return new self(\sprintf('VAT regime "%s" is not one a clinic can file under.', $regime));
+    }
 }

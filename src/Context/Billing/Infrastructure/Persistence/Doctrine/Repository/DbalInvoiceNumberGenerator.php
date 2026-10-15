@@ -25,7 +25,7 @@ final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGenerato
     private const string SERIES_INVOICE     = 'INVOICE';
     private const string SERIES_CREDIT_NOTE = 'CREDIT_NOTE';
 
-    /** Credit notes print under their own prefix, whatever the clinic chose for invoices. */
+    /** Credit notes print under their own prefix unless the clinic chose one. */
     private const string CREDIT_NOTE_PREFIX = 'AV';
 
     public function __construct(
@@ -46,7 +46,41 @@ final readonly class DbalInvoiceNumberGenerator implements InvoiceNumberGenerato
 
     public function nextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber
     {
-        return InvoiceNumber::of($year, $this->advance($clinicId, self::SERIES_CREDIT_NOTE, $year), self::CREDIT_NOTE_PREFIX);
+        return InvoiceNumber::of(
+            $year,
+            $this->advance($clinicId, self::SERIES_CREDIT_NOTE, $year),
+            $this->prefixes->creditNotePrefixFor($clinicId->toString()) ?? self::CREDIT_NOTE_PREFIX,
+        );
+    }
+
+    public function peekNext(ClinicId $clinicId, int $year): InvoiceNumber
+    {
+        return InvoiceNumber::of(
+            $year,
+            $this->lastIssued($clinicId, self::SERIES_INVOICE, $year) + 1,
+            $this->prefixes->prefixFor($clinicId->toString()),
+        );
+    }
+
+    public function peekNextCreditNote(ClinicId $clinicId, int $year): InvoiceNumber
+    {
+        return InvoiceNumber::of(
+            $year,
+            $this->lastIssued($clinicId, self::SERIES_CREDIT_NOTE, $year) + 1,
+            $this->prefixes->creditNotePrefixFor($clinicId->toString()) ?? self::CREDIT_NOTE_PREFIX,
+        );
+    }
+
+    /** A plain read: nothing is reserved, so nothing needs locking. */
+    private function lastIssued(ClinicId $clinicId, string $series, int $year): int
+    {
+        $current = $this->connection->fetchOne(
+            'SELECT `last_value` FROM billing__number_sequences
+             WHERE clinic_id = :clinicId AND series = :series AND `year` = :year',
+            ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary(), 'series' => $series, 'year' => $year],
+        );
+
+        return is_numeric($current) ? (int) $current : 0;
     }
 
     private function advance(ClinicId $clinicId, string $series, int $year): int

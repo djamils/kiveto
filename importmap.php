@@ -96,6 +96,9 @@ return [
     'pages/team' => [
         'path' => './assets/js/pages/team.js',
     ],
+    'pages/settings' => [
+        'path' => './assets/js/pages/settings.js',
+    ],
     'pages/stock' => [
         'path' => './assets/js/pages/stock.js',
     ],

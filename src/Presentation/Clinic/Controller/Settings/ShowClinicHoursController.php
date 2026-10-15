@@ -4,23 +4,21 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Settings;
 
-use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
-use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
-use App\Shared\Application\Bus\QueryBusInterface;
+use App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Quand la clinique ouvre ses portes.
+ * Paramètres, section « Horaires et fermetures »: when the clinic opens its doors.
  */
 #[Route(path: '/settings/hours', name: 'clinic_settings_hours', methods: ['GET'])]
 final class ShowClinicHoursController extends AbstractController
 {
     public function __construct(
-        private readonly QueryBusInterface $queryBus,
+        private readonly SettingsPageBuilder $page,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly ClinicPermissionGuard $guard,
     ) {
@@ -33,14 +31,8 @@ final class ShowClinicHoursController extends AbstractController
         $clinicId = $this->currentClinicContext->getCurrentClinicId();
         \assert(null !== $clinicId);
 
-        $settings = $this->queryBus->ask(new GetClinicSettings($clinicId->toString()));
-
-        if (!$settings instanceof ClinicSettingsView) {
-            throw $this->createNotFoundException('Clinique introuvable.');
-        }
-
-        return $this->render('clinic/settings/hours.html.twig', [
-            'settings' => $settings,
+        return $this->render('clinic/settings/page.html.twig', [
+            'payload' => $this->page->page($clinicId->toString(), 'horaires'),
         ]);
     }
 }
