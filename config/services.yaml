@@ -440,6 +440,9 @@ services:
     App\Context\Admission\Application\Port\MicrochipRegistryLookupPort:
         class: App\Context\Admission\Infrastructure\Adapter\Regulatory\MicrochipRegistryLookupAdapter
 
+    App\Context\Admission\Application\Port\ConsultationPatientTransferPort:
+        class: App\Context\Admission\Infrastructure\Adapter\Consultation\CommandBusConsultationPatientTransferAdapter
+
     App\Context\Admission\Infrastructure\Persistence\Doctrine\AdmissionMapper: ~
 
     # ============================================================================

@@ -6,7 +6,9 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repositor
 
 use App\Context\Consultation\Domain\Consultation;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
+use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
+use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\BillingLineEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ClinicalNoteEntity;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\ConsultationChildEntity;
@@ -183,6 +185,19 @@ final readonly class DoctrineConsultationRepository implements ConsultationRepos
             $this->loadChildren(PlanActionEntity::class, $consultationIdBinary, ['position' => 'ASC']),
             $this->loadChildren(PrescriptionLineEntity::class, $consultationIdBinary, ['position' => 'ASC']),
             $this->loadChildren(BillingLineEntity::class, $consultationIdBinary, ['position' => 'ASC']),
+        );
+    }
+
+    public function transferToPatient(ClinicId $clinicId, PatientId $source, PatientId $target): void
+    {
+        $this->em->getConnection()->executeStatement(
+            'UPDATE consultation__consultations SET patient_id = :targetId'
+                . ' WHERE patient_id = :sourceId AND clinic_id = :clinicId',
+            [
+                'targetId' => Uuid::fromString($target->toString())->toBinary(),
+                'sourceId' => Uuid::fromString($source->toString())->toBinary(),
+                'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+            ],
         );
     }
 

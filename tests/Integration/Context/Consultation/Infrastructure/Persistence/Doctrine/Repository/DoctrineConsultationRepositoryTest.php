@@ -64,6 +64,39 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
         self::assertNull($result);
     }
 
+    public function testTransferToPatientMovesOnlyTheClinicConsultationsOfTheSourceRecord(): void
+    {
+        $target      = '88888888-8888-4888-8888-888888888888';
+        $otherClinic = '99999999-9999-4999-8999-999999999999';
+        $otherId     = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+        $appointments = [self::APPOINTMENT_ID, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'];
+        foreach ([[self::CONSULTATION_ID, self::CLINIC_ID], [$otherId, $otherClinic]] as $i => [$id, $clinic]) {
+            $this->repository->save(Consultation::startFromAppointment(
+                ConsultationId::fromString($id),
+                ClinicId::fromString($clinic),
+                AppointmentId::fromString($appointments[$i]),
+                AdmissionId::fromString(self::ADMISSION_ID),
+                PatientId::fromString(self::PATIENT_ID),
+                UserId::fromString(self::USER_ID),
+                new \DateTimeImmutable('2026-04-10 09:00:00'),
+            ));
+        }
+
+        $this->repository->transferToPatient(
+            ClinicId::fromString(self::CLINIC_ID),
+            PatientId::fromString(self::PATIENT_ID),
+            PatientId::fromString($target),
+        );
+
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $em->clear();
+
+        self::assertSame($target, $this->repository->findById(ConsultationId::fromString(self::CONSULTATION_ID))?->getPatientId()->toString());
+        self::assertSame(self::PATIENT_ID, $this->repository->findById(ConsultationId::fromString($otherId))?->getPatientId()->toString());
+    }
+
     public function testSaveAndFindRoundTripFromAppointment(): void
     {
         $consultation = Consultation::startFromAppointment(
