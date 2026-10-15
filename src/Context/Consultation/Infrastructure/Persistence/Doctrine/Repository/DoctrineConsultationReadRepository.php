@@ -6,6 +6,8 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Repositor
 
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\ListConsultationRegister\ConsultationRegisterCriteria;
+use App\Context\Consultation\Application\Query\ListConsultationRegister\ConsultationRegisterRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\ConsultationListRow;
 use App\Context\Consultation\Application\Query\SearchConsultations\SearchConsultationsCriteria;
 use App\Context\Consultation\Domain\ValueObject\AdmissionId;
@@ -339,6 +341,259 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         }
 
         return ['items' => $items, 'total' => $total];
+    }
+
+    public function register(ClinicId $clinicId, ConsultationRegisterCriteria $criteria): array
+    {
+        if ($criteria->isImpossible()) {
+            return ['items' => [], 'total' => 0];
+        }
+
+        $filter = $this->buildRegisterFilter($clinicId, $criteria);
+
+        $totalRaw = $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM consultation__consultations c WHERE ' . $filter['where'],
+            $filter['params'],
+            $filter['types'],
+        );
+        $total = is_numeric($totalRaw) ? (int) $totalRaw : 0;
+
+        if (0 === $total) {
+            return ['items' => [], 'total' => 0];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT c.id, c.admission_id, c.patient_id, c.practitioner_user_id, c.status,
+                    c.started_at_utc, c.closed_at_utc, c.chief_complaint, c.summary, c.weight_kg
+             FROM consultation__consultations c
+             WHERE ' . $filter['where'] . '
+             ORDER BY c.started_at_utc DESC, c.id DESC
+             LIMIT ' . $criteria->limit . ' OFFSET ' . $criteria->offset(),
+            $filter['params'],
+            $filter['types'],
+        );
+
+        $binaryIds = array_map(
+            /** @param array<string, mixed> $row */
+            static fn (array $row): string => RowAccessor::string($row, 'id'),
+            $rows,
+        );
+
+        $motifs    = $this->fetchMotifsFor($binaryIds);
+        $amounts   = $this->fetchAmountsFor($binaryIds);
+        $diagnoses = $this->fetchPrimaryDiagnosesFor($binaryIds);
+        $billed    = $this->fetchBilledItemsFor($binaryIds);
+
+        $items = [];
+
+        foreach ($rows as $row) {
+            $binaryId = RowAccessor::string($row, 'id');
+            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'currency' => ''];
+
+            $items[] = new ConsultationRegisterRow(
+                consultationId: RowAccessor::uuid($row, 'id'),
+                admissionId: RowAccessor::uuid($row, 'admission_id'),
+                patientId: RowAccessor::uuid($row, 'patient_id'),
+                practitionerUserId: RowAccessor::uuid($row, 'practitioner_user_id'),
+                status: RowAccessor::string($row, 'status'),
+                startedAtUtc: RowAccessor::string($row, 'started_at_utc'),
+                closedAtUtc: RowAccessor::nullableString($row, 'closed_at_utc'),
+                chiefComplaint: RowAccessor::nullableString($row, 'chief_complaint'),
+                summary: RowAccessor::nullableString($row, 'summary'),
+                motifs: $motifs[$binaryId] ?? [],
+                primaryDiagnosis: $diagnoses[$binaryId] ?? null,
+                weightKg: RowAccessor::nullableString($row, 'weight_kg'),
+                billedItems: $billed[$binaryId] ?? [],
+                htByTaxCategory: $amount['htByTaxCategory'],
+                currency: $amount['currency'],
+            );
+        }
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    public function registerCounters(ClinicId $clinicId, \DateTimeImmutable $dayStartUtc, array $departedAdmissionIds): array
+    {
+        $params = [
+            'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+            'dayStart' => $dayStartUtc->format('Y-m-d H:i:s'),
+        ];
+        $types    = [];
+        $departed = '0';
+
+        if ([] !== $departedAdmissionIds) {
+            $departed           = 'c.admission_id IN (:departed)';
+            $params['departed'] = self::toBinaryIds($departedAdmissionIds);
+            $types['departed']  = ArrayParameterType::BINARY;
+        }
+
+        $row = $this->connection->fetchAssociative(
+            "SELECT
+                 COALESCE(SUM(c.status = 'OPEN' AND c.started_at_utc >= :dayStart AND NOT ({$departed})), 0) AS in_progress,
+                 COALESCE(SUM(c.status = 'OPEN' AND (c.started_at_utc < :dayStart OR {$departed})), 0) AS to_close,
+                 COALESCE(SUM(c.started_at_utc >= :dayStart), 0) AS today,
+                 COUNT(*) AS recorded
+             FROM consultation__consultations c
+             WHERE c.clinic_id = :clinicId",
+            $params,
+            $types,
+        );
+        \assert(\is_array($row));
+
+        return [
+            'inProgress' => (int) RowAccessor::string($row, 'in_progress'),
+            'toClose'    => (int) RowAccessor::string($row, 'to_close'),
+            'today'      => (int) RowAccessor::string($row, 'today'),
+            'recorded'   => (int) RowAccessor::string($row, 'recorded'),
+        ];
+    }
+
+    public function openConsultationAdmissionIds(ClinicId $clinicId): array
+    {
+        $ids = $this->connection->fetchFirstColumn(
+            "SELECT DISTINCT BIN_TO_UUID(admission_id) FROM consultation__consultations
+             WHERE clinic_id = :clinicId AND status = 'OPEN'",
+            ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()],
+        );
+
+        return array_values(array_filter($ids, 'is_string'));
+    }
+
+    /**
+     * @return array{
+     *     where: string,
+     *     params: array<string, mixed>,
+     *     types: array<string, ArrayParameterType>
+     * }
+     */
+    private function buildRegisterFilter(ClinicId $clinicId, ConsultationRegisterCriteria $criteria): array
+    {
+        $where  = ['c.clinic_id = :clinicId'];
+        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary()];
+        /** @var array<string, ArrayParameterType> $types */
+        $types = [];
+
+        if (null !== $criteria->startedAfterUtc) {
+            $where[]                = 'c.started_at_utc >= :startedAfter';
+            $params['startedAfter'] = $criteria->startedAfterUtc->format('Y-m-d H:i:s');
+        }
+
+        if (ConsultationRegisterCriteria::STAGE_CLOSED === $criteria->stage) {
+            $where[] = "c.status = 'CLOSED'";
+        } elseif (null !== $criteria->stage) {
+            $params['dayStart'] = $criteria->dayStartUtc->format('Y-m-d H:i:s');
+            $departed           = '0';
+
+            if ([] !== $criteria->departedAdmissionIds) {
+                $departed           = 'c.admission_id IN (:departed)';
+                $params['departed'] = self::toBinaryIds($criteria->departedAdmissionIds);
+                $types['departed']  = ArrayParameterType::BINARY;
+            }
+
+            $where[] = ConsultationRegisterCriteria::STAGE_TO_CLOSE === $criteria->stage
+                ? "c.status = 'OPEN' AND (c.started_at_utc < :dayStart OR {$departed})"
+                : "c.status = 'OPEN' AND c.started_at_utc >= :dayStart AND NOT ({$departed})";
+        }
+
+        if (null !== $criteria->practitionerUserId) {
+            $where[]                  = 'c.practitioner_user_id = :practitionerId';
+            $params['practitionerId'] = Uuid::fromString($criteria->practitionerUserId)->toBinary();
+        }
+
+        if (null !== $criteria->restrictToAdmissionIds) {
+            $where[]                = 'c.admission_id IN (:admissionIds)';
+            $params['admissionIds'] = self::toBinaryIds($criteria->restrictToAdmissionIds);
+            $types['admissionIds']  = ArrayParameterType::BINARY;
+        }
+
+        if (null !== $criteria->restrictToActCodes) {
+            $where[]            = 'EXISTS (SELECT 1 FROM consultation__billing_lines b WHERE b.consultation_id = c.id AND b.code IN (:actCodes))';
+            $params['actCodes'] = $criteria->restrictToActCodes;
+            $types['actCodes']  = ArrayParameterType::STRING;
+        }
+
+        if (null !== $criteria->consultationIds) {
+            $where[]                   = 'c.id IN (:consultationIds)';
+            $params['consultationIds'] = self::toBinaryIds($criteria->consultationIds);
+            $types['consultationIds']  = ArrayParameterType::BINARY;
+        }
+
+        $term = $criteria->searchTerm;
+
+        if (null !== $term && '' !== $term) {
+            // Free text spans this context's own fields plus the patients the
+            // caller matched by animal or owner name.
+            $clauses = [
+                'c.chief_complaint LIKE :term',
+                'c.summary LIKE :term',
+                'EXISTS (SELECT 1 FROM consultation__motifs m WHERE m.consultation_id = c.id AND m.label LIKE :term)',
+                'EXISTS (SELECT 1 FROM consultation__diagnoses d WHERE d.consultation_id = c.id AND d.label LIKE :term)',
+            ];
+            $params['term'] = '%' . addcslashes($term, '%_\\') . '%';
+
+            if ([] !== $criteria->textMatchPatientIds) {
+                $clauses[]                = 'c.patient_id IN (:textPatientIds)';
+                $params['textPatientIds'] = self::toBinaryIds($criteria->textMatchPatientIds);
+                $types['textPatientIds']  = ArrayParameterType::BINARY;
+            }
+
+            $where[] = '(' . implode(' OR ', $clauses) . ')';
+        }
+
+        return ['where' => implode(' AND ', $where), 'params' => $params, 'types' => $types];
+    }
+
+    /**
+     * The diagnosis marked primary of each consultation, else its first one.
+     *
+     * @param list<string> $binaryConsultationIds
+     *
+     * @return array<string, string>
+     */
+    private function fetchPrimaryDiagnosesFor(array $binaryConsultationIds): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT consultation_id, label FROM consultation__diagnoses
+             WHERE consultation_id IN (:ids) ORDER BY is_primary DESC, position ASC',
+            ['ids' => $binaryConsultationIds],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $diagnoses = [];
+
+        foreach ($rows as $row) {
+            $diagnoses[RowAccessor::string($row, 'consultation_id')] ??= RowAccessor::string($row, 'label');
+        }
+
+        return $diagnoses;
+    }
+
+    /**
+     * Code and label of every billing line of each consultation, in order.
+     *
+     * @param list<string> $binaryConsultationIds
+     *
+     * @return array<string, list<array{code: ?string, label: string}>>
+     */
+    private function fetchBilledItemsFor(array $binaryConsultationIds): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT consultation_id, code, label FROM consultation__billing_lines
+             WHERE consultation_id IN (:ids) ORDER BY position ASC',
+            ['ids' => $binaryConsultationIds],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $billed = [];
+
+        foreach ($rows as $row) {
+            $billed[RowAccessor::string($row, 'consultation_id')][] = [
+                'code'  => RowAccessor::nullableString($row, 'code'),
+                'label' => RowAccessor::string($row, 'label'),
+            ];
+        }
+
+        return $billed;
     }
 
     /**

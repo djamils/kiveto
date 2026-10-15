@@ -1113,7 +1113,7 @@ final readonly class DashboardViewBuilder
                 audience: 'veto',
                 assigneeUserId: null,
                 actionLabel: 'Voir',
-                actionUrl: $this->urls->generate('clinic_consultations', ['status' => ['OPEN']]),
+                actionUrl: $this->urls->generate('clinic_consultations', ['statut' => 'aclot', 'per' => 'tout']),
             );
         }
 

@@ -18,6 +18,7 @@ use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
 use App\Fixtures\Context\Clinic\Story\TeamDemoStory;
 use App\Fixtures\Context\Consultation\Story\ConsultationDemoStory;
+use App\Fixtures\Context\Consultation\Story\ConsultationRegisterStory;
 use App\Fixtures\Context\Inventory\Story\InventoryDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionDemoStory;
 use App\Fixtures\Context\Prescription\Story\PrescriptionRegisterStory;
@@ -119,6 +120,10 @@ final class ClinicDataset extends Story
         // The Paris register of ordonnances at full size, every state of the
         // register and its sheet (after the visits sharing these animals).
         PrescriptionRegisterStory::load();
+
+        // The Paris register of consultations in every state (to close, emergencies,
+        // surgeries, analyses, follow-ups): before the billing register invoices them.
+        ConsultationRegisterStory::load();
 
         // The Paris register of invoices at full size, every state of the
         // register, its sheet and the till (invoices the visits above).
