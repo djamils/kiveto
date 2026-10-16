@@ -276,7 +276,7 @@ final class BillingRegisterStory extends Story
             payerClientId: 'client' === $payer ? $this->aClient() : null,
             lines: array_map(fn (array $a): array => ['articleId' => $this->articleId($a[0]), 'quantity' => $a[1]], $articles),
             method: $method,
-            newClient: 'new' === $payer ? new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Haddad', 'Nadia', '0618427731', '', '75011') : null,
+            newClient: 'new' === $payer ? new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Haddad', 'Nadia', '0618427731') : null,
             contactDetailsRefused: 'refused' === $payer,
         ));
         \assert(\is_string($invoiceId));

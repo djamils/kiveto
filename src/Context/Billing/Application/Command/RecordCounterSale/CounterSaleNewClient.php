@@ -7,7 +7,7 @@ namespace App\Context\Billing\Application\Command\RecordCounterSale;
 /**
  * A newcomer the desk sells to, as typed in the « Nouveau particulier » form:
  * their record is created with the sale. The phone is the national number
- * (ten digits), the e-mail and the postal code may be empty.
+ * (ten digits); either of the phone and the e-mail may be empty.
  */
 final readonly class CounterSaleNewClient
 {
@@ -20,7 +20,6 @@ final readonly class CounterSaleNewClient
         public string $firstName,
         public string $phone = '',
         public string $email = '',
-        public string $postalCode = '',
     ) {
     }
 

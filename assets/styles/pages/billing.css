@@ -78,6 +78,7 @@
 
 /* modales */
 .fact .modes{display:flex;flex-wrap:wrap;gap:6px}
+.fact .modes .chip[disabled]{opacity:.4;cursor:not-allowed}
 .fact .big{font-size:1.4rem!important;font-weight:700;padding:10px 12px!important}
 .fact .rendu{margin-top:8px;font-size:.8rem;color:var(--encre-60)}
 .fact .rendu b{color:#15803d}
@@ -145,6 +146,8 @@
 .fact .vt-msg.fe{background:var(--pin-pale);color:var(--pin-fonce)}
 .fact .vt-msg.fe b{color:var(--pin-fonce)}
 .fact .vt-msg.warn{background:#fffbeb;color:#92400e}
+.fact .vt-aide{font-size:.7rem;color:var(--encre-35);margin-top:6px}
+.fact .vt-aide b{color:var(--encre-60)}
 .fact .vt-msg.warn b{color:#78350f}
 .fact .vt-msg .act{margin-left:auto;font-weight:600;color:var(--pin);white-space:nowrap}
 .fact .vt-rx{opacity:.75;cursor:default}

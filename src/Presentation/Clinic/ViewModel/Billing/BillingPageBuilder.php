@@ -80,7 +80,7 @@ final readonly class BillingPageBuilder
      *
      * @return array<string, mixed>
      */
-    public function page(string $clinicId, BillingRegisterFilters $filters, ?array $sheet = null, bool $autoPay = false): array
+    public function page(string $clinicId, BillingRegisterFilters $filters, ?array $sheet = null, bool $autoPay = false, bool $autoPrint = false): array
     {
         $letterhead = $this->context->letterhead($clinicId);
         $tz         = new \DateTimeZone($letterhead['timeZone']);
@@ -109,11 +109,12 @@ final readonly class BillingPageBuilder
                 'du'     => $stats->outstandingMinorUnits,
                 'retard' => $stats->overdueCount,
             ],
-            'caisse'  => $this->cashDesk($desk),
-            'modes'   => $this->acceptedModes($clinicId),
-            'sheet'   => $sheet,
-            'autoPay' => $autoPay && null !== $sheet,
-            'tokens'  => [
+            'caisse'    => $this->cashDesk($desk),
+            'modes'     => $this->acceptedModes($clinicId),
+            'sheet'     => $sheet,
+            'autoPay'   => $autoPay && null !== $sheet,
+            'autoPrint' => $autoPrint && null !== $sheet,
+            'tokens'    => [
                 'deposit' => $this->csrf->getToken('billing_cheque_deposit')->getValue(),
                 'close'   => $this->csrf->getToken('billing_cash_closing')->getValue(),
                 'counter' => $this->csrf->getToken('billing_counter_sale')->getValue(),

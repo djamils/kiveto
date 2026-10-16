@@ -51,6 +51,7 @@ final class ShowInvoiceController extends AbstractController
                 BillingRegisterFilters::fromRequest($request, $request->query->has('per') ? null : 'tout'),
                 $sheet,
                 $request->query->getBoolean('encaisser'),
+                $request->query->getBoolean('imprimer'),
             ),
         ]);
     }
