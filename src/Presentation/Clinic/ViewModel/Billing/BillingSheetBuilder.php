@@ -78,6 +78,7 @@ final readonly class BillingSheetBuilder
             'vet'    => null !== $visit && null !== $visit['vetId'] ? ($team[$visit['vetId']] ?? null) : null,
             'anis'   => null !== $visit ? [BillingRegisterViewBuilder::animal($visit['animal'])] : [],
             'objet'  => BillingRegisterViewBuilder::objet($visit, $invoice->admissionId),
+            'cpt'    => $invoice->counterSalePayer,
             'cons'   => $this->consultation($visit, $tz),
             'ords'   => $this->prescriptions($visit),
             'avoirs' => array_map(fn (CreditNoteSummaryView $note): array => [
@@ -344,6 +345,10 @@ final readonly class BillingSheetBuilder
             $hist[] = $entry($invoice->createdAt, 'Brouillon préparé', 'Numéro attribué à l\'encaissement');
         } else {
             $hist[] = $entry($invoice->issuedAt, 'Émise', null !== $invoice->number ? 'N° ' . $invoice->number : '');
+        }
+
+        if ('REFUSED' === $invoice->counterSalePayer) {
+            $hist[] = $entry($invoice->issuedAt ?? $invoice->createdAt, 'Vente sans coordonnées', 'Refus du client, tracé au journal de caisse');
         }
 
         foreach ($invoice->payments as $payment) {

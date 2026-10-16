@@ -28,6 +28,8 @@ final readonly class InvoiceListRow
         public ?string $originInvoiceNumber = null,
         /** For a credit note: why it was issued. */
         public ?string $reason = null,
+        /** For a counter sale: CLIENT, NEW_CLIENT or REFUSED (see CounterSalePayer). */
+        public ?string $counterSalePayer = null,
     ) {
     }
 }

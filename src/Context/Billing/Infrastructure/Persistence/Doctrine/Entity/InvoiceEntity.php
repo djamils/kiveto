@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity;
 
+use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\DiscountKind;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use Doctrine\ORM\Mapping as ORM;
@@ -83,6 +84,9 @@ class InvoiceEntity
 
     #[ORM\Column(name: 'refunded_minor_units', type: 'integer', options: ['default' => 0])]
     private int $refundedMinorUnits = 0;
+
+    #[ORM\Column(name: 'counter_sale_payer', type: 'string', length: 16, nullable: true, enumType: CounterSalePayer::class)]
+    private ?CounterSalePayer $counterSalePayer = null;
 
     public function getId(): Uuid
     {
@@ -298,5 +302,15 @@ class InvoiceEntity
     public function setRefundedMinorUnits(int $refundedMinorUnits): void
     {
         $this->refundedMinorUnits = $refundedMinorUnits;
+    }
+
+    public function getCounterSalePayer(): ?CounterSalePayer
+    {
+        return $this->counterSalePayer;
+    }
+
+    public function setCounterSalePayer(?CounterSalePayer $counterSalePayer): void
+    {
+        $this->counterSalePayer = $counterSalePayer;
     }
 }

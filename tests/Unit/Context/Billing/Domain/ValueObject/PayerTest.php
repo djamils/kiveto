@@ -36,6 +36,15 @@ final class PayerTest extends TestCase
         self::assertSame([], $payer->addressLines());
     }
 
+    public function testACounterSaleWithoutContactDetailsIsMadeOutToNobody(): void
+    {
+        $payer = Payer::contactDetailsRefused();
+
+        self::assertNull($payer->clientId());
+        self::assertSame('Vente sans coordonnées', $payer->displayName());
+        self::assertSame([], $payer->addressLines());
+    }
+
     public function testAnEmptyNameIsRejected(): void
     {
         $this->expectException(InvalidPayerException::class);

@@ -50,6 +50,8 @@ final readonly class InvoiceDetails
         public int $refundedMinorUnits = 0,
         public int $creditableMinorUnits = 0,
         public array $creditNotes = [],
+        /** For a counter sale: CLIENT, NEW_CLIENT or REFUSED (see CounterSalePayer). */
+        public ?string $counterSalePayer = null,
     ) {
     }
 }

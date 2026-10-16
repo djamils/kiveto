@@ -495,6 +495,9 @@ services:
     App\Context\Billing\Application\Port\CounterCatalogInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Catalog\QueryBusCounterCatalog
 
+    App\Context\Billing\Application\Port\CounterClientRegistryInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================

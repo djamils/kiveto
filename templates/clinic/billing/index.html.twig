@@ -2,7 +2,7 @@
  # Kiveto — templates/clinic/billing/index.html.twig
  # ─────────────────────────────────────────────────
  # Facturation — the register of the clinic's invoices and credit notes.
- # Ported from docs/frontend-theme/kiveto-theme/facturation-v-topbar_3.html:
+ # Ported from docs/frontend-theme/kiveto-theme/facturation-v-topbar_4.html:
  # page header (figures of the day, registry menu, « Clôturer la caisse »,
  # « Vente au comptoir »), filter bar, the table and its pager, the bulk bar,
  # the side sheet of one document, the paper preview, and the « Encaisser »,
@@ -121,16 +121,21 @@
   </div></div>
 
   {# Vente au comptoir #}
-  <div class="mveil" id="mVente"><div class="mbox" style="width:min(600px,94vw)">
+  <div class="mveil" id="mVente"><div class="mbox" style="width:min(640px,94vw)">
     <div class="mhead"><div class="mt"><b>Vente au comptoir</b><span>Sans consultation · la facture est émise à l'encaissement</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
-    <div class="mbody scr" style="max-height:72vh;overflow-y:auto">
-      <div class="frow"><label class="flbl">Client</label><div class="dd" id="vtCli"></div></div>
+    <div class="mbody scr" style="max-height:74vh;overflow-y:auto">
+      <div class="vt-h">Client</div>
+      <div class="seg" id="vtTy"><button type="button" data-t="cli" class="on">Client de la clinique</button><button type="button" data-t="part">Nouveau particulier</button><button type="button" data-t="pro" disabled data-tip="Les clients professionnels (SIREN, facture électronique) — bientôt disponible">Professionnel</button></div>
+      <div id="vtZone"></div>
+      <div class="vt-h">Articles</div>
       <div class="crech" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vtQ" placeholder="Scanner ou rechercher un article…" autocomplete="off"></div>
-      <div class="clist scr" id="vtRes" style="max-height:160px;margin-top:6px"></div>
+      <div class="clist scr" id="vtRes" style="max-height:150px;margin-top:6px"></div>
       <div class="vl" id="vtLines"></div>
-      <div class="frow" style="margin-top:12px"><label class="flbl">Moyen de paiement</label><div class="modes" id="vtMode"></div></div>
+      <div class="vt-h">Règlement</div>
+      <div class="modes" id="vtMode"></div>
+      <div id="vtFe"></div>
     </div>
-    <div class="mfoot"><span class="vtot"><small>Total TTC</small><b id="vtTot">0,00 €</b></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="vtOk" disabled>Encaisser</button></div>
+    <div class="mfoot"><span class="vtot"><small>Total TTC</small><b id="vtTot">0,00 €</b></span><span class="vt-manque" id="vtManque"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="vtOk" disabled>Encaisser</button></div>
   </div></div>
 
   {# Clôture #}
@@ -158,6 +163,13 @@
     <input type="hidden" name="refund" id="ffRefund">
     <input type="hidden" name="mode" id="ffMode">
     <input type="hidden" name="client" id="ffClient">
+    <input type="hidden" name="payer" id="ffPayer">
+    <input type="hidden" name="civ" id="ffCiv">
+    <input type="hidden" name="nom" id="ffNom">
+    <input type="hidden" name="pre" id="ffPre">
+    <input type="hidden" name="tel" id="ffTel">
+    <input type="hidden" name="mail" id="ffMail">
+    <input type="hidden" name="cp" id="ffCp">
   </form>
 </div>
 {% endblock %}

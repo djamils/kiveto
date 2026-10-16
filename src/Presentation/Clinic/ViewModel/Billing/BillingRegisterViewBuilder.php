@@ -104,6 +104,7 @@ final readonly class BillingRegisterViewBuilder
                 'h'     => $at->format('H:i'),
                 'cli'   => ['n' => $row->payerName, 'passage' => null === $row->payerClientId],
                 'anis'  => null !== $visit ? [self::animal($visit['animal'])] : [],
+                'cpt'   => $row->counterSalePayer,
                 'objet' => $note
                     ? \sprintf('Avoir sur %s · %s', $row->originInvoiceNumber ?? '—', $row->reason ?? '')
                     : self::objet($visit, $row->admissionId),

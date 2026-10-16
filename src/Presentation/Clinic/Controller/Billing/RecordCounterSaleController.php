@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Billing;
 
+use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
@@ -24,8 +25,11 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * « Vente au comptoir »: the articles and their quantities (`lines` as
- * `article id:quantity,…`), the client if one was chosen, the means of
- * payment. The invoice is issued and paid at once; the register comes back
+ * `article id:quantity,…`), the means of payment, and who the sale is made
+ * to (`payer`): a client of the clinic (`cli`, with `client`), a newcomer
+ * whose record is created with it (`part`, with `civ`, `nom`, `pre`, `tel`,
+ * `mail`, `cp`), or a client who refuses to give their contact details
+ * (`anon`). The invoice is issued and paid at once; the register comes back
  * on its sheet.
  */
 #[Route(path: '/billing/counter-sale', name: 'clinic_counter_sale', methods: ['POST'])]
@@ -57,6 +61,7 @@ final class RecordCounterSaleController extends AbstractController
         $clinicId = $currentClinicId->toString();
         $method   = self::METHODS[$request->request->getString('mode')] ?? null;
         $lines    = $this->lines($request->request->getString('lines'));
+        $payer    = $request->request->getString('payer');
         $client   = $request->request->getString('client');
         $user     = $this->getUser();
 
@@ -69,10 +74,12 @@ final class RecordCounterSaleController extends AbstractController
         try {
             $invoiceId = $this->commandBus->dispatch(new RecordCounterSale(
                 clinicId: $clinicId,
-                payerClientId: Uuid::isValid($client) ? $client : null,
+                payerClientId: 'cli' === $payer && Uuid::isValid($client) ? $client : null,
                 lines: $lines,
                 method: $method->value,
                 recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
+                newClient: 'part' === $payer ? $this->newClient($request) : null,
+                contactDetailsRefused: 'anon' === $payer,
             ));
         } catch (\DomainException $e) {
             $this->addFlash('error', BillingErrorMessage::of($e));
@@ -86,13 +93,33 @@ final class RecordCounterSaleController extends AbstractController
 
         if ($invoice instanceof InvoiceDetails) {
             $this->addFlash('success', \sprintf(
-                '%s émise et encaissée · %s',
+                '%s émise et encaissée · %s%s',
                 $invoice->number ?? 'Facture',
                 BillingSheetBuilder::euros($invoice->totalGrossMinorUnits),
+                'part' === $payer ? \sprintf(' · fiche créée pour %s %s', 'M.' === $request->request->getString('civ') ? 'M.' : 'Mme', $invoice->payerName) : '',
             ));
         }
 
         return $this->redirectToRoute('clinic_invoice_details', ['invoiceId' => $invoiceId, 'per' => '0']);
+    }
+
+    /**
+     * The « Nouveau particulier » form, as the window normalised it; the
+     * Billing context checks it.
+     */
+    private function newClient(Request $request): CounterSaleNewClient
+    {
+        $field = static fn (string $name): string => mb_trim($request->request->getString($name));
+
+        return new CounterSaleNewClient(
+            civility: 'M.' === $field('civ') ? CounterSaleNewClient::MISTER : CounterSaleNewClient::MADAM,
+            // Typed in capitals, kept as « Benali » on the record.
+            lastName: mb_strtoupper(mb_substr($field('nom'), 0, 1)) . mb_strtolower(mb_substr($field('nom'), 1)),
+            firstName: $field('pre'),
+            phone: (string) preg_replace('/\D+/', '', $field('tel')),
+            email: mb_strtolower($field('mail')),
+            postalCode: $field('cp'),
+        );
     }
 
     /**

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\Billing;
 
+use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\CreditExceedsInvoiceException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
+use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Exception\InvalidPaymentException;
 use App\Context\Billing\Domain\Exception\InvoiceHasNoLinesException;
 use App\Context\Billing\Domain\Exception\InvoiceNotCreditableException;
@@ -37,6 +40,9 @@ final class BillingErrorMessage
         InvalidInvoiceLineException::class             => 'Un article ne peut pas être vendu au comptoir.',
         InvalidPaymentException::class                 => 'Le montant du règlement est invalide.',
         InvalidChequeDepositException::class           => 'Aucun chèque à remettre en banque.',
+        InvalidPayerException::class                   => 'Choisissez le client de la vente.',
+        CounterClientAlreadyKnownException::class      => 'Ce numéro est déjà celui d\'un client : utilisez sa fiche.',
+        InvalidCounterClientException::class           => 'Les coordonnées du nouveau client sont incomplètes : un nom, un prénom et un mobile ou un e-mail valides.',
     ];
 
     public static function of(\Throwable $exception): string

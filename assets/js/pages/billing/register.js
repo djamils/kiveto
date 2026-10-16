@@ -1,5 +1,5 @@
 /**
- * Page module — Facturation (facturation-v-topbar_3 mock-up). Loaded by the
+ * Page module — Facturation (facturation-v-topbar_4 mock-up). Loaded by the
  * app.js dispatcher on turbo:load, on the register (clinic_invoices), on one
  * document (clinic_invoice_details / clinic_credit_note_details: the register
  * with the sheet already open) and on the checkout of a visit
@@ -32,6 +32,7 @@ const NIL = '00000000-0000-7000-8000-000000000000';
 let ac = null;
 let searchTimer = null;
 let articleTimer = null;
+let clientTimer = null;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtN = (n, d = 2) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -191,7 +192,7 @@ export function init() {
 
   const anisHtml = o => (o.anis.length
     ? o.anis.map(a => `<span class="ani-e">${a.e}</span><span>${esc(a.n)}</span>`).join('<span> · </span>')
-    : o.cli.passage ? 'sans fiche client' : '—');
+    : o.cpt === 'REFUSED' ? 'Comptoir · refus des coordonnées' : o.cpt === 'NEW_CLIENT' ? 'Comptoir · nouvelle fiche' : o.cpt ? 'Vente au comptoir' : o.cli.passage ? 'sans fiche client' : '—');
   const COLS = [
     { l: 'Date', html: o => `<div class="mdate"><b>${o.d === TODAY ? "Aujourd'hui" : dCourt(o.d)} · ${o.h}</b><span class="num-o">${esc(o.num || 'numéro à l\'encaissement')}</span></div>` },
     { l: 'Client', html: o => `<div class="pat"><div style="min-width:0"><b>${esc(o.cli.n)}</b><span class="anis">${anisHtml(o)}</span></div></div>` },
@@ -382,7 +383,7 @@ export function init() {
     const f = $('factForm');
     f.action = act.url;
     $('ffTok').value = act.token;
-    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient' };
+    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient', payer: 'ffPayer', civ: 'ffCiv', nom: 'ffNom', pre: 'ffPre', tel: 'ffTel', mail: 'ffMail', cp: 'ffCp' };
     Object.entries(map).forEach(([k, id]) => { $(id).value = fields[k] ?? ''; });
     f.requestSubmit();
   }
@@ -486,9 +487,22 @@ export function init() {
     $('avOk').disabled = !(tot > 0 && AV.motif);
   }
 
-  /* Vente au comptoir */
+  /* Vente au comptoir — every sale names its client: one on file, a newcomer
+     whose record the sale creates, or nobody when the client refuses to give
+     any contact details (the refusal is kept with the sale). Professional
+     clients (SIREN, e-invoicing) are drawn but not offered yet. */
   let VT = null;
-  const vtCli = creerDropdown('vtCli', [{ v: '', l: 'Client de passage' }, ...(P.clients || [])], '', () => {});
+  const VT_MODES = ['cb', 'esp', 'chq'];
+  const ICX = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const chif = (v, n) => String(v).replace(/\D/g, '').slice(0, n);
+  const fmtTel = d => d.replace(/(\d{2})(?=\d)/g, '$1 ');
+  const mailOk = m => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m);
+  const telOk = d => /^0[1-9]\d{8}$/.test(d);
+  const initiales = n => String(n).replace(/^(M\.|Mme)\s+/, '').split(/[\s·]+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+  const focusZone = () => setTimeout(() => { const i = root.querySelector('#vtZone input'); if (i) i.focus(); }, 30);
+
   async function chercherArticles() {
     const q = $('vtQ').value.trim();
     try {
@@ -497,29 +511,138 @@ export function init() {
       const d = await r.json();
       if (!VT || $('vtQ').value.trim() !== q) return;
       VT.res = d.items;
+      VT.rx = d.rx || [];
       rendreVt();
     } catch (e) {
       if (e.name !== 'AbortError') showToast('Le catalogue n\'a pas pu être lu', 'danger');
     }
   }
+  async function chercherClients(q) {
+    const r = await fetch(`${P.urls.clients}?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' }, signal });
+    if (!r.ok) throw new Error(String(r.status));
+    const d = await r.json();
+    d.items.forEach(c => VT.known.set(c.id, c));
+    return d.items;
+  }
+  async function rechercheCli() {
+    const q = VT.q, n = norm(q), d = q.replace(/\D/g, '');
+    if (n.length < 2 && d.length < 3) { VT.cl = null; rendreCl(); return; }
+    try {
+      const items = await chercherClients(q);
+      if (!VT || VT.q !== q) return;
+      VT.cl = items;
+      rendreCl();
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast('Le fichier clients n\'a pas pu être lu', 'danger');
+    }
+  }
+  // A newcomer's mobile that already belongs to a client: use their record instead of creating a second one.
+  async function chercherDoublon() {
+    const tel = VT.p.tel;
+    if (!telOk(tel)) { VT.dbl = null; majPart(); rendreVt(); return; }
+    try {
+      const items = await chercherClients(tel);
+      if (!VT || VT.p.tel !== tel) return;
+      VT.dbl = items.find(c => chif(c.tel || '', 10) === tel) || null;
+      majPart();
+      rendreVt();
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast('Le fichier clients n\'a pas pu être lu', 'danger');
+    }
+  }
+
   function ouvrirVente() {
-    VT = { L: [], mode: accepted(['cb', 'esp', 'chq'])[0], res: [] };
-    vtCli.set('');
+    VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '', cp: '' } };
     $('vtQ').value = '';
-    chipsModes('vtMode', VT.mode, ['cb', 'esp', 'chq']);
+    rendreVtTy();
+    rendreZone();
     rendreVt();
     chercherArticles();
     ouvrirModale('mVente');
-    setTimeout(() => $('vtQ').focus(), 50);
+    setTimeout(() => { const i = $('vtCq'); if (i) i.focus(); }, 50);
+  }
+  function rendreVtTy() { root.querySelectorAll('#vtTy button').forEach(b => b.classList.toggle('on', b.dataset.t === VT.ty)); }
+
+  /* ── Client ── */
+  function carteCli(c) {
+    return `<div class="vt-card"><span class="av2">${esc(initiales(c.n))}</span><div class="lt"><b>${esc(c.n)}</b>
+      <span class="s">${esc(c.tel || 'Sans téléphone')}${c.adr ? ' · ' + esc(c.adr) : ''}</span></div>
+      <button type="button" class="x" data-vtx aria-label="Changer de client">${ICX}</button></div>`;
+  }
+  function rendreZone() {
+    const z = $('vtZone');
+    if (VT.ty === 'cli') {
+      if (VT.cli) { z.innerHTML = carteCli(VT.known.get(VT.cli)); return; }
+      z.innerHTML = `<div class="crech" style="max-width:none">${LOUPE}<input id="vtCq" placeholder="Nom, téléphone ou animal…" autocomplete="off" value="${esc(VT.q)}"></div><div class="vt-l" id="vtCl"></div>`;
+      rendreCl();
+      return;
+    }
+    if (VT.anon) {
+      z.innerHTML = `<div class="vt-msg warn">${ICO.info}<div><b>Vente sans coordonnées</b><br>Le client refuse de les donner : ticket sans nom, refus tracé dans le journal de caisse.</div><button type="button" class="act" data-vtanon="0">Saisir quand même</button></div>`;
+      return;
+    }
+    const p = VT.p;
+    z.innerHTML = `<div class="vt-g"><div class="seg" id="vtCiv"><button type="button" data-v="M." class="${p.civ === 'M.' ? 'on' : ''}">M.</button><button type="button" data-v="Mme" class="${p.civ === 'Mme' ? 'on' : ''}">Mme</button></div>
+        <div class="vt-f"><input class="finput" id="vpNom" placeholder="Nom *" maxlength="40" value="${esc(p.nom)}" aria-label="Nom"></div><div class="vt-f"><input class="finput" id="vpPre" placeholder="Prénom *" maxlength="40" value="${esc(p.pre)}" aria-label="Prénom"></div></div>
+      <div class="vt-g2"><div class="vt-f"><input class="finput" id="vpTel" inputmode="numeric" placeholder="Mobile · 06 00 00 00 00" value="${fmtTel(p.tel)}" aria-label="Mobile"><small id="vpTelH"></small></div>
+        <div class="vt-f"><input class="finput" id="vpMail" type="email" placeholder="E-mail" maxlength="80" value="${esc(p.mail)}" aria-label="E-mail"><small id="vpMailH"></small></div></div>
+      <div class="vt-g2" style="grid-template-columns:120px 1fr"><div class="vt-f"><input class="finput" id="vpCp" inputmode="numeric" placeholder="Code postal" value="${p.cp}" aria-label="Code postal"></div><div class="vt-f"><small style="margin-top:10px">Un moyen de contact au moins : il figure sur la fiche, créée avec la vente.</small></div></div>
+      <div id="vpDbl"></div>
+      <div class="vt-alt"><button type="button" data-vtanon="1">Le client refuse de donner ses coordonnées</button></div>`;
+    majPart();
+  }
+  function rendreCl() {
+    const el = $('vtCl');
+    if (!el) return;
+    if (!VT.cl) { el.innerHTML = ''; return; }
+    el.innerHTML = VT.cl.length
+      ? VT.cl.map(c => `<button type="button" class="vt-o" data-cli="${esc(c.id)}"><span class="lt"><b>${esc(c.n)}</b><span class="s">${esc(c.tel || '')}${c.adr ? ' · ' + esc(c.adr) : ''}</span></span></button>`).join('')
+      : '<div class="vt-vide">Aucun client trouvé.<button type="button" data-vtnew>Créer un nouveau particulier</button></div>';
+  }
+  function majPart() {
+    const p = VT.p, t = $('vpTel');
+    if (!t) return;
+    const th = $('vpTelH'), m = $('vpMail'), mh = $('vpMailH');
+    t.classList.toggle('ko', p.tel.length === 10 && !telOk(p.tel));
+    t.classList.toggle('ok', telOk(p.tel));
+    th.textContent = p.tel.length === 10 && !telOk(p.tel) ? 'Numéro invalide' : '';
+    th.className = 'ko';
+    m.classList.toggle('ko', !!p.mail && !mailOk(p.mail) && document.activeElement !== m);
+    m.classList.toggle('ok', mailOk(p.mail));
+    mh.textContent = p.mail && !mailOk(p.mail) && document.activeElement !== m ? 'Adresse incomplète' : '';
+    mh.className = 'ko';
+    const dbl = VT.dbl && VT.dbl.tel && chif(VT.dbl.tel, 10) === p.tel ? VT.dbl : null;
+    $('vpDbl').innerHTML = dbl ? `<div class="vt-msg warn">${ICO.info}<div><b>Ce numéro est déjà celui de ${esc(dbl.n)}</b><br>Utilisez sa fiche pour ne pas créer de doublon.</div><button type="button" class="act" data-cli="${esc(dbl.id)}">Utiliser sa fiche</button></div>` : '';
+  }
+
+  /* ── Articles et règlement ── */
+  function clientOk() {
+    if (VT.ty === 'cli') return VT.cli ? '' : 'Choisissez le client';
+    if (VT.anon) return '';
+    const p = VT.p;
+    if (p.nom.length < 2) return 'Nom du client requis';
+    if (!p.pre) return 'Prénom du client requis';
+    if (!telOk(p.tel) && !mailOk(p.mail)) return 'Mobile ou e-mail requis';
+    if (p.tel.length && !telOk(p.tel)) return 'Mobile invalide';
+    if (p.mail && !mailOk(p.mail)) return 'E-mail invalide';
+    if (p.cp && p.cp.length !== 5) return 'Code postal invalide';
+    if (VT.dbl && chif(VT.dbl.tel || '', 10) === p.tel) return 'Client déjà connu : utilisez sa fiche';
+    return '';
   }
   function rendreVt() {
-    $('vtRes').innerHTML = VT.res.map(a => `<button type="button" class="citem" data-k="${esc(a.k)}" style="padding:7px 10px"><span class="lt"><b style="font-size:.8rem">${esc(a.l)}</b></span><span class="go" style="color:var(--encre)">${fmtE(a.p)}</span></button>`).join('')
-      || `<p class="hint" style="text-align:center;margin:10px 0">${$('vtQ').value.trim() ? 'Aucun article en vente libre pour cette recherche.' : 'Aucun article en vente libre au catalogue.'}</p>`;
+    const q = $('vtQ').value.trim();
+    $('vtRes').innerHTML = (VT.res.map(a => `<button type="button" class="citem" data-k="${esc(a.k)}" style="padding:7px 10px"><span class="lt"><b style="font-size:.8rem">${esc(a.l)}</b></span><span class="go" style="color:var(--encre)">${fmtE(a.p)}</span></button>`).join('')
+      + VT.rx.map(a => `<a class="citem vt-rx" href="${esc(P.urls.ordonnances)}" style="padding:7px 10px;text-decoration:none;color:inherit"><span class="lt"><b style="font-size:.8rem">${esc(a.l)}</b><span style="font-size:.7rem;color:var(--encre-60)">Médicament sur ordonnance : il se délivre depuis l'ordonnance du client</span></span><span class="go">Ordonnances →</span></a>`).join(''))
+      || `<p class="hint" style="text-align:center;margin:10px 0">${q ? 'Aucun article en vente libre pour cette recherche.' : 'Aucun article en vente libre au catalogue.'}</p>`;
     $('vtLines').innerHTML = VT.L.map((x, i) => `<div class="li"><div class="lt"><b>${esc(x.l)}</b><span>${fmtE(x.p)} l'unité</span></div><div class="qty"><button type="button" data-vq="${i}" data-d="-1" aria-label="Un de moins">−</button><input value="${x.q}" readonly aria-label="Quantité"><button type="button" data-vq="${i}" data-d="1" aria-label="Un de plus">+</button></div><span class="m">${fmtE(x.q * x.p)}</span><button type="button" class="rm" data-vrm="${i}" aria-label="Retirer">${ICO.rm}</button></div>`).join('');
     const tot = VT.L.reduce((s, x) => s + x.q * x.p, 0);
+    chipsModes('vtMode', VT.mode, VT_MODES);
+    $('vtFe').innerHTML = `<div class="vt-msg">${ICO.info}<div><b>Vente à un particulier</b> · pas de facture électronique : les totaux du jour relèvent de l'e-reporting (bientôt disponible).</div></div>`;
+    const manque = clientOk() || (!tot ? 'Ajoutez un article' : '');
     $('vtTot').textContent = fmtE(tot);
+    $('vtManque').textContent = manque;
     const b = $('vtOk');
-    b.disabled = !tot;
+    b.disabled = !!manque;
     b.textContent = tot ? `Encaisser ${fmtE(tot)}` : 'Encaisser';
   }
 
@@ -679,8 +802,52 @@ export function init() {
   }, { signal });
 
   $('btnVente').addEventListener('click', ouvrirVente, { signal });
+  $('vtTy').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.disabled || !VT) return;
+    VT.ty = b.dataset.t;
+    VT.anon = false;
+    rendreVtTy();
+    rendreZone();
+    rendreVt();
+    focusZone();
+  }, { signal });
+  const zone = $('vtZone');
+  zone.addEventListener('input', e => {
+    const t = e.target;
+    if (!VT) return;
+    if (t.id === 'vtCq') { VT.q = t.value; window.clearTimeout(clientTimer); clientTimer = window.setTimeout(rechercheCli, SEARCH_DEBOUNCE_MS); }
+    if (t.id === 'vpNom') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').toUpperCase(); VT.p.nom = t.value.trim(); }
+    if (t.id === 'vpPre') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').replace(/(^|[\s'-])\p{Ll}/gu, x => x.toUpperCase()); VT.p.pre = t.value.trim(); }
+    if (t.id === 'vpTel') { VT.p.tel = chif(t.value, 10); t.value = fmtTel(VT.p.tel); majPart(); chercherDoublon(); }
+    if (t.id === 'vpMail') { t.value = t.value.replace(/\s/g, '').toLowerCase(); VT.p.mail = t.value; majPart(); }
+    if (t.id === 'vpCp') { t.value = chif(t.value, 5); VT.p.cp = t.value; }
+    rendreVt();
+  }, { signal });
+  zone.addEventListener('focusout', () => setTimeout(() => { if (VT) { majPart(); rendreVt(); } }, 0), { signal });
+  zone.addEventListener('click', e => {
+    if (!VT) return;
+    const c = e.target.closest('[data-cli]');
+    if (c) { VT.ty = 'cli'; VT.cli = c.dataset.cli; rendreVtTy(); rendreZone(); rendreVt(); $('vtQ').focus(); return; }
+    if (e.target.closest('[data-vtx]')) { VT.cli = null; rendreZone(); rendreVt(); focusZone(); return; }
+    if (e.target.closest('[data-vtnew]')) {
+      const q = VT.q.trim();
+      VT.ty = 'part';
+      if (/^[\d\s]+$/.test(q)) VT.p.tel = chif(q, 10); else VT.p.nom = q.replace(/[^A-Za-zÀ-ÿ' -]/g, '').toUpperCase().trim();
+      rendreVtTy();
+      rendreZone();
+      rendreVt();
+      chercherDoublon();
+      setTimeout(() => $(VT.p.nom ? 'vpTel' : 'vpNom').focus(), 30);
+      return;
+    }
+    const an = e.target.closest('[data-vtanon]');
+    if (an) { VT.anon = an.dataset.vtanon === '1'; rendreZone(); rendreVt(); return; }
+    const cv = e.target.closest('#vtCiv button');
+    if (cv) { VT.p.civ = cv.dataset.v; root.querySelectorAll('#vtCiv button').forEach(x => x.classList.toggle('on', x === cv)); }
+  }, { signal });
   $('vtQ').addEventListener('input', () => { window.clearTimeout(articleTimer); articleTimer = window.setTimeout(chercherArticles, SEARCH_DEBOUNCE_MS); }, { signal });
-  $('vtQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); root.querySelector('#vtRes .citem')?.click(); } }, { signal });
+  $('vtQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); root.querySelector('#vtRes button.citem')?.click(); } }, { signal });
   $('vtRes').addEventListener('click', e => {
     const b = e.target.closest('[data-k]');
     if (!b) return;
@@ -697,10 +864,17 @@ export function init() {
     const r = e.target.closest('[data-vrm]');
     if (r) { VT.L.splice(+r.dataset.vrm, 1); rendreVt(); }
   }, { signal });
-  $('vtMode').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; VT.mode = b.dataset.m; chipsModes('vtMode', VT.mode, ['cb', 'esp', 'chq']); }, { signal });
+  $('vtMode').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; VT.mode = b.dataset.m; rendreVt(); }, { signal });
   $('vtOk').addEventListener('click', () => {
     if (!VT || $('vtOk').disabled) return;
-    poster({ url: P.urls.counter, token: P.tokens.counter }, { lines: VT.L.map(x => `${x.k}:${x.q}`).join(','), mode: VT.mode, client: vtCli.get() });
+    const p = VT.p, payer = VT.ty === 'cli' ? 'cli' : VT.anon ? 'anon' : 'part';
+    poster({ url: P.urls.counter, token: P.tokens.counter }, {
+      lines: VT.L.map(x => `${x.k}:${x.q}`).join(','),
+      mode: VT.mode,
+      payer,
+      client: payer === 'cli' ? VT.cli : '',
+      ...(payer === 'part' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail, cp: p.cp } : {}),
+    });
   }, { signal });
 
   $('btnClo').addEventListener('click', ouvrirClo, { signal });
@@ -772,6 +946,7 @@ export function cleanup() {
   ac = null;
   window.clearTimeout(searchTimer);
   window.clearTimeout(articleTimer);
+  window.clearTimeout(clientTimer);
   searchTimer = null;
   articleTimer = null;
 }

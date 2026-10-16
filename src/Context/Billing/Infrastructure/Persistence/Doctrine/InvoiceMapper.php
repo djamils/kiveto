@@ -82,6 +82,7 @@ final readonly class InvoiceMapper
             cancellationReason: $entity->getCancellationReason(),
             creditedMinorUnits: $entity->getCreditedMinorUnits(),
             refundedMinorUnits: $entity->getRefundedMinorUnits(),
+            counterSalePayer: $entity->getCounterSalePayer(),
         );
     }
 
@@ -92,6 +93,7 @@ final readonly class InvoiceMapper
         $entity->setId(Uuid::fromString($invoice->id()->toString()));
         $entity->setClinicId(Uuid::fromString($invoice->clinicId()->toString()));
         $entity->setCreatedAt($invoice->createdAt());
+        $entity->setCounterSalePayer($invoice->counterSalePayer());
 
         $this->applyMutableState($invoice, $entity);
 

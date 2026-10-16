@@ -155,6 +155,32 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         self::assertNull($this->directory->forClient(self::SECOND_OWNER, self::CLINIC_ID));
     }
 
+    public function testTheActiveClientOfTheClinicOwningAPhoneIsFound(): void
+    {
+        $this->client(self::CLIENT_ID, 'Sophie', 'Dupont', null, null, null, null);
+        $this->client(self::SECOND_OWNER, 'Marc', 'Lefebvre', null, null, null, null, 'archived');
+        $this->phone(self::CLIENT_ID, '+33618427731');
+        $this->phone(self::SECOND_OWNER, '+33699887766');
+
+        self::assertSame(self::CLIENT_ID, $this->directory->clientWithPhone('+33618427731', self::CLINIC_ID));
+        // An archived client, another clinic or an unknown number: nobody.
+        self::assertNull($this->directory->clientWithPhone('+33699887766', self::CLINIC_ID));
+        self::assertNull($this->directory->clientWithPhone('+33618427731', '01960000-0000-7000-8000-00000000d009'));
+        self::assertNull($this->directory->clientWithPhone('+33600000000', self::CLINIC_ID));
+    }
+
+    private function phone(string $clientId, string $phone): void
+    {
+        $this->connection->insert('client__contact_methods', [
+            'id'         => Uuid::v7()->toBinary(),
+            'client_id'  => Uuid::fromString($clientId)->toBinary(),
+            'type'       => 'phone',
+            'label'      => 'mobile',
+            'value'      => $phone,
+            'is_primary' => 1,
+        ]);
+    }
+
     private function admission(): void
     {
         AnimalEntityFactory::new()
@@ -204,13 +230,14 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         ?string $line2,
         ?string $zip,
         ?string $city,
+        string $status = 'active',
     ): void {
         $this->connection->insert('client__clients', [
             'id'                           => Uuid::fromString($clientId)->toBinary(),
             'clinic_id'                    => Uuid::fromString(self::CLINIC_ID)->toBinary(),
             'first_name'                   => $firstName,
             'last_name'                    => $lastName,
-            'status'                       => 'ACTIVE',
+            'status'                       => $status,
             'created_at'                   => '2026-08-22 10:00:00',
             'updated_at'                   => '2026-08-22 10:00:00',
             'postal_address_street_line_1' => $line1,

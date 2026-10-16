@@ -145,6 +145,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             refundedMinorUnits: $invoice->amountRefunded()->minorUnits(),
             creditableMinorUnits: $invoice->creditableAmount()->minorUnits(),
             creditNotes: $creditNotes,
+            counterSalePayer: $invoice->counterSalePayer()?->value,
         );
     }
 
@@ -215,7 +216,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         %s AS total_net, %s AS total_tax, %s AS total_paid,
                         i.credited_minor_units AS credited, i.refunded_minor_units AS refunded,
                         NULL AS origin_bin, NULL AS origin_number, NULL AS stored_gross, NULL AS reason,
-                        COALESCE(i.issued_at, i.created_at) AS sort_date
+                        i.counter_sale_payer, COALESCE(i.issued_at, i.created_at) AS sort_date
                  FROM billing__invoices i WHERE %s",
                 $this->netExpression(),
                 $this->taxExpression(),
@@ -233,7 +234,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         c.total_net_minor_units AS total_net, c.total_tax_minor_units AS total_tax,
                         c.refunded_minor_units AS total_paid, 0 AS credited, 0 AS refunded,
                         c.invoice_id AS origin_bin, c.invoice_number AS origin_number,
-                        c.total_gross_minor_units AS stored_gross, c.reason, c.issued_at AS sort_date
+                        c.total_gross_minor_units AS stored_gross, c.reason, NULL AS counter_sale_payer, c.issued_at AS sort_date
                  FROM billing__credit_notes c LEFT JOIN billing__invoices oi ON oi.id = c.invoice_id
                  WHERE %s",
                 $notes['where'],
@@ -260,7 +261,8 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         BIN_TO_UUID(d.payer_bin) AS payer_client_id, d.payer_name,
                         BIN_TO_UUID(d.admission_bin) AS admission_id, d.created_at, d.issued_at,
                         d.discount_kind, d.discount_value, d.total_net, d.total_tax, d.total_paid,
-                        d.credited, d.refunded, BIN_TO_UUID(d.origin_bin) AS origin_id, d.origin_number, d.stored_gross, d.reason
+                        d.credited, d.refunded, BIN_TO_UUID(d.origin_bin) AS origin_id, d.origin_number, d.stored_gross, d.reason,
+                        d.counter_sale_payer
                  FROM (%s) d
                  ORDER BY %s %s, d.created_at DESC
                  LIMIT %d OFFSET %d',
@@ -458,6 +460,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             originInvoiceId: RowAccessor::nullableString($row, 'origin_id'),
             originInvoiceNumber: RowAccessor::nullableString($row, 'origin_number'),
             reason: RowAccessor::nullableString($row, 'reason'),
+            counterSalePayer: RowAccessor::nullableString($row, 'counter_sale_payer'),
         );
     }
 

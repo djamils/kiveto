@@ -8,8 +8,6 @@ use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetBillingStats\GetBillingStats;
 use App\Context\Billing\Application\Query\GetCashDesk\CashDeskView;
 use App\Context\Billing\Application\Query\GetCashDesk\GetCashDesk;
-use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
-use App\Context\Client\Application\Query\SearchClients\SearchClients;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Presentation\Clinic\ViewModel\Consultation\CockpitContextBuilder;
@@ -21,16 +19,12 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 /**
  * Everything the « Facturation » page module starts from: the register's
  * first page and its filters, the header figures, the till of the day, the
- * letterhead of the paper preview, the clients the counter can sell to and —
- * on a document's own route — the sheet to open straight away.
+ * letterhead of the paper preview and — on a document's own route — the
+ * sheet to open straight away.
  */
 final readonly class BillingPageBuilder
 {
     private const array DESK_METHODS = ['CARD' => 'cb', 'CASH' => 'esp', 'CHECK' => 'chq', 'TRANSFER' => 'vir'];
-
-    private const int CLIENT_PAGE = 100;
-
-    private const int MAX_CLIENT_PAGES = 5;
 
     public function __construct(
         private BillingRegisterViewBuilder $register,
@@ -117,7 +111,6 @@ final readonly class BillingPageBuilder
             ],
             'caisse'  => $this->cashDesk($desk),
             'modes'   => $this->acceptedModes($clinicId),
-            'clients' => $this->clients($clinicId),
             'sheet'   => $sheet,
             'autoPay' => $autoPay && null !== $sheet,
             'tokens'  => [
@@ -126,18 +119,20 @@ final readonly class BillingPageBuilder
                 'counter' => $this->csrf->getToken('billing_counter_sale')->getValue(),
             ],
             'urls' => [
-                'list'       => $this->urls->generate('clinic_invoices'),
-                'search'     => $this->urls->generate('clinic_invoices_search'),
-                'sheetFac'   => $this->urls->generate('clinic_invoice_sheet', ['invoiceId' => '00000000-0000-7000-8000-000000000000']),
-                'sheetAv'    => $this->urls->generate('clinic_credit_note_sheet', ['creditNoteId' => '00000000-0000-7000-8000-000000000000']),
-                'detailsFac' => $this->urls->generate('clinic_invoice_details', ['invoiceId' => '00000000-0000-7000-8000-000000000000']),
-                'detailsAv'  => $this->urls->generate('clinic_credit_note_details', ['creditNoteId' => '00000000-0000-7000-8000-000000000000']),
-                'selection'  => $this->urls->generate('clinic_invoices_selection_pdf'),
-                'export'     => $this->urls->generate('clinic_invoices_export'),
-                'articles'   => $this->urls->generate('clinic_counter_articles'),
-                'counter'    => $this->urls->generate('clinic_counter_sale'),
-                'deposit'    => $this->urls->generate('clinic_cheques_deposit'),
-                'close'      => $this->urls->generate('clinic_cash_closing'),
+                'list'        => $this->urls->generate('clinic_invoices'),
+                'search'      => $this->urls->generate('clinic_invoices_search'),
+                'sheetFac'    => $this->urls->generate('clinic_invoice_sheet', ['invoiceId' => '00000000-0000-7000-8000-000000000000']),
+                'sheetAv'     => $this->urls->generate('clinic_credit_note_sheet', ['creditNoteId' => '00000000-0000-7000-8000-000000000000']),
+                'detailsFac'  => $this->urls->generate('clinic_invoice_details', ['invoiceId' => '00000000-0000-7000-8000-000000000000']),
+                'detailsAv'   => $this->urls->generate('clinic_credit_note_details', ['creditNoteId' => '00000000-0000-7000-8000-000000000000']),
+                'selection'   => $this->urls->generate('clinic_invoices_selection_pdf'),
+                'export'      => $this->urls->generate('clinic_invoices_export'),
+                'articles'    => $this->urls->generate('clinic_counter_articles'),
+                'clients'     => $this->urls->generate('clinic_counter_clients'),
+                'ordonnances' => $this->urls->generate('clinic_prescriptions'),
+                'counter'     => $this->urls->generate('clinic_counter_sale'),
+                'deposit'     => $this->urls->generate('clinic_cheques_deposit'),
+                'close'       => $this->urls->generate('clinic_cash_closing'),
             ],
         ];
     }
@@ -182,33 +177,5 @@ final readonly class BillingPageBuilder
             'clotures' => $desk->closingCount,
             'cheques'  => ['n' => \count($desk->pendingCheques), 'total' => $desk->pendingChequesTotal()],
         ];
-    }
-
-    /**
-     * The clinic's clients, for the counter sale's « Client » list.
-     *
-     * @return list<array{v: string, l: string}>
-     */
-    private function clients(string $clinicId): array
-    {
-        $list = [];
-
-        // The client search pages by 100: read the clinic's file a page at a time.
-        for ($page = 1; $page <= self::MAX_CLIENT_PAGES; ++$page) {
-            $result = $this->queryBus->ask(new SearchClients(clinicId: $clinicId, status: 'active', page: $page, limit: self::CLIENT_PAGE));
-            $items  = \is_array($result) && \is_array($result['items'] ?? null) ? $result['items'] : [];
-
-            foreach ($items as $item) {
-                if ($item instanceof ClientListItemView) {
-                    $list[] = ['v' => $item->id, 'l' => $item->fullName()];
-                }
-            }
-
-            if (\count($items) < self::CLIENT_PAGE) {
-                break;
-            }
-        }
-
-        return $list;
     }
 }

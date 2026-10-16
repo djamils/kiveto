@@ -6,6 +6,7 @@ namespace App\Context\Billing\Infrastructure\Adapter\Catalog;
 
 use App\Context\Billing\Application\Port\CounterArticleDto;
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
+use App\Context\Billing\Application\Port\PrescriptionOnlyArticleDto;
 use App\Context\Catalog\Application\Query\Article\GetArticleDetail\ArticleDetailView;
 use App\Context\Catalog\Application\Query\Article\GetArticleDetail\GetArticleDetail;
 use App\Context\Catalog\Application\Query\Catalog\SearchCatalogItems\CatalogSearchResult;
@@ -49,6 +50,22 @@ final readonly class QueryBusCounterCatalog implements CounterCatalogInterface
         }
 
         usort($articles, static fn (CounterArticleDto $a, CounterArticleDto $b): int => strcmp($a->label, $b->label));
+
+        return \array_slice($articles, 0, $limit);
+    }
+
+    public function prescriptionOnly(string $clinicId, string $term, int $limit): array
+    {
+        $results  = $this->ask(new SearchCatalogItems(clinicId: $clinicId, term: $term, limit: $limit * self::SEARCH_FACTOR));
+        $articles = [];
+
+        foreach (\is_array($results) ? $results : [] as $result) {
+            if ($result instanceof CatalogSearchResult && 'ARTICLE' === $result->type && 'ACTIVE' === $result->status && $result->requiresPrescription) {
+                $articles[] = new PrescriptionOnlyArticleDto($result->id, $result->name);
+            }
+        }
+
+        usort($articles, static fn (PrescriptionOnlyArticleDto $a, PrescriptionOnlyArticleDto $b): int => strcmp($a->label, $b->label));
 
         return \array_slice($articles, 0, $limit);
     }

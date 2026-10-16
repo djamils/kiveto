@@ -20,4 +20,12 @@ interface CounterCatalogInterface
      * Null when the article is unknown, archived or prescription-only.
      */
     public function article(string $clinicId, string $articleId): ?CounterArticleDto;
+
+    /**
+     * The active prescription-only articles matching the term: the desk
+     * points to the ordonnance they are dispensed from instead of selling them.
+     *
+     * @return list<PrescriptionOnlyArticleDto>
+     */
+    public function prescriptionOnly(string $clinicId, string $term, int $limit): array;
 }
