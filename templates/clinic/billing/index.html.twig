@@ -134,6 +134,9 @@
       <div class="vt-h">Règlement</div>
       <div class="modes" id="vtMode"></div>
       <div id="vtFe"></div>
+      <div class="vt-h">Remise de la facture</div>
+      <div class="modes" id="vtRem"></div>
+      <div class="vt-aide" id="vtRemH"></div>
     </div>
     <div class="mfoot"><span class="vtot"><small>Total TTC</small><b id="vtTot">0,00 €</b></span><span class="vt-manque" id="vtManque"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="vtOk" disabled>Encaisser</button></div>
   </div></div>
@@ -169,7 +172,7 @@
     <input type="hidden" name="pre" id="ffPre">
     <input type="hidden" name="tel" id="ffTel">
     <input type="hidden" name="mail" id="ffMail">
-    <input type="hidden" name="cp" id="ffCp">
+    <input type="hidden" name="imprimer" id="ffPrint">
   </form>
 </div>
 {% endblock %}

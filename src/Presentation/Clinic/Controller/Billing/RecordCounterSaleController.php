@@ -28,9 +28,10 @@ use Symfony\Component\Uid\Uuid;
  * `article id:quantity,…`), the means of payment, and who the sale is made
  * to (`payer`): a client of the clinic (`cli`, with `client`), a newcomer
  * whose record is created with it (`part`, with `civ`, `nom`, `pre`, `tel`,
- * `mail`, `cp`), or a client who refuses to give their contact details
- * (`anon`). The invoice is issued and paid at once; the register comes back
- * on its sheet.
+ * `mail`), or a client who refuses to give their contact details (`anon`).
+ * The invoice is issued and paid at once; the register comes back on its
+ * sheet, with the print preview open when the desk hands it over printed
+ * (`imprimer`).
  */
 #[Route(path: '/billing/counter-sale', name: 'clinic_counter_sale', methods: ['POST'])]
 final class RecordCounterSaleController extends AbstractController
@@ -100,7 +101,11 @@ final class RecordCounterSaleController extends AbstractController
             ));
         }
 
-        return $this->redirectToRoute('clinic_invoice_details', ['invoiceId' => $invoiceId, 'per' => '0']);
+        return $this->redirectToRoute('clinic_invoice_details', [
+            'invoiceId' => $invoiceId,
+            'per'       => '0',
+            ...($request->request->getBoolean('imprimer') ? ['imprimer' => '1'] : []),
+        ]);
     }
 
     /**
@@ -118,7 +123,6 @@ final class RecordCounterSaleController extends AbstractController
             firstName: $field('pre'),
             phone: (string) preg_replace('/\D+/', '', $field('tel')),
             email: mb_strtolower($field('mail')),
-            postalCode: $field('cp'),
         );
     }
 

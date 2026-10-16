@@ -383,7 +383,7 @@ export function init() {
     const f = $('factForm');
     f.action = act.url;
     $('ffTok').value = act.token;
-    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient', payer: 'ffPayer', civ: 'ffCiv', nom: 'ffNom', pre: 'ffPre', tel: 'ffTel', mail: 'ffMail', cp: 'ffCp' };
+    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient', payer: 'ffPayer', civ: 'ffCiv', nom: 'ffNom', pre: 'ffPre', tel: 'ffTel', mail: 'ffMail', imprimer: 'ffPrint' };
     Object.entries(map).forEach(([k, id]) => { $(id).value = fields[k] ?? ''; });
     f.requestSubmit();
   }
@@ -552,7 +552,7 @@ export function init() {
   }
 
   function ouvrirVente() {
-    VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '', cp: '' } };
+    VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']) };
     $('vtQ').value = '';
     rendreVtTy();
     rendreZone();
@@ -586,7 +586,7 @@ export function init() {
         <div class="vt-f"><input class="finput" id="vpNom" placeholder="Nom *" maxlength="40" value="${esc(p.nom)}" aria-label="Nom"></div><div class="vt-f"><input class="finput" id="vpPre" placeholder="Prénom *" maxlength="40" value="${esc(p.pre)}" aria-label="Prénom"></div></div>
       <div class="vt-g2"><div class="vt-f"><input class="finput" id="vpTel" inputmode="numeric" placeholder="Mobile · 06 00 00 00 00" value="${fmtTel(p.tel)}" aria-label="Mobile"><small id="vpTelH"></small></div>
         <div class="vt-f"><input class="finput" id="vpMail" type="email" placeholder="E-mail" maxlength="80" value="${esc(p.mail)}" aria-label="E-mail"><small id="vpMailH"></small></div></div>
-      <div class="vt-g2" style="grid-template-columns:120px 1fr"><div class="vt-f"><input class="finput" id="vpCp" inputmode="numeric" placeholder="Code postal" value="${p.cp}" aria-label="Code postal"></div><div class="vt-f"><small style="margin-top:10px">Un moyen de contact au moins : il figure sur la fiche, créée avec la vente.</small></div></div>
+      <p class="vt-aide">Un mobile ou un e-mail au moins : c'est ce qui permet de retrouver et de joindre ce client.</p>
       <div id="vpDbl"></div>
       <div class="vt-alt"><button type="button" data-vtanon="1">Le client refuse de donner ses coordonnées</button></div>`;
     majPart();
@@ -625,7 +625,6 @@ export function init() {
     if (!telOk(p.tel) && !mailOk(p.mail)) return 'Mobile ou e-mail requis';
     if (p.tel.length && !telOk(p.tel)) return 'Mobile invalide';
     if (p.mail && !mailOk(p.mail)) return 'E-mail invalide';
-    if (p.cp && p.cp.length !== 5) return 'Code postal invalide';
     if (VT.dbl && chif(VT.dbl.tel || '', 10) === p.tel) return 'Client déjà connu : utilisez sa fiche';
     return '';
   }
@@ -638,12 +637,22 @@ export function init() {
     const tot = VT.L.reduce((s, x) => s + x.q * x.p, 0);
     chipsModes('vtMode', VT.mode, VT_MODES);
     $('vtFe').innerHTML = `<div class="vt-msg">${ICO.info}<div><b>Vente à un particulier</b> · pas de facture électronique : les totaux du jour relèvent de l'e-reporting (bientôt disponible).</div></div>`;
-    const manque = clientOk() || (!tot ? 'Ajoutez un article' : '');
+    rendreRemise();
+    const manque = clientOk() || (!tot ? 'Ajoutez un article' : '') || (!VT.rem.size ? 'Choisissez comment remettre la facture' : '');
     $('vtTot').textContent = fmtE(tot);
     $('vtManque').textContent = manque;
     const b = $('vtOk');
     b.disabled = !!manque;
     b.textContent = tot ? `Encaisser ${fmtE(tot)}` : 'Encaisser';
+  }
+
+  /* How the invoice is handed over. Sending it by e-mail or SMS is not wired
+     yet, so printing is the only channel the desk can pick for now. */
+  const REMISE_OFF = { mail: 'L\'envoi par e-mail n\'est pas encore disponible', sms: 'L\'envoi par SMS n\'est pas encore disponible' };
+  function rendreRemise() {
+    const LBL = { imp: VT.anon ? 'Imprimer le ticket' : 'Imprimer', mail: 'E-mail', sms: 'SMS' };
+    $('vtRem').innerHTML = (VT.anon ? ['imp'] : ['imp', 'mail', 'sms']).map(r => `<button type="button" class="chip${VT.rem.has(r) ? ' on' : ''}" data-r="${r}"${REMISE_OFF[r] ? ` disabled title="${esc(REMISE_OFF[r])}"` : ''}>${LBL[r]}</button>`).join('');
+    $('vtRemH').textContent = VT.anon ? 'Sans coordonnées, le ticket est remis en main propre.' : VT.rem.has('imp') ? 'Remise en main propre.' : '';
   }
 
   /* Clôture de caisse */
@@ -821,7 +830,6 @@ export function init() {
     if (t.id === 'vpPre') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').replace(/(^|[\s'-])\p{Ll}/gu, x => x.toUpperCase()); VT.p.pre = t.value.trim(); }
     if (t.id === 'vpTel') { VT.p.tel = chif(t.value, 10); t.value = fmtTel(VT.p.tel); majPart(); chercherDoublon(); }
     if (t.id === 'vpMail') { t.value = t.value.replace(/\s/g, '').toLowerCase(); VT.p.mail = t.value; majPart(); }
-    if (t.id === 'vpCp') { t.value = chif(t.value, 5); VT.p.cp = t.value; }
     rendreVt();
   }, { signal });
   zone.addEventListener('focusout', () => setTimeout(() => { if (VT) { majPart(); rendreVt(); } }, 0), { signal });
@@ -865,6 +873,12 @@ export function init() {
     if (r) { VT.L.splice(+r.dataset.vrm, 1); rendreVt(); }
   }, { signal });
   $('vtMode').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; VT.mode = b.dataset.m; rendreVt(); }, { signal });
+  $('vtRem').addEventListener('click', e => {
+    const b = e.target.closest('[data-r]');
+    if (!b || b.disabled || !VT) return;
+    if (VT.rem.has(b.dataset.r)) VT.rem.delete(b.dataset.r); else VT.rem.add(b.dataset.r);
+    rendreVt();
+  }, { signal });
   $('vtOk').addEventListener('click', () => {
     if (!VT || $('vtOk').disabled) return;
     const p = VT.p, payer = VT.ty === 'cli' ? 'cli' : VT.anon ? 'anon' : 'part';
@@ -873,7 +887,8 @@ export function init() {
       mode: VT.mode,
       payer,
       client: payer === 'cli' ? VT.cli : '',
-      ...(payer === 'part' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail, cp: p.cp } : {}),
+      ...(payer === 'part' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail } : {}),
+      imprimer: VT.rem.has('imp') ? '1' : '',
     });
   }, { signal });
 
@@ -931,6 +946,7 @@ export function init() {
   rendre();
   if (ST.fiche) rendreFiche();
   if (P.autoPay && ST.fiche) ouvrirPay(ST.fiche);
+  if (P.autoPrint && ST.fiche) ouvrirApercu(ST.fiche);
 
   // The page size this browser chose last, unless the address says otherwise.
   let pp = 0;

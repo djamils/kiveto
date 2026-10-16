@@ -172,9 +172,8 @@ final readonly class RecordCounterSaleHandler
     }
 
     /**
-     * Opens the newcomer's record — a name, and a mobile or an e-mail to send
-     * the invoice to — and makes the invoice out to them; the postal code
-     * typed at the desk is printed on it.
+     * Opens the newcomer's record — a name, and a mobile or an e-mail to find
+     * and reach them by — and makes the invoice out to them.
      */
     private function register(string $clinicId, CounterSaleNewClient $client): Payer
     {
@@ -190,7 +189,7 @@ final readonly class RecordCounterSaleHandler
 
         $clientId = $this->clientRegistry->register($clinicId, $client);
 
-        return Payer::create(PayerId::fromString($clientId), $client->displayName(), [$client->postalCode]);
+        return Payer::create(PayerId::fromString($clientId), $client->displayName());
     }
 
     private function validate(CounterSaleNewClient $client): void
@@ -219,10 +218,6 @@ final readonly class RecordCounterSaleHandler
 
         if ('' === $client->phone && '' === $client->email) {
             throw new InvalidCounterClientException('A newcomer needs a mobile or an e-mail.');
-        }
-
-        if ('' !== $client->postalCode && 1 !== preg_match('/^\d{5}$/', $client->postalCode)) {
-            throw new InvalidCounterClientException('Invalid postal code.');
         }
     }
 }

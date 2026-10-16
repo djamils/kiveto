@@ -330,7 +330,7 @@ final class DeskCommandHandlersTest extends TestCase
         $payers->expects(self::once())->method('clientWithPhone')->with('+33618427731', self::CLINIC_ID)->willReturn(null);
         $payers->expects(self::never())->method('forClient');
 
-        $newcomer = new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0618427731', 'nadia@example.fr', '13005');
+        $newcomer = new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0618427731', 'nadia@example.fr');
         $registry = $this->createMock(CounterClientRegistryInterface::class);
         $registry->expects(self::once())->method('register')->with(self::CLINIC_ID, $newcomer)->willReturn(self::CLIENT);
 
@@ -339,7 +339,7 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertInstanceOf(Invoice::class, $saved);
         self::assertSame(self::CLIENT, $saved->payer()->clientId()?->toString());
         self::assertSame('Nadia Benali', $saved->payer()->displayName());
-        self::assertSame(['13005'], $saved->payer()->addressLines());
+        self::assertSame([], $saved->payer()->addressLines());
         self::assertSame(CounterSalePayer::NEW_CLIENT, $saved->counterSalePayer());
     }
 
@@ -397,7 +397,6 @@ final class DeskCommandHandlersTest extends TestCase
         yield 'e-mail not an address' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '', 'nadia@@example.fr'), 'Invalid e-mail'];
         yield 'e-mail too long' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '', str_repeat('a', 75) . '@ex.fr'), 'Invalid e-mail'];
         yield 'no contact' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia'), 'mobile or an e-mail'];
-        yield 'invalid postal code' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '0618427731', '', '1300'), 'postal code'];
     }
 
     #[DataProvider('provideANewcomerNeedsEnoughToOpenTheirRecordCases')]
