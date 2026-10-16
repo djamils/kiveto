@@ -29,10 +29,12 @@ interface ClientReadRepositoryInterface
     public function listCities(ClinicId $clinicId): array;
 
     /**
-     * Returns true if any client in the given clinic already uses this email
-     * in one of their contact methods.
+     * The clients of the clinic, archived ones included, one of whose phones
+     * is exactly this number, oldest record first.
+     *
+     * @return list<string> client ids
      */
-    public function emailExistsInClinic(ClinicId $clinicId, string $email): bool;
+    public function findIdsByPhone(ClinicId $clinicId, string $phone): array;
 
     /**
      * @param list<string> $clientIds UUID strings

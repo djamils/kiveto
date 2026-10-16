@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Context\Client\Application\Command\CreateClient;
 
+use App\Context\Client\Application\Port\ClientAnimalRegistryInterface;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\ConsentKind;
+use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\ContactMethodType;
@@ -16,6 +20,7 @@ use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\EmailAddress;
 use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\Shared\Domain\ValueObject\PostalAddress;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
 
@@ -26,6 +31,7 @@ final readonly class CreateClientHandler
         private ClientRepositoryInterface $clientRepository,
         private DomainEventPublisher $domainEventPublisher,
         private ClockInterface $clock,
+        private ClientAnimalRegistryInterface $animalRegistry,
     ) {
     }
 
@@ -37,22 +43,69 @@ final readonly class CreateClientHandler
         $identity = new ClientIdentity(
             firstName: $command->firstName,
             lastName: $command->lastName,
+            civility: Civility::from($command->civility),
         );
 
         $contactMethods = $this->buildContactMethods($command->contactMethods);
+        $now            = $this->clock->now();
 
         $client = Client::create(
             id: $clientId,
             clinicId: $clinicId,
             identity: $identity,
             contactMethods: $contactMethods,
-            createdAt: $this->clock->now(),
+            createdAt: $now,
         );
+
+        if (null !== $command->postalAddress) {
+            $dto = $command->postalAddress;
+            $client->updatePostalAddress(PostalAddress::create(
+                streetLine1: $dto->streetLine1,
+                city: $dto->city,
+                countryCode: $dto->countryCode,
+                streetLine2: $dto->streetLine2,
+                postalCode: $dto->postalCode,
+                region: $dto->region,
+            ), $now);
+        }
+
+        if (null !== $command->preferredChannel || [] !== $command->channelsByConsentKind) {
+            $client->updateCommunicationPreferences(
+                null === $command->preferredChannel ? null : ContactChannel::from($command->preferredChannel),
+                $this->channelsByKind($command->channelsByConsentKind),
+                $now,
+            );
+        }
 
         $this->clientRepository->save($client);
         $this->domainEventPublisher->publish($client);
 
+        // The animals are recorded once their owner exists, in the same
+        // transaction: a refused animal leaves no half-opened record behind.
+        foreach ($command->animals as $animal) {
+            $this->animalRegistry->register($command->clinicId, $clientId->toString(), $animal);
+        }
+
         return $clientId->toString();
+    }
+
+    /**
+     * @param array<string, list<string>> $raw
+     *
+     * @return array<string, list<ContactChannel>>
+     */
+    private function channelsByKind(array $raw): array
+    {
+        $channelsByKind = [];
+
+        foreach ($raw as $kind => $channels) {
+            $channelsByKind[ConsentKind::from($kind)->value] = array_map(
+                static fn (string $channel): ContactChannel => ContactChannel::from($channel),
+                $channels,
+            );
+        }
+
+        return $channelsByKind;
     }
 
     /**

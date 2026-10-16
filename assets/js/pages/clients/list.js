@@ -1,5 +1,5 @@
 /**
- * Page module — Répertoire (repertoire-v-topbar_13 mock-up).
+ * Page module — Répertoire (repertoire-v-topbar_14 mock-up).
  * Loaded by the app.js dispatcher on turbo:load.
  *
  * Filtering, sorting and pagination are server-side: the filter bar is a GET
@@ -10,11 +10,11 @@
  * - the column picker, remembered per view in this browser;
  * - row selection and its bulk bar (CSV export of the selected rows);
  * - a click on a row opens its sheet;
- * - the two creation modals, and the « Ajouter un premier animal juste
- *   après » handover from the client modal to the animal one.
+ * - the two creation windows, in create.js.
  * Listeners are bound in init() and released in cleanup().
  */
 import { showToast } from 'kiveto/shell';
+import * as create from 'pages/clients/create';
 
 const FRAME_ID = 'rep-results';
 const SEARCH_DEBOUNCE_MS = 250;
@@ -37,7 +37,7 @@ export function init() {
   selected.clear();
   applyColumns();
   renderSelection();
-  resumeAnimalCreation();
+  create.init();
 
   document.addEventListener('click', onClick, { signal });
   document.addEventListener('change', onChange, { signal });
@@ -46,11 +46,11 @@ export function init() {
   document.addEventListener('submit', onSubmit, { signal, capture: true });
   document.addEventListener('keydown', onKeydown, { signal });
   document.addEventListener('turbo:frame-load', onFrameLoad, { signal });
-  document.addEventListener('turbo:before-cache', closeAll, { signal });
-  document.addEventListener('client-search-autocomplete:create', onCreateClientFromOwnerPicker, { signal });
+  document.addEventListener('turbo:before-cache', closeMenus, { signal });
 }
 
 export function cleanup() {
+  create.cleanup();
   ac?.abort();
   ac = null;
   root = null;
@@ -194,18 +194,6 @@ function onClick(e) {
     return;
   }
 
-  // Modals
-  const opener = t.closest('.rep [data-open]');
-  if (opener) {
-    openModal(opener.dataset.open);
-    return;
-  }
-  const veil = t.closest('.rep .mveil');
-  if (veil && (t === veil || t.closest('[data-close]'))) {
-    closeModal(veil);
-    return;
-  }
-
   // A row opens its sheet; its own controls keep their job.
   const row = t.closest('.rep tbody tr[data-url]');
   if (row && !t.closest('a, button, input, label')) {
@@ -246,17 +234,7 @@ function onChange(e) {
 
 function onKeydown(e) {
   if (e.key !== 'Escape') return;
-  const open = $('.rep .mveil.open');
-  if (open) {
-    closeModal(open);
-    return;
-  }
   $('#bulkDd')?.classList.remove('open');
-}
-
-function closeAll() {
-  closeMenus();
-  $$('.rep .mveil.open').forEach((v) => v.classList.remove('open'));
 }
 
 // ═════════ Selection & bulk bar ═════════
@@ -317,65 +295,4 @@ function onFrameLoad(e) {
   const ids = new Set(rowIds());
   [...selected].forEach((id) => { if (!ids.has(id)) selected.delete(id); });
   renderSelection();
-}
-
-// ═════════ Modals ═════════
-
-function openModal(id, focus = 'input:not([type=hidden]):not([type=radio]):not([type=checkbox])') {
-  const veil = document.getElementById(id);
-  if (!veil) return;
-  closeMenus();
-  veil.classList.add('open');
-  window.setTimeout(() => $(focus, veil)?.focus(), 40);
-}
-
-function closeModal(veil) {
-  veil.classList.remove('open');
-}
-
-/**
- * Picks up where « Ajouter un premier animal juste après » left off: the
- * client was created on the server, so reopen the animal modal on them.
- */
-function resumeAnimalCreation() {
-  const payload = $('[data-chain-animal]');
-  if (!payload) return;
-
-  let owner;
-  try {
-    owner = JSON.parse(payload.textContent);
-  } catch {
-    return;
-  }
-  payload.remove();
-  if (!owner?.id) return;
-
-  const search = $('#na-owner-search');
-  const hidden = $('#modal-new-animal input[name$="[primaryOwnerClientId]"]');
-  if (search) search.value = owner.name ?? '';
-  if (hidden) hidden.value = owner.id;
-  // The owner is settled: start on the animal's name.
-  openModal('modal-new-animal', 'input[name$="[name]"]');
-}
-
-/**
- * Owner picker « Créer un nouveau client »: hands over to the client modal,
- * carrying what was typed so the name is not typed twice.
- */
-function onCreateClientFromOwnerPicker(e) {
-  const animal = $('#modal-new-animal');
-  if (animal) closeModal(animal);
-
-  const typed = (e.detail?.query || '').trim();
-  const first = $('#modal-new-client input[name$="[firstName]"]');
-  const last = $('#modal-new-client input[name$="[lastName]"]');
-  if (typed && first && last) {
-    const parts = typed.split(/\s+/);
-    first.value = parts.shift() ?? '';
-    last.value = parts.join(' ');
-  }
-  const chain = $('#modal-new-client input[name$="[_thenAddAnimal]"]');
-  if (chain) chain.checked = true;
-
-  openModal('modal-new-client');
 }

@@ -4,139 +4,50 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Animal\Profile;
 
-use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
-use App\Context\Client\Application\Query\GetClientById\ClientView;
-use App\Context\Client\Application\Query\GetClientById\GetClientById;
-use App\Presentation\Clinic\Form\Animal\AnimalFormType;
-use App\Shared\Application\Bus\CommandBusInterface;
-use App\Shared\Application\Bus\QueryBusInterface;
+use App\Presentation\Clinic\ViewModel\Directory\DirectoryRegistrar;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
-use App\Shared\Infrastructure\Http\ReturnToResolver;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\UX\Turbo\TurboBundle;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
+/**
+ * The directory's « Nouvel animal » window: an animal for a client on file
+ * (`payload`, the window's state as JSON). The directory comes back on the
+ * animals' view, on the new animal, with a toast.
+ */
 #[Route('/animals/create', name: 'clinic_animals_create', methods: ['POST'])]
 final class CreateAnimalController extends AbstractController
 {
     public function __construct(
-        private readonly CommandBusInterface $commandBus,
-        private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ReturnToResolver $returnToResolver,
+        private readonly DirectoryRegistrar $registrar,
+        private readonly CsrfTokenManagerInterface $csrfTokenManager,
     ) {
     }
 
     public function __invoke(Request $request): Response
     {
-        $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
-        \assert(null !== $currentClinicId);
+        if (!$this->csrfTokenManager->isTokenValid(new CsrfToken('directory_create', $request->request->getString('_token')))) {
+            $this->addFlash('error', 'Token de sécurité invalide. Veuillez réessayer.');
 
-        $form = $this->createForm(AnimalFormType::class);
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $data = $form->getData();
-            \assert(\is_array($data));
-
-            $rawOwnerId           = $data['primaryOwnerClientId'] ?? null;
-            $primaryOwnerClientId = \is_string($rawOwnerId) ? $rawOwnerId : '';
-
-            $owner = $this->queryBus->ask(new GetClientById(
-                clinicId: $currentClinicId->toString(),
-                clientId: $primaryOwnerClientId,
-            ));
-
-            if (!$owner instanceof ClientView) {
-                $form->get('primaryOwnerClientId')->addError(
-                    new FormError('Ce propriétaire est introuvable dans cette clinique.'),
-                );
-            } else {
-                $name      = \is_string($data['name'] ?? null) ? $data['name'] : '';
-                $species   = \is_string($data['species'] ?? null) ? $data['species'] : '';
-                $sex       = \is_string($data['sex'] ?? null) ? $data['sex'] : 'unknown';
-                $breedName = \is_string($data['breedName'] ?? null) && '' !== $data['breedName']
-                    ? $data['breedName']
-                    : null;
-                $birthDateRaw = $data['birthDate'] ?? null;
-                $birthDate    = $birthDateRaw instanceof \DateTimeInterface
-                    ? $birthDateRaw->format('Y-m-d')
-                    : (\is_string($birthDateRaw) && '' !== $birthDateRaw ? $birthDateRaw : null);
-
-                $this->commandBus->dispatch(new CreateAnimal(
-                    clinicId: $currentClinicId->toString(),
-                    name: $name,
-                    species: $species,
-                    sex: $sex,
-                    reproductiveStatus: $this->stringValue($data, 'reproductiveStatus') ?? 'unknown',
-                    isMixedBreed: false,
-                    breedName: $breedName,
-                    birthDate: $birthDate,
-                    color: null,
-                    photoUrl: null,
-                    microchipNumber: null,
-                    tattooNumber: null,
-                    passportNumber: null,
-                    registryType: 'none',
-                    registryNumber: null,
-                    registryReference: null,
-                    lifeStatus: 'alive',
-                    deceasedAt: null,
-                    missingSince: null,
-                    transferStatus: 'none',
-                    soldAt: null,
-                    givenAt: null,
-                    auxiliaryContactFirstName: null,
-                    auxiliaryContactLastName: null,
-                    auxiliaryContactPhoneNumber: null,
-                    primaryOwnerClientId: $primaryOwnerClientId,
-                    secondaryOwnerClientIds: [],
-                ));
-
-                $rawReturnToData = $form->has('_returnTo') ? $form->get('_returnTo')->getData() : null;
-                $rawReturnTo     = \is_string($rawReturnToData) ? $rawReturnToData : '';
-                $targetUrl       = $this->returnToResolver->resolve(
-                    '' !== $rawReturnTo ? $rawReturnTo : null,
-                    'clinic_clients_list',
-                    ['tab' => 'animals'],
-                );
-
-                $this->addFlash('success', \sprintf('Animal "%s" créé avec succès.', $name));
-
-                // Turbo follows the redirect: the list comes back with the new
-                // animal and the flash as a toast.
-                return $this->redirect($targetUrl, Response::HTTP_SEE_OTHER);
-            }
+            return $this->redirectToRoute('clinic_clients_list', ['mode' => 'animals'], Response::HTTP_SEE_OTHER);
         }
 
-        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
-            $request->setRequestFormat(TurboBundle::STREAM_FORMAT);
+        $clinicId = $this->currentClinicContext->getCurrentClinicId();
+        \assert(null !== $clinicId);
 
-            return $this->render(
-                'clinic/clients/list/_create_animal_error.stream.html.twig',
-                ['form' => $form],
-                new Response('', Response::HTTP_UNPROCESSABLE_ENTITY, [
-                    'Content-Type' => TurboBundle::STREAM_MEDIA_TYPE,
-                ]),
-            );
-        }
+        $payload = json_decode($request->request->getString('payload'), true);
+        $result  = $this->registrar->createAnimal($clinicId->toString(), \is_array($payload) ? $payload : []);
 
-        return $this->render(
-            'clinic/clients/list/_form_animal_body.html.twig',
-            ['form' => $form],
+        $this->addFlash($result['ok'] ? 'success' : 'error', $result['message']);
+
+        return $this->redirectToRoute(
+            'clinic_clients_list',
+            $result['ok'] ? ['mode' => 'animals', 'q' => $result['search']] : ['mode' => 'animals'],
+            Response::HTTP_SEE_OTHER,
         );
-    }
-
-    /**
-     * @param array<array-key, mixed> $data
-     */
-    private function stringValue(array $data, string $key): ?string
-    {
-        $value = $data[$key] ?? null;
-
-        return \is_string($value) && '' !== $value ? $value : null;
     }
 }
