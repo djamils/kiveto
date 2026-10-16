@@ -8,6 +8,10 @@ use App\Context\Animal\Application\Command\AddMedicalAlert\AddMedicalAlert;
 use App\Context\Animal\Domain\ValueObject\PreventiveCareKind;
 use App\Context\Animal\Domain\ValueObject\Sex;
 use App\Context\Animal\Domain\ValueObject\Species;
+use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
+use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Client\Application\Command\CreateClient\NewAnimalDto;
+use App\Context\Client\Application\Command\UpdateClientPostalAddress\PostalAddressDto;
 use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use App\Fixtures\Context\Animal\Factory\OwnershipEntityFactory;
 use App\Fixtures\Context\Animal\Factory\PreventiveCareRecordEntityFactory;
@@ -25,9 +29,17 @@ use Zenstruck\Foundry\Story;
  *
  * Built after ClientDataStory and AnimalDataStory, which keep the hand-made
  * edge cases (no contact, many animals…).
+ *
+ * The Girard household shares a landline: Margaux Girard was opened from the
+ * « Nouveau client » window once its « Autre personne » was confirmed, with
+ * her civility, address, SMS reminders, the clinic's news and two animals
+ * (one of age unknown, one carrying a foreign chip). Typing that number, or a
+ * chip of the list below, in the window shows its warnings.
  */
 final class DirectoryCrowdStory extends Story
 {
+    /** The Girard household's landline, on Thomas's record and on Margaux's. */
+    public const string SHARED_LANDLINE = '+33145670001';
     /**
      * [first name, last name, city, phone, archived, months as a client,
      *  animals: list of [name, species, breed, sex, age in months, chip, state]].
@@ -115,6 +127,9 @@ final class DirectoryCrowdStory extends Story
             ($archived ? $factory->archived() : $factory->active())->create();
 
             ContactMethodEntityFactory::new()->forClient($clientId)->mobile()->phone($phone)->primary()->create();
+            if (0 === $i) {
+                ContactMethodEntityFactory::new()->forClient($clientId)->home()->phone(self::SHARED_LANDLINE)->create();
+            }
             ContactMethodEntityFactory::new()
                 ->forClient($clientId)
                 ->email($this->email($first, $last))
@@ -157,6 +172,8 @@ final class DirectoryCrowdStory extends Story
             }
         }
 
+        $this->openHouseholdMember($clinicId, $today);
+
         foreach (self::ALERTS as [$owner, $index, $kind, $label]) {
             $this->commandBus->dispatch(new AddMedicalAlert(
                 clinicId: $clinicId,
@@ -179,6 +196,38 @@ final class DirectoryCrowdStory extends Story
                 ->create()
             ;
         }
+    }
+
+    /**
+     * Through the command the « Nouveau client » window sends: the record,
+     * its preferences and its animals at once.
+     */
+    private function openHouseholdMember(string $clinicId, \DateTimeImmutable $today): void
+    {
+        $this->commandBus->dispatch(new CreateClient(
+            clinicId: $clinicId,
+            firstName: 'Margaux',
+            lastName: 'Girard',
+            contactMethods: [
+                new ContactMethodDto('phone', 'mobile', '+33612345690', true),
+                new ContactMethodDto('phone', 'home', self::SHARED_LANDLINE, false),
+                new ContactMethodDto('email', 'home', 'margaux.girard@exemple.fr', true),
+            ],
+            civility: 'madam',
+            postalAddress: new PostalAddressDto('3 Rue de la République', 'Paris', 'FR', 'Bât. A, 2e étage', '75011'),
+            preferredChannel: 'sms',
+            channelsByConsentKind: [
+                'appointment_reminders' => ['sms'],
+                'vaccination_reminders' => ['sms'],
+                'marketing'             => ['sms', 'email'],
+            ],
+            animals: [
+                // « Date inconnue · Environ 3 ans »: an approximate birth date.
+                new NewAnimalDto('Figue', 'cat', 'female', 'neutered', false, 'Européen', $today->modify('-3 years')->format('Y-m-01'), null),
+                // Adopted abroad: a German chip, outside the I-CAD file.
+                new NewAnimalDto('Pistou', 'dog', 'male', 'intact', true, 'Croisé', $today->modify('-5 years')->format('Y-m-d'), '276098106543210'),
+            ],
+        ));
     }
 
     private function email(string $first, string $last): string

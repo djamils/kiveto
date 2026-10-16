@@ -85,7 +85,11 @@ src/Client/
 │   │       └── ClientListItemView.php
 │   └── Port/
 │       ├── ClientRepositoryInterface.php        # Write repository
-│       └── ClientReadRepositoryInterface.php    # Read repository
+│       ├── ClientReadRepositoryInterface.php    # Read repository (findIdsByPhone : doublons de téléphone)
+│       ├── ClientAnimalRegistryInterface.php    # Animaux d'un nouveau client (contexte Animal)
+│       └── AddressDirectoryInterface.php        # Base Adresse Nationale + communes d'un code postal
+│                                                # (adapter GeoplateformeAddressDirectory ; requêtes
+│                                                # SuggestPostalAddresses, ListCommunesForPostalCode)
 └── Infrastructure/
     └── Persistence/
         └── Doctrine/
@@ -146,6 +150,12 @@ Crée un nouveau client avec identité et moyens de contact.
 - `firstName: string`
 - `lastName: string`
 - `contactMethods: ContactMethodDto[]` (au moins 1)
+- `civility: string` (facultatif, `unspecified` par défaut)
+- `postalAddress: ?PostalAddressDto` (facultatif)
+- `preferredChannel: ?string` et `channelsByConsentKind: array<string, list<string>>` (facultatifs)
+- `animals: NewAnimalDto[]` (facultatif) : enregistrés dans le contexte Animal via le port
+  `ClientAnimalRegistryInterface` (adapter `Infrastructure/Adapter/Animal/CommandBusClientAnimalRegistry`),
+  dans la même transaction, une fois le client enregistré
 
 **Output:** `clientId: string`
 

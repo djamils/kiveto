@@ -66,6 +66,9 @@ return [
     'pages/clients/list' => [
         'path' => './assets/js/pages/clients/list.js',
     ],
+    'pages/clients/create' => [
+        'path' => './assets/js/pages/clients/create.js',
+    ],
     'pages/animals/sheet' => [
         'path' => './assets/js/pages/animals/sheet.js',
     ],

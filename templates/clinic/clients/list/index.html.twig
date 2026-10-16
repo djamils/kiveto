@@ -2,7 +2,7 @@
  # Kiveto — templates/clinic/clients/list/index.html.twig
  # ──────────────────────────────────────────────────────
  # Répertoire — clients and animals in one table, two views. Ported from
- # docs/frontend-theme/kiveto-theme/repertoire-v-topbar_13.html: page header
+ # docs/frontend-theme/kiveto-theme/repertoire-v-topbar_14.html: page header
  # with the Clients / Animaux switch, filter bar (search, multi-choice pills,
  # column picker), the table, its footer pager and the bulk bar, plus the two
  # creation modals.
@@ -17,7 +17,7 @@
  #   cityOptions  list<string>
  #   rows         list of client or animal rows
  #   pagination   {total, page, pages, size, shown}
- #   createClientForm / createAnimalForm
+ #   create       what the two creation windows need (ListClientsController::createWindows())
  #
  # Behaviour: assets/js/pages/clients/list.js — styles: assets/styles/pages/clients/directory.css
  #}
@@ -100,12 +100,10 @@
       <a id="vAnimaux" role="tab" href="{{ path('clinic_clients_list', { mode: 'animals' }|merge(f.search ? { q: f.search } : {})) }}"
          class="{{ not isClients ? 'on' }}" aria-selected="{{ not isClients ? 'true' : 'false' }}">Animaux <span class="n">{{ counts.animals }}</span></a>
     </div>
+    {# Two distinct actions; the main one follows the view. #}
     <div class="right">
-      {% if isClients %}
-        <button type="button" class="btn primaire" data-open="modal-new-client">{{ _svg.plus|raw }} Nouveau client</button>
-      {% else %}
-        <button type="button" class="btn primaire" data-open="modal-new-animal">{{ _svg.plus|raw }} Nouvel animal</button>
-      {% endif %}
+      <button type="button" class="btn{{ not isClients ? ' primaire' }}" id="btnNvAni">{{ _svg.plus|raw }}Nouvel animal</button>
+      <button type="button" class="btn{{ isClients ? ' primaire' }}" id="btnNvCli">{{ _svg.plus|raw }}Nouveau client</button>
     </div>
   </div>
 
@@ -214,15 +212,8 @@
     <button type="button" id="bulkClear">Annuler</button>
   </div>
 
-  {#
-   # Handover payload of « Ajouter un premier animal juste après »: read once
-   # by the page module, which reopens the animal modal on the new owner.
-   #}
-  {% for payload in app.flashes('add_animal_for') %}
-    <script type="application/json" data-chain-animal>{{ payload|raw }}</script>
-  {% endfor %}
-
   {{ include('clinic/clients/list/_modal_new_client.html.twig') }}
   {{ include('clinic/clients/list/_modal_new_animal.html.twig') }}
+  <script type="application/json" id="repCreate">{{ create|json_encode|raw }}</script>
 </div>
 {% endblock %}

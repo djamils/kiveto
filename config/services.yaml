@@ -280,6 +280,12 @@ services:
 
     App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper: ~
 
+    App\Context\Client\Application\Port\ClientAnimalRegistryInterface:
+        class: App\Context\Client\Infrastructure\Adapter\Animal\CommandBusClientAnimalRegistry
+
+    App\Context\Client\Application\Port\AddressDirectoryInterface:
+        class: App\Context\Client\Infrastructure\Adapter\AddressDirectory\GeoplateformeAddressDirectory
+
     App\Context\Client\Domain\Repository\ClientNoteRepositoryInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteRepository
 

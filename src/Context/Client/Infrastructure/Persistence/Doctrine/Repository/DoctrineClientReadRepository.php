@@ -156,24 +156,25 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         ];
     }
 
-    public function emailExistsInClinic(ClinicId $clinicId, string $email): bool
+    public function findIdsByPhone(ClinicId $clinicId, string $phone): array
     {
         $sql = <<<'SQL'
-            SELECT 1
+            SELECT BIN_TO_UUID(c.id) AS id
             FROM client__clients c
-            INNER JOIN client__contact_methods cm ON cm.client_id = c.id
             WHERE c.clinic_id = :clinicId
-              AND cm.type = 'email'
-              AND LOWER(cm.value) = LOWER(:email)
-            LIMIT 1
+              AND EXISTS (
+                  SELECT 1 FROM client__contact_methods cm
+                  WHERE cm.client_id = c.id AND cm.type = 'phone' AND cm.value = :phone
+              )
+            ORDER BY c.created_at, c.id
         SQL;
 
-        $result = $this->em->getConnection()->fetchOne($sql, [
+        $rows = $this->em->getConnection()->fetchFirstColumn($sql, [
             'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
-            'email'    => $email,
+            'phone'    => $phone,
         ]);
 
-        return false !== $result;
+        return array_values(array_filter($rows, \is_string(...)));
     }
 
     public function countBy(ClinicId $clinicId, SearchClientsCriteria $criteria): int

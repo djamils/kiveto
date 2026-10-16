@@ -1,20 +1,9 @@
 {#
- # Modal: Nouveau client — shell kit (.mveil / .mbox), wired to the Symfony
- # form through Turbo Streams (_create_client_error.stream on a 422).
+ # « Nouveau client » — the client and their animals, in one go. The two
+ # columns are drawn by assets/js/pages/clients/create.js.
  #}
-<div class="mveil" id="modal-new-client" role="dialog" aria-modal="true" aria-labelledby="modal-new-client-title">
-  <div class="mbox">
-    <div class="mhead">
-      <span class="mic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></span>
-      <div class="mt"><b id="modal-new-client-title">Nouveau client</b><span>Créer une fiche propriétaire</span></div>
-      <button type="button" class="mclose" aria-label="Fermer" data-close>{{ _svg.x|raw }}</button>
-    </div>
-    <div class="mbody">
-      {{ include('clinic/clients/list/_form_client_body.html.twig', { form: createClientForm }) }}
-    </div>
-    <div class="mfoot">
-      <button type="button" class="btn" data-close>Annuler</button>
-      <button type="submit" form="form-new-client" class="btn primaire">Créer le client</button>
-    </div>
-  </div>
-</div>
+<div class="nw-veil" id="mNvCli" role="dialog" aria-modal="true" aria-label="Nouveau client"><div class="nw-box">
+  <div class="nw-head"><div><b>Nouveau client</b><span>Le client et ses animaux, en une fois</span></div><button type="button" class="nw-x" data-nwx aria-label="Fermer">{{ _svg.x|raw }}</button></div>
+  <div class="nw-body"><div class="nw-cols"><div id="ncCli"></div><div class="nw-div"></div><div id="ncAnis"></div></div></div>
+  <div class="nw-foot"><span class="nw-manque" id="ncManque"></span><button type="button" class="btn" data-nwx>Annuler</button><button type="button" class="btn primaire" id="ncOk" disabled>Créer le client</button></div>
+</div></div>

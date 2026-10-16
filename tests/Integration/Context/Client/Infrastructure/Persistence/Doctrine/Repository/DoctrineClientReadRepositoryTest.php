@@ -326,4 +326,40 @@ final class DoctrineClientReadRepositoryTest extends KernelTestCase
         self::assertSame('Bob', $result['items'][2]->firstName);
         self::assertSame('Zimmerman', $result['items'][2]->lastName);
     }
+
+    public function testFindIdsByPhoneMatchesAnyPhoneOfTheClinicsClients(): void
+    {
+        $clinicId = '12345678-9abc-def0-1234-56789abcdef0';
+        $first    = '01234567-89ab-cdef-0123-456789abc001';
+        $second   = '01234567-89ab-cdef-0123-456789abc002';
+        $other    = '01234567-89ab-cdef-0123-456789abc003';
+
+        ClientEntityFactory::new()->withId($first)->withClinicId($clinicId)->withName('Paul', 'Martin')->active()->since('2024-01-01')->create();
+        ClientEntityFactory::new()->withId($second)->withClinicId($clinicId)->withName('Lucie', 'Martin')->archived()->since('2024-06-01')->create();
+        // Same number, another clinic: not one of this clinic's clients.
+        ClientEntityFactory::new()->withId($other)->withClinicId('22345678-9abc-def0-1234-56789abcdef0')->withName('Jean', 'Autre')->active()->create();
+
+        foreach ([[$first, ContactLabel::MOBILE], [$second, ContactLabel::HOME], [$other, ContactLabel::MOBILE]] as [$clientId, $label]) {
+            ContactMethodEntityFactory::createOne([
+                'clientId'  => Uuid::fromString($clientId),
+                'type'      => ContactMethodType::PHONE,
+                'label'     => $label,
+                'value'     => '+33612345678',
+                'isPrimary' => true,
+            ]);
+        }
+        ContactMethodEntityFactory::createOne([
+            'clientId'  => Uuid::fromString($first),
+            'type'      => ContactMethodType::EMAIL,
+            'label'     => ContactLabel::HOME,
+            'value'     => '+33699999999',
+            'isPrimary' => true,
+        ]);
+
+        /** @var ClientReadRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClientReadRepositoryInterface::class);
+
+        self::assertSame([$first, $second], $repo->findIdsByPhone(ClinicId::fromString($clinicId), '+33612345678'));
+        self::assertSame([], $repo->findIdsByPhone(ClinicId::fromString($clinicId), '+33699999999'));
+    }
 }
