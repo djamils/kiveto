@@ -57,6 +57,15 @@ final class Payer
         return new self(null, 'Client de passage', []);
     }
 
+    /**
+     * A counter sale to a client who refuses to give their contact details:
+     * the ticket carries no name.
+     */
+    public static function contactDetailsRefused(): self
+    {
+        return new self(null, 'Vente sans coordonnées', []);
+    }
+
     public function clientId(): ?PayerId
     {
         return $this->clientId;

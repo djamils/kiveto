@@ -68,6 +68,24 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
         return false === $row ? null : $this->snapshot($row);
     }
 
+    public function clientWithPhone(string $phone, string $clinicId): ?string
+    {
+        $id = $this->connection->fetchOne(
+            "SELECT BIN_TO_UUID(c.id)
+             FROM client__clients c
+             INNER JOIN client__contact_methods cm ON cm.client_id = c.id AND cm.type = 'phone'
+             WHERE c.clinic_id = :clinicId AND c.status = 'active' AND cm.value = :phone
+             ORDER BY c.created_at ASC
+             LIMIT 1",
+            [
+                'clinicId' => Uuid::fromString($clinicId)->toBinary(),
+                'phone'    => $phone,
+            ],
+        );
+
+        return \is_string($id) ? $id : null;
+    }
+
     /**
      * @param array<string, mixed> $row
      */

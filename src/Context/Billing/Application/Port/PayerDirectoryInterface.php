@@ -19,4 +19,11 @@ interface PayerDirectoryInterface
      * the client is not this clinic's.
      */
     public function forClient(string $clientId, string $clinicId): ?PayerSnapshotDto;
+
+    /**
+     * The active client of the clinic one of whose phone numbers is this one
+     * (E.164), so the desk does not create the same person twice. Null when
+     * nobody has it.
+     */
+    public function clientWithPhone(string $phone, string $clinicId): ?string;
 }

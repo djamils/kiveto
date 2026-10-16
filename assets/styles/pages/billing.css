@@ -104,6 +104,54 @@
 .fact .ec0{color:#15803d;font-weight:600}
 .fact .ec1{color:#b91c1c;font-weight:600}
 
+/* Vente au comptoir — facturation-v-topbar_4 */
+.fact .vt-h{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--encre-35);margin:16px 0 7px}
+.fact .vt-h:first-child{margin-top:0}
+.fact #vtZone{margin-top:10px}
+.fact .vt-g{display:grid;grid-template-columns:92px 1fr 1fr;gap:8px}
+.fact .vt-g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.fact .vt-g .seg button{padding:6px 0}
+.fact .vt-f{position:relative}
+.fact .vt-f .finput{width:100%}
+.fact .vt-f .finput.ok{border-color:#86efac}
+.fact .vt-f .finput.ko{border-color:#ef4444;background:#fef2f2}
+.fact .vt-f small{display:block;font-size:.68rem;color:var(--encre-35);margin-top:3px}
+.fact .vt-f small.ko{color:#b91c1c}
+.fact .vt-card{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:10px;border:1px solid var(--trait);background:var(--brume)}
+.fact .vt-card .av2{width:34px;height:34px;border-radius:9px;background:var(--carte);display:grid;place-items:center;font-weight:700;font-size:.76rem;color:var(--pin-fonce);flex:none}
+.fact .vt-card .lt{flex:1;min-width:0}
+.fact .vt-card b{display:block;font-size:.88rem}
+.fact .vt-card span.s{display:block;font-size:.74rem;color:var(--encre-60);margin-top:2px}
+.fact .vt-card code{font-family:var(--font-data);font-size:.74rem;color:var(--encre-60)}
+.fact .vt-card .x{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--encre-35);flex:none}
+.fact .vt-card .x:hover{background:var(--carte);color:var(--encre)}
+.fact .vt-card .ty{margin-left:6px}
+.fact .vt-l{display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:168px;overflow-y:auto}
+.fact .vt-l h5{font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--encre-35);margin:6px 2px 2px}
+.fact .vt-o{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;text-align:left;width:100%}
+.fact .vt-o:hover{background:var(--pin-pale)}
+.fact .vt-o .lt{flex:1;min-width:0}
+.fact .vt-o b{display:block;font-size:.82rem;font-weight:600}
+.fact .vt-o span.s{display:block;font-size:.71rem;color:var(--encre-60)}
+.fact .vt-o code{font-family:var(--font-data);font-size:.72rem;color:var(--encre-60)}
+.fact .vt-vide{font-size:.76rem;color:var(--encre-60);padding:8px 10px;display:flex;align-items:center;gap:8px}
+.fact .vt-vide button{font-weight:600;color:var(--pin)}
+.fact .vt-alt{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:.74rem;color:var(--encre-60)}
+.fact .vt-alt button{font-weight:600;color:var(--encre-60);text-decoration:underline;text-decoration-color:var(--trait);text-underline-offset:2px}
+.fact .vt-alt button:hover{color:var(--encre)}
+.fact .vt-msg{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:9px;font-size:.76rem;line-height:1.45;margin-top:9px;background:var(--brume);color:var(--encre-60)}
+.fact .vt-msg svg{width:14px;height:14px;flex:none;margin-top:1px}
+.fact .vt-msg b{color:var(--encre)}
+.fact .vt-msg.fe{background:var(--pin-pale);color:var(--pin-fonce)}
+.fact .vt-msg.fe b{color:var(--pin-fonce)}
+.fact .vt-msg.warn{background:#fffbeb;color:#92400e}
+.fact .vt-msg.warn b{color:#78350f}
+.fact .vt-msg .act{margin-left:auto;font-weight:600;color:var(--pin);white-space:nowrap}
+.fact .vt-rx{opacity:.75;cursor:default}
+.fact .vt-rx:hover{background:transparent}
+.fact .vt-rx .go{font-size:.7rem!important;font-weight:600;color:#6d28d9!important}
+.fact .vt-manque{font-size:.72rem;color:var(--encre-35);margin-right:4px}
+.fact #vtTy button:disabled{opacity:.45;cursor:not-allowed}
 
 /* What the clinic cannot do yet: drawn, but inert. */
 .fact .swrow.off{opacity:.55}

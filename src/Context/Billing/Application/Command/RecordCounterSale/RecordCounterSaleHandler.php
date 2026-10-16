@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Command\RecordCounterSale;
 
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
+use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
+use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
+use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
@@ -30,12 +35,17 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * Bills what the desk sold — priced from the catalogue, taxed by the clinic's
  * VAT rules — issues the invoice and takes its payment in full. The sale has
- * no visit behind it; the payer is the client chosen, or « Client de passage ».
+ * no visit behind it; it is made out to the client chosen, to the newcomer
+ * whose record it creates (unless their phone already belongs to a client),
+ * or — when the client refuses to give any contact details — to nobody, the
+ * refusal being kept with the sale.
  */
 #[AsMessageHandler]
 final readonly class RecordCounterSaleHandler
 {
     private const int MAX_QUANTITY = 999;
+    private const int MAX_NAME     = 40;
+    private const int MAX_EMAIL    = 80;
 
     public function __construct(
         private InvoiceRepositoryInterface $invoices,
@@ -43,6 +53,7 @@ final readonly class RecordCounterSaleHandler
         private CounterCatalogInterface $catalog,
         private TaxResolverInterface $taxResolver,
         private PayerDirectoryInterface $payerDirectory,
+        private CounterClientRegistryInterface $clientRegistry,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
     ) {
@@ -95,13 +106,16 @@ final readonly class RecordCounterSaleHandler
             );
         }
 
+        [$payer, $kind] = $this->payer($command);
+
         $invoice = Invoice::draft(
             id: InvoiceId::fromString($this->uuidGenerator->generate()),
             clinicId: $clinicId,
             admissionId: null,
-            payer: $this->payer($command),
+            payer: $payer,
             currency: $currency,
             now: $now,
+            counterSalePayer: $kind,
         );
 
         foreach ($lines as $line) {
@@ -126,20 +140,89 @@ final readonly class RecordCounterSaleHandler
         return $invoice->id()->toString();
     }
 
-    private function payer(RecordCounterSale $command): Payer
+    /**
+     * @return array{Payer, CounterSalePayer}
+     */
+    private function payer(RecordCounterSale $command): array
     {
+        if ($command->contactDetailsRefused) {
+            return [Payer::contactDetailsRefused(), CounterSalePayer::REFUSED];
+        }
+
+        if (null !== $command->newClient) {
+            return [$this->register($command->clinicId, $command->newClient), CounterSalePayer::NEW_CLIENT];
+        }
+
         $snapshot = null !== $command->payerClientId
             ? $this->payerDirectory->forClient($command->payerClientId, $command->clinicId)
             : null;
 
         if (null === $snapshot) {
-            return Payer::anonymous();
+            throw new InvalidPayerException('A counter sale is made out to a client of the clinic.');
         }
 
-        return Payer::create(
-            null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
-            $snapshot->displayName,
-            $snapshot->addressLines,
-        );
+        return [
+            Payer::create(
+                null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
+                $snapshot->displayName,
+                $snapshot->addressLines,
+            ),
+            CounterSalePayer::CLIENT,
+        ];
+    }
+
+    /**
+     * Opens the newcomer's record — a name, and a mobile or an e-mail to send
+     * the invoice to — and makes the invoice out to them; the postal code
+     * typed at the desk is printed on it.
+     */
+    private function register(string $clinicId, CounterSaleNewClient $client): Payer
+    {
+        $this->validate($client);
+
+        if ('' !== $client->phone) {
+            $known = $this->payerDirectory->clientWithPhone($client->internationalPhone(), $clinicId);
+
+            if (null !== $known) {
+                throw new CounterClientAlreadyKnownException($known);
+            }
+        }
+
+        $clientId = $this->clientRegistry->register($clinicId, $client);
+
+        return Payer::create(PayerId::fromString($clientId), $client->displayName(), [$client->postalCode]);
+    }
+
+    private function validate(CounterSaleNewClient $client): void
+    {
+        if (!\in_array($client->civility, [CounterSaleNewClient::MISTER, CounterSaleNewClient::MADAM], true)) {
+            throw new InvalidCounterClientException(\sprintf('Unknown civility "%s".', $client->civility));
+        }
+
+        foreach ([$client->lastName, $client->firstName] as $name) {
+            if (mb_strlen(mb_trim($name)) < 1 || mb_strlen($name) > self::MAX_NAME) {
+                throw new InvalidCounterClientException('A newcomer needs a first and a last name.');
+            }
+        }
+
+        if (mb_strlen(mb_trim($client->lastName)) < 2) {
+            throw new InvalidCounterClientException('The last name is too short.');
+        }
+
+        if ('' !== $client->phone && 1 !== preg_match('/^0[1-9]\d{8}$/', $client->phone)) {
+            throw new InvalidCounterClientException('Invalid phone number.');
+        }
+
+        if ('' !== $client->email && (mb_strlen($client->email) > self::MAX_EMAIL || false === filter_var($client->email, \FILTER_VALIDATE_EMAIL) || 1 !== preg_match('/\.[a-z]{2,}$/i', $client->email))) {
+            throw new InvalidCounterClientException('Invalid e-mail address.');
+        }
+
+        if ('' === $client->phone && '' === $client->email) {
+            throw new InvalidCounterClientException('A newcomer needs a mobile or an e-mail.');
+        }
+
+        if ('' !== $client->postalCode && 1 !== preg_match('/^\d{5}$/', $client->postalCode)) {
+            throw new InvalidCounterClientException('Invalid postal code.');
+        }
     }
 }

@@ -10,11 +10,13 @@ use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPending
 use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPendingChequesHandler;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNote;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNoteHandler;
+use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSaleHandler;
 use App\Context\Billing\Application\Port\CashDeskReadRepositoryInterface;
 use App\Context\Billing\Application\Port\CounterArticleDto;
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
+use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\PayerSnapshotDto;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
@@ -25,10 +27,13 @@ use App\Context\Billing\Application\Query\GetCashDesk\TakingsView;
 use App\Context\Billing\Domain\CashClosing;
 use App\Context\Billing\Domain\ChequeDeposit;
 use App\Context\Billing\Domain\CreditNote;
+use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
+use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\CashClosingRepositoryInterface;
 use App\Context\Billing\Domain\Repository\ChequeDepositRepositoryInterface;
@@ -36,6 +41,7 @@ use App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
+use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
 use App\Context\Billing\Domain\ValueObject\Discount;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -53,6 +59,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -254,9 +261,10 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertSame(4800, $saved->totalGross()->minorUnits());
         self::assertSame(PaymentMethod::CASH, $saved->payments()[0]->method());
         self::assertSame(self::USER, $saved->payments()[0]->recordedByUserId());
+        self::assertSame(CounterSalePayer::CLIENT, $saved->counterSalePayer());
     }
 
-    public function testAPasserByBuysAnonymously(): void
+    public function testAClientWhoRefusesToGiveContactDetailsBuysWithoutAName(): void
     {
         $saved    = null;
         $invoices = $this->createMock(InvoiceRepositoryInterface::class);
@@ -267,13 +275,32 @@ final class DeskCommandHandlersTest extends TestCase
         $payers = $this->createMock(PayerDirectoryInterface::class);
         $payers->expects(self::never())->method('forClient');
 
-        $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+        $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, self::CLIENT, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', contactDetailsRefused: true));
 
         self::assertInstanceOf(Invoice::class, $saved);
-        self::assertSame('Client de passage', $saved->payer()->displayName());
+        self::assertSame('Vente sans coordonnées', $saved->payer()->displayName());
+        self::assertNull($saved->payer()->clientId());
+        self::assertSame(CounterSalePayer::REFUSED, $saved->counterSalePayer());
     }
 
-    public function testAnUnknownClientBuysAnonymouslyToo(): void
+    public function testASaleNamesItsClient(): void
+    {
+        $this->expectException(InvalidPayerException::class);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class))(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+    }
+
+    public function testAnotherClinicsClientIsRefused(): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(null);
+
+        $this->expectException(InvalidPayerException::class);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers)(new RecordCounterSale(self::CLINIC_ID, self::CLIENT, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+    }
+
+    public function testASnapshotWithoutAClientIdStillNamesThePayer(): void
     {
         $saved    = null;
         $invoices = $this->createMock(InvoiceRepositoryInterface::class);
@@ -282,12 +309,113 @@ final class DeskCommandHandlersTest extends TestCase
         });
 
         $payers = $this->createMock(PayerDirectoryInterface::class);
-        $payers->method('forClient')->willReturn(null);
+        $payers->method('forClient')->willReturn(new PayerSnapshotDto(null, 'Sophie Dupont'));
 
         $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, self::CLIENT, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
 
         self::assertInstanceOf(Invoice::class, $saved);
         self::assertNull($saved->payer()->clientId());
+        self::assertSame(CounterSalePayer::CLIENT, $saved->counterSalePayer());
+    }
+
+    public function testANewcomersRecordIsCreatedWithTheSale(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->expects(self::once())->method('clientWithPhone')->with('+33618427731', self::CLINIC_ID)->willReturn(null);
+        $payers->expects(self::never())->method('forClient');
+
+        $newcomer = new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0618427731', 'nadia@example.fr', '13005');
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->with(self::CLINIC_ID, $newcomer)->willReturn(self::CLIENT);
+
+        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: $newcomer));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame(self::CLIENT, $saved->payer()->clientId()?->toString());
+        self::assertSame('Nadia Benali', $saved->payer()->displayName());
+        self::assertSame(['13005'], $saved->payer()->addressLines());
+        self::assertSame(CounterSalePayer::NEW_CLIENT, $saved->counterSalePayer());
+    }
+
+    public function testANewcomerWithAnEmailOnlyIsNotLookedUpByPhone(): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->expects(self::never())->method('clientWithPhone');
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->willReturn(self::CLIENT);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Petit', 'Lucas', email: 'lucas@example.fr')));
+    }
+
+    public function testANewcomerWhosePhoneIsKnownUsesTheExistingRecord(): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('clientWithPhone')->willReturn(self::CLIENT);
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::never())->method('register');
+
+        try {
+            $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0618427731')));
+            self::fail('A known phone number must be refused.');
+        } catch (CounterClientAlreadyKnownException $e) {
+            self::assertSame(self::CLIENT, $e->clientId);
+        }
+    }
+
+    public function testNoRecordIsCreatedForASaleThatCannotBeMade(): void
+    {
+        $catalog = $this->createMock(CounterCatalogInterface::class);
+        $catalog->method('article')->willReturn(null);
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::never())->method('register');
+
+        $this->expectException(InvalidInvoiceLineException::class);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), 2000, $catalog, $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0618427731')));
+    }
+
+    /**
+     * @return iterable<string, array{CounterSaleNewClient, string}>
+     */
+    public static function provideANewcomerNeedsEnoughToOpenTheirRecordCases(): iterable
+    {
+        yield 'unknown civility' => [new CounterSaleNewClient('dr', 'Benali', 'Nadia', '0618427731'), 'Unknown civility'];
+        yield 'no first name' => [new CounterSaleNewClient('madam', 'Benali', ' ', '0618427731'), 'first and a last name'];
+        yield 'name too long' => [new CounterSaleNewClient('madam', str_repeat('A', 41), 'Nadia', '0618427731'), 'first and a last name'];
+        yield 'last name too short' => [new CounterSaleNewClient('madam', 'B', 'Nadia', '0618427731'), 'too short'];
+        yield 'invalid phone' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '0018427731'), 'Invalid phone'];
+        yield 'e-mail without a domain' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '', 'nadia@example'), 'Invalid e-mail'];
+        yield 'e-mail not an address' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '', 'nadia@@example.fr'), 'Invalid e-mail'];
+        yield 'e-mail too long' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '', str_repeat('a', 75) . '@ex.fr'), 'Invalid e-mail'];
+        yield 'no contact' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia'), 'mobile or an e-mail'];
+        yield 'invalid postal code' => [new CounterSaleNewClient('madam', 'Benali', 'Nadia', '0618427731', '', '1300'), 'postal code'];
+    }
+
+    #[DataProvider('provideANewcomerNeedsEnoughToOpenTheirRecordCases')]
+    public function testANewcomerNeedsEnoughToOpenTheirRecord(CounterSaleNewClient $newcomer, string $message): void
+    {
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::never())->method('register');
+
+        $this->expectException(InvalidCounterClientException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: $newcomer));
+    }
+
+    public function testANewcomerWithoutAPhoneHasNoInternationalNumber(): void
+    {
+        self::assertSame('', new CounterSaleNewClient('madam', 'Benali', 'Nadia')->internationalPhone());
+        self::assertSame('+33618427731', new CounterSaleNewClient('madam', 'Benali', 'Nadia', '0618427731')->internationalPhone());
     }
 
     public function testAFreeArticleIsSettledWithoutAPayment(): void
@@ -298,7 +426,7 @@ final class DeskCommandHandlersTest extends TestCase
             $saved = $invoice;
         });
 
-        $this->saleHandler($invoices, $this->createStub(PayerDirectoryInterface::class), 0)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+        $this->saleHandler($invoices, $this->createStub(PayerDirectoryInterface::class), 0)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', contactDetailsRefused: true));
 
         self::assertInstanceOf(Invoice::class, $saved);
         self::assertSame([], $saved->payments());
@@ -467,6 +595,7 @@ final class DeskCommandHandlersTest extends TestCase
         PayerDirectoryInterface $payers,
         int $unitPrice = 2000,
         ?CounterCatalogInterface $catalog = null,
+        ?CounterClientRegistryInterface $registry = null,
     ): RecordCounterSaleHandler {
         if (null === $catalog) {
             $catalog = $this->createMock(CounterCatalogInterface::class);
@@ -479,7 +608,7 @@ final class DeskCommandHandlersTest extends TestCase
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('next')->willReturn(InvoiceNumber::of(2026, 10));
 
-        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, $tax, $payers, $this->uuids(), $this->clock());
+        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, $tax, $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock());
     }
 
     private function cheque(string $paymentId, int $amount): ChequeView

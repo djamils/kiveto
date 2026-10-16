@@ -21,6 +21,7 @@ use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
+use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\Discount;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
@@ -69,6 +70,7 @@ final class Invoice extends AggregateRoot
         private ?string $cancellationReason,
         private int $creditedMinorUnits = 0,
         private int $refundedMinorUnits = 0,
+        private readonly ?CounterSalePayer $counterSalePayer = null,
     ) {
     }
 
@@ -79,6 +81,7 @@ final class Invoice extends AggregateRoot
         Payer $payer,
         CurrencyCode $currency,
         \DateTimeImmutable $now,
+        ?CounterSalePayer $counterSalePayer = null,
     ): self {
         $invoice = new self(
             id: $id,
@@ -98,6 +101,7 @@ final class Invoice extends AggregateRoot
             paidAt: null,
             cancelledAt: null,
             cancellationReason: null,
+            counterSalePayer: $counterSalePayer,
         );
 
         $invoice->recordDomainEvent(new InvoiceDrafted(
@@ -134,6 +138,7 @@ final class Invoice extends AggregateRoot
         ?string $cancellationReason,
         int $creditedMinorUnits = 0,
         int $refundedMinorUnits = 0,
+        ?CounterSalePayer $counterSalePayer = null,
     ): self {
         return new self(
             $id,
@@ -155,6 +160,7 @@ final class Invoice extends AggregateRoot
             $cancellationReason,
             $creditedMinorUnits,
             $refundedMinorUnits,
+            $counterSalePayer,
         );
     }
 
@@ -535,6 +541,14 @@ final class Invoice extends AggregateRoot
     public function admissionId(): ?AdmissionId
     {
         return $this->admissionId;
+    }
+
+    /**
+     * Who a counter sale was made to; null for the invoice of a visit.
+     */
+    public function counterSalePayer(): ?CounterSalePayer
+    {
+        return $this->counterSalePayer;
     }
 
     public function payer(): Payer

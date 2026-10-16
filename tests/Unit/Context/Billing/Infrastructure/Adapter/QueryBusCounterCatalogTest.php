@@ -60,6 +60,30 @@ final class QueryBusCounterCatalogTest extends TestCase
         self::assertSame(1890, $articles[1]->unitNetMinorUnits);
     }
 
+    public function testThePrescriptionOnlyMedicinesTheSearchFindsAreListedApart(): void
+    {
+        $bus = $this->bus(function (object $query): mixed {
+            \assert($query instanceof SearchCatalogItems);
+            self::assertSame('syn', $query->term);
+            self::assertSame(8, $query->limit);
+
+            return [
+                $this->hit(self::FREE, 'ARTICLE', 'Frontline', 'ACTIVE', false),
+                $this->hit(self::RX, 'ARTICLE', 'Synulox', 'ACTIVE', true),
+                $this->hit(self::OLD, 'ARTICLE', 'Ancien antibiotique', 'ARCHIVED', true),
+                $this->hit(self::ACT, 'ACT', 'Injection', 'ACTIVE', true),
+                $this->hit(self::FOOD, 'ARTICLE', 'Apoquel', 'ACTIVE', true),
+                'not a result',
+            ];
+        });
+
+        $articles = new QueryBusCounterCatalog($bus)->prescriptionOnly(self::CLINIC_ID, 'syn', 2);
+
+        self::assertSame(['Apoquel', 'Synulox'], array_map(static fn ($a): string => $a->label, $articles));
+        self::assertSame(self::FOOD, $articles[0]->articleId);
+        self::assertSame([], new QueryBusCounterCatalog($this->bus(static fn (): never => throw new \RuntimeException('down')))->prescriptionOnly(self::CLINIC_ID, 'syn', 2));
+    }
+
     public function testASearchTheCatalogueRefusesIsEmpty(): void
     {
         $bus = $this->bus(static fn (): never => throw new \RuntimeException('down'));

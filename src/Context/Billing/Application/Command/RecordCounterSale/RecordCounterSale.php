@@ -9,6 +9,10 @@ use App\Shared\Application\Bus\CommandInterface;
 /**
  * « Vente au comptoir »: articles sold at the desk without a visit, invoiced
  * and paid in one go.
+ *
+ * The sale names its client: one on file (`payerClientId`), or a newcomer
+ * whose record is created with it (`newClient`) — unless the client refuses
+ * to give their contact details (`contactDetailsRefused`).
  */
 final readonly class RecordCounterSale implements CommandInterface
 {
@@ -22,6 +26,8 @@ final readonly class RecordCounterSale implements CommandInterface
         public string $method,
         public ?string $reference = null,
         public ?string $recordedByUserId = null,
+        public ?CounterSaleNewClient $newClient = null,
+        public bool $contactDetailsRefused = false,
     ) {
     }
 }

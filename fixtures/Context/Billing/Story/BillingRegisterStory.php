@@ -10,6 +10,7 @@ use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPending
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNote;
 use App\Context\Billing\Application\Command\IssueInvoice\IssueInvoice;
 use App\Context\Billing\Application\Command\PrepareInvoiceForAdmission\PrepareInvoiceForAdmission;
+use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordInvoicePayment\RecordInvoicePayment;
 use App\Context\Billing\Application\Command\RemoveInvoiceLine\RemoveInvoiceLine;
@@ -37,7 +38,9 @@ use Zenstruck\Foundry\Story;
  * - credit notes: part of a paid invoice refunded on the card, a line kept as
  *   a credit in the client's favour, and an unpaid invoice entirely cancelled
  *   (« annulée par avoir »);
- * - counter sales, to a client and to a passer-by;
+ * - counter sales: to a client on file, to a newcomer whose record the desk
+ *   created there and then, and to a client who refused to give any contact
+ *   details;
  * - drafts: a consultation still in progress, and a visit waiting at the desk;
  * - the till: today's takings, a cheque remittance three days ago, and the
  *   two previous days closed (one with an explained difference).
@@ -96,8 +99,8 @@ final class BillingRegisterStory extends Story
         $deposited   = false;
         $sales       = [
             [-21, '11:30', 'client', [['FOOD-RC', 1], ['SHAMPOING-DERM', 1]], 'CARD'],
-            [-6, '17:45', null, [['FRONTLINE-CB', 2]], 'CASH'],
-            [0, '08:20', null, [['FRONTLINE-CB', 3]], 'CASH'],
+            [-6, '17:45', 'refused', [['FRONTLINE-CB', 2]], 'CASH'],
+            [0, '08:20', 'new', [['FRONTLINE-CB', 3]], 'CASH'],
         ];
 
         foreach ($this->closedVisits() as $i => $visit) {
@@ -262,16 +265,19 @@ final class BillingRegisterStory extends Story
     }
 
     /**
+     * @param 'client'|'new'|'refused'       $payer    a client on file, a newcomer, or a refusal of contact details
      * @param list<array{0: string, 1: int}> $articles [catalogue code, quantity]
      */
-    private function counterSale(int $day, string $time, ?string $client, array $articles, string $method): void
+    private function counterSale(int $day, string $time, string $payer, array $articles, string $method): void
     {
         $at        = $this->today->modify(\sprintf('%d days %s', $day, $time));
         $invoiceId = $this->commandBus->dispatch(new RecordCounterSale(
             clinicId: self::PARIS,
-            payerClientId: null !== $client ? $this->aClient() : null,
+            payerClientId: 'client' === $payer ? $this->aClient() : null,
             lines: array_map(fn (array $a): array => ['articleId' => $this->articleId($a[0]), 'quantity' => $a[1]], $articles),
             method: $method,
+            newClient: 'new' === $payer ? new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Haddad', 'Nadia', '0618427731', '', '75011') : null,
+            contactDetailsRefused: 'refused' === $payer,
         ));
         \assert(\is_string($invoiceId));
 

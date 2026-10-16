@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Billing\Infrastructure\Persistence\Doctrine;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
+use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\Discount;
 use App\Context\Billing\Domain\ValueObject\DiscountKind;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -80,6 +81,8 @@ final class InvoiceMapperTest extends TestCase
         self::assertSame(2000, $restored->amountPaid()->minorUnits());
         self::assertSame('CONS_STD', $restored->lines()[0]->code());
         self::assertSame(self::USER_ID, $restored->payments()[0]->recordedByUserId());
+        self::assertSame(CounterSalePayer::NEW_CLIENT, $restored->counterSalePayer());
+        self::assertSame(CounterSalePayer::NEW_CLIENT, $entity->getCounterSalePayer());
     }
 
     public function testDecimalColumnsComeBackInTheirOriginalShape(): void
@@ -289,6 +292,7 @@ final class InvoiceMapperTest extends TestCase
             paidAt: null,
             cancelledAt: null,
             cancellationReason: null,
+            counterSalePayer: CounterSalePayer::NEW_CLIENT,
         );
     }
 
