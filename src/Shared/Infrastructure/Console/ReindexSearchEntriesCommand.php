@@ -56,7 +56,7 @@ final class ReindexSearchEntriesCommand extends Command
                 a.microchip_number,
                 a.status,
                 BIN_TO_UUID(o.client_id)    AS primary_owner_client_id,
-                TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS owner_name,
+                COALESCE(NULLIF(c.legal_name, ''), TRIM(CONCAT(c.first_name, ' ', c.last_name))) AS owner_name,
                 cm.value                     AS owner_phone
             FROM animal__animals a
             LEFT JOIN animal__ownerships o
