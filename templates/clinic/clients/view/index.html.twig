@@ -58,7 +58,7 @@
     </div>
     <div class="col rail scr">
       <section class="card"><header><h2>Prochains rendez-vous</h2></header><div class="cb" id="rdvs"></div></section>
-      <section class="card" id="cCompte"><header><h2>Compte</h2><div class="r"><a class="lien" href="{{ path('clinic_invoices', {q: client.fullName}) }}">Facturation</a></div></header><div class="cb"><div class="kpis" id="kpis"></div><div class="imps" id="imps"></div></div></section>
+      <section class="card" id="cCompte"><header><h2>Compte</h2><div class="r"><a class="lien" href="{{ path('clinic_invoices', {q: client.legalName ?? client.fullName}) }}">Facturation</a></div></header><div class="cb"><div class="kpis" id="kpis"></div><div class="imps" id="imps"></div></div></section>
       <section class="card" id="cPref"></section>
       <section class="card" id="cPers"></section>
       <section class="card" id="cFisc"></section>
