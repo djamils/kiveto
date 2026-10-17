@@ -388,7 +388,7 @@ function rendreNcCli() {
     <div class="nw-h">Rappels de vaccins et de rendez-vous</div>
     <div class="nw-row"><div class="nw-seg" id="ncRap"><button type="button" data-v="sms">SMS</button><button type="button" data-v="mail">E-mail</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <button type="button" class="nw-chk${c.news ? ' on' : ''}" id="ncNews">Accepte les actualités de la clinique</button>`;
-  monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, { dblUrl: CFG.urls.siren });
+  monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, { sirenUrl: CFG.urls.siren });
   rendreAdr();
   majRap();
 }

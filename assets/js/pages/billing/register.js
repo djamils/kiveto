@@ -603,7 +603,7 @@ export function init() {
     z.innerHTML = `<div id="vtFisc"></div><div class="vt-h" style="margin-top:12px">Contact</div>
       ${champsPersonne(VT.pp, 'Mobile ou fixe', 'Un téléphone (mobile ou fixe) ou un e-mail au moins.')}
       <div class="vt-alt"><button type="button" data-vpback>Rechercher un professionnel déjà client</button></div>`;
-    monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { dblUrl: P.urls.siren, structureOnly: true });
+    monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { sirenUrl: P.urls.siren, structureOnly: true });
     majPart();
   }
   function rendreZone() {
@@ -897,7 +897,7 @@ export function init() {
       VT.pnew = true;
       // What was searched is likely the legal name, or the SIREN.
       const q = VT.pq.trim();
-      if (q && !VT.fisc.rs && !VT.fisc.siren) { if (/^[\d\s.]+$/.test(q)) VT.fisc.siren = chif(q, 9); else VT.fisc.rs = q; }
+      if (q && !VT.fisc.rs && !VT.fisc.siren) { if (/^[\d\s.]+$/.test(q)) VT.fisc.siren = q.replace(/\D/g, ''); else VT.fisc.rs = q; }
       rendreZone(); rendreVt(); focusZone(); return;
     }
     if (e.target.closest('[data-vpback]')) { VT.pnew = false; rendreZone(); rendreVt(); focusZone(); return; }

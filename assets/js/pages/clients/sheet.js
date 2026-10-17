@@ -423,7 +423,7 @@ export function init() {
       return `<div class="syn-it"><i style="background:${F.fisc === PRO ? 'var(--pin)' : '#cbd5e1'}"></i><div><b>${esc(F.rs || F.label)}</b>${F.rs ? ligne(esc(F.label)) : ''}${ids}</div></div>`;
     },
     editer() { return '<div id="fiscBloc"></div>'; },
-    monte() { FUI = monterFisc($('fiscBloc'), FS, () => marquer(CARTES.cFisc), { dblUrl: F.dblUrl, self: C.id }); },
+    monte() { FUI = monterFisc($('fiscBloc'), FS, () => marquer(CARTES.cFisc), { sirenUrl: F.dblUrl, self: C.id, onCheck: () => {} }); },
     valider() {
       if (!FUI.showErrors()) return null;
       const p = fiscPayload(FS), avant = fiscPayload(F);

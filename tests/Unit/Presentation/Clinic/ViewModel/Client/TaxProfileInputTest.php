@@ -111,6 +111,27 @@ final class TaxProfileInputTest extends TestCase
         self::assertSame(array_values($expected)[0], $input->firstError());
     }
 
+    /**
+     * @return iterable<string, array{string, array{siren: string|null, error: string|null}}>
+     */
+    public static function provideTheLiveCheckJudgesTheSirenTypedCases(): iterable
+    {
+        yield 'SIREN' => ['523 456 788', ['siren' => '523456788', 'error' => null]];
+        yield 'SIRET reduced' => ['52345678800012', ['siren' => '523456788', 'error' => null]];
+        yield 'ten digits' => ['5234567880', ['siren' => null, 'error' => 'SIREN invalide : 9 chiffres attendus.']];
+        yield 'bad key' => ['523456789', ['siren' => null, 'error' => 'SIREN invalide : clé de contrôle incorrecte.']];
+        yield 'nothing' => ['', ['siren' => null, 'error' => 'SIREN invalide : 9 chiffres attendus.']];
+    }
+
+    /**
+     * @param array{siren: string|null, error: string|null} $expected
+     */
+    #[DataProvider('provideTheLiveCheckJudgesTheSirenTypedCases')]
+    public function testTheLiveCheckJudgesTheSirenTyped(string $typed, array $expected): void
+    {
+        self::assertSame($expected, TaxProfileInput::checkSiren($typed));
+    }
+
     public function testAnInvalidProfileIsSentAsTyped(): void
     {
         $input = TaxProfileInput::fromArray(['fisc' => 'pro', 'rs' => 'Calanques', 'siren' => '523456789', 'tva' => 'FR00']);

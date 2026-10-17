@@ -87,15 +87,15 @@ final readonly class TaxProfileInput
             return $errors;
         }
 
-        try {
-            $siren = Siren::fromInput($this->siren);
-        } catch (InvalidSirenException $e) {
-            $errors['siren'] = InvalidSirenException::CHECKSUM === $e->reason
-                ? 'SIREN invalide : clé de contrôle incorrecte.'
-                : 'SIREN invalide : 9 chiffres attendus.';
+        $check = self::checkSiren($this->siren);
+
+        if (null === $check['siren']) {
+            $errors['siren'] = $check['error'];
 
             return $errors;
         }
+
+        $siren = Siren::fromInput($check['siren']);
 
         if ('' !== $this->vatNumber) {
             try {
@@ -110,6 +110,24 @@ final readonly class TaxProfileInput
         }
 
         return $errors;
+    }
+
+    /**
+     * The SIREN typed, as the block's live check asks for it: its 9 digits
+     * (a pasted SIRET reduced) or what to correct. The only place the block's
+     * SIREN rules live; the page script holds none of them.
+     *
+     * @return array{siren: string, error: null}|array{siren: null, error: string}
+     */
+    public static function checkSiren(string $input): array
+    {
+        try {
+            return ['siren' => Siren::fromInput($input)->value(), 'error' => null];
+        } catch (InvalidSirenException $e) {
+            return ['siren' => null, 'error' => InvalidSirenException::CHECKSUM === $e->reason
+                ? 'SIREN invalide : clé de contrôle incorrecte.'
+                : 'SIREN invalide : 9 chiffres attendus.'];
+        }
     }
 
     /** The first thing to correct, or null. */
