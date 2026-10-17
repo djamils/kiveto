@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\ViewModel\Directory;
 
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\UpdateClientPostalAddress\PostalAddressDto;
+use App\Presentation\Clinic\ViewModel\Client\TaxProfileInput;
 use App\Presentation\Clinic\ViewModel\Flux\DeskRegistration;
 
 /**
@@ -13,7 +14,9 @@ use App\Presentation\Clinic\ViewModel\Flux\DeskRegistration;
  * module normalised it: civility, NOM typed in capitals, Prénom, a mobile
  * and/or a landline (one valid phone at least), an e-mail, an optional
  * postal address, the channel of the vaccine and appointment reminders, the
- * clinic's news. The checks the window runs are run again here, in its words.
+ * clinic's news, and the tax profile of a structure (shared block, see
+ * TaxProfileInput). The checks the window runs are run again here, in its
+ * words.
  */
 final readonly class DirectoryClientInput
 {
@@ -35,6 +38,7 @@ final readonly class DirectoryClientInput
         public string $reminders,
         public bool $news,
         public bool $household,
+        public ?TaxProfileInput $taxProfile = null,
     ) {
     }
 
@@ -59,8 +63,9 @@ final readonly class DirectoryClientInput
 
         $mobileOk   = self::mobileOk($mobile);
         $landlineOk = self::landlineOk($landline);
+        $tax        = TaxProfileInput::fromArray($raw);
 
-        $error = match (true) {
+        $error = $tax?->firstError() ?? match (true) {
             null === $civility       => 'Civilité requise',
             mb_strlen($lastName) < 2 => 'Nom requis',
             // The client record needs a first name.
@@ -103,6 +108,7 @@ final readonly class DirectoryClientInput
             reminders: true === ($available[$reminders] ?? false) ? $reminders : self::REMINDERS_NONE,
             news: true === ($raw['news'] ?? false),
             household: true === ($raw['autre'] ?? false),
+            taxProfile: $tax,
         );
     }
 
@@ -121,10 +127,11 @@ final readonly class DirectoryClientInput
         return 1 === preg_match('/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i', $email);
     }
 
-    /** « M. Jean Dupont ». */
+    /** « M. Jean Dupont », or the legal name of a structure. */
     public function title(): string
     {
-        return ('mister' === $this->civility ? 'M.' : 'Mme') . ' ' . $this->firstName . ' ' . $this->lastName;
+        return $this->taxProfile->legalName
+            ?? ('mister' === $this->civility ? 'M.' : 'Mme') . ' ' . $this->firstName . ' ' . $this->lastName;
     }
 
     /**

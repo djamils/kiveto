@@ -91,6 +91,7 @@ final readonly class DirectoryRegistrar
                 preferredChannel: $client->preferredChannel(),
                 channelsByConsentKind: $client->consents(),
                 animals: array_map(static fn (DirectoryAnimalInput $animal) => $animal->toDto(), $animals),
+                taxProfile: $client->taxProfile?->toClientDto(),
             ));
         } catch (\LogicException) {
             return self::refused('La fiche n\'a pas pu être créée : vérifiez les coordonnées et les animaux.');
@@ -101,7 +102,7 @@ final readonly class DirectoryRegistrar
         return [
             'ok'      => true,
             'message' => 'Client créé — ' . $client->title() . ('' !== $names ? ' · ' . $names : ''),
-            'search'  => $client->lastName,
+            'search'  => $client->taxProfile->legalName ?? $client->lastName,
         ];
     }
 

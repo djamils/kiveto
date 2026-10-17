@@ -93,4 +93,18 @@ final class DirectoryClientInputTest extends TestCase
         yield 'bad postal code' => [self::OK + ['rue' => '12 Rue de Rome', 'cp' => '750'], 'Adresse : code postal invalide'];
         yield 'no commune' => [self::OK + ['rue' => '12 Rue de Rome', 'cp' => '75008'], 'Adresse : choisissez la commune'];
     }
+
+    public function testAStructureIsTitledByItsLegalName(): void
+    {
+        $client = DirectoryClientInput::parse(self::OK + ['fisc' => 'pro', 'rs' => 'Élevage des Calanques', 'siren' => '523456788']);
+
+        self::assertInstanceOf(DirectoryClientInput::class, $client);
+        self::assertSame('Élevage des Calanques', $client->title());
+        self::assertSame('french_business', $client->taxProfile?->toClientDto()->status);
+    }
+
+    public function testTheTaxProfileIsCheckedFirst(): void
+    {
+        self::assertSame('SIREN invalide : clé de contrôle incorrecte.', DirectoryClientInput::parse(['fisc' => 'pro', 'rs' => 'Calanques', 'siren' => '523456789']));
+    }
 }

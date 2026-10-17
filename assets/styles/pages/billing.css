@@ -138,6 +138,11 @@
 .fact .vt-vide{font-size:.76rem;color:var(--encre-60);padding:8px 10px;display:flex;align-items:center;gap:8px}
 .fact .vt-vide button{font-weight:600;color:var(--pin)}
 .fact .vt-alt{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:.74rem;color:var(--encre-60)}
+.fact .vt-grp{font-size:.64rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--encre-35);margin:6px 2px 2px;display:flex;align-items:center;gap:6px}
+.fact .vt-grp.off{opacity:.6;cursor:not-allowed}
+.fact .vt-badge{display:inline-block;padding:1px 6px;border-radius:999px;background:var(--pin-pale);color:var(--pin-fonce);font-size:.62rem;font-weight:700;letter-spacing:.02em;text-transform:none;vertical-align:1px}
+.fact .vt-card b .vt-badge{display:inline-block}
+.fact .vt-new{align-self:flex-start;margin:6px 2px 2px;font-size:.78rem;font-weight:600;color:var(--pin)}
 .fact .vt-alt button{font-weight:600;color:var(--encre-60);text-decoration:underline;text-decoration-color:var(--trait);text-underline-offset:2px}
 .fact .vt-alt button:hover{color:var(--encre)}
 .fact .vt-msg{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:9px;font-size:.76rem;line-height:1.45;margin-top:9px;background:var(--brume);color:var(--encre-60)}

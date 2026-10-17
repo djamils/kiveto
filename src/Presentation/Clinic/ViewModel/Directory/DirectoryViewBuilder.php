@@ -146,8 +146,9 @@ final readonly class DirectoryViewBuilder
             $due   = $balances[$client->id] ?? 0;
 
             $rows[] = [
-                'id'       => $client->id,
-                'name'     => $client->fullName(),
+                'id' => $client->id,
+                // A structure reads « Élevage des Calanques · Claire Rostand »: legal name, then contact.
+                'name'     => null !== $client->legalName ? $client->legalName . ' · ' . $client->fullName() : $client->fullName(),
                 'initials' => mb_strtoupper(mb_substr($client->firstName, 0, 1) . mb_substr($client->lastName, 0, 1)),
                 'color'    => $this->avatarColor($client->fullName()),
                 'city'     => $client->city,

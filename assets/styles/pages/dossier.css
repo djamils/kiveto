@@ -49,6 +49,7 @@
 .dossier .ph-av{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;font-size:1.45rem;flex:none;background:var(--pin-pale);color:var(--pin-fonce);font-weight:700}
 .dossier .ph-av.txt{font-size:.95rem;background:#e0e7ff}
 .dossier .ph-id h1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dossier .ph-id h1 .ph-rs{flex-basis:100%;font-size:.74rem;font-weight:600;color:var(--encre-60);letter-spacing:.01em;margin-bottom:-6px}
 .dossier .sx{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:999px;font-family:var(--font-body);font-size:.72rem;font-weight:700}
 .dossier .sx b{font-size:.9rem;line-height:1}
 .dossier .sy-lien{display:block;width:100%;text-align:left;border-radius:8px;margin:-4px -8px;padding:4px 8px;width:calc(100% + 16px)}

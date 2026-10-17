@@ -130,6 +130,7 @@ final readonly class BillingPageBuilder
                 'export'      => $this->urls->generate('clinic_invoices_export'),
                 'articles'    => $this->urls->generate('clinic_counter_articles'),
                 'clients'     => $this->urls->generate('clinic_counter_clients'),
+                'siren'       => $this->urls->generate('clinic_clients_by_siren'),
                 'ordonnances' => $this->urls->generate('clinic_prescriptions'),
                 'counter'     => $this->urls->generate('clinic_counter_sale'),
                 'deposit'     => $this->urls->generate('clinic_cheques_deposit'),

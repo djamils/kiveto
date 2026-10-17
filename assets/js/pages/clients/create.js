@@ -7,7 +7,8 @@
  *   e-mail is lower-cased; a phone already on file asks whether it is the
  *   same person, a homonym is pointed at; the address is looked up in the
  *   Base Adresse Nationale and the commune chosen from the postal code; the
- *   reminders' channel follows what can be reached.
+ *   reminders' channel follows what can be reached; the shared tax-profile
+ *   block (kiveto/client-tax-profile) opens a structure or a professional.
  * - « Nouvel animal »: the owner picked among the active clients (or, when
  *   they are not one yet, the client window takes over with the animal).
  * - The animal form is shared: closed lists for species, breed and estimated
@@ -18,6 +19,7 @@
  * yet: drawn, marked « bientôt ».
  */
 import { creerDropdown } from 'kiveto/shell';
+import { mount as monterFisc, blank as fiscVide, validate as fiscErr, toPayload as fiscPayload, IND } from 'kiveto/client-tax-profile';
 
 let ac = null;
 let CFG = null;
@@ -361,7 +363,7 @@ function onDpClick(e) {
 // ═════════ Nouveau client ═════════
 
 function ouvrirNvCli(depuis) {
-  NC = { civ: '', nom: '', pre: '', mob: '', fixe: '', mail: '', rue: '', cpl: '', cp: '', ville: '', ban: false, rap: '', rapTouche: false, news: false, autre: false, dbl: null, homo: null, communes: undefined, adrS: [], envoi: false, anis: [depuis || aniVide()] };
+  NC = { fisc: fiscVide(IND), civ: '', nom: '', pre: '', mob: '', fixe: '', mail: '', rue: '', cpl: '', cp: '', ville: '', ban: false, rap: '', rapTouche: false, news: false, autre: false, dbl: null, homo: null, communes: undefined, adrS: [], envoi: false, anis: [depuis || aniVide()] };
   rendreNcCli();
   rendreNcAnis();
   majNc();
@@ -372,6 +374,8 @@ function ouvrirNvCli(depuis) {
 function rendreNcCli() {
   const c = NC;
   $('ncCli').innerHTML = `<div class="nw-h">Client</div>
+    <div class="nw-row" id="ncFisc"></div>
+    <div class="nw-h" id="ncContactH"${c.fisc.fisc === IND ? ' hidden' : ''}>Contact</div>
     <div class="nw-row civ"><div class="nw-seg" id="ncCiv"><button type="button" data-v="M." class="${c.civ === 'M.' ? 'on' : ''}">M.</button><button type="button" data-v="Mme" class="${c.civ === 'Mme' ? 'on' : ''}">Mme</button></div>
       <div class="nw-f"><input class="nw-in" id="ncNom" placeholder="Nom *" maxlength="40" value="${esc(c.nom)}" aria-label="Nom"></div><div class="nw-f"><input class="nw-in" id="ncPre" placeholder="Prénom *" maxlength="40" value="${esc(c.pre)}" aria-label="Prénom"></div></div>
     <div id="ncDblNom"></div>
@@ -384,6 +388,7 @@ function rendreNcCli() {
     <div class="nw-h">Rappels de vaccins et de rendez-vous</div>
     <div class="nw-row"><div class="nw-seg" id="ncRap"><button type="button" data-v="sms">SMS</button><button type="button" data-v="mail">E-mail</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <button type="button" class="nw-chk${c.news ? ' on' : ''}" id="ncNews">Accepte les actualités de la clinique</button>`;
+  monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, { dblUrl: CFG.urls.siren });
   rendreAdr();
   majRap();
 }
@@ -472,6 +477,8 @@ function chercherHomonyme() {
 }
 function ncErr() {
   const c = NC;
+  const fe = Object.values(fiscErr(c.fisc))[0];
+  if (fe) return fe.replace(/\.$/, '');
   if (!c.civ) return 'Civilité requise';
   if (c.nom.length < 2) return 'Nom requis';
   if (c.pre.length < 2) return 'Prénom requis';
@@ -612,6 +619,7 @@ function bindClient(signal) {
     c.envoi = true;
     majNc();
     envoyer(CFG.urls.client, {
+      ...fiscPayload(c.fisc),
       civ: c.civ, nom: c.nom, pre: c.pre, mob: c.mob, fixe: c.fixe, mail: c.mail,
       rue: c.rue, cpl: c.cpl, cp: c.cp, ville: c.ville, rap: c.rap, news: c.news, autre: c.autre,
       anis: c.anis.filter((a) => !aniVierge(a)).map(aniPayload),
