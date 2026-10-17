@@ -46,6 +46,19 @@ final class TaxProfileInputTest extends TestCase
         self::assertNull($named->firstError(structureOnly: true));
     }
 
+    public function testATooLongLegalNameIsRefusedNotCut(): void
+    {
+        $longest = TaxProfileInput::fromArray(['fisc' => 'ind', 'rs' => str_repeat('é', 255)]);
+        self::assertNotNull($longest);
+        self::assertSame([], $longest->errors());
+        self::assertSame(str_repeat('é', 255), $longest->legalName);
+
+        $tooLong = TaxProfileInput::fromArray(['fisc' => 'pro', 'rs' => str_repeat('é', 256), 'siren' => '523456788']);
+        self::assertNotNull($tooLong);
+        self::assertSame(str_repeat('é', 256), $tooLong->legalName);
+        self::assertSame(['rs' => 'La raison sociale ne doit pas dépasser 255 caractères.'], $tooLong->errors());
+    }
+
     public function testAProfessionalIsNormalisedForBothContexts(): void
     {
         $input = TaxProfileInput::fromArray(['fisc' => 'pro', 'rs' => 'Élevage des Calanques', 'siren' => '523 456 788 00012', 'tva' => 'fr 31 523456788']);

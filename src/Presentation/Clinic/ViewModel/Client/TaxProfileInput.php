@@ -23,7 +23,8 @@ final readonly class TaxProfileInput
     public const string INDIVIDUAL   = 'ind';
     public const string PROFESSIONAL = 'pro';
 
-    private const int LEGAL_NAME_MAX = 120;
+    // As the Client context's ClientTaxProfile and the `legal_name` columns.
+    private const int LEGAL_NAME_MAX = 255;
 
     private function __construct(
         public string $fisc,
@@ -47,7 +48,7 @@ final readonly class TaxProfileInput
         }
 
         $text      = static fn (string $key): string => mb_trim((string) preg_replace('/\s+/u', ' ', \is_string($raw[$key] ?? null) ? $raw[$key] : ''));
-        $legalName = mb_substr($text('rs'), 0, self::LEGAL_NAME_MAX);
+        $legalName = $text('rs');
         $pro       = self::PROFESSIONAL === $fisc;
 
         return new self(
@@ -76,6 +77,10 @@ final readonly class TaxProfileInput
 
         if (null === $this->legalName && ($structureOnly || $this->isProfessional())) {
             $errors['rs'] = 'La raison sociale est obligatoire.';
+        }
+
+        if (null !== $this->legalName && mb_strlen($this->legalName) > self::LEGAL_NAME_MAX) {
+            $errors['rs'] = \sprintf('La raison sociale ne doit pas dépasser %d caractères.', self::LEGAL_NAME_MAX);
         }
 
         if (!$this->isProfessional()) {

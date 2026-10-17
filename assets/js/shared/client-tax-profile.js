@@ -10,6 +10,8 @@
 
 export const IND = 'ind';
 export const PRO = 'pro';
+/* As the server (TaxProfileInput): beyond it the block says so, nothing is cut. */
+const LEGAL_NAME_MAX = 255;
 
 const digits = v => String(v ?? '').replace(/\D/g, '');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -47,6 +49,7 @@ export function blank(fisc = IND) {
 export function validate(s, structureOnly = false) {
   const e = {};
   if (!s.rs.trim() && (structureOnly || s.fisc === PRO)) e.rs = 'La raison sociale est obligatoire.';
+  if (s.rs.trim().replace(/\s+/g, ' ').length > LEGAL_NAME_MAX) e.rs = `La raison sociale ne doit pas dépasser ${LEGAL_NAME_MAX} caractères.`;
   if (s.fisc !== PRO) return e;
   const d = sirenOf(s.siren);
   if (!/^\d{9}$/.test(d)) { e.siren = 'SIREN invalide : 9 chiffres attendus.'; return e; }
