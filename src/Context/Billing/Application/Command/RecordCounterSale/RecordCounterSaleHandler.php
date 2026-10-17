@@ -9,6 +9,7 @@ use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
+use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
@@ -197,11 +198,10 @@ final readonly class RecordCounterSaleHandler
         $clientId = $this->clientRegistry->register($clinicId, $client);
 
         if ($client->isProfessional()) {
-            $snapshot = $this->payerDirectory->forClient($clientId, $clinicId);
+            $snapshot = $this->payerDirectory->forClient($clientId, $clinicId)
+                ?? throw new CounterClientNotReadBackException($clientId);
 
-            if (null !== $snapshot) {
-                return Payer::create(PayerId::fromString($clientId), $snapshot->displayName, $snapshot->addressLines, $snapshot->attention);
-            }
+            return Payer::create(PayerId::fromString($clientId), $snapshot->displayName, $snapshot->addressLines, $snapshot->attention);
         }
 
         return Payer::create(PayerId::fromString($clientId), $client->displayName());

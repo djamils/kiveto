@@ -29,6 +29,7 @@ use App\Context\Billing\Domain\CashClosing;
 use App\Context\Billing\Domain\ChequeDeposit;
 use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
+use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
@@ -643,13 +644,10 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertSame(CounterSalePayer::NEW_CLIENT, $saved->counterSalePayer());
     }
 
-    public function testANewProfessionalNotReadBackIsBilledUnderItsContactName(): void
+    public function testANewProfessionalNotReadBackFailsTheSale(): void
     {
-        $saved    = null;
         $invoices = $this->createMock(InvoiceRepositoryInterface::class);
-        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
-            $saved = $invoice;
-        });
+        $invoices->expects(self::never())->method('save');
 
         $payers = $this->createMock(PayerDirectoryInterface::class);
         $payers->method('forClient')->willReturn(null);
@@ -657,11 +655,12 @@ final class DeskCommandHandlersTest extends TestCase
         $registry = $this->createMock(CounterClientRegistryInterface::class);
         $registry->method('register')->willReturn(self::CLIENT);
 
-        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Marchal', 'Hugo', email: 'hugo@lac.fr', taxProfile: new ClientTaxProfileInput('french_business', 'Centre équestre du Lac', '812345676'))));
-
-        self::assertInstanceOf(Invoice::class, $saved);
-        self::assertSame('Hugo Marchal', $saved->payer()->displayName());
-        self::assertNull($saved->payer()->attention());
+        try {
+            $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Marchal', 'Hugo', email: 'hugo@lac.fr', taxProfile: new ClientTaxProfileInput('french_business', 'Centre équestre du Lac', '812345676'))));
+            self::fail('The sale went out without the professional\'s legal name.');
+        } catch (CounterClientNotReadBackException $e) {
+            self::assertSame(self::CLIENT, $e->clientId);
+        }
     }
 
     public function testAClientOnFileCarriesTheAttentionOfTheirSnapshot(): void
