@@ -12,3 +12,9 @@ services:
     test.shared.lock.factory:
         alias: shared.lock.factory
         public: true
+
+    # Records what entry points dispatch (ProfessionalClientEntryPointsTest).
+    App\Tests\Support\RecordingCommandBus:
+        decorates: App\Shared\Application\Bus\CommandBusInterface
+        arguments: ['@.inner']
+        public: true

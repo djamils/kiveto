@@ -15,6 +15,7 @@ use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordInvoicePayment\RecordInvoicePayment;
 use App\Context\Billing\Application\Command\RemoveInvoiceLine\RemoveInvoiceLine;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
+use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -99,7 +100,10 @@ final class BillingRegisterStory extends Story
         $deposited   = false;
         $sales       = [
             [-21, '11:30', 'client', [['FOOD-RC', 1], ['SHAMPOING-DERM', 1]], 'CARD'],
+            // Structures, billed under their legal name to their contact.
+            [-10, '10:15', ClientDataStory::CLIENT_CALANQUES_ID, [['FOOD-RC', 2]], 'CARD'],
             [-6, '17:45', 'refused', [['FRONTLINE-CB', 2]], 'CASH'],
+            [-4, '16:30', ClientDataStory::CLIENT_REFUGE_ID, [['FRONTLINE-CB', 1]], 'CASH'],
             [0, '08:20', 'new', [['FRONTLINE-CB', 3]], 'CASH'],
         ];
 
@@ -265,7 +269,8 @@ final class BillingRegisterStory extends Story
     }
 
     /**
-     * @param 'client'|'new'|'refused'       $payer    a client on file, a newcomer, or a refusal of contact details
+     * @param string                         $payer    'client' (a client on file), 'new' (a newcomer), 'refused'
+     *                                                 (a refusal of contact details), or the id of the client to bill
      * @param list<array{0: string, 1: int}> $articles [catalogue code, quantity]
      */
     private function counterSale(int $day, string $time, string $payer, array $articles, string $method): void
@@ -273,7 +278,11 @@ final class BillingRegisterStory extends Story
         $at        = $this->today->modify(\sprintf('%d days %s', $day, $time));
         $invoiceId = $this->commandBus->dispatch(new RecordCounterSale(
             clinicId: self::PARIS,
-            payerClientId: 'client' === $payer ? $this->aClient() : null,
+            payerClientId: match ($payer) {
+                'client' => $this->aClient(),
+                'new', 'refused' => null,
+                default => $payer,
+            },
             lines: array_map(fn (array $a): array => ['articleId' => $this->articleId($a[0]), 'quantity' => $a[1]], $articles),
             method: $method,
             newClient: 'new' === $payer ? new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Haddad', 'Nadia', '0618427731') : null,
