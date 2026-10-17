@@ -73,6 +73,10 @@ services:
 
   # Runs the `default` schedule (src/Shared/Infrastructure/Scheduler). Ticks are
   # locked in the database, so several scheduler workers never double-run a task.
+  # The time limit (59 min) is deliberately not a multiple of any task period:
+  # an hourly restart would otherwise always land on the hourly tick. Docker's
+  # restart policy brings the worker back; a run lost to a restart is caught up
+  # by the (idempotent) task itself.
   scheduler-worker:
     build:
       context: .
@@ -82,7 +86,7 @@ services:
         GID: ${HOST_GID:-1000}
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     profiles: ["workers"]
-    command: php -d memory_limit=512M bin/console messenger:consume scheduler_default --time-limit=3600 -vv
+    command: php -d memory_limit=512M bin/console messenger:consume scheduler_default --time-limit=3540 -vv
     restart: unless-stopped
     volumes:
       - ./:/var/www/html:cached
