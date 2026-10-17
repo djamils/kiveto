@@ -1,0 +1,6 @@
+# The framework lock (default `flock` store) is per container. Locks are
+# instead shared across containers through `shared.lock.factory`
+# (DoctrineDbalStore on the default connection, table `shared__lock_keys`),
+# see config/services.yaml.
+framework:
+    lock: false

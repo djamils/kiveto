@@ -127,6 +127,21 @@ services:
     # Integration Event Publisher
     App\Shared\Application\Event\IntegrationEventPublisher: ~
 
+    # Lock shared across containers (rolling deploys run two workers at once).
+    # Table created by migrations/Shared, never at runtime.
+    shared.lock.store:
+        class: Symfony\Component\Lock\Store\DoctrineDbalStore
+        arguments:
+            - '@doctrine.dbal.default_connection'
+            - { db_table: 'shared__lock_keys' }
+
+    shared.lock.factory:
+        class: Symfony\Component\Lock\LockFactory
+        arguments:
+            - '@shared.lock.store'
+
+    Symfony\Component\Lock\LockFactory: '@shared.lock.factory'
+
     # Doctrine naming strategy with BC prefix
     app.orm.naming_strategy.bounded_context_prefix:
         class: App\Shared\Infrastructure\Persistence\Doctrine\Mapping\BoundedContextPrefixNamingStrategy

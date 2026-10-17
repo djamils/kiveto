@@ -21,7 +21,7 @@ APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 LOG_FILE ?= var/log/make.log
 
 # Background workers (compose profile `workers`)
-WORKER_SERVICES = messenger-worker
+WORKER_SERVICES = messenger-worker scheduler-worker
 
 PHPSTAN_MEMORY ?= 512M
 
@@ -100,7 +100,7 @@ endef
 ##
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
-	worker-start worker-stop worker-logs \
+	worker-start worker-stop worker-logs scheduler-debug \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	assets tailwind-build \
 	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations \
@@ -122,6 +122,7 @@ help:
 	@echo "  worker-start    start the background workers ($(WORKER_SERVICES))"
 	@echo "  worker-stop     stop the background workers"
 	@echo "  worker-logs     follow the background workers logs"
+	@echo "  scheduler-debug list the schedules and their next runs"
 	@echo "  ci              QA pipeline"
 	@echo "  assets          tailwind:build + asset-map:compile"
 	@echo "  tailwind-build  compile Tailwind CSS"
@@ -199,6 +200,9 @@ worker-stop:
 
 worker-logs:
 	$(DOCKER_COMPOSE) --profile workers logs -f $(WORKER_SERVICES)
+
+scheduler-debug:
+	$(SYMFONY) debug:scheduler
 
 ##
 ## UTILS
