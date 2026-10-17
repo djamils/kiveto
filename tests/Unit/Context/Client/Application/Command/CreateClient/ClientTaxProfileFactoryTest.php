@@ -46,6 +46,14 @@ final class ClientTaxProfileFactoryTest extends TestCase
         ClientTaxProfileFactory::fromDto(new ClientTaxProfileDto('french_business', 'Calanques', ' '));
     }
 
+    public function testAnUnknownStatusIsATaxProfileError(): void
+    {
+        $this->expectException(InvalidClientTaxProfileException::class);
+        $this->expectExceptionMessage('status_unknown');
+
+        ClientTaxProfileFactory::fromDto(new ClientTaxProfileDto('b2b', 'Calanques', '523456788'));
+    }
+
     public function testAnInvalidSirenSurfaces(): void
     {
         $this->expectException(InvalidSirenException::class);

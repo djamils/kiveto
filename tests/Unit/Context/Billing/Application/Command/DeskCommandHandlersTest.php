@@ -32,6 +32,7 @@ use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
@@ -410,6 +411,52 @@ final class DeskCommandHandlersTest extends TestCase
         $this->expectExceptionMessage($message);
 
         $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: $newcomer));
+    }
+
+    /**
+     * @return iterable<string, array{ClientTaxProfileInput, string}>
+     */
+    public static function provideAStructureNeedsAValidTaxProfileCases(): iterable
+    {
+        yield 'unknown status' => [new ClientTaxProfileInput('b2b', 'Élevage des Calanques', '523456788'), 'Unknown tax status'];
+        yield 'no legal name' => [new ClientTaxProfileInput('individual', '  '), 'legal name'];
+        yield 'legal name too long' => [new ClientTaxProfileInput('french_business', str_repeat('é', 256), '523456788'), 'legal name'];
+        yield 'invalid SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456789'), 'SIREN'];
+        yield 'no SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques'), 'SIREN'];
+        yield 'VAT of another SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788', 'FR19812345676'), 'VAT'];
+    }
+
+    #[DataProvider('provideAStructureNeedsAValidTaxProfileCases')]
+    public function testAStructureNeedsAValidTaxProfile(ClientTaxProfileInput $profile, string $message): void
+    {
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::never())->method('register');
+
+        $this->expectException(InvalidCounterClientTaxProfileException::class);
+        $this->expectExceptionMessageMatches('/' . preg_quote($message, '/') . '/i');
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: $profile)));
+    }
+
+    /**
+     * @return iterable<string, array{ClientTaxProfileInput}>
+     */
+    public static function provideAValidStructureIsRegisteredCases(): iterable
+    {
+        yield 'VAT-liable with its VAT number' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523 456 788 00012', 'FR31523456788')];
+        yield 'not VAT-liable' => [new ClientTaxProfileInput('individual', 'Refuge des Collines')];
+    }
+
+    #[DataProvider('provideAValidStructureIsRegisteredCases')]
+    public function testAValidStructureIsRegistered(ClientTaxProfileInput $profile): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(new PayerSnapshotDto(self::CLIENT, (string) $profile->legalName, [], 'Mme Claire Rostand'));
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->willReturn(self::CLIENT);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: $profile)));
     }
 
     public function testANewcomerWithoutAPhoneHasNoInternationalNumber(): void

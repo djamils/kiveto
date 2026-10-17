@@ -10,6 +10,7 @@ use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
@@ -29,6 +30,8 @@ use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
+use App\Shared\Domain\ValueObject\Siren;
 use App\Shared\Money\Domain\ValueObject\Money;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -47,6 +50,7 @@ final readonly class RecordCounterSaleHandler
     private const int MAX_QUANTITY = 999;
     private const int MAX_NAME     = 40;
     private const int MAX_EMAIL    = 80;
+    private const int MAX_LEGAL    = 255;
 
     public function __construct(
         private InvoiceRepositoryInterface $invoices,
@@ -229,6 +233,42 @@ final readonly class RecordCounterSaleHandler
 
         if ('' === $client->phone && '' === $client->email) {
             throw new InvalidCounterClientException('A newcomer needs a mobile or an e-mail.');
+        }
+
+        if (null !== $client->taxProfile) {
+            $this->validateTaxProfile($client->taxProfile);
+        }
+    }
+
+    /**
+     * A structure opened at the desk: a known status, a legal name and, when
+     * VAT-liable, a valid SIREN and VAT number. Checked here so that the
+     * Client context never refuses what the desk sends.
+     */
+    private function validateTaxProfile(ClientTaxProfileInput $profile): void
+    {
+        if (!\in_array($profile->status, [ClientTaxProfileInput::INDIVIDUAL, ClientTaxProfileInput::FRENCH_BUSINESS], true)) {
+            throw new InvalidCounterClientTaxProfileException(\sprintf('Unknown tax status "%s".', $profile->status));
+        }
+
+        $legalName = mb_trim((string) $profile->legalName);
+
+        if ('' === $legalName || mb_strlen($legalName) > self::MAX_LEGAL) {
+            throw new InvalidCounterClientTaxProfileException('A structure needs a legal name of at most 255 characters.');
+        }
+
+        if (ClientTaxProfileInput::FRENCH_BUSINESS !== $profile->status) {
+            return;
+        }
+
+        try {
+            $siren = Siren::fromInput((string) $profile->siren);
+
+            if (null !== $profile->vatNumber && '' !== mb_trim($profile->vatNumber)) {
+                FrenchVatNumber::fromInput($profile->vatNumber, $siren);
+            }
+        } catch (\InvalidArgumentException $e) { // InvalidSirenException or InvalidFrenchVatNumberException
+            throw new InvalidCounterClientTaxProfileException($e->getMessage(), previous: $e);
         }
     }
 }

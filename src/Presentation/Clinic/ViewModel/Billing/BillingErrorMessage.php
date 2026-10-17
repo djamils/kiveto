@@ -9,6 +9,7 @@ use App\Context\Billing\Domain\Exception\CreditExceedsInvoiceException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
@@ -43,6 +44,7 @@ final class BillingErrorMessage
         InvalidPayerException::class                   => 'Choisissez le client de la vente.',
         CounterClientAlreadyKnownException::class      => 'Ce numéro est déjà celui d\'un client : utilisez sa fiche.',
         InvalidCounterClientException::class           => 'Les coordonnées du nouveau client sont incomplètes : un nom, un prénom et un mobile ou un e-mail valides.',
+        InvalidCounterClientTaxProfileException::class => 'Le profil fiscal du professionnel est invalide : vérifiez la raison sociale, le SIREN et le n° de TVA.',
     ];
 
     public static function of(\Throwable $exception): string

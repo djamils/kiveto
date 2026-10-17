@@ -20,7 +20,8 @@ final readonly class ClientTaxProfileFactory
 {
     public static function fromDto(ClientTaxProfileDto $dto): ClientTaxProfile
     {
-        $status = ClientTaxStatus::from($dto->status);
+        $status = ClientTaxStatus::tryFrom($dto->status)
+            ?? throw new InvalidClientTaxProfileException(InvalidClientTaxProfileException::STATUS_UNKNOWN);
 
         if (ClientTaxStatus::INDIVIDUAL === $status) {
             // SIREN and VAT number do not exist for an individual.

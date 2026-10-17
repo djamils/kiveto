@@ -98,11 +98,6 @@ final class RecordCounterSaleController extends AbstractController
             $this->addFlash('error', BillingErrorMessage::of($e));
 
             return $back;
-        } catch (\InvalidArgumentException) {
-            // The tax profile is checked above; this is the Client context refusing it anyway.
-            $this->addFlash('error', 'La fiche n\'a pas pu être créée : vérifiez le profil fiscal.');
-
-            return $back;
         }
 
         \assert(\is_string($invoiceId));
