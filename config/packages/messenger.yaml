@@ -8,12 +8,18 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     table_name: 'shared__messenger_messages'
+                    auto_setup: false
                     use_notify: true
                     check_delayed_interval: 60000
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
-            failed: 'doctrine://default?queue_name=failed'
+            # Same table as `async`; rows are told apart by the `queue_name` column.
+            failed:
+                dsn: 'doctrine://default?queue_name=failed'
+                options:
+                    table_name: 'shared__messenger_messages'
+                    auto_setup: false
             sync: 'sync://'
 
         # Separate bus definitions for CQRS

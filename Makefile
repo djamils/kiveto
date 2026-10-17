@@ -20,6 +20,9 @@ APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 
 LOG_FILE ?= var/log/make.log
 
+# Background workers (compose profile `workers`)
+WORKER_SERVICES = messenger-worker
+
 PHPSTAN_MEMORY ?= 512M
 
 # Verbose mode: make reset V=1
@@ -97,6 +100,7 @@ endef
 ##
 .PHONY: help \
 	build kill install reset clean start start-containers stop vendor wait-db init-db check-web ready \
+	worker-start worker-stop worker-logs \
 	ci phpstan phpcs phpcbf php-cs-fixer php-cs-fixer.dry-run test test-coverage \
 	assets tailwind-build \
 	migrations identity-access-migrations translations-migrations clinic-migrations access-control-migrations client-migrations animal-migrations scheduling-migrations consultation-migrations patient-migrations admission-migrations pharmaceutical-registry-migrations regulatory-migrations shared-migrations \
@@ -115,6 +119,9 @@ help:
 	@echo "  kill            down --volumes --remove-orphans"
 	@echo "  vendor          composer install"
 	@echo "  init-db         drop/create/migrate"
+	@echo "  worker-start    start the background workers ($(WORKER_SERVICES))"
+	@echo "  worker-stop     stop the background workers"
+	@echo "  worker-logs     follow the background workers logs"
 	@echo "  ci              QA pipeline"
 	@echo "  assets          tailwind:build + asset-map:compile"
 	@echo "  tailwind-build  compile Tailwind CSS"
@@ -169,13 +176,29 @@ start: start-containers ready
 
 stop:
 	@$(call step,Stopping containers...)
-	$(Q)$(call run,$(DOCKER_COMPOSE) stop)
+	$(Q)$(call run,$(DOCKER_COMPOSE) --profile workers stop)
 	@$(call ok,Containers stopped)
 
 kill:
 	@$(call step,Stopping and removing containers...)
-	$(Q)$(call run,$(DOCKER_COMPOSE) down --volumes --remove-orphans)
+	$(Q)$(call run,$(DOCKER_COMPOSE) --profile workers down --volumes --remove-orphans)
 	@$(call ok,Containers removed)
+
+##
+## WORKERS
+##
+worker-start:
+	@$(call step,Starting workers...)
+	$(Q)$(call run,$(DOCKER_COMPOSE) --profile workers up -d $(WORKER_SERVICES))
+	@$(call ok,Workers started)
+
+worker-stop:
+	@$(call step,Stopping workers...)
+	$(Q)$(call run,$(DOCKER_COMPOSE) --profile workers stop $(WORKER_SERVICES))
+	@$(call ok,Workers stopped)
+
+worker-logs:
+	$(DOCKER_COMPOSE) --profile workers logs -f $(WORKER_SERVICES)
 
 ##
 ## UTILS
