@@ -128,9 +128,11 @@ services:
     App\Shared\Application\Event\IntegrationEventPublisher: ~
 
     # Lock shared across containers (rolling deploys run two workers at once).
-    # Table created by migrations/Shared, never at runtime.
+    # Table created by migrations/Shared, never at runtime; the `lock.store` tag
+    # declares it to the Doctrine schema so that diffs do not drop it.
     shared.lock.store:
         class: Symfony\Component\Lock\Store\DoctrineDbalStore
+        tags: ['lock.store']
         arguments:
             - '@doctrine.dbal.default_connection'
             - { db_table: 'shared__lock_keys' }
