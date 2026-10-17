@@ -77,8 +77,9 @@ final class RecordCounterSaleController extends AbstractController
 
         $taxProfile = 'pro' === $payer ? TaxProfileInput::fromArray($request->request->all()) : null;
 
-        if ('pro' === $payer && (null === $taxProfile || null !== $taxProfile->firstError())) {
-            $this->addFlash('error', $taxProfile?->firstError() ?? 'Choisissez le statut fiscal du professionnel.');
+        // The « Professionnel » tab only creates structures: a legal name is due even when not VAT-liable.
+        if ('pro' === $payer && (null === $taxProfile || null !== $taxProfile->firstError(structureOnly: true))) {
+            $this->addFlash('error', $taxProfile?->firstError(structureOnly: true) ?? 'Choisissez le statut fiscal du professionnel.');
 
             return $back;
         }

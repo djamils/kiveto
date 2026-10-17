@@ -32,6 +32,20 @@ final class TaxProfileInputTest extends TestCase
         self::assertNull($dto->vatNumber);
     }
 
+    public function testAStructureOnlyWindowAsksForTheLegalNameOfANonLiableStructure(): void
+    {
+        $input = TaxProfileInput::fromArray(['fisc' => 'ind', 'rs' => '  ']);
+
+        self::assertNotNull($input);
+        self::assertSame([], $input->errors());
+        self::assertSame(['rs' => 'La raison sociale est obligatoire.'], $input->errors(structureOnly: true));
+        self::assertSame('La raison sociale est obligatoire.', $input->firstError(structureOnly: true));
+
+        $named = TaxProfileInput::fromArray(['fisc' => 'ind', 'rs' => 'Refuge des Collines']);
+        self::assertNotNull($named);
+        self::assertNull($named->firstError(structureOnly: true));
+    }
+
     public function testAProfessionalIsNormalisedForBothContexts(): void
     {
         $input = TaxProfileInput::fromArray(['fisc' => 'pro', 'rs' => 'Élevage des Calanques', 'siren' => '523 456 788 00012', 'tva' => 'fr 31 523456788']);

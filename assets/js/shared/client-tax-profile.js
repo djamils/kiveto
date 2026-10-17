@@ -39,11 +39,15 @@ export function blank(fisc = IND) {
   return { fisc, rs: '', siren: '', tva: '' };
 }
 
-/** What to correct, field by field: {rs?, siren?, tva?} (empty when valid). */
-export function validate(s) {
-  if (s.fisc !== PRO) return {};
+/**
+ * What to correct, field by field: {rs?, siren?, tva?} (empty when valid).
+ * `structureOnly` (a window that only creates structures) asks for the legal
+ * name whatever the status.
+ */
+export function validate(s, structureOnly = false) {
   const e = {};
-  if (!s.rs.trim()) e.rs = 'La raison sociale est obligatoire.';
+  if (!s.rs.trim() && (structureOnly || s.fisc === PRO)) e.rs = 'La raison sociale est obligatoire.';
+  if (s.fisc !== PRO) return e;
   const d = sirenOf(s.siren);
   if (!/^\d{9}$/.test(d)) { e.siren = 'SIREN invalide : 9 chiffres attendus.'; return e; }
   if (!luhn(d)) { e.siren = 'SIREN invalide : clé de contrôle incorrecte.'; return e; }
@@ -67,7 +71,8 @@ export function toPayload(s) {
  * Clones the block into `root` and keeps `state` in sync; `onChange()` runs
  * after every change. Options: `dblUrl` (GET ?siren= → {items: cards}) for
  * the duplicate-SIREN warning, `self` (a client id the warning ignores),
- * `lockFisc` (status not changeable, e.g. the counter « Professionnel » tab).
+ * `lockFisc` (status not changeable), `structureOnly` (legal name required
+ * whatever the status, e.g. the counter « Professionnel » tab).
  * Returns {showErrors(), refresh(), focus()}.
  */
 export function mount(root, state, onChange = () => {}, opts = {}) {
@@ -87,9 +92,10 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
       b.disabled = !!opts.lockFisc && !on;
     });
     q('[data-pro]').hidden = !pro;
-    q('[data-rs-opt]').hidden = pro;
-    q('[data-rs-req]').hidden = !pro;
-    const e = shown ? validate(state) : {};
+    const rsReq = pro || !!opts.structureOnly;
+    q('[data-rs-opt]').hidden = rsReq;
+    q('[data-rs-req]').hidden = !rsReq;
+    const e = shown ? validate(state, !!opts.structureOnly) : {};
     ['rs', 'siren', 'tva'].forEach(k => {
       inp(k).classList.toggle('ko', !!e[k]);
       q(`[data-fe="${k}"]`).textContent = e[k] || '';
@@ -148,7 +154,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
 
   return {
     /** Shows every error; true when the block is valid. */
-    showErrors() { shown = true; paint(); return !Object.keys(validate(state)).length; },
+    showErrors() { shown = true; paint(); return !Object.keys(validate(state, !!opts.structureOnly)).length; },
     refresh() { values(); paint(); duplicates(); },
     focus() { (state.fisc === PRO ? inp('rs') : root.querySelector('.fisc-opt.on'))?.focus(); },
   };

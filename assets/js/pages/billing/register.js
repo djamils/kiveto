@@ -601,7 +601,7 @@ export function init() {
     z.innerHTML = `<div id="vtFisc"></div><div class="vt-h" style="margin-top:12px">Contact</div>
       ${champsPersonne(VT.pp, 'Mobile ou fixe', 'Un téléphone (mobile ou fixe) ou un e-mail au moins.')}
       <div class="vt-alt"><button type="button" data-vpback>Rechercher un professionnel déjà client</button></div>`;
-    monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { dblUrl: P.urls.siren });
+    monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { dblUrl: P.urls.siren, structureOnly: true });
     majPart();
   }
   function rendreZone() {
@@ -660,7 +660,7 @@ export function init() {
     const pro = VT.ty === 'pro';
     if (pro && VT.pc) return '';
     if (pro && !VT.pnew) return 'Choisissez le client';
-    if (pro) { const fe = Object.values(fiscErr(VT.fisc))[0]; if (fe) return fe.replace(/\.$/, ''); }
+    if (pro) { const fe = Object.values(fiscErr(VT.fisc, true))[0]; if (fe) return fe.replace(/\.$/, ''); }
     if (VT.anon) return '';
     const p = per();
     if (p.nom.length < 2) return pro ? 'Nom du contact requis' : 'Nom du client requis';

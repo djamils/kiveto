@@ -64,20 +64,22 @@ final readonly class TaxProfileInput
     }
 
     /**
-     * What to correct, field by field, in the block's words.
+     * What to correct, field by field, in the block's words. A window that
+     * only creates structures (the counter « Professionnel » tab) asks for
+     * the legal name whatever the status.
      *
      * @return array<string, string> `rs`, `siren` or `tva` => message
      */
-    public function errors(): array
+    public function errors(bool $structureOnly = false): array
     {
-        if (!$this->isProfessional()) {
-            return [];
-        }
-
         $errors = [];
 
-        if (null === $this->legalName) {
+        if (null === $this->legalName && ($structureOnly || $this->isProfessional())) {
             $errors['rs'] = 'La raison sociale est obligatoire.';
+        }
+
+        if (!$this->isProfessional()) {
+            return $errors;
         }
 
         try {
@@ -106,9 +108,9 @@ final readonly class TaxProfileInput
     }
 
     /** The first thing to correct, or null. */
-    public function firstError(): ?string
+    public function firstError(bool $structureOnly = false): ?string
     {
-        $errors = $this->errors();
+        $errors = $this->errors($structureOnly);
 
         return [] === $errors ? null : reset($errors);
     }
