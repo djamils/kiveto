@@ -522,6 +522,8 @@ export function init() {
   }
   /** The person typed in the current tab: the newcomer, or the professional's contact. */
   const per = () => (VT.ty === 'pro' ? VT.pp : VT.p);
+  /* The refusal of contact details belongs to the « Particulier » tab only. */
+  const sansCoord = () => VT.ty === 'part' && VT.anon;
   async function chercherClients(q, kind = '') {
     const r = await fetch(`${P.urls.clients}?q=${encodeURIComponent(q)}${kind ? '&kind=' + kind : ''}`, { headers: { Accept: 'application/json' }, signal });
     if (!r.ok) throw new Error(String(r.status));
@@ -661,7 +663,7 @@ export function init() {
     if (pro && VT.pc) return '';
     if (pro && !VT.pnew) return 'Choisissez le client';
     if (pro) { const fe = Object.values(fiscErr(VT.fisc, true))[0]; if (fe) return fe.replace(/\.$/, ''); }
-    if (VT.anon) return '';
+    if (sansCoord()) return '';
     const p = per();
     if (p.nom.length < 2) return pro ? 'Nom du contact requis' : 'Nom du client requis';
     if (!p.pre) return pro ? 'Prénom du contact requis' : 'Prénom du client requis';
@@ -699,9 +701,9 @@ export function init() {
      yet, so printing is the only channel the desk can pick for now. */
   const REMISE_OFF = { mail: 'L\'envoi par e-mail n\'est pas encore disponible', sms: 'L\'envoi par SMS n\'est pas encore disponible' };
   function rendreRemise() {
-    const LBL = { imp: VT.anon ? 'Imprimer le ticket' : 'Imprimer', mail: 'E-mail', sms: 'SMS' };
-    $('vtRem').innerHTML = (VT.anon ? ['imp'] : ['imp', 'mail', 'sms']).map(r => `<button type="button" class="chip${VT.rem.has(r) ? ' on' : ''}" data-r="${r}"${REMISE_OFF[r] ? ` disabled title="${esc(REMISE_OFF[r])}"` : ''}>${LBL[r]}</button>`).join('');
-    $('vtRemH').textContent = VT.anon ? 'Sans coordonnées, le ticket est remis en main propre.' : VT.rem.has('imp') ? 'Remise en main propre.' : '';
+    const LBL = { imp: sansCoord() ? 'Imprimer le ticket' : 'Imprimer', mail: 'E-mail', sms: 'SMS' };
+    $('vtRem').innerHTML = (sansCoord() ? ['imp'] : ['imp', 'mail', 'sms']).map(r => `<button type="button" class="chip${VT.rem.has(r) ? ' on' : ''}" data-r="${r}"${REMISE_OFF[r] ? ` disabled title="${esc(REMISE_OFF[r])}"` : ''}>${LBL[r]}</button>`).join('');
+    $('vtRemH').textContent = sansCoord() ? 'Sans coordonnées, le ticket est remis en main propre.' : VT.rem.has('imp') ? 'Remise en main propre.' : '';
   }
 
   /* Clôture de caisse */
@@ -943,7 +945,7 @@ export function init() {
   $('vtOk').addEventListener('click', () => {
     if (!VT || $('vtOk').disabled) return;
     const p = per();
-    const payer = VT.ty === 'cli' || (VT.ty === 'pro' && VT.pc) ? 'cli' : VT.ty === 'pro' ? 'pro' : VT.anon ? 'anon' : 'part';
+    const payer = VT.ty === 'cli' || (VT.ty === 'pro' && VT.pc) ? 'cli' : VT.ty === 'pro' ? 'pro' : sansCoord() ? 'anon' : 'part';
     poster({ url: P.urls.counter, token: P.tokens.counter }, {
       lines: VT.L.map(x => `${x.k}:${x.q}`).join(','),
       mode: VT.mode,
