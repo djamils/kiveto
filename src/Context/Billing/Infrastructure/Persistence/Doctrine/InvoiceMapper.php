@@ -68,6 +68,7 @@ final readonly class InvoiceMapper
                 null !== $payerClientId ? PayerId::fromString($payerClientId->toRfc4122()) : null,
                 $entity->getPayerName(),
                 $entity->getPayerAddressLines(),
+                $entity->getPayerAttention(),
             ),
             lines: $lines,
             payments: $payments,
@@ -112,6 +113,7 @@ final readonly class InvoiceMapper
         $entity->setPayerClientId(null !== $payerClientId ? Uuid::fromString($payerClientId->toString()) : null);
         $entity->setPayerName($invoice->payer()->displayName());
         $entity->setPayerAddressLines($invoice->payer()->addressLines());
+        $entity->setPayerAttention($invoice->payer()->attention());
         $entity->setCurrency($invoice->currency()->toString());
         $entity->setDiscountKind($discount?->kind());
         $entity->setDiscountValue($discount?->value());

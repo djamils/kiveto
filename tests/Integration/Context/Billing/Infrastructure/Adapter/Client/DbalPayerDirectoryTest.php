@@ -169,6 +169,54 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         self::assertNull($this->directory->clientWithPhone('+33600000000', self::CLINIC_ID));
     }
 
+    public function testAStructureIsBilledUnderItsLegalNameToItsContact(): void
+    {
+        $this->client(self::CLIENT_ID, 'Claire', 'Rostand', null, null, '13400', 'Aubagne', legalName: 'Élevage des Calanques', civility: 'madam');
+
+        $payer = $this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID);
+
+        self::assertNotNull($payer);
+        self::assertSame('Élevage des Calanques', $payer->displayName);
+        self::assertSame('Mme Claire Rostand', $payer->attention);
+        self::assertSame(['13400 Aubagne'], $payer->addressLines);
+    }
+
+    public function testAVisitOfAStructuresAnimalIsBilledToTheStructure(): void
+    {
+        $this->admission();
+        $this->client(self::CLIENT_ID, 'Inès', 'Perrin', null, null, null, null, legalName: 'Refuge des Collines');
+        $this->ownership(self::CLIENT_ID, 'primary', 'active');
+
+        $payer = $this->directory->forAdmission(self::ADMISSION_ID, self::CLINIC_ID);
+
+        self::assertNotNull($payer);
+        self::assertSame('Refuge des Collines', $payer->displayName);
+        // No civility on file: no honorific.
+        self::assertSame('Inès Perrin', $payer->attention);
+    }
+
+    public function testAStructureWithABlankContactHasNoAttention(): void
+    {
+        $this->client(self::CLIENT_ID, ' ', ' ', null, null, null, null, legalName: 'Refuge des Collines', civility: 'mister');
+
+        $payer = $this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID);
+
+        self::assertNotNull($payer);
+        self::assertSame('Refuge des Collines', $payer->displayName);
+        self::assertNull($payer->attention);
+    }
+
+    public function testAPersonHasNoAttention(): void
+    {
+        $this->client(self::CLIENT_ID, 'Sophie', 'Dupont', null, null, null, null, civility: 'madam');
+
+        $payer = $this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID);
+
+        self::assertNotNull($payer);
+        self::assertSame('Sophie Dupont', $payer->displayName);
+        self::assertNull($payer->attention);
+    }
+
     private function phone(string $clientId, string $phone): void
     {
         $this->connection->insert('client__contact_methods', [
@@ -231,6 +279,8 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         ?string $zip,
         ?string $city,
         string $status = 'active',
+        ?string $legalName = null,
+        string $civility = 'unspecified',
     ): void {
         $this->connection->insert('client__clients', [
             'id'                           => Uuid::fromString($clientId)->toBinary(),
@@ -246,6 +296,8 @@ final class DbalPayerDirectoryTest extends KernelTestCase
             'postal_address_city'          => $city,
             'postal_address_country_code'  => 'FR',
             'version'                      => 1,
+            'legal_name'                   => $legalName,
+            'civility'                     => $civility,
         ]);
     }
 }

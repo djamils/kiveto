@@ -39,6 +39,8 @@ final readonly class CreditNoteDetails
         public int $refundedMinorUnits,
         public \DateTimeImmutable $issuedAt,
         public ?string $issuedByUserId,
+        /** « À l'attention de » line under a structure's name. */
+        public ?string $payerAttention = null,
     ) {
     }
 }

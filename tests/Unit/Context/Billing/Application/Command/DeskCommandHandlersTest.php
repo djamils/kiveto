@@ -10,6 +10,7 @@ use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPending
 use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPendingChequesHandler;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNote;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNoteHandler;
+use App\Context\Billing\Application\Command\RecordCounterSale\ClientTaxProfileInput;
 use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSaleHandler;
@@ -566,6 +567,78 @@ final class DeskCommandHandlersTest extends TestCase
 
         self::assertSame(3, $view->number);
         self::assertSame('2026-10-14', $view->businessDate);
+    }
+
+    public function testANewProfessionalIsBilledUnderItsLegalNameToItsContact(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('clientWithPhone')->willReturn(null);
+        $payers->expects(self::once())->method('forClient')->with(self::CLIENT, self::CLINIC_ID)
+            ->willReturn(new PayerSnapshotDto(self::CLIENT, 'Élevage des Calanques', ['13400 Aubagne'], 'Mme Claire Rostand'))
+        ;
+
+        $professional = new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788'));
+        $registry     = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->with(self::CLINIC_ID, $professional)->willReturn(self::CLIENT);
+
+        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: $professional));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Élevage des Calanques', $saved->payer()->displayName());
+        self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+        self::assertSame(['13400 Aubagne'], $saved->payer()->addressLines());
+        self::assertSame(CounterSalePayer::NEW_CLIENT, $saved->counterSalePayer());
+    }
+
+    public function testANewProfessionalNotReadBackIsBilledUnderItsContactName(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(null);
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->method('register')->willReturn(self::CLIENT);
+
+        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Marchal', 'Hugo', email: 'hugo@lac.fr', taxProfile: new ClientTaxProfileInput('french_business', 'Centre équestre du Lac', '812345676'))));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Hugo Marchal', $saved->payer()->displayName());
+        self::assertNull($saved->payer()->attention());
+    }
+
+    public function testAClientOnFileCarriesTheAttentionOfTheirSnapshot(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(new PayerSnapshotDto(self::CLIENT, 'Élevage des Calanques', [], 'Mme Claire Rostand'));
+
+        $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, self::CLIENT, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+    }
+
+    public function testAMobileIsToldApartFromALandline(): void
+    {
+        self::assertTrue(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0718427731')->hasMobile());
+        self::assertFalse(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0491000000')->hasMobile());
+        self::assertFalse(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia')->isProfessional());
     }
 
     // ── Helpers ──

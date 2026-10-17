@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Billing\Infrastructure\Adapter;
 
+use App\Context\Billing\Application\Command\RecordCounterSale\ClientTaxProfileInput;
 use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
@@ -45,6 +46,39 @@ final class CommandBusCounterClientRegistryTest extends TestCase
 
         self::assertInstanceOf(CreateClient::class, $sent[0]);
         self::assertSame(['email'], array_map(static fn ($c): string => $c->type, $sent[0]->contactMethods));
+    }
+
+    public function testAProfessionalTravelsWithItsTaxProfileAndWorkContacts(): void
+    {
+        $sent = [];
+
+        new CommandBusCounterClientRegistry($this->bus($sent))->register(self::CLINIC_ID, new CounterSaleNewClient(
+            CounterSaleNewClient::MADAM,
+            'Rostand',
+            'Claire',
+            '0491000000',
+            'contact@calanques.fr',
+            new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788', 'FR31523456788'),
+        ));
+
+        self::assertCount(1, $sent);
+        self::assertInstanceOf(CreateClient::class, $sent[0]);
+        self::assertSame(['work', 'work'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
+        self::assertNotNull($sent[0]->taxProfile);
+        self::assertSame('french_business', $sent[0]->taxProfile->status);
+        self::assertSame('Élevage des Calanques', $sent[0]->taxProfile->legalName);
+        self::assertSame('523456788', $sent[0]->taxProfile->siren);
+        self::assertSame('FR31523456788', $sent[0]->taxProfile->vatNumber);
+    }
+
+    public function testAProfessionalsMobileStaysAMobile(): void
+    {
+        $sent = [];
+
+        new CommandBusCounterClientRegistry($this->bus($sent))->register(self::CLINIC_ID, new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Marchal', 'Hugo', '0611223344', taxProfile: new ClientTaxProfileInput('french_business', 'Centre équestre du Lac', '812345676')));
+
+        self::assertInstanceOf(CreateClient::class, $sent[0]);
+        self::assertSame(['mobile'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
     }
 
     /**

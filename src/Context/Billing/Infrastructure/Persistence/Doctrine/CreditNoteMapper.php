@@ -41,6 +41,7 @@ final readonly class CreditNoteMapper
                 null !== $payer ? PayerId::fromString($payer->toRfc4122()) : null,
                 $entity->getPayerName(),
                 $entity->getPayerAddressLines(),
+                $entity->getPayerAttention(),
             ),
             lines: array_map(fn (array $line): InvoiceLine => $this->lineToDomain($line, $currency), $entity->getLines()),
             reason: $entity->getReason(),
@@ -66,6 +67,7 @@ final readonly class CreditNoteMapper
         $entity->setPayerClientId(null !== $payer ? Uuid::fromString($payer->toString()) : null);
         $entity->setPayerName($creditNote->payer()->displayName());
         $entity->setPayerAddressLines($creditNote->payer()->addressLines());
+        $entity->setPayerAttention($creditNote->payer()->attention());
         $entity->setLines(array_map(fn (InvoiceLine $line): array => $this->lineToArray($line), $creditNote->lines()));
         $entity->setReason($creditNote->reason());
         $entity->setRefundMethod($creditNote->refundMethod());

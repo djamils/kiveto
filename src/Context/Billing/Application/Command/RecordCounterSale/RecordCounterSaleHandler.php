@@ -38,7 +38,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * no visit behind it; it is made out to the client chosen, to the newcomer
  * whose record it creates (unless their phone already belongs to a client),
  * or — when the client refuses to give any contact details — to nobody, the
- * refusal being kept with the sale.
+ * refusal being kept with the sale. A professional is billed under its legal
+ * name, to the attention of its contact.
  */
 #[AsMessageHandler]
 final readonly class RecordCounterSaleHandler
@@ -166,14 +167,16 @@ final readonly class RecordCounterSaleHandler
                 null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
                 $snapshot->displayName,
                 $snapshot->addressLines,
+                $snapshot->attention,
             ),
             CounterSalePayer::CLIENT,
         ];
     }
 
     /**
-     * Opens the newcomer's record — a name, and a mobile or an e-mail to find
-     * and reach them by — and makes the invoice out to them.
+     * Opens the newcomer's record — a name, and a phone or an e-mail to find
+     * and reach them by — and makes the invoice out to them. A professional is
+     * read back from its record, to be billed under its legal name.
      */
     private function register(string $clinicId, CounterSaleNewClient $client): Payer
     {
@@ -188,6 +191,14 @@ final readonly class RecordCounterSaleHandler
         }
 
         $clientId = $this->clientRegistry->register($clinicId, $client);
+
+        if ($client->isProfessional()) {
+            $snapshot = $this->payerDirectory->forClient($clientId, $clinicId);
+
+            if (null !== $snapshot) {
+                return Payer::create(PayerId::fromString($clientId), $snapshot->displayName, $snapshot->addressLines, $snapshot->attention);
+            }
+        }
 
         return Payer::create(PayerId::fromString($clientId), $client->displayName());
     }

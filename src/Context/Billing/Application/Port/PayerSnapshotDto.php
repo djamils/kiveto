@@ -13,6 +13,8 @@ final readonly class PayerSnapshotDto
         public ?string $clientId,
         public string $displayName,
         public array $addressLines = [],
+        // A structure's contact person, « Mme Claire Rostand »; null for a person.
+        public ?string $attention = null,
     ) {
     }
 }

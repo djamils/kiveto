@@ -300,7 +300,7 @@ export function init() {
       : st === 'brou' ? 'Document provisoire — non valable comme facture.' : 'Règlement à réception.'}`;
     return `${st === 'brou' ? '<div class="wm">BROUILLON</div>' : ''}
       <div class="pp-head">${entete}<div class="r"><div class="pp-doc">${av ? 'Avoir' : 'Facture'}</div><p>N° ${esc(o.num || '— (à l\'encaissement)')}<br>Date : ${fmtD(o.d)}<br>${av ? `Sur facture ${esc(o.origin.num)}` : 'Praticien : ' + esc(o.vet ? o.vet.n : '—')}</p></div></div>
-      <div class="pp-meta"><div><p class="k">Client</p><p><b>${esc(c.n)}</b>${(c.adr || []).length ? '<br>' + c.adr.map(esc).join('<br>') : ''}</p></div><div><p class="k">${o.anis.length > 1 ? 'Animaux' : 'Animal'}</p><p>${animauxNoms(o).map(n => `<b>${esc(n)}</b>`).join('<br>') || '—'}</p></div></div>
+      <div class="pp-meta"><div><p class="k">Client</p><p><b>${esc(c.n)}</b>${c.att ? `<br>À l'attention de ${esc(c.att)}` : ''}${(c.adr || []).length ? '<br>' + c.adr.map(esc).join('<br>') : ''}</p></div><div><p class="k">${o.anis.length > 1 ? 'Animaux' : 'Animal'}</p><p>${animauxNoms(o).map(n => `<b>${esc(n)}</b>`).join('<br>') || '—'}</p></div></div>
       <table class="pp-tab"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU TTC</th><th class="n">TVA</th><th class="n">Total TTC</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="pp-tot">${o.remise ? `<div><span>Remise${o.remise.motif ? ` (${esc(o.remise.motif)})` : ''}</span><span>−${fmtE(o.remise.m)} HT</span></div>` : ''}${tva}
         <div class="g"><span>Total TTC</span><span>${sign}${fmtE(o.tot)}</span></div>${reste}</div>

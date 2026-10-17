@@ -6,14 +6,15 @@ namespace App\Context\Billing\Infrastructure\Adapter\Client;
 
 use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
+use App\Context\Client\Application\Command\CreateClient\ClientTaxProfileDto;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 /**
  * Asks the Client context to open the record, in a single command: the
- * civility, the mobile and the e-mail given at the desk (each the primary
- * one of its kind).
+ * civility, the phone and the e-mail given at the desk (each the primary
+ * one of its kind) and, for a professional, its tax profile.
  */
 final readonly class CommandBusCounterClientRegistry implements CounterClientRegistryInterface
 {
@@ -26,11 +27,13 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
         $contacts = [];
 
         if ('' !== $client->phone) {
-            $contacts[] = new ContactMethodDto(type: 'phone', label: 'mobile', value: $client->internationalPhone(), isPrimary: true);
+            // A professional may leave its landline; a person gives a mobile.
+            $label      = $client->isProfessional() && !$client->hasMobile() ? 'work' : 'mobile';
+            $contacts[] = new ContactMethodDto(type: 'phone', label: $label, value: $client->internationalPhone(), isPrimary: true);
         }
 
         if ('' !== $client->email) {
-            $contacts[] = new ContactMethodDto(type: 'email', label: 'home', value: $client->email, isPrimary: true);
+            $contacts[] = new ContactMethodDto(type: 'email', label: $client->isProfessional() ? 'work' : 'home', value: $client->email, isPrimary: true);
         }
 
         $clientId = $this->commandBus->dispatch(new CreateClient(
@@ -39,6 +42,12 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
             lastName: $client->lastName,
             contactMethods: $contacts,
             civility: $client->civility,
+            taxProfile: null === $client->taxProfile ? null : new ClientTaxProfileDto(
+                status: $client->taxProfile->status,
+                legalName: $client->taxProfile->legalName,
+                siren: $client->taxProfile->siren,
+                vatNumber: $client->taxProfile->vatNumber,
+            ),
         ));
         \assert(\is_string($clientId));
 
