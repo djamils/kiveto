@@ -26,6 +26,9 @@ class SearchEntryEntity
     #[ORM\Column(length: 255)]
     private string $lastName;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $legalName = null;
+
     #[ORM\Column(length: 255)]
     private string $searchName;
 
@@ -81,6 +84,16 @@ class SearchEntryEntity
     public function getLastName(): string
     {
         return $this->lastName;
+    }
+
+    public function getLegalName(): ?string
+    {
+        return $this->legalName;
+    }
+
+    public function setLegalName(?string $legalName): void
+    {
+        $this->legalName = $legalName;
     }
 
     public function getSearchName(): string

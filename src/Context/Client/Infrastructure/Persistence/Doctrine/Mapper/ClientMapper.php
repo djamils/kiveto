@@ -10,6 +10,8 @@ use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
+use App\Context\Client\Domain\ValueObject\ClientTaxProfile;
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
 use App\Context\Client\Domain\ValueObject\Consent;
@@ -21,8 +23,10 @@ use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddr
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
 use App\Shared\Domain\ValueObject\EmailAddress;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
 use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\Shared\Domain\ValueObject\PostalAddress;
+use App\Shared\Domain\ValueObject\Siren;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class ClientMapper
@@ -54,6 +58,7 @@ final readonly class ClientMapper
             postalAddress: $postalAddress,
             authorizedPerson: $this->authorizedPersonToDomain($entity),
             communicationPreferences: $this->communicationPreferencesToDomain($entity),
+            taxProfile: $this->taxProfileToDomain($entity),
         );
     }
 
@@ -68,6 +73,10 @@ final readonly class ClientMapper
         $clientEntity->setFirstName($client->identity()->firstName);
         $clientEntity->setLastName($client->identity()->lastName);
         $clientEntity->setCivility($client->identity()->civility->value);
+        $clientEntity->setTaxStatus($client->taxProfile()->status());
+        $clientEntity->setLegalName($client->taxProfile()->legalName());
+        $clientEntity->setSiren($client->taxProfile()->siren()?->value());
+        $clientEntity->setVatNumber($client->taxProfile()->vatNumber()?->value());
         $clientEntity->setStatus($client->status());
         $clientEntity->setCreatedAt($client->createdAt());
         $clientEntity->setUpdatedAt($client->updatedAt());
@@ -87,6 +96,22 @@ final readonly class ClientMapper
             'client'         => $clientEntity,
             'contactMethods' => $contactMethodEntities,
         ];
+    }
+
+    private function taxProfileToDomain(ClientEntity $entity): ClientTaxProfile
+    {
+        if (ClientTaxStatus::INDIVIDUAL === $entity->getTaxStatus()) {
+            return ClientTaxProfile::individual($entity->getLegalName());
+        }
+
+        $siren     = Siren::fromInput((string) $entity->getSiren());
+        $vatNumber = $entity->getVatNumber();
+
+        return ClientTaxProfile::frenchBusiness(
+            (string) $entity->getLegalName(),
+            $siren,
+            null === $vatNumber ? null : FrenchVatNumber::fromInput($vatNumber, $siren),
+        );
     }
 
     private function authorizedPersonToDomain(ClientEntity $entity): ?AuthorizedPerson

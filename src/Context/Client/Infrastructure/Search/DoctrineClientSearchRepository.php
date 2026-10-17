@@ -15,7 +15,7 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClientSearchRepository implements ClientSearchRepositoryInterface
 {
-    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name'
+    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name, legal_name'
         . ', search_phone, primary_email, status FROM client__search_entries';
 
     public function __construct(
@@ -97,6 +97,7 @@ final readonly class DoctrineClientSearchRepository implements ClientSearchRepos
                     ? $row['primary_email']
                     : null,
                 status: $row['status'],
+                legalName: isset($row['legal_name']) && \is_string($row['legal_name']) ? $row['legal_name'] : null,
             );
         }
 

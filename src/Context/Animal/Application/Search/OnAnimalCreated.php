@@ -41,7 +41,7 @@ final readonly class OnAnimalCreated
         if (isset($payload['primaryOwnerClientId']) && \is_string($payload['primaryOwnerClientId'])) {
             $ownerBinary = Uuid::fromString($payload['primaryOwnerClientId'])->toBinary();
             $ownerRow    = $conn->fetchAssociative(
-                "SELECT CONCAT(first_name, ' ', last_name) AS name FROM client__clients WHERE id = :id",
+                "SELECT COALESCE(NULLIF(legal_name, ''), CONCAT(first_name, ' ', last_name)) AS name FROM client__clients WHERE id = :id",
                 ['id' => $ownerBinary],
             );
 

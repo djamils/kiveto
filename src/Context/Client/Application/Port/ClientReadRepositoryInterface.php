@@ -37,6 +37,14 @@ interface ClientReadRepositoryInterface
     public function findIdsByPhone(ClinicId $clinicId, string $phone): array;
 
     /**
+     * The clients of the clinic, archived ones included, carrying this
+     * (normalised, 9-digit) SIREN, oldest record first.
+     *
+     * @return list<string> client ids
+     */
+    public function findIdsBySiren(ClinicId $clinicId, string $siren): array;
+
+    /**
      * @param list<string> $clientIds UUID strings
      *
      * @return array<string, string> clientId => fullName

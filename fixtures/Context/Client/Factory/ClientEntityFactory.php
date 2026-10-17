@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Fixtures\Context\Client\Factory;
 
 use App\Context\Client\Domain\ValueObject\ClientStatus;
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddressEmbeddable;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use Symfony\Component\Uid\Uuid;
@@ -42,6 +43,20 @@ final class ClientEntityFactory extends PersistentProxyObjectFactory
     public function withCivility(string $civility): self
     {
         return $this->with(['civility' => $civility]);
+    }
+
+    /**
+     * A structure: legal name, and for a VAT-liable French business its SIREN
+     * and optional VAT number (the person identity becomes the contact).
+     */
+    public function withTaxProfile(ClientTaxStatus $status, ?string $legalName, ?string $siren = null, ?string $vatNumber = null): self
+    {
+        return $this->with([
+            'taxStatus' => $status,
+            'legalName' => $legalName,
+            'siren'     => $siren,
+            'vatNumber' => $vatNumber,
+        ]);
     }
 
     /** Client on file since that date (last changed on the same day unless told otherwise). */

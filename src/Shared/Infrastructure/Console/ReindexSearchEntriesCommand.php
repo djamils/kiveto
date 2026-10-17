@@ -120,6 +120,7 @@ final class ReindexSearchEntriesCommand extends Command
                 BIN_TO_UUID(c.clinic_id) AS clinic_id,
                 c.first_name,
                 c.last_name,
+                c.legal_name,
                 c.status,
                 cm_phone.value           AS phone,
                 cm_email.value           AS email
@@ -155,6 +156,7 @@ final class ReindexSearchEntriesCommand extends Command
                     ? $row['email']
                     : null,
                 status: $row['status'],
+                legalName: \is_string($row['legal_name']) ? $row['legal_name'] : null,
             ));
 
             $io->progressAdvance();

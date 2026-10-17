@@ -19,11 +19,25 @@ final class OnClientIdentityUpdatedTest extends TestCase
         $writer = $this->createMock(ClientSearchEntryWriterInterface::class);
         $writer->expects(self::once())
             ->method('updateName')
-            ->with($clientId, $clinicId, 'Pierre', 'Martin')
+            ->with($clientId, $clinicId, 'Pierre', 'Martin', null)
         ;
 
         $event   = new ClientIdentityUpdated($clientId, $clinicId, 'Pierre', 'Martin');
         $handler = new OnClientIdentityUpdated($writer);
         $handler($event);
+    }
+
+    public function testTheLegalNameOfAStructureIsKept(): void
+    {
+        $clientId = '01912345-6789-7abc-8def-000000000001';
+        $clinicId = '01912345-6789-7abc-8def-000000000002';
+
+        $writer = $this->createMock(ClientSearchEntryWriterInterface::class);
+        $writer->expects(self::once())
+            ->method('updateName')
+            ->with($clientId, $clinicId, 'Claire', 'Rostand', 'Élevage des Calanques')
+        ;
+
+        new OnClientIdentityUpdated($writer)(new ClientIdentityUpdated($clientId, $clinicId, 'Claire', 'Rostand', 'madam', 'Élevage des Calanques'));
     }
 }

@@ -46,7 +46,7 @@ final readonly class ClientSearchProvider implements SearchProviderInterface
         $hits = array_map(fn (ClientSearchRow $row) => new SearchHit(
             id: $row->id,
             resourceId: $row->id,
-            title: $row->firstName . ' ' . $row->lastName,
+            title: $row->legalName ?? $row->firstName . ' ' . $row->lastName,
             subtitle: $row->searchPhone,
             context: $row->primaryEmail,
             metadata: ['status' => $row->status],

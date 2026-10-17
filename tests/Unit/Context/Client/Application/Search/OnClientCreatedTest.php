@@ -27,7 +27,8 @@ final class OnClientCreatedTest extends TestCase
                     && 'Curie' === $data->lastName
                     && '0612345678' === $data->phone
                     && 'marie@example.com' === $data->email
-                    && 'active' === $data->status;
+                    && 'active' === $data->status
+                    && null === $data->legalName;
             }))
         ;
 
@@ -44,5 +45,23 @@ final class OnClientCreatedTest extends TestCase
 
         $handler = new OnClientCreated($writer);
         $handler($event);
+    }
+
+    public function testAStructureIsIndexedWithItsLegalName(): void
+    {
+        $writer = $this->createMock(ClientSearchEntryWriterInterface::class);
+        $writer->expects(self::once())
+            ->method('upsert')
+            ->with(self::callback(static fn (ClientSearchEntryData $data): bool => 'Élevage des Calanques' === $data->legalName))
+        ;
+
+        new OnClientCreated($writer)(new ClientCreated(
+            clientId: '01912345-6789-7abc-8def-000000000001',
+            clinicId: '01912345-6789-7abc-8def-000000000002',
+            firstName: 'Claire',
+            lastName: 'Rostand',
+            contactMethods: [['type' => 'email', 'label' => 'work', 'value' => 'claire@calanques.fr', 'isPrimary' => true]],
+            legalName: 'Élevage des Calanques',
+        ));
     }
 }

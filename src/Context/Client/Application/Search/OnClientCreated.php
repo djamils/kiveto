@@ -36,6 +36,7 @@ final readonly class OnClientCreated
             phone: $phone,
             email: $email,
             status: 'active',
+            legalName: \is_string($payload['legalName'] ?? null) ? $payload['legalName'] : null,
         ));
     }
 

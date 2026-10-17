@@ -23,7 +23,7 @@ final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterI
     {
         $id     = Uuid::fromString($data->clientId);
         $entity = $this->entityManager->find(SearchEntryEntity::class, $id);
-        $name   = $data->firstName . ' ' . $data->lastName;
+        $name   = self::searchableName($data->firstName, $data->lastName, $data->legalName);
 
         $normalizedPhone = null !== $data->phone
             ? $this->normalizer->normalizePhone($data->phone)
@@ -42,10 +42,12 @@ final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterI
                 updatedAt: new \DateTimeImmutable(),
             );
 
+            $entity->setLegalName($data->legalName);
             $this->entityManager->persist($entity);
         } else {
             $entity->setFirstName($data->firstName);
             $entity->setLastName($data->lastName);
+            $entity->setLegalName($data->legalName);
             $entity->setSearchName($this->normalizer->normalizeText($name));
             $entity->setSearchPhone($normalizedPhone);
             $entity->setPrimaryEmail($data->email);
@@ -61,6 +63,7 @@ final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterI
         string $clinicId,
         string $firstName,
         string $lastName,
+        ?string $legalName,
     ): void {
         $entity = $this->loadOrNull($clientId, $clinicId);
 
@@ -68,9 +71,10 @@ final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterI
             return;
         }
 
-        $name = $firstName . ' ' . $lastName;
+        $name = self::searchableName($firstName, $lastName, $legalName);
         $entity->setFirstName($firstName);
         $entity->setLastName($lastName);
+        $entity->setLegalName($legalName);
         $entity->setSearchName($this->normalizer->normalizeText($name));
         $entity->setUpdatedAt(new \DateTimeImmutable());
 
@@ -122,6 +126,14 @@ final readonly class ClientSearchEntryWriter implements ClientSearchEntryWriterI
         $entity->setUpdatedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
+    }
+
+    /**
+     * A structure is found by its legal name first, then by its contact.
+     */
+    private static function searchableName(string $firstName, string $lastName, ?string $legalName): string
+    {
+        return trim(($legalName ?? '') . ' ' . $firstName . ' ' . $lastName);
     }
 
     private function loadOrNull(string $clientId, string $clinicId): ?SearchEntryEntity
