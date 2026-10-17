@@ -8,13 +8,12 @@ use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClie
 use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
-use App\Context\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 /**
- * Asks the Client context to open the record: the mobile and the e-mail
- * given at the desk (each the primary one of its kind), then the
- * civility.
+ * Asks the Client context to open the record, in a single command: the
+ * civility, the mobile and the e-mail given at the desk (each the primary
+ * one of its kind).
  */
 final readonly class CommandBusCounterClientRegistry implements CounterClientRegistryInterface
 {
@@ -39,10 +38,9 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
             firstName: $client->firstName,
             lastName: $client->lastName,
             contactMethods: $contacts,
+            civility: $client->civility,
         ));
         \assert(\is_string($clientId));
-
-        $this->commandBus->dispatch(new UpdateClientIdentity($clinicId, $clientId, $client->firstName, $client->lastName, $client->civility));
 
         return $clientId;
     }
