@@ -12,6 +12,7 @@ use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
+use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Fixtures\Context\Client\Factory\ClientEntityFactory;
 use App\Fixtures\Context\Client\Factory\ContactMethodEntityFactory;
 use App\Shared\Domain\ValueObject\EmailAddress;
@@ -220,6 +221,11 @@ final class DoctrineClientRepositoryTest extends KernelTestCase
         self::assertNotNull($updated);
         self::assertSame('Updated', $updated->identity()->firstName);
         self::assertSame('Name', $updated->identity()->lastName);
+
+        // Optimistic locking: every save moves the stored version on.
+        $stored = $doctrine->getManager()->find(ClientEntity::class, Uuid::fromString($clientId));
+        self::assertInstanceOf(ClientEntity::class, $stored);
+        self::assertSame(2, $stored->getVersion());
     }
 
     public function testSavePersistsPostalAddress(): void

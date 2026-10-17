@@ -29,13 +29,9 @@ final readonly class DoctrineClientSearchRepository implements ClientSearchRepos
         $conn         = $this->entityManager->getConnection();
         $clinicBinary = Uuid::fromString($query->clinicId)->toBinary();
 
-        if ($this->normalizer->isPhone($query->term)) {
-            $phone = $this->normalizer->normalizePhone($query->term);
+        $phone = $this->normalizer->isPhone($query->term) ? $this->normalizer->normalizePhone($query->term) : null;
 
-            if (null === $phone) {
-                return [];
-            }
-
+        if (null !== $phone) {
             return $this->searchByPhone($conn, $phone, $clinicBinary, $query->limit);
         }
 
