@@ -1,0 +1,9 @@
+# Test-only services, loaded by MicroKernelTrait when APP_ENV=test.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Probe command and handler used to prove command-bus/outbox atomicity.
+    App\Tests\Integration\System\Messenger\Probe\:
+        resource: '../tests/Integration/System/Messenger/Probe/'

@@ -10,6 +10,50 @@ contains no concrete business `DomainEvent` and never `dispatch()`es
 directly. Dispatch always originates from an aggregate inside a Bounded
 Context.
 
+## Transactional messaging (implicit outbox)
+
+An integration event is never lost between the business commit and the
+queue, without an outbox table or a relay. The guarantee holds because:
+
+1. the `async` transport is `doctrine://default`, i.e. the **same MySQL
+   connection** as the business data (table `shared__messenger_messages`);
+2. the command bus wraps every handler in `doctrine_transaction`;
+3. domain events are dispatched **synchronously** (`messenger.bus.event`,
+   routed to `sync`), including the domain → integration bridges
+   (`*IntegrationBridge`), so the `INSERT` into the messenger table happens
+   inside the command transaction. A failure anywhere in the handler —
+   even after `flush` — rolls back the business rows and the message
+   together.
+
+Rules:
+
+- Never use `DispatchAfterCurrentBusStamp` / `dispatch_after_current_bus`.
+- Domain events stay routed to `sync`; only `IntegrationEventInterface`
+  goes to `async`. Do not route a domain event with `#[AsMessage]`.
+- Every Doctrine transport keeps `auto_setup: false` and the
+  `shared__messenger_messages` table (`failed` included, told apart by
+  `queue_name`): runtime DDL would implicitly commit an open MySQL
+  transaction. Tables are created by migrations only.
+
+Guards:
+
+| Guarantee | Test |
+|-----------|------|
+| Business rows and message commit/roll back together | `tests/Integration/System/Messenger/CommandBusOutboxAtomicityTest.php` |
+| Doctrine transports: business connection, messenger table, no auto-setup | `tests/Integration/System/Messenger/DoctrineTransportsConfigurationTest.php` |
+| Failure transport stores in the messenger table (`queue_name = failed`) | `tests/Integration/System/Messenger/FailureTransportTest.php` |
+| Domain events → `sync`, integration events → `async` (compiled senders locator) | `tests/Integration/System/Messenger/MessengerRoutingGuardTest.php` |
+| No dispatch-after-bus stamp, bridges on `messenger.bus.event` | `tests/Integration/Shared/TransactionalMessagingConventionTest.php` |
+
+Known gap (tech debt): handlers consumed from
+`messenger.bus.integration_event` run **without** a transaction — each
+`flush` commits on its own.
+
+Worker: `make worker-start` / `make worker-stop` / `make worker-logs`
+run the `messenger-worker` compose service (profile `workers`), which
+consumes the `async` transport. On first start it may process a backlog
+of events never consumed in dev.
+
 ## Responsabilités
 
 - **Domain Events**: Infrastructure pour les événements de domaine (enregistrement, métadonnées, versionning)
