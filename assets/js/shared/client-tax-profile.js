@@ -71,8 +71,9 @@ export function toPayload(s) {
  * {siren, error, items: cards}) for the SIREN check and the duplicate-SIREN
  * warning, `onCheck()` (runs when its answer arrives; `onChange` by default),
  * `self` (a client id the warning ignores), `lockFisc` (status not
- * changeable), `structureOnly` (legal name required whatever the status,
- * e.g. the counter « Professionnel » tab).
+ * changeable), `hideStatus` (no status selector: the host page sets
+ * `state.fisc` itself), `structureOnly` (legal name required whatever the
+ * status, e.g. the counter « Professionnel » tab).
  * Returns {showErrors(), refresh(), focus()}.
  */
 export function mount(root, state, onChange = () => {}, opts = {}) {
@@ -92,6 +93,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
       b.setAttribute('aria-checked', String(on));
       b.disabled = !!opts.lockFisc && !on;
     });
+    q('.fisc-opts').hidden = !!opts.hideStatus;
     q('[data-pro]').hidden = !pro;
     const rsReq = pro || !!opts.structureOnly;
     q('[data-rs-req]').hidden = !rsReq;

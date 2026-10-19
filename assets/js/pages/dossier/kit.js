@@ -169,7 +169,7 @@ export function carte(el, o, cartes, signal) {
   el.addEventListener('click', e => {
     if (e.target.closest('.bmod')) {
       o.edit = true; o.dirty = false; o.avant && o.avant(); o.rendre();
-      setTimeout(() => { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); el.querySelector('.fg input:not([data-addin]),.fg textarea')?.focus({ preventScroll: true }); }, 30);
+      setTimeout(() => { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); el.querySelector('.fg input:not([data-addin]):not(:disabled),.fg textarea')?.focus({ preventScroll: true }); }, 30);
       return;
     }
     if (e.target.closest('[data-ann]')) { o.edit = false; o.dirty = false; o.rendre(); return; }

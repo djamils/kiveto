@@ -17,7 +17,7 @@ import {
   esc, dates, MOIS, JC, fmtE, fmtQ, IC, icT, MASK, chiffres, champ, lireChamps, masquesLive,
   carte, marquer, flashSaved, menu, ouvrirModale, fermerModales, bindModales, lignes, fonduRail,
 } from 'pages/dossier/kit';
-import { mount as monterFisc, toPayload as fiscPayload, PRO } from 'kiveto/client-tax-profile';
+import { mount as monterFisc, toPayload as fiscPayload, vatKey, PRO } from 'kiveto/client-tax-profile';
 
 let ac = null;
 
@@ -411,30 +411,234 @@ export function init() {
     f.requestSubmit();
   }
 
-  /* The tax profile: the shared block (kiveto/client-tax-profile) in edit mode. */
+  /*
+   * The tax profile (client-v-topbar-busy_6). The card renders every state
+   * of the mock-up from what the server sends (ClientSheetBuilder::
+   * taxProfileView): what it does not know yet — directory record, VIES,
+   * public bodies, foreign clients, who changed it — comes empty and those
+   * parts show as coming soon. Without the directory, the legal name, SIREN
+   * and VAT are typed in the shared block (kiveto/client-tax-profile).
+   */
   const F = S.fisc;
-  let FS = null, FUI = null;
+  const FZT = {
+    part: ['Particulier', 'Une personne, sans activité professionnelle'],
+    ent: ['Entreprise ou association', 'Élevage, centre équestre, refuge, toiletteur…'],
+    pub: ['Organisme public', 'Mairie, fourrière, gendarmerie, État', 'Les organismes publics (Chorus Pro) ne sont pas encore pris en charge'],
+    etr: ['Client établi à l\'étranger', 'Professionnel hors de France', 'Les clients établis à l\'étranger ne sont pas encore pris en charge'],
+  };
+  const FZI = {
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    i: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+    f: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',
+  };
+  const CHEV = '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  /* Country, label, VAT prefix (none outside the EU). */
+  const PAYS = [['BE', 'Belgique', 'BE'], ['CH', 'Suisse', ''], ['DE', 'Allemagne', 'DE'], ['ES', 'Espagne', 'ES'], ['IT', 'Italie', 'IT'], ['LU', 'Luxembourg', 'LU'], ['MC', 'Monaco', 'FR'], ['GB', 'Royaume-Uni', '']];
+  const norm = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const tvaFR = s => 'FR' + vatKey(s) + s;
+  const fmtS = d => String(d).replace(/(\d{3})(?=\d)/g, '$1 ');
+  const fmtSiret = d => fmtS(d.slice(0, 9)) + ' ' + d.slice(9);
+  const fmtTva = t => t.replace(/^FR(\d\d)/, 'FR $1 ');
+  const aeDefaut = (e, siret) => (!e.ann ? '' : (e.ann.adrs.find(a => a.id.endsWith('_' + siret)) || e.ann.adrs[0]).id);
+  const aeDe = (e, id) => e.ann && e.ann.adrs.find(a => a.id === id);
+  const fmtAe = id => id.replace(/^(\d{3})(\d{3})(\d{3})/, '$1 $2 $3').replace('_', ' · ');
+  const vies = v => (v === true ? '<span class="ok">✓ VIES</span>' : v === false ? '<span class="ko">✗ VIES</span>'
+    : '<span class="nv" data-tip="La vérification du n° de TVA dans VIES n\'est pas encore branchée">VIES bientôt</span>');
+  /* A dropdown that lists what the directory returns, greyed out until it is wired. */
+  const ddBientot = (label, txt, tip, aide = '') => `<div><label class="flbl">${label}</label><div class="dd off" data-tip="${esc(tip)}"><button type="button" class="dd-btn" aria-disabled="true" tabindex="-1"><span>${txt}</span>${CHEV}</button></div>${aide ? `<small class="fz-aide">${aide}</small>` : ''}</div>`;
+  /* What the status means for the invoice: the sentence read first. */
+  function circuit(f) {
+    const live = F.efacture;
+    if (f.t === 'part') return live ? 'Factures classiques (PDF) · ventes déclarées en e-reporting, automatiquement' : 'Factures classiques (PDF) · e-reporting des ventes bientôt disponible';
+    if (f.t === 'etr') return live ? 'Factures classiques (PDF) · opérations déclarées en e-reporting international' : 'Factures classiques (PDF) · e-reporting international bientôt disponible';
+    if (f.t === 'pub') return 'Factures électroniques vers Chorus Pro, avec code service et n° d\'engagement';
+    if (!f.ass) return live ? 'Non assujettie à la TVA : factures classiques · e-reporting' : 'Non assujettie à la TVA : factures classiques (PDF)';
+    return live ? 'Factures électroniques via plateforme agréée' : 'Factures classiques (PDF) pour l\'instant · la facture électronique via plateforme agréée arrive bientôt';
+  }
+  const radiee = (e, suite) => `<div class="fz-st ko">${FZI.i}<div><b>Entreprise radiée le ${e.cesse.split('-').reverse().join('/')}</b>${suite}</div></div>`;
+  let FS = null, FUI = null, fzSeq = 0;
+
+  function lireFisc() {
+    const f = F, phrase = circuit(f);
+    if (f.t === 'part') return `<div class="fz-h"><b>${esc(nomC())}</b><span class="fz-tag">Particulier</span></div><div class="fz-st">${FZI.f}<div>${phrase}.</div></div>`;
+    if (f.t === 'etr') {
+      const p = PAYS.find(x => x[0] === f.pays);
+      return `<div class="fz-h"><b>${esc(f.rs)}</b><span class="fz-tag etr">${esc(p ? p[1] : f.pays)}</span></div><dl class="fz-kv"><dt>TVA</dt><dd>${esc(f.tva || '—')}${f.tva ? vies(f.vies) : ''}</dd></dl><div class="fz-st">${FZI.f}<div>${phrase}.</div></div>`;
+    }
+    const e = f.ent;
+    const tag = f.t === 'pub' ? '<span class="fz-tag pub">Organisme public</span>'
+      : !f.ass ? `<span class="fz-tag">${e ? esc(e.forme) + ' · non assujettie' : 'Non assujettie'}</span>` : '<span class="fz-tag pro">Assujettie à la TVA</span>';
+    if (!e) {
+      // No directory record yet: what is stored.
+      if (!f.ass) return `<div class="fz-h"><b>${esc(f.rs)}</b>${tag}</div><div class="fz-st">${FZI.f}<div>${phrase}.</div></div>`;
+      return `<div class="fz-h"><b>${esc(f.rs)}</b>${tag}</div>
+        <dl class="fz-kv">${f.siret ? `<dt>SIRET</dt><dd>${fmtSiret(f.siret)}</dd>` : `<dt>SIREN</dt><dd>${esc(f.sirenAff)}</dd>`}<dt>TVA</dt><dd>${f.tvaAff ? `${esc(f.tvaAff)}${vies(f.vies)}` : '<span class="nv seul">Pas de n° de TVA</span>'}</dd></dl>
+        <div class="fz-st">${FZI.i}<div><b>Annuaire de la facturation électronique</b> · pas encore consulté : ses factures restent classiques (PDF) en attendant.</div></div>`;
+    }
+    const et = e.ets.find(x => x.siret === f.siret) || e.ets[0];
+    let st;
+    if (e.cesse) st = radiee(e, ' · vérifiez avec le client avant toute facture.');
+    else if (f.t === 'pub') st = `<div class="fz-st info">${FZI.ok}<div><b>Chorus Pro</b> · service ${esc(f.svc)}. Le n° d'engagement est demandé à chaque facture.</div></div>`;
+    else if (!f.ass) st = `<div class="fz-st">${FZI.f}<div>${phrase}.</div></div>`;
+    else if (e.ann) { const ae = aeDe(e, f.ae) || e.ann.adrs[0]; st = `<div class="fz-st ok">${FZI.ok}<div><b>Adresse électronique ${esc(fmtAe(ae.id))}</b> · ${esc(ae.l.toLowerCase())}, reçue via ${esc(ae.pa)}. Vérifié dans l'annuaire ${esc(f.verif || 'aujourd\'hui')}.</div></div>`; }
+    else st = `<div class="fz-st warn">${FZI.i}<div><b>Pas encore inscrite à l'annuaire</b> · ses factures restent en attente de dépôt jusqu'à son inscription. Kiveto revérifie chaque nuit.</div></div>`;
+    const tva = f.tva || tvaFR(e.siren);
+    return `<div class="fz-h"><b>${esc(e.n)}</b>${tag}</div>
+      <dl class="fz-kv"><dt>SIRET</dt><dd>${fmtSiret(et.siret)} · ${esc(et.l)}</dd>${f.t === 'ent' && f.ass ? `<dt>TVA</dt><dd>${fmtTva(tva)}${vies(f.vies)}</dd>` : ''}${f.t === 'pub' ? `<dt>Service</dt><dd>${esc(f.svc)}</dd>` : ''}</dl>
+      <div style="margin-top:9px">${st}</div>
+      ${f.t === 'pub' ? '<div class="fz-lines"><div class="fz-line"><span>Référence</span><b>N° d\'engagement exigé sur chaque facture</b></div></div>' : ''}`;
+  }
+
+  function editFisc() {
+    const f = FS;
+    let h = `<div class="fz-opts" role="radiogroup" aria-label="Statut fiscal">${Object.entries(FZT).map(([k, [l, sub, tip]]) => {
+      const off = !F.statuts.includes(k);
+      return `<button type="button" class="fz-opt${f.t === k ? ' on' : ''}${off ? ' off' : ''}" data-ft="${k}" role="radio" aria-checked="${f.t === k}"${off ? ` aria-disabled="true" data-tip="${esc(tip ?? 'Pas encore pris en charge')}"` : ''}><span class="rd"></span><span><b>${l}</b><small>${sub}</small></span></button>`;
+    }).join('')}</div>`;
+    if (f.t === 'ent' || f.t === 'pub') {
+      const e = f.e;
+      if (!e) {
+        const quoi = f.t === 'pub' ? 'Organisme' : 'Entreprise ou association';
+        h += F.annuaireUrl
+          ? `<div><label class="flbl">${quoi} <span class="req">*</span></label><div class="fz-res"><input class="finput" id="fzQ" placeholder="Raison sociale ou SIREN…" autocomplete="off" value="${esc(f.q || '')}"><div class="fz-sug" id="fzS"></div></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : nom, adresse et n° de TVA sont repris tels quels.</small></div>`
+          : `<div><label class="flbl">${quoi}</label><div class="fz-res off" data-tip="La recherche dans l'annuaire officiel n'est pas encore branchée : saisissez les informations ci-dessous"><input class="finput" placeholder="Raison sociale ou SIREN…" disabled></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : bientôt disponible.</small></div>`;
+        if (f.t === 'ent' && !F.annuaireUrl) {
+          h += `<div id="fiscBloc"></div>
+            ${ddBientot('Établissement facturé', 'Choisi dans l\'annuaire', 'Le choix de l\'établissement (SIRET) arrive avec l\'annuaire officiel')}
+            <div class="fz-sw"><span class="sw${f.ass ? ' on' : ''}" data-fass role="switch" aria-checked="${f.ass}" tabindex="0"></span><div><b>Assujettie à la TVA</b><small>Une association sans activité lucrative ne l'est généralement pas.</small></div></div>`;
+          if (f.ass) h += ddBientot('Adresse de facturation électronique', 'Lue dans l\'annuaire', 'L\'adresse de facturation électronique arrive avec la facture électronique', 'Adresses déclarées par le client dans l\'annuaire : c\'est par elle que sa plateforme reçoit la facture.');
+        }
+      } else {
+        const dbl = F.clientsSiret[f.siret];
+        h += `<div class="fz-ent"><div><b>${esc(e.n)}</b><small>${esc(e.forme)} · SIREN ${fmtS(e.siren)} · ${esc(e.naf || '')}</small></div><button type="button" class="x" data-fzx>Changer</button></div>`;
+        if (e.cesse) h += radiee(e, ' selon l\'annuaire officiel. Vérifiez auprès du client.');
+        if (e.ets.length > 1) h += '<div><label class="flbl">Établissement facturé <span class="req">*</span></label><div class="dd" id="ddEt"></div></div>';
+        if (dbl) h += `<div class="fz-st warn">${FZI.i}<div><b>Cet établissement est déjà client :</b> ${esc(dbl.n)}.</div><a class="act" href="${esc(dbl.url)}">Ouvrir sa fiche</a></div>`;
+        else {
+          const autre = e.ets.find(x => F.clientsSiret[x.siret]);
+          if (autre) h += `<div class="fz-st">${FZI.i}<div>Même entreprise que <b>${esc(F.clientsSiret[autre.siret].n)}</b> : les deux fiches seront regroupées pour le suivi des impayés.</div></div>`;
+        }
+        if (f.t === 'ent') h += `<div class="fz-sw"><span class="sw${f.ass ? ' on' : ''}" data-fass role="switch" aria-checked="${f.ass}" tabindex="0"></span><div><b>Assujettie à la TVA</b><small>${e.ass ? 'Proposé d\'après sa forme juridique.' : 'Une association sans activité lucrative ne l\'est généralement pas.'}${f.ass && F.vies === true ? ` TVA calculée : ${tvaFR(e.siren)} · ✓ valide (VIES)` : f.ass ? ` TVA calculée : ${tvaFR(e.siren)}` : ''}</small></div></div>`;
+        if (f.t === 'pub') h += '<div><label class="flbl">Service destinataire <span class="req">*</span></label><div class="dd" id="ddSvc"></div><small class="fz-aide">Liste publiée par l\'organisme dans Chorus Pro.</small></div>';
+        if (f.t === 'ent' && f.ass) {
+          if (!e.ann) h += `<div class="fz-st warn">${FZI.i}<div><b>Pas encore inscrite à l'annuaire</b> · aucune adresse électronique déclarée : les factures attendront son inscription, Kiveto revérifie chaque nuit.</div></div>`;
+          else if (e.ann.adrs.length > 1) h += '<div><label class="flbl">Adresse de facturation électronique <span class="req">*</span></label><div class="dd" id="ddAe"></div><small class="fz-aide">Adresses déclarées par le client dans l\'annuaire : c\'est par elle que sa plateforme reçoit la facture.</small></div>';
+          else h += `<div class="fz-st ok">${FZI.ok}<div><b>Adresse électronique ${esc(fmtAe(e.ann.adrs[0].id))}</b> · seule adresse déclarée dans l'annuaire, reçue via ${esc(e.ann.adrs[0].pa)}.</div></div>`;
+        }
+      }
+    }
+    if (f.t === 'etr') {
+      const p = PAYS.find(x => x[0] === f.pays);
+      h += `<div class="f2"><div><label class="flbl">Pays <span class="req">*</span></label><div class="dd" id="ddPays"></div></div><div><label class="flbl">Raison sociale <span class="req">*</span></label><input class="finput" id="fzRs" maxlength="80" value="${esc(f.rs || '')}"></div></div>
+        ${p && p[2] ? `<div><label class="flbl">N° de TVA intracommunautaire <span class="req">*</span></label><input class="finput" id="fzTva" style="font-family:var(--font-data)" placeholder="${p[2]} …" value="${esc(f.tva || '')}"><small class="ferr" id="fzTvaE"></small></div>` : p ? '<p class="fz-aide">Hors Union européenne : pas de n° de TVA intracommunautaire.</p>' : ''}`;
+    }
+    const phrase = circuit(f.t === 'ent' && !f.e && !f.rs && F.annuaireUrl ? { t: 'ent', ass: true } : f);
+    h += `<div class="fz-st info">${FZI.f}<div><b>Pour la facture :</b> ${phrase.charAt(0).toLowerCase() + phrase.slice(1)}.</div></div><p class="fz-aide">Les factures déjà émises ne changent pas${F.trace ? ' ; le changement est noté dans l\'historique' : ''}.</p>`;
+    return h;
+  }
+
+  function monteFisc() {
+    const f = FS, e = f.e, m = () => marquer(CARTES.cFisc);
+    f.fisc = (f.t === 'ent' && f.ass) ? PRO : 'ind';
+    FUI = $('fiscBloc') ? monterFisc($('fiscBloc'), f, m, { sirenUrl: F.dblUrl, self: C.id, onCheck: () => {}, structureOnly: true, hideStatus: true }) : null;
+    if (e && e.ets.length > 1 && $('ddEt')) creerDropdown($('ddEt'), e.ets.map(x => ({ v: x.siret, l: `${x.l} · ${x.a}` })), f.siret, v => { f.siret = v; f.ae = aeDefaut(e, v); m(); CARTES.cFisc.rendre(); });
+    if ($('ddSvc')) creerDropdown($('ddSvc'), (e.services || []).map(([v, l]) => ({ v, l: `${l} · ${v}` })), f.svc || '', v => { f.svc = v; m(); }, 'Choisissez le service');
+    if ($('ddAe')) creerDropdown($('ddAe'), e.ann.adrs.map(a => ({ v: a.id, l: `${fmtAe(a.id)} · ${a.l} · via ${a.pa}` })), f.ae, v => { f.ae = v; m(); });
+    if ($('ddPays')) creerDropdown($('ddPays'), PAYS.map(([v, l]) => ({ v, l })), f.pays || '', v => { f.pays = v; f.tva = ''; m(); CARTES.cFisc.rendre(); }, 'Choisissez le pays');
+  }
+
+  function validerFisc() {
+    const f = FS;
+    const err = (id, msg) => { $(id)?.classList.add('ko'); showToast(msg); return null; };
+    if (FUI && !FUI.showErrors()) return null;
+    if ((f.t === 'ent' || f.t === 'pub') && F.annuaireUrl) {
+      if (!f.e) return err('fzQ', 'Choisissez l\'entreprise dans l\'annuaire');
+      if (F.clientsSiret[f.siret]) return err('ddEt', 'Cet établissement a déjà une fiche client');
+      if (f.t === 'pub' && !f.svc) return err('ddSvc', 'Choisissez le service destinataire');
+    }
+    if (f.t === 'etr') {
+      if (!f.pays) return err('ddPays', 'Choisissez le pays');
+      if (!(f.rs || '').trim()) return err('fzRs', 'Raison sociale requise');
+      const pre = PAYS.find(x => x[0] === f.pays)[2];
+      if (pre && !new RegExp('^' + pre + '[0-9A-Z]{8,12}$').test((f.tva || '').replace(/\s/g, ''))) {
+        const e2 = $('fzTvaE'); if (e2) e2.textContent = `Format attendu : ${pre} suivi de 8 à 12 caractères`;
+        return err('fzTva', 'N° de TVA invalide');
+      }
+    }
+    // The fields the server reads today, then those it will read.
+    const base = f.t === 'part' ? { fisc: 'ind', rs: '', siren: '', tva: '' }
+      : f.e ? { fisc: f.ass ? PRO : 'ind', rs: f.e.n, siren: f.ass ? f.e.siren : '', tva: f.ass ? (f.tva || tvaFR(f.e.siren)) : '' }
+      : fiscPayload(f);
+    const p = { ...base, statut: f.t, siret: f.siret || '', ae: f.ae || '', svc: f.svc || '', pays: f.pays || '' };
+    const avant = { ...fiscPayload(F), statut: F.t, siret: F.siret || '', ae: F.ae || '', svc: F.svc || '', pays: F.pays || '' };
+    if (Object.keys(p).every(k => p[k] === avant[k])) return { change: false };
+    return { change: true, appliquer: () => {
+      const form = $('fiscForm');
+      Object.entries(p).forEach(([k, v]) => { const i = form.querySelector(`[name="${k}"]`); if (i) i.value = v; });
+      form.requestSubmit();
+    } };
+  }
+
   carte($('cFisc'), {
-    titre: 'Profil fiscal', lecture: ARCH,
-    avant() { FS = { fisc: F.fisc, rs: F.rs, siren: F.siren, tva: F.tva }; },
-    lire() {
-      const ligne = t => `<small style="display:block;color:var(--encre-60);font-size:.74rem;margin-top:2px">${t}</small>`;
-      const ids = F.fisc === PRO ? ligne(`SIREN ${esc(F.sirenAff)} · ${F.tvaAff ? 'TVA ' + esc(F.tvaAff) : 'Pas de n° de TVA'}`) : '';
-      return `<div class="syn-it"><i style="background:${F.fisc === PRO ? 'var(--pin)' : '#cbd5e1'}"></i><div><b>${esc(F.rs || F.label)}</b>${F.rs ? ligne(esc(F.label)) : ''}${ids}</div></div>`;
-    },
-    editer() { return '<div id="fiscBloc"></div>'; },
-    monte() { FUI = monterFisc($('fiscBloc'), FS, () => marquer(CARTES.cFisc), { sirenUrl: F.dblUrl, self: C.id, onCheck: () => {} }); },
-    valider() {
-      if (!FUI.showErrors()) return null;
-      const p = fiscPayload(FS), avant = fiscPayload(F);
-      if (Object.keys(p).every(k => p[k] === avant[k])) return { change: false };
-      return { change: true, appliquer: () => {
-        const f = $('fiscForm');
-        Object.entries(p).forEach(([k, v]) => { f.querySelector(`[name="${k}"]`).value = v; });
-        f.requestSubmit();
-      } };
-    },
+    titre: 'Profil fiscal', meta: F.meta, lecture: ARCH,
+    avant() { FS = { t: F.t, ass: F.ass, fisc: F.fisc, rs: F.rs, siren: F.siren, tva: F.tva, siret: F.siret, ae: F.ae, svc: F.svc, pays: F.pays, e: F.ent, q: '' }; },
+    lire: lireFisc, editer: editFisc, monte: monteFisc, valider: validerFisc,
   }, CARTES, signal);
+
+  const elF = $('cFisc');
+  elF.addEventListener('click', e => {
+    if (!CARTES.cFisc.edit) return;
+    const o = e.target.closest('[data-ft]');
+    if (o) {
+      if (o.getAttribute('aria-disabled') === 'true' || o.dataset.ft === FS.t) return;
+      Object.assign(FS, { t: o.dataset.ft, e: null, siret: null, ae: null, svc: null, pays: null, q: '' });
+      if (FS.t !== 'ent') FS.ass = false;
+      marquer(CARTES.cFisc);
+      CARTES.cFisc.rendre();
+      setTimeout(() => $('fzQ')?.focus(), 20);
+      return;
+    }
+    if (e.target.closest('[data-fzx]')) { Object.assign(FS, { e: null, siret: null, ae: null, q: '' }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
+    if (e.target.closest('[data-fass]')) { FS.ass = !FS.ass; marquer(CARTES.cFisc); CARTES.cFisc.rendre(); }
+  }, { signal });
+  elF.addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && e.target.matches('[data-fass]')) { e.preventDefault(); e.target.click(); }
+  }, { signal });
+  /* A directory answer picked: its first establishment not already in file. */
+  elF.addEventListener('mousedown', e => {
+    const b = e.target.closest('[data-sir]');
+    if (!b || !FS) return;
+    e.preventDefault();
+    const x = FS.res.find(r => r.siren === b.dataset.sir);
+    const st = (x.ets.find(t => !F.clientsSiret[t.siret]) || x.ets[0]).siret;
+    Object.assign(FS, { e: x, siret: st, ass: !!x.ass, svc: null, q: '', ae: aeDefaut(x, st) });
+    marquer(CARTES.cFisc);
+    CARTES.cFisc.rendre();
+  }, { signal });
+  elF.addEventListener('input', e => {
+    const t = e.target, f = FS;
+    if (!f) return;
+    if (t.id === 'fzQ') {
+      f.q = t.value;
+      const q = norm(t.value).replace(/\d/g, '').trim(), d = t.value.replace(/\D/g, ''), s = $('fzS');
+      if (q.length < 3 && d.length < 3) { s.classList.remove('open'); return; }
+      const id = ++fzSeq;
+      fetch(`${F.annuaireUrl}?${new URLSearchParams({ q: t.value, type: f.t })}`, { headers: { Accept: 'application/json' } })
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then(L => {
+          if (id !== fzSeq) return;
+          f.res = L;
+          s.innerHTML = L.length ? L.map(x => `<button type="button" data-sir="${esc(x.siren)}"><span>${esc(x.n)}<small>${esc(x.forme)} · ${esc(x.ets[0].a.split(', ').pop())}${x.cesse ? ' · radiée' : ''}</small></span><code>${fmtS(x.siren)}</code></button>`).join('')
+            : '<div class="vide">Aucun résultat dans l\'annuaire. Vérifiez l\'orthographe ou saisissez le SIREN.</div>';
+          s.classList.add('open');
+        })
+        .catch(() => { if (id === fzSeq) { s.innerHTML = '<div class="vide">Annuaire indisponible pour le moment.</div>'; s.classList.add('open'); } });
+      return;
+    }
+    if (t.id === 'fzRs') { f.rs = t.value; marquer(CARTES.cFisc); }
+    if (t.id === 'fzTva') { t.value = t.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''); f.tva = t.value; marquer(CARTES.cFisc); }
+  }, { signal });
+  elF.addEventListener('focusout', e => { if (e.target.id === 'fzQ') setTimeout(() => $('fzS')?.classList.remove('open'), 150); }, { signal });
 
   carte($('cNote'), {
     titre: 'Note interne', meta: S.note.meta, lecture: ARCH,
