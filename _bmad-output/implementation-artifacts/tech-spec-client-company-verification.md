@@ -2,7 +2,7 @@
 title: 'Slice 0.5 — Client company verification (registry + VIES) and external HTTP foundations'
 slug: 'client-company-verification'
 created: '2026-10-19'
-status: 'ready-for-dev'
+status: 'implementation-complete-pending-manual-run'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['PHP 8.5', 'Symfony 7.4 (Messenger, Scheduler, HttpClient 7.4, Lock, Cache)', 'Doctrine ORM + DBAL (MySQL)', 'Monolog 3 / MonologBundle 4', 'Twig + AssetMapper plain ES modules', 'PHPUnit + DAMA + Zenstruck Foundry']
 files_to_modify: ['config/packages/framework.yaml', 'config/packages/monolog.yaml', 'config/packages/messenger.yaml', 'config/services.yaml', 'config/services_test.yaml', '.env', '.env.test', 'compose.yaml', 'src/Shared/Application/Bus/*', 'src/Shared/Infrastructure/Bus/Messenger/*', 'src/Shared/Application/ExternalApi/*', 'src/Shared/Infrastructure/ExternalApi/*', 'src/Shared/README.md', 'src/Context/Client/Domain/Client.php', 'src/Context/Client/Domain/TaxProfile/*', 'src/Context/Client/Domain/Event/ClientTaxProfileVerified.php', 'src/Context/Client/Application/Port/*', 'src/Context/Client/Application/Query/SearchCompanyRegistry/*', 'src/Context/Client/Application/Command/VerifyClientTaxProfile/*', 'src/Context/Client/Application/Command/ReverifyStaleTaxProfiles/*', 'src/Context/Client/Application/Command/RecordTaxProfileVerification/*', 'src/Context/Client/Domain/TaxProfile/LegalNameNormalizer.php', 'tests/Integration/Shared/MessengerHandlersRegistrationTest.php', 'tests/Integration/System/Messenger/MessengerRoutingGuardTest.php', 'src/Context/Client/Application/Verification/OnClientTaxIdentifiersChangedVerify.php', 'src/Context/Client/Domain/Event/ClientTaxIdentifiersChanged.php', 'src/Context/Client/Infrastructure/Scheduler/ClientScheduleProvider.php', 'src/Context/Client/Application/Command/RequestTaxProfileVerification/*', 'src/Presentation/Clinic/Controller/Shared/AbstractSheetAction.php', 'Makefile', 'src/Context/Client/Application/Query/GetClientById/ClientView.php', 'src/Context/Client/Infrastructure/Registry/*', 'src/Context/Client/Infrastructure/Vat/*', 'src/Context/Client/Infrastructure/Persistence/Doctrine/{Entity/ClientEntity,Mapper/ClientMapper,Repository/DoctrineClientRepository,Repository/DoctrineClientReadRepository,Repository/DbalTaxProfileVerificationSchedule}.php', 'migrations/Client/Version20261020090000.php', 'src/Context/Client/README.md', 'src/Presentation/Clinic/Controller/Client/Profile/CompanyRegistrySearchController.php', 'src/Presentation/Clinic/Controller/Client/Sheet/VerifyClientTaxProfileController.php', 'src/Presentation/Clinic/ViewModel/Client/CompanyHitPresenter.php', 'src/Presentation/Clinic/ViewModel/Client/ClientSheetBuilder.php', 'src/Presentation/Clinic/ViewModel/Directory/ClientLookupReader.php', 'src/Presentation/Clinic/Controller/Client/ListClientsController.php', 'src/Presentation/Clinic/ViewModel/Billing/BillingPageBuilder.php', 'templates/clinic/clients/_tax_profile_block.html.twig', 'templates/clinic/clients/view/index.html.twig', 'assets/js/shared/client-tax-profile.js', 'assets/js/pages/clients/sheet.js', 'assets/js/pages/clients/create.js', 'assets/js/pages/billing/register.js', 'assets/styles/components/tax-profile.css', 'assets/styles/pages/dossier.css', 'fixtures/Context/Client/Story/ClientDataStory.php', 'tests/Unit/Shared/Infrastructure/Scheduler/SchedulerWorkerTimeLimitTest.php']
@@ -240,126 +240,126 @@ Three stacked branches (as in slice 0): **B1 `chore/external-api-foundations`** 
 
 **B1 — `chore/external-api-foundations`**
 
-- [ ] Task 1: `ExternalServiceUnavailable`, `ExternalApiResponse`, `RetryAfterAwareClient`, `ExternalApiUserAgent`
+- [x] Task 1: `ExternalServiceUnavailable`, `ExternalApiResponse`, `RetryAfterAwareClient`, `ExternalApiUserAgent`
   - Files (new): `src/Shared/Application/ExternalApi/ExternalServiceUnavailable.php`, `src/Shared/Infrastructure/ExternalApi/{ExternalApiResponse,RetryAfterAwareClient,ExternalApiUserAgent}.php`
   - Action: per Technical Decisions 2, 3 and 5.
   - Test: `tests/Unit/Shared/Application/ExternalApi/ExternalServiceUnavailableTest.php` (`isThrottled()` true only for `throttled` and `rateLimited`); `tests/Unit/Shared/Infrastructure/ExternalApi/RetryAfterAwareClientTest.php` (`MockHttpClient`: 200 JSON, 200 non-JSON, 400 JSON, 429 + `Retry-After: 30`, 429 + HTTP-date, 503 → `failed` and **not** throttled, 500, `TransportException`, timeout; Monolog `TestHandler`: one record per call, correct context, no body / header / query string); `ExternalApiUserAgentTest` (e-mail, URL, neither → `\LogicException` naming the variable and the service).
 
-- [ ] Task 2: logging
+- [x] Task 2: logging
   - Files: `config/packages/monolog.yaml`
   - Action: per Technical Decision 6 (`external_api` channel + prod handler; `http_client` excluded from every dev and prod handler, console handlers included).
   - Test: `tests/Integration/Shared/Infrastructure/ExternalApi/LoggingConfigurationTest.php` (KernelTestCase): `monolog.logger.external_api` exists (through a public test alias in `config/services_test.yaml`, since nothing consumes it in B1); the **compiled** configuration (`MonologExtension` processed config for `dev` and `prod`, e.g. via `ContainerBuilder` + `Processor` on the bundle configuration) shows every handler excluding `http_client`.
 
-- [ ] Task 3: test-env network guard
+- [x] Task 3: test-env network guard
   - Files: `tests/Support/UnmockedHttpCallGuard.php` (new), `config/packages/framework.yaml`, `config/services_test.yaml`
   - Action: per Technical Decision 7.
   - Test: `tests/Integration/Shared/Infrastructure/ExternalApi/NetworkGuardTest.php`: default `http_client` → `\LogicException` « Unmocked HTTP call in tests: GET <url> ».
 
-- [ ] Task 4: external-call transports, bus, port, worker
+- [x] Task 4: external-call transports, bus, port, worker
   - Files: `config/packages/messenger.yaml`, `src/Shared/Application/Bus/{ExternalApiCommandInterface,ExternalApiCommandBusInterface}.php`, `src/Shared/Infrastructure/Bus/Messenger/ExternalApiCommandBus.php` (new), `src/Shared/Infrastructure/Bus/Messenger/CommandBus.php` (refuse `ExternalApiCommandInterface`), `config/services.yaml`, `config/services_test.yaml`, `tests/Support/RecordingExternalApiCommandBus.php` (new), `tests/Integration/System/Messenger/Probe/{ProbeExternalApiCommand,ProbeExternalApiCommandHandler}.php` (new), `compose.yaml`, `Makefile`
   - Action: per Technical Decision 8. `RecordingExternalApiCommandBus` decorates the port in test (`recorded(class)`, `reset()`, forwards to the inner bus so the outbox row is still written). Public test aliases for the port and the bus; the probe handler registered in `services_test.yaml`.
   - Test: `tests/Unit/Shared/Infrastructure/Bus/Messenger/ExternalApiCommandBusTest.php` (stamps forwarded, right bus); extend `CommandBusTest` (refuses an `ExternalApiCommandInterface`); `tests/Integration/Shared/Infrastructure/Bus/ExternalApiCommandOutboxTest.php` using the nested-savepoint pattern of `AsyncTransportTransactionalityTest` (DAMA wraps every test in a transaction): inner commit → one row `queue_name = 'external'`, none on `default`; inner rollback → none; with `TransportNamesStamp(['async_external_batch'])` → `queue_name = 'external_batch'`; priority: with batch rows queued first and then one interactive row, a `Worker` on receivers `[async_external, async_external_batch]` handles the interactive one first.
 
-- [ ] Task 5: messenger guards
+- [x] Task 5: messenger guards
   - Files: `tests/Integration/System/Messenger/{MessengerRoutingGuardTest,DoctrineTransportsConfigurationTest}.php`, `tests/Integration/Shared/MessengerHandlersRegistrationTest.php`, `tests/Integration/System/Messenger/ExternalApiBusGuardTest.php` (new), `tests/Integration/Shared/Infrastructure/Console/ComposeWorkersTest.php` (new, or extend an existing compose test)
   - Action: per Technical Decision 8 (routing exactly `['async_external']`; receivers exactly `async`, `async_external`, `async_external_batch`, `failed`, all Doctrine, `auto_setup` false, same table and connection; bus/handler pairing scanning `src/` and the test probes; literal attribute accepted); compose: `external-worker` consumes `async_external async_external_batch` in that order, `messenger-worker` consumes neither, both in profile `workers` with `restart: unless-stopped`.
 
-- [ ] Task 6: bring `src/Shared` to 100 %
+- [x] Task 6: bring `src/Shared` to 100 %
   - Files: tests for the pre-existing uncovered Shared classes found by clover (at the time of writing: `SearchEngine`, `IpRateLimitListener`, `JsonAuthenticationFailureSubscriber`, `SearchTermNormalizer`, `SearchQuery`, under `tests/Unit/Shared/...` / `tests/Integration/Shared/...`)
   - Action: CLAUDE.md §3 applies to the whole BC; cover every remaining line (no `@codeCoverageIgnore`). Measure with clover XML (`--coverage-clover`), not `--coverage-text`.
 
-- [ ] Task 7: Shared README
+- [x] Task 7: Shared README
   - File: `src/Shared/README.md`
   - Action: English section « External APIs » after « Scheduled tasks »: scoped client per service, `RetryAfterAwareClient`, `ExternalServiceUnavailable` (outage ≠ empty result; throttled vs down), fixture adapter + env var + service locator, recorded JSON fixtures under `tests/Fixtures/<service>/`, network guard, User-Agent contact checked at use, `external_api` log channel and the `http_client` exclusion, **never a network call inside a database transaction**, **every external call is an `ExternalApiCommandInterface` on `async_external` with its own worker**, then a short transactional command records the result; Géoplateforme and Gotenberg named as not yet migrated. Add the new guards to the guard table.
 
 **B2 — `feature/client-company-verification`** (rebased on B1; backend)
 
-- [ ] Task 8: value objects and normalizer
+- [x] Task 8: value objects and normalizer
   - Files (new, `src/Context/Client/Domain/TaxProfile/`): `CompanyCheckOutcome.php`, `VatCheckOutcome.php`, `CompanyCheck.php`, `VatCheck.php`, `TaxProfileVerification.php`, `TaxProfileWarning.php`, `LegalNameNormalizer.php`
   - Action: per Technical Decisions 9 and 10. `isStale(now, maxAge)`: company unchecked/unavailable, VAT unchecked/unavailable, or company `checkedAt < now − maxAge`. `warnings(entered)` order: company_ceased | company_not_found | company_confidential, vat_invalid, name_mismatch (company active or ceased with a registry name), unverified (any unchecked/unavailable, once). `confidential` is a definite outcome for `isStale()` (30-day cycle).
   - Test: `tests/Unit/Context/Client/Domain/TaxProfile/{TaxProfileVerificationTest,LegalNameNormalizerTest,TaxProfileWarningTest}.php` — staleness, `isPending`, warnings **matrix** (company × VAT × same/different name), normalizer case table.
 
-- [ ] Task 9: aggregate
+- [x] Task 9: aggregate
   - Files: `src/Context/Client/Domain/Client.php`, `src/Context/Client/Domain/Event/{ClientTaxIdentifiersChanged,ClientTaxProfileVerified}.php` (new)
   - Action: property `TaxProfileVerification $taxProfileVerification` (create: unchecked, `requestedAt = $createdAt` when french_business with SIREN; `reconstitute`: new last optional argument); getter; `updateTaxProfile()` per Technical Decision 11; `recordTaxProfileVerification(string $checkedSiren, ?string $checkedVatNumber, TaxProfileVerification $result): bool` per Technical Decision 13; `requestTaxProfileVerification(\DateTimeImmutable $now): VerificationRequestOutcome` per Technical Decision 14 (enum `VerificationRequestOutcome` `queued|already_pending|archived|not_applicable` in `Domain/TaxProfile`). None of them touches `updatedAt`.
   - Test: extend `tests/Unit/Context/Client/Domain/ClientTaxProfileUpdateTest.php`; new `ClientTaxIdentifiersChangedTest.php` (create with/without SIREN; SIREN change, VAT change → recorded with previous values + reset + requested; name-only change and no-op → nothing), `ClientTaxProfileVerificationTest.php` (stored + event + requested cleared; late answer → nothing changes, newer marker kept; archived / individual → nothing stored, marker cleared; `updatedAt` unchanged), `ClientTaxProfileVerificationRequestTest.php` (every outcome; 24 h boundary); extend `tests/Unit/Context/Client/Domain/Event/ClientEventsTest.php`.
 
-- [ ] Task 10: persistence and read model
+- [x] Task 10: persistence and read model
   - Files: `src/Context/Client/Infrastructure/Persistence/Doctrine/{Entity/ClientEntity,Mapper/ClientMapper,Repository/DoctrineClientRepository,Repository/DoctrineClientReadRepository}.php`, `src/Context/Client/Application/Query/GetClientById/ClientView.php`, `migrations/Client/Version20261020090000.php` (new), `fixtures/Context/Client/Factory/ClientEntityFactory.php`
   - Action: nullable columns `tax_company_check_outcome VARCHAR(20)`, `tax_company_registry_name VARCHAR(255)`, `tax_company_checked_at DATETIME`, `tax_vat_check_outcome VARCHAR(20)`, `tax_vat_checked_at DATETIME`, `tax_verification_requested_at DATETIME` (all `datetime_immutable`), index `idx_client_tax_checked (tax_company_checked_at)`; null outcome ⇔ unchecked. Mapper both ways; `save()` copies the six fields. `ClientView` gains (last, defaulted) `taxCompanyCheck`, `taxRegistryName`, `taxCompanyCheckedAt` (ATOM), `taxVatCheck`, `taxVatCheckedAt`, `taxVerificationPending` (bool), `taxWarnings` (list of `TaxProfileWarning` values, computed by the read repository through the domain for french_business clients, `[]` otherwise). Factory `withTaxVerification(CompanyCheckOutcome, ?registryName, ?companyCheckedAt, VatCheckOutcome, ?vatCheckedAt, ?requestedAt = null)`. Hand-written migration with `down()`.
   - Test: extend `ClientMapperTaxProfileTest`, `DoctrineClientTaxProfileTest` (round trip, reset and requested persisted), `DoctrineClientReadRepositoryTest` (view fields, pending, warnings).
 
-- [ ] Task 11: ports and DTOs
+- [x] Task 11: ports and DTOs
   - Files (new): `src/Context/Client/Application/Port/{CompanyRegistryInterface,CompanySummary,CompanyRecord,VatNumberVerifierInterface,VatVerificationResult}.php`, `src/Context/Client/Application/Verification/TaxProfileVerificationScheduleInterface.php`
   - Action: as in the reference, plus `CompanySummary::legalFormLabel`, `CompanySummary::ceasedOn` (Y-m-d), `CompanyRecord(siren, ?legalName, isActive, isConfidential, ?ceasedOn)`; `TaxProfileVerificationScheduleInterface::findStale(\DateTimeImmutable $checkedBefore, \DateTimeImmutable $requestedBefore): list<array{clinicId: string, clientId: string}>` and `markRequested(list<string> $clientIds, \DateTimeImmutable $now, \DateTimeImmutable $requestedBefore): list<string>`. PHPDoc: outage ≠ empty, throttled vs down.
 
-- [ ] Task 12: legal forms table
+- [x] Task 12: legal forms table
   - File: `src/Context/Client/Infrastructure/Registry/LegalForms.php` (new); test `tests/Unit/Context/Client/Infrastructure/Registry/LegalFormsTest.php`
   - Action: per Technical Decision 23.
 
-- [ ] Task 13: fixture adapters
+- [x] Task 13: fixture adapters
   - Files (new): `src/Context/Client/Infrastructure/Registry/FixtureCompanyRegistry.php`, `src/Context/Client/Infrastructure/Vat/FixtureVatNumberVerifier.php`
   - Action: dataset aligned with `ClientDataStory` — `523456788` Élevage des Calanques (EARL, active), `812345676` Centre équestre du Lac (SAS, active), `441569738` GAEC du Mont (GAEC, ceased 2025-12-31), `775612344` Refuge des Collines (association), one company whose official name differs from a demo client's typed name; other valid SIREN → not found. Triggers (class constants): query `indisponible` / `UNAVAILABLE_SIREN` (Luhn-valid) → `ExternalServiceUnavailable::failed` (`down`); query `limite` → `ExternalServiceUnavailable::throttled` (`throttled`). Search: accent/case-insensitive contains, 9 digits = SIREN, 14 digits = head-office SIRET. VAT: `FR31523456788`, `FR14441569738` valid; the trigger SIREN's VAT → unavailable; others invalid.
   - Also create `tests/Unit/Context/Client/Infrastructure/Registry/CompanyRegistryContractTestCase.php` (abstract contract, Technical Decision 24 / AC 22) here.
   - Test: `FixtureCompanyRegistryContractTest` (extends the contract), `FixtureVatNumberVerifierTest`. The fixture dataset includes one confidential company (`isConfidential`).
 
-- [ ] Task 14: HTTP adapters, cache, limiter, wiring
+- [x] Task 14: HTTP adapters, cache, limiter, wiring
   - Files (new): `src/Context/Client/Infrastructure/Registry/{RechercheEntreprisesCompanyRegistry,RechercheEntreprisesMapper,CachedCompanyRegistry,ThrottledCompanyRegistry}.php`, `src/Context/Client/Infrastructure/Vat/{ViesVatNumberVerifier,ViesErrorMapper}.php`, `tests/Fixtures/recherche-entreprises/{search-calanques,search-siret,siren-active,siren-ceased,siren-not-found,siren-non-diffusible}.json`, `tests/Fixtures/vies/{valid,invalid,ms-unavailable,global-max-concurrent,invalid-input}.json`
   - Modified: `config/packages/framework.yaml` (scoped clients — Technical Decision 4; no rate-limiter entry), `config/services.yaml` (lock factory, storage and the three hand-built `RateLimiterFactory` services — Technical Decision 18; `client.registry.http` / `client.vies.http` `RetryAfterAwareClient` services; `Cached → Throttled → RechercheEntreprises` chain; locators + factory aliases — Technical Decision 19), `.env` (`CLIENT_COMPANY_REGISTRY=fixture`, `CLIENT_VAT_VERIFIER=fixture`, `EXTERNAL_API_USER_AGENT="Kiveto/0.5"`, each with an English comment: values, effect, « api/vies mode requires a contact (e-mail or URL) in the user agent »), `.env.test` (both `fixture`, and `EXTERNAL_API_USER_AGENT="Kiveto-test (+tests@kiveto.invalid)"` so the API adapters can be built in tests).
   - Action: per Technical Decisions 18–22 and 24; the two HTTP adapters call `ExternalApiUserAgent::withContact()` in their constructors (Technical Decision 5); hand-written JSON fixtures.
   - Test: `CompanyRegistryContractTestCase` (14-digit query searched as SIRET, active first, `limit` respected, unknown SIREN → null, outage → `ExternalServiceUnavailable`, never empty) run by `FixtureCompanyRegistryContractTest` and `RechercheEntreprisesCompanyRegistryContractTest` (MockHttpClient on the JSON fixtures); `RechercheEntreprisesMapperTest`; `CachedCompanyRegistryTest` (`ArrayAdapter`: search cached 1 h, `findBySiren` never cached, exceptions never cached); `ThrottledCompanyRegistryTest` (`#[Group('time-sensitive')]` + `ClockMock`, in-memory limiters: 5th `search()` in the same second with a 4/s bucket → throttled without inner call; `findBySiren()` waits for a token instead of failing; a cache hit upstream spends no token); `ViesVatNumberVerifier` waits on its limiter (same technique); `ViesVatNumberVerifierTest` + `ViesErrorMapperTest` (every code); `tests/Integration/Context/Client/Infrastructure/AdapterSelectionTest.php` (test env → fixture adapters; locators offer `api` → `CachedCompanyRegistry` and `vies` → `ViesVatNumberVerifier`, buildable with the test user agent; the autowired `LockFactory` is still `shared.lock.factory`; the three limiter factories exist); the contact-less case stays in `ExternalApiUserAgentTest` and the adapters' unit tests.
 
-- [ ] Task 15: search query
+- [x] Task 15: search query
   - Files (new): `src/Context/Client/Application/Query/SearchCompanyRegistry/{SearchCompanyRegistry,SearchCompanyRegistryHandler,CompanySearchResult}.php`
   - Action: `CompanySearchResult(bool $available, ?string $reason, list<CompanySummary> $hits)` per Technical Decision 25 (`reason` from `isThrottled()`).
   - Test: `tests/Unit/Context/Client/Application/Query/SearchCompanyRegistry/SearchCompanyRegistryHandlerTest.php` (short query no call; hits; throttled; down).
 
-- [ ] Task 16: verify, record, request commands and the listener
+- [x] Task 16: verify, record, request commands and the listener
   - Files (new): `src/Context/Client/Application/Command/VerifyClientTaxProfile/{VerifyClientTaxProfile,VerifyClientTaxProfileHandler}.php`, `src/Context/Client/Application/Command/RecordTaxProfileVerification/{RecordTaxProfileVerification,RecordTaxProfileVerificationHandler}.php`, `src/Context/Client/Application/Command/RequestTaxProfileVerification/{RequestTaxProfileVerification,RequestTaxProfileVerificationHandler}.php`, `src/Context/Client/Application/Verification/OnClientTaxIdentifiersChangedVerify.php`
   - Action: per Technical Decisions 11–14. `VerifyClientTaxProfile` implements `ExternalApiCommandInterface`, handler `#[AsMessageHandler(bus: 'messenger.bus.external_api')]`; record and request handlers bare `#[AsMessageHandler]`; the request handler returns `VerificationRequestOutcome` and throws `ClientNotFoundException` for unknown/other clinic. Listener `#[AsMessageHandler(bus: 'messenger.bus.event')]` sends `VerifyClientTaxProfile` through `ExternalApiCommandBusInterface` when the payload is french_business with a SIREN (the aggregate already set `requestedAt`).
   - Test: unit tests of the three handlers (both services up; registry down keeps the VIES result and vice versa; not found; ceased with name; no VAT → not_applicable; archived / individual / unknown → no record; verify handler: the port fakes assert `Connection::isTransactionActive()` is false while called (AC 18); record: stored + saved + published, late answer → nothing saved; request: every outcome) and the listener; integration `RecordTaxProfileVerificationOptimisticLockTest` (load, bump `version` through DBAL, save → `OptimisticLockException`); integration `VerificationOutboxTest` (create a professional → one `queue_name = 'external'` row in the same transaction; individual → none; legal-name-only change → none; SIREN change → one; « Revérifier » twice within 24 h → one row; interactive rows go to `queue_name = 'external'`).
 
-- [ ] Task 17: nightly re-verification
+- [x] Task 17: nightly re-verification
   - Files (new): `src/Context/Client/Application/Command/ReverifyStaleTaxProfiles/{ReverifyStaleTaxProfiles,ReverifyStaleTaxProfilesHandler}.php`, `src/Context/Client/Infrastructure/Persistence/Doctrine/Repository/DbalTaxProfileVerificationSchedule.php`, `src/Context/Client/Infrastructure/Scheduler/ClientScheduleProvider.php`
   - Modified: `config/services.yaml`, `compose.yaml` (`scheduler-worker`: `messenger:consume scheduler_default scheduler_client --time-limit=3540 -vv`, comment updated), `tests/Unit/Shared/Infrastructure/Scheduler/SchedulerWorkerTimeLimitTest.php` → moved to `tests/Integration/Shared/Infrastructure/Scheduler/SchedulerWorkerTimeLimitTest.php` (KernelTestCase collecting every schedule provider by its container tag — no `use` of a Client class in a Shared test — and asserting compose consumes every `scheduler_<name>` transport and 3540 is not a multiple of any period)
   - Action: per Technical Decisions 15 and 16.
   - Test: handler unit test (rows → `markRequested` with all ids, one send per returned id with `TransportNamesStamp(['async_external_batch'])`, ids not returned are not sent; nothing stale → nothing); `tests/Integration/Context/Client/Infrastructure/Persistence/DbalTaxProfileVerificationScheduleTest.php` (never checked, unavailable company, unavailable VAT, older than 30 days → found; fresh, individual, archived, no SIREN, requested < 24 h → not found; requested > 24 h → found; NULL outcomes treated as unchecked; two clinics; NULLs first; `markRequested` works in chunks of 500, sets the column, bumps `version`, skips an id requested meanwhile and returns only the updated ids); `tests/Unit/Context/Client/Infrastructure/Scheduler/ClientScheduleProviderTest.php` (mirrors `DefaultScheduleProviderTest`: one message, lock, not stateful, 86400 s).
 
-- [ ] Task 18: sheet save conflict
+- [x] Task 18: sheet save conflict
   - Files: `src/Presentation/Clinic/Controller/Shared/AbstractSheetAction.php`
   - Action: per Technical Decision 30.
   - Test: extend `tests/Integration/Presentation/ProfessionalClientEntryPointsTest.php` or add `tests/Integration/Presentation/SheetSaveConflictTest.php` (a sheet POST whose command throws `OptimisticLockException` → redirect with the flash, no 500).
 
-- [ ] Task 19: demo fixtures and Client README
+- [x] Task 19: demo fixtures and Client README
   - Files: `fixtures/Context/Client/Story/ClientDataStory.php`, `src/Context/Client/README.md`
   - Action: demo states (CLAUDE.md §7): Calanques verified (active, VAT valid, checked yesterday); Centre équestre du Lac pending (requested, unchecked); GAEC du Mont ceased (archived); one name mismatch; one invalid VAT — consistent with the fixture registry. README: architecture tree, « Règles métier » (never blocking, reset on identifiers change, late answer ignored, 30 days, 24 h de-duplication), table « Environnement → valeurs » (tests/CI fixture/fixture; dev default fixture/fixture; dev opt-in api/vies with a contact user agent; staging/prod api/vies, contact mandatory) with the manual-run command and the three workers, changelog `### 2026-10-xx - Vérification des entreprises clientes`.
 
 **B3 — `feature/client-company-verification-ui`** (from B2; Tasks 20–25, then Task 26)
 
-- [ ] Task 20: endpoints
+- [x] Task 20: endpoints
   - Files (new): `src/Presentation/Clinic/Controller/Client/Profile/CompanyRegistrySearchController.php`, `src/Presentation/Clinic/Controller/Client/Sheet/VerifyClientTaxProfileController.php`, `src/Presentation/Clinic/ViewModel/Client/CompanyHitPresenter.php`
   - Action: search per Technical Decision 25 (`clinic_clients_company_registry_search`); verify per Technical Decision 14 (`POST /clients/{id}/tax-profile/verify`, `clinic_clients_tax_profile_verify`, extends `AbstractClientSheetAction`, `guard()` CSRF, dispatches `RequestTaxProfileVerification` **outside `attempt()`**, `ClientNotFoundException` → `createNotFoundException()`, flash per outcome, `backToSheet($id, 'cFisc')`).
   - Test: `tests/Unit/Presentation/Clinic/ViewModel/Client/CompanyHitPresenterTest.php`; extend `ProfessionalClientEntryPointsTest` (fixture registry: « calanques » → items; « indisponible » → `reason: down`; « limite » → `reason: throttled`; « ca » → empty, no call; verify: queued once through `RecordingExternalApiCommandBus`, second time « Vérification déjà en cours » and nothing more queued; invalid CSRF → refused, nothing queued; other clinic / unknown id → 404, nothing queued; archived → flash « Client archivé », nothing queued; search without session → login redirect).
 
-- [ ] Task 21: sheet payload
+- [x] Task 21: sheet payload
   - Files: `src/Presentation/Clinic/ViewModel/Client/ClientSheetBuilder.php`, `templates/clinic/clients/view/index.html.twig`
   - Action: `taxProfileView()` per Technical Decision 26; hidden `#fiscVerifyForm` (POST `verifyUrl`, CSRF `client_sheet`).
   - Test: new `tests/Integration/Presentation/Clinic/ViewModel/Client/ClientSheetBuilderTaxProfileTest.php` (KernelTestCase + factories: unchecked, pending, verified active + VAT valid, ceased, name mismatch → expected `fisc` keys).
 
-- [ ] Task 22: sheet card front
+- [x] Task 22: sheet card front
   - Files: `assets/js/pages/clients/sheet.js`, `assets/styles/pages/dossier.css`
   - Action: per Technical Decisions 25–27: search `{available, reason, items}` with ↑/↓/Entrée/Échap (`role="listbox"`, `role="option"`, `aria-selected`), AbortController + 300 ms debounce; throttled vs down; « Saisir à la main »; existing-professional lookup by SIREN; duplicate check on pick; `ann` absent wording; `cesse` without date; badges, « Nom officiel », « Utiliser le nom officiel », last-check line / « Vérification en cours », « Revérifier »; save with a picked company (`rs = e.n`, `siren`, `tva` when liable).
 
-- [ ] Task 23: shared block autocomplete + directory window
+- [x] Task 23: shared block autocomplete + directory window
   - Files: `assets/js/shared/client-tax-profile.js`, `templates/clinic/clients/_tax_profile_block.html.twig`, `assets/styles/components/tax-profile.css`, `assets/js/pages/clients/create.js`, `src/Presentation/Clinic/Controller/Client/ListClientsController.php`
   - Action: per Technical Decisions 25 and 29; `create.js` passes `registryUrl` (`CFG.urls.registry`) and fills the window's postal address in `onCompany` (the state used by `chercherAdresses()`, create.js L527-545).
 
-- [ ] Task 24: counter
+- [x] Task 24: counter
   - Files: `assets/js/pages/billing/register.js`, `src/Presentation/Clinic/ViewModel/Billing/BillingPageBuilder.php`, `src/Presentation/Clinic/ViewModel/Directory/ClientLookupReader.php`
   - Action: per Technical Decision 28 (replaces the disabled group at register.js L634; `P.urls.registry`; `ClientCard.warn`; `carteCliPro()` renders `.vt-msg.warn`).
   - Test: extend the `ClientLookupReader` tests under `tests/Unit/Presentation/Clinic/ViewModel/Directory/` (or add one) for `warn`.
 
-- [ ] Task 25: assets build and browser checks
+- [x] Task 25: assets build and browser checks
   - Action: `make assets`; Playwright checks listed in the Testing Strategy.
 
 - [ ] Task 26: manual run, recorded fixtures, closing (whole stack)
@@ -450,3 +450,12 @@ Closing
 - **Scope growth accepted**: covering the pre-existing Shared gaps (Task 6) to meet CLAUDE.md §3 for the whole BC; the slice also lays two external transports, three limiters and a priority queue — justified because they are the foundation of **every** external integration.
 - **Reuse rule for the next slices**: slice 1 and the Super PDP integration reuse these bricks as they are (scoped client + `RetryAfterAwareClient` + `ExternalApiUserAgent`, `ExternalApiCommandInterface` on `async_external` / `async_external_batch` with the `external-worker`, hand-built per-container limiters, verify/record split, `external_api` logs, fixture adapter + env selection). No new transport, bus or limiter mechanism without a spec that justifies it.
 - **Future**: Géoplateforme and Gotenberg to migrate onto the convention; Super PDP (slice 4) reuses scoped clients, `RetryAfterAwareClient`, `async_external` + `external-worker` and the verify/record split; PPF directory (`ann`) and Chorus Pro keep their « bientôt » slots.
+
+## Review Notes
+
+- Adversarial review (diff-only subagent): 11 findings, none critical or high; 9 fixed, 1 kept by design (F8), 1 noise (F11).
+- Fixed: an outage never overwrites a definite answer (kept with its date, profile stays due, warnings stay); VIES « invalid » only on `valid: false` without error code (any code, `INVALID_INPUT` included, is an outage — deviation from Technical Decision 21, per the product owner); a client that can no longer be verified clears its pending request; nightly windows use `<=` and the marker is set row by row (only rows a run marked are sent — replaces the chunks of 500); « SIRET du siège » label; picking a hit cancels pending searches; 3 characters before the counter asks; « Recherche ralentie, continuez à taper » on a spent budget; registry address fills only empty fields; « S.A.R.L. » read as SARL; no name mismatch when one normalised name contains the other (demo mismatch moved to the Haras).
+- Kept: per-container budget of 4 req/s (F8), the slow-search line covers the spent budget.
+- `src/Shared/Presentation` counted as Presentation (outside the 100 %); its two unreachable branches were removed.
+- No `ClockMock` (phpunit-bridge not installed): limiter tests run in real time (~2 s).
+- Task 26 pending: the product owner runs the real adapters locally with a dedicated Kiveto contact in `.env.local`; recorded responses must concern companies, not sole traders, before they are committed with `RecordedApiFixturesTest`.
