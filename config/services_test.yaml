@@ -69,3 +69,8 @@ services:
     test.client.vat_verifier:
         alias: App\Context\Client\Application\Port\VatNumberVerifierInterface
         public: true
+
+    # Every schedule provider by name (SchedulerWorkerTimeLimitTest).
+    App\Tests\Support\ScheduleProviders:
+        public: true
+        arguments: [!tagged_locator { tag: 'scheduler.schedule_provider', index_by: 'name' }]
