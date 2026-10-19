@@ -48,6 +48,11 @@ final class RechercheEntreprisesMapperTest extends TestCase
         self::assertSame('ELEVAGE DES CALANQUES', $record->legalName);
     }
 
+    public function testANumericLegalFormCodeIsRead(): void
+    {
+        self::assertSame('EARL', new RechercheEntreprisesMapper()->summary(['siren' => '523456788', 'nature_juridique' => 6598])->legalFormLabel);
+    }
+
     public function testAMaskedNameIsConfidentialWhateverTheDiffusionStatus(): void
     {
         $record = new RechercheEntreprisesMapper()->record(['siren' => '900000019', 'nom_complet' => '[NON-DIFFUSIBLE]', 'statut_diffusion' => 'O']);

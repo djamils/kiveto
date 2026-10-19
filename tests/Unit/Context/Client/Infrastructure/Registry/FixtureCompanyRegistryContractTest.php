@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Context\Client\Infrastructure\Registry;
 
+use App\Context\Client\Application\Port\CompanyRecord;
 use App\Context\Client\Application\Port\CompanyRegistryInterface;
+use App\Context\Client\Application\Port\CompanySummary;
 use App\Context\Client\Infrastructure\Registry\FixtureCompanyRegistry;
 use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use PHPUnit\Framework\Attributes\CoversClass;
 
 #[CoversClass(FixtureCompanyRegistry::class)]
+#[CoversClass(CompanyRecord::class)]
+#[CoversClass(CompanySummary::class)]
 final class FixtureCompanyRegistryContractTest extends CompanyRegistryContractTestCase
 {
     public function testANameSearchIgnoresCaseAndAccents(): void
