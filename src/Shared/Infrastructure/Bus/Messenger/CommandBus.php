@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Infrastructure\Bus\Messenger;
 
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\ExternalApiCommandInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\HandlerFailedException;
 use Symfony\Component\Messenger\HandleTrait;
@@ -22,6 +23,11 @@ class CommandBus implements CommandBusInterface
 
     public function dispatch(object $command, object ...$stamps): mixed
     {
+        if ($command instanceof ExternalApiCommandInterface) {
+            // Stamped for this bus, it would find no handler; and it must never run in a transaction.
+            throw new \LogicException(\sprintf('%s calls an external service: send it through ExternalApiCommandBusInterface.', $command::class));
+        }
+
         try {
             /** @var array<StampInterface> $stampsArray */
             $stampsArray = $stamps;

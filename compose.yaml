@@ -71,6 +71,31 @@ services:
     networks:
       - kiveto-network
 
+  # Consumes the commands that call external services (company registry, VIES,
+  # later e-invoicing), so that slow or failing third parties never delay mails
+  # and integration events, and vice versa. Messenger drains the first receiver
+  # before the second: interactive verifications pass ahead of the nightly batch.
+  external-worker:
+    build:
+      context: .
+      dockerfile: ./docker/php-fpm/Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    profiles: ["workers"]
+    command: php -d memory_limit=512M bin/console messenger:consume async_external async_external_batch --time-limit=3600 --memory-limit=256M -vv
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/html:cached
+    environment:
+      - DATABASE_URL=mysql://root:k!v3t0@db/kiveto?serverVersion=8.4.7
+      - GOTENBERG_URL=http://gotenberg:3000
+    depends_on:
+      - db
+    networks:
+      - kiveto-network
+
   # Runs the `default` schedule (src/Shared/Infrastructure/Scheduler). Ticks are
   # locked in the database, so several scheduler workers never double-run a task.
   # The time limit (59 min) is deliberately not a multiple of any task period:

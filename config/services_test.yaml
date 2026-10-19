@@ -26,3 +26,13 @@ services:
     test.monolog.logger.external_api:
         alias: monolog.logger.external_api
         public: true
+
+    # Records what entry points queue for the external worker.
+    App\Tests\Support\RecordingExternalApiCommandBus:
+        decorates: App\Shared\Application\Bus\ExternalApiCommandBusInterface
+        arguments: ['@.inner']
+        public: true
+
+    test.messenger.bus.external_api:
+        alias: messenger.bus.external_api
+        public: true
