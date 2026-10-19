@@ -9,6 +9,11 @@ use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
+use App\Context\Client\Domain\TaxProfile\CompanyCheck;
+use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
+use App\Context\Client\Domain\TaxProfile\TaxProfileVerification;
+use App\Context\Client\Domain\TaxProfile\VatCheck;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientTaxProfile;
@@ -69,6 +74,104 @@ final class DoctrineClientTaxProfileTest extends KernelTestCase
         self::assertSame('Élevage des Calanques SARL', $view->legalName);
         self::assertSame('523456788', $view->siren);
         self::assertSame('FR31523456788', $view->vatNumber);
+    }
+
+    public function testTheVerificationIsPersistedResetAndRequested(): void
+    {
+        $repository = $this->writeRepository();
+        $clinicId   = ClinicId::fromString(self::CLINIC_ID);
+        $clientId   = ClientId::fromString(self::CALANQUES);
+        $siren      = Siren::fromInput('523456788');
+
+        $repository->save(Client::create(
+            $clientId,
+            $clinicId,
+            new ClientIdentity('Claire', 'Rostand'),
+            [ContactMethod::email(EmailAddress::fromString('claire@calanques.fr'), ContactLabel::WORK, true)],
+            new \DateTimeImmutable('2026-10-17 10:00:00'),
+            ClientTaxProfile::frenchBusiness('Élevage des Calanques', $siren, FrenchVatNumber::forSiren($siren)),
+        ));
+        $this->clearEntityManager();
+
+        $loaded = $repository->get($clinicId, $clientId);
+        self::assertSame('2026-10-17 10:00:00', $loaded->taxProfileVerification()->requestedAt()?->format('Y-m-d H:i:s'));
+
+        $at = new \DateTimeImmutable('2026-10-17 10:01:00');
+        $loaded->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::ACTIVE, 'EARL ELEVAGE DES CALANQUES', $at),
+            VatCheck::checked(VatCheckOutcome::VALID, $at),
+        ));
+        $repository->save($loaded);
+        $this->clearEntityManager();
+
+        $verified = $repository->get($clinicId, $clientId)->taxProfileVerification();
+        self::assertSame(CompanyCheckOutcome::ACTIVE, $verified->company()->outcome());
+        self::assertSame('EARL ELEVAGE DES CALANQUES', $verified->company()->registryName());
+        self::assertSame('2026-10-17 10:01:00', $verified->company()->checkedAt()?->format('Y-m-d H:i:s'));
+        self::assertSame(VatCheckOutcome::VALID, $verified->vat()->outcome());
+        self::assertSame('2026-10-17 10:01:00', $verified->vat()->checkedAt()?->format('Y-m-d H:i:s'));
+        self::assertNull($verified->requestedAt());
+
+        $reloaded = $repository->get($clinicId, $clientId);
+        $other    = Siren::fromInput('812345676');
+        $reloaded->updateTaxProfile(ClientTaxProfile::frenchBusiness('Élevage des Calanques', $other, null), new \DateTimeImmutable('2026-10-18 09:00:00'));
+        $repository->save($reloaded);
+        $this->clearEntityManager();
+
+        $reset = $repository->get($clinicId, $clientId)->taxProfileVerification();
+        self::assertSame(CompanyCheckOutcome::UNCHECKED, $reset->company()->outcome());
+        self::assertNull($reset->company()->registryName());
+        self::assertSame(VatCheckOutcome::UNCHECKED, $reset->vat()->outcome());
+        self::assertSame('2026-10-18 09:00:00', $reset->requestedAt()?->format('Y-m-d H:i:s'));
+    }
+
+    public function testTheViewCarriesTheVerificationAndItsWarnings(): void
+    {
+        ClientEntityFactory::new()->withId(self::CALANQUES)->withClinicId(self::CLINIC_ID)->withName('Claire', 'Rostand')
+            ->withTaxProfile(ClientTaxStatus::FRENCH_BUSINESS, 'Ferme des Calanques', '523456788', 'FR31523456788')
+            ->withTaxVerification(CompanyCheckOutcome::ACTIVE, 'EARL ELEVAGE DES CALANQUES', '2026-10-18 08:12:00', VatCheckOutcome::INVALID, '2026-10-18 08:12:05')
+            ->active()->since('2026-01-01')->create()
+        ;
+
+        $view = $this->readRepository()->findById(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CALANQUES));
+
+        self::assertNotNull($view);
+        self::assertSame('active', $view->taxCompanyCheck);
+        self::assertSame('EARL ELEVAGE DES CALANQUES', $view->taxRegistryName);
+        self::assertSame('2026-10-18T08:12:00+00:00', $view->taxCompanyCheckedAt);
+        self::assertSame('invalid', $view->taxVatCheck);
+        self::assertSame('2026-10-18T08:12:05+00:00', $view->taxVatCheckedAt);
+        self::assertFalse($view->taxVerificationPending);
+        self::assertSame(['vat_invalid', 'name_mismatch'], $view->taxWarnings);
+    }
+
+    public function testARecentRequestIsPendingAndUnverified(): void
+    {
+        ClientEntityFactory::new()->withId(self::CALANQUES)->withClinicId(self::CLINIC_ID)->withName('Paul', 'Lac')
+            ->withTaxProfile(ClientTaxStatus::FRENCH_BUSINESS, 'Centre équestre du Lac', '812345676')
+            ->withTaxVerification(CompanyCheckOutcome::UNCHECKED, null, null, VatCheckOutcome::UNCHECKED, null, '-1 hour')
+            ->active()->since('2026-01-01')->create()
+        ;
+
+        $view = $this->readRepository()->findById(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CALANQUES));
+
+        self::assertNotNull($view);
+        self::assertSame('unchecked', $view->taxCompanyCheck);
+        self::assertNull($view->taxCompanyCheckedAt);
+        self::assertTrue($view->taxVerificationPending);
+        self::assertSame(['unverified'], $view->taxWarnings);
+    }
+
+    public function testAnIndividualHasNoWarnings(): void
+    {
+        $this->seed();
+
+        $view = $this->readRepository()->findById(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::REFUGE));
+
+        self::assertNotNull($view);
+        self::assertSame('unchecked', $view->taxVatCheck);
+        self::assertFalse($view->taxVerificationPending);
+        self::assertSame([], $view->taxWarnings);
     }
 
     public function testAPlainClientReadsAsAnIndividual(): void

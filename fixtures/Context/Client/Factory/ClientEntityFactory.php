@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Client\Factory;
 
+use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddressEmbeddable;
@@ -56,6 +58,27 @@ final class ClientEntityFactory extends PersistentProxyObjectFactory
             'legalName' => $legalName,
             'siren'     => $siren,
             'vatNumber' => $vatNumber,
+        ]);
+    }
+
+    /**
+     * Stored registry and VIES answers; an UNCHECKED outcome is stored as null.
+     */
+    public function withTaxVerification(
+        CompanyCheckOutcome $company,
+        ?string $registryName,
+        ?string $companyCheckedAt,
+        VatCheckOutcome $vat,
+        ?string $vatCheckedAt,
+        ?string $requestedAt = null,
+    ): self {
+        return $this->with([
+            'taxCompanyCheckOutcome'     => CompanyCheckOutcome::UNCHECKED === $company ? null : $company,
+            'taxCompanyRegistryName'     => $registryName,
+            'taxCompanyCheckedAt'        => null === $companyCheckedAt ? null : new \DateTimeImmutable($companyCheckedAt),
+            'taxVatCheckOutcome'         => VatCheckOutcome::UNCHECKED === $vat ? null : $vat,
+            'taxVatCheckedAt'            => null === $vatCheckedAt ? null : new \DateTimeImmutable($vatCheckedAt),
+            'taxVerificationRequestedAt' => null === $requestedAt ? null : new \DateTimeImmutable($requestedAt),
         ]);
     }
 

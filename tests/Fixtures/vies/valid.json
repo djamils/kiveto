@@ -1,0 +1,19 @@
+{
+  "countryCode" : "FR",
+  "vatNumber" : "39356000000",
+  "requestDate" : "2026-10-19T17:54:07.777Z",
+  "valid" : true,
+  "requestIdentifier" : "",
+  "name" : "SA LA POSTE-DIRECTION GENERALE DE LA PO",
+  "address" : "9 RUE DU COLONEL PIERRE AVIA\n92130 ISSY LES MOULINEAUX",
+  "traderName" : "---",
+  "traderStreet" : "---",
+  "traderPostalCode" : "---",
+  "traderCity" : "---",
+  "traderCompanyType" : "---",
+  "traderNameMatch" : "NOT_PROCESSED",
+  "traderStreetMatch" : "NOT_PROCESSED",
+  "traderPostalCodeMatch" : "NOT_PROCESSED",
+  "traderCityMatch" : "NOT_PROCESSED",
+  "traderCompanyTypeMatch" : "NOT_PROCESSED"
+}

@@ -11,18 +11,23 @@ use App\Context\Client\Domain\Event\ClientContactMethodsReplaced;
 use App\Context\Client\Domain\Event\ClientCreated;
 use App\Context\Client\Domain\Event\ClientIdentityUpdated;
 use App\Context\Client\Domain\Event\ClientPostalAddressUpdated;
+use App\Context\Client\Domain\Event\ClientTaxIdentifiersChanged;
 use App\Context\Client\Domain\Event\ClientTaxProfileUpdated;
+use App\Context\Client\Domain\Event\ClientTaxProfileVerified;
 use App\Context\Client\Domain\Event\ClientUnarchived;
 use App\Context\Client\Domain\Exception\ClientAlreadyArchivedException;
 use App\Context\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
 use App\Context\Client\Domain\Exception\ClientMustHaveAtLeastOneContactMethodException;
 use App\Context\Client\Domain\Exception\DuplicateContactMethodException;
 use App\Context\Client\Domain\Exception\PrimaryContactMethodConflictException;
+use App\Context\Client\Domain\TaxProfile\TaxProfileVerification;
+use App\Context\Client\Domain\TaxProfile\VerificationRequestOutcome;
 use App\Context\Client\Domain\ValueObject\AuthorizedPerson;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClientTaxProfile;
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
 use App\Context\Client\Domain\ValueObject\Consent;
@@ -44,6 +49,7 @@ final class Client extends AggregateRoot
     private ?AuthorizedPerson $authorizedPerson = null;
     private CommunicationPreferences $communicationPreferences;
     private ClientTaxProfile $taxProfile;
+    private TaxProfileVerification $taxProfileVerification;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -75,6 +81,7 @@ final class Client extends AggregateRoot
 
         $client->communicationPreferences = CommunicationPreferences::none();
         $client->taxProfile               = $taxProfile ?? ClientTaxProfile::default();
+        $client->taxProfileVerification   = TaxProfileVerification::unchecked();
 
         $client->recordDomainEvent(new ClientCreated(
             clientId: $id->toString(),
@@ -84,6 +91,10 @@ final class Client extends AggregateRoot
             contactMethods: self::serializeContactMethods($contactMethods),
             legalName: $client->taxProfile->legalName(),
         ));
+
+        if (null !== $client->taxProfile->siren()) {
+            $client->taxIdentifiersChanged(ClientTaxProfile::default(), $createdAt);
+        }
 
         return $client;
     }
@@ -103,6 +114,7 @@ final class Client extends AggregateRoot
         ?AuthorizedPerson $authorizedPerson = null,
         ?CommunicationPreferences $communicationPreferences = null,
         ?ClientTaxProfile $taxProfile = null,
+        ?TaxProfileVerification $taxProfileVerification = null,
     ): self {
         $client                 = new self();
         $client->id             = $id;
@@ -117,6 +129,7 @@ final class Client extends AggregateRoot
         $client->authorizedPerson         = $authorizedPerson;
         $client->communicationPreferences = $communicationPreferences ?? CommunicationPreferences::none();
         $client->taxProfile               = $taxProfile ?? ClientTaxProfile::default();
+        $client->taxProfileVerification   = $taxProfileVerification ?? TaxProfileVerification::unchecked();
 
         return $client;
     }
@@ -146,6 +159,7 @@ final class Client extends AggregateRoot
             return;
         }
 
+        $previous         = $this->taxProfile;
         $this->taxProfile = $taxProfile;
         $this->updatedAt  = $now;
 
@@ -159,6 +173,90 @@ final class Client extends AggregateRoot
             firstName: $this->identity->firstName,
             lastName: $this->identity->lastName,
         ));
+
+        // A legal-name-only change (e.g. « Utiliser le nom officiel ») keeps the verification.
+        $sirenChanged = $previous->siren()?->value() !== $taxProfile->siren()?->value();
+        $vatChanged   = $previous->vatNumber()?->value() !== $taxProfile->vatNumber()?->value();
+
+        if ($sirenChanged || $vatChanged) {
+            $this->taxIdentifiersChanged($previous, $now);
+        }
+    }
+
+    /**
+     * Stores the answer of the registry and VIES for the identifiers that were checked.
+     *
+     * An answer for identifiers that are no longer current changes nothing (the
+     * newer request stays awaited); a client that can no longer be verified
+     * (archived, not a French business) stores nothing and awaits nothing.
+     *
+     * @return bool whether the client changed (and must be saved)
+     */
+    public function recordTaxProfileVerification(
+        string $checkedSiren,
+        ?string $checkedVatNumber,
+        TaxProfileVerification $result,
+    ): bool {
+        if (!$this->isTaxProfileVerifiable()) {
+            if (null === $this->taxProfileVerification->requestedAt()) {
+                return false;
+            }
+
+            $this->taxProfileVerification = $this->taxProfileVerification->withRequestedAt(null);
+
+            return true;
+        }
+
+        $isCurrent = $checkedSiren === $this->taxProfile->siren()?->value()
+            && $checkedVatNumber === $this->taxProfile->vatNumber()?->value();
+
+        if (!$isCurrent) {
+            return false;
+        }
+
+        // An outage never overwrites a definite answer: it is kept with its date, so a stale
+        // profile stays stale (and is retried) and its warnings stay shown.
+        $previous = $this->taxProfileVerification;
+        $company  = $this->keepsDefinite($previous->company()->outcome()->isDefinite(), $result->company()->outcome()->isDefinite())
+            ? $previous->company() : $result->company();
+        $vat = $this->keepsDefinite($previous->vat()->outcome()->isDefinite(), $result->vat()->outcome()->isDefinite())
+            ? $previous->vat() : $result->vat();
+
+        $this->taxProfileVerification = TaxProfileVerification::of($company, $vat);
+
+        $this->recordDomainEvent(new ClientTaxProfileVerified(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            companyOutcome: $company->outcome()->value,
+            registryName: $company->registryName(),
+            companyCheckedAt: $company->checkedAt()?->format(\DATE_ATOM),
+            vatOutcome: $vat->outcome()->value,
+            vatCheckedAt: $vat->checkedAt()?->format(\DATE_ATOM),
+        ));
+
+        return true;
+    }
+
+    /**
+     * « Revérifier »: marks a new verification as requested unless one is still awaited.
+     */
+    public function requestTaxProfileVerification(\DateTimeImmutable $now): VerificationRequestOutcome
+    {
+        if ($this->isArchived()) {
+            return VerificationRequestOutcome::ARCHIVED;
+        }
+
+        if (!$this->isTaxProfileVerifiable()) {
+            return VerificationRequestOutcome::NOT_APPLICABLE;
+        }
+
+        if ($this->taxProfileVerification->isPending($now)) {
+            return VerificationRequestOutcome::ALREADY_PENDING;
+        }
+
+        $this->taxProfileVerification = $this->taxProfileVerification->withRequestedAt($now);
+
+        return VerificationRequestOutcome::QUEUED;
     }
 
     /**
@@ -339,6 +437,11 @@ final class Client extends AggregateRoot
         return $this->taxProfile;
     }
 
+    public function taxProfileVerification(): TaxProfileVerification
+    {
+        return $this->taxProfileVerification;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -352,6 +455,36 @@ final class Client extends AggregateRoot
     public function isArchived(): bool
     {
         return ClientStatus::ARCHIVED === $this->status;
+    }
+
+    private function keepsDefinite(bool $previousIsDefinite, bool $newIsDefinite): bool
+    {
+        return $previousIsDefinite && !$newIsDefinite;
+    }
+
+    private function isTaxProfileVerifiable(): bool
+    {
+        return !$this->isArchived()
+            && ClientTaxStatus::FRENCH_BUSINESS === $this->taxProfile->status()
+            && null !== $this->taxProfile->siren();
+    }
+
+    /**
+     * Resets the verification (requested again when the new identifiers can be checked).
+     */
+    private function taxIdentifiersChanged(ClientTaxProfile $previous, \DateTimeImmutable $now): void
+    {
+        $this->taxProfileVerification = TaxProfileVerification::unchecked($this->isTaxProfileVerifiable() ? $now : null);
+
+        $this->recordDomainEvent(new ClientTaxIdentifiersChanged(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            taxStatus: $this->taxProfile->status()->value,
+            previousSiren: $previous->siren()?->value(),
+            siren: $this->taxProfile->siren()?->value(),
+            previousVatNumber: $previous->vatNumber()?->value(),
+            vatNumber: $this->taxProfile->vatNumber()?->value(),
+        ));
     }
 
     private function ensureNotArchived(): void

@@ -1,0 +1,10 @@
+{
+  "_source": "hand-written, replace by recorded",
+  "actionSucceed": false,
+  "errorWrappers": [
+    {
+      "error": "GLOBAL_MAX_CONCURRENT_REQ",
+      "message": "Maximum number of concurrent requests reached"
+    }
+  ]
+}

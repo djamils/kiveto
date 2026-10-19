@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Client\Story;
 
+use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
@@ -37,6 +39,7 @@ final class ClientDataStory extends Story
     public const CLIENT_CALANQUES_AUBAGNE_ID = '01936e19-eeee-7000-8000-00000000000e';
     public const CLIENT_REFUGE_ID            = '01936e19-ffff-7000-8000-00000000000f';
     public const CLIENT_GAEC_ID              = '01936e19-1010-7000-8000-000000000010';
+    public const CLIENT_HARAS_ID             = '01936e19-1111-7000-8000-000000000011';
 
     public function build(): void
     {
@@ -415,18 +418,30 @@ final class ClientDataStory extends Story
      * contact: a business with and one without VAT number (franchise en
      * base), a second establishment sharing a SIREN (duplicate warning), an
      * association that is not VAT-liable, and an archived business.
+     *
+     * Verification states, consistent with the fixture registry and VIES:
+     * Calanques verified (active, VAT valid), Centre équestre pending, the
+     * Aubagne site verified (its name contains the official one: no
+     * mismatch), the Haras typed under another name than the registry's and
+     * with a VAT number VIES rejects, the GAEC ceased (archived).
      */
     private function buildProfessionals(string $clinicId): void
     {
         $structures = [
-            [self::CLIENT_CALANQUES_ID, 'madam', 'Claire', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques', '523456788', 'FR31523456788', true, '+33 4 91 22 33 44', 'contact@elevage-calanques.fr', ['Chemin des Goudes', 'Marseille', '13008']],
-            [self::CLIENT_CENTRE_EQUESTRE_ID, 'mister', 'Hugo', 'Marchal', ClientTaxStatus::FRENCH_BUSINESS, 'Centre équestre du Lac', '812345676', null, true, '+33 6 45 12 78 90', null, ['Route du Lac', 'Enghien-les-Bains', '95880']],
-            [self::CLIENT_CALANQUES_AUBAGNE_ID, 'mister', 'Paul', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques — site d\'Aubagne', '523456788', null, true, '+33 4 42 03 11 22', null, null],
-            [self::CLIENT_REFUGE_ID, 'madam', 'Inès', 'Perrin', ClientTaxStatus::INDIVIDUAL, 'Refuge des Collines', null, null, true, '+33 6 77 88 99 00', 'refuge.collines@example.org', ['12 rue des Tilleuls', 'Montreuil', '93100']],
-            [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, null],
+            [self::CLIENT_CALANQUES_ID, 'madam', 'Claire', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques', '523456788', 'FR31523456788', true, '+33 4 91 22 33 44', 'contact@elevage-calanques.fr', ['Chemin des Goudes', 'Marseille', '13008'],
+                [CompanyCheckOutcome::ACTIVE, 'Élevage des Calanques', 'yesterday 08:12', VatCheckOutcome::VALID, null]],
+            [self::CLIENT_CENTRE_EQUESTRE_ID, 'mister', 'Hugo', 'Marchal', ClientTaxStatus::FRENCH_BUSINESS, 'Centre équestre du Lac', '812345676', null, true, '+33 6 45 12 78 90', null, ['Route du Lac', 'Enghien-les-Bains', '95880'],
+                [CompanyCheckOutcome::UNCHECKED, null, null, VatCheckOutcome::UNCHECKED, '-5 minutes']],
+            [self::CLIENT_CALANQUES_AUBAGNE_ID, 'mister', 'Paul', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques — site d\'Aubagne', '523456788', null, true, '+33 4 42 03 11 22', null, null,
+                [CompanyCheckOutcome::ACTIVE, 'Élevage des Calanques', 'yesterday 08:13', VatCheckOutcome::NOT_APPLICABLE, null]],
+            [self::CLIENT_REFUGE_ID, 'madam', 'Inès', 'Perrin', ClientTaxStatus::INDIVIDUAL, 'Refuge des Collines', null, null, true, '+33 6 77 88 99 00', 'refuge.collines@example.org', ['12 rue des Tilleuls', 'Montreuil', '93100'], null],
+            [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, null,
+                [CompanyCheckOutcome::CEASED, 'GAEC du Mont', '-3 days', VatCheckOutcome::VALID, null]],
+            [self::CLIENT_HARAS_ID, 'madam', 'Lucie', 'Fabre', ClientTaxStatus::FRENCH_BUSINESS, 'Écuries du Mont Ventoux', '392107454', 'FR76392107454', true, '+33 4 90 65 12 34', 'accueil@haras-ventoux.fr', ['Chemin du Ventoux', 'Bédoin', '84410'],
+                [CompanyCheckOutcome::ACTIVE, 'Haras du Mont Ventoux', 'yesterday 08:14', VatCheckOutcome::INVALID, null]],
         ];
 
-        foreach ($structures as [$id, $civility, $first, $last, $status, $legalName, $siren, $vat, $active, $phone, $email, $address]) {
+        foreach ($structures as [$id, $civility, $first, $last, $status, $legalName, $siren, $vat, $active, $phone, $email, $address, $verification]) {
             $factory = ClientEntityFactory::new()
                 ->withId($id)
                 ->withClinicId($clinicId)
@@ -434,6 +449,12 @@ final class ClientDataStory extends Story
                 ->withCivility($civility)
                 ->withTaxProfile($status, $legalName, $siren, $vat)
             ;
+
+            if (null !== $verification) {
+                [$company, $registryName, $checkedAt, $vatOutcome, $requestedAt] = $verification;
+                $factory                                                         = $factory->withTaxVerification($company, $registryName, $checkedAt, $vatOutcome, $checkedAt, $requestedAt);
+            }
+
             $factory = $active ? $factory->active() : $factory->archived();
 
             if (null !== $address) {

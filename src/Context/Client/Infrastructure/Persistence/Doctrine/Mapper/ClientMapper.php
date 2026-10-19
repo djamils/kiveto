@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Client\Domain\Client;
+use App\Context\Client\Domain\TaxProfile\CompanyCheck;
+use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
+use App\Context\Client\Domain\TaxProfile\TaxProfileVerification;
+use App\Context\Client\Domain\TaxProfile\VatCheck;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\AuthorizedPerson;
 use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
@@ -59,6 +64,28 @@ final readonly class ClientMapper
             authorizedPerson: $this->authorizedPersonToDomain($entity),
             communicationPreferences: $this->communicationPreferencesToDomain($entity),
             taxProfile: $this->taxProfileToDomain($entity),
+            taxProfileVerification: $this->taxProfileVerificationToDomain($entity),
+        );
+    }
+
+    /**
+     * Also used by the read model to derive pending state and warnings through the domain.
+     */
+    public function taxProfileVerificationToDomain(ClientEntity $entity): TaxProfileVerification
+    {
+        $companyOutcome   = $entity->getTaxCompanyCheckOutcome();
+        $companyCheckedAt = $entity->getTaxCompanyCheckedAt();
+        $vatOutcome       = $entity->getTaxVatCheckOutcome();
+        $vatCheckedAt     = $entity->getTaxVatCheckedAt();
+
+        return TaxProfileVerification::of(
+            null === $companyOutcome || null === $companyCheckedAt
+                ? CompanyCheck::unchecked()
+                : CompanyCheck::checked($companyOutcome, $entity->getTaxCompanyRegistryName(), $companyCheckedAt),
+            null === $vatOutcome || null === $vatCheckedAt
+                ? VatCheck::unchecked()
+                : VatCheck::checked($vatOutcome, $vatCheckedAt),
+            $entity->getTaxVerificationRequestedAt(),
         );
     }
 
@@ -77,6 +104,16 @@ final readonly class ClientMapper
         $clientEntity->setLegalName($client->taxProfile()->legalName());
         $clientEntity->setSiren($client->taxProfile()->siren()?->value());
         $clientEntity->setVatNumber($client->taxProfile()->vatNumber()?->value());
+
+        $verification = $client->taxProfileVerification();
+        $company      = $verification->company();
+        $vat          = $verification->vat();
+        $clientEntity->setTaxCompanyCheckOutcome(CompanyCheckOutcome::UNCHECKED === $company->outcome() ? null : $company->outcome());
+        $clientEntity->setTaxCompanyRegistryName($company->registryName());
+        $clientEntity->setTaxCompanyCheckedAt($company->checkedAt());
+        $clientEntity->setTaxVatCheckOutcome(VatCheckOutcome::UNCHECKED === $vat->outcome() ? null : $vat->outcome());
+        $clientEntity->setTaxVatCheckedAt($vat->checkedAt());
+        $clientEntity->setTaxVerificationRequestedAt($verification->requestedAt());
         $clientEntity->setStatus($client->status());
         $clientEntity->setCreatedAt($client->createdAt());
         $clientEntity->setUpdatedAt($client->updatedAt());

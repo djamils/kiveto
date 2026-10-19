@@ -1,0 +1,10 @@
+{
+  "_source": "hand-written, replace by recorded",
+  "actionSucceed": false,
+  "errorWrappers": [
+    {
+      "error": "MS_UNAVAILABLE",
+      "message": "The service of the Member State is unavailable"
+    }
+  ]
+}
