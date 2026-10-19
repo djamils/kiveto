@@ -519,7 +519,7 @@ export function init() {
         const quoi = f.t === 'pub' ? 'Organisme' : 'Entreprise ou association';
         const manuel = !F.annuaireUrl || f.manual;
         if (!manuel) {
-          h += `<div><label class="flbl" for="fzQ">${quoi} <span class="req">*</span></label><div class="fz-res"><input class="finput" id="fzQ" role="combobox" aria-expanded="false" aria-controls="fzS" aria-autocomplete="list" placeholder="Raison sociale, SIREN ou SIRET…" autocomplete="off" value="${esc(f.q || '')}"><div class="fz-sug" id="fzS" role="listbox" aria-label="Entreprises de l'annuaire"></div></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : nom, adresse et n° de TVA sont repris tels quels.</small><button type="button" class="lien fz-man" data-fzman>Saisir à la main</button></div>`;
+          h += `<div><label class="flbl" for="fzQ">${quoi} <span class="req">*</span></label><div class="fz-res"><input class="finput" id="fzQ" role="combobox" aria-expanded="false" aria-controls="fzS" aria-autocomplete="list" placeholder="Raison sociale, SIREN ou SIRET du siège…" autocomplete="off" value="${esc(f.q || '')}"><div class="fz-sug" id="fzS" role="listbox" aria-label="Entreprises de l'annuaire"></div></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : nom, adresse et n° de TVA sont repris tels quels.</small><button type="button" class="lien fz-man" data-fzman>Saisir à la main</button></div>`;
         } else if (F.annuaireUrl) {
           h += `<div class="fz-st${f.down ? ' warn' : ''}">${FZI.i}<div>${f.down ? '<b>Recherche indisponible, saisie manuelle.</b> Les informations seront vérifiées dès que l\'annuaire répondra.' : 'Saisie manuelle : les informations seront vérifiées dans l\'annuaire.'}</div><button type="button" class="act" data-fzrech>Rechercher dans l'annuaire</button></div>`;
         }
@@ -614,8 +614,8 @@ export function init() {
     lire: lireFisc, editer: editFisc, monte: monteFisc, valider: validerFisc,
   }, CARTES, signal);
 
-  /* Asks the registry; `sur(R)` gets its answer, an outage or a network failure opens manual entry. */
-  function annuaire(q, sur) {
+  /* Asks the registry; `sur(items)` gets its hits, `ralenti()` a spent budget; an outage or a network failure opens manual entry. */
+  function annuaire(q, sur, ralenti = () => {}) {
     window.clearTimeout(fzTimer);
     fzAbort?.abort();
     const ctl = fzAbort = new AbortController();
@@ -624,8 +624,8 @@ export function init() {
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(R => {
         if (!FS || ctl.signal.aborted) return;
-        // Throttled: keep what is shown, the next keystroke asks again.
-        if (!R.available) { if (R.reason !== 'throttled') panne(); return; }
+        // Throttled: the next keystroke asks again.
+        if (!R.available) { if (R.reason === 'throttled') ralenti(); else panne(); return; }
         sur(R.items);
       })
       .catch(err => { if (err.name !== 'AbortError') panne(); });
@@ -666,9 +666,9 @@ export function init() {
   function suggestions() {
     const s = $('fzS'), q = $('fzQ');
     if (!s || !q) return;
-    const L = FS.res;
-    s.innerHTML = L.length ? L.map((x, i) => `<button type="button" role="option" id="fzo${i}" data-sir="${esc(x.siren)}" aria-selected="${i === FS.hl}"${i === FS.hl ? ' class="hl"' : ''}><span>${esc(x.n)}<small>${esc([x.forme, x.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${x.cesse ? ' · radiée' : ''}</small></span><code>${fmtS(x.siren)}</code></button>`).join('')
-      : '<div class="vide">Aucun résultat dans l\'annuaire. Vérifiez l\'orthographe, tapez le SIREN ou saisissez à la main.</div>';
+    const L = FS.res, lent = FS.lent ? '<div class="vide">Recherche ralentie, continuez à taper.</div>' : '';
+    s.innerHTML = lent + (L.length ? L.map((x, i) => `<button type="button" role="option" id="fzo${i}" data-sir="${esc(x.siren)}" aria-selected="${i === FS.hl}"${i === FS.hl ? ' class="hl"' : ''}><span>${esc(x.n)}<small>${esc([x.forme, x.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${x.cesse ? ' · radiée' : ''}</small></span><code>${fmtS(x.siren)}</code></button>`).join('')
+      : lent ? '' : '<div class="vide">Aucun résultat dans l\'annuaire. Vérifiez l\'orthographe, tapez le SIREN ou saisissez à la main.</div>');
     s.classList.add('open');
     q.setAttribute('aria-expanded', 'true');
     if (FS.hl >= 0) q.setAttribute('aria-activedescendant', `fzo${FS.hl}`); else q.removeAttribute('aria-activedescendant');
@@ -684,8 +684,13 @@ export function init() {
     const id = ++fzSeq;
     fzTimer = window.setTimeout(() => annuaire(v, items => {
       if (id !== fzSeq) return;
-      FS.res = items;
-      FS.hl = -1;
+      Object.assign(FS, { res: items, resQ: v, hl: -1, lent: false });
+      suggestions();
+    }, () => {
+      if (id !== fzSeq) return;
+      // Hits of another search would mislead: only those of the text typed stay.
+      if (FS.resQ !== v) Object.assign(FS, { res: [], hl: -1 });
+      FS.lent = true;
       suggestions();
     }), 300);
   }

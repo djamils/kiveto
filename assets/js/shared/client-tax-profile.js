@@ -89,7 +89,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
   const inp = k => q(`[data-ff="${k}"]`);
   const onCheck = opts.onCheck ?? onChange;
   let shown = false, left = false, seq = 0, timer = 0;
-  let hits = [], hl = -1, searchTimer = 0, searchAbort = null;
+  let hits = [], hitsFor = '', hl = -1, searchTimer = 0, searchAbort = null;
 
   const paint = () => {
     const pro = state.fisc === PRO;
@@ -156,7 +156,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
   const searching = () => !!opts.registryUrl && (state.fisc === PRO || !!opts.structureOnly);
   const closeHits = () => { sug.hidden = true; inp('rs').setAttribute('aria-expanded', 'false'); inp('rs').removeAttribute('aria-activedescendant'); };
   const showHits = (note = '') => {
-    sug.innerHTML = note ? `<div class="fisc-sug-note">${esc(note)}</div>` : hits.map((h, i) => `<button type="button" role="option" id="fiscHit${i}" data-hit="${i}" aria-selected="${i === hl}"${i === hl ? ' class="hl"' : ''}><span>${esc(h.n)}<small>${esc([h.forme, h.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${h.cesse ? ' · radiée' : ''}</small></span><code>${esc(fmtSiren(h.siren))}</code></button>`).join('');
+    sug.innerHTML = (note ? `<div class="fisc-sug-note">${esc(note)}</div>` : '') + hits.map((h, i) => `<button type="button" role="option" id="fiscHit${i}" data-hit="${i}" aria-selected="${i === hl}"${i === hl ? ' class="hl"' : ''}><span>${esc(h.n)}<small>${esc([h.forme, h.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${h.cesse ? ' · radiée' : ''}</small></span><code>${esc(fmtSiren(h.siren))}</code></button>`).join('');
     sug.hidden = !note && !hits.length;
     inp('rs').setAttribute('aria-expanded', String(!sug.hidden));
     if (hl >= 0) inp('rs').setAttribute('aria-activedescendant', `fiscHit${hl}`); else inp('rs').removeAttribute('aria-activedescendant');
@@ -172,9 +172,15 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
         .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
         .then(r => {
           if (ctl.signal.aborted) return;
-          // Throttled: the last hits stay; down: typing by hand goes on.
-          if (!r.available) { if (r.reason !== 'throttled') { hits = []; showHits('Recherche indisponible, saisie manuelle.'); } return; }
+          // Throttled: only hits of the text typed stay; down: typing by hand goes on.
+          if (!r.available) {
+            if (r.reason === 'throttled') { if (hitsFor !== text) { hits = []; hl = -1; } showHits('Recherche ralentie, continuez à taper.'); return; }
+            hits = [];
+            showHits('Recherche indisponible, saisie manuelle.');
+            return;
+          }
           hits = r.items;
+          hitsFor = text;
           hl = -1;
           showHits(hits.length ? '' : 'Aucune entreprise trouvée : saisissez-la à la main.');
         })
@@ -182,6 +188,9 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
     }, SEARCH_DELAY_MS);
   };
   const pick = h => {
+    // A search still waiting or in flight would reopen the list over the filled block.
+    window.clearTimeout(searchTimer);
+    searchAbort?.abort();
     closeHits();
     hits = [];
     state.rs = h.n;

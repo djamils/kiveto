@@ -534,7 +534,9 @@ export function init() {
   async function rechercheCli() {
     const pro = VT.ty === 'pro', q = pro ? VT.pq : VT.q, n = norm(q), d = q.replace(/\D/g, '');
     if (n.length < 2 && d.length < 3) { if (pro) { VT.pcl = null; VT.preg = null; VT.pregDown = false; } else VT.cl = null; rendreCl(); return; }
-    if (pro) chercherSirene(q);
+    // The registry needs 3 letters, or a SIREN / SIRET.
+    if (pro && (n.replace(/\d/g, '').trim().length >= 3 || d.length === 9 || d.length === 14)) chercherSirene(q);
+    else if (pro) Object.assign(VT, { preg: null, pregSlow: false, pregDown: false });
     try {
       const items = await chercherClients(q, pro ? 'pro' : '');
       if (!VT || (pro ? VT.pq : VT.q) !== q) return;
@@ -561,7 +563,7 @@ export function init() {
 
   function ouvrirVente() {
     VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']),
-      pc: null, pq: '', pcl: null, preg: null, pregDown: false, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
+      pc: null, pq: '', pcl: null, preg: null, pregQ: '', pregDown: false, pregSlow: false, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
     $('vtQ').value = '';
     rendreVtTy();
     rendreZone();
@@ -645,10 +647,11 @@ export function init() {
   function rendreSirene(clients) {
     const tete = '<div class="vt-grp">Annuaire des entreprises · SIRENE</div>';
     if (VT.pregDown) return `${tete}<div class="vt-vide">Annuaire indisponible pour le moment : créez le professionnel à la main.</div>`;
-    if (!VT.preg) return `${tete}<div class="vt-vide">Les entreprises viennent de la base SIRENE : raison sociale, SIREN, adresse et TVA sont repris tels quels.</div>`;
+    const lent = VT.pregSlow ? '<div class="vt-vide">Recherche ralentie, continuez à taper.</div>' : '';
+    if (!VT.preg) return `${tete}${lent || '<div class="vt-vide">Les entreprises viennent de la base SIRENE : raison sociale, SIREN, adresse et TVA sont repris tels quels.</div>'}`;
     const connus = new Set((clients || []).map(c => c.siren).filter(Boolean));
     const L = VT.preg.filter(h => !connus.has(h.siren));
-    return tete + (L.length
+    return tete + lent + (L.length
       ? L.map(h => `<button type="button" class="vt-o" data-sir="${esc(h.siren)}"><span class="lt"><b>${esc(h.n)}</b><span class="s">${esc([h.forme, h.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${h.cesse ? ' · radiée' : ''}</span></span><code>${esc(fmtSiren(h.siren))}</code></button>`).join('')
       : '<div class="vt-vide">Aucune autre entreprise dans l\'annuaire.</div>');
   }
@@ -660,8 +663,12 @@ export function init() {
       if (!r.ok) throw new Error(String(r.status));
       const d = await r.json();
       if (!VT || VT.pq !== q) return;
-      if (!d.available) { if (d.reason !== 'throttled') { VT.preg = null; VT.pregDown = true; } }
-      else { VT.preg = d.items; VT.pregDown = false; }
+      if (!d.available && d.reason === 'throttled') {
+        // Hits of another search would mislead: only those of the text typed stay.
+        if (VT.pregQ !== q) VT.preg = null;
+        VT.pregSlow = true;
+      } else if (!d.available) Object.assign(VT, { preg: null, pregDown: true, pregSlow: false });
+      else Object.assign(VT, { preg: d.items, pregQ: q, pregDown: false, pregSlow: false });
       rendreCl();
     } catch (e) {
       if (e.name !== 'AbortError' && VT && VT.pq === q) { VT.preg = null; VT.pregDown = true; rendreCl(); }

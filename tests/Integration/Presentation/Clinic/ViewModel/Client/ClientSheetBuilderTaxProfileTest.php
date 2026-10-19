@@ -72,12 +72,21 @@ final class ClientSheetBuilderTaxProfileTest extends KernelTestCase
 
     public function testANameMismatch(): void
     {
+        $fisc = $this->fisc($this->pro('Écuries du Mont Ventoux', null, '392107454')
+            ->withTaxVerification(CompanyCheckOutcome::ACTIVE, 'Haras du Mont Ventoux', '2026-10-18 08:00:00', VatCheckOutcome::NOT_APPLICABLE, '2026-10-18 08:00:00'));
+
+        self::assertIsArray($fisc['verification']);
+        self::assertSame('Haras du Mont Ventoux', $fisc['verification']['registryName']);
+        self::assertSame([['code' => 'name_mismatch', 'label' => 'Nom différent du registre']], $fisc['verification']['warnings']);
+    }
+
+    public function testAnEstablishmentContainingTheOfficialNameIsNoMismatch(): void
+    {
         $fisc = $this->fisc($this->pro('Élevage des Calanques — site d\'Aubagne', null)
             ->withTaxVerification(CompanyCheckOutcome::ACTIVE, 'Élevage des Calanques', '2026-10-18 08:00:00', VatCheckOutcome::NOT_APPLICABLE, '2026-10-18 08:00:00'));
 
         self::assertIsArray($fisc['verification']);
-        self::assertSame('Élevage des Calanques', $fisc['verification']['registryName']);
-        self::assertSame([['code' => 'name_mismatch', 'label' => 'Nom différent du registre']], $fisc['verification']['warnings']);
+        self::assertSame([], $fisc['verification']['warnings']);
     }
 
     public function testAnIndividualHasNoVerification(): void

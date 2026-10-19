@@ -391,14 +391,18 @@ function rendreNcCli() {
   monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, {
     sirenUrl: CFG.urls.siren,
     registryUrl: CFG.urls.registry,
-    // The company's head office becomes the client's postal address.
+    // The company's head office fills the client's postal address, never over what was typed.
     onCompany: (h) => {
       const et = h.ets[0], cp = (et?.a.match(/(\d{5}) ([^,]+)$/) || []);
       if (!et || !cp.length) return;
-      Object.assign(NC, { rue: et.a.slice(0, et.a.length - cp[0].length).replace(/,\s*$/, ''), cp: cp[1], ville: cp[2], ban: false, communes: undefined });
+      const rue = et.a.slice(0, et.a.length - cp[0].length).replace(/,\s*$/, '');
+      const nouveauCp = !NC.cp;
+      if (!NC.rue && rue) NC.rue = rue;
+      if (nouveauCp) Object.assign(NC, { cp: cp[1], communes: undefined });
+      if (!NC.ville && NC.cp === cp[1]) NC.ville = cp[2];
       rendreAdr();
       majNc();
-      chargerCommunes();
+      if (nouveauCp) chargerCommunes();
     },
   });
   rendreAdr();
