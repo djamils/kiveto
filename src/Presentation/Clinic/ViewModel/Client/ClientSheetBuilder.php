@@ -17,7 +17,6 @@ use App\Context\Client\Application\Query\ListClientNotes\ClientNoteView;
 use App\Context\Client\Application\Query\ListClientNotes\ListClientNotes;
 use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
-use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
@@ -423,23 +422,49 @@ final readonly class ClientSheetBuilder
 
     /**
      * The « Profil fiscal » card: the shared block's values (`fisc`, `rs`,
-     * `siren`, `tva`) and their display (« SIREN 523 456 788 · TVA FR 31 523456788 »).
+     * `siren`, `tva`), their display (« 523 456 788 », « FR 31 523456788 »)
+     * and the card's status (`t`: part|ent|pub|etr, `ass`: liable to VAT).
      *
-     * @return array{fisc: string, label: string, rs: string, siren: string, tva: string, sirenAff: ?string, tvaAff: ?string, dblUrl: string}
+     * The other keys are what the card shows once the server knows them:
+     * the statuses it can store (`statuts`), the establishment (`siret`),
+     * the country and service of a foreign client or public body (`pays`,
+     * `svc`), the directory record (`ent`) with its e-invoicing address
+     * (`ae`) and the establishments already in file (`clientsSiret`), the
+     * VIES answer (`vies`) and when the directory was read (`verif`), who
+     * changed the profile and when (`meta`), whether changes go into the
+     * history (`trace`), whether e-invoicing is live (`efacture`) and the
+     * directory search (`annuaireUrl`). Until then they stay empty and the
+     * card shows those parts as coming soon.
+     *
+     * @return array{t: string, ass: bool, fisc: string, rs: string, siren: string, tva: string, sirenAff: ?string, tvaAff: ?string, dblUrl: string, statuts: list<string>, siret: null, pays: null, svc: null, ae: null, ent: null, clientsSiret: array<string, array{n: string, url: string}>, vies: null, verif: null, meta: null, trace: bool, efacture: bool, annuaireUrl: null}
      */
     private function taxProfileView(ClientView $client): array
     {
         $pro = 'french_business' === $client->taxStatus;
 
         return [
-            'fisc'     => $pro ? TaxProfileInput::PROFESSIONAL : TaxProfileInput::INDIVIDUAL,
-            'label'    => ClientTaxStatus::from($client->taxStatus)->label(),
-            'rs'       => $client->legalName ?? '',
-            'siren'    => $client->siren ?? '',
-            'tva'      => $client->vatNumber ?? '',
-            'sirenAff' => null !== $client->siren ? implode(' ', str_split($client->siren, 3)) : null,
-            'tvaAff'   => null !== $client->vatNumber ? \sprintf('%s %s %s', substr($client->vatNumber, 0, 2), substr($client->vatNumber, 2, 2), substr($client->vatNumber, 4)) : null,
-            'dblUrl'   => $this->urls->generate('clinic_clients_by_siren'),
+            't'            => $pro || null !== $client->legalName ? 'ent' : 'part',
+            'ass'          => $pro,
+            'fisc'         => $pro ? TaxProfileInput::PROFESSIONAL : TaxProfileInput::INDIVIDUAL,
+            'rs'           => $client->legalName ?? '',
+            'siren'        => $client->siren ?? '',
+            'tva'          => $client->vatNumber ?? '',
+            'sirenAff'     => null !== $client->siren ? implode(' ', str_split($client->siren, 3)) : null,
+            'tvaAff'       => null !== $client->vatNumber ? \sprintf('%s %s %s', substr($client->vatNumber, 0, 2), substr($client->vatNumber, 2, 2), substr($client->vatNumber, 4)) : null,
+            'dblUrl'       => $this->urls->generate('clinic_clients_by_siren'),
+            'statuts'      => ['part', 'ent'],
+            'siret'        => null,
+            'pays'         => null,
+            'svc'          => null,
+            'ae'           => null,
+            'ent'          => null,
+            'clientsSiret' => [],
+            'vies'         => null,
+            'verif'        => null,
+            'meta'         => null,
+            'trace'        => false,
+            'efacture'     => false,
+            'annuaireUrl'  => null,
         ];
     }
 
