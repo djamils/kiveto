@@ -18,3 +18,8 @@ services:
         decorates: App\Shared\Application\Bus\CommandBusInterface
         arguments: ['@.inner']
         public: true
+
+    # Nothing consumes the external_api logger before the first adapter; expose it.
+    test.monolog.logger.external_api:
+        alias: monolog.logger.external_api
+        public: true
