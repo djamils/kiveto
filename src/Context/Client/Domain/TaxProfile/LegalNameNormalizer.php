@@ -22,7 +22,9 @@ final class LegalNameNormalizer
         $decomposed = \Normalizer::normalize($text, \Normalizer::FORM_D);
         $text       = \is_string($decomposed) ? (string) preg_replace('/\p{Mn}+/u', '', $decomposed) : $text;
         $text       = str_replace('&', ' et ', $text);
-        $text       = (string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text);
+        // « S.A.R.L. » is the legal form SARL: the dots of an acronym go before the forms are matched.
+        $text = (string) preg_replace_callback('/\b\p{L}(?:\.\p{L}\b)+\.?/u', static fn (array $m): string => str_replace('.', '', $m[0]), $text);
+        $text = (string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text);
 
         $tokens = array_values(array_filter(explode(' ', $text), static fn (string $token): bool => '' !== $token));
 

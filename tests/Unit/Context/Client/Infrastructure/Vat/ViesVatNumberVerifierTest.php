@@ -55,9 +55,12 @@ final class ViesVatNumberVerifierTest extends TestCase
         $this->verifier(new MockHttpClient(new MockResponse(self::fixture('global-max-concurrent'), ['http_code' => 400])))->verify('FR31523456788');
     }
 
-    public function testAnInvalidInputIsInvalid(): void
+    public function testAnInvalidInputIsAnOutageNotAnAccusation(): void
     {
-        self::assertFalse($this->verifier(new MockHttpClient(new MockResponse(self::fixture('invalid-input'), ['http_code' => 400])))->verify('FR00000000000')->isValid);
+        $this->expectException(ExternalServiceUnavailable::class);
+        $this->expectExceptionMessage('vies is unavailable: INVALID_INPUT.');
+
+        $this->verifier(new MockHttpClient(new MockResponse(self::fixture('invalid-input'), ['http_code' => 400])))->verify('FR00000000000');
     }
 
     public function testCallsArePacedAtOnePerSecond(): void

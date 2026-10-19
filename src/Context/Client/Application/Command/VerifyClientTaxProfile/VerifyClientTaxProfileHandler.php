@@ -41,11 +41,29 @@ final readonly class VerifyClientTaxProfileHandler
     {
         $client = $this->clients->findById(ClinicId::fromString($command->clinicId), ClientId::fromString($command->clientId));
 
-        $verifiable = null !== $client
-            && ClientStatus::ACTIVE->value === $client->status
-            && ClientTaxStatus::FRENCH_BUSINESS->value === $client->taxStatus;
+        if (null === $client) {
+            return;
+        }
+
+        $verifiable = ClientStatus::ACTIVE->value === $client->status
+            && ClientTaxStatus::FRENCH_BUSINESS->value === $client->taxStatus
+            && null !== $client->siren;
 
         if (!$verifiable || null === $client->siren) {
+            // Nothing to ask; the record step clears the request of a client that can no longer be verified.
+            $now = $this->clock->now()->format(\DATE_ATOM);
+            $this->commandBus->dispatch(new RecordTaxProfileVerification(
+                clinicId: $command->clinicId,
+                clientId: $command->clientId,
+                checkedSiren: $client->siren ?? '',
+                checkedVatNumber: $client->vatNumber,
+                companyOutcome: CompanyCheckOutcome::UNAVAILABLE->value,
+                registryName: null,
+                companyCheckedAt: $now,
+                vatOutcome: VatCheckOutcome::UNAVAILABLE->value,
+                vatCheckedAt: $now,
+            ));
+
             return;
         }
 

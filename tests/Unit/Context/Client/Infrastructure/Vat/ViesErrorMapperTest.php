@@ -38,10 +38,18 @@ final class ViesErrorMapperTest extends TestCase
         }
     }
 
-    public function testAnInvalidInputIsAnInvalidNumber(): void
+    public function testAnyErrorCodeIsAnOutageNeverAnInvalidNumber(): void
     {
-        self::assertFalse(new ViesErrorMapper()->map(new ExternalApiResponse(400, ['errorWrappers' => [['error' => 'INVALID_INPUT']]]))->isValid);
-        self::assertFalse(new ViesErrorMapper()->map(new ExternalApiResponse(200, ['userError' => 'INVALID_INPUT']))->isValid);
+        foreach (['INVALID_INPUT', 'IP_BLOCKED', 'VAT_BLOCKED', 'INVALID_REQUESTER_INFO'] as $code) {
+            foreach ([['valid' => false, 'userError' => $code], ['valid' => false, 'errorWrappers' => [['error' => $code]]]] as $data) {
+                try {
+                    new ViesErrorMapper()->map(new ExternalApiResponse(200, $data));
+                    self::fail($code . ' must not read as an invalid number.');
+                } catch (ExternalServiceUnavailable $e) {
+                    self::assertSame(\sprintf('vies is unavailable: %s.', $code), $e->getMessage());
+                }
+            }
+        }
     }
 
     public function testTheValidFlagIsTheAnswer(): void

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Client\Application\Verification\TaxProfileVerificationScheduleInterface;
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
@@ -15,8 +14,6 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class DbalTaxProfileVerificationSchedule implements TaxProfileVerificationScheduleInterface
 {
-    private const int CHUNK = 500;
-
     private const string DATE_FORMAT = 'Y-m-d H:i:s';
 
     public function __construct(private Connection $connection)
@@ -32,14 +29,14 @@ final readonly class DbalTaxProfileVerificationSchedule implements TaxProfileVer
                 WHERE tax_status = 'french_business'
                   AND siren IS NOT NULL
                   AND status = 'active'
-                  AND (tax_verification_requested_at IS NULL OR tax_verification_requested_at < :requestedBefore)
+                  AND (tax_verification_requested_at IS NULL OR tax_verification_requested_at <= :requestedBefore)
                   AND (
                       tax_company_checked_at IS NULL
                       OR tax_company_check_outcome IS NULL
                       OR tax_company_check_outcome = 'unavailable'
                       OR tax_vat_check_outcome IS NULL
                       OR tax_vat_check_outcome = 'unavailable'
-                      OR tax_company_checked_at < :checkedBefore
+                      OR tax_company_checked_at <= :checkedBefore
                   )
                 ORDER BY tax_company_checked_at IS NOT NULL, tax_company_checked_at, id
                 SQL,
@@ -60,31 +57,23 @@ final readonly class DbalTaxProfileVerificationSchedule implements TaxProfileVer
     {
         $marked = [];
 
-        foreach (array_chunk($clientIds, self::CHUNK) as $chunk) {
-            $ids = array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $chunk);
-
-            // The de-dup predicate is repeated: a request committed meanwhile is not doubled.
-            // Bumping the version makes a concurrent sheet save conflict instead of erasing the marker.
-            $this->connection->executeStatement(
+        foreach ($clientIds as $clientId) {
+            // The de-dup predicate is repeated and each row is marked on its own: a client is sent
+            // only if this very statement marked it, so a request committed meanwhile (even in the
+            // same second) is never doubled. Bumping the version makes a concurrent sheet save
+            // conflict instead of erasing the marker.
+            $updated = $this->connection->executeStatement(
                 <<<'SQL'
                     UPDATE client__clients
                     SET tax_verification_requested_at = :now, version = version + 1
-                    WHERE id IN (:ids)
-                      AND (tax_verification_requested_at IS NULL OR tax_verification_requested_at < :requestedBefore)
+                    WHERE id = :id
+                      AND (tax_verification_requested_at IS NULL OR tax_verification_requested_at <= :requestedBefore)
                     SQL,
-                ['now' => $now->format(self::DATE_FORMAT), 'ids' => $ids, 'requestedBefore' => $requestedBefore->format(self::DATE_FORMAT)],
-                ['ids' => ArrayParameterType::BINARY],
+                ['now' => $now->format(self::DATE_FORMAT), 'id' => Uuid::fromString($clientId)->toBinary(), 'requestedBefore' => $requestedBefore->format(self::DATE_FORMAT)],
             );
 
-            $updated = $this->connection->fetchFirstColumn(
-                'SELECT BIN_TO_UUID(id) FROM client__clients WHERE id IN (:ids) AND tax_verification_requested_at = :now',
-                ['ids' => $ids, 'now' => $now->format(self::DATE_FORMAT)],
-                ['ids' => ArrayParameterType::BINARY],
-            );
-
-            foreach ($updated as $id) {
-                \assert(\is_string($id));
-                $marked[] = $id;
+            if (1 === $updated) {
+                $marked[] = $clientId;
             }
         }
 

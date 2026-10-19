@@ -28,6 +28,9 @@ final class LegalNameNormalizerTest extends TestCase
         yield 'legal form then article' => ['GAEC Les Prés', 'pres'];
         yield 'punctuation and spaces' => ['  Clinique-du   Port, (Marseille)  ', 'clinique du port marseille'];
         yield 'association' => ['Association Refuge des Collines', 'refuge des collines'];
+        yield 'dotted legal form at the end' => ['Dupont S.A.R.L.', 'dupont'];
+        yield 'dotted legal form at the start' => ['S.A.S. Dupont', 'dupont'];
+        yield 'dotted legal form without the last dot' => ['Dupont S.A', 'dupont'];
         yield 'only one legal form' => ['SARL Dupont SA', 'dupont sa'];
         yield 'a lone legal form stays' => ['SAS', 'sas'];
         yield 'a lone article stays' => ['Les', 'les'];

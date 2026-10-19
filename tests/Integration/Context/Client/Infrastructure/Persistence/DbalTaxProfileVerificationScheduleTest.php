@@ -66,6 +66,32 @@ final class DbalTaxProfileVerificationScheduleTest extends KernelTestCase
         self::assertSame([], array_values(array_filter($this->stale(), static fn (array $row): bool => \in_array($row[1], [self::NEVER, self::OTHER], true))));
     }
 
+    public function testTheWindowsIncludeTheirBoundary(): void
+    {
+        $pro = static fn (string $id): ClientEntityFactory => ClientEntityFactory::new()->withId($id)->withClinicId(self::CLINIC_A)->withName('Pro', $id)
+            ->withTaxProfile(ClientTaxStatus::FRENCH_BUSINESS, 'Structure', '523456788')->active()->since('2026-01-01')
+        ;
+
+        // Requested exactly 24 hours ago (last night's run, never answered), checked exactly 30 days ago.
+        $pro(self::LONG_AGO)->withTaxVerification(CompanyCheckOutcome::UNCHECKED, null, null, VatCheckOutcome::UNCHECKED, null, '2026-10-18 02:17:00')->create();
+        $pro(self::OLD)->withTaxVerification(CompanyCheckOutcome::ACTIVE, 'X', '2026-09-19 02:17:00', VatCheckOutcome::VALID, '2026-09-19 02:17:00')->create();
+
+        self::assertSame([[self::CLINIC_A, self::LONG_AGO], [self::CLINIC_A, self::OLD]], $this->stale());
+        self::assertSame([self::LONG_AGO, self::OLD], $this->schedule()->markRequested([self::LONG_AGO, self::OLD], new \DateTimeImmutable(self::NOW), new \DateTimeImmutable('2026-10-18 02:17:00')));
+    }
+
+    public function testARequestMadeInTheSameSecondIsNotSentTwice(): void
+    {
+        // « Revérifier » committed at the very second of the nightly run.
+        ClientEntityFactory::new()->withId(self::NEVER)->withClinicId(self::CLINIC_A)->withName('Never', 'Checked')
+            ->withTaxProfile(ClientTaxStatus::FRENCH_BUSINESS, 'Jamais', '523456788')
+            ->withTaxVerification(CompanyCheckOutcome::UNCHECKED, null, null, VatCheckOutcome::UNCHECKED, null, self::NOW)
+            ->active()->since('2026-01-01')->create()
+        ;
+
+        self::assertSame([], $this->schedule()->markRequested([self::NEVER], new \DateTimeImmutable(self::NOW), new \DateTimeImmutable('2026-10-18 02:17:00')));
+    }
+
     public function testMarkingWorksInChunks(): void
     {
         $ids = [self::NEVER];

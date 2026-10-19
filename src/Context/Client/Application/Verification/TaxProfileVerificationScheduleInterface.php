@@ -12,8 +12,8 @@ interface TaxProfileVerificationScheduleInterface
 {
     /**
      * Active French businesses never checked, whose last answer was an outage,
-     * or whose company check is older than $checkedBefore — skipping those
-     * requested after $requestedBefore. Never-checked profiles first.
+     * or whose company check was made at $checkedBefore or earlier — skipping
+     * those requested after $requestedBefore. Never-checked profiles first.
      *
      * @return list<array{clinicId: string, clientId: string}>
      */
@@ -21,7 +21,7 @@ interface TaxProfileVerificationScheduleInterface
 
     /**
      * Sets the request date of the given clients still not requested after
-     * $requestedBefore, and returns the ids actually marked.
+     * $requestedBefore, and returns the ids this call marked (and only those).
      *
      * @param list<string> $clientIds
      *

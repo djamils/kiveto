@@ -9,6 +9,7 @@ use App\Context\Client\Domain\Event\ClientTaxProfileVerified;
 use App\Context\Client\Domain\TaxProfile\CompanyCheck;
 use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
 use App\Context\Client\Domain\TaxProfile\TaxProfileVerification;
+use App\Context\Client\Domain\TaxProfile\TaxProfileWarning;
 use App\Context\Client\Domain\TaxProfile\VatCheck;
 use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\ClientId;
@@ -73,6 +74,70 @@ final class ClientTaxProfileVerificationTest extends TestCase
         )));
 
         self::assertSame(VatCheckOutcome::NOT_APPLICABLE, $client->taxProfileVerification()->vat()->outcome());
+    }
+
+    public function testAnOutageNeverOverwritesADefiniteAnswer(): void
+    {
+        $before = new \DateTimeImmutable('2026-09-01 08:00:00');
+        $client = self::client(self::calanques());
+        $client->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::CEASED, 'EARL ELEVAGE DES CALANQUES', $before),
+            VatCheck::checked(VatCheckOutcome::INVALID, $before),
+        ));
+        $_ = $client->pullDomainEvents();
+
+        $at = new \DateTimeImmutable(self::CHECKED_AT);
+        self::assertTrue($client->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::UNAVAILABLE, null, $at),
+            VatCheck::checked(VatCheckOutcome::UNAVAILABLE, $at),
+        )));
+
+        $verification = $client->taxProfileVerification();
+        self::assertSame(CompanyCheckOutcome::CEASED, $verification->company()->outcome());
+        self::assertSame('EARL ELEVAGE DES CALANQUES', $verification->company()->registryName());
+        self::assertSame($before, $verification->company()->checkedAt());
+        self::assertSame(VatCheckOutcome::INVALID, $verification->vat()->outcome());
+        self::assertSame($before, $verification->vat()->checkedAt());
+        // Kept with its old date: still due for a check, and still warned about.
+        self::assertTrue($verification->isStale($at, new \DateInterval('P30D')));
+        self::assertContains(TaxProfileWarning::VAT_INVALID, $verification->warnings('Élevage des Calanques'));
+        self::assertNull($verification->requestedAt());
+
+        $events = $client->pullDomainEvents();
+        self::assertInstanceOf(ClientTaxProfileVerified::class, $events[0]);
+        self::assertSame('ceased', $events[0]->payload()['companyOutcome']);
+        self::assertSame('invalid', $events[0]->payload()['vatOutcome']);
+    }
+
+    public function testAnOutageIsStoredWhenNothingDefiniteWasKnown(): void
+    {
+        $client = self::client(self::calanques());
+        $at     = new \DateTimeImmutable(self::CHECKED_AT);
+
+        $client->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::UNAVAILABLE, null, $at),
+            VatCheck::checked(VatCheckOutcome::VALID, $at),
+        ));
+
+        self::assertSame(CompanyCheckOutcome::UNAVAILABLE, $client->taxProfileVerification()->company()->outcome());
+        self::assertSame(VatCheckOutcome::VALID, $client->taxProfileVerification()->vat()->outcome());
+    }
+
+    public function testADefiniteAnswerReplacesAnother(): void
+    {
+        $client = self::client(self::calanques());
+        $at     = new \DateTimeImmutable(self::CHECKED_AT);
+        $client->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::ACTIVE, 'X', $at),
+            VatCheck::checked(VatCheckOutcome::INVALID, $at),
+        ));
+        $client->recordTaxProfileVerification('523456788', 'FR31523456788', TaxProfileVerification::of(
+            CompanyCheck::checked(CompanyCheckOutcome::CEASED, 'X', $at),
+            VatCheck::checked(VatCheckOutcome::VALID, $at),
+        ));
+
+        self::assertSame(CompanyCheckOutcome::CEASED, $client->taxProfileVerification()->company()->outcome());
+        self::assertSame(VatCheckOutcome::VALID, $client->taxProfileVerification()->vat()->outcome());
     }
 
     public function testALateAnswerForAnOldSirenChangesNothing(): void

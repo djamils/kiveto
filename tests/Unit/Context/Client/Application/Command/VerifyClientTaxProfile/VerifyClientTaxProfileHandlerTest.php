@@ -104,23 +104,43 @@ final class VerifyClientTaxProfileHandlerTest extends TestCase
         self::assertSame('not_applicable', $record->vatOutcome);
     }
 
-    public function testNothingIsAskedForAClientThatCannotBeVerified(): void
+    public function testAClientGoneMeanwhileIsIgnored(): void
     {
         $registry = $this->createMock(CompanyRegistryInterface::class);
         $registry->expects(self::never())->method('findBySiren');
 
+        $this->handler(null, $registry, new FixtureVatNumberVerifier())(new VerifyClientTaxProfile(self::CLINIC_ID, self::CLIENT_ID));
+
+        self::assertSame([], $this->dispatched);
+    }
+
+    public function testAClientThatCannotBeVerifiedIsAskedNothingAndRecordedSoItsRequestIsCleared(): void
+    {
+        $registry = $this->createMock(CompanyRegistryInterface::class);
+        $registry->expects(self::never())->method('findBySiren');
+        $vies = $this->createMock(VatNumberVerifierInterface::class);
+        $vies->expects(self::never())->method('verify');
+
         $views = [
-            null,
-            self::view('523456788', null, status: 'archived'),
+            self::view('523456788', 'FR31523456788', status: 'archived'),
             self::view(null, null, taxStatus: 'individual'),
             self::view(null, null),
         ];
 
         foreach ($views as $view) {
-            $this->handler($view, $registry, new FixtureVatNumberVerifier())(new VerifyClientTaxProfile(self::CLINIC_ID, self::CLIENT_ID));
+            $this->handler($view, $registry, $vies)(new VerifyClientTaxProfile(self::CLINIC_ID, self::CLIENT_ID));
         }
 
-        self::assertSame([], $this->dispatched);
+        self::assertCount(3, $this->dispatched);
+        $archived = $this->dispatched[0];
+        self::assertInstanceOf(RecordTaxProfileVerification::class, $archived);
+        self::assertSame('523456788', $archived->checkedSiren);
+        self::assertSame('FR31523456788', $archived->checkedVatNumber);
+        self::assertSame('unavailable', $archived->companyOutcome);
+        self::assertSame('unavailable', $archived->vatOutcome);
+        $individual = $this->dispatched[1];
+        self::assertInstanceOf(RecordTaxProfileVerification::class, $individual);
+        self::assertSame('', $individual->checkedSiren);
     }
 
     private function verify(

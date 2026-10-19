@@ -65,7 +65,7 @@ final class TaxProfileVerification
     }
 
     /**
-     * Due for a new check: never answered, an outage, or a company check older than $maxAge.
+     * Due for a new check: never answered, an outage, or a company check $maxAge old or more.
      */
     public function isStale(\DateTimeImmutable $now, \DateInterval $maxAge): bool
     {
@@ -75,7 +75,7 @@ final class TaxProfileVerification
 
         $checkedAt = $this->company->checkedAt();
 
-        return null === $checkedAt || $checkedAt < $now->sub($maxAge);
+        return null === $checkedAt || $checkedAt <= $now->sub($maxAge);
     }
 
     /**
@@ -127,6 +127,10 @@ final class TaxProfileVerification
             return false;
         }
 
-        return LegalNameNormalizer::normalize($enteredLegalName) !== LegalNameNormalizer::normalize($registryName);
+        // An establishment sharing the SIREN (« Élevage des Calanques Aubagne ») is not a different name.
+        $entered  = LegalNameNormalizer::normalize($enteredLegalName);
+        $official = LegalNameNormalizer::normalize($registryName);
+
+        return !str_contains($entered, $official) && !str_contains($official, $entered);
     }
 }

@@ -144,7 +144,8 @@ src/Client/
 4. **Revérification à 30 jours** : chaque nuit (02:17, heure de Paris) les profils jamais vérifiés, en panne (registre ou VIES indisponible) ou vérifiés il y a plus de 30 jours sont redemandés ; « non diffusible » suit le même cycle qu'« active »
 5. **Dédoublonnage 24 h** : `tax_verification_requested_at` marque une demande ; « Revérifier » sur une demande de moins de 24 h répond « Vérification déjà en cours », la nuit ignore ces profils
 6. **Aucun appel réseau dans une transaction** : `VerifyClientTaxProfile` (file `async_external`, worker `external-worker`, sans transaction) appelle le registre et VIES — une panne de l'un n'empêche pas l'autre — puis la commande courte `RecordTaxProfileVerification` enregistre ; une sauvegarde concurrente échoue sur la version du client et le message est rejoué
-7. **Nom différent** : comparaison après `LegalNameNormalizer` (casse, accents, « & » → « et », ponctuation, article initial, une forme juridique en tête ou en fin) ; le nom du registre fait foi, celui de VIES est ignoré
+7. **Nom différent** : comparaison après `LegalNameNormalizer` (casse, accents, « & » → « et », points des sigles « S.A.R.L. », ponctuation, article initial, une forme juridique en tête ou en fin) ; pas d'alerte quand l'un des deux noms contient l'autre (un établissement « Élevage des Calanques Aubagne ») ; le nom du registre fait foi, celui de VIES est ignoré
+8. **Une panne n'écrase jamais un résultat connu** : un contrôle revenu indisponible garde le résultat définitif précédent avec sa date (le profil reste à revérifier, ses avertissements restent affichés) ; VIES n'est lu « invalide » que sur `valid: false` sans code d'erreur, tout code (`INVALID_INPUT`, `IP_BLOCKED`…) vaut indisponible
 
 ### ContactMethods
 1. **Au plus 1 primary PHONE** autorisé par client
@@ -217,7 +218,7 @@ Crée un nouveau client avec identité et moyens de contact.
 
 #### ReverifyStaleTaxProfiles
 
-Message du schedule `client` (chaque jour à 02:17) : `findStale` puis `markRequested` (par lots de 500) puis un `VerifyClientTaxProfile` par client sur la file `async_external_batch`.
+Message du schedule `client` (chaque jour à 02:17) : `findStale` puis `markRequested` (ligne par ligne, seuls les clients marqués par ce passage étant envoyés) puis un `VerifyClientTaxProfile` par client sur la file `async_external_batch`.
 
 #### UpdateClientIdentity
 Met à jour l'identité (prénom/nom) d'un client.

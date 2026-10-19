@@ -214,16 +214,24 @@ final class Client extends AggregateRoot
             return false;
         }
 
-        $this->taxProfileVerification = $result->withRequestedAt(null);
+        // An outage never overwrites a definite answer: it is kept with its date, so a stale
+        // profile stays stale (and is retried) and its warnings stay shown.
+        $previous = $this->taxProfileVerification;
+        $company  = $this->keepsDefinite($previous->company()->outcome()->isDefinite(), $result->company()->outcome()->isDefinite())
+            ? $previous->company() : $result->company();
+        $vat = $this->keepsDefinite($previous->vat()->outcome()->isDefinite(), $result->vat()->outcome()->isDefinite())
+            ? $previous->vat() : $result->vat();
+
+        $this->taxProfileVerification = TaxProfileVerification::of($company, $vat);
 
         $this->recordDomainEvent(new ClientTaxProfileVerified(
             clientId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
-            companyOutcome: $result->company()->outcome()->value,
-            registryName: $result->company()->registryName(),
-            companyCheckedAt: $result->company()->checkedAt()?->format(\DATE_ATOM),
-            vatOutcome: $result->vat()->outcome()->value,
-            vatCheckedAt: $result->vat()->checkedAt()?->format(\DATE_ATOM),
+            companyOutcome: $company->outcome()->value,
+            registryName: $company->registryName(),
+            companyCheckedAt: $company->checkedAt()?->format(\DATE_ATOM),
+            vatOutcome: $vat->outcome()->value,
+            vatCheckedAt: $vat->checkedAt()?->format(\DATE_ATOM),
         ));
 
         return true;
@@ -447,6 +455,11 @@ final class Client extends AggregateRoot
     public function isArchived(): bool
     {
         return ClientStatus::ARCHIVED === $this->status;
+    }
+
+    private function keepsDefinite(bool $previousIsDefinite, bool $newIsDefinite): bool
+    {
+        return $previousIsDefinite && !$newIsDefinite;
     }
 
     private function isTaxProfileVerifiable(): bool

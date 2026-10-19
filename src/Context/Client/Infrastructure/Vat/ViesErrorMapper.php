@@ -10,23 +10,12 @@ use App\Shared\Infrastructure\ExternalApi\ExternalApiResponse;
 
 /**
  * Reads a VIES REST answer: `valid`, or an error code in `userError` or
- * `errorWrappers[].error`. An outage code is never an "invalid" answer.
+ * `errorWrappers[].error`. A number is read as invalid only when VIES says
+ * `valid: false` with no error code: any code (outage, IP_BLOCKED, an unknown
+ * one…) is an outage, so that a client is never wrongly accused.
  */
 final readonly class ViesErrorMapper
 {
-    private const array OUTAGE_CODES = [
-        'MS_UNAVAILABLE',
-        'SERVICE_UNAVAILABLE',
-        'TIMEOUT',
-        'GLOBAL_MAX_CONCURRENT_REQ',
-        'GLOBAL_MAX_CONCURRENT_REQ_TIME',
-        'MS_MAX_CONCURRENT_REQ',
-        'MS_MAX_CONCURRENT_REQ_TIME',
-    ];
-
-    // The number cannot exist (bad format for the member state).
-    private const string INVALID_INPUT = 'INVALID_INPUT';
-
     /**
      * @throws ExternalServiceUnavailable
      */
@@ -35,12 +24,8 @@ final readonly class ViesErrorMapper
         $data = $response->data ?? [];
         $code = $this->errorCode($data);
 
-        if (null !== $code && \in_array($code, self::OUTAGE_CODES, true)) {
+        if (null !== $code) {
             throw ExternalServiceUnavailable::refused(ViesVatNumberVerifier::SERVICE, $code);
-        }
-
-        if (self::INVALID_INPUT === $code) {
-            return new VatVerificationResult(false);
         }
 
         if ($response->isSuccessful() && \is_bool($data['valid'] ?? null)) {
@@ -49,7 +34,7 @@ final readonly class ViesErrorMapper
 
         throw ExternalServiceUnavailable::refused(
             ViesVatNumberVerifier::SERVICE,
-            $code ?? ($response->isSuccessful() ? 'unreadable answer' : \sprintf('HTTP %d', $response->status)),
+            $response->isSuccessful() ? 'unreadable answer' : \sprintf('HTTP %d', $response->status),
         );
     }
 

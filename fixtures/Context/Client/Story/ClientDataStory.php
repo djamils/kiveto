@@ -421,8 +421,9 @@ final class ClientDataStory extends Story
      *
      * Verification states, consistent with the fixture registry and VIES:
      * Calanques verified (active, VAT valid), Centre équestre pending, the
-     * Aubagne site under a name the registry does not know (name mismatch),
-     * the Haras with a VAT number VIES rejects, the GAEC ceased (archived).
+     * Aubagne site verified (its name contains the official one: no
+     * mismatch), the Haras typed under another name than the registry's and
+     * with a VAT number VIES rejects, the GAEC ceased (archived).
      */
     private function buildProfessionals(string $clinicId): void
     {
@@ -436,7 +437,7 @@ final class ClientDataStory extends Story
             [self::CLIENT_REFUGE_ID, 'madam', 'Inès', 'Perrin', ClientTaxStatus::INDIVIDUAL, 'Refuge des Collines', null, null, true, '+33 6 77 88 99 00', 'refuge.collines@example.org', ['12 rue des Tilleuls', 'Montreuil', '93100'], null],
             [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, null,
                 [CompanyCheckOutcome::CEASED, 'GAEC du Mont', '-3 days', VatCheckOutcome::VALID, null]],
-            [self::CLIENT_HARAS_ID, 'madam', 'Lucie', 'Fabre', ClientTaxStatus::FRENCH_BUSINESS, 'Haras du Mont Ventoux', '392107454', 'FR76392107454', true, '+33 4 90 65 12 34', 'accueil@haras-ventoux.fr', ['Chemin du Ventoux', 'Bédoin', '84410'],
+            [self::CLIENT_HARAS_ID, 'madam', 'Lucie', 'Fabre', ClientTaxStatus::FRENCH_BUSINESS, 'Écuries du Mont Ventoux', '392107454', 'FR76392107454', true, '+33 4 90 65 12 34', 'accueil@haras-ventoux.fr', ['Chemin du Ventoux', 'Bédoin', '84410'],
                 [CompanyCheckOutcome::ACTIVE, 'Haras du Mont Ventoux', 'yesterday 08:14', VatCheckOutcome::INVALID, null]],
         ];
 

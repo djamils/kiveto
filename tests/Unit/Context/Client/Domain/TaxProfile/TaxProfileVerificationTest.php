@@ -108,6 +108,7 @@ final class TaxProfileVerificationTest extends TestCase
         yield 'ceased yesterday' => [CompanyCheckOutcome::CEASED, VatCheckOutcome::NOT_APPLICABLE, '2026-10-18', false];
         yield 'confidential yesterday' => [CompanyCheckOutcome::CONFIDENTIAL, VatCheckOutcome::INVALID, '2026-10-18', false];
         yield 'not found 29 days ago' => [CompanyCheckOutcome::NOT_FOUND, VatCheckOutcome::VALID, '2026-09-20 10:00:01', false];
+        yield 'exactly 30 days ago' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, '2026-09-19 10:00:00', true];
         yield 'confidential 31 days ago' => [CompanyCheckOutcome::CONFIDENTIAL, VatCheckOutcome::VALID, '2026-09-18', true];
         yield 'active 31 days ago' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, '2026-09-18', true];
     }
@@ -136,6 +137,8 @@ final class TaxProfileVerificationTest extends TestCase
         yield 'active, invalid, other name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::INVALID, $off, $diff, [TaxProfileWarning::VAT_INVALID, TaxProfileWarning::NAME_MISMATCH]];
         yield 'active, vies down, same name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::UNAVAILABLE, $off, $same, [TaxProfileWarning::UNVERIFIED]];
         yield 'active, vies down, other name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::UNAVAILABLE, $off, $diff, [TaxProfileWarning::NAME_MISMATCH, TaxProfileWarning::UNVERIFIED]];
+        yield 'an establishment containing the official name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, $off, 'Élevage des Calanques Aubagne', []];
+        yield 'a shorter name contained in the official one' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, 'EARL ELEVAGE DES CALANQUES DU SUD', $same, []];
         yield 'active, no registry name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, null, $diff, []];
         yield 'active, no entered name' => [CompanyCheckOutcome::ACTIVE, VatCheckOutcome::VALID, $off, null, []];
         yield 'ceased, valid, other name' => [CompanyCheckOutcome::CEASED, VatCheckOutcome::VALID, $off, $diff, [TaxProfileWarning::COMPANY_CEASED, TaxProfileWarning::NAME_MISMATCH]];
