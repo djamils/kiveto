@@ -94,7 +94,6 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
     });
     q('[data-pro]').hidden = !pro;
     const rsReq = pro || !!opts.structureOnly;
-    q('[data-rs-opt]').hidden = rsReq;
     q('[data-rs-req]').hidden = !rsReq;
     const e = shown ? validate(state, !!opts.structureOnly) : {};
     ['rs', 'siren', 'tva'].forEach(k => {

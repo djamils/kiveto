@@ -10,7 +10,6 @@
   .fisc-opt:disabled{opacity:.55;cursor:not-allowed}
   .fisc-f{display:flex;flex-direction:column;gap:4px;min-width:0}
   .fisc-l{font-size:.72rem;font-weight:600;color:var(--encre-60)}
-  .fisc-l .opt{font-weight:500;color:var(--encre-35)}
   .fisc-l .req{color:#b91c1c;margin-left:2px}
   .fisc-in{width:100%;border:1px solid var(--trait);border-radius:8px;padding:8px 10px;background:var(--brume);font:inherit;font-size:.84rem;color:inherit;outline:none;transition:border-color .13s,background .13s}
   .fisc-in.mono{font-variant-numeric:tabular-nums;letter-spacing:.02em}
