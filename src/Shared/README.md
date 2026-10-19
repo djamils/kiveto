@@ -43,6 +43,7 @@ Guards:
 | Doctrine transports: business connection, messenger table, no auto-setup | `tests/Integration/System/Messenger/DoctrineTransportsConfigurationTest.php` |
 | Failure transport stores in the messenger table (`queue_name = failed`) | `tests/Integration/System/Messenger/FailureTransportTest.php` |
 | Domain events → `sync`, integration events → `async` (compiled senders locator) | `tests/Integration/System/Messenger/MessengerRoutingGuardTest.php` |
+| Every `*Handler` carries `#[AsMessageHandler]` (or the external-API bus one) | `tests/Integration/Shared/MessengerHandlersRegistrationTest.php` |
 | No dispatch-after-bus stamp, bridges on `messenger.bus.event` | `tests/Integration/Shared/TransactionalMessagingConventionTest.php` |
 
 Known gap (tech debt): handlers consumed from
@@ -72,6 +73,73 @@ started by `make worker-start`; `make scheduler-debug` lists the next runs).
   closes every ended, unclosed period; a polling task resumes from its
   own cursor).
 - Recurring messages are dispatched on the default (command) bus.
+
+## External APIs
+
+Every call to a third-party HTTP service follows one convention
+(`Application/ExternalApi/`, `Infrastructure/ExternalApi/`).
+
+- **One scoped client per service** (`framework.http_client.scoped_clients`):
+  base URL, `timeout: 2` (idle, also bounds a stalled connect),
+  `max_duration: 5`, `User-Agent` + `Accept: application/json`, no
+  `retry_failed` — Symfony never retries on our behalf.
+- **`RetryAfterAwareClient`** wraps that client, one instance per service:
+  429 → `ExternalServiceUnavailable::rateLimited()` (`Retry-After` parsed),
+  503 / other 5xx → `failed()`, transport error or timeout → `unreachable()`;
+  any 2xx / 4xx is handed back as an `ExternalApiResponse` for the adapter to
+  interpret. It never retries.
+- **`ExternalServiceUnavailable` is an outage, never an empty result.** A port
+  returns "nothing found" only when the service said so. `isThrottled()` is
+  true for our local budget being spent (`throttled()`) or a remote 429
+  (`rateLimited()`) — "try again in a moment"; everything else (5xx,
+  timeout, `refused()` for an API-level outage code) means the service is
+  down.
+- **Fixture adapter + env var.** Each port has an HTTP adapter and a fixture
+  adapter, picked by an env var through a service locator used as factory
+  (unknown value → failure on first use). Tests, CI and dev run on the
+  fixtures by default.
+- **Recorded JSON fixtures** under `tests/Fixtures/<service>/` feed the HTTP
+  adapters' tests (`MockHttpClient`); a contract test runs on both adapters.
+- **No network in tests.** In the test environment the HTTP transport of every
+  client fails on any call its test did not mock (`UnmockedHttpCallGuard`).
+- **User-Agent contact checked at use.** `ExternalApiUserAgent::withContact()`
+  (`EXTERNAL_API_USER_AGENT`) is called when a real adapter is built: without
+  an e-mail or URL it throws `\LogicException`; `cache:clear`, migrations and
+  fixture mode never depend on it.
+- **Logs.** One record per call on the `external_api` channel (service,
+  method, path without query string, status, `duration_ms`, outcome
+  `ok|rate_limited|failed|unreachable`), never bodies, headers or query
+  parameters. Symfony's own `http_client` channel logs full URLs: it is
+  excluded from every handler.
+- **Never a network call inside a database transaction.** Every background
+  external call is an `ExternalApiCommandInterface` sent through
+  `ExternalApiCommandBusInterface` to `async_external` (or
+  `async_external_batch` with a `TransportNamesStamp` for batch sends). The
+  row is written in the caller's transaction (implicit outbox); the
+  `external-worker` handles it on `messenger.bus.external_api`, which has no
+  `doctrine_transaction`, then a short transactional command on the command
+  bus records the result. `CommandBusInterface` refuses such a command. The
+  only synchronous external call allowed is a read-only lookup answering a
+  user in a web request, outside any transaction.
+
+Not yet migrated: `GeoplateformeAddressDirectory` (Client) and
+`GotenbergPdfRenderer` (Shared) still use the default client.
+
+Guards:
+
+| Guarantee | Test |
+|-----------|------|
+| 429 / 5xx / timeout mapping, no retry, log content | `tests/Unit/Shared/Infrastructure/ExternalApi/RetryAfterAwareClientTest.php` |
+| `external_api` channel, `http_client` excluded in dev and prod | `tests/Integration/Shared/Infrastructure/ExternalApi/LoggingConfigurationTest.php` |
+| No unmocked HTTP call in tests | `tests/Integration/Shared/Infrastructure/ExternalApi/NetworkGuardTest.php` |
+| External commands queued in the caller's transaction, interactive before batch | `tests/Integration/Shared/Infrastructure/Bus/ExternalApiCommandOutboxTest.php` |
+| External commands → `async_external` only | `tests/Integration/System/Messenger/MessengerRoutingGuardTest.php` |
+| `messenger.bus.external_api` handlers ↔ external commands | `tests/Integration/System/Messenger/ExternalApiBusGuardTest.php` |
+| `external-worker` consumes `async_external async_external_batch`, `messenger-worker` neither | `tests/Integration/Shared/Infrastructure/Console/ComposeWorkersTest.php` |
+
+Workers (`make worker-start`): `messenger-worker` (`async`),
+`external-worker` (`async_external`, then `async_external_batch`),
+`scheduler-worker` (schedules).
 
 ## Responsabilités
 
