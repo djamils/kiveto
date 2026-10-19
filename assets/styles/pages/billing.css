@@ -159,7 +159,9 @@
 /* What the clinic cannot do yet: drawn, but inert. */
 .fact .swrow.off{opacity:.55}
 .fact .swrow.off .sw{cursor:not-allowed}
-.fact .fpill.off .dd-btn{opacity:.5;cursor:not-allowed}
+/* The button stays inert; the pill around it carries the tooltip. */
+.fact .fpill.off .dd-btn{opacity:.5;cursor:not-allowed;pointer-events:none}
+.fact .fpill.off{cursor:not-allowed}
 .fact .chip[disabled]{opacity:.45;cursor:not-allowed}
 .fact .flines tr.cr td{color:var(--encre-35);text-decoration:line-through;text-decoration-color:rgba(148,163,184,.6)}
 .fact .avl.done{cursor:default;opacity:.5}

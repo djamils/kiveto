@@ -297,7 +297,7 @@
 .nw-cal:hover{background:var(--brume);color:var(--pin)}
 .nw-f:has(.nw-cal) .nw-in{padding-right:38px}
 .nw-foot .btn:disabled{opacity:.45;cursor:not-allowed}
-.dd.off{opacity:.55;pointer-events:none}
+.nw-f .dd.off{opacity:.55;pointer-events:none}
 #ncAdr .dd-btn{width:100%}
 .nw-dp{position:fixed;z-index:120;width:272px;background:var(--carte);border:1px solid var(--trait);border-radius:12px;box-shadow:0 18px 44px rgba(15,23,42,.2);padding:10px;display:none}
 .nw-dp.open{display:block;animation:nwIn .14s ease}
