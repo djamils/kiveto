@@ -308,6 +308,106 @@ services:
     App\Context\Client\Application\Port\AddressDirectoryInterface:
         class: App\Context\Client\Infrastructure\Adapter\AddressDirectory\GeoplateformeAddressDirectory
 
+    # --- Company verification: registry (API Recherche d'entreprises) and VIES ---
+
+    App\Shared\Infrastructure\ExternalApi\ExternalApiUserAgent:
+        arguments:
+            $userAgent: '%env(EXTERNAL_API_USER_AGENT)%'
+
+    client.registry.http:
+        class: App\Shared\Infrastructure\ExternalApi\RetryAfterAwareClient
+        arguments:
+            $client: '@registry.client'
+            $service: !php/const App\Context\Client\Infrastructure\Registry\RechercheEntreprisesCompanyRegistry::SERVICE
+            $logger: '@monolog.logger.external_api'
+
+    client.vies.http:
+        class: App\Shared\Infrastructure\ExternalApi\RetryAfterAwareClient
+        arguments:
+            $client: '@vies.client'
+            $service: !php/const App\Context\Client\Infrastructure\Vat\ViesVatNumberVerifier::SERVICE
+            $logger: '@monolog.logger.external_api'
+
+    # Per-container budgets under the registry's 7 req/s (web 4/s + worker 1/s),
+    # built by hand: `framework.lock` is disabled, so `framework.rate_limiter`
+    # cannot take a lock factory. Local flock + the filesystem cache.app are
+    # shared by the processes of one container only.
+    client.external_limiter.lock_factory:
+        class: Symfony\Component\Lock\LockFactory
+        arguments:
+            - !service { class: Symfony\Component\Lock\Store\FlockStore }
+
+    client.external_limiter.storage:
+        class: Symfony\Component\RateLimiter\Storage\CacheStorage
+        arguments: ['@cache.app']
+
+    client.limiter.registry_web:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'client_registry_web', policy: 'token_bucket', limit: 4, rate: { interval: '1 second', amount: 4 } }
+            - '@client.external_limiter.storage'
+            - '@client.external_limiter.lock_factory'
+
+    client.limiter.registry_worker:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'client_registry_worker', policy: 'token_bucket', limit: 1, rate: { interval: '1 second', amount: 1 } }
+            - '@client.external_limiter.storage'
+            - '@client.external_limiter.lock_factory'
+
+    client.limiter.vies_worker:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'client_vies_worker', policy: 'token_bucket', limit: 1, rate: { interval: '1 second', amount: 1 } }
+            - '@client.external_limiter.storage'
+            - '@client.external_limiter.lock_factory'
+
+    # Cached → Throttled → RechercheEntreprises (a cache hit spends no token).
+    App\Context\Client\Infrastructure\Registry\RechercheEntreprisesCompanyRegistry:
+        arguments:
+            $client: '@client.registry.http'
+
+    App\Context\Client\Infrastructure\Registry\ThrottledCompanyRegistry:
+        arguments:
+            $inner: '@App\Context\Client\Infrastructure\Registry\RechercheEntreprisesCompanyRegistry'
+            $webLimiter: '@client.limiter.registry_web'
+            $workerLimiter: '@client.limiter.registry_worker'
+
+    App\Context\Client\Infrastructure\Registry\CachedCompanyRegistry:
+        arguments:
+            $inner: '@App\Context\Client\Infrastructure\Registry\ThrottledCompanyRegistry'
+            $cache: '@cache.app'
+
+    App\Context\Client\Infrastructure\Vat\ViesVatNumberVerifier:
+        arguments:
+            $client: '@client.vies.http'
+            $limiter: '@client.limiter.vies_worker'
+
+    # Adapter picked by env var on first use (fixture | api, fixture | vies).
+    client.company_registry.candidates:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            - fixture: '@App\Context\Client\Infrastructure\Registry\FixtureCompanyRegistry'
+              api: '@App\Context\Client\Infrastructure\Registry\CachedCompanyRegistry'
+
+    App\Context\Client\Application\Port\CompanyRegistryInterface:
+        class: App\Context\Client\Application\Port\CompanyRegistryInterface
+        factory: ['@client.company_registry.candidates', 'get']
+        arguments: ['%env(CLIENT_COMPANY_REGISTRY)%']
+
+    client.vat_verifier.candidates:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            - fixture: '@App\Context\Client\Infrastructure\Vat\FixtureVatNumberVerifier'
+              vies: '@App\Context\Client\Infrastructure\Vat\ViesVatNumberVerifier'
+
+    App\Context\Client\Application\Port\VatNumberVerifierInterface:
+        class: App\Context\Client\Application\Port\VatNumberVerifierInterface
+        factory: ['@client.vat_verifier.candidates', 'get']
+        arguments: ['%env(CLIENT_VAT_VERIFIER)%']
+
     App\Context\Client\Domain\Repository\ClientNoteRepositoryInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteRepository
 

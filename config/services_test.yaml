@@ -36,3 +36,36 @@ services:
     test.messenger.bus.external_api:
         alias: messenger.bus.external_api
         public: true
+
+    # Adapter selection and per-container budgets (AdapterSelectionTest).
+    test.client.company_registry.candidates:
+        alias: client.company_registry.candidates
+        public: true
+
+    test.client.vat_verifier.candidates:
+        alias: client.vat_verifier.candidates
+        public: true
+
+    test.client.external_limiter.lock_factory:
+        alias: client.external_limiter.lock_factory
+        public: true
+
+    test.client.limiter.registry_web:
+        alias: client.limiter.registry_web
+        public: true
+
+    test.client.limiter.registry_worker:
+        alias: client.limiter.registry_worker
+        public: true
+
+    test.client.limiter.vies_worker:
+        alias: client.limiter.vies_worker
+        public: true
+
+    test.client.company_registry:
+        alias: App\Context\Client\Application\Port\CompanyRegistryInterface
+        public: true
+
+    test.client.vat_verifier:
+        alias: App\Context\Client\Application\Port\VatNumberVerifierInterface
+        public: true

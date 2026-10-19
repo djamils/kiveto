@@ -1,0 +1,30 @@
+{
+  "_source": "hand-written, replace by recorded",
+  "results": [
+    {
+      "siren": "812345676",
+      "nom_complet": "CENTRE EQUESTRE DU LAC",
+      "nom_raison_sociale": "CENTRE EQUESTRE DU LAC",
+      "sigle": null,
+      "nature_juridique": "5710",
+      "activite_principale": "93.19Z",
+      "etat_administratif": "A",
+      "date_fermeture": null,
+      "statut_diffusion": "O",
+      "siege": {
+        "siret": "81234567600017",
+        "adresse": "ROUTE DU LAC 95880 ENGHIEN-LES-BAINS",
+        "code_postal": "95880",
+        "libelle_commune": "ENGHIEN-LES-BAINS",
+        "etat_administratif": "A"
+      },
+      "complements": {
+        "est_association": false
+      }
+    }
+  ],
+  "total_results": 1,
+  "page": 1,
+  "per_page": 10,
+  "total_pages": 1
+}

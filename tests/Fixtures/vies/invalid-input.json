@@ -1,0 +1,10 @@
+{
+  "_source": "hand-written, replace by recorded",
+  "actionSucceed": false,
+  "errorWrappers": [
+    {
+      "error": "INVALID_INPUT",
+      "message": "The provided input is not valid"
+    }
+  ]
+}

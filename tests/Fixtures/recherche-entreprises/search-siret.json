@@ -1,0 +1,30 @@
+{
+  "_source": "hand-written, replace by recorded",
+  "results": [
+    {
+      "siren": "523456788",
+      "nom_complet": "ELEVAGE DES CALANQUES",
+      "nom_raison_sociale": "ELEVAGE DES CALANQUES",
+      "sigle": null,
+      "nature_juridique": "6598",
+      "activite_principale": "01.45Z",
+      "etat_administratif": "A",
+      "date_fermeture": null,
+      "statut_diffusion": "O",
+      "siege": {
+        "siret": "52345678800018",
+        "adresse": "12 CHEMIN DES GOUDES 13008 MARSEILLE",
+        "code_postal": "13008",
+        "libelle_commune": "MARSEILLE",
+        "etat_administratif": "A"
+      },
+      "complements": {
+        "est_association": false
+      }
+    }
+  ],
+  "total_results": 1,
+  "page": 1,
+  "per_page": 10,
+  "total_pages": 1
+}
