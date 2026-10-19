@@ -9,6 +9,7 @@ final readonly class ClientView
     /**
      * @param list<ContactMethodDto> $contactMethods
      * @param list<ConsentDto>       $consents       active consents only
+     * @param list<string>           $taxWarnings    TaxProfileWarning values, in display order
      */
     public function __construct(
         public string $id,
@@ -28,6 +29,13 @@ final readonly class ClientView
         public ?string $legalName = null,
         public ?string $siren = null,
         public ?string $vatNumber = null,
+        public string $taxCompanyCheck = 'unchecked',
+        public ?string $taxRegistryName = null,
+        public ?string $taxCompanyCheckedAt = null,
+        public string $taxVatCheck = 'unchecked',
+        public ?string $taxVatCheckedAt = null,
+        public bool $taxVerificationPending = false,
+        public array $taxWarnings = [],
     ) {
     }
 

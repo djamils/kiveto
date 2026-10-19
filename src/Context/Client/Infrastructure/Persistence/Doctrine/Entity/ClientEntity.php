@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Entity;
 
+use App\Context\Client\Domain\TaxProfile\CompanyCheckOutcome;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
 use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddressEmbeddable;
@@ -17,6 +19,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_client_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_client_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_client_clinic_siren', columns: ['clinic_id', 'siren'])]
+#[ORM\Index(name: 'idx_client_tax_checked', columns: ['tax_company_checked_at'])]
 class ClientEntity
 {
     #[ORM\Id]
@@ -46,6 +49,25 @@ class ClientEntity
 
     #[ORM\Column(type: 'string', length: 13, nullable: true)]
     private ?string $vatNumber = null;
+
+    // Tax profile verification; a null outcome means "not checked yet".
+    #[ORM\Column(type: 'string', length: 20, nullable: true, enumType: CompanyCheckOutcome::class)]
+    private ?CompanyCheckOutcome $taxCompanyCheckOutcome = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $taxCompanyRegistryName = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $taxCompanyCheckedAt = null;
+
+    #[ORM\Column(type: 'string', length: 20, nullable: true, enumType: VatCheckOutcome::class)]
+    private ?VatCheckOutcome $taxVatCheckOutcome = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $taxVatCheckedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $taxVerificationRequestedAt = null;
 
     #[ORM\Embedded(class: PostalAddressEmbeddable::class, columnPrefix: false)]
     private PostalAddressEmbeddable $postalAddress;
@@ -178,6 +200,66 @@ class ClientEntity
     public function setVatNumber(?string $vatNumber): void
     {
         $this->vatNumber = $vatNumber;
+    }
+
+    public function getTaxCompanyCheckOutcome(): ?CompanyCheckOutcome
+    {
+        return $this->taxCompanyCheckOutcome;
+    }
+
+    public function setTaxCompanyCheckOutcome(?CompanyCheckOutcome $outcome): void
+    {
+        $this->taxCompanyCheckOutcome = $outcome;
+    }
+
+    public function getTaxCompanyRegistryName(): ?string
+    {
+        return $this->taxCompanyRegistryName;
+    }
+
+    public function setTaxCompanyRegistryName(?string $registryName): void
+    {
+        $this->taxCompanyRegistryName = $registryName;
+    }
+
+    public function getTaxCompanyCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->taxCompanyCheckedAt;
+    }
+
+    public function setTaxCompanyCheckedAt(?\DateTimeImmutable $checkedAt): void
+    {
+        $this->taxCompanyCheckedAt = $checkedAt;
+    }
+
+    public function getTaxVatCheckOutcome(): ?VatCheckOutcome
+    {
+        return $this->taxVatCheckOutcome;
+    }
+
+    public function setTaxVatCheckOutcome(?VatCheckOutcome $outcome): void
+    {
+        $this->taxVatCheckOutcome = $outcome;
+    }
+
+    public function getTaxVatCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->taxVatCheckedAt;
+    }
+
+    public function setTaxVatCheckedAt(?\DateTimeImmutable $checkedAt): void
+    {
+        $this->taxVatCheckedAt = $checkedAt;
+    }
+
+    public function getTaxVerificationRequestedAt(): ?\DateTimeImmutable
+    {
+        return $this->taxVerificationRequestedAt;
+    }
+
+    public function setTaxVerificationRequestedAt(?\DateTimeImmutable $requestedAt): void
+    {
+        $this->taxVerificationRequestedAt = $requestedAt;
     }
 
     public function getPostalAddress(): PostalAddressEmbeddable

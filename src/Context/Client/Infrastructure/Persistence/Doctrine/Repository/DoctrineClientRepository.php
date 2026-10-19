@@ -41,6 +41,12 @@ final readonly class DoctrineClientRepository implements ClientRepositoryInterfa
             $existingClient->setLegalName($clientEntity->getLegalName());
             $existingClient->setSiren($clientEntity->getSiren());
             $existingClient->setVatNumber($clientEntity->getVatNumber());
+            $existingClient->setTaxCompanyCheckOutcome($clientEntity->getTaxCompanyCheckOutcome());
+            $existingClient->setTaxCompanyRegistryName($clientEntity->getTaxCompanyRegistryName());
+            $existingClient->setTaxCompanyCheckedAt($clientEntity->getTaxCompanyCheckedAt());
+            $existingClient->setTaxVatCheckOutcome($clientEntity->getTaxVatCheckOutcome());
+            $existingClient->setTaxVatCheckedAt($clientEntity->getTaxVatCheckedAt());
+            $existingClient->setTaxVerificationRequestedAt($clientEntity->getTaxVerificationRequestedAt());
             $existingClient->setStatus($clientEntity->getStatus());
             $existingClient->setPostalAddress($clientEntity->getPostalAddress());
             $existingClient->setAuthorizedPerson($clientEntity->getAuthorizedPerson());

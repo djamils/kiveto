@@ -12,10 +12,14 @@ use App\Context\Client\Application\Query\GetClientById\ContactMethodDto;
 use App\Context\Client\Application\Query\GetClientById\PostalAddressDto;
 use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClientsCriteria;
+use App\Context\Client\Domain\TaxProfile\TaxProfileWarning;
 use App\Context\Client\Domain\ValueObject\ClientId;
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientEntity;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ContactMethodEntity;
+use App\Context\Client\Infrastructure\Persistence\Doctrine\Mapper\ClientMapper;
+use App\Shared\Domain\Time\ClockInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -24,6 +28,8 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
 {
     public function __construct(
         private EntityManagerInterface $em,
+        private ClientMapper $mapper,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -56,6 +62,8 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         );
 
         $postalAddress = $this->buildPostalAddressDto($entity);
+        $verification  = $this->mapper->taxProfileVerificationToDomain($entity);
+        $isBusiness    = ClientTaxStatus::FRENCH_BUSINESS === $entity->getTaxStatus();
 
         return new ClientView(
             id: $entity->getId()->toString(),
@@ -82,6 +90,16 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             legalName: $entity->getLegalName(),
             siren: $entity->getSiren(),
             vatNumber: $entity->getVatNumber(),
+            taxCompanyCheck: $verification->company()->outcome()->value,
+            taxRegistryName: $verification->company()->registryName(),
+            taxCompanyCheckedAt: $verification->company()->checkedAt()?->format(\DATE_ATOM),
+            taxVatCheck: $verification->vat()->outcome()->value,
+            taxVatCheckedAt: $verification->vat()->checkedAt()?->format(\DATE_ATOM),
+            taxVerificationPending: $verification->isPending($this->clock->now()),
+            taxWarnings: $isBusiness ? array_map(
+                static fn (TaxProfileWarning $warning): string => $warning->value,
+                $verification->warnings($entity->getLegalName()),
+            ) : [],
         );
     }
 
