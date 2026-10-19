@@ -23,11 +23,7 @@ final class SearchTermNormalizer
 
     public function normalizePhone(string $term): ?string
     {
-        $digits = preg_replace('/[^\d]/', '', $term);
-
-        if (null === $digits) {
-            return null;
-        }
+        $digits = (string) preg_replace('/[^\d]/', '', $term);
 
         if (10 === \strlen($digits) && str_starts_with($digits, '0')) {
             $digits = '+33' . substr($digits, 1);
@@ -35,9 +31,9 @@ final class SearchTermNormalizer
             $digits = '+' . $digits;
         }
 
-        $digitsOnly = preg_replace('/[^\d]/', '', $digits);
+        $digitsOnly = (string) preg_replace('/[^\d]/', '', $digits);
 
-        if (null === $digitsOnly || \strlen($digitsOnly) < 7) {
+        if (\strlen($digitsOnly) < 7) {
             return null;
         }
 

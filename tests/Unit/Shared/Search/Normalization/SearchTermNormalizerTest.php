@@ -91,7 +91,7 @@ final class SearchTermNormalizerTest extends TestCase
     }
 
     /**
-     * @return list<array{0: string, 1: string}>
+     * @return list<array{0: string, 1: string|null}>
      */
     public static function provideNormalizePhoneCases(): iterable
     {
@@ -99,11 +99,12 @@ final class SearchTermNormalizerTest extends TestCase
             ['0612345678', '+33612345678'],
             ['06.12.34.56.78', '+33612345678'],
             ['+33612345678', '+33612345678'],
+            ['12 34', null],
         ];
     }
 
     #[DataProvider('provideNormalizePhoneCases')]
-    public function testNormalizePhone(string $input, string $expected): void
+    public function testNormalizePhone(string $input, ?string $expected): void
     {
         self::assertSame($expected, $this->normalizer->normalizePhone($input));
     }
@@ -124,5 +125,20 @@ final class SearchTermNormalizerTest extends TestCase
     public function testIsExecutable(string $input, bool $expected): void
     {
         self::assertSame($expected, $this->normalizer->isExecutable($input));
+    }
+
+    public function testNormalizeTextRefusesInvalidUtf8(): void
+    {
+        // iconv() reports the illegal sequence as a notice before returning false.
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $this->expectException(\InvalidArgumentException::class);
+            $this->expectExceptionMessage('Cannot transliterate term: invalid UTF-8 input.');
+
+            $this->normalizer->normalizeText("caf\xC3");
+        } finally {
+            restore_error_handler();
+        }
     }
 }

@@ -12,12 +12,18 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 #[AllowMockObjectsWithoutExpectations]
 final class JsonAuthenticationFailureSubscriberTest extends TestCase
 {
+    public function testItListensToException(): void
+    {
+        self::assertSame([KernelEvents::EXCEPTION => ['onKernelException', 0]], JsonAuthenticationFailureSubscriber::getSubscribedEvents());
+    }
+
     public function testReturnsJsonUnauthorizedForApiClinicSubtree(): void
     {
         $event = $this->makeEvent('/api/clinic/clients/search', new AuthenticationException('nope'));
