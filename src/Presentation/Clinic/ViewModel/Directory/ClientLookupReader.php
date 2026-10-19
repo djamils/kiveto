@@ -12,6 +12,7 @@ use App\Context\Client\Application\Query\GetClientById\ClientView;
 use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Client\Application\Query\SearchClients\ClientListItemView;
 use App\Context\Client\Application\Query\SearchClients\SearchClients;
+use App\Context\Client\Domain\TaxProfile\TaxProfileWarning;
 use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -21,9 +22,10 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * phone already on file in the « Nouveau client » window: the name with its
  * civility, the main phone, the city, the address and the first animals —
  * and for a structure its legal name, SIREN, VAT number and badge (« Pro »
- * for a VAT-liable business, « Asso » for a structure that is not).
+ * for a VAT-liable business, « Asso » for a structure that is not) and the
+ * verification warning worth repeating at the counter (`warn`, never blocking).
  *
- * @phpstan-type ClientCard array{id: string, n: string, ini: string, tel: string|null, ville: string|null, adr: string|null, ani: list<array{e: string, nom: string}>, url: string, rs: string|null, siren: string|null, tva: string|null, fisc: string, badge: string|null}
+ * @phpstan-type ClientCard array{id: string, n: string, ini: string, tel: string|null, ville: string|null, adr: string|null, ani: list<array{e: string, nom: string}>, url: string, rs: string|null, siren: string|null, tva: string|null, fisc: string, badge: string|null, warn: string|null}
  */
 final readonly class ClientLookupReader
 {
@@ -109,6 +111,22 @@ final readonly class ClientLookupReader
         return mb_trim(chunk_split('0' . $m[1], 2, ' '));
     }
 
+    /**
+     * The first verification warning that matters when billing (ceased, unknown SIREN, VAT rejected).
+     */
+    private static function counterWarning(ClientView $card): ?string
+    {
+        foreach ($card->taxWarnings as $code) {
+            $warning = TaxProfileWarning::tryFrom($code);
+
+            if (null !== $warning && $warning->shownAtCounter()) {
+                return $warning->label();
+            }
+        }
+
+        return null;
+    }
+
     private static function badge(?ClientView $card, ?string $legalName): ?string
     {
         if (null !== $card && 'french_business' === $card->taxStatus) {
@@ -165,6 +183,7 @@ final readonly class ClientLookupReader
                 'tva'   => $card instanceof ClientView ? $card->vatNumber : null,
                 'fisc'  => $card instanceof ClientView && 'french_business' === $card->taxStatus ? 'pro' : 'ind',
                 'badge' => self::badge($card instanceof ClientView ? $card : null, $client->legalName),
+                'warn'  => $card instanceof ClientView ? self::counterWarning($card) : null,
             ];
         }
 

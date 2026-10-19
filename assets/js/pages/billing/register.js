@@ -22,7 +22,7 @@
  * Listeners are bound in init() with one AbortSignal and released in cleanup().
  */
 import { showToast, creerDropdown } from 'kiveto/shell';
-import { mount as monterFisc, blank as fiscVide, validate as fiscErr, toPayload as fiscPayload, fmtSiren, fmtVat, PRO } from 'kiveto/client-tax-profile';
+import { mount as monterFisc, blank as fiscVide, validate as fiscErr, toPayload as fiscPayload, fmtSiren, fmtVat, IND, PRO } from 'kiveto/client-tax-profile';
 
 const SEARCH_DEBOUNCE_MS = 250;
 const PP_KEY = 'kiveto-fact-pp';
@@ -533,7 +533,8 @@ export function init() {
   }
   async function rechercheCli() {
     const pro = VT.ty === 'pro', q = pro ? VT.pq : VT.q, n = norm(q), d = q.replace(/\D/g, '');
-    if (n.length < 2 && d.length < 3) { if (pro) VT.pcl = null; else VT.cl = null; rendreCl(); return; }
+    if (n.length < 2 && d.length < 3) { if (pro) { VT.pcl = null; VT.preg = null; VT.pregDown = false; } else VT.cl = null; rendreCl(); return; }
+    if (pro) chercherSirene(q);
     try {
       const items = await chercherClients(q, pro ? 'pro' : '');
       if (!VT || (pro ? VT.pq : VT.q) !== q) return;
@@ -560,7 +561,7 @@ export function init() {
 
   function ouvrirVente() {
     VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']),
-      pc: null, pq: '', pcl: null, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
+      pc: null, pq: '', pcl: null, preg: null, pregDown: false, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
     $('vtQ').value = '';
     rendreVtTy();
     rendreZone();
@@ -582,7 +583,7 @@ export function init() {
     const ids = c.siren ? `SIREN ${esc(fmtSiren(c.siren))}${c.tva ? ' · TVA ' + esc(fmtVat(c.tva)) : ''}` : 'sans SIREN';
     return `<div class="vt-card"><span class="av2">${esc(initiales(c.rs || c.n))}</span><div class="lt"><b>${esc(c.rs || c.n)}${c.badge ? ` <span class="vt-badge">${esc(c.badge)}</span>` : ''}</b>
       <span class="s">${ids}</span><span class="s">${esc(c.n)}${c.adr ? ' · ' + esc(c.adr) : ''}</span></div>
-      <button type="button" class="x" data-vpx aria-label="Changer de client">${ICX}</button></div>`;
+      <button type="button" class="x" data-vpx aria-label="Changer de client">${ICX}</button></div>${c.warn ? `<div class="vt-msg warn">${ICO.info}<div><b>${esc(c.warn)}</b> · vérifiez avec le client ; la vente peut être enregistrée.</div></div>` : ''}`;
   }
   /** The contact person and the means to reach them (shared by the newcomer and the professional's contact). */
   function champsPersonne(p, telPh, aide) {
@@ -631,7 +632,7 @@ export function init() {
       el.innerHTML = `<div class="vt-grp">Clients de la clinique</div>${!l ? '' : l.length
         ? l.map(c => `<button type="button" class="vt-o" data-pcli="${esc(c.id)}"><span class="lt"><b>${esc(c.rs || c.n)}${c.badge ? ` <span class="vt-badge">${esc(c.badge)}</span>` : ''}</b><span class="s">${c.siren ? 'SIREN ' + esc(fmtSiren(c.siren)) + ' · ' : ''}${esc(c.n)}</span></span></button>`).join('')
         : '<div class="vt-vide">Aucun professionnel trouvé.</div>'}
-        <div class="vt-grp off" data-tip="Recherche dans l'annuaire SIRENE — bientôt disponible">Annuaire des entreprises · SIRENE <span class="vt-badge">bientôt</span></div>
+        ${rendreSirene(l)}
         <button type="button" class="vt-new" data-vpnew>+ Nouveau professionnel</button>`;
       return;
     }
@@ -639,6 +640,32 @@ export function init() {
     el.innerHTML = VT.cl.length
       ? VT.cl.map(c => `<button type="button" class="vt-o" data-cli="${esc(c.id)}"><span class="lt"><b>${esc(c.n)}</b><span class="s">${esc(c.tel || '')}${c.adr ? ' · ' + esc(c.adr) : ''}</span></span></button>`).join('')
       : '<div class="vt-vide">Aucun client trouvé.<button type="button" data-vtnew>Créer un nouveau particulier</button></div>';
+  }
+  /* The registry hits (mock-up facturation-v-topbar_5 rendrePl), companies already in file left out. */
+  function rendreSirene(clients) {
+    const tete = '<div class="vt-grp">Annuaire des entreprises · SIRENE</div>';
+    if (VT.pregDown) return `${tete}<div class="vt-vide">Annuaire indisponible pour le moment : créez le professionnel à la main.</div>`;
+    if (!VT.preg) return `${tete}<div class="vt-vide">Les entreprises viennent de la base SIRENE : raison sociale, SIREN, adresse et TVA sont repris tels quels.</div>`;
+    const connus = new Set((clients || []).map(c => c.siren).filter(Boolean));
+    const L = VT.preg.filter(h => !connus.has(h.siren));
+    return tete + (L.length
+      ? L.map(h => `<button type="button" class="vt-o" data-sir="${esc(h.siren)}"><span class="lt"><b>${esc(h.n)}</b><span class="s">${esc([h.forme, h.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${h.cesse ? ' · radiée' : ''}</span></span><code>${esc(fmtSiren(h.siren))}</code></button>`).join('')
+      : '<div class="vt-vide">Aucune autre entreprise dans l\'annuaire.</div>');
+  }
+  /* The registry, asked beside the clinic's own clients; throttled keeps the last hits. */
+  async function chercherSirene(q) {
+    if (!P.urls.registry) return;
+    try {
+      const r = await fetch(`${P.urls.registry}?${new URLSearchParams({ q })}`, { headers: { Accept: 'application/json' }, signal });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = await r.json();
+      if (!VT || VT.pq !== q) return;
+      if (!d.available) { if (d.reason !== 'throttled') { VT.preg = null; VT.pregDown = true; } }
+      else { VT.preg = d.items; VT.pregDown = false; }
+      rendreCl();
+    } catch (e) {
+      if (e.name !== 'AbortError' && VT && VT.pq === q) { VT.preg = null; VT.pregDown = true; rendreCl(); }
+    }
   }
   function majPart() {
     const p = per(), t = $('vpTel');
@@ -899,6 +926,17 @@ export function init() {
       const q = VT.pq.trim();
       if (q && !VT.fisc.rs && !VT.fisc.siren) { if (/^[\d\s.]+$/.test(q)) VT.fisc.siren = q.replace(/\D/g, ''); else VT.fisc.rs = q; }
       rendreZone(); rendreVt(); focusZone(); return;
+    }
+    const sir = e.target.closest('[data-sir]');
+    if (sir) {
+      // « Nouveau professionnel » prefilled with the registry's record.
+      const h = (VT.preg || []).find(x => x.siren === sir.dataset.sir);
+      if (h) {
+        VT.fisc = h.ass ? { ...fiscVide(PRO), rs: h.n, siren: h.siren, tva: h.tva || '' } : { ...fiscVide(IND), rs: h.n };
+        VT.pnew = true;
+        rendreZone(); rendreVt(); focusZone();
+      }
+      return;
     }
     if (e.target.closest('[data-vpback]')) { VT.pnew = false; rendreZone(); rendreVt(); focusZone(); return; }
     if (e.target.closest('[data-vtnew]')) {
