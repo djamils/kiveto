@@ -20,7 +20,7 @@ final class CompanyHitPresenterTest extends TestCase
             'n'     => 'Élevage des Calanques',
             'forme' => 'EARL',
             'naf'   => '01.45Z',
-            'ass'   => false,
+            'ass'   => true,
             'cesse' => null,
             'ets'   => [['siret' => '52345678800018', 'l' => 'Siège', 'a' => '12 Chemin des Goudes, 13008 Marseille']],
             'tva'   => 'FR31523456788',
@@ -36,6 +36,11 @@ final class CompanyHitPresenterTest extends TestCase
         self::assertTrue($undated['cesse']);
         self::assertSame('', $undated['forme']);
         self::assertSame([['siret' => '', 'l' => 'Siège', 'a' => 'Tulle']], $undated['ets']);
+    }
+
+    public function testAnAssociationIsNotProposedAsVatLiable(): void
+    {
+        self::assertFalse(new CompanyHitPresenter()->hit(new CompanySummary('775612344', 'Refuge des Collines', 'Association', null, true, true, null, null, null, null, null))['ass']);
     }
 
     public function testAMalformedSirenHasNoVatSuggestion(): void

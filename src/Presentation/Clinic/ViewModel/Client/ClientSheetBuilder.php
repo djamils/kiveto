@@ -15,6 +15,8 @@ use App\Context\Client\Application\Query\ListClientCommunications\ClientCommunic
 use App\Context\Client\Application\Query\ListClientCommunications\ListClientCommunications;
 use App\Context\Client\Application\Query\ListClientNotes\ClientNoteView;
 use App\Context\Client\Application\Query\ListClientNotes\ListClientNotes;
+use App\Context\Client\Domain\TaxProfile\TaxProfileWarning;
+use App\Context\Client\Domain\TaxProfile\VatCheckOutcome;
 use App\Context\Client\Domain\ValueObject\AuthorizedPersonRelationship;
 use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
@@ -101,7 +103,7 @@ final readonly class ClientSheetBuilder
             'account' => $this->accountView($invoices, $consultations, $tz, $now),
             'prefs'   => $this->prefsView($client),
             'pers'    => $this->personsView($client, $tz, $today),
-            'fisc'    => $this->taxProfileView($client),
+            'fisc'    => $this->taxProfileView($client, $tz),
             'note'    => $this->noteView($notes, $tz, $today),
             'choices' => $this->choices(),
         ];
@@ -430,15 +432,18 @@ final readonly class ClientSheetBuilder
      * the country and service of a foreign client or public body (`pays`,
      * `svc`), the directory record (`ent`) with its e-invoicing address
      * (`ae`) and the establishments already in file (`clientsSiret`), the
-     * VIES answer (`vies`) and when the directory was read (`verif`), who
+     * VIES answer (`vies`: true valid, false invalid, null otherwise) and
+     * when the registry was last read (`verif`, « 12/11 à 08:12 »), who
      * changed the profile and when (`meta`), whether changes go into the
-     * history (`trace`), whether e-invoicing is live (`efacture`) and the
-     * directory search (`annuaireUrl`). Until then they stay empty and the
-     * card shows those parts as coming soon.
+     * history (`trace`), whether e-invoicing is live (`efacture`), the
+     * registry search (`annuaireUrl`), « Revérifier » (`verifyUrl`) and the
+     * verification itself (`verification`: outcomes, official name, pending,
+     * warnings with their French label). What the server does not know yet
+     * stays empty and the card shows those parts as coming soon.
      *
-     * @return array{t: string, ass: bool, fisc: string, rs: string, siren: string, tva: string, sirenAff: ?string, tvaAff: ?string, dblUrl: string, statuts: list<string>, siret: null, pays: null, svc: null, ae: null, ent: null, clientsSiret: array<string, array{n: string, url: string}>, vies: null, verif: null, meta: null, trace: bool, efacture: bool, annuaireUrl: null}
+     * @return array{t: string, ass: bool, fisc: string, rs: string, siren: string, tva: string, sirenAff: ?string, tvaAff: ?string, dblUrl: string, statuts: list<string>, siret: null, pays: null, svc: null, ae: null, ent: null, clientsSiret: array<string, array{n: string, url: string}>, vies: ?bool, verif: ?string, meta: null, trace: bool, efacture: bool, annuaireUrl: string, verifyUrl: ?string, verification: ?array{company: string, vat: string, registryName: ?string, pending: bool, warnings: list<array{code: string, label: string}>}}
      */
-    private function taxProfileView(ClientView $client): array
+    private function taxProfileView(ClientView $client, \DateTimeZone $tz): array
     {
         $pro = 'french_business' === $client->taxStatus;
 
@@ -459,12 +464,29 @@ final readonly class ClientSheetBuilder
             'ae'           => null,
             'ent'          => null,
             'clientsSiret' => [],
-            'vies'         => null,
-            'verif'        => null,
+            'vies'         => match ($client->taxVatCheck) {
+                VatCheckOutcome::VALID->value   => true,
+                VatCheckOutcome::INVALID->value => false,
+                default                         => null,
+            },
+            'verif' => null === $client->taxCompanyCheckedAt
+                ? null
+                : (new \DateTimeImmutable($client->taxCompanyCheckedAt))->setTimezone($tz)->format('d/m à H:i'),
             'meta'         => null,
             'trace'        => false,
             'efacture'     => false,
-            'annuaireUrl'  => null,
+            'annuaireUrl'  => $this->urls->generate('clinic_clients_company_registry_search'),
+            'verifyUrl'    => $pro ? $this->urls->generate('clinic_clients_tax_profile_verify', ['id' => $client->id]) : null,
+            'verification' => $pro ? [
+                'company'      => $client->taxCompanyCheck,
+                'vat'          => $client->taxVatCheck,
+                'registryName' => $client->taxRegistryName,
+                'pending'      => $client->taxVerificationPending,
+                'warnings'     => array_values(array_filter(array_map(
+                    static fn (string $code): ?array => null === ($warning = TaxProfileWarning::tryFrom($code)) ? null : ['code' => $code, 'label' => $warning->label()],
+                    $client->taxWarnings,
+                ))),
+            ] : null,
         ];
     }
 

@@ -11,7 +11,8 @@ use App\Shared\Domain\ValueObject\Siren;
 
 /**
  * A registry hit as the tax-profile screens read it (`CompanyHit`):
- * {siren, n, forme, naf, ass, cesse, ets: [{siret, l, a}], tva}. `cesse` is
+ * {siren, n, forme, naf, ass, cesse, ets: [{siret, l, a}], tva}. `ass` proposes
+ * the company as VAT-liable (an association generally is not); `cesse` is
  * the closing date, `true` when the registry gives none, null when active;
  * `tva` is the VAT number the SIREN would carry, to be confirmed by the user.
  */
@@ -41,7 +42,7 @@ final readonly class CompanyHitPresenter
             'n'     => $company->name,
             'forme' => $company->legalFormLabel ?? '',
             'naf'   => $company->nafCode,
-            'ass'   => $company->isAssociation,
+            'ass'   => !$company->isAssociation,
             'cesse' => $company->ceasedOn ?? ($company->isActive ? null : true),
             'ets'   => [[
                 'siret' => $company->headOfficeSiret ?? '',
