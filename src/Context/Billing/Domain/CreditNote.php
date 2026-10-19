@@ -13,8 +13,11 @@ use App\Context\Billing\Domain\ValueObject\CreditNoteId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\InvoiceTypeCode;
+use App\Context\Billing\Domain\ValueObject\InvoicingFramework;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -38,6 +41,12 @@ final class CreditNote extends AggregateRoot
     private const int MAX_REASON_LENGTH = 255;
 
     private CalculatedAmounts $amounts;
+
+    private ProcessingRule $processingRule = ProcessingRule::B2C;
+
+    private ?InvoicingFramework $framework = null;
+
+    private ?\DateTimeImmutable $invoiceIssuedAt = null;
 
     /**
      * @param list<InvoiceLine> $lines
@@ -78,6 +87,9 @@ final class CreditNote extends AggregateRoot
         CurrencyCode $currency,
         \DateTimeImmutable $now,
         ?string $issuedByUserId = null,
+        ProcessingRule $processingRule = ProcessingRule::B2C,
+        ?InvoicingFramework $framework = null,
+        ?\DateTimeImmutable $invoiceIssuedAt = null,
     ): self {
         $reason = mb_trim($reason);
 
@@ -115,7 +127,10 @@ final class CreditNote extends AggregateRoot
             issuedByUserId: $issuedByUserId,
         );
 
-        $creditNote->amounts = $creditNote->amountsOf($lines, $breakdown);
+        $creditNote->amounts         = $creditNote->amountsOf($lines, $breakdown);
+        $creditNote->processingRule  = $processingRule;
+        $creditNote->framework       = $framework;
+        $creditNote->invoiceIssuedAt = $invoiceIssuedAt;
 
         if ($refunded->minorUnits() < 0 || $refunded->minorUnits() > $creditNote->totalGross()->minorUnits()) {
             throw new InvalidCreditNoteException('A credit note cannot give back more than it credits.');
@@ -134,6 +149,7 @@ final class CreditNote extends AggregateRoot
             refundedMinorUnits: $refunded->minorUnits(),
             currency: $currency->toString(),
             issuedAt: $now->format(\DateTimeInterface::ATOM),
+            processingRule: $processingRule->value,
         ));
 
         return $creditNote;
@@ -158,6 +174,9 @@ final class CreditNote extends AggregateRoot
         CurrencyCode $currency,
         \DateTimeImmutable $issuedAt,
         ?string $issuedByUserId,
+        ProcessingRule $processingRule = ProcessingRule::B2C,
+        ?InvoicingFramework $framework = null,
+        ?\DateTimeImmutable $invoiceIssuedAt = null,
     ): self {
         $creditNote = new self(
             $id,
@@ -180,8 +199,34 @@ final class CreditNote extends AggregateRoot
             $breakdown,
             $currency,
         );
+        $creditNote->processingRule  = $processingRule;
+        $creditNote->framework       = $framework;
+        $creditNote->invoiceIssuedAt = $invoiceIssuedAt;
 
         return $creditNote;
+    }
+
+    public function typeCode(): InvoiceTypeCode
+    {
+        return InvoiceTypeCode::CREDIT_NOTE;
+    }
+
+    /** The processing rule of the invoice the note credits. */
+    public function processingRule(): ProcessingRule
+    {
+        return $this->processingRule;
+    }
+
+    /** The invoicing framework of the invoice the note credits. */
+    public function framework(): ?InvoicingFramework
+    {
+        return $this->framework;
+    }
+
+    /** When the credited invoice was issued (BT-26). */
+    public function invoiceIssuedAt(): ?\DateTimeImmutable
+    {
+        return $this->invoiceIssuedAt;
     }
 
     public function amounts(): CalculatedAmounts

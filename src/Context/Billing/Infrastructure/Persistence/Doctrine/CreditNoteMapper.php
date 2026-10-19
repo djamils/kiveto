@@ -12,11 +12,11 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\InvoicingFramework;
 use App\Context\Billing\Domain\ValueObject\LineAmounts;
 use App\Context\Billing\Domain\ValueObject\OperationCategory;
-use App\Context\Billing\Domain\ValueObject\Payer;
-use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\CreditNoteEntity;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -31,13 +31,13 @@ final readonly class CreditNoteMapper
 {
     public function __construct(
         private TaxBreakdownMapper $breakdown = new TaxBreakdownMapper(),
+        private PayerMapper $payers = new PayerMapper(),
     ) {
     }
 
     public function toDomain(CreditNoteEntity $entity): CreditNote
     {
         $currency = CurrencyCode::fromString($entity->getCurrency());
-        $payer    = $entity->getPayerClientId();
         $issuer   = $entity->getIssuedByUserId();
 
         return CreditNote::reconstitute(
@@ -46,12 +46,7 @@ final readonly class CreditNoteMapper
             number: InvoiceNumber::fromString($entity->getNumber()),
             invoiceId: InvoiceId::fromString($entity->getInvoiceId()->toRfc4122()),
             invoiceNumber: $entity->getInvoiceNumber(),
-            payer: Payer::create(
-                null !== $payer ? PayerId::fromString($payer->toRfc4122()) : null,
-                $entity->getPayerName(),
-                $entity->getPayerAddressLines(),
-                $entity->getPayerAttention(),
-            ),
+            payer: $this->payers->toDomain($entity),
             lines: array_map(fn (array $line): InvoiceLine => $this->lineToDomain($line, $currency), $entity->getLines()),
             breakdown: $this->breakdown->toDomain($entity->getTaxBreakdown(), $currency),
             reason: $entity->getReason(),
@@ -60,6 +55,9 @@ final readonly class CreditNoteMapper
             currency: $currency,
             issuedAt: $entity->getIssuedAt(),
             issuedByUserId: $issuer?->toRfc4122(),
+            processingRule: ProcessingRule::from($entity->getProcessingRule() ?? ProcessingRule::B2C->value),
+            framework: null !== $entity->getInvoicingFramework() ? InvoicingFramework::fromCode($entity->getInvoicingFramework()) : null,
+            invoiceIssuedAt: $entity->getInvoiceIssuedAt(),
         );
     }
 
@@ -78,10 +76,14 @@ final readonly class CreditNoteMapper
         $entity->setPayerName($creditNote->payer()->displayName());
         $entity->setPayerAddressLines($creditNote->payer()->addressLines());
         $entity->setPayerAttention($creditNote->payer()->attention());
+        $this->payers->toEntity($creditNote->payer(), $entity);
         $entity->setLines(array_map(fn (InvoiceLine $line): array => $this->lineToArray($line), $creditNote->lines()));
         $entity->setReason($creditNote->reason());
         $entity->setRefundMethod($creditNote->refundMethod());
         $entity->setRefundedMinorUnits($creditNote->refunded()->minorUnits());
+        $entity->setProcessingRule($creditNote->processingRule()->value);
+        $entity->setInvoicingFramework($creditNote->framework()?->code());
+        $entity->setInvoiceIssuedAt($creditNote->invoiceIssuedAt());
         $entity->setTaxBreakdown($this->breakdown->toArray($creditNote->amounts()->buckets()));
         $entity->setTotalNetBeforeAllowance($creditNote->totalNetBeforeDiscount()->minorUnits());
         $entity->setTotalAllowance($creditNote->discountAmount()->minorUnits());

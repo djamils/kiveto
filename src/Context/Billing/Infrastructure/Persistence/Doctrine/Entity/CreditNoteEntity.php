@@ -20,6 +20,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(name: 'uniq_credit_note_number', columns: ['clinic_id', 'number'])]
 class CreditNoteEntity
 {
+    use PayerFiscalColumns;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
@@ -80,6 +82,15 @@ class CreditNoteEntity
 
     #[ORM\Column(name: 'total_allowance', type: 'integer', options: ['default' => 0])]
     private int $totalAllowance = 0;
+
+    #[ORM\Column(name: 'processing_rule', type: 'string', length: 3, nullable: true)]
+    private ?string $processingRule = null;
+
+    #[ORM\Column(name: 'invoicing_framework', type: 'string', length: 2, nullable: true)]
+    private ?string $invoicingFramework = null;
+
+    #[ORM\Column(name: 'invoice_issued_at', type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $invoiceIssuedAt = null;
 
     #[ORM\Column(type: 'string', length: 3)]
     private string $currency;
@@ -326,5 +337,35 @@ class CreditNoteEntity
     public function setTotalAllowance(int $totalAllowance): void
     {
         $this->totalAllowance = $totalAllowance;
+    }
+
+    public function getProcessingRule(): ?string
+    {
+        return $this->processingRule;
+    }
+
+    public function setProcessingRule(?string $processingRule): void
+    {
+        $this->processingRule = $processingRule;
+    }
+
+    public function getInvoicingFramework(): ?string
+    {
+        return $this->invoicingFramework;
+    }
+
+    public function setInvoicingFramework(?string $invoicingFramework): void
+    {
+        $this->invoicingFramework = $invoicingFramework;
+    }
+
+    public function getInvoiceIssuedAt(): ?\DateTimeImmutable
+    {
+        return $this->invoiceIssuedAt;
+    }
+
+    public function setInvoiceIssuedAt(?\DateTimeImmutable $invoiceIssuedAt): void
+    {
+        $this->invoiceIssuedAt = $invoiceIssuedAt;
     }
 }

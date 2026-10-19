@@ -7,6 +7,9 @@ namespace App\Tests\Unit\Context\Billing\Domain\Service;
 use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Service\CreditNoteCalculator;
+use App\Context\Billing\Domain\ValueObject\BuyerFiscalIdentity;
+use App\Context\Billing\Domain\ValueObject\BuyerTaxStatus;
+use App\Context\Billing\Domain\ValueObject\CalculationMode;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
 use App\Context\Billing\Domain\ValueObject\Discount;
@@ -15,12 +18,17 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\InvoiceTypeCode;
 use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
+use App\Shared\Domain\ValueObject\Siren;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 
 final class CreditNoteCalculatorTest extends TestCase
@@ -83,6 +91,32 @@ final class CreditNoteCalculatorTest extends TestCase
         self::assertSame(4050, $bucket->gross()->minorUnits());
     }
 
+    public function testAProfessionalInvoicesNotesComputeVatOnTheirBaseAndStillAddUp(): void
+    {
+        $invoice = $this->invoice(Discount::percentage('10'), professional: true);
+        $lines   = $invoice->lines();
+
+        self::assertSame(CalculationMode::EXCLUDING_TAX_FIRST, $invoice->calculationMode());
+
+        $first  = $this->credit($invoice, [$lines[0], $lines[2]]);
+        $bucket = $first['breakdown'][0];
+        self::assertSame((int) round($bucket->base()->minorUnits() * 0.2), $bucket->vat()->minorUnits());
+
+        $second = $this->credit($invoice, [$lines[1], $lines[3]], [$this->note($invoice, $first)]);
+
+        foreach ($invoice->amounts()->buckets() as $i => $invoiceBucket) {
+            self::assertSame($invoiceBucket->vat()->minorUnits(), $first['breakdown'][$i]->vat()->minorUnits() + $second['breakdown'][$i]->vat()->minorUnits());
+            self::assertSame($invoiceBucket->allowance()->minorUnits(), $first['breakdown'][$i]->allowance()->minorUnits() + $second['breakdown'][$i]->allowance()->minorUnits());
+        }
+
+        $note = $this->note($invoice, $first);
+        self::assertSame(InvoiceTypeCode::CREDIT_NOTE, $note->typeCode());
+        self::assertSame(ProcessingRule::B2B, $note->processingRule());
+        self::assertSame('M1', $note->framework()?->code());
+        self::assertSame('2026-10-14', $note->invoiceIssuedAt()?->format('Y-m-d'));
+        self::assertSame('FAC-2026-000007', $note->invoiceNumber());
+    }
+
     /**
      * @param list<RateBucket> $buckets
      *
@@ -126,20 +160,23 @@ final class CreditNoteCalculatorTest extends TestCase
             refunded: Money::zero($invoice->currency()),
             currency: $invoice->currency(),
             now: new \DateTimeImmutable('2026-10-15'),
+            processingRule: $invoice->processingRule(),
+            framework: $invoice->framework(),
+            invoiceIssuedAt: $invoice->issuedAt(),
         );
     }
 
     /**
      * Two acts at 20 % and two medicines at 5.5 %, entered VAT included.
      */
-    private function invoice(Discount $discount): Invoice
+    private function invoice(Discount $discount, bool $professional = false): Invoice
     {
         $now     = new \DateTimeImmutable('2026-10-14');
         $invoice = Invoice::draft(
             InvoiceId::fromString('01960000-0000-7000-8000-00000000e001'),
             ClinicId::fromString('01960000-0000-7000-8000-00000000e002'),
             null,
-            Payer::anonymous(),
+            $professional ? $this->professional() : Payer::anonymous(),
             CurrencyCode::fromString('EUR'),
             $now,
         );
@@ -160,9 +197,24 @@ final class CreditNoteCalculatorTest extends TestCase
         }
 
         $invoice->applyDiscount($discount, $now);
-        $invoice->issue(InvoiceNumber::of(2026, 7), $now);
+        $invoice->issue(InvoiceNumber::of(2026, 7), SellerIdentities::complete(), $now);
 
         return $invoice;
+    }
+
+    private function professional(): Payer
+    {
+        $siren = Siren::fromInput('523456788');
+
+        return Payer::create(null, 'EARL', [], null, BuyerFiscalIdentity::of(
+            BuyerTaxStatus::FRENCH_BUSINESS,
+            'EARL',
+            $siren,
+            FrenchVatNumber::forSiren($siren),
+            ['Chemin des Goudes'],
+            '13008',
+            'Marseille',
+        ));
     }
 
     private function nextId(): InvoiceLineId

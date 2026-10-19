@@ -20,6 +20,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(name: 'uniq_invoice_number', columns: ['clinic_id', 'number'])]
 class InvoiceEntity
 {
+    use PayerFiscalColumns;
+
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME)]
     private Uuid $id;
@@ -67,6 +69,18 @@ class InvoiceEntity
 
     #[ORM\Column(name: 'total_gross', type: 'integer', options: ['default' => 0])]
     private int $totalGross = 0;
+
+    #[ORM\Column(name: 'processing_rule', type: 'string', length: 3, nullable: true)]
+    private ?string $processingRule = null;
+
+    #[ORM\Column(name: 'invoicing_framework', type: 'string', length: 2, nullable: true)]
+    private ?string $invoicingFramework = null;
+
+    #[ORM\Column(name: 'due_date', type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $dueDate = null;
+
+    #[ORM\Column(name: 'payment_terms_note', type: 'string', length: 255, nullable: true)]
+    private ?string $paymentTermsNote = null;
 
     #[ORM\Column(type: 'string', length: 3)]
     private string $currency;
@@ -410,5 +424,45 @@ class InvoiceEntity
     public function setTotalGross(int $totalGross): void
     {
         $this->totalGross = $totalGross;
+    }
+
+    public function getProcessingRule(): ?string
+    {
+        return $this->processingRule;
+    }
+
+    public function setProcessingRule(?string $processingRule): void
+    {
+        $this->processingRule = $processingRule;
+    }
+
+    public function getInvoicingFramework(): ?string
+    {
+        return $this->invoicingFramework;
+    }
+
+    public function setInvoicingFramework(?string $invoicingFramework): void
+    {
+        $this->invoicingFramework = $invoicingFramework;
+    }
+
+    public function getDueDate(): ?\DateTimeImmutable
+    {
+        return $this->dueDate;
+    }
+
+    public function setDueDate(?\DateTimeImmutable $dueDate): void
+    {
+        $this->dueDate = $dueDate;
+    }
+
+    public function getPaymentTermsNote(): ?string
+    {
+        return $this->paymentTermsNote;
+    }
+
+    public function setPaymentTermsNote(?string $paymentTermsNote): void
+    {
+        $this->paymentTermsNote = $paymentTermsNote;
     }
 }

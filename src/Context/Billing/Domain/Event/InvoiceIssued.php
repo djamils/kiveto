@@ -18,6 +18,9 @@ final readonly class InvoiceIssued extends AbstractDomainEvent
         public int $totalGrossMinorUnits,
         public string $currency,
         public string $issuedAt,
+        // B2B or B2C: lets a listener tell a professional invoice apart
+        // without reloading the aggregate.
+        public string $processingRule = 'B2C',
     ) {
     }
 
@@ -38,6 +41,7 @@ final readonly class InvoiceIssued extends AbstractDomainEvent
             'totalGrossMinorUnits' => $this->totalGrossMinorUnits,
             'currency'             => $this->currency,
             'issuedAt'             => $this->issuedAt,
+            'processingRule'       => $this->processingRule,
         ];
     }
 }

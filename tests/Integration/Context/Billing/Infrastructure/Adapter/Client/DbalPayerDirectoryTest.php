@@ -195,6 +195,30 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         self::assertSame('Inès Perrin', $payer->attention);
     }
 
+    public function testAProfessionalComesWithItsTaxIdentityAndStructuredAddress(): void
+    {
+        $this->client(self::CLIENT_ID, 'Claire', 'Rostand', 'Chemin des Goudes', 'Lieu-dit Callelongue', '13008', 'Marseille', legalName: 'EARL Élevage des Calanques', civility: 'madam', taxStatus: 'french_business', siren: '523456788', vat: 'FR31523456788');
+
+        $payer    = $this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID)?->toPayer();
+        $identity = $payer?->fiscalIdentity();
+
+        self::assertNotNull($identity);
+        self::assertSame('EARL Élevage des Calanques', $identity->legalName());
+        self::assertSame('523456788', $identity->siren()?->value());
+        self::assertSame('FR31523456788', $identity->vatNumber()?->value());
+        self::assertSame(['Chemin des Goudes', 'Lieu-dit Callelongue'], $identity->streetLines());
+        self::assertSame('13008', $identity->postalCode());
+        self::assertSame('Marseille', $identity->city());
+        self::assertSame('FR', $identity->countryCode());
+    }
+
+    public function testAPrivateClientHasNoTaxIdentity(): void
+    {
+        $this->client(self::CLIENT_ID, 'Sophie', 'Dupont', '12 rue des Lilas', null, '75011', 'Paris');
+
+        self::assertNull($this->directory->forClient(self::CLIENT_ID, self::CLINIC_ID)?->fiscal);
+    }
+
     public function testAStructureWithABlankContactHasNoAttention(): void
     {
         $this->client(self::CLIENT_ID, ' ', ' ', null, null, null, null, legalName: 'Refuge des Collines', civility: 'mister');
@@ -281,6 +305,9 @@ final class DbalPayerDirectoryTest extends KernelTestCase
         string $status = 'active',
         ?string $legalName = null,
         string $civility = 'unspecified',
+        string $taxStatus = 'individual',
+        ?string $siren = null,
+        ?string $vat = null,
     ): void {
         $this->connection->insert('client__clients', [
             'id'                           => Uuid::fromString($clientId)->toBinary(),
@@ -298,6 +325,9 @@ final class DbalPayerDirectoryTest extends KernelTestCase
             'version'                      => 1,
             'legal_name'                   => $legalName,
             'civility'                     => $civility,
+            'tax_status'                   => $taxStatus,
+            'siren'                        => $siren,
+            'vat_number'                   => $vat,
         ]);
     }
 }

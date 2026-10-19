@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Command\CheckoutAdmission;
 
 use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
+use App\Context\Billing\Domain\Policy\ElectronicInvoiceReadiness;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
@@ -32,6 +34,8 @@ final readonly class CheckoutAdmissionHandler
         private AdmissionCoordinatorInterface $admissions,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private SellerIdentityProviderInterface $sellers,
+        private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
 
@@ -42,7 +46,12 @@ final readonly class CheckoutAdmissionHandler
         $now      = $this->clock->now();
 
         if ($invoice->status()->isEditable()) {
-            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $now);
+            $seller = $this->sellers->forClinic($command->clinicId);
+
+            // Checked before the number is drawn: a refusal leaves the
+            // sequence untouched and the draft open.
+            $this->readiness->assertReady($invoice, $seller);
+            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $command->amountMinorUnits);
         }
 
         if ($command->amountMinorUnits > 0) {

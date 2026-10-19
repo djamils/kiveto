@@ -24,6 +24,8 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payment;
+use App\Context\Billing\Domain\ValueObject\PaymentTerms;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -135,6 +137,13 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             creditNotes: $creditNotes,
             counterSalePayer: $invoice->counterSalePayer()?->value,
             payerAttention: $invoice->payer()->attention(),
+            processingRule: $invoice->processingRule()->value,
+            payerSiren: $invoice->payer()->fiscalIdentity()?->siren()?->value(),
+            payerVatNumber: $invoice->payer()->fiscalIdentity()?->vatNumber()?->value(),
+            dueDate: $invoice->paymentTerms()?->dueDate,
+            paymentTermsNote: $invoice->paymentTerms()?->note,
+            professionalMentions: ProcessingRule::B2B === $invoice->processingRule() ? array_values(PaymentTerms::PROFESSIONAL_MENTIONS) : [],
+            invoicingFramework: $invoice->framework()?->code(),
         );
     }
 
@@ -171,6 +180,10 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             issuedAt: $note->issuedAt(),
             issuedByUserId: $note->issuedByUserId(),
             payerAttention: $note->payer()->attention(),
+            processingRule: $note->processingRule()->value,
+            payerSiren: $note->payer()->fiscalIdentity()?->siren()?->value(),
+            payerVatNumber: $note->payer()->fiscalIdentity()?->vatNumber()?->value(),
+            discountMinorUnits: $note->discountAmount()->minorUnits(),
         );
     }
 

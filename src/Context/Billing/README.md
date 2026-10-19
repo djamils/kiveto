@@ -1,0 +1,89 @@
+# Billing Bounded Context
+
+## Purpose
+
+What a client owes the clinic and what they paid: invoices (« factures »),
+credit notes (« avoirs »), payments, the cash desk and cheque deposits. Billing
+turns a visit (Consultation) or a counter sale (Catalog) into an invoice,
+numbers it, takes its payment and corrects it with credit notes. It prepares
+professional invoices for French e-invoicing (EN16931): fiscal identities,
+invoicing framework, payment terms and a local readiness check.
+
+## Ubiquitous Language
+
+| Term | Definition |
+|------|------------|
+| **Invoice** | Aggregate. A draft is a working document; issuing numbers and **freezes** it. |
+| **CreditNote** | « Avoir »: born issued, cancels out lines of an issued invoice, never changes afterwards. |
+| **InvoiceLine** | One line: the price **as entered** (`enteredUnitPrice` + `PriceMode`), quantity, VAT rate, tax category and its `OperationCategory` (goods/services), plus the amounts the document calculated (net BT-131, gross for display, unit net BT-146 at 6 decimals). |
+| **PriceMode** | Whether the entered unit price includes VAT (`incl`) or not (`excl`). |
+| **CalculationMode** | `INCLUDING_TAX_FIRST` (private clients: they pay exactly the displayed prices) or `EXCLUDING_TAX_FIRST` (professionals: EN16931 strict). |
+| **InvoiceAmountCalculator** | Domain service computing every amount **per VAT rate** (`RateBucket`: line total, allowance BT-92, base BT-116, VAT BT-117, gross). |
+| **Allowance** | The document-level discount (BG-20), split per rate. Line nets stay undiscounted (BR-CO-10). |
+| **Payer** | Who owes the invoice, snapshotted at draft time; carries a `BuyerFiscalIdentity` for a business subject to French VAT. |
+| **BuyerFiscalIdentity** | Legal name, SIREN (BT-47), VAT number (BT-48), structured address (BG-8) and the default electronic address (BT-49: scheme `0225` + SIREN). |
+| **SellerIdentity** | The clinic as seller, read from the Clinic context (letterhead, billing settings) through `SellerIdentityProviderInterface`. |
+| **ProcessingRule** | `B2B` (invoice to a French business, to be transmitted as an e-invoice) or `B2C` (to be e-reported later). Known on the draft, frozen at issue. |
+| **InvoicingFramework** | BT-23 « cadre de facturation »: nature (`S` services, `B` goods, `M` mixed — default pending the accountant) + case (`1` to pay, `2` paid at issue). |
+| **PaymentTerms** | Due date (BT-9) and note (BT-20): « Paiement à N jours » or « Facture acquittée »; professional mentions PMD / PMT / AAB. |
+| **ElectronicInvoiceReadiness** | Local check of a B2B draft before a number is drawn (`ReadinessRequirement`). |
+
+## Amounts
+
+- **No float anywhere.** Money is integer minor units; unit nets are integer
+  micro-units (`Shared/Money` `UnitPrice`); splits use the largest remainder
+  method (`LargestRemainderAllocator`).
+- **B2B — HT-first, EN16931 strict.** Unit net = entered HT price, or entered
+  TTC / (1 + rate) to 6 decimals; line net = round(qty × unit net); base per
+  rate = Σ line nets − allowance; VAT per rate = round(base × rate) once.
+  BR-CO-10 / 13 / 17 and BT-131 = BT-129 × BT-146 hold by construction. A price
+  entered TTC may come out one cent off: the counter shows the recalculated
+  total before payment.
+- **B2C — TTC-first.** Line TTC = round(qty × unit TTC) (an HT price is grossed
+  up per unit to the cent); per rate TTC is exact, base = round(TTC / (1 +
+  rate)), VAT = TTC − base, line nets share the base by largest remainder.
+- **Discount.** Percentage: B2B allowance = round(line total × pct); B2C
+  discounted TTC = TTC − round(TTC × pct). Fixed: an amount incl. VAT shared
+  over the rates by largest remainder, capped at the document.
+- **No BT-114** (rounding amount) is ever produced.
+- **Frozen at issue.** Line amounts, the per-rate breakdown (`tax_breakdown`
+  JSON) and the totals are stored; an issued invoice is reloaded with them and
+  **never recalculated**. Only drafts are recalculated (on every change and on
+  reload).
+- **Credit notes** (`CreditNoteCalculator`) work from the invoice's frozen
+  amounts only: credited lines keep their nets; per rate the note takes its
+  share of the allowance and its VAT (B2B: base × rate; B2C: its share of what
+  the client paid); the note that credits the last lines of a rate takes
+  exactly what is left, so the notes of an invoice add up to it per rate.
+
+## Business Invariants
+
+1. A draft is the only editable state; issuing requires at least one line and,
+   for a visit, an identified payer.
+2. A B2B draft is numbered only when `ElectronicInvoiceReadiness` finds nothing
+   missing (buyer legal name, SIREN, address; every line with a resolved tax
+   category and a non-zero rate; seller SIREN, VAT number, address, legal name,
+   unique numbering per SIREN). The check runs **before** `numbers->next()`:
+   a refusal leaves the sequence and the draft untouched.
+3. **An issued B2B invoice is never cancelled** — « Une facture professionnelle
+   émise ne s'annule pas : créez un avoir. » B2C cancellation is unchanged.
+4. A line is credited once; credit notes never credit more than the invoice.
+5. A tax category Taxation cannot resolve leaves a B2C line at 0 % with no
+   nature; a B2B draft refuses it. A manual line requires a Taxation category.
+
+## Use Cases
+
+| Command / Query | What it does |
+|---|---|
+| `PrepareInvoiceForAdmission` | Rebuilds the draft of a visit from its billable consultation lines (price + mode snapshotted by Consultation). |
+| `CheckoutAdmission` | Checks readiness, issues the visit's invoice and records the payment. |
+| `RecordCounterSale` | Bills articles at the desk (to a client, a newcomer — a professional with its address — or nobody), checks readiness, issues and pays. |
+| `AddManualInvoiceLine` | Adds a line typed VAT included with a mandatory Taxation category. |
+| `IssueCreditNote` | Credits lines of an issued invoice (type 381, BT-25/26 of the invoice). |
+| `GetInvoiceDetails`, `SearchInvoices`, … | Read models built on the frozen totals. |
+
+## Fixture examples
+
+Demo invoices are built by `fixtures/Context/Billing/Story/*`: visits of the
+demo admissions, counter sales, debts for the directory balances, and B2B
+invoices to the demo professionals.

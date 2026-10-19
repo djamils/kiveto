@@ -12,6 +12,7 @@ use App\Context\Animal\Application\Command\RecordAnimalWeight\RecordAnimalWeight
 use App\Context\Animal\Application\Command\RecordPreventiveCare\RecordPreventiveCare;
 use App\Context\Animal\Application\Command\UpdateAnimalInsurance\UpdateAnimalInsurance;
 use App\Context\Animal\Application\Command\UpdateAnimalLifeCycle\UpdateAnimalLifeCycle;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
@@ -105,6 +106,7 @@ final class ClientSheetStatesStory extends Story
         private readonly Connection $connection,
         private readonly InvoiceRepositoryInterface $invoices,
         private readonly InvoiceNumberGeneratorInterface $numbers,
+        private readonly SellerIdentityProviderInterface $sellers,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -595,7 +597,7 @@ final class ClientSheetStatesStory extends Story
         }
 
         if (null !== $payment) {
-            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $at);
+            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $this->sellers->forClinic($clinic->toString()), $at);
 
             if ('UNPAID' !== $payment) {
                 $invoice->recordPayment(Payment::create(

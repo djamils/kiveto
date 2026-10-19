@@ -20,6 +20,7 @@ use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotFoundException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
 use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
+use App\Context\Billing\Domain\Exception\IssuedProfessionalInvoiceCannotBeCancelledException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 
 /**
@@ -29,22 +30,23 @@ use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 final class BillingErrorMessage
 {
     private const array MESSAGES = [
-        PaymentExceedsBalanceException::class          => 'Le montant dépasse ce qui reste à régler.',
-        InvoiceNotPayableException::class              => 'Cette facture n\'attend plus de règlement.',
-        InvoiceNotCreditableException::class           => 'Un avoir ne s\'établit que sur une facture émise.',
-        CreditExceedsInvoiceException::class           => 'L\'avoir dépasse ce qui reste à créditer sur la facture.',
-        InvalidCreditNoteException::class              => 'L\'avoir n\'a pas pu être établi : choisissez des lignes non créditées et un motif.',
-        InvoiceHasNoLinesException::class              => 'La facture n\'a aucune ligne à encaisser.',
-        InvoiceRequiresIdentifiedPayerException::class => 'Identifiez le patient avant d\'encaisser : la facture doit être au nom d\'un client.',
-        InvoiceNotEditableException::class             => 'La facture est déjà émise : elle ne se modifie plus.',
-        InvoiceNotFoundException::class                => 'Facture introuvable.',
-        InvalidInvoiceLineException::class             => 'Un article ne peut pas être vendu au comptoir.',
-        InvalidPaymentException::class                 => 'Le montant du règlement est invalide.',
-        InvalidChequeDepositException::class           => 'Aucun chèque à remettre en banque.',
-        InvalidPayerException::class                   => 'Choisissez le client de la vente.',
-        CounterClientAlreadyKnownException::class      => 'Ce numéro est déjà celui d\'un client : utilisez sa fiche.',
-        InvalidCounterClientException::class           => 'Les coordonnées du nouveau client sont incomplètes : un nom, un prénom et un mobile ou un e-mail valides.',
-        InvalidCounterClientTaxProfileException::class => 'Le profil fiscal du professionnel est invalide : vérifiez la raison sociale, le SIREN et le n° de TVA.',
+        PaymentExceedsBalanceException::class                      => 'Le montant dépasse ce qui reste à régler.',
+        InvoiceNotPayableException::class                          => 'Cette facture n\'attend plus de règlement.',
+        InvoiceNotCreditableException::class                       => 'Un avoir ne s\'établit que sur une facture émise.',
+        CreditExceedsInvoiceException::class                       => 'L\'avoir dépasse ce qui reste à créditer sur la facture.',
+        InvalidCreditNoteException::class                          => 'L\'avoir n\'a pas pu être établi : choisissez des lignes non créditées et un motif.',
+        InvoiceHasNoLinesException::class                          => 'La facture n\'a aucune ligne à encaisser.',
+        InvoiceRequiresIdentifiedPayerException::class             => 'Identifiez le patient avant d\'encaisser : la facture doit être au nom d\'un client.',
+        InvoiceNotEditableException::class                         => 'La facture est déjà émise : elle ne se modifie plus.',
+        IssuedProfessionalInvoiceCannotBeCancelledException::class => 'Une facture professionnelle émise ne s\'annule pas : créez un avoir.',
+        InvoiceNotFoundException::class                            => 'Facture introuvable.',
+        InvalidInvoiceLineException::class                         => 'Un article ne peut pas être vendu au comptoir.',
+        InvalidPaymentException::class                             => 'Le montant du règlement est invalide.',
+        InvalidChequeDepositException::class                       => 'Aucun chèque à remettre en banque.',
+        InvalidPayerException::class                               => 'Choisissez le client de la vente.',
+        CounterClientAlreadyKnownException::class                  => 'Ce numéro est déjà celui d\'un client : utilisez sa fiche.',
+        InvalidCounterClientException::class                       => 'Les coordonnées du nouveau client sont incomplètes : un nom, un prénom et un mobile ou un e-mail valides.',
+        InvalidCounterClientTaxProfileException::class             => 'Le profil fiscal du professionnel est invalide : vérifiez la raison sociale, le SIREN et le n° de TVA.',
     ];
 
     public static function of(\Throwable $exception): string

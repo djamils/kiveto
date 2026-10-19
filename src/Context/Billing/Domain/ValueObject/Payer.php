@@ -24,14 +24,20 @@ final class Payer
         private readonly string $displayName,
         private readonly array $addressLines,
         private readonly ?string $attention = null,
+        private readonly ?BuyerFiscalIdentity $fiscalIdentity = null,
     ) {
     }
 
     /**
      * @param list<string> $addressLines
      */
-    public static function create(?PayerId $clientId, string $displayName, array $addressLines = [], ?string $attention = null): self
-    {
+    public static function create(
+        ?PayerId $clientId,
+        string $displayName,
+        array $addressLines = [],
+        ?string $attention = null,
+        ?BuyerFiscalIdentity $fiscalIdentity = null,
+    ): self {
         $displayName = mb_trim($displayName);
 
         if ('' === $displayName) {
@@ -49,7 +55,7 @@ final class Payer
 
         $attention = null === $attention ? '' : mb_trim($attention);
 
-        return new self($clientId, $displayName, $lines, '' === $attention ? null : $attention);
+        return new self($clientId, $displayName, $lines, '' === $attention ? null : $attention, $fiscalIdentity);
     }
 
     /**
@@ -96,9 +102,28 @@ final class Payer
         return $this->attention;
     }
 
+    /**
+     * Who the payer is for the tax authority; null for a private client, a
+     * passer-by or a sale without contact details.
+     */
+    public function fiscalIdentity(): ?BuyerFiscalIdentity
+    {
+        return $this->fiscalIdentity;
+    }
+
+    public function isFrenchBusiness(): bool
+    {
+        return true === $this->fiscalIdentity?->isFrenchBusiness();
+    }
+
     public function equals(self $other): bool
     {
-        return $this->displayName === $other->displayName
+        $sameIdentity = null === $this->fiscalIdentity
+            ? null === $other->fiscalIdentity
+            : null !== $other->fiscalIdentity && $this->fiscalIdentity->equals($other->fiscalIdentity);
+
+        return $sameIdentity
+            && $this->displayName === $other->displayName
             && $this->addressLines === $other->addressLines
             && $this->attention === $other->attention
             && $this->clientId?->toString() === $other->clientId?->toString();

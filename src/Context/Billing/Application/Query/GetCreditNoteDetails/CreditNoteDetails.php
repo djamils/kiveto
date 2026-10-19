@@ -41,6 +41,10 @@ final readonly class CreditNoteDetails
         public ?string $issuedByUserId,
         /** « À l'attention de » line under a structure's name. */
         public ?string $payerAttention = null,
+        public string $processingRule = 'B2C',
+        public ?string $payerSiren = null,
+        public ?string $payerVatNumber = null,
+        public int $discountMinorUnits = 0,
     ) {
     }
 }

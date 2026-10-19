@@ -93,6 +93,9 @@ final readonly class IssueCreditNoteHandler
             currency: $invoice->currency(),
             now: $now,
             issuedByUserId: $command->issuedByUserId,
+            processingRule: $invoice->processingRule(),
+            framework: $invoice->framework(),
+            invoiceIssuedAt: $invoice->issuedAt(),
         );
 
         $this->invoices->save($invoice);

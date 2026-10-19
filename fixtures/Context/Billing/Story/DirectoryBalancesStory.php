@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Billing\Story;
 
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
@@ -43,6 +44,7 @@ final class DirectoryBalancesStory extends Story
     public function __construct(
         private readonly InvoiceRepositoryInterface $invoices,
         private readonly InvoiceNumberGeneratorInterface $numbers,
+        private readonly SellerIdentityProviderInterface $sellers,
     ) {
     }
 
@@ -77,7 +79,7 @@ final class DirectoryBalancesStory extends Story
                 sourceReference: null,
             ), $at);
 
-            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $at);
+            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $this->sellers->forClinic($clinic->toString()), $at);
 
             if ($paid > 0) {
                 $invoice->recordPayment(Payment::create(

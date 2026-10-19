@@ -20,6 +20,7 @@ final readonly class CreditNoteIssued extends AbstractDomainEvent
         public int $refundedMinorUnits,
         public string $currency,
         public string $issuedAt,
+        public string $processingRule = 'B2C',
     ) {
     }
 
@@ -42,6 +43,7 @@ final readonly class CreditNoteIssued extends AbstractDomainEvent
             'refundedMinorUnits'   => $this->refundedMinorUnits,
             'currency'             => $this->currency,
             'issuedAt'             => $this->issuedAt,
+            'processingRule'       => $this->processingRule,
         ];
     }
 }

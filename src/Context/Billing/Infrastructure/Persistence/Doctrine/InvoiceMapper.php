@@ -13,13 +13,14 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\InvoicingFramework;
 use App\Context\Billing\Domain\ValueObject\LineAmounts;
 use App\Context\Billing\Domain\ValueObject\OperationCategory;
-use App\Context\Billing\Domain\ValueObject\Payer;
-use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
+use App\Context\Billing\Domain\ValueObject\PaymentTerms;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceLineEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\PaymentEntity;
@@ -32,6 +33,7 @@ final readonly class InvoiceMapper
 {
     public function __construct(
         private TaxBreakdownMapper $breakdown = new TaxBreakdownMapper(),
+        private PayerMapper $payers = new PayerMapper(),
     ) {
     }
 
@@ -64,8 +66,6 @@ final readonly class InvoiceMapper
             );
         }
 
-        $payerClientId = $entity->getPayerClientId();
-
         return Invoice::reconstitute(
             id: InvoiceId::fromString($entity->getId()->toRfc4122()),
             clinicId: ClinicId::fromString($entity->getClinicId()->toRfc4122()),
@@ -74,12 +74,7 @@ final readonly class InvoiceMapper
             admissionId: null !== $entity->getAdmissionId()
                 ? AdmissionId::fromString($entity->getAdmissionId()->toRfc4122())
                 : null,
-            payer: Payer::create(
-                null !== $payerClientId ? PayerId::fromString($payerClientId->toRfc4122()) : null,
-                $entity->getPayerName(),
-                $entity->getPayerAddressLines(),
-                $entity->getPayerAttention(),
-            ),
+            payer: $this->payers->toDomain($entity),
             lines: $lines,
             payments: $payments,
             discount: $discount,
@@ -97,6 +92,11 @@ final readonly class InvoiceMapper
             frozenBreakdown: InvoiceStatus::DRAFT === $entity->getStatus()
                 ? null
                 : $this->breakdown->toDomain($entity->getTaxBreakdown(), $currency),
+            processingRule: null !== $entity->getProcessingRule() ? ProcessingRule::from($entity->getProcessingRule()) : null,
+            framework: null !== $entity->getInvoicingFramework() ? InvoicingFramework::fromCode($entity->getInvoicingFramework()) : null,
+            paymentTerms: null !== $entity->getPaymentTermsNote()
+                ? PaymentTerms::reconstitute($entity->getDueDate(), $entity->getPaymentTermsNote())
+                : null,
         );
     }
 
@@ -127,6 +127,7 @@ final readonly class InvoiceMapper
         $entity->setPayerName($invoice->payer()->displayName());
         $entity->setPayerAddressLines($invoice->payer()->addressLines());
         $entity->setPayerAttention($invoice->payer()->attention());
+        $this->payers->toEntity($invoice->payer(), $entity);
         $entity->setCurrency($invoice->currency()->toString());
         $entity->setDiscountKind($discount?->kind());
         $entity->setDiscountValue($discount?->value());
@@ -139,6 +140,11 @@ final readonly class InvoiceMapper
         $entity->setCancellationReason($invoice->cancellationReason());
         $entity->setCreditedMinorUnits($invoice->amountCredited()->minorUnits());
         $entity->setRefundedMinorUnits($invoice->amountRefunded()->minorUnits());
+
+        $entity->setProcessingRule(InvoiceStatus::DRAFT === $invoice->status() ? null : $invoice->processingRule()->value);
+        $entity->setInvoicingFramework($invoice->framework()?->code());
+        $entity->setDueDate($invoice->paymentTerms()?->dueDate);
+        $entity->setPaymentTermsNote($invoice->paymentTerms()?->note);
 
         $amounts = $invoice->amounts();
 

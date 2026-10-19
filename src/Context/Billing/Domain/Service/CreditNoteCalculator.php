@@ -6,6 +6,7 @@ namespace App\Context\Billing\Domain\Service;
 
 use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Invoice;
+use App\Context\Billing\Domain\ValueObject\CalculationMode;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
@@ -18,11 +19,11 @@ use App\Shared\Money\Domain\Allocation\LargestRemainderAllocator;
  *
  * The credited lines keep their frozen nets. Per VAT rate, the note takes the
  * share of the invoice's discount that its lines weigh (largest remainder)
- * and gives back the matching share of what the client paid; its VAT is what
- * that amount holds beyond the credited base. The note that credits the last
- * lines of a rate takes exactly what
- * the previous notes left, so that the notes of an invoice add up to the
- * invoice per rate — to the cent, with integers only.
+ * and its VAT: base × rate for a professional invoice (calculated tax
+ * excluded first), the matching share of what the client paid for a private
+ * one (tax included first). The note that credits the last lines of a rate
+ * takes exactly what the previous notes left, so that the notes of an invoice
+ * add up to the invoice per rate — to the cent, with integers only.
  */
 final class CreditNoteCalculator
 {
@@ -124,6 +125,13 @@ final class CreditNoteCalculator
             )[0],
         );
         $base = $creditedNets - $allowance;
+
+        if (CalculationMode::EXCLUDING_TAX_FIRST === $invoice->calculationMode()) {
+            // A professional invoice: VAT on the credited base, as EN16931 computes it.
+            $vat = (int) bcround(bcdiv(bcmul((string) $base, self::key($bucket->ratePercent()), 12), '100', 12), 0, \RoundingMode::HalfEven);
+
+            return RateBucket::of($bucket->ratePercent(), $creditedNets, $allowance, min($vat, $leftVat), $currency);
+        }
 
         $grossOfRate = 0;
         foreach ($linesOfRate as $line) {

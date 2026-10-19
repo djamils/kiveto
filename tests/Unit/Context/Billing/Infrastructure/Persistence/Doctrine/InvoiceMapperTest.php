@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Billing\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
+use App\Context\Billing\Domain\ValueObject\BuyerFiscalIdentity;
+use App\Context\Billing\Domain\ValueObject\BuyerTaxStatus;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\Discount;
@@ -24,13 +26,17 @@ use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceLineEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
+use App\Shared\Domain\ValueObject\Siren;
 use App\Shared\Money\Domain\ValueObject\Money;
 use App\Shared\Money\Domain\ValueObject\UnitPrice;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -265,6 +271,73 @@ final class InvoiceMapperTest extends TestCase
         self::assertNull($entity->getPaidAt());
         self::assertNull($entity->getCancelledAt());
         self::assertNull($entity->getCancellationReason());
+    }
+
+    public function testAProfessionalInvoiceKeepsItsFrozenFiscalData(): void
+    {
+        $siren   = Siren::fromInput('523456788');
+        $invoice = Invoice::draft(
+            InvoiceId::fromString(self::INVOICE_ID),
+            ClinicId::fromString(self::CLINIC_ID),
+            null,
+            Payer::create(PayerId::fromString(self::CLIENT_ID), 'EARL Élevage des Calanques', ['Chemin des Goudes', '13008 Marseille'], null, BuyerFiscalIdentity::of(
+                BuyerTaxStatus::FRENCH_BUSINESS,
+                'EARL Élevage des Calanques',
+                $siren,
+                FrenchVatNumber::forSiren($siren),
+                ['Chemin des Goudes'],
+                '13008',
+                'Marseille',
+            )),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        );
+        $invoice->addLine(InvoiceLine::create(
+            id: InvoiceLineId::fromString(self::LINE_ID),
+            label: 'Consultation',
+            code: null,
+            quantity: '1',
+            enteredUnitPrice: Money::fromMinorUnits(6000, CurrencyCode::fromString('EUR')),
+            priceMode: PriceMode::INCLUDING_TAX,
+            taxCategoryCode: 'veterinary.act.consultation',
+            taxRatePercent: '20',
+            operationCategory: OperationCategory::SERVICES,
+            source: InvoiceLineSource::CONSULTATION,
+        ), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 8), SellerIdentities::complete(), $this->now());
+
+        $entity = $this->mapper->toEntity($invoice);
+
+        self::assertSame('B2B', $entity->getProcessingRule());
+        self::assertSame('S1', $entity->getInvoicingFramework());
+        self::assertSame('Paiement à 30 jours', $entity->getPaymentTermsNote());
+        self::assertSame('0225', $entity->getPayerElectronicAddressScheme());
+        self::assertSame('523456788', $entity->getPayerElectronicAddress());
+        self::assertSame(['Chemin des Goudes'], $entity->getPayerStreet());
+
+        $restored = $this->mapper->toDomain($entity, [$this->mapper->lineToEntity($invoice->lines()[0], $invoice->id(), 0)], []);
+
+        self::assertSame(ProcessingRule::B2B, $restored->processingRule());
+        self::assertSame('S1', $restored->framework()?->code());
+        self::assertSame($invoice->paymentTerms()?->dueDate?->format('Y-m-d'), $restored->paymentTerms()?->dueDate?->format('Y-m-d'));
+        self::assertTrue($restored->payer()->equals($invoice->payer()));
+        self::assertSame($invoice->totalGross()->minorUnits(), $restored->totalGross()->minorUnits());
+    }
+
+    public function testADraftStoresNoProcessingRule(): void
+    {
+        $entity = $this->mapper->toEntity(Invoice::draft(
+            InvoiceId::fromString(self::INVOICE_ID),
+            ClinicId::fromString(self::CLINIC_ID),
+            null,
+            Payer::anonymous(),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        ));
+
+        self::assertNull($entity->getProcessingRule());
+        self::assertNull($entity->getPayerTaxStatus());
+        self::assertNull($entity->getPayerStreet());
     }
 
     private function invoice(): Invoice

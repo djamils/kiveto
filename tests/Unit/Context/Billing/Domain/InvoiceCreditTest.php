@@ -26,6 +26,7 @@ use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -231,7 +232,7 @@ final class InvoiceCreditTest extends TestCase
     private function issued(): Invoice
     {
         $invoice = $this->draft();
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
 
         return $invoice;
     }

@@ -39,6 +39,7 @@ use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
 use App\Shared\Money\Domain\ValueObject\UnitPrice;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 
 final class InvoiceTest extends TestCase
@@ -121,7 +122,7 @@ final class InvoiceTest extends TestCase
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         (void) $invoice->pullDomainEvents();
 
-        $invoice->issue(InvoiceNumber::of(2026, 42), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 42), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
         self::assertSame('FAC-2026-000042', $invoice->number()?->toString());
@@ -141,7 +142,7 @@ final class InvoiceTest extends TestCase
         $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
         $this->expectExceptionMessage('without an identified client');
 
-        $invoice->issue(InvoiceNumber::of(2026, 43), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 43), SellerIdentities::complete(), $this->now());
     }
 
     public function testACounterSaleToAPasserByIsIssued(): void
@@ -156,7 +157,7 @@ final class InvoiceTest extends TestCase
         );
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
 
-        $invoice->issue(InvoiceNumber::of(2026, 44), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 44), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
     }
@@ -205,7 +206,7 @@ final class InvoiceTest extends TestCase
         $this->expectException(InvoiceHasNoLinesException::class);
         $this->expectExceptionMessage('cannot be issued without a single line');
 
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
     }
 
     public function testAPaymentThatSettlesTheInvoiceMarksItPaid(): void
@@ -301,7 +302,7 @@ final class InvoiceTest extends TestCase
         $invoice->applyDiscount(Discount::percentage('100', 'Geste commercial'), $this->now());
         (void) $invoice->pullDomainEvents();
 
-        $invoice->issue(InvoiceNumber::of(2026, 7), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 7), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::PAID, $invoice->status());
         self::assertSame(0, $invoice->totalGross()->minorUnits());
@@ -613,7 +614,7 @@ final class InvoiceTest extends TestCase
     {
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
 
         return $invoice;
     }

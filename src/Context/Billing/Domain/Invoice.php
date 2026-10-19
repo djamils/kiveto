@@ -18,7 +18,9 @@ use App\Context\Billing\Domain\Exception\InvoiceNotCreditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
 use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
+use App\Context\Billing\Domain\Exception\IssuedProfessionalInvoiceCannotBeCancelledException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
+use App\Context\Billing\Domain\Policy\InvoicingFrameworkPolicy;
 use App\Context\Billing\Domain\Service\InvoiceAmountCalculator;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\CalculatedAmounts;
@@ -31,9 +33,14 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\InvoiceTypeCode;
+use App\Context\Billing\Domain\ValueObject\InvoicingFramework;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\Payment;
+use App\Context\Billing\Domain\ValueObject\PaymentTerms;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\RateBucket;
+use App\Context\Billing\Domain\ValueObject\SellerIdentity;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\CurrencyDecimals;
@@ -63,6 +70,13 @@ final class Invoice extends AggregateRoot
     private const int CURRENCY_DECIMALS = 2;
 
     private CalculatedAmounts $amounts;
+
+    /** Frozen at issue; derived from the payer while a draft. */
+    private ?ProcessingRule $frozenRule = null;
+
+    private ?InvoicingFramework $framework = null;
+
+    private ?PaymentTerms $paymentTerms = null;
 
     /**
      * @param list<InvoiceLine> $lines
@@ -141,6 +155,9 @@ final class Invoice extends AggregateRoot
      * @param list<InvoiceLine>     $lines
      * @param list<Payment>         $payments
      * @param list<RateBucket>|null $frozenBreakdown required unless the invoice is a draft
+     *
+     * The fiscal qualification (processing rule, framework, payment terms) is
+     * null for invoices issued before it existed
      */
     public static function reconstitute(
         InvoiceId $id,
@@ -164,6 +181,9 @@ final class Invoice extends AggregateRoot
         int $refundedMinorUnits = 0,
         ?CounterSalePayer $counterSalePayer = null,
         ?array $frozenBreakdown = null,
+        ?ProcessingRule $processingRule = null,
+        ?InvoicingFramework $framework = null,
+        ?PaymentTerms $paymentTerms = null,
     ): self {
         $invoice = new self(
             $id,
@@ -193,6 +213,10 @@ final class Invoice extends AggregateRoot
 
             return $invoice;
         }
+
+        $invoice->frozenRule   = $processingRule;
+        $invoice->framework    = $framework;
+        $invoice->paymentTerms = $paymentTerms;
 
         if (null === $frozenBreakdown) {
             throw new \LogicException(\sprintf('Issued invoice %s needs its frozen amounts.', $id->toString()));
@@ -264,7 +288,13 @@ final class Invoice extends AggregateRoot
         $this->updatedAt = $now;
     }
 
-    public function issue(InvoiceNumber $number, \DateTimeImmutable $now): void
+    /**
+     * Numbers the invoice and freezes it: its amounts, its processing rule
+     * (B2B for a business subject to French VAT), its invoicing framework
+     * (BT-23) and its payment terms — due after the seller's professional
+     * terms, or settled when what is paid at the desk covers it.
+     */
+    public function issue(InvoiceNumber $number, SellerIdentity $seller, \DateTimeImmutable $now, int $paidAtIssueMinorUnits = 0): void
     {
         $this->ensureEditable();
 
@@ -278,10 +308,15 @@ final class Invoice extends AggregateRoot
             throw new InvoiceRequiresIdentifiedPayerException($this->id->toString());
         }
 
-        $this->number    = $number;
-        $this->status    = InvoiceStatus::ISSUED;
-        $this->issuedAt  = $now;
-        $this->updatedAt = $now;
+        $settled = $paidAtIssueMinorUnits >= $this->totalGross()->minorUnits();
+
+        $this->number       = $number;
+        $this->status       = InvoiceStatus::ISSUED;
+        $this->issuedAt     = $now;
+        $this->updatedAt    = $now;
+        $this->frozenRule   = ProcessingRule::forPayer($this->payer);
+        $this->framework    = new InvoicingFrameworkPolicy()->decide($this->lines, $settled);
+        $this->paymentTerms = $settled ? PaymentTerms::settled() : PaymentTerms::dueIn($seller->paymentTermsDays(), $now);
 
         $this->recordDomainEvent(new InvoiceIssued(
             invoiceId: $this->id->toString(),
@@ -290,6 +325,7 @@ final class Invoice extends AggregateRoot
             totalGrossMinorUnits: $this->totalGross()->minorUnits(),
             currency: $this->currency->toString(),
             issuedAt: $now->format(\DateTimeInterface::ATOM),
+            processingRule: $this->frozenRule->value,
         ));
 
         // A fully discounted or zero-amount invoice is settled the moment it is
@@ -342,6 +378,10 @@ final class Invoice extends AggregateRoot
 
     public function cancel(string $reason, \DateTimeImmutable $now): void
     {
+        if (null !== $this->number && ProcessingRule::B2B === $this->processingRule()) {
+            throw new IssuedProfessionalInvoiceCannotBeCancelledException($this->id->toString());
+        }
+
         if (InvoiceStatus::CANCELLED === $this->status) {
             throw new InvoiceCannotBeCancelledException($this->id->toString(), 'it is already cancelled');
         }
@@ -453,14 +493,44 @@ final class Invoice extends AggregateRoot
     }
 
     /**
-     * How the prices as entered become net, VAT and gross amounts.
-     *
-     * Every invoice is calculated tax included first for now: the client pays
-     * exactly the prices displayed.
+     * B2B when the invoice is made out to a business subject to French VAT.
+     * Known while a draft (from its payer) and frozen at issue; an invoice
+     * issued before the rule existed counts as B2C.
+     */
+    public function processingRule(): ProcessingRule
+    {
+        if (InvoiceStatus::DRAFT === $this->status) {
+            return ProcessingRule::forPayer($this->payer);
+        }
+
+        return $this->frozenRule ?? ProcessingRule::B2C;
+    }
+
+    /**
+     * How the prices as entered become net, VAT and gross amounts: tax
+     * excluded first for a professional (EN16931 strict), tax included first
+     * for a private client, who pays exactly the prices displayed.
      */
     public function calculationMode(): CalculationMode
     {
-        return CalculationMode::INCLUDING_TAX_FIRST;
+        return $this->processingRule()->calculationMode();
+    }
+
+    public function typeCode(): InvoiceTypeCode
+    {
+        return InvoiceTypeCode::COMMERCIAL_INVOICE;
+    }
+
+    /** The invoicing framework (BT-23), decided at issue. */
+    public function framework(): ?InvoicingFramework
+    {
+        return $this->framework;
+    }
+
+    /** Due date (BT-9) and terms (BT-20), decided at issue. */
+    public function paymentTerms(): ?PaymentTerms
+    {
+        return $this->paymentTerms;
     }
 
     /**

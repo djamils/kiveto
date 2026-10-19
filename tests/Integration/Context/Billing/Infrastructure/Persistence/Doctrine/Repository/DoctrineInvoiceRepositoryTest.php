@@ -29,6 +29,7 @@ use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\SellerIdentities;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -72,7 +73,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         $invoice->addLine($this->line(2000, 400, 2400), $this->now());
         $invoice->applyDiscount(Discount::percentage('10', 'Fidélité'), $this->now());
         $invoice->setNotes('Merci', $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 77), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 77), SellerIdentities::complete(), $this->now());
         $invoice->recordPayment($this->payment(1000), $this->now());
 
         $this->invoices->save($invoice);
@@ -99,7 +100,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         $this->invoices->save($invoice);
 
-        $invoice->issue(InvoiceNumber::of(2026, 78), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 78), SellerIdentities::complete(), $this->now());
         $this->invoices->save($invoice);
 
         $reloaded = $this->invoices->get($this->clinic(), $invoice->id());
@@ -130,7 +131,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 79), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 79), SellerIdentities::complete(), $this->now());
         $invoice->recordPayment($this->payment(1000), $this->now());
         $this->invoices->save($invoice);
 
@@ -178,7 +179,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 80), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 80), SellerIdentities::complete(), $this->now());
         $invoice->cancel('Erreur', $this->now());
         $this->invoices->save($invoice);
 
@@ -198,7 +199,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 41), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 41), SellerIdentities::complete(), $this->now());
         $this->invoices->save($invoice);
 
         $row = $this->read->forAdmission($this->clinic(), AdmissionId::fromString(self::ADMISSION_ID));
@@ -267,7 +268,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         $invoice->applyDiscount(Discount::percentage('10'), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 81), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 81), SellerIdentities::complete(), $this->now());
         $invoice->recordPayment($this->payment(1000), $this->now());
         $this->invoices->save($invoice);
 
@@ -289,13 +290,13 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $paid = $this->draft();
         $paid->addLine($this->line(5000, 1000, 6000), $this->now());
-        $paid->issue(InvoiceNumber::of(2026, 90), $this->now());
+        $paid->issue(InvoiceNumber::of(2026, 90), SellerIdentities::complete(), $this->now());
         $paid->recordPayment($this->payment(6000), $this->now());
         $this->invoices->save($paid);
 
         $unpaid = $this->draft(admissionId: null, payerName: 'Marc Lefebvre');
         $unpaid->addLine($this->line(2000, 400, 2400), $this->now());
-        $unpaid->issue(InvoiceNumber::of(2026, 91), $this->now());
+        $unpaid->issue(InvoiceNumber::of(2026, 91), SellerIdentities::complete(), $this->now());
         $this->invoices->save($unpaid);
 
         $byStatus = $this->read->search($this->clinic(), new SearchInvoicesCriteria(statuses: ['PAID']));
@@ -343,7 +344,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         foreach ([1, 2, 3] as $index) {
             $invoice = $this->draft(admissionId: null, payerName: 'Client ' . $index);
             $invoice->addLine($this->line(1000 * $index, 200 * $index, 1200 * $index), $this->now());
-            $invoice->issue(InvoiceNumber::of(2026, 100 + $index), $this->now());
+            $invoice->issue(InvoiceNumber::of(2026, 100 + $index), SellerIdentities::complete(), $this->now());
             $this->invoices->save($invoice);
         }
 
@@ -373,7 +374,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         $invoice->applyDiscount(Discount::percentage('10', 'Fidélité'), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 110), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 110), SellerIdentities::complete(), $this->now());
         $invoice->recordPayment($this->payment(1000), $this->now());
         $this->invoices->save($invoice);
 
@@ -400,13 +401,13 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $paid = $this->draft();
         $paid->addLine($this->line(5000, 1000, 6000), $this->now());
-        $paid->issue(InvoiceNumber::of(2026, 120), $this->now());
+        $paid->issue(InvoiceNumber::of(2026, 120), SellerIdentities::complete(), $this->now());
         $paid->recordPayment($this->payment(6000), $this->now());
         $this->invoices->save($paid);
 
         $partly = $this->draft(admissionId: null);
         $partly->addLine($this->line(2000, 400, 2400), $this->now());
-        $partly->issue(InvoiceNumber::of(2026, 121), $this->now());
+        $partly->issue(InvoiceNumber::of(2026, 121), SellerIdentities::complete(), $this->now());
         $partly->recordPayment($this->payment(400), $this->now());
         $this->invoices->save($partly);
 
@@ -433,7 +434,7 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         $invoice->applyDiscount(Discount::percentage('50'), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 130), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 130), SellerIdentities::complete(), $this->now());
         $this->invoices->save($invoice);
 
         $stats = $this->read->stats(
@@ -449,19 +450,19 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
     {
         $partly = $this->draft(admissionId: null);
         $partly->addLine($this->line(2000, 400, 2400), $this->now());
-        $partly->issue(InvoiceNumber::of(2026, 140), $this->now());
+        $partly->issue(InvoiceNumber::of(2026, 140), SellerIdentities::complete(), $this->now());
         $partly->recordPayment($this->payment(400), $this->now());
         $this->invoices->save($partly);
 
         $issued = $this->draft(admissionId: null);
         $issued->addLine($this->line(1000, 200, 1200), $this->now());
-        $issued->issue(InvoiceNumber::of(2026, 141), $this->now());
+        $issued->issue(InvoiceNumber::of(2026, 141), SellerIdentities::complete(), $this->now());
         $this->invoices->save($issued);
 
         // Settled and draft invoices owe nothing.
         $paid = $this->draft(admissionId: null);
         $paid->addLine($this->line(5000, 1000, 6000), $this->now());
-        $paid->issue(InvoiceNumber::of(2026, 142), $this->now());
+        $paid->issue(InvoiceNumber::of(2026, 142), SellerIdentities::complete(), $this->now());
         $paid->recordPayment($this->payment(6000), $this->now());
         $this->invoices->save($paid);
 

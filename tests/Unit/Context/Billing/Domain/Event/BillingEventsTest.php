@@ -41,7 +41,7 @@ final class BillingEventsTest extends TestCase
 
     public function testInvoiceIssued(): void
     {
-        $event = new InvoiceIssued(self::INVOICE_ID, self::CLINIC_ID, 'FAC-2026-000001', 6000, 'EUR', self::AT);
+        $event = new InvoiceIssued(self::INVOICE_ID, self::CLINIC_ID, 'FAC-2026-000001', 6000, 'EUR', self::AT, 'B2B');
 
         self::assertSame('billing.invoice.issued.v1', $event->name());
         self::assertSame(self::INVOICE_ID, $event->aggregateId());
@@ -52,6 +52,7 @@ final class BillingEventsTest extends TestCase
             'totalGrossMinorUnits' => 6000,
             'currency'             => 'EUR',
             'issuedAt'             => self::AT,
+            'processingRule'       => 'B2B',
         ], $event->payload());
     }
 
@@ -128,7 +129,7 @@ final class BillingEventsTest extends TestCase
 
     public function testCreditNoteIssued(): void
     {
-        $event = new CreditNoteIssued(self::PAYMENT_ID, self::CLINIC_ID, self::INVOICE_ID, 'AV-2026-000001', 1500, 0, 'EUR', self::AT);
+        $event = new CreditNoteIssued(self::PAYMENT_ID, self::CLINIC_ID, self::INVOICE_ID, 'AV-2026-000001', 1500, 0, 'EUR', self::AT, 'B2B');
 
         self::assertSame('billing.credit-note.issued.v1', $event->name());
         self::assertSame(self::PAYMENT_ID, $event->aggregateId());
@@ -141,6 +142,7 @@ final class BillingEventsTest extends TestCase
             'refundedMinorUnits'   => 0,
             'currency'             => 'EUR',
             'issuedAt'             => self::AT,
+            'processingRule'       => 'B2B',
         ], $event->payload());
     }
 }

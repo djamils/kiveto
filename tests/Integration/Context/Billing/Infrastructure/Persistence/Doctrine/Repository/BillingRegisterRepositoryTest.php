@@ -42,6 +42,7 @@ use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
 use App\Shared\Money\Domain\ValueObject\UnitPrice;
+use App\Tests\Support\Billing\SellerIdentities;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -359,7 +360,7 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
         );
         $invoice->addLine($this->line(5000, 1000), $this->now());
         $invoice->addLine($this->line(1000, 200), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 31), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 31), SellerIdentities::complete(), $this->now());
         $this->invoices->save($invoice);
 
         $note = $this->creditNote($invoice, 1200, 'Retour produit', null, 0);
@@ -424,7 +425,7 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
 
         $invoice->addLine($this->line(5000, 1000), $this->now());
         $invoice->addLine($this->line(1000, 200), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, $sequence), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, $sequence), SellerIdentities::complete(), $this->now());
         $this->invoices->save($invoice);
 
         return $invoice;

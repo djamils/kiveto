@@ -16,7 +16,6 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\Payer;
-use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -106,12 +105,7 @@ final readonly class PrepareInvoiceForAdmissionHandler
             return Payer::anonymous();
         }
 
-        return Payer::create(
-            null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
-            $snapshot->displayName,
-            $snapshot->addressLines,
-            $snapshot->attention,
-        );
+        return $snapshot->toPayer();
     }
 
     private function toInvoiceLine(

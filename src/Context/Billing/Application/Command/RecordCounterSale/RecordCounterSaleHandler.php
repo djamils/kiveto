@@ -7,6 +7,7 @@ namespace App\Context\Billing\Application\Command\RecordCounterSale;
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
 use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
@@ -15,6 +16,7 @@ use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
+use App\Context\Billing\Domain\Policy\ElectronicInvoiceReadiness;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
@@ -61,6 +63,8 @@ final readonly class RecordCounterSaleHandler
         private CounterClientRegistryInterface $clientRegistry,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private SellerIdentityProviderInterface $sellers,
+        private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
 
@@ -118,7 +122,12 @@ final readonly class RecordCounterSaleHandler
             $invoice->addLine($line, $now);
         }
 
-        $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $now);
+        $seller = $this->sellers->forClinic($command->clinicId);
+
+        // Checked before the number is drawn: nothing is created when a
+        // professional's data is missing, the whole sale rolls back.
+        $this->readiness->assertReady($invoice, $seller);
+        $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $invoice->totalGross()->minorUnits());
 
         if ($invoice->balanceDue()->isPositive()) {
             $invoice->recordPayment(Payment::create(
@@ -158,12 +167,7 @@ final readonly class RecordCounterSaleHandler
         }
 
         return [
-            Payer::create(
-                null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
-                $snapshot->displayName,
-                $snapshot->addressLines,
-                $snapshot->attention,
-            ),
+            $snapshot->toPayer(),
             CounterSalePayer::CLIENT,
         ];
     }
@@ -191,7 +195,7 @@ final readonly class RecordCounterSaleHandler
             $snapshot = $this->payerDirectory->forClient($clientId, $clinicId)
                 ?? throw new CounterClientNotReadBackException($clientId);
 
-            return Payer::create(PayerId::fromString($clientId), $snapshot->displayName, $snapshot->addressLines, $snapshot->attention);
+            return $snapshot->toPayer();
         }
 
         return Payer::create(PayerId::fromString($clientId), $client->displayName());
