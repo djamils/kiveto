@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Shared;
 
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use Doctrine\ORM\OptimisticLockException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * What every form of a sheet (client, animal) shares: a CSRF check, the
@@ -17,6 +19,9 @@ abstract class AbstractSheetAction extends AbstractController
 {
     /** The CSRF token id shared by every form of the sheet. */
     protected const string CSRF_ID = 'sheet';
+
+    // Set on the request once a save lost a race: the caller's own failure message is then not shown.
+    private const string CONFLICT = '_sheet_save_conflict';
 
     public static function getSubscribedServices(): array
     {
@@ -44,6 +49,8 @@ abstract class AbstractSheetAction extends AbstractController
     /**
      * Runs a domain action and tells whether the domain refused it. The reason
      * is a developer message in English: callers show their own French text.
+     * A save that lost a race to a concurrent one (another user, a background
+     * verification) is refused too, with its own message.
      *
      * @param \Closure(): mixed $action
      */
@@ -51,6 +58,11 @@ abstract class AbstractSheetAction extends AbstractController
     {
         try {
             $action();
+        } catch (OptimisticLockException) {
+            $this->addFlash('error', 'La fiche vient d’être mise à jour, réessayez.');
+            $this->currentRequest()?->attributes->set(self::CONFLICT, true);
+
+            return false;
         } catch (\DomainException) {
             return false;
         } catch (\InvalidArgumentException) {
@@ -60,6 +72,15 @@ abstract class AbstractSheetAction extends AbstractController
         }
 
         return true;
+    }
+
+    protected function addFlash(string $type, mixed $message): void
+    {
+        if ('error' === $type && true === $this->currentRequest()?->attributes->get(self::CONFLICT)) {
+            return;
+        }
+
+        parent::addFlash($type, $message);
     }
 
     /**
@@ -81,5 +102,13 @@ abstract class AbstractSheetAction extends AbstractController
         $value = mb_trim($request->request->getString($field));
 
         return '' === $value ? null : $value;
+    }
+
+    private function currentRequest(): ?Request
+    {
+        $requestStack = $this->container->get('request_stack');
+        \assert($requestStack instanceof RequestStack);
+
+        return $requestStack->getCurrentRequest();
     }
 }
