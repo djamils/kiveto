@@ -25,5 +25,17 @@
   .fisc-dbl{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;font-size:.76rem}
   .fisc-dbl[hidden]{display:none}
   .fisc-dbl a{margin-left:auto;font-weight:600;color:var(--pin);white-space:nowrap;text-decoration:none}
+  /* Company registry hits under the legal name. */
+  .fisc-res{position:relative}
+  .fisc-sug{position:absolute;left:0;right:0;top:calc(100% + 3px);z-index:20;background:var(--carte);border:1px solid var(--trait);border-radius:9px;box-shadow:0 12px 30px rgba(15,23,42,.14);padding:4px;max-height:220px;overflow-y:auto}
+  .fisc-sug[hidden]{display:none}
+  .fisc-sug button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 9px;border:0;border-radius:7px;background:none;font:inherit;font-size:.8rem;color:inherit;cursor:pointer}
+  .fisc-sug button:hover,.fisc-sug button.hl{background:var(--brume)}
+  .fisc-sug button span{flex:1;min-width:0}
+  .fisc-sug button small{display:block;font-size:.7rem;color:var(--encre-60)}
+  .fisc-sug code{font-size:.72rem;color:var(--encre-60)}
+  .fisc-sug-note{padding:8px 9px;font-size:.75rem;color:var(--encre-60)}
+  .fisc-hint{font-size:.72rem;color:#92400e}
+  .fisc-hint[hidden]{display:none}
   @media (max-width:560px){.fisc-opts,.fisc-2{grid-template-columns:1fr}}
 }

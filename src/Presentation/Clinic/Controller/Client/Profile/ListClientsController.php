@@ -80,6 +80,7 @@ final class ListClientsController extends AbstractController
                 'clients'   => $this->generateUrl('clinic_directory_clients'),
                 'phones'    => $this->generateUrl('clinic_directory_phone_owners'),
                 'siren'     => $this->generateUrl('clinic_clients_by_siren'),
+                'registry'  => $this->generateUrl('clinic_clients_company_registry_search'),
                 'addresses' => $this->generateUrl('clinic_directory_addresses'),
                 'communes'  => $this->generateUrl('clinic_directory_communes'),
                 'chip'      => $this->generateUrl('clinic_admission_chip_lookup'),

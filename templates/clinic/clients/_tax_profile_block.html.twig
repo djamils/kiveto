@@ -15,8 +15,12 @@
     </div>
     <div class="fisc-f">
       <label class="fisc-l">Raison sociale <span class="req" data-rs-req>*</span></label>
-      <input class="fisc-in" data-ff="rs" autocomplete="organization" spellcheck="false" aria-label="Raison sociale">
+      <div class="fisc-res">
+        <input class="fisc-in" data-ff="rs" autocomplete="organization" spellcheck="false" aria-label="Raison sociale">
+        <div class="fisc-sug" data-sug role="listbox" aria-label="Entreprises de l'annuaire" hidden></div>
+      </div>
       <small class="fisc-err" data-fe="rs"></small>
+      <small class="fisc-hint" data-hint hidden></small>
     </div>
     <div class="fisc-pro" data-pro hidden>
       <div class="fisc-2">
