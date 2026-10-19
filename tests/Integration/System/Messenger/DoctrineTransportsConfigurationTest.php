@@ -28,6 +28,7 @@ final class DoctrineTransportsConfigurationTest extends KernelTestCase
         \assert($businessConnection instanceof DbalConnection);
 
         $checked = [];
+        $queues  = [];
 
         foreach (array_keys($receivers->getProvidedServices()) as $name) {
             if (str_starts_with($name, 'messenger.transport.')) {
@@ -53,11 +54,15 @@ final class DoctrineTransportsConfigurationTest extends KernelTestCase
                 \sprintf('Transport "%s" must use the business connection.', $name),
             );
 
-            $checked[] = $name;
+            $checked[]     = $name;
+            $queues[$name] = $configuration['queue_name'];
         }
 
         sort($checked);
-        self::assertSame(['async', 'failed'], $checked);
+        self::assertSame(['async', 'async_external', 'async_external_batch', 'failed'], $checked);
+        self::assertSame('external', $queues['async_external']);
+        self::assertSame('external_batch', $queues['async_external_batch']);
+        self::assertSame('failed', $queues['failed']);
     }
 
     /**

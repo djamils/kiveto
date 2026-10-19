@@ -20,6 +20,11 @@ when@test:
         session:
             storage_factory_id: session.storage.factory.mock_file
 
+        # No test reaches the network: the transport of every HTTP client (the
+        # default one and the scoped ones) fails on any call its test did not mock.
+        http_client:
+            mock_response_factory: App\Tests\Support\UnmockedHttpCallGuard
+
         # Unit tests: allow "fake" hosts used by Request::getHost()
         trusted_hosts:
             - '^(.+\.)?example(:\d+)?$'

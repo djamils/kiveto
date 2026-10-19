@@ -20,6 +20,26 @@ framework:
                 options:
                     table_name: 'shared__messenger_messages'
                     auto_setup: false
+            # Commands that call external services (ExternalApiCommandInterface), consumed
+            # by the external worker only. Same table and connection as `async`: a send
+            # inside a business transaction is part of it (implicit outbox).
+            async_external:
+                dsn: 'doctrine://default?queue_name=external'
+                options:
+                    table_name: 'shared__messenger_messages'
+                    auto_setup: false
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            # Batch sends (nightly runs), drained after `async_external` by the same worker.
+            async_external_batch:
+                dsn: 'doctrine://default?queue_name=external_batch'
+                options:
+                    table_name: 'shared__messenger_messages'
+                    auto_setup: false
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
             sync: 'sync://'
 
         # Separate bus definitions for CQRS
@@ -37,6 +57,16 @@ framework:
 
             # Bus for queries (read operations)
             messenger.bus.query:
+                middleware:
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
+                    - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageLoggingMiddleware
+                    - validation
+
+            # Bus for commands that call external services: no transaction, so that no
+            # network call ever runs inside one (the handler records its outcome
+            # through a short transactional command on the command bus).
+            messenger.bus.external_api:
                 middleware:
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageMetadataMiddleware
                     - App\Shared\Infrastructure\Bus\Messenger\Middleware\MessageContextMiddleware
@@ -73,3 +103,5 @@ framework:
             App\Shared\Domain\Event\DomainEventInterface: sync
             # Integration Events (async cross-bounded contexts)
             App\Shared\Domain\Event\IntegrationEventInterface: async
+            # Commands calling external services (batch senders override with a TransportNamesStamp)
+            App\Shared\Application\Bus\ExternalApiCommandInterface: async_external

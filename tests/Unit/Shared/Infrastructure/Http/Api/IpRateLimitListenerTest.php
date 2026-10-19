@@ -13,10 +13,16 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpKernel\KernelEvents;
 
 #[AllowMockObjectsWithoutExpectations]
 final class IpRateLimitListenerTest extends TestCase
 {
+    public function testItListensToRequest(): void
+    {
+        self::assertSame([KernelEvents::REQUEST => ['onKernelRequest', 16]], IpRateLimitListener::getSubscribedEvents());
+    }
+
     public function testAcceptedRequestPassesThrough(): void
     {
         $stub = new StubRateLimiterFactory();

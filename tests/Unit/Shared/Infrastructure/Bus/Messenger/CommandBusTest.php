@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared\Infrastructure\Bus\Messenger;
 
+use App\Shared\Application\Bus\ExternalApiCommandInterface;
 use App\Shared\Infrastructure\Bus\Messenger\CommandBus;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
@@ -51,5 +52,17 @@ final class CommandBusTest extends TestCase
         $this->expectExceptionMessage('boom');
 
         $commandBus->dispatch($command);
+    }
+
+    public function testAnExternalApiCommandIsRefused(): void
+    {
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('calls an external service: send it through ExternalApiCommandBusInterface.');
+
+        new CommandBus($bus)->dispatch(new class implements ExternalApiCommandInterface {
+        });
     }
 }

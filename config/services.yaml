@@ -121,6 +121,11 @@ services:
         arguments:
             $messageBus: '@messenger.bus.integration_event'
 
+    App\Shared\Application\Bus\ExternalApiCommandBusInterface:
+        class: App\Shared\Infrastructure\Bus\Messenger\ExternalApiCommandBus
+        arguments:
+            $messageBus: '@messenger.bus.external_api'
+
     # Domain Event Publisher
     App\Shared\Application\Event\DomainEventPublisher: ~
 

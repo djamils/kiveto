@@ -13,8 +13,26 @@ services:
         alias: shared.lock.factory
         public: true
 
+    # Fails any HTTP call a test did not mock (framework.http_client.mock_response_factory).
+    App\Tests\Support\UnmockedHttpCallGuard: ~
+
     # Records what entry points dispatch (ProfessionalClientEntryPointsTest).
     App\Tests\Support\RecordingCommandBus:
         decorates: App\Shared\Application\Bus\CommandBusInterface
         arguments: ['@.inner']
+        public: true
+
+    # Nothing consumes the external_api logger before the first adapter; expose it.
+    test.monolog.logger.external_api:
+        alias: monolog.logger.external_api
+        public: true
+
+    # Records what entry points queue for the external worker.
+    App\Tests\Support\RecordingExternalApiCommandBus:
+        decorates: App\Shared\Application\Bus\ExternalApiCommandBusInterface
+        arguments: ['@.inner']
+        public: true
+
+    test.messenger.bus.external_api:
+        alias: messenger.bus.external_api
         public: true

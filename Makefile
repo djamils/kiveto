@@ -21,7 +21,7 @@ APP_URL  ?= http://$(APP_HOST):$(APP_PORT)
 LOG_FILE ?= var/log/make.log
 
 # Background workers (compose profile `workers`)
-WORKER_SERVICES = messenger-worker scheduler-worker
+WORKER_SERVICES = messenger-worker external-worker scheduler-worker
 
 PHPSTAN_MEMORY ?= 512M
 
