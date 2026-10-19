@@ -700,7 +700,15 @@ export function init() {
       return;
     }
     if (!CARTES.cFisc.edit) return;
-    if (e.target.closest('[data-fzman]')) { Object.assign(FS, { manual: true, down: false, e: null, siret: null, ae: null }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); return; }
+    if (e.target.closest('[data-fzman]')) {
+      // What was searched is likely the legal name, or the SIREN.
+      const q = (FS.q || '').trim();
+      if (q && !FS.rs && !FS.siren) { if (/^[\d\s.]+$/.test(q)) FS.siren = q.replace(/\D/g, ''); else FS.rs = q; }
+      Object.assign(FS, { manual: true, down: false, e: null, siret: null, ae: null });
+      marquer(CARTES.cFisc);
+      CARTES.cFisc.rendre();
+      return;
+    }
     if (e.target.closest('[data-fzrech]')) { Object.assign(FS, { manual: false, down: false }); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
     const o = e.target.closest('[data-ft]');
     if (o) {
@@ -712,7 +720,7 @@ export function init() {
       setTimeout(() => $('fzQ')?.focus(), 20);
       return;
     }
-    if (e.target.closest('[data-fzx]')) { Object.assign(FS, { e: null, siret: null, ae: null, q: '', manual: false, dbl: null, rs: '', tva: '' }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
+    if (e.target.closest('[data-fzx]')) { Object.assign(FS, { e: null, siret: null, ae: null, q: '', manual: false, dbl: null, rs: '', siren: '', tva: '' }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
     if (e.target.closest('[data-fass]')) {
       FS.ass = !FS.ass;
       if (FS.ass && FS.e && !FS.tva) FS.tva = FS.e.tva || tvaFR(FS.e.siren);
