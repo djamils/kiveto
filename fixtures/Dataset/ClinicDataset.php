@@ -9,6 +9,7 @@ use App\Fixtures\Context\Animal\Story\AnimalDataStory;
 use App\Fixtures\Context\Billing\Story\BillingDemoStory;
 use App\Fixtures\Context\Billing\Story\BillingRegisterStory;
 use App\Fixtures\Context\Billing\Story\DirectoryBalancesStory;
+use App\Fixtures\Context\Billing\Story\ProfessionalInvoicesStory;
 use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Client\Story\ClientSheetStatesStory;
@@ -102,6 +103,7 @@ final class ClinicDataset extends Story
         // Invoice the visits that are over (needs their consultations)
         BillingDemoStory::load();
         DirectoryBalancesStory::load();
+        ProfessionalInvoicesStory::load();
 
         // The flow board's day: passages paid this morning, a no-show, a late
         // booking, an arrival check-in, a booking with a balance due.
