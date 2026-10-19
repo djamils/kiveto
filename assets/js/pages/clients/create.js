@@ -388,7 +388,23 @@ function rendreNcCli() {
     <div class="nw-h">Rappels de vaccins et de rendez-vous</div>
     <div class="nw-row"><div class="nw-seg" id="ncRap"><button type="button" data-v="sms">SMS</button><button type="button" data-v="mail">E-mail</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <button type="button" class="nw-chk${c.news ? ' on' : ''}" id="ncNews">Accepte les actualités de la clinique</button>`;
-  monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, { sirenUrl: CFG.urls.siren });
+  monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, {
+    sirenUrl: CFG.urls.siren,
+    registryUrl: CFG.urls.registry,
+    // The company's head office fills the client's postal address, never over what was typed.
+    onCompany: (h) => {
+      const et = h.ets[0], cp = (et?.a.match(/(\d{5}) ([^,]+)$/) || []);
+      if (!et || !cp.length) return;
+      const rue = et.a.slice(0, et.a.length - cp[0].length).replace(/,\s*$/, '');
+      const nouveauCp = !NC.cp;
+      if (!NC.rue && rue) NC.rue = rue;
+      if (nouveauCp) Object.assign(NC, { cp: cp[1], communes: undefined });
+      if (!NC.ville && NC.cp === cp[1]) NC.ville = cp[2];
+      rendreAdr();
+      majNc();
+      if (nouveauCp) chargerCommunes();
+    },
+  });
   rendreAdr();
   majRap();
 }
@@ -405,7 +421,8 @@ function rendreAdr() {
       <div class="nw-f">${hl ? `<input class="nw-in" id="ncVilleT" placeholder="Ville" maxlength="80" value="${esc(c.ville)}" aria-label="Ville"><small>Liste des communes indisponible : saisissez la ville.</small>` : '<div class="dd" id="ncVille"></div>'}</div></div>`;
   if (hl) return;
   const opts = V.length ? V.map((v) => ({ v, l: v })) : [{ v: '', l: c.cp.length === 5 ? (lu ? 'Aucune commune' : 'Recherche des communes…') : 'Ville · saisissez le code postal' }];
-  if (V.length === 1) c.ville = V[0]; else if (!V.includes(c.ville)) c.ville = '';
+  // A city taken from the registry (« MARSEILLE ») matches its commune whatever the case.
+  if (V.length === 1) c.ville = V[0]; else if (!V.includes(c.ville)) c.ville = V.find((v) => norm(v) === norm(c.ville)) || '';
   creerDropdown('ncVille', V.length > 1 ? [{ v: '', l: 'Choisissez la commune' }, ...opts] : opts, V.length ? c.ville : '', (v) => { c.ville = v; majNc(); });
   $('ncVille').classList.toggle('off', !V.length);
 }

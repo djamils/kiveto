@@ -16,6 +16,8 @@ export const PRO = 'pro';
 const LEGAL_NAME_MAX = 255;
 const CHECKING = 'Vérification du SIREN…';
 const CHECK_DELAY_MS = 200;
+const SEARCH_DELAY_MS = 300;
+const SEARCH_MIN_LETTERS = 3;
 
 const digits = v => String(v ?? '').replace(/\D/g, '');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -73,7 +75,10 @@ export function toPayload(s) {
  * `self` (a client id the warning ignores), `lockFisc` (status not
  * changeable), `hideStatus` (no status selector: the host page sets
  * `state.fisc` itself), `structureOnly` (legal name required whatever the
- * status, e.g. the counter « Professionnel » tab).
+ * status, e.g. the counter « Professionnel » tab), `registryUrl` (GET ?q= →
+ * {available, reason, items: CompanyHit[]}: the company registry, searched
+ * from the legal name when the block asks for one) and `onCompany(hit)` (runs
+ * once a registry hit filled the block, e.g. to take its address).
  * Returns {showErrors(), refresh(), focus()}.
  */
 export function mount(root, state, onChange = () => {}, opts = {}) {
@@ -84,6 +89,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
   const inp = k => q(`[data-ff="${k}"]`);
   const onCheck = opts.onCheck ?? onChange;
   let shown = false, left = false, seq = 0, timer = 0;
+  let hits = [], hitsFor = '', hl = -1, searchTimer = 0, searchAbort = null;
 
   const paint = () => {
     const pro = state.fisc === PRO;
@@ -145,6 +151,92 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
     }, CHECK_DELAY_MS);
   };
 
+  /* ── Company registry, searched from the legal name ── */
+  const sug = q('[data-sug]'), hint = q('[data-hint]');
+  const searching = () => !!opts.registryUrl && (state.fisc === PRO || !!opts.structureOnly);
+  const closeHits = () => { sug.hidden = true; inp('rs').setAttribute('aria-expanded', 'false'); inp('rs').removeAttribute('aria-activedescendant'); };
+  const showHits = (note = '') => {
+    sug.innerHTML = (note ? `<div class="fisc-sug-note">${esc(note)}</div>` : '') + hits.map((h, i) => `<button type="button" role="option" id="fiscHit${i}" data-hit="${i}" aria-selected="${i === hl}"${i === hl ? ' class="hl"' : ''}><span>${esc(h.n)}<small>${esc([h.forme, h.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${h.cesse ? ' · radiée' : ''}</small></span><code>${esc(fmtSiren(h.siren))}</code></button>`).join('');
+    sug.hidden = !note && !hits.length;
+    inp('rs').setAttribute('aria-expanded', String(!sug.hidden));
+    if (hl >= 0) inp('rs').setAttribute('aria-activedescendant', `fiscHit${hl}`); else inp('rs').removeAttribute('aria-activedescendant');
+  };
+  const search = text => {
+    window.clearTimeout(searchTimer);
+    const letters = text.normalize('NFD').replace(/[\u0300-\u036f\d]/g, '').trim(), d = digits(text);
+    if (!searching() || (letters.length < SEARCH_MIN_LETTERS && d.length !== 9 && d.length !== 14)) { searchAbort?.abort(); hits = []; closeHits(); return; }
+    searchTimer = window.setTimeout(() => {
+      searchAbort?.abort();
+      const ctl = searchAbort = new AbortController();
+      fetch(`${opts.registryUrl}?${new URLSearchParams({ q: text })}`, { headers: { Accept: 'application/json' }, signal: ctl.signal })
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then(r => {
+          if (ctl.signal.aborted) return;
+          // Throttled: only hits of the text typed stay; down: typing by hand goes on.
+          if (!r.available) {
+            if (r.reason === 'throttled') { if (hitsFor !== text) { hits = []; hl = -1; } showHits('Recherche ralentie, continuez à taper.'); return; }
+            hits = [];
+            showHits('Recherche indisponible, saisie manuelle.');
+            return;
+          }
+          hits = r.items;
+          hitsFor = text;
+          hl = -1;
+          showHits(hits.length ? '' : 'Aucune entreprise trouvée : saisissez-la à la main.');
+        })
+        .catch(err => { if (err.name !== 'AbortError') { hits = []; showHits('Recherche indisponible, saisie manuelle.'); } });
+    }, SEARCH_DELAY_MS);
+  };
+  const pick = h => {
+    // A search still waiting or in flight would reopen the list over the filled block.
+    window.clearTimeout(searchTimer);
+    searchAbort?.abort();
+    closeHits();
+    hits = [];
+    state.rs = h.n;
+    if (state.fisc === PRO || !opts.structureOnly) {
+      state.siren = h.siren;
+      state.tva = h.ass ? (h.tva || '') : '';
+    }
+    hint.hidden = false;
+    hint.textContent = h.ass
+      ? (state.tva ? `N° de TVA proposé ${fmtVat(state.tva)} : à confirmer — certaines entreprises n'ont pas de n° de TVA.` : '')
+      : 'Structure non assujettie ? Une association sans activité lucrative ne facture généralement pas la TVA : choisissez alors « Particulier ou structure non assujettie ».';
+    hint.hidden = !hint.textContent;
+    values();
+    paint();
+    check();
+    onChange();
+    opts.onCompany?.(h);
+  };
+  root.addEventListener('mousedown', e => {
+    const b = e.target.closest('[data-hit]');
+    if (!b) return;
+    e.preventDefault();
+    const h = hits[+b.dataset.hit];
+    if (h) pick(h);
+  });
+  inp('rs').setAttribute('role', 'combobox');
+  inp('rs').setAttribute('aria-autocomplete', 'list');
+  inp('rs').setAttribute('aria-expanded', 'false');
+  root.addEventListener('keydown', e => {
+    if (e.target.dataset.ff !== 'rs' || sug.hidden) return;
+    const n = hits.length;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
+      e.preventDefault();
+      hl = e.key === 'ArrowDown' ? (hl + 1) % n : (hl - 1 + n) % n;
+      showHits();
+    } else if (e.key === 'Enter' && hl >= 0 && n) {
+      e.preventDefault();
+      pick(hits[hl]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeHits();
+    }
+  });
+  root.addEventListener('focusout', e => { if (e.target.dataset.ff === 'rs') window.setTimeout(closeHits, 150); });
+
   root.addEventListener('click', e => {
     const b = e.target.closest('.fisc-opt');
     if (!b || b.disabled || b.dataset.fv === state.fisc) return;
@@ -156,7 +248,7 @@ export function mount(root, state, onChange = () => {}, opts = {}) {
   root.addEventListener('input', e => {
     const k = e.target.dataset.ff;
     if (!k) return;
-    if (k === 'rs') state.rs = e.target.value;
+    if (k === 'rs') { state.rs = e.target.value; hint.hidden = true; search(e.target.value); }
     if (k === 'siren') { state.siren = digits(e.target.value); e.target.value = fmtSiren(state.siren); left = false; }
     if (k === 'tva') { state.tva = vatOf(e.target.value); e.target.value = fmtVat(state.tva); }
     onChange();

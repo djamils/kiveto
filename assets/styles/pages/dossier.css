@@ -511,6 +511,17 @@
 .dossier .fz-kv + .fz-st{margin-top:9px}
 .dossier .fz-aide{display:block;font-size:.7rem;color:var(--encre-35);margin-top:4px}
 .dossier .fz-sw{display:flex;align-items:center;gap:10px;font-size:.78rem}
+/* Registry search: keyboard-highlighted hit, manual entry link, verification badges and last check. */
+.dossier .fz-sug button.hl,.dossier .fz-sug button[aria-selected="true"]{background:var(--pin-pale)}
+.dossier .fz-man{display:inline-block;margin-top:6px;font-size:.74rem}
+.dossier .fz-badges{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 0}
+.dossier .fz-badge{font-size:.66rem;font-weight:700;border-radius:5px;padding:2px 7px;white-space:nowrap}
+.dossier .fz-badge.alerte{background:#fef2f2;color:#b91c1c}
+.dossier .fz-badge.attente{background:#fffbeb;color:#92400e}
+.dossier .fz-badge.neutre{background:var(--brume);color:var(--encre-60)}
+.dossier .fz-badges + .fz-st,.dossier .fz-kv + .fz-badges + .fz-st{margin-top:8px}
+.dossier .fz-verif{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:.74rem;color:var(--encre-60)}
+.dossier .fz-verif .lien{margin-left:auto;font-size:.74rem;font-weight:600}
 .dossier .fz-sw > div{flex:1;min-width:0}
 .dossier .fz-sw small{display:block;font-size:.7rem;color:var(--encre-60)}
 .dossier #cFisc .dd.off .dd-btn{width:100%;opacity:.55;cursor:not-allowed}

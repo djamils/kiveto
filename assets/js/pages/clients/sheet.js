@@ -414,10 +414,13 @@ export function init() {
   /*
    * The tax profile (client-v-topbar-busy_6). The card renders every state
    * of the mock-up from what the server sends (ClientSheetBuilder::
-   * taxProfileView): what it does not know yet — directory record, VIES,
-   * public bodies, foreign clients, who changed it — comes empty and those
-   * parts show as coming soon. Without the directory, the legal name, SIREN
-   * and VAT are typed in the shared block (kiveto/client-tax-profile).
+   * taxProfileView): what it does not know yet — establishments, e-invoicing
+   * directory, public bodies, foreign clients, who changed it — comes empty
+   * and those parts show as coming soon. In edit mode the company is picked
+   * in the registry search ({available, reason, items}); « Saisir à la main »
+   * (always offered, opened by itself when the registry is down) falls back
+   * to the shared block (kiveto/client-tax-profile). The verification (badges,
+   * last check, « Revérifier ») is advisory: it never blocks a save.
    */
   const F = S.fisc;
   const FZT = {
@@ -442,8 +445,22 @@ export function init() {
   const aeDefaut = (e, siret) => (!e.ann ? '' : (e.ann.adrs.find(a => a.id.endsWith('_' + siret)) || e.ann.adrs[0]).id);
   const aeDe = (e, id) => e.ann && e.ann.adrs.find(a => a.id === id);
   const fmtAe = id => id.replace(/^(\d{3})(\d{3})(\d{3})/, '$1 $2 $3').replace('_', ' · ');
-  const vies = v => (v === true ? '<span class="ok">✓ VIES</span>' : v === false ? '<span class="ko">✗ VIES</span>'
-    : '<span class="nv" data-tip="La vérification du n° de TVA dans VIES n\'est pas encore branchée">VIES bientôt</span>');
+  const vies = v => (v === true ? '<span class="ok">✓ VIES</span>' : v === false ? '<span class="ko">✗ VIES</span>' : '');
+  /* Words of the last-check line, after « Vérifié le 12/11 à 08:12 ». */
+  const FZCO = { active: 'actif', ceased: 'radiée', confidential: 'non diffusible', not_found: 'SIREN introuvable', unavailable: 'registre indisponible', unchecked: 'registre non consulté' };
+  const FZVO = { valid: 'TVA valide', invalid: 'TVA non reconnue', not_applicable: 'sans n° de TVA', unavailable: 'VIES indisponible', unchecked: 'TVA non vérifiée' };
+  /* Badges, official name, last check and « Revérifier » of a professional. */
+  function verifFisc() {
+    const v = F.verification;
+    if (!v) return '';
+    const ton = c => (c === 'company_confidential' ? 'neutre' : c === 'unverified' ? 'attente' : 'alerte');
+    const badges = v.warnings.filter(w => !(v.pending && w.code === 'unverified'))
+      .map(w => `<span class="fz-badge ${ton(w.code)}">${esc(w.label)}</span>`).join('');
+    const nom = v.registryName && v.warnings.some(w => w.code === 'name_mismatch')
+      ? `<div class="fz-st warn">${FZI.i}<div>Nom officiel : <b>${esc(v.registryName)}</b></div>${ARCH ? '' : '<button type="button" class="act" data-fznom>Utiliser le nom officiel</button>'}</div>` : '';
+    const ligne = v.pending ? 'Vérification en cours' : F.verif ? `Vérifié le ${esc(F.verif)} · ${FZCO[v.company] ?? ''} · ${FZVO[v.vat] ?? ''}` : 'Pas encore vérifié';
+    return `${badges ? `<div class="fz-badges">${badges}</div>` : ''}${nom}<div class="fz-verif"><span>${ligne}</span>${ARCH || v.pending ? '' : '<button type="button" class="lien" data-fzrev>Revérifier</button>'}</div>`;
+  }
   /* A dropdown that lists what the directory returns, greyed out until it is wired. */
   const ddBientot = (label, txt, tip, aide = '') => `<div><label class="flbl">${label}</label><div class="dd off" data-tip="${esc(tip)}"><button type="button" class="dd-btn" aria-disabled="true" tabindex="-1"><span>${txt}</span>${CHEV}</button></div>${aide ? `<small class="fz-aide">${aide}</small>` : ''}</div>`;
   /* What the status means for the invoice: the sentence read first. */
@@ -455,8 +472,8 @@ export function init() {
     if (!f.ass) return live ? 'Non assujettie à la TVA : factures classiques · e-reporting' : 'Non assujettie à la TVA : factures classiques (PDF)';
     return live ? 'Factures électroniques via plateforme agréée' : 'Factures classiques (PDF) pour l\'instant · la facture électronique via plateforme agréée arrive bientôt';
   }
-  const radiee = (e, suite) => `<div class="fz-st ko">${FZI.i}<div><b>Entreprise radiée le ${e.cesse.split('-').reverse().join('/')}</b>${suite}</div></div>`;
-  let FS = null, FUI = null, fzSeq = 0;
+  const radiee = (e, suite) => `<div class="fz-st ko">${FZI.i}<div><b>${e.cesse === true ? 'Entreprise radiée selon le registre' : `Entreprise radiée le ${e.cesse.split('-').reverse().join('/')}`}</b>${suite}</div></div>`;
+  let FS = null, FUI = null, fzSeq = 0, fzTimer = 0, fzAbort = null;
 
   function lireFisc() {
     const f = F, phrase = circuit(f);
@@ -473,6 +490,7 @@ export function init() {
       if (!f.ass) return `<div class="fz-h"><b>${esc(f.rs)}</b>${tag}</div><div class="fz-st">${FZI.f}<div>${phrase}.</div></div>`;
       return `<div class="fz-h"><b>${esc(f.rs)}</b>${tag}</div>
         <dl class="fz-kv">${f.siret ? `<dt>SIRET</dt><dd>${fmtSiret(f.siret)}</dd>` : `<dt>SIREN</dt><dd>${esc(f.sirenAff)}</dd>`}<dt>TVA</dt><dd>${f.tvaAff ? `${esc(f.tvaAff)}${vies(f.vies)}` : '<span class="nv seul">Pas de n° de TVA</span>'}</dd></dl>
+        ${verifFisc()}
         <div class="fz-st">${FZI.i}<div><b>Annuaire de la facturation électronique</b> · pas encore consulté : ses factures restent classiques (PDF) en attendant.</div></div>`;
     }
     const et = e.ets.find(x => x.siret === f.siret) || e.ets[0];
@@ -499,10 +517,13 @@ export function init() {
       const e = f.e;
       if (!e) {
         const quoi = f.t === 'pub' ? 'Organisme' : 'Entreprise ou association';
-        h += F.annuaireUrl
-          ? `<div><label class="flbl">${quoi} <span class="req">*</span></label><div class="fz-res"><input class="finput" id="fzQ" placeholder="Raison sociale ou SIREN…" autocomplete="off" value="${esc(f.q || '')}"><div class="fz-sug" id="fzS"></div></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : nom, adresse et n° de TVA sont repris tels quels.</small></div>`
-          : `<div><label class="flbl">${quoi}</label><div class="fz-res off" data-tip="La recherche dans l'annuaire officiel n'est pas encore branchée : saisissez les informations ci-dessous"><input class="finput" placeholder="Raison sociale ou SIREN…" disabled></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : bientôt disponible.</small></div>`;
-        if (f.t === 'ent' && !F.annuaireUrl) {
+        const manuel = !F.annuaireUrl || f.manual;
+        if (!manuel) {
+          h += `<div><label class="flbl" for="fzQ">${quoi} <span class="req">*</span></label><div class="fz-res"><input class="finput" id="fzQ" role="combobox" aria-expanded="false" aria-controls="fzS" aria-autocomplete="list" placeholder="Raison sociale, SIREN ou SIRET du siège…" autocomplete="off" value="${esc(f.q || '')}"><div class="fz-sug" id="fzS" role="listbox" aria-label="Entreprises de l'annuaire"></div></div><small class="fz-aide">Recherche dans l'annuaire officiel des entreprises : nom, adresse et n° de TVA sont repris tels quels.</small><button type="button" class="lien fz-man" data-fzman>Saisir à la main</button></div>`;
+        } else if (F.annuaireUrl) {
+          h += `<div class="fz-st${f.down ? ' warn' : ''}">${FZI.i}<div>${f.down ? '<b>Recherche indisponible, saisie manuelle.</b> Les informations seront vérifiées dès que l\'annuaire répondra.' : 'Saisie manuelle : les informations seront vérifiées dans l\'annuaire.'}</div><button type="button" class="act" data-fzrech>Rechercher dans l'annuaire</button></div>`;
+        }
+        if (f.t === 'ent' && manuel) {
           h += `<div id="fiscBloc"></div>
             ${ddBientot('Établissement facturé', 'Choisi dans l\'annuaire', 'Le choix de l\'établissement (SIRET) arrive avec l\'annuaire officiel')}
             <div class="fz-sw"><span class="sw${f.ass ? ' on' : ''}" data-fass role="switch" aria-checked="${f.ass}" tabindex="0"></span><div><b>Assujettie à la TVA</b><small>Une association sans activité lucrative ne l'est généralement pas.</small></div></div>`;
@@ -510,6 +531,7 @@ export function init() {
         }
       } else {
         const dbl = F.clientsSiret[f.siret];
+        if (f.dbl) h += `<div class="fz-st warn">${FZI.i}<div>Un client porte déjà ce SIREN : <b>${esc(f.dbl.rs || f.dbl.n)}</b></div><a class="act" href="${esc(f.dbl.url)}">Ouvrir sa fiche</a></div>`;
         h += `<div class="fz-ent"><div><b>${esc(e.n)}</b><small>${esc(e.forme)} · SIREN ${fmtS(e.siren)} · ${esc(e.naf || '')}</small></div><button type="button" class="x" data-fzx>Changer</button></div>`;
         if (e.cesse) h += radiee(e, ' selon l\'annuaire officiel. Vérifiez auprès du client.');
         if (e.ets.length > 1) h += '<div><label class="flbl">Établissement facturé <span class="req">*</span></label><div class="dd" id="ddEt"></div></div>';
@@ -518,10 +540,12 @@ export function init() {
           const autre = e.ets.find(x => F.clientsSiret[x.siret]);
           if (autre) h += `<div class="fz-st">${FZI.i}<div>Même entreprise que <b>${esc(F.clientsSiret[autre.siret].n)}</b> : les deux fiches seront regroupées pour le suivi des impayés.</div></div>`;
         }
-        if (f.t === 'ent') h += `<div class="fz-sw"><span class="sw${f.ass ? ' on' : ''}" data-fass role="switch" aria-checked="${f.ass}" tabindex="0"></span><div><b>Assujettie à la TVA</b><small>${e.ass ? 'Proposé d\'après sa forme juridique.' : 'Une association sans activité lucrative ne l\'est généralement pas.'}${f.ass && F.vies === true ? ` TVA calculée : ${tvaFR(e.siren)} · ✓ valide (VIES)` : f.ass ? ` TVA calculée : ${tvaFR(e.siren)}` : ''}</small></div></div>`;
+        if (f.t === 'ent') h += `<div class="fz-sw"><span class="sw${f.ass ? ' on' : ''}" data-fass role="switch" aria-checked="${f.ass}" tabindex="0"></span><div><b>Assujettie à la TVA</b><small>${e.ass ? 'Proposé d\'après sa forme juridique.' : 'Une association sans activité lucrative ne l\'est généralement pas.'}${f.ass ? (f.tva ? ` TVA : ${fmtTva(f.tva)} — à confirmer, certaines entreprises n'ont pas de n° de TVA.` : ' Sans n° de TVA (franchise en base).') : ''}</small></div></div>`;
         if (f.t === 'pub') h += '<div><label class="flbl">Service destinataire <span class="req">*</span></label><div class="dd" id="ddSvc"></div><small class="fz-aide">Liste publiée par l\'organisme dans Chorus Pro.</small></div>';
         if (f.t === 'ent' && f.ass) {
-          if (!e.ann) h += `<div class="fz-st warn">${FZI.i}<div><b>Pas encore inscrite à l'annuaire</b> · aucune adresse électronique déclarée : les factures attendront son inscription, Kiveto revérifie chaque nuit.</div></div>`;
+          // `ann` absent: the e-invoicing directory was not consulted; null: consulted, not registered.
+          if (e.ann === undefined) h += `<div class="fz-st">${FZI.i}<div><b>Annuaire de la facturation électronique</b> · pas encore consulté : ses factures restent classiques (PDF) en attendant.</div></div>`;
+          else if (!e.ann) h += `<div class="fz-st warn">${FZI.i}<div><b>Pas encore inscrite à l'annuaire</b> · aucune adresse électronique déclarée : les factures attendront son inscription, Kiveto revérifie chaque nuit.</div></div>`;
           else if (e.ann.adrs.length > 1) h += '<div><label class="flbl">Adresse de facturation électronique <span class="req">*</span></label><div class="dd" id="ddAe"></div><small class="fz-aide">Adresses déclarées par le client dans l\'annuaire : c\'est par elle que sa plateforme reçoit la facture.</small></div>';
           else h += `<div class="fz-st ok">${FZI.ok}<div><b>Adresse électronique ${esc(fmtAe(e.ann.adrs[0].id))}</b> · seule adresse déclarée dans l'annuaire, reçue via ${esc(e.ann.adrs[0].pa)}.</div></div>`;
         }
@@ -551,7 +575,7 @@ export function init() {
     const f = FS;
     const err = (id, msg) => { $(id)?.classList.add('ko'); showToast(msg); return null; };
     if (FUI && !FUI.showErrors()) return null;
-    if ((f.t === 'ent' || f.t === 'pub') && F.annuaireUrl) {
+    if ((f.t === 'ent' || f.t === 'pub') && F.annuaireUrl && !f.manual) {
       if (!f.e) return err('fzQ', 'Choisissez l\'entreprise dans l\'annuaire');
       if (F.clientsSiret[f.siret]) return err('ddEt', 'Cet établissement a déjà une fiche client');
       if (f.t === 'pub' && !f.svc) return err('ddSvc', 'Choisissez le service destinataire');
@@ -567,7 +591,7 @@ export function init() {
     }
     // The fields the server reads today, then those it will read.
     const base = f.t === 'part' ? { fisc: 'ind', rs: '', siren: '', tva: '' }
-      : f.e ? { fisc: f.ass ? PRO : 'ind', rs: f.e.n, siren: f.ass ? f.e.siren : '', tva: f.ass ? (f.tva || tvaFR(f.e.siren)) : '' }
+      : f.e ? { fisc: f.ass ? PRO : 'ind', rs: f.rs || f.e.n, siren: f.ass ? f.e.siren : '', tva: f.ass ? (f.tva || '') : '' }
       : fiscPayload(f);
     const p = { ...base, statut: f.t, siret: f.siret || '', ae: f.ae || '', svc: f.svc || '', pays: f.pays || '' };
     const avant = { ...fiscPayload(F), statut: F.t, siret: F.siret || '', ae: F.ae || '', svc: F.svc || '', pays: F.pays || '' };
@@ -581,13 +605,116 @@ export function init() {
 
   carte($('cFisc'), {
     titre: 'Profil fiscal', meta: F.meta, lecture: ARCH,
-    avant() { FS = { t: F.t, ass: F.ass, fisc: F.fisc, rs: F.rs, siren: F.siren, tva: F.tva, siret: F.siret, ae: F.ae, svc: F.svc, pays: F.pays, e: F.ent, q: '' }; },
+    avant() {
+      // An existing professional opens on what is stored, then on its registry record if the SIREN is found.
+      const pro = F.t === 'ent' && !!F.siren;
+      FS = { t: F.t, ass: F.ass, fisc: F.fisc, rs: F.rs, siren: F.siren, tva: F.tva, siret: F.siret, ae: F.ae, svc: F.svc, pays: F.pays, e: F.ent, q: '', manual: pro, down: false, dbl: null, res: [], hl: -1 };
+      if (pro && F.annuaireUrl) parSiren(F.siren);
+    },
     lire: lireFisc, editer: editFisc, monte: monteFisc, valider: validerFisc,
   }, CARTES, signal);
 
+  /* Asks the registry; `sur(items)` gets its hits, `ralenti()` a spent budget; an outage or a network failure opens manual entry. */
+  function annuaire(q, sur, ralenti = () => {}) {
+    window.clearTimeout(fzTimer);
+    fzAbort?.abort();
+    const ctl = fzAbort = new AbortController();
+    const panne = () => { if (!FS || ctl.signal.aborted) return; Object.assign(FS, { manual: true, down: true }); CARTES.cFisc.rendre(); };
+    return fetch(`${F.annuaireUrl}?${new URLSearchParams({ q })}`, { headers: { Accept: 'application/json' }, signal: ctl.signal })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(R => {
+        if (!FS || ctl.signal.aborted) return;
+        // Throttled: the next keystroke asks again.
+        if (!R.available) { if (R.reason === 'throttled') ralenti(); else panne(); return; }
+        sur(R.items);
+      })
+      .catch(err => { if (err.name !== 'AbortError') panne(); });
+  }
+  /* Editing a stored professional: its own registry record, if the SIREN is found. */
+  function parSiren(siren) {
+    annuaire(siren, items => {
+      const x = items.find(i => i.siren === siren);
+      if (!x || !FS.manual || CARTES.cFisc.dirty) return;
+      choisir(x, true);
+    });
+  }
+  /* A registry hit picked (`garder`: the stored profile's own record, its name and VAT number kept). */
+  function choisir(x, garder = false) {
+    const st = x.ets[0]?.siret || null;
+    Object.assign(FS, {
+      e: x, siret: st, ae: aeDefaut(x, st), svc: null, q: '', manual: false, down: false, dbl: null, res: [], hl: -1,
+      ass: garder ? FS.ass : !!x.ass, rs: garder ? F.rs : x.n, tva: garder ? F.tva : (x.ass ? (x.tva || '') : ''),
+    });
+    if (!garder) marquer(CARTES.cFisc);
+    CARTES.cFisc.rendre();
+    doublon(x.siren);
+  }
+  /* « Un client porte déjà ce SIREN » for the company picked. */
+  function doublon(siren) {
+    if (!F.dblUrl) return;
+    fetch(`${F.dblUrl}?${new URLSearchParams({ siren })}`, { headers: { Accept: 'application/json' }, signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then(r => {
+        const autre = (r?.items || []).find(c => c.id !== C.id);
+        if (!autre || !FS?.e || FS.e.siren !== siren) return;
+        FS.dbl = autre;
+        CARTES.cFisc.rendre();
+      })
+      .catch(() => {});
+  }
+  /* The suggestion list, a listbox driven from the search field. */
+  function suggestions() {
+    const s = $('fzS'), q = $('fzQ');
+    if (!s || !q) return;
+    const L = FS.res, lent = FS.lent ? '<div class="vide">Recherche ralentie, continuez à taper.</div>' : '';
+    s.innerHTML = lent + (L.length ? L.map((x, i) => `<button type="button" role="option" id="fzo${i}" data-sir="${esc(x.siren)}" aria-selected="${i === FS.hl}"${i === FS.hl ? ' class="hl"' : ''}><span>${esc(x.n)}<small>${esc([x.forme, x.ets[0]?.a.split(', ').pop()].filter(Boolean).join(' · '))}${x.cesse ? ' · radiée' : ''}</small></span><code>${fmtS(x.siren)}</code></button>`).join('')
+      : lent ? '' : '<div class="vide">Aucun résultat dans l\'annuaire. Vérifiez l\'orthographe, tapez le SIREN ou saisissez à la main.</div>');
+    s.classList.add('open');
+    q.setAttribute('aria-expanded', 'true');
+    if (FS.hl >= 0) q.setAttribute('aria-activedescendant', `fzo${FS.hl}`); else q.removeAttribute('aria-activedescendant');
+  }
+  function fermerSuggestions() {
+    $('fzS')?.classList.remove('open');
+    $('fzQ')?.setAttribute('aria-expanded', 'false');
+  }
+  function chercher(v) {
+    window.clearTimeout(fzTimer);
+    const lettres = norm(v).replace(/\d/g, '').trim(), d = v.replace(/\D/g, '');
+    if (lettres.length < 3 && d.length !== 9 && d.length !== 14) { fzAbort?.abort(); fermerSuggestions(); return; }
+    const id = ++fzSeq;
+    fzTimer = window.setTimeout(() => annuaire(v, items => {
+      if (id !== fzSeq) return;
+      Object.assign(FS, { res: items, resQ: v, hl: -1, lent: false });
+      suggestions();
+    }, () => {
+      if (id !== fzSeq) return;
+      // Hits of another search would mislead: only those of the text typed stay.
+      if (FS.resQ !== v) Object.assign(FS, { res: [], hl: -1 });
+      FS.lent = true;
+      suggestions();
+    }), 300);
+  }
+
   const elF = $('cFisc');
   elF.addEventListener('click', e => {
+    if (e.target.closest('[data-fzrev]')) { $('fiscVerifyForm').requestSubmit(); return; }
+    if (e.target.closest('[data-fznom]')) {
+      const form = $('fiscForm'), set = (n, v) => { form.querySelector(`[name="${n}"]`).value = v; };
+      set('fisc', PRO); set('rs', F.verification.registryName); set('siren', F.siren); set('tva', F.tva);
+      form.requestSubmit();
+      return;
+    }
     if (!CARTES.cFisc.edit) return;
+    if (e.target.closest('[data-fzman]')) {
+      // What was searched is likely the legal name, or the SIREN.
+      const q = (FS.q || '').trim();
+      if (q && !FS.rs && !FS.siren) { if (/^[\d\s.]+$/.test(q)) FS.siren = q.replace(/\D/g, ''); else FS.rs = q; }
+      Object.assign(FS, { manual: true, down: false, e: null, siret: null, ae: null });
+      marquer(CARTES.cFisc);
+      CARTES.cFisc.rendre();
+      return;
+    }
+    if (e.target.closest('[data-fzrech]')) { Object.assign(FS, { manual: false, down: false }); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
     const o = e.target.closest('[data-ft]');
     if (o) {
       if (o.getAttribute('aria-disabled') === 'true' || o.dataset.ft === FS.t) return;
@@ -598,47 +725,55 @@ export function init() {
       setTimeout(() => $('fzQ')?.focus(), 20);
       return;
     }
-    if (e.target.closest('[data-fzx]')) { Object.assign(FS, { e: null, siret: null, ae: null, q: '' }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
-    if (e.target.closest('[data-fass]')) { FS.ass = !FS.ass; marquer(CARTES.cFisc); CARTES.cFisc.rendre(); }
+    if (e.target.closest('[data-fzx]')) { Object.assign(FS, { e: null, siret: null, ae: null, q: '', manual: false, dbl: null, rs: '', siren: '', tva: '' }); marquer(CARTES.cFisc); CARTES.cFisc.rendre(); setTimeout(() => $('fzQ')?.focus(), 20); return; }
+    if (e.target.closest('[data-fass]')) {
+      FS.ass = !FS.ass;
+      if (FS.ass && FS.e && !FS.tva) FS.tva = FS.e.tva || tvaFR(FS.e.siren);
+      marquer(CARTES.cFisc);
+      CARTES.cFisc.rendre();
+    }
   }, { signal });
   elF.addEventListener('keydown', e => {
     if ((e.key === ' ' || e.key === 'Enter') && e.target.matches('[data-fass]')) { e.preventDefault(); e.target.click(); }
   }, { signal });
-  /* A directory answer picked: its first establishment not already in file. */
+  /* A registry hit picked with the mouse. */
   elF.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-sir]');
     if (!b || !FS) return;
     e.preventDefault();
     const x = FS.res.find(r => r.siren === b.dataset.sir);
-    const st = (x.ets.find(t => !F.clientsSiret[t.siret]) || x.ets[0]).siret;
-    Object.assign(FS, { e: x, siret: st, ass: !!x.ass, svc: null, q: '', ae: aeDefaut(x, st) });
-    marquer(CARTES.cFisc);
-    CARTES.cFisc.rendre();
+    if (x) choisir(x);
   }, { signal });
+  /* ↑ ↓ Entrée Échap in the search field; captured before the card's own Échap (cancel). */
+  elF.addEventListener('keydown', e => {
+    if (e.target.id !== 'fzQ' || !FS) return;
+    const open = $('fzS')?.classList.contains('open'), n = FS.res.length;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!n) return;
+      e.preventDefault();
+      FS.hl = e.key === 'ArrowDown' ? (FS.hl + 1) % n : (FS.hl - 1 + n) % n;
+      suggestions();
+    } else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && open && FS.hl >= 0) {
+      e.preventDefault();
+      choisir(FS.res[FS.hl]);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      e.stopPropagation();
+      fermerSuggestions();
+    }
+  }, { signal, capture: true });
   elF.addEventListener('input', e => {
     const t = e.target, f = FS;
     if (!f) return;
     if (t.id === 'fzQ') {
       f.q = t.value;
-      const q = norm(t.value).replace(/\d/g, '').trim(), d = t.value.replace(/\D/g, ''), s = $('fzS');
-      if (q.length < 3 && d.length < 3) { s.classList.remove('open'); return; }
-      const id = ++fzSeq;
-      fetch(`${F.annuaireUrl}?${new URLSearchParams({ q: t.value, type: f.t })}`, { headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then(L => {
-          if (id !== fzSeq) return;
-          f.res = L;
-          s.innerHTML = L.length ? L.map(x => `<button type="button" data-sir="${esc(x.siren)}"><span>${esc(x.n)}<small>${esc(x.forme)} · ${esc(x.ets[0].a.split(', ').pop())}${x.cesse ? ' · radiée' : ''}</small></span><code>${fmtS(x.siren)}</code></button>`).join('')
-            : '<div class="vide">Aucun résultat dans l\'annuaire. Vérifiez l\'orthographe ou saisissez le SIREN.</div>';
-          s.classList.add('open');
-        })
-        .catch(() => { if (id === fzSeq) { s.innerHTML = '<div class="vide">Annuaire indisponible pour le moment.</div>'; s.classList.add('open'); } });
+      chercher(t.value);
       return;
     }
     if (t.id === 'fzRs') { f.rs = t.value; marquer(CARTES.cFisc); }
     if (t.id === 'fzTva') { t.value = t.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''); f.tva = t.value; marquer(CARTES.cFisc); }
   }, { signal });
-  elF.addEventListener('focusout', e => { if (e.target.id === 'fzQ') setTimeout(() => $('fzS')?.classList.remove('open'), 150); }, { signal });
+  elF.addEventListener('focusout', e => { if (e.target.id === 'fzQ') setTimeout(fermerSuggestions, 150); }, { signal });
 
   carte($('cNote'), {
     titre: 'Note interne', meta: S.note.meta, lecture: ARCH,

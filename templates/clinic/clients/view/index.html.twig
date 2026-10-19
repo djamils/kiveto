@@ -152,6 +152,9 @@
     <input type="hidden" name="_token" value="{{ token }}">
     {% for f in ['fisc', 'rs', 'siren', 'tva'] %}<input type="hidden" name="{{ f }}">{% endfor %}
   </form>
+  <form id="fiscVerifyForm" method="post" action="{{ path('clinic_clients_tax_profile_verify', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+  </form>
   {{ include('clinic/clients/_tax_profile_block.html.twig') }}
   <form id="noteForm" method="post" action="{{ path('clinic_clients_note_add', {id: client.id}) }}" hidden>
     <input type="hidden" name="_token" value="{{ token }}">
