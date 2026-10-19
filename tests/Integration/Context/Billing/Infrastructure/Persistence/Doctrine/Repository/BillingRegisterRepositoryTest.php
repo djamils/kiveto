@@ -29,14 +29,19 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\LineAmounts;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -175,7 +180,7 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
         self::assertSame($invoice->id()->toString(), $creditNote->invoiceId);
         self::assertSame(self::ADMISSION_ID, $creditNote->admissionId);
         self::assertSame('2026-08-22', $creditNote->invoiceIssuedAt?->format('Y-m-d'));
-        self::assertSame([['ratePercent' => '20', 'netMinorUnits' => 1000, 'taxMinorUnits' => 200]], $creditNote->taxBreakdown);
+        self::assertSame([['ratePercent' => '20', 'netMinorUnits' => 1000, 'taxMinorUnits' => 200, 'grossMinorUnits' => 1200, 'allowanceMinorUnits' => 0]], $creditNote->taxBreakdown);
         self::assertSame(1200, $creditNote->totalGrossMinorUnits);
         self::assertSame('CREDIT', $creditNote->lines[0]->source);
     }
@@ -436,20 +441,25 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
             invoiceId: $invoice->id(),
             invoiceNumber: (string) $invoice->number()?->toString(),
             payer: $invoice->payer(),
-            lines: [InvoiceLine::create(
+            lines: [InvoiceLine::reconstitute(
                 id: InvoiceLineId::fromString($this->uuids->generate()),
                 label: 'Frontline Combo Chien pipettes',
                 code: null,
                 quantity: '1',
-                unitNetPrice: Money::fromMinorUnits($net, $invoice->currency()),
+                enteredUnitPrice: Money::fromMinorUnits($gross, $invoice->currency()),
+                priceMode: PriceMode::INCLUDING_TAX,
                 taxCategoryCode: 'veterinary.drug.companion',
                 taxRatePercent: '20',
-                netAmount: Money::fromMinorUnits($net, $invoice->currency()),
-                taxAmount: Money::fromMinorUnits($gross - $net, $invoice->currency()),
-                grossAmount: Money::fromMinorUnits($gross, $invoice->currency()),
+                operationCategory: OperationCategory::GOODS,
                 source: InvoiceLineSource::CREDIT,
                 sourceReference: $invoice->lines()[1]->id()->toString(),
+                amounts: LineAmounts::of(
+                    Money::fromMinorUnits($net, $invoice->currency()),
+                    Money::fromMinorUnits($gross, $invoice->currency()),
+                    UnitPrice::fromMicroUnits($net * 10_000, $invoice->currency()),
+                ),
             )],
+            breakdown: [RateBucket::of('20', $net, 0, $gross - $net, $invoice->currency())],
             reason: $reason,
             refundMethod: $method,
             refunded: Money::fromMinorUnits($refunded, $invoice->currency()),
@@ -468,12 +478,11 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
             label: 'Consultation standard',
             code: 'CONS_STD',
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits($net, $eur),
+            enteredUnitPrice: Money::fromMinorUnits($net + $tax, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits($net, $eur),
-            taxAmount: Money::fromMinorUnits($tax, $eur),
-            grossAmount: Money::fromMinorUnits($net + $tax, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: InvoiceLineSource::CONSULTATION,
             sourceReference: 'src-1',
         );

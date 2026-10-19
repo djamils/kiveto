@@ -40,8 +40,9 @@ final class AddPriceListItemHandlerTest extends TestCase
             clinicId: F::CLINIC_ID,
             itemType: 'ACT',
             itemId: F::ACT_ID,
-            netPriceMinorUnits: 4500,
-            netPriceCurrency: 'EUR',
+            priceMinorUnits: 4500,
+            priceCurrency: 'EUR',
+            priceMode: 'incl',
             taxCategoryOverride: 'veterinary.act.surgery',
         ));
 
@@ -49,7 +50,7 @@ final class AddPriceListItemHandlerTest extends TestCase
         $item = $priceList->items()[0];
         self::assertSame(F::GENERATED_ID, $item->id()->toString());
         self::assertSame(CatalogItemType::ACT, $item->itemRef()->type());
-        self::assertSame(4500, $item->netPrice()->minorUnits());
+        self::assertSame(4500, $item->price()->minorUnits());
         self::assertSame('veterinary.act.surgery', $item->taxCategoryOverride()?->toString());
     }
 
@@ -66,8 +67,9 @@ final class AddPriceListItemHandlerTest extends TestCase
             clinicId: F::CLINIC_ID,
             itemType: 'ARTICLE',
             itemId: F::ARTICLE_ID,
-            netPriceMinorUnits: 300,
-            netPriceCurrency: 'EUR',
+            priceMinorUnits: 300,
+            priceCurrency: 'EUR',
+            priceMode: 'incl',
             taxCategoryOverride: null,
         ));
 
@@ -87,8 +89,9 @@ final class AddPriceListItemHandlerTest extends TestCase
             clinicId: F::CLINIC_ID,
             itemType: 'ACT',
             itemId: F::ACT_ID,
-            netPriceMinorUnits: 4500,
-            netPriceCurrency: 'EUR',
+            priceMinorUnits: 4500,
+            priceCurrency: 'EUR',
+            priceMode: 'incl',
             taxCategoryOverride: null,
         ));
     }

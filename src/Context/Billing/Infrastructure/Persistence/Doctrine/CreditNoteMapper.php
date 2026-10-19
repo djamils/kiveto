@@ -12,11 +12,15 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\LineAmounts;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\CreditNoteEntity;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -25,6 +29,11 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class CreditNoteMapper
 {
+    public function __construct(
+        private TaxBreakdownMapper $breakdown = new TaxBreakdownMapper(),
+    ) {
+    }
+
     public function toDomain(CreditNoteEntity $entity): CreditNote
     {
         $currency = CurrencyCode::fromString($entity->getCurrency());
@@ -44,6 +53,7 @@ final readonly class CreditNoteMapper
                 $entity->getPayerAttention(),
             ),
             lines: array_map(fn (array $line): InvoiceLine => $this->lineToDomain($line, $currency), $entity->getLines()),
+            breakdown: $this->breakdown->toDomain($entity->getTaxBreakdown(), $currency),
             reason: $entity->getReason(),
             refundMethod: $entity->getRefundMethod(),
             refunded: Money::fromMinorUnits($entity->getRefundedMinorUnits(), $currency),
@@ -72,6 +82,9 @@ final readonly class CreditNoteMapper
         $entity->setReason($creditNote->reason());
         $entity->setRefundMethod($creditNote->refundMethod());
         $entity->setRefundedMinorUnits($creditNote->refunded()->minorUnits());
+        $entity->setTaxBreakdown($this->breakdown->toArray($creditNote->amounts()->buckets()));
+        $entity->setTotalNetBeforeAllowance($creditNote->totalNetBeforeDiscount()->minorUnits());
+        $entity->setTotalAllowance($creditNote->discountAmount()->minorUnits());
         $entity->setTotalNetMinorUnits($creditNote->totalNet()->minorUnits());
         $entity->setTotalTaxMinorUnits($creditNote->totalTax()->minorUnits());
         $entity->setTotalGrossMinorUnits($creditNote->totalGross()->minorUnits());
@@ -88,17 +101,19 @@ final readonly class CreditNoteMapper
     private function lineToArray(InvoiceLine $line): array
     {
         return [
-            'id'              => $line->id()->toString(),
-            'label'           => $line->label(),
-            'code'            => $line->code(),
-            'quantity'        => $line->quantity(),
-            'unitNet'         => $line->unitNetPrice()->minorUnits(),
-            'taxCategoryCode' => $line->taxCategoryCode(),
-            'taxRatePercent'  => $line->taxRatePercent(),
-            'net'             => $line->netAmount()->minorUnits(),
-            'tax'             => $line->taxAmount()->minorUnits(),
-            'gross'           => $line->grossAmount()->minorUnits(),
-            'sourceReference' => $line->sourceReference(),
+            'id'                => $line->id()->toString(),
+            'label'             => $line->label(),
+            'code'              => $line->code(),
+            'quantity'          => $line->quantity(),
+            'unitPrice'         => $line->enteredUnitPrice()->minorUnits(),
+            'unitPriceMode'     => $line->priceMode()->value,
+            'unitNetMicro'      => $line->unitNet()->microUnits(),
+            'taxCategoryCode'   => $line->taxCategoryCode(),
+            'taxRatePercent'    => $line->taxRatePercent(),
+            'operationCategory' => $line->operationCategory()?->value,
+            'net'               => $line->netAmount()->minorUnits(),
+            'gross'             => $line->grossAmount()->minorUnits(),
+            'sourceReference'   => $line->sourceReference(),
         ];
     }
 
@@ -107,22 +122,27 @@ final readonly class CreditNoteMapper
      */
     private function lineToDomain(array $line, CurrencyCode $currency): InvoiceLine
     {
-        $money = static fn (string $key): Money => Money::fromMinorUnits((int) ($line[$key] ?? 0), $currency);
-        $text  = static fn (string $key): ?string => isset($line[$key]) ? (string) $line[$key] : null;
+        $money    = static fn (string $key): Money => Money::fromMinorUnits((int) ($line[$key] ?? 0), $currency);
+        $text     = static fn (string $key): ?string => isset($line[$key]) ? (string) $line[$key] : null;
+        $category = $text('operationCategory');
 
-        return InvoiceLine::create(
+        return InvoiceLine::reconstitute(
             id: InvoiceLineId::fromString((string) $text('id')),
             label: (string) $text('label'),
             code: $text('code'),
             quantity: (string) $text('quantity'),
-            unitNetPrice: $money('unitNet'),
+            enteredUnitPrice: $money('unitPrice'),
+            priceMode: PriceMode::from((string) $text('unitPriceMode')),
             taxCategoryCode: $text('taxCategoryCode'),
             taxRatePercent: (string) $text('taxRatePercent'),
-            netAmount: $money('net'),
-            taxAmount: $money('tax'),
-            grossAmount: $money('gross'),
+            operationCategory: null !== $category ? OperationCategory::from($category) : null,
             source: InvoiceLineSource::CREDIT,
             sourceReference: $text('sourceReference'),
+            amounts: LineAmounts::of(
+                $money('net'),
+                $money('gross'),
+                UnitPrice::fromMicroUnits((int) ($line['unitNetMicro'] ?? 0), $currency),
+            ),
         );
     }
 }

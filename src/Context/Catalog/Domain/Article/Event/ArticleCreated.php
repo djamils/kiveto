@@ -21,6 +21,7 @@ final readonly class ArticleCreated extends AbstractDomainEvent
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
         public string $unitOfMeasure,
         public bool $trackStock,
     ) {
@@ -44,6 +45,7 @@ final readonly class ArticleCreated extends AbstractDomainEvent
             'taxCategoryCode'     => $this->taxCategoryCode,
             'basePriceMinorUnits' => $this->basePriceMinorUnits,
             'basePriceCurrency'   => $this->basePriceCurrency,
+            'basePriceMode'       => $this->basePriceMode,
             'unitOfMeasure'       => $this->unitOfMeasure,
             'trackStock'          => $this->trackStock,
         ];

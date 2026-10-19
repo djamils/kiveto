@@ -25,6 +25,7 @@ use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Application\Query\GetCashDesk\CashClosingView;
 use App\Context\Billing\Application\Query\GetCashDesk\ChequeView;
 use App\Context\Billing\Application\Query\GetCashDesk\TakingsView;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\CashClosing;
 use App\Context\Billing\Domain\ChequeDeposit;
 use App\Context\Billing\Domain\CreditNote;
@@ -42,6 +43,7 @@ use App\Context\Billing\Domain\Repository\CashClosingRepositoryInterface;
 use App\Context\Billing\Domain\Repository\ChequeDepositRepositoryInterface;
 use App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\Service\CreditNoteCalculator;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
@@ -53,10 +55,12 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -136,7 +140,9 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertInstanceOf(CreditNote::class, $saved);
         self::assertSame(1800, $saved->totalNet()->minorUnits());
         self::assertSame(360, $saved->totalTax()->minorUnits());
-        self::assertSame(1800, $saved->lines()[0]->unitNetPrice()->minorUnits());
+        // The line keeps its frozen net; the discount is credited per rate.
+        self::assertSame(2000, $saved->lines()[0]->netAmount()->minorUnits());
+        self::assertSame(200, $saved->discountAmount()->minorUnits());
         self::assertNull($saved->refundMethod());
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
     }
@@ -146,22 +152,8 @@ final class DeskCommandHandlersTest extends TestCase
         $invoice = $this->draft();
         $invoice->applyDiscount(Discount::percentage('33', null), $this->now());
         $invoice->issue(InvoiceNumber::of(2026, 9), $this->now());
-        $invoice->credit(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')), false, $this->now());
-
-        $previous = CreditNote::issue(
-            CreditNoteId::fromString('01960000-0000-7000-8000-00000000f0aa'),
-            ClinicId::fromString(self::CLINIC_ID),
-            InvoiceNumber::of(2026, 1, 'AV'),
-            InvoiceId::fromString(self::INVOICE_ID),
-            'FAC-2026-000009',
-            Payer::anonymous(),
-            [$this->line(self::LINE_B, 1000, 200, InvoiceLineSource::CREDIT, self::LINE_B)],
-            'Erreur',
-            null,
-            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
-            CurrencyCode::fromString('EUR'),
-            $this->now(),
-        );
+        $previous = $this->previousNote($invoice, self::LINE_B, '01960000-0000-7000-8000-00000000f0aa');
+        $invoice->credit($previous->totalGross(), false, $this->now());
 
         $saved = null;
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
@@ -180,20 +172,7 @@ final class DeskCommandHandlersTest extends TestCase
     public function testALineIsCreditedOnce(): void
     {
         $invoice  = $this->issued();
-        $previous = CreditNote::issue(
-            CreditNoteId::fromString('01960000-0000-7000-8000-00000000f0ab'),
-            ClinicId::fromString(self::CLINIC_ID),
-            InvoiceNumber::of(2026, 1, 'AV'),
-            InvoiceId::fromString(self::INVOICE_ID),
-            'FAC-2026-000009',
-            Payer::anonymous(),
-            [$this->line(self::LINE_B, 2000, 400, InvoiceLineSource::CREDIT, self::LINE_B)],
-            'Erreur',
-            null,
-            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
-            CurrencyCode::fromString('EUR'),
-            $this->now(),
-        );
+        $previous = $this->previousNote($invoice, self::LINE_B, '01960000-0000-7000-8000-00000000f0ab');
 
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
         $notes->method('forInvoice')->willReturn([$previous]);
@@ -700,6 +679,31 @@ final class DeskCommandHandlersTest extends TestCase
         return new IssueCreditNoteHandler($invoices, $notes, $numbers, $this->uuids(), $this->clock());
     }
 
+    /**
+     * A credit note already issued against $invoice for one of its lines.
+     */
+    private function previousNote(Invoice $invoice, string $lineId, string $noteId): CreditNote
+    {
+        $line   = array_values(array_filter($invoice->lines(), static fn (InvoiceLine $l): bool => $l->id()->toString() === $lineId));
+        $credit = new CreditNoteCalculator()->credit($invoice, $line, [], fn (): InvoiceLineId => InvoiceLineId::fromString($this->uuids()->generate()));
+
+        return CreditNote::issue(
+            CreditNoteId::fromString($noteId),
+            ClinicId::fromString(self::CLINIC_ID),
+            InvoiceNumber::of(2026, 1, 'AV'),
+            InvoiceId::fromString(self::INVOICE_ID),
+            'FAC-2026-000009',
+            Payer::anonymous(),
+            $credit['lines'],
+            $credit['breakdown'],
+            'Erreur',
+            null,
+            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        );
+    }
+
     private function emptyNotes(): CreditNoteRepositoryInterface
     {
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
@@ -717,16 +721,16 @@ final class DeskCommandHandlersTest extends TestCase
     ): RecordCounterSaleHandler {
         if (null === $catalog) {
             $catalog = $this->createMock(CounterCatalogInterface::class);
-            $catalog->method('article')->willReturn(new CounterArticleDto(self::ARTICLE, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', $unitPrice, 'EUR', 'veterinary.drug.companion'));
+            $catalog->method('article')->willReturn(new CounterArticleDto(self::ARTICLE, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', $unitPrice, 'EUR', 'veterinary.drug.companion', 'excl'));
         }
 
         $tax = $this->createMock(TaxResolverInterface::class);
-        $tax->method('resolve')->willReturnCallback(static fn (int $net): ResolvedTaxDto => new ResolvedTaxDto($net, (int) round($net * 0.2), $net + (int) round($net * 0.2), '20'));
+        $tax->method('resolve')->willReturn(new ResolvedTaxDto('20', OperationCategory::GOODS));
 
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('next')->willReturn(InvoiceNumber::of(2026, 10));
 
-        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, $tax, $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock());
+        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, new InvoiceLineFactory($tax, $this->uuids()), $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock());
     }
 
     private function cheque(string $paymentId, int $amount): ChequeView
@@ -768,12 +772,11 @@ final class DeskCommandHandlersTest extends TestCase
             label: 'Ligne ' . $net,
             code: null,
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits($net, $eur),
+            enteredUnitPrice: Money::fromMinorUnits($net + $tax, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits($net, $eur),
-            taxAmount: Money::fromMinorUnits($tax, $eur),
-            grossAmount: Money::fromMinorUnits($net + $tax, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: $source,
             sourceReference: $reference,
         );

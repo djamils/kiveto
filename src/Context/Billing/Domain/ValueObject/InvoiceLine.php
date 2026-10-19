@@ -7,14 +7,18 @@ namespace App\Context\Billing\Domain\ValueObject;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
 
 /**
- * One frozen line of an invoice.
+ * One line of an invoice or a credit note.
  *
- * Net, tax and gross are stored, not derived: the VAT rate, the price list and
- * the catalog entry may all change tomorrow, and the invoice must keep showing
- * the figures it was issued with. The three amounts are checked against each
- * other here so an inconsistent line can never reach the database.
+ * The line keeps what was entered — the unit price as typed, whether it
+ * included VAT, the quantity, the tax category with the rate and the nature
+ * it resolved to — and carries the amounts the document calculated from it:
+ * net (BT-131), gross for display, unit net at six decimals (BT-146). The
+ * amounts are set by the document, never by whoever builds the line, and
+ * freeze with it at issue: the rate, the price list and the catalogue entry
+ * may all change tomorrow, an issued invoice keeps its figures.
  */
 final class InvoiceLine
 {
@@ -23,30 +27,68 @@ final class InvoiceLine
         private readonly string $label,
         private readonly ?string $code,
         private readonly string $quantity,
-        private readonly Money $unitNetPrice,
+        private readonly Money $enteredUnitPrice,
+        private readonly PriceMode $priceMode,
         private readonly ?string $taxCategoryCode,
         private readonly string $taxRatePercent,
-        private readonly Money $netAmount,
-        private readonly Money $taxAmount,
-        private readonly Money $grossAmount,
+        private readonly ?OperationCategory $operationCategory,
         private readonly InvoiceLineSource $source,
         private readonly ?string $sourceReference,
+        private readonly LineAmounts $amounts,
     ) {
     }
 
+    /**
+     * A line whose amounts are not calculated yet: the document it is added
+     * to calculates them.
+     */
     public static function create(
         InvoiceLineId $id,
         string $label,
         ?string $code,
         string $quantity,
-        Money $unitNetPrice,
+        Money $enteredUnitPrice,
+        PriceMode $priceMode,
         ?string $taxCategoryCode,
         string $taxRatePercent,
-        Money $netAmount,
-        Money $taxAmount,
-        Money $grossAmount,
+        ?OperationCategory $operationCategory,
         InvoiceLineSource $source,
         ?string $sourceReference = null,
+    ): self {
+        $currency = $enteredUnitPrice->currency();
+
+        return self::reconstitute(
+            $id,
+            $label,
+            $code,
+            $quantity,
+            $enteredUnitPrice,
+            $priceMode,
+            $taxCategoryCode,
+            $taxRatePercent,
+            $operationCategory,
+            $source,
+            $sourceReference,
+            LineAmounts::of(Money::zero($currency), Money::zero($currency), UnitPrice::fromMicroUnits(0, $currency)),
+        );
+    }
+
+    /**
+     * A line with the amounts its document calculated (and stored, once issued).
+     */
+    public static function reconstitute(
+        InvoiceLineId $id,
+        string $label,
+        ?string $code,
+        string $quantity,
+        Money $enteredUnitPrice,
+        PriceMode $priceMode,
+        ?string $taxCategoryCode,
+        string $taxRatePercent,
+        ?OperationCategory $operationCategory,
+        InvoiceLineSource $source,
+        ?string $sourceReference,
+        LineAmounts $amounts,
     ): self {
         $label = mb_trim($label);
 
@@ -65,45 +107,59 @@ final class InvoiceLine
             throw new InvalidInvoiceLineException('An invoice line cannot have a zero quantity.');
         }
 
-        $currency = $netAmount->currency();
-
-        $sameCurrency = $currency->equals($taxAmount->currency())
-            && $currency->equals($grossAmount->currency())
-            && $currency->equals($unitNetPrice->currency());
-
-        if (!$sameCurrency) {
-            throw new InvalidInvoiceLineException('All amounts of an invoice line must share one currency.');
-        }
-
-        if ($netAmount->minorUnits() + $taxAmount->minorUnits() !== $grossAmount->minorUnits()) {
-            throw new InvalidInvoiceLineException(\sprintf(
-                'Inconsistent invoice line: net (%d) + tax (%d) != gross (%d).',
-                $netAmount->minorUnits(),
-                $taxAmount->minorUnits(),
-                $grossAmount->minorUnits(),
-            ));
-        }
-
         if (1 !== preg_match('/^\d+(\.\d{1,4})?$/', $taxRatePercent)) {
             throw new InvalidInvoiceLineException(
                 \sprintf('Invalid tax rate "%s".', $taxRatePercent),
             );
         }
 
+        self::assertCurrency($enteredUnitPrice->currency(), $amounts);
+
         return new self(
             $id,
             $label,
             null !== $code && '' !== mb_trim($code) ? mb_trim($code) : null,
             $quantity,
-            $unitNetPrice,
+            $enteredUnitPrice,
+            $priceMode,
             null !== $taxCategoryCode && '' !== mb_trim($taxCategoryCode) ? mb_trim($taxCategoryCode) : null,
             $taxRatePercent,
-            $netAmount,
-            $taxAmount,
-            $grossAmount,
+            $operationCategory,
             $source,
             null !== $sourceReference && '' !== mb_trim($sourceReference) ? mb_trim($sourceReference) : null,
+            $amounts,
         );
+    }
+
+    /**
+     * The same line with the amounts its document calculated.
+     */
+    public function withAmounts(LineAmounts $amounts): self
+    {
+        self::assertCurrency($this->currency(), $amounts);
+
+        return new self(
+            $this->id,
+            $this->label,
+            $this->code,
+            $this->quantity,
+            $this->enteredUnitPrice,
+            $this->priceMode,
+            $this->taxCategoryCode,
+            $this->taxRatePercent,
+            $this->operationCategory,
+            $this->source,
+            $this->sourceReference,
+            $amounts,
+        );
+    }
+
+    /**
+     * What the amount calculator needs from this line.
+     */
+    public function calculationLine(): CalculationLine
+    {
+        return new CalculationLine($this->enteredUnitPrice, $this->priceMode, $this->quantity, $this->taxRatePercent);
     }
 
     public function id(): InvoiceLineId
@@ -126,9 +182,17 @@ final class InvoiceLine
         return $this->quantity;
     }
 
-    public function unitNetPrice(): Money
+    /**
+     * The unit price as entered, VAT included or not according to priceMode().
+     */
+    public function enteredUnitPrice(): Money
     {
-        return $this->unitNetPrice;
+        return $this->enteredUnitPrice;
+    }
+
+    public function priceMode(): PriceMode
+    {
+        return $this->priceMode;
     }
 
     public function taxCategoryCode(): ?string
@@ -141,19 +205,35 @@ final class InvoiceLine
         return $this->taxRatePercent;
     }
 
+    /**
+     * Goods or services; null when the tax category could not be resolved.
+     */
+    public function operationCategory(): ?OperationCategory
+    {
+        return $this->operationCategory;
+    }
+
+    public function amounts(): LineAmounts
+    {
+        return $this->amounts;
+    }
+
+    /** The line net amount (BT-131), before any document-level discount. */
     public function netAmount(): Money
     {
-        return $this->netAmount;
+        return $this->amounts->net();
     }
 
-    public function taxAmount(): Money
-    {
-        return $this->taxAmount;
-    }
-
+    /** The line amount incl. VAT, before any document-level discount — for display. */
     public function grossAmount(): Money
     {
-        return $this->grossAmount;
+        return $this->amounts->gross();
+    }
+
+    /** The unit net price at six decimals (BT-146). */
+    public function unitNet(): UnitPrice
+    {
+        return $this->amounts->unitNet();
     }
 
     public function source(): InvoiceLineSource
@@ -168,6 +248,17 @@ final class InvoiceLine
 
     public function currency(): CurrencyCode
     {
-        return $this->netAmount->currency();
+        return $this->enteredUnitPrice->currency();
+    }
+
+    private static function assertCurrency(CurrencyCode $currency, LineAmounts $amounts): void
+    {
+        $sameCurrency = $currency->equals($amounts->net()->currency())
+            && $currency->equals($amounts->gross()->currency())
+            && $currency->equals($amounts->unitNet()->currency());
+
+        if (!$sameCurrency) {
+            throw new InvalidInvoiceLineException('All amounts of an invoice line must share one currency.');
+        }
     }
 }

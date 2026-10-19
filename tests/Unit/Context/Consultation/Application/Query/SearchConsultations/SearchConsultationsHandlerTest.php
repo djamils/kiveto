@@ -363,6 +363,7 @@ final class SearchConsultationsHandlerTest extends TestCase
             chiefComplaint: $chiefComplaint,
             motifs: $motifs,
             htByTaxCategory: $htByTaxCategory,
+            ttcByTaxCategory: [],
             currency: $currency,
         );
     }

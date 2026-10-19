@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Billing\Infrastructure\Adapter;
 
 use App\Context\Admission\Application\Command\CloseAdmission\CloseAdmission;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Infrastructure\Adapter\Admission\MessengerAdmissionCoordinator;
 use App\Context\Billing\Infrastructure\Adapter\Consultation\QueryBusConsultationBillingProvider;
 use App\Context\Billing\Infrastructure\Adapter\Taxation\QueryBusTaxResolver;
@@ -22,6 +23,7 @@ use App\Shared\Money\Domain\ValueObject\RoundingPolicyId;
 use App\System\Taxation\Application\Query\ResolveTax\ResolveTax;
 use App\System\Taxation\Domain\ValueObject\AppliedTaxRate;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
+use App\System\Taxation\Domain\ValueObject\LegalMention;
 use App\System\Taxation\Domain\ValueObject\LegalMentions;
 use App\System\Taxation\Domain\ValueObject\TaxApplication;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
@@ -73,7 +75,7 @@ final class BillingAdaptersTest extends TestCase
     {
         $queryBus = $this->createMock(QueryBusInterface::class);
         $queryBus->expects(self::once())->method('ask')->willReturn([
-            new BillableLine('c1', 'l1', 'Consultation', 'CONS', '1', 5000, 'EUR', 'veterinary.act.consultation'),
+            new BillableLine('c1', 'l1', 'Consultation', 'CONS', '1', 5000, 'EUR', 'veterinary.act.consultation', 'incl'),
             'not a line',
         ]);
 
@@ -89,6 +91,7 @@ final class BillingAdaptersTest extends TestCase
         self::assertSame('c1', $lines[0]->consultationId);
         self::assertSame('l1', $lines[0]->sourceLineId);
         self::assertSame('veterinary.act.consultation', $lines[0]->taxCategoryCode);
+        self::assertSame('incl', $lines[0]->unitPriceMode);
     }
 
     public function testAnUnexpectedAnswerYieldsNoLines(): void
@@ -105,7 +108,7 @@ final class BillingAdaptersTest extends TestCase
 
     // ── Tax resolver ──
 
-    public function testTheTaxationBcSplitsTheAmount(): void
+    public function testTheTaxationBcGivesTheRateNatureAndMentions(): void
     {
         $queryBus = $this->createMock(QueryBusInterface::class);
         $queryBus->method('ask')->willReturnCallback(
@@ -114,12 +117,24 @@ final class BillingAdaptersTest extends TestCase
                 : $this->taxApplication(5000, 1000),
         );
 
-        $resolved = $this->resolver($queryBus)->resolve(5000, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
+        $resolved = $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
 
-        self::assertSame(5000, $resolved->netMinorUnits);
-        self::assertSame(1000, $resolved->taxMinorUnits);
-        self::assertSame(6000, $resolved->grossMinorUnits);
+        self::assertNotNull($resolved);
         self::assertSame('20.00', $resolved->ratePercent);
+        self::assertSame(OperationCategory::SERVICES, $resolved->nature);
+        self::assertSame(['TVA non applicable'], $resolved->legalMentions);
+    }
+
+    public function testGoodsCategoriesResolveToGoodsLines(): void
+    {
+        $queryBus = $this->createStub(QueryBusInterface::class);
+        $queryBus->method('ask')->willReturnCallback(
+            fn (object $query): object => $query instanceof GetClinic
+                ? $this->clinic()
+                : $this->taxApplication(0, 0, TaxCategoryNature::GOODS),
+        );
+
+        self::assertSame(OperationCategory::GOODS, $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.drug.companion', 'EUR')?->nature);
     }
 
     public function testTheClinicIsLookedUpOnlyOnce(): void
@@ -139,8 +154,8 @@ final class BillingAdaptersTest extends TestCase
         );
 
         $resolver = $this->resolver($queryBus);
-        $resolver->resolve(1000, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
-        $resolver->resolve(1000, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
+        $resolver->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
+        $resolver->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
 
         self::assertSame(1, $clinicCalls);
     }
@@ -150,10 +165,9 @@ final class BillingAdaptersTest extends TestCase
         $queryBus = $this->createMock(QueryBusInterface::class);
         $queryBus->expects(self::never())->method('ask');
 
-        $resolved = $this->resolver($queryBus)->resolve(4500, 'EUR', null, self::CLINIC_ID);
+        $resolved = $this->resolver($queryBus)->resolve(self::CLINIC_ID, null, 'EUR');
 
-        self::assertSame(0, $resolved->taxMinorUnits);
-        self::assertSame(4500, $resolved->grossMinorUnits);
+        self::assertNull($resolved);
     }
 
     public function testAnUnknownClinicLeavesTheLineUntaxed(): void
@@ -161,9 +175,9 @@ final class BillingAdaptersTest extends TestCase
         $queryBus = $this->createMock(QueryBusInterface::class);
         $queryBus->method('ask')->willThrowException(new \RuntimeException('no such clinic'));
 
-        $resolved = $this->resolver($queryBus)->resolve(4500, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
+        $resolved = $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
 
-        self::assertSame(0, $resolved->taxMinorUnits);
+        self::assertNull($resolved);
     }
 
     public function testAFailingTaxRuleLeavesTheLineUntaxed(): void
@@ -179,10 +193,9 @@ final class BillingAdaptersTest extends TestCase
             },
         );
 
-        $resolved = $this->resolver($queryBus)->resolve(4500, 'EUR', 'veterinary.act.unknown', self::CLINIC_ID);
+        $resolved = $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.act.unknown', 'EUR');
 
-        self::assertSame(0, $resolved->taxMinorUnits);
-        self::assertSame('0', $resolved->ratePercent);
+        self::assertNull($resolved);
     }
 
     public function testAnUnexpectedTaxAnswerLeavesTheLineUntaxed(): void
@@ -192,9 +205,9 @@ final class BillingAdaptersTest extends TestCase
             fn (object $query): mixed => $query instanceof GetClinic ? $this->clinic() : 'not a tax application',
         );
 
-        $resolved = $this->resolver($queryBus)->resolve(4500, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
+        $resolved = $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
 
-        self::assertSame(0, $resolved->taxMinorUnits);
+        self::assertNull($resolved);
     }
 
     public function testAJurisdictionNarrowsTheRegime(): void
@@ -214,7 +227,7 @@ final class BillingAdaptersTest extends TestCase
             },
         );
 
-        $this->resolver($queryBus)->resolve(1000, 'EUR', 'veterinary.act.consultation', self::CLINIC_ID);
+        $this->resolver($queryBus)->resolve(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR');
 
         self::assertSame('FR-COR', $captured);
     }
@@ -245,14 +258,14 @@ final class BillingAdaptersTest extends TestCase
         );
     }
 
-    private function taxApplication(int $net, int $tax): TaxApplication
+    private function taxApplication(int $net, int $tax, TaxCategoryNature $nature = TaxCategoryNature::SERVICES): TaxApplication
     {
         $eur = CurrencyCode::fromString('EUR');
 
         return TaxApplication::of(
             taxRegimeId: TaxRegimeId::fromString('FR'),
             taxCategoryCode: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            nature: TaxCategoryNature::SERVICES,
+            nature: $nature,
             appliedRate: AppliedTaxRate::of(
                 TaxRateId::fromString('fr.standard'),
                 TaxRegimeId::fromString('FR'),
@@ -264,7 +277,7 @@ final class BillingAdaptersTest extends TestCase
             taxAmount: Money::fromMinorUnits($tax, $eur),
             grossAmount: Money::fromMinorUnits($net + $tax, $eur),
             roundingPolicyId: RoundingPolicyId::COMMERCIAL,
-            legalMentions: LegalMentions::empty(),
+            legalMentions: LegalMentions::fromList(new LegalMention('X', 'TVA non applicable', 'fr_FR')),
             fiscalContext: FiscalContext::minimal(
                 CountryCode::fromString('FR'),
                 new \DateTimeImmutable('2026-08-22 10:00:00'),

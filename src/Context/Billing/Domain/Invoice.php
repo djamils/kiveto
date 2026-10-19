@@ -19,7 +19,10 @@ use App\Context\Billing\Domain\Exception\InvoiceNotEditableException;
 use App\Context\Billing\Domain\Exception\InvoiceNotPayableException;
 use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
+use App\Context\Billing\Domain\Service\InvoiceAmountCalculator;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
+use App\Context\Billing\Domain\ValueObject\CalculatedAmounts;
+use App\Context\Billing\Domain\ValueObject\CalculationMode;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\Discount;
@@ -30,8 +33,10 @@ use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\Payment;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Money\Domain\ValueObject\CurrencyDecimals;
 use App\Shared\Money\Domain\ValueObject\Money;
 
 /**
@@ -43,9 +48,22 @@ use App\Shared\Money\Domain\ValueObject\Money;
  * and from then on the only things that can change are how much of it is paid
  * and how much of it credit notes have cancelled out (an issued invoice is
  * never edited: it is corrected by a credit note, which carries its own number).
+ *
+ * Its amounts are calculated per VAT rate by InvoiceAmountCalculator from the
+ * prices as entered, every time a draft changes. At issue they are frozen with
+ * it: an issued invoice is reloaded with the amounts it was issued with and is
+ * never recalculated, whatever the calculator does later.
  */
 final class Invoice extends AggregateRoot
 {
+    /**
+     * Invoices are issued in euros; the calculator needs the number of decimals
+     * of the currency to express six-decimal unit prices.
+     */
+    private const int CURRENCY_DECIMALS = 2;
+
+    private CalculatedAmounts $amounts;
+
     /**
      * @param list<InvoiceLine> $lines
      * @param list<Payment>     $payments
@@ -104,6 +122,8 @@ final class Invoice extends AggregateRoot
             counterSalePayer: $counterSalePayer,
         );
 
+        $invoice->amounts = CalculatedAmounts::none($currency);
+
         $invoice->recordDomainEvent(new InvoiceDrafted(
             invoiceId: $id->toString(),
             clinicId: $clinicId->toString(),
@@ -115,8 +135,12 @@ final class Invoice extends AggregateRoot
     }
 
     /**
-     * @param list<InvoiceLine> $lines
-     * @param list<Payment>     $payments
+     * A draft is recalculated from its lines; any other invoice takes back the
+     * per-rate breakdown it was issued with, and its lines their stored amounts.
+     *
+     * @param list<InvoiceLine>     $lines
+     * @param list<Payment>         $payments
+     * @param list<RateBucket>|null $frozenBreakdown required unless the invoice is a draft
      */
     public static function reconstitute(
         InvoiceId $id,
@@ -139,8 +163,9 @@ final class Invoice extends AggregateRoot
         int $creditedMinorUnits = 0,
         int $refundedMinorUnits = 0,
         ?CounterSalePayer $counterSalePayer = null,
+        ?array $frozenBreakdown = null,
     ): self {
-        return new self(
+        $invoice = new self(
             $id,
             $clinicId,
             $number,
@@ -162,6 +187,24 @@ final class Invoice extends AggregateRoot
             $refundedMinorUnits,
             $counterSalePayer,
         );
+
+        if (InvoiceStatus::DRAFT === $status) {
+            $invoice->recalculate();
+
+            return $invoice;
+        }
+
+        if (null === $frozenBreakdown) {
+            throw new \LogicException(\sprintf('Issued invoice %s needs its frozen amounts.', $id->toString()));
+        }
+
+        $invoice->amounts = CalculatedAmounts::of(
+            array_map(static fn (InvoiceLine $line) => $line->amounts(), $lines),
+            $frozenBreakdown,
+            $currency,
+        );
+
+        return $invoice;
     }
 
     public function addLine(InvoiceLine $line, \DateTimeImmutable $now): void
@@ -174,6 +217,8 @@ final class Invoice extends AggregateRoot
 
         $this->lines[]   = $line;
         $this->updatedAt = $now;
+
+        $this->recalculate();
     }
 
     public function removeLine(InvoiceLineId $lineId, \DateTimeImmutable $now): void
@@ -186,6 +231,8 @@ final class Invoice extends AggregateRoot
         ));
 
         $this->updatedAt = $now;
+
+        $this->recalculate();
     }
 
     public function applyDiscount(?Discount $discount, \DateTimeImmutable $now): void
@@ -194,6 +241,8 @@ final class Invoice extends AggregateRoot
 
         $this->discount  = $discount;
         $this->updatedAt = $now;
+
+        $this->recalculate();
     }
 
     public function changePayer(Payer $payer, \DateTimeImmutable $now): void
@@ -202,6 +251,8 @@ final class Invoice extends AggregateRoot
 
         $this->payer     = $payer;
         $this->updatedAt = $now;
+
+        $this->recalculate();
     }
 
     public function setNotes(?string $notes, \DateTimeImmutable $now): void
@@ -401,56 +452,53 @@ final class Invoice extends AggregateRoot
         return Money::fromMinorUnits($this->refundedMinorUnits, $this->currency);
     }
 
-    public function totalNetBeforeDiscount(): Money
+    /**
+     * How the prices as entered become net, VAT and gross amounts.
+     *
+     * Every invoice is calculated tax included first for now: the client pays
+     * exactly the prices displayed.
+     */
+    public function calculationMode(): CalculationMode
     {
-        return $this->sum(static fn (InvoiceLine $line): int => $line->netAmount()->minorUnits());
-    }
-
-    public function discountAmount(): Money
-    {
-        if (null === $this->discount) {
-            return Money::zero($this->currency);
-        }
-
-        return Money::fromMinorUnits(
-            $this->discount->amountOff($this->totalNetBeforeDiscount()->minorUnits()),
-            $this->currency,
-        );
-    }
-
-    public function totalNet(): Money
-    {
-        return Money::fromMinorUnits(
-            $this->totalNetBeforeDiscount()->minorUnits() - $this->discountAmount()->minorUnits(),
-            $this->currency,
-        );
+        return CalculationMode::INCLUDING_TAX_FIRST;
     }
 
     /**
-     * The discount reduces the taxable base, so the VAT of every line is scaled
-     * by the same ratio rather than left untouched.
+     * Every amount of the invoice, per line and per VAT rate.
      */
-    public function totalTax(): Money
+    public function amounts(): CalculatedAmounts
     {
-        $rawTax = $this->sum(static fn (InvoiceLine $line): int => $line->taxAmount()->minorUnits());
-        $rawNet = $this->totalNetBeforeDiscount()->minorUnits();
-        $off    = $this->discountAmount()->minorUnits();
-
-        if (0 === $off || 0 === $rawNet) {
-            return $rawTax;
-        }
-
-        $scaled = (int) round($rawTax->minorUnits() * ($rawNet - $off) / $rawNet);
-
-        return Money::fromMinorUnits($scaled, $this->currency);
+        return $this->amounts;
     }
 
+    /** Σ line nets, before the discount (BT-106). */
+    public function totalNetBeforeDiscount(): Money
+    {
+        return $this->amounts->totalLineNet();
+    }
+
+    /** The discount, excl. VAT (BT-107). */
+    public function discountAmount(): Money
+    {
+        return $this->amounts->totalAllowance();
+    }
+
+    /** The total excl. VAT, after the discount (BT-109). */
+    public function totalNet(): Money
+    {
+        return $this->amounts->taxBasis();
+    }
+
+    /** The VAT, computed per rate on the discounted base (BT-110). */
+    public function totalTax(): Money
+    {
+        return $this->amounts->totalVat();
+    }
+
+    /** The total incl. VAT (BT-112). */
     public function totalGross(): Money
     {
-        return Money::fromMinorUnits(
-            $this->totalNet()->minorUnits() + $this->totalTax()->minorUnits(),
-            $this->currency,
-        );
+        return $this->amounts->totalGross();
     }
 
     public function amountPaid(): Money
@@ -479,43 +527,24 @@ final class Invoice extends AggregateRoot
     }
 
     /**
-     * Net and tax totals per VAT rate, highest rate first — the order an
-     * invoice legally prints them in.
+     * The amounts per VAT rate, highest rate first — the order an invoice
+     * legally prints them in. The net is the base after the discount, so the
+     * rows add up to the totals.
      *
-     * A list rather than a map keyed by rate: PHP would silently turn "20" into
-     * the integer 20 and sort it against "5.5" as a string.
-     *
-     * @return list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}>
+     * @return list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}>
      */
     public function taxBreakdown(): array
     {
-        $byRate = [];
-
-        foreach ($this->lines as $line) {
-            $key = $line->taxRatePercent();
-
-            $byRate[$key] ??= ['ratePercent' => $key, 'netMinorUnits' => 0, 'taxMinorUnits' => 0];
-
-            $byRate[$key]['netMinorUnits'] += $line->netAmount()->minorUnits();
-            $byRate[$key]['taxMinorUnits'] += $line->taxAmount()->minorUnits();
-        }
-
-        $breakdown = array_values($byRate);
-
-        usort(
-            $breakdown,
-            // The rates were validated as decimals when the lines were built.
-            static function (array $a, array $b): int {
-                /** @var numeric-string $left */
-                $left = $b['ratePercent'];
-                /** @var numeric-string $right */
-                $right = $a['ratePercent'];
-
-                return bccomp($left, $right, 4);
-            },
+        return array_map(
+            static fn (RateBucket $bucket): array => [
+                'ratePercent'         => $bucket->ratePercent(),
+                'netMinorUnits'       => $bucket->base()->minorUnits(),
+                'taxMinorUnits'       => $bucket->vat()->minorUnits(),
+                'grossMinorUnits'     => $bucket->gross()->minorUnits(),
+                'allowanceMinorUnits' => $bucket->allowance()->minorUnits(),
+            ],
+            $this->amounts->buckets(),
         );
-
-        return $breakdown;
     }
 
     public function id(): InvoiceId
@@ -640,16 +669,24 @@ final class Invoice extends AggregateRoot
     }
 
     /**
-     * @param callable(InvoiceLine): int $extract
+     * Only a draft moves: an issued invoice keeps the amounts it was issued with.
      */
-    private function sum(callable $extract): Money
+    private function recalculate(): void
     {
-        $total = 0;
+        $this->amounts = new InvoiceAmountCalculator()->calculate(
+            $this->calculationMode(),
+            array_map(static fn (InvoiceLine $line) => $line->calculationLine(), $this->lines),
+            $this->discount,
+            $this->currency,
+            CurrencyDecimals::of(self::CURRENCY_DECIMALS),
+        );
 
-        foreach ($this->lines as $line) {
-            $total += $extract($line);
-        }
+        $calculated = $this->amounts->lines();
 
-        return Money::fromMinorUnits($total, $this->currency);
+        $this->lines = array_map(
+            static fn (InvoiceLine $line, int $index): InvoiceLine => $line->withAmounts($calculated[$index]),
+            $this->lines,
+            array_keys($this->lines),
+        );
     }
 }

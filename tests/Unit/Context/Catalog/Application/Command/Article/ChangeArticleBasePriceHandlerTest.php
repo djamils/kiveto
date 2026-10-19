@@ -37,7 +37,7 @@ final class ChangeArticleBasePriceHandlerTest extends TestCase
         ;
 
         $this->handler($repository, $eventBus)(
-            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'EUR'),
+            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'EUR', 'incl'),
         );
 
         self::assertSame(420, $article->basePrice()->minorUnits());
@@ -52,7 +52,7 @@ final class ChangeArticleBasePriceHandlerTest extends TestCase
         $this->expectException(ClinicCurrencyMismatchException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'CHF'),
+            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'CHF', 'incl'),
         );
     }
 
@@ -65,7 +65,7 @@ final class ChangeArticleBasePriceHandlerTest extends TestCase
         $this->expectException(ArticleNotFoundException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'EUR'),
+            new ChangeArticleBasePrice(F::ARTICLE_ID, F::CLINIC_ID, 420, 'EUR', 'incl'),
         );
     }
 

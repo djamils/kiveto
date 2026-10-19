@@ -22,10 +22,10 @@ use App\Context\Catalog\Domain\Article\ValueObject\ArticleStatus;
 use App\Context\Catalog\Domain\Article\ValueObject\DrugProperties;
 use App\Context\Catalog\Domain\Article\ValueObject\Gtin;
 use App\Context\Catalog\Domain\Article\ValueObject\PrescriptionClass;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 
 final class Article extends AggregateRoot
@@ -38,7 +38,7 @@ final class Article extends AggregateRoot
         private ArticleKind $kind,
         private ?Gtin $gtin,
         private TaxCategoryCode $taxCategory,
-        private Money $basePrice,
+        private CatalogPrice $basePrice,
         private UnitOfMeasure $unitOfMeasure,
         private ?DrugProperties $drugProperties,
         private bool $trackStock,
@@ -55,7 +55,7 @@ final class Article extends AggregateRoot
         ArticleCode $code,
         ?Gtin $gtin,
         TaxCategoryCode $taxCategory,
-        Money $basePrice,
+        CatalogPrice $basePrice,
         UnitOfMeasure $unitOfMeasure,
         DrugProperties $drugProperties,
         bool $trackStock,
@@ -88,6 +88,7 @@ final class Article extends AggregateRoot
             taxCategoryCode: $taxCategory->toString(),
             basePriceMinorUnits: $basePrice->minorUnits(),
             basePriceCurrency: $basePrice->currency()->toString(),
+            basePriceMode: $basePrice->mode()->value,
             unitOfMeasure: $unitOfMeasure->toString(),
             trackStock: $trackStock,
         ));
@@ -103,7 +104,7 @@ final class Article extends AggregateRoot
         ArticleKind $kind,
         ?Gtin $gtin,
         TaxCategoryCode $taxCategory,
-        Money $basePrice,
+        CatalogPrice $basePrice,
         UnitOfMeasure $unitOfMeasure,
         bool $trackStock,
         \DateTimeImmutable $createdAt,
@@ -139,6 +140,7 @@ final class Article extends AggregateRoot
             taxCategoryCode: $taxCategory->toString(),
             basePriceMinorUnits: $basePrice->minorUnits(),
             basePriceCurrency: $basePrice->currency()->toString(),
+            basePriceMode: $basePrice->mode()->value,
             unitOfMeasure: $unitOfMeasure->toString(),
             trackStock: $trackStock,
         ));
@@ -154,7 +156,7 @@ final class Article extends AggregateRoot
         ArticleKind $kind,
         ?Gtin $gtin,
         TaxCategoryCode $taxCategory,
-        Money $basePrice,
+        CatalogPrice $basePrice,
         UnitOfMeasure $unitOfMeasure,
         ?DrugProperties $drugProperties,
         bool $trackStock,
@@ -196,7 +198,7 @@ final class Article extends AggregateRoot
         ));
     }
 
-    public function changeBasePrice(Money $basePrice, \DateTimeImmutable $updatedAt): void
+    public function changeBasePrice(CatalogPrice $basePrice, \DateTimeImmutable $updatedAt): void
     {
         if (ArticleStatus::ARCHIVED === $this->status) {
             throw new ArchivedArticleCannotBeModifiedException($this->id->toString());
@@ -210,6 +212,7 @@ final class Article extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             newPriceMinorUnits: $basePrice->minorUnits(),
             newPriceCurrency: $basePrice->currency()->toString(),
+            newPriceMode: $basePrice->mode()->value,
         ));
     }
 
@@ -367,7 +370,7 @@ final class Article extends AggregateRoot
         return $this->taxCategory;
     }
 
-    public function basePrice(): Money
+    public function basePrice(): CatalogPrice
     {
         return $this->basePrice;
     }

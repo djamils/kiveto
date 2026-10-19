@@ -25,6 +25,7 @@ final readonly class PlanActionRecord
         private float $quantity,
         private ?int $unitPriceMinorUnits,
         private ?string $currency,
+        private ?UnitPriceMode $unitPriceMode,
         private ?string $taxCategoryCode,
         private \DateTimeImmutable $createdAtUtc,
         private string $createdByUserId,
@@ -41,6 +42,7 @@ final readonly class PlanActionRecord
         float $quantity,
         ?int $unitPriceMinorUnits,
         ?string $currency,
+        ?UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         \DateTimeImmutable $createdAtUtc,
         UserId $createdByUserId,
@@ -48,7 +50,7 @@ final readonly class PlanActionRecord
         self::assertPositiveDays($durationDays, 'Plan action duration');
         self::assertPositiveDays($followUpDays, 'Plan action follow-up delay');
         self::assertQuantity($quantity);
-        self::assertPrice($unitPriceMinorUnits, $currency);
+        self::assertPrice($unitPriceMinorUnits, $currency, $unitPriceMode);
 
         return new self(
             Uuid::v7()->toString(),
@@ -61,6 +63,7 @@ final readonly class PlanActionRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             self::normalizeShortText($taxCategoryCode, 'Plan action tax category code', 40),
             $createdAtUtc,
             $createdByUserId->toString(),
@@ -78,6 +81,7 @@ final readonly class PlanActionRecord
         float $quantity,
         ?int $unitPriceMinorUnits,
         ?string $currency,
+        ?UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         \DateTimeImmutable $createdAtUtc,
         string $createdByUserId,
@@ -93,6 +97,7 @@ final readonly class PlanActionRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
             $createdAtUtc,
             $createdByUserId,
@@ -125,6 +130,7 @@ final readonly class PlanActionRecord
             $quantity,
             $this->unitPriceMinorUnits,
             $this->currency,
+            $this->unitPriceMode,
             $this->taxCategoryCode,
             $this->createdAtUtc,
             $this->createdByUserId,
@@ -179,6 +185,11 @@ final readonly class PlanActionRecord
     public function getCurrency(): ?string
     {
         return $this->currency;
+    }
+
+    public function getUnitPriceMode(): ?UnitPriceMode
+    {
+        return $this->unitPriceMode;
     }
 
     public function getTaxCategoryCode(): ?string
@@ -257,7 +268,7 @@ final readonly class PlanActionRecord
         }
     }
 
-    private static function assertPrice(?int $unitPriceMinorUnits, ?string $currency): void
+    private static function assertPrice(?int $unitPriceMinorUnits, ?string $currency, ?UnitPriceMode $unitPriceMode): void
     {
         if (null === $unitPriceMinorUnits) {
             return;
@@ -269,6 +280,10 @@ final readonly class PlanActionRecord
 
         if (null === $currency || '' === trim($currency)) {
             throw new \InvalidArgumentException('Plan action price requires a currency');
+        }
+
+        if (null === $unitPriceMode) {
+            throw new \InvalidArgumentException('Plan action price requires its price mode');
         }
     }
 }

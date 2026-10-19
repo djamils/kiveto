@@ -11,10 +11,9 @@ use App\Context\Catalog\Domain\Act\ValueObject\ActDescription;
 use App\Context\Catalog\Domain\Act\ValueObject\ActDuration;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Act\ValueObject\ActName;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ActEntity;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Uid\Uuid;
 
@@ -33,6 +32,7 @@ final readonly class ActMapper
         $entity->setTaxCategoryCode($act->taxCategory()->toString());
         $entity->setBasePriceMinorUnits($act->basePrice()->minorUnits());
         $entity->setBasePriceCurrency($act->basePrice()->currency()->toString());
+        $entity->setBasePriceMode($act->basePrice()->mode()->value);
         $entity->setEstimatedDurationMinutes($act->estimatedDuration()->toMinutes());
         $entity->setRequiresAnesthesia($act->requiresAnesthesia());
         $entity->setStatus($act->status());
@@ -52,9 +52,10 @@ final readonly class ActMapper
             description: ActDescription::fromNullableString($entity->getDescription()),
             category: ActCategory::from($entity->getCategory()),
             taxCategory: TaxCategoryCode::fromString($entity->getTaxCategoryCode()),
-            basePrice: Money::fromMinorUnits(
+            basePrice: CatalogPrice::fromPrimitives(
                 $entity->getBasePriceMinorUnits(),
-                CurrencyCode::fromString($entity->getBasePriceCurrency()),
+                $entity->getBasePriceCurrency(),
+                $entity->getBasePriceMode(),
             ),
             estimatedDuration: ActDuration::ofMinutes($entity->getEstimatedDurationMinutes()),
             requiresAnesthesia: $entity->getRequiresAnesthesia(),

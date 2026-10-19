@@ -12,6 +12,7 @@ use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\PayerSnapshotDto;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
@@ -19,6 +20,7 @@ use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -59,7 +61,7 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
         $this->handler = new PrepareInvoiceForAdmissionHandler(
             $this->invoices,
             $this->consultationBilling,
-            $this->taxResolver,
+            new InvoiceLineFactory($this->taxResolver, $this->uuidGenerator),
             $this->payerDirectory,
             $this->uuidGenerator,
             $this->clock,
@@ -90,16 +92,12 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
             ->willReturn(new PayerSnapshotDto(self::CLIENT_ID, 'Sophie Dupont', ['12 rue des Lilas']))
         ;
 
-        // Net comes from quantity × unit price; the taxation port turns it into
-        // net + tax, which is what the line freezes.
+        // The taxation port gives each line its rate; the invoice computes
+        // the amounts from the price entered excl. VAT in the catalogue.
         $this->taxResolver->expects(self::exactly(2))
             ->method('resolve')
-            ->willReturnCallback(static fn (int $net): ResolvedTaxDto => new ResolvedTaxDto(
-                $net,
-                (int) round($net * 0.2),
-                $net + (int) round($net * 0.2),
-                '20',
-            ))
+            ->with(self::CLINIC_ID, 'veterinary.act.consultation', 'EUR')
+            ->willReturn(new ResolvedTaxDto('20', OperationCategory::SERVICES))
         ;
 
         $saved = null;
@@ -155,7 +153,7 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
             $this->billableLine('Consultation', 'CONS', '1', 4000),
         ]);
         $this->payerDirectory->method('forAdmission')->willReturn(null);
-        $this->taxResolver->method('resolve')->willReturn(new ResolvedTaxDto(4000, 800, 4800, '20'));
+        $this->taxResolver->method('resolve')->willReturn(new ResolvedTaxDto('20', OperationCategory::SERVICES));
 
         $saved = null;
         $this->invoices->expects(self::once())
@@ -204,7 +202,7 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
         $this->clock->method('now')->willReturn($this->now());
         $this->uuidGenerator->method('generate')->willReturn(self::INVOICE_ID);
         $this->payerDirectory->method('forAdmission')->willReturn(null);
-        $this->taxResolver->method('resolve')->willReturn(new ResolvedTaxDto(1000, 0, 1000, '0'));
+        $this->taxResolver->method('resolve')->willReturn(null);
         $this->consultationBilling->method('billableLinesForAdmission')->willReturn([
             new BillableLineDto('c', 'l', 'Sans devise', null, '1', 1000, '', null),
             new BillableLineDto('c', 'l2', 'En francs', null, '1', 1000, 'CHF', null),
@@ -289,6 +287,7 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
             paidAt: null,
             cancelledAt: null,
             cancellationReason: null,
+            frozenBreakdown: [],
         );
     }
 

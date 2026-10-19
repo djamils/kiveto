@@ -8,6 +8,7 @@ use App\Context\Catalog\Application\Command\Package\RevisePackage\RevisePackage;
 use App\Context\Catalog\Application\Command\Package\RevisePackage\RevisePackageHandler;
 use App\Context\Catalog\Application\Port\ClinicInfoProviderInterface;
 use App\Context\Catalog\Domain\Exception\ClinicCurrencyMismatchException;
+use App\Context\Catalog\Domain\Exception\InvalidPriceEntryModeException;
 use App\Context\Catalog\Domain\Package\Event\PackageRevised;
 use App\Context\Catalog\Domain\Package\Exception\InvalidPackagePricingModeException;
 use App\Context\Catalog\Domain\Package\Exception\PackageNotFoundException;
@@ -17,7 +18,9 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackageCode;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
@@ -62,6 +65,7 @@ final class RevisePackageHandlerTest extends TestCase
             pricingMode: 'FIXED_PRICE',
             fixedPriceMinorUnits: 13750,
             fixedPriceCurrency: 'EUR',
+            fixedPriceMode: 'incl',
         ));
 
         self::assertSame('Pack chaton', $package->name()->toString());
@@ -79,6 +83,7 @@ final class RevisePackageHandlerTest extends TestCase
             'taxCategoryCode'      => 'veterinary.act.vaccination',
             'pricingMode'          => 'FIXED_PRICE',
             'fixedPriceMinorUnits' => 13750,
+            'fixedPriceMode'       => 'incl',
         ], $event->payload());
     }
 
@@ -97,6 +102,7 @@ final class RevisePackageHandlerTest extends TestCase
             pricingMode: 'SUM_OF_COMPONENTS',
             fixedPriceMinorUnits: null,
             fixedPriceCurrency: null,
+            fixedPriceMode: null,
         ));
 
         self::assertSame(PackagePricingMode::SUM_OF_COMPONENTS, $package->pricingMode());
@@ -122,6 +128,7 @@ final class RevisePackageHandlerTest extends TestCase
                 pricingMode: $mode->value,
                 fixedPriceMinorUnits: $price,
                 fixedPriceCurrency: null !== $price ? 'EUR' : null,
+                fixedPriceMode: null !== $price ? 'incl' : null,
             ));
         }
     }
@@ -134,11 +141,46 @@ final class RevisePackageHandlerTest extends TestCase
             PackageName::fromString('Pack chiot'),
             TaxCategoryCode::fromString(self::TAX),
             PackagePricingMode::FIXED_PRICE,
-            Money::fromMinorUnits(17000, CurrencyCode::fromString('EUR')),
+            CatalogPrice::includingTax(Money::fromMinorUnits(17000, CurrencyCode::fromString('EUR'))),
             new \DateTimeImmutable('2026-08-22'),
         );
 
         self::assertSame(17000, $package->fixedPrice()?->minorUnits());
+    }
+
+    public function testTheSameAmountEnteredInAnotherModeIsAChange(): void
+    {
+        $package = $this->package(PackagePricingMode::FIXED_PRICE, 16500);
+
+        $package->revise(
+            PackageName::fromString('Pack chiot'),
+            TaxCategoryCode::fromString(self::TAX),
+            PackagePricingMode::FIXED_PRICE,
+            CatalogPrice::excludingTax(Money::fromMinorUnits(16500, CurrencyCode::fromString('EUR'))),
+            new \DateTimeImmutable('2026-08-22'),
+        );
+
+        self::assertSame(PriceEntryMode::EXCLUDING_TAX, $package->fixedPrice()?->mode());
+        self::assertCount(1, $package->pullDomainEvents());
+    }
+
+    public function testAFixedPriceWithoutItsModeIsRefused(): void
+    {
+        $repository = $this->createStub(PackageRepositoryInterface::class);
+        $repository->method('findById')->willReturn($this->package(PackagePricingMode::FIXED_PRICE, 16500));
+
+        $this->expectException(InvalidPriceEntryModeException::class);
+
+        $this->handler($repository, $this->createStub(EventBusInterface::class))(new RevisePackage(
+            packageId: self::PACKAGE_ID,
+            clinicId: self::CLINIC_ID,
+            name: 'Pack chiot',
+            taxCategoryCode: self::TAX,
+            pricingMode: PackagePricingMode::FIXED_PRICE->value,
+            fixedPriceMinorUnits: 17000,
+            fixedPriceCurrency: 'EUR',
+            fixedPriceMode: null,
+        ));
     }
 
     public function testTheFixedModeNeedsAPrice(): void
@@ -162,7 +204,7 @@ final class RevisePackageHandlerTest extends TestCase
             PackageName::fromString('Pack chiot'),
             TaxCategoryCode::fromString(self::TAX),
             PackagePricingMode::SUM_OF_COMPONENTS,
-            Money::fromMinorUnits(100, CurrencyCode::fromString('EUR')),
+            CatalogPrice::includingTax(Money::fromMinorUnits(100, CurrencyCode::fromString('EUR'))),
             new \DateTimeImmutable('2026-08-22'),
         );
     }
@@ -184,6 +226,7 @@ final class RevisePackageHandlerTest extends TestCase
             pricingMode: 'SUM_OF_COMPONENTS',
             fixedPriceMinorUnits: null,
             fixedPriceCurrency: null,
+            fixedPriceMode: null,
         ));
     }
 
@@ -202,6 +245,7 @@ final class RevisePackageHandlerTest extends TestCase
             pricingMode: 'FIXED_PRICE',
             fixedPriceMinorUnits: 1000,
             fixedPriceCurrency: null,
+            fixedPriceMode: null,
         ));
     }
 
@@ -220,6 +264,7 @@ final class RevisePackageHandlerTest extends TestCase
             pricingMode: 'SUM_OF_COMPONENTS',
             fixedPriceMinorUnits: null,
             fixedPriceCurrency: null,
+            fixedPriceMode: null,
         ));
     }
 
@@ -249,7 +294,7 @@ final class RevisePackageHandlerTest extends TestCase
             code: PackageCode::fromString('PKG-CHIOT'),
             taxCategory: TaxCategoryCode::fromString(self::TAX),
             pricingMode: $mode,
-            fixedPrice: null !== $price ? Money::fromMinorUnits($price, CurrencyCode::fromString('EUR')) : null,
+            fixedPrice: null !== $price ? CatalogPrice::includingTax(Money::fromMinorUnits($price, CurrencyCode::fromString('EUR'))) : null,
             createdAt: new \DateTimeImmutable('2026-01-01 10:00:00'),
         );
         self::assertNotSame([], $package->pullDomainEvents());

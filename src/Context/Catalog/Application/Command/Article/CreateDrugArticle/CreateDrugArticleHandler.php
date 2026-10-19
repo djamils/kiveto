@@ -19,14 +19,13 @@ use App\Context\Catalog\Domain\Article\ValueObject\Gtin;
 use App\Context\Catalog\Domain\Article\ValueObject\MarketingAuthorizationRef;
 use App\Context\Catalog\Domain\Article\ValueObject\PrescriptionClass;
 use App\Context\Catalog\Domain\Exception\ClinicCurrencyMismatchException;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\UnitOfMeasure\Service\UnitOfMeasureRegistry;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -109,9 +108,10 @@ final class CreateDrugArticleHandler
             code: $code,
             gtin: $gtin,
             taxCategory: $taxCategory,
-            basePrice: Money::fromMinorUnits(
+            basePrice: CatalogPrice::fromPrimitives(
                 $command->basePriceMinorUnits,
-                CurrencyCode::fromString($command->basePriceCurrency),
+                $command->basePriceCurrency,
+                $command->basePriceMode,
             ),
             unitOfMeasure: $unitOfMeasure,
             drugProperties: $drugProperties,

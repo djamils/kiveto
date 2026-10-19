@@ -17,6 +17,7 @@ use App\Context\Catalog\Domain\Act\ValueObject\ActDescription;
 use App\Context\Catalog\Domain\Act\ValueObject\ActDuration;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Act\ValueObject\ActName;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -200,7 +201,7 @@ final class ReviseActDetailsHandlerTest extends TestCase
             description: ActDescription::fromNullableString($description),
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(4167, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(4167, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             createdAt: new \DateTimeImmutable('2026-01-01 10:00:00'),

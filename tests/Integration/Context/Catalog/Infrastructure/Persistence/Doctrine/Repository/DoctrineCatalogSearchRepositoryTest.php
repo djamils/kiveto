@@ -34,6 +34,7 @@ final class DoctrineCatalogSearchRepositoryTest extends KernelTestCase
             'code'                => 'ZZS-RX',
             'basePriceMinorUnits' => 1250,
             'basePriceCurrency'   => 'EUR',
+            'basePriceMode'       => 'excl',
             'taxCategoryCode'     => 'veterinary.drug.prescription',
         ]);
 
@@ -56,12 +57,14 @@ final class DoctrineCatalogSearchRepositoryTest extends KernelTestCase
         self::assertSame('ACTIVE', $byCode['ZZS-ACT']->status);
         self::assertSame(5000, $byCode['ZZS-ACT']->basePriceMinorUnits);
         self::assertSame('EUR', $byCode['ZZS-ACT']->basePriceCurrency);
+        self::assertSame('incl', $byCode['ZZS-ACT']->basePriceMode);
         self::assertSame('veterinary.act.consultation', $byCode['ZZS-ACT']->taxCategoryCode);
         self::assertFalse($byCode['ZZS-ACT']->requiresPrescription);
         self::assertNull($byCode['ZZS-ACT']->articleKind);
 
         self::assertSame('ARTICLE', $byCode['ZZS-RX']->type);
         self::assertSame(1250, $byCode['ZZS-RX']->basePriceMinorUnits);
+        self::assertSame('excl', $byCode['ZZS-RX']->basePriceMode);
         self::assertSame('veterinary.drug.prescription', $byCode['ZZS-RX']->taxCategoryCode);
         self::assertTrue($byCode['ZZS-RX']->requiresPrescription);
         self::assertSame('DRUG', $byCode['ZZS-RX']->articleKind);

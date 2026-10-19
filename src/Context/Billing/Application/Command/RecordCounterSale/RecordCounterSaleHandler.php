@@ -7,7 +7,7 @@ namespace App\Context\Billing\Application\Command\RecordCounterSale;
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
 use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
-use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
 use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
@@ -20,14 +20,13 @@ use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
-use App\Context\Billing\Domain\ValueObject\InvoiceLine;
-use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -57,7 +56,7 @@ final readonly class RecordCounterSaleHandler
         private InvoiceRepositoryInterface $invoices,
         private InvoiceNumberGeneratorInterface $numbers,
         private CounterCatalogInterface $catalog,
-        private TaxResolverInterface $taxResolver,
+        private InvoiceLineFactory $lineFactory,
         private PayerDirectoryInterface $payerDirectory,
         private CounterClientRegistryInterface $clientRegistry,
         private UuidGeneratorInterface $uuidGenerator,
@@ -89,24 +88,15 @@ final readonly class RecordCounterSaleHandler
             }
 
             $currency ??= CurrencyCode::fromString($article->currency);
-            $tax = $this->taxResolver->resolve(
-                $article->unitNetMinorUnits * $item['quantity'],
-                $currency->toString(),
-                $article->taxCategoryCode,
-                $command->clinicId,
-            );
 
-            $lines[] = InvoiceLine::create(
-                id: InvoiceLineId::fromString($this->uuidGenerator->generate()),
+            $lines[] = $this->lineFactory->line(
+                clinicId: $command->clinicId,
                 label: $article->label,
                 code: $article->code,
                 quantity: (string) $item['quantity'],
-                unitNetPrice: Money::fromMinorUnits($article->unitNetMinorUnits, $currency),
+                enteredUnitPrice: Money::fromMinorUnits($article->unitPriceMinorUnits, $currency),
+                priceMode: PriceMode::from($article->unitPriceMode),
                 taxCategoryCode: $article->taxCategoryCode,
-                taxRatePercent: $tax->ratePercent,
-                netAmount: Money::fromMinorUnits($tax->netMinorUnits, $currency),
-                taxAmount: Money::fromMinorUnits($tax->taxMinorUnits, $currency),
-                grossAmount: Money::fromMinorUnits($tax->grossMinorUnits, $currency),
                 source: InvoiceLineSource::COUNTER,
                 sourceReference: $article->articleId,
             );

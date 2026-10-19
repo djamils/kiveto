@@ -71,6 +71,16 @@ class CreditNoteEntity
     #[ORM\Column(name: 'total_gross_minor_units', type: 'integer')]
     private int $totalGrossMinorUnits = 0;
 
+    /** @var list<array{rate: string, lineTotal: int, allowance: int, vat: int}> */
+    #[ORM\Column(name: 'tax_breakdown', type: 'json')]
+    private array $taxBreakdown = [];
+
+    #[ORM\Column(name: 'total_net_before_allowance', type: 'integer', options: ['default' => 0])]
+    private int $totalNetBeforeAllowance = 0;
+
+    #[ORM\Column(name: 'total_allowance', type: 'integer', options: ['default' => 0])]
+    private int $totalAllowance = 0;
+
     #[ORM\Column(type: 'string', length: 3)]
     private string $currency;
 
@@ -280,5 +290,41 @@ class CreditNoteEntity
     public function setIssuedByUserId(?Uuid $issuedByUserId): void
     {
         $this->issuedByUserId = $issuedByUserId;
+    }
+
+    /**
+     * @return list<array{rate: string, lineTotal: int, allowance: int, vat: int}>
+     */
+    public function getTaxBreakdown(): array
+    {
+        return $this->taxBreakdown;
+    }
+
+    /**
+     * @param list<array{rate: string, lineTotal: int, allowance: int, vat: int}> $taxBreakdown
+     */
+    public function setTaxBreakdown(array $taxBreakdown): void
+    {
+        $this->taxBreakdown = $taxBreakdown;
+    }
+
+    public function getTotalNetBeforeAllowance(): int
+    {
+        return $this->totalNetBeforeAllowance;
+    }
+
+    public function setTotalNetBeforeAllowance(int $totalNetBeforeAllowance): void
+    {
+        $this->totalNetBeforeAllowance = $totalNetBeforeAllowance;
+    }
+
+    public function getTotalAllowance(): int
+    {
+        return $this->totalAllowance;
+    }
+
+    public function setTotalAllowance(int $totalAllowance): void
+    {
+        $this->totalAllowance = $totalAllowance;
     }
 }

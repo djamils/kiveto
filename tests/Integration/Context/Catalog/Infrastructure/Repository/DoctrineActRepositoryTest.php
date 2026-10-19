@@ -12,7 +12,9 @@ use App\Context\Catalog\Domain\Act\ValueObject\ActDuration;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Act\ValueObject\ActName;
 use App\Context\Catalog\Domain\Act\ValueObject\ActStatus;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrineActRepository;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -44,6 +46,7 @@ final class DoctrineActRepositoryTest extends KernelTestCase
         self::assertSame(ActCategory::CONSULTATION, $found->category());
         self::assertSame(5000, $found->basePrice()->minorUnits());
         self::assertSame('EUR', $found->basePrice()->currency()->toString());
+        self::assertSame(PriceEntryMode::INCLUDING_TAX, $found->basePrice()->mode());
         self::assertSame(20, $found->estimatedDuration()->toMinutes());
         self::assertFalse($found->requiresAnesthesia());
         self::assertSame(ActStatus::ACTIVE, $found->status());
@@ -98,7 +101,7 @@ final class DoctrineActRepositoryTest extends KernelTestCase
             description: null,
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             createdAt: $now,

@@ -20,6 +20,7 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceRuleCondition;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceRuleId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceRuleType;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -132,7 +133,7 @@ final class PriceListTest extends TestCase
         return PriceListItem::create(
             id: PriceListItemId::fromString('01950000-0000-7000-0000-000000000003'),
             itemRef: CatalogItemRef::fromPrimitives('ACT', '01950000-0000-7000-0000-000000000010'),
-            netPrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            price: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             taxCategoryOverride: null,
         );
     }

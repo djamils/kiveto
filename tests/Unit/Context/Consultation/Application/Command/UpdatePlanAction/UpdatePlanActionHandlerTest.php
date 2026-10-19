@@ -15,6 +15,7 @@ use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -169,6 +170,7 @@ final class UpdatePlanActionHandlerTest extends TestCase
             1.0,
             2500,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'STANDARD',
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10 09:05:00'),

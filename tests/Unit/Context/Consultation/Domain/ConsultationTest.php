@@ -32,6 +32,7 @@ use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
 use App\Context\Consultation\Domain\ValueObject\PrescriptionLineRecord;
 use App\Context\Consultation\Domain\ValueObject\TypedVitalRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
 use App\Context\Consultation\Domain\ValueObject\VitalType;
@@ -833,6 +834,7 @@ final class ConsultationTest extends TestCase
             null,
             null,
             null,
+            null,
             self::user(),
             self::at('09:50:00'),
         );
@@ -980,6 +982,7 @@ final class ConsultationTest extends TestCase
             null,
             null,
             null,
+            null,
             self::user(),
             self::at('09:50:00'),
         );
@@ -1003,6 +1006,7 @@ final class ConsultationTest extends TestCase
             1.0,
             4500,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'STD',
             self::user(),
             self::at('09:50:00'),
@@ -1214,6 +1218,7 @@ final class ConsultationTest extends TestCase
                     1.0,
                     4500,
                     'EUR',
+                    UnitPriceMode::INCLUDING_TAX,
                     'STD',
                     $user,
                     $at,
@@ -1246,6 +1251,7 @@ final class ConsultationTest extends TestCase
                     14.0,
                     320,
                     'EUR',
+                    UnitPriceMode::INCLUDING_TAX,
                     'STD',
                     $user,
                     $at,
@@ -1324,6 +1330,7 @@ final class ConsultationTest extends TestCase
                     1.0,
                     7500,
                     'EUR',
+                    UnitPriceMode::INCLUDING_TAX,
                     'STD',
                     $at,
                     self::USER_ID,
@@ -1342,6 +1349,7 @@ final class ConsultationTest extends TestCase
                     1.0,
                     1850,
                     'EUR',
+                    UnitPriceMode::INCLUDING_TAX,
                     'STD',
                     $at,
                     self::USER_ID,
@@ -1357,6 +1365,7 @@ final class ConsultationTest extends TestCase
                     1.0,
                     7500,
                     'EUR',
+                    UnitPriceMode::INCLUDING_TAX,
                     'STD',
                 ),
             ],
@@ -1429,6 +1438,7 @@ final class ConsultationTest extends TestCase
             $quantity,
             $unitPriceMinorUnits,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'STD',
             self::user(),
             self::at('09:50:00'),
@@ -1452,6 +1462,7 @@ final class ConsultationTest extends TestCase
             $quantity,
             $unitPriceMinorUnits,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'STD',
             self::user(),
             self::at('10:00:00'),

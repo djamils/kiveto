@@ -19,9 +19,9 @@ use App\Context\Catalog\Domain\Act\ValueObject\ActDuration;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Act\ValueObject\ActName;
 use App\Context\Catalog\Domain\Act\ValueObject\ActStatus;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 
 final class Act extends AggregateRoot
@@ -34,7 +34,7 @@ final class Act extends AggregateRoot
         private ?ActDescription $description,
         private ActCategory $category,
         private TaxCategoryCode $taxCategory,
-        private Money $basePrice,
+        private CatalogPrice $basePrice,
         private ActDuration $estimatedDuration,
         private bool $requiresAnesthesia,
         private ActStatus $status,
@@ -51,7 +51,7 @@ final class Act extends AggregateRoot
         ?ActDescription $description,
         ActCategory $category,
         TaxCategoryCode $taxCategory,
-        Money $basePrice,
+        CatalogPrice $basePrice,
         ActDuration $estimatedDuration,
         bool $requiresAnesthesia,
         \DateTimeImmutable $createdAt,
@@ -81,6 +81,7 @@ final class Act extends AggregateRoot
             taxCategoryCode: $taxCategory->toString(),
             basePriceMinorUnits: $basePrice->minorUnits(),
             basePriceCurrency: $basePrice->currency()->toString(),
+            basePriceMode: $basePrice->mode()->value,
             estimatedDurationMinutes: $estimatedDuration->toMinutes(),
             requiresAnesthesia: $requiresAnesthesia,
         ));
@@ -96,7 +97,7 @@ final class Act extends AggregateRoot
         ?ActDescription $description,
         ActCategory $category,
         TaxCategoryCode $taxCategory,
-        Money $basePrice,
+        CatalogPrice $basePrice,
         ActDuration $estimatedDuration,
         bool $requiresAnesthesia,
         ActStatus $status,
@@ -136,7 +137,7 @@ final class Act extends AggregateRoot
         ));
     }
 
-    public function changeBasePrice(Money $basePrice, \DateTimeImmutable $updatedAt): void
+    public function changeBasePrice(CatalogPrice $basePrice, \DateTimeImmutable $updatedAt): void
     {
         if (ActStatus::ARCHIVED === $this->status) {
             throw new ArchivedActCannotBeModifiedException($this->id->toString());
@@ -150,6 +151,7 @@ final class Act extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             newPriceMinorUnits: $basePrice->minorUnits(),
             newPriceCurrency: $basePrice->currency()->toString(),
+            newPriceMode: $basePrice->mode()->value,
         ));
     }
 
@@ -279,7 +281,7 @@ final class Act extends AggregateRoot
         return $this->taxCategory;
     }
 
-    public function basePrice(): Money
+    public function basePrice(): CatalogPrice
     {
         return $this->basePrice;
     }

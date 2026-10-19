@@ -10,11 +10,11 @@ namespace App\Context\Billing\Application\Query\GetInvoiceDetails;
 final readonly class InvoiceDetails
 {
     /**
-     * @param list<string>                                                             $payerAddressLines
-     * @param list<InvoiceLineView>                                                    $lines
-     * @param list<PaymentView>                                                        $payments
-     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}> $taxBreakdown
-     * @param list<CreditNoteSummaryView>                                              $creditNotes
+     * @param list<string>                                                                                                             $payerAddressLines
+     * @param list<InvoiceLineView>                                                                                                    $lines
+     * @param list<PaymentView>                                                                                                        $payments
+     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}> $taxBreakdown
+     * @param list<CreditNoteSummaryView>                                                                                              $creditNotes
      */
     public function __construct(
         public string $id,

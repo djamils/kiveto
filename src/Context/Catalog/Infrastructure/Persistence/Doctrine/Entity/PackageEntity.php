@@ -41,6 +41,9 @@ class PackageEntity
     #[ORM\Column(name: 'fixed_price_currency', type: 'string', length: 3, nullable: true)]
     private ?string $fixedPriceCurrency = null;
 
+    #[ORM\Column(name: 'fixed_price_mode', type: 'string', length: 4, nullable: true)]
+    private ?string $fixedPriceMode = null;
+
     #[ORM\Column(type: 'string', length: 20, enumType: PackageStatus::class)]
     private PackageStatus $status;
 
@@ -128,6 +131,16 @@ class PackageEntity
     public function setFixedPriceCurrency(?string $fixedPriceCurrency): void
     {
         $this->fixedPriceCurrency = $fixedPriceCurrency;
+    }
+
+    public function getFixedPriceMode(): ?string
+    {
+        return $this->fixedPriceMode;
+    }
+
+    public function setFixedPriceMode(?string $fixedPriceMode): void
+    {
+        $this->fixedPriceMode = $fixedPriceMode;
     }
 
     public function getStatus(): PackageStatus

@@ -43,6 +43,7 @@ final readonly class QueryBusConsultationBillingProvider implements Consultation
                 unitPriceMinorUnits: $line->unitPriceMinorUnits,
                 currency: $line->currency,
                 taxCategoryCode: $line->taxCategoryCode,
+                unitPriceMode: $line->unitPriceMode,
             );
         }
 

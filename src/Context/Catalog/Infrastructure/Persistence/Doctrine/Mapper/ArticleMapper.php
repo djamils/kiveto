@@ -13,11 +13,10 @@ use App\Context\Catalog\Domain\Article\ValueObject\DrugProperties;
 use App\Context\Catalog\Domain\Article\ValueObject\Gtin;
 use App\Context\Catalog\Domain\Article\ValueObject\MarketingAuthorizationRef;
 use App\Context\Catalog\Domain\Article\ValueObject\PrescriptionClass;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Uid\Uuid;
 
@@ -36,6 +35,7 @@ final readonly class ArticleMapper
         $entity->setTaxCategoryCode($article->taxCategory()->toString());
         $entity->setBasePriceMinorUnits($article->basePrice()->minorUnits());
         $entity->setBasePriceCurrency($article->basePrice()->currency()->toString());
+        $entity->setBasePriceMode($article->basePrice()->mode()->value);
         $entity->setUnitOfMeasure($article->unitOfMeasure()->toString());
         $entity->setTrackStock($article->trackStock());
         $entity->setStatus($article->status());
@@ -87,9 +87,10 @@ final readonly class ArticleMapper
             kind: $entity->getKind(),
             gtin: null !== $entity->getGtin() ? Gtin::fromString($entity->getGtin()) : null,
             taxCategory: TaxCategoryCode::fromString($entity->getTaxCategoryCode()),
-            basePrice: Money::fromMinorUnits(
+            basePrice: CatalogPrice::fromPrimitives(
                 $entity->getBasePriceMinorUnits(),
-                CurrencyCode::fromString($entity->getBasePriceCurrency()),
+                $entity->getBasePriceCurrency(),
+                $entity->getBasePriceMode(),
             ),
             unitOfMeasure: UnitOfMeasure::fromString($entity->getUnitOfMeasure()),
             drugProperties: $drugProperties,

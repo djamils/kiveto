@@ -63,8 +63,7 @@ final readonly class BillingSheetBuilder
             $credited = [...$credited, ...$note->creditedLineIds];
         }
 
-        $paid  = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
-        $ratio = $invoice->totalNetBeforeDiscountMinorUnits > 0 ? $invoice->totalNetMinorUnits / $invoice->totalNetBeforeDiscountMinorUnits : 1.0;
+        $paid = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
 
         return [
             'id'     => $invoice->id,
@@ -90,10 +89,11 @@ final readonly class BillingSheetBuilder
                 'remb'  => null !== $note->refundMethod ? ['mode' => self::MODES[$note->refundMethod] ?? 'autre', 'l' => $note->refundMethodLabel, 'm' => $note->refundedMinorUnits] : null,
             ], $invoice->creditNotes),
             'lignes' => array_map(fn (InvoiceLineView $line): array => $this->line($line, \in_array($line->id, $credited, true)), $invoice->lines),
-            'tva'    => array_map(static fn (array $rate): array => [
+            // The breakdown is already discounted: its rows add up to the totals.
+            'tva' => array_map(static fn (array $rate): array => [
                 't'   => self::rate($rate['ratePercent']),
-                'ht'  => (int) round($rate['netMinorUnits'] * $ratio),
-                'tva' => (int) round($rate['taxMinorUnits'] * $ratio),
+                'ht'  => $rate['netMinorUnits'],
+                'tva' => $rate['taxMinorUnits'],
             ], $invoice->taxBreakdown),
             'remise'  => $invoice->discountMinorUnits > 0 ? ['m' => $invoice->discountMinorUnits, 'motif' => $invoice->discountReason] : null,
             'tot'     => $invoice->totalGrossMinorUnits,

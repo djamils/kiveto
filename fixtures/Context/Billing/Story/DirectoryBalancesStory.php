@@ -12,11 +12,13 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -50,8 +52,7 @@ final class DirectoryBalancesStory extends Story
         $eur    = CurrencyCode::fromString('EUR');
 
         foreach (self::DEBTS as [$clientId, $name, $gross, $paid, $daysAgo]) {
-            $at  = new \DateTimeImmutable(\sprintf('-%d days 11:00', $daysAgo));
-            $net = (int) round($gross / 1.2);
+            $at = new \DateTimeImmutable(\sprintf('-%d days 11:00', $daysAgo));
 
             $invoice = Invoice::draft(
                 id: InvoiceId::fromString(Uuid::v7()->toRfc4122()),
@@ -67,12 +68,11 @@ final class DirectoryBalancesStory extends Story
                 label: 'Consultation et soins',
                 code: 'CONS_STD',
                 quantity: '1',
-                unitNetPrice: Money::fromMinorUnits($net, $eur),
+                enteredUnitPrice: Money::fromMinorUnits($gross, $eur),
+                priceMode: PriceMode::INCLUDING_TAX,
                 taxCategoryCode: 'veterinary.act.consultation',
                 taxRatePercent: '20',
-                netAmount: Money::fromMinorUnits($net, $eur),
-                taxAmount: Money::fromMinorUnits($gross - $net, $eur),
-                grossAmount: Money::fromMinorUnits($gross, $eur),
+                operationCategory: OperationCategory::SERVICES,
                 source: InvoiceLineSource::MANUAL,
                 sourceReference: null,
             ), $at);

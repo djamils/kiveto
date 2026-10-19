@@ -45,6 +45,9 @@ class PlanActionEntity implements ConsultationChildEntity
     #[ORM\Column(type: 'string', length: 3, nullable: true)]
     private ?string $currency = null;
 
+    #[ORM\Column(type: 'string', length: 4, nullable: true)]
+    private ?string $unitPriceMode = null;
+
     #[ORM\Column(type: 'string', length: 40, nullable: true)]
     private ?string $taxCategoryCode = null;
 
@@ -165,6 +168,16 @@ class PlanActionEntity implements ConsultationChildEntity
     public function setCurrency(?string $currency): void
     {
         $this->currency = $currency;
+    }
+
+    public function getUnitPriceMode(): ?string
+    {
+        return $this->unitPriceMode;
+    }
+
+    public function setUnitPriceMode(?string $unitPriceMode): void
+    {
+        $this->unitPriceMode = $unitPriceMode;
     }
 
     public function getTaxCategoryCode(): ?string

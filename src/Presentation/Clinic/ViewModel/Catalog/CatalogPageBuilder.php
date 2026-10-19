@@ -45,8 +45,10 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  * the page searches, filters, sorts and pages it in the browser, like the
  * mock-up, and asks clinic_catalogue_data again after every change.
  *
- * Prices are stored net of tax (minor units); `net` is what the page sends
- * back, the gross figure is computed from the family's rate.
+ * Prices travel as the clinic entered them: `price` (minor units) and `pm`,
+ * its mode ('incl' all taxes included, 'excl' excluding tax). The page posts
+ * back exactly what it shows; the other figure is a preview from the
+ * family's rate, never stored.
  */
 final readonly class CatalogPageBuilder
 {
@@ -216,17 +218,18 @@ final readonly class CatalogPageBuilder
             }
 
             $out[] = [
-                'id'   => $act->id,
-                'k'    => 'acte',
-                'code' => $act->code,
-                'lib'  => $act->name,
-                'desc' => $act->description ?? '',
-                'cat'  => $act->category,
-                'dur'  => $act->estimatedDurationMinutes,
-                'ag'   => $act->requiresAnesthesia,
-                'fam'  => $act->taxCategoryCode,
-                'net'  => $act->basePriceMinorUnits,
-                'arch' => $act->isArchived(),
+                'id'    => $act->id,
+                'k'     => 'acte',
+                'code'  => $act->code,
+                'lib'   => $act->name,
+                'desc'  => $act->description ?? '',
+                'cat'   => $act->category,
+                'dur'   => $act->estimatedDurationMinutes,
+                'ag'    => $act->requiresAnesthesia,
+                'fam'   => $act->taxCategoryCode,
+                'price' => $act->basePriceMinorUnits,
+                'pm'    => $act->basePriceMode,
+                'arch'  => $act->isArchived(),
             ];
         }
 
@@ -259,7 +262,8 @@ final readonly class CatalogPageBuilder
                 'lib'    => $article->name,
                 'type'   => self::KINDS[$article->kind] ?? 'conso',
                 'fam'    => $article->taxCategoryCode,
-                'net'    => $article->basePriceMinorUnits,
+                'price'  => $article->basePriceMinorUnits,
+                'pm'     => $article->basePriceMode,
                 'gtin'   => $article->gtin ?? '',
                 'uom'    => $article->unitOfMeasure,
                 'suivi'  => $article->trackStock,
@@ -342,15 +346,16 @@ final readonly class CatalogPageBuilder
             }
 
             $out[] = [
-                'id'   => $package->id,
-                'k'    => 'forfait',
-                'code' => $package->code,
-                'lib'  => $package->name,
-                'fam'  => $package->taxCategoryCode,
-                'mode' => $package->isFixedPrice() ? 'fixe' : 'somme',
-                'net'  => $package->fixedPriceMinorUnits,
-                'arch' => $package->isArchived(),
-                'comp' => $comp,
+                'id'    => $package->id,
+                'k'     => 'forfait',
+                'code'  => $package->code,
+                'lib'   => $package->name,
+                'fam'   => $package->taxCategoryCode,
+                'mode'  => $package->isFixedPrice() ? 'fixe' : 'somme',
+                'price' => $package->fixedPriceMinorUnits,
+                'pm'    => $package->fixedPriceMode,
+                'arch'  => $package->isArchived(),
+                'comp'  => $comp,
             ];
         }
 
@@ -377,13 +382,14 @@ final readonly class CatalogPageBuilder
             foreach (\is_array($rows) ? $rows : [] as $row) {
                 if ($row instanceof PriceListEntryRow) {
                     $tarifs[] = [
-                        'eid'  => $row->id,
-                        'type' => $row->itemType,
-                        'item' => $row->itemId,
-                        'code' => $row->itemCode ?? '',
-                        'lib'  => $row->itemName ?? '',
-                        'net'  => $row->netPriceMinorUnits,
-                        'fam'  => $row->taxCategoryOverride,
+                        'eid'   => $row->id,
+                        'type'  => $row->itemType,
+                        'item'  => $row->itemId,
+                        'code'  => $row->itemCode ?? '',
+                        'lib'   => $row->itemName ?? '',
+                        'price' => $row->priceMinorUnits,
+                        'pm'    => $row->priceMode,
+                        'fam'   => $row->taxCategoryOverride,
                     ];
                 }
             }

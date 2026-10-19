@@ -13,8 +13,9 @@ final readonly class AddPriceListItem implements CommandInterface
         public string $clinicId,
         public string $itemType,
         public string $itemId,
-        public int $netPriceMinorUnits,
-        public string $netPriceCurrency,
+        public int $priceMinorUnits,
+        public string $priceCurrency,
+        public string $priceMode,
         public ?string $taxCategoryOverride,
     ) {
     }

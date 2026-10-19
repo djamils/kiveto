@@ -79,7 +79,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
                 'SELECT BIN_TO_UUID(a.id) AS id, a.code, a.name, a.description, a.category,
-                        a.tax_category_code, a.base_price_minor_units, a.base_price_currency,
+                        a.tax_category_code, a.base_price_minor_units, a.base_price_currency, a.base_price_mode,
                         a.estimated_duration_minutes, a.requires_anesthesia, a.status
                  FROM catalog__acts a
                  WHERE %s
@@ -106,6 +106,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                 taxCategoryCode: RowAccessor::string($row, 'tax_category_code'),
                 basePriceMinorUnits: RowAccessor::int($row, 'base_price_minor_units'),
                 currency: RowAccessor::string($row, 'base_price_currency'),
+                basePriceMode: RowAccessor::string($row, 'base_price_mode'),
                 estimatedDurationMinutes: RowAccessor::int($row, 'estimated_duration_minutes'),
                 requiresAnesthesia: (bool) RowAccessor::int($row, 'requires_anesthesia'),
                 status: RowAccessor::string($row, 'status'),
@@ -163,7 +164,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
                 'SELECT BIN_TO_UUID(a.id) AS id, a.code, a.name, a.kind, a.gtin,
-                        a.tax_category_code, a.base_price_minor_units, a.base_price_currency,
+                        a.tax_category_code, a.base_price_minor_units, a.base_price_currency, a.base_price_mode,
                         a.unit_of_measure, a.track_stock, BIN_TO_UUID(a.drug_auth_ref) AS drug_auth_ref,
                         a.drug_requires_rx, a.drug_prescription_class, a.drug_is_controlled, a.status
                  FROM catalog__articles a
@@ -189,6 +190,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                 taxCategoryCode: RowAccessor::string($row, 'tax_category_code'),
                 basePriceMinorUnits: RowAccessor::int($row, 'base_price_minor_units'),
                 currency: RowAccessor::string($row, 'base_price_currency'),
+                basePriceMode: RowAccessor::string($row, 'base_price_mode'),
                 unitOfMeasure: RowAccessor::string($row, 'unit_of_measure'),
                 trackStock: (bool) RowAccessor::int($row, 'track_stock'),
                 authorizationRef: RowAccessor::nullableString($row, 'drug_auth_ref'),
@@ -223,7 +225,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
         $rows = $this->connection->fetchAllAssociative(
             \sprintf(
                 'SELECT BIN_TO_UUID(p.id) AS id, p.code, p.name, p.tax_category_code,
-                        p.pricing_mode, p.fixed_price_minor_units, p.fixed_price_currency, p.status,
+                        p.pricing_mode, p.fixed_price_minor_units, p.fixed_price_currency, p.fixed_price_mode, p.status,
                         (SELECT COUNT(*) FROM catalog__package_components c WHERE c.package_id = p.id)
                             AS component_count,
                         COALESCE((
@@ -254,6 +256,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                 taxCategoryCode: RowAccessor::string($row, 'tax_category_code'),
                 pricingMode: RowAccessor::string($row, 'pricing_mode'),
                 fixedPriceMinorUnits: RowAccessor::nullableInt($row, 'fixed_price_minor_units'),
+                fixedPriceMode: RowAccessor::nullableString($row, 'fixed_price_mode'),
                 currency: RowAccessor::nullableString($row, 'fixed_price_currency') ?? 'EUR',
                 componentCount: (int) RowAccessor::string($row, 'component_count'),
                 componentsTotalMinorUnits: (int) RowAccessor::string($row, 'components_total'),
@@ -272,6 +275,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                     COALESCE(act.code, art.code) AS item_code,
                     COALESCE(act.name, art.name) AS item_name,
                     COALESCE(act.base_price_minor_units, art.base_price_minor_units) AS unit_price,
+                    COALESCE(act.base_price_mode, art.base_price_mode) AS unit_price_mode,
                     COALESCE(act.base_price_currency, art.base_price_currency) AS currency
              FROM catalog__package_components c
              JOIN catalog__packages p ON p.id = c.package_id
@@ -293,6 +297,7 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                 itemCode: RowAccessor::nullableString($row, 'item_code'),
                 itemName: RowAccessor::nullableString($row, 'item_name'),
                 unitPriceMinorUnits: RowAccessor::nullableInt($row, 'unit_price'),
+                unitPriceMode: RowAccessor::nullableString($row, 'unit_price_mode'),
                 currency: RowAccessor::nullableString($row, 'currency') ?? 'EUR',
                 quantity: RowAccessor::int($row, 'quantity'),
                 weight: RowAccessor::int($row, 'weight'),
@@ -305,10 +310,11 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
     {
         $rows = $this->connection->fetchAllAssociative(
             'SELECT BIN_TO_UUID(i.id) AS id, i.item_type, i.item_id,
-                    i.net_price_minor_units, i.net_price_currency, i.tax_category_override,
+                    i.price_minor_units, i.price_currency, i.price_mode, i.tax_category_override,
                     COALESCE(act.code, art.code) AS item_code,
                     COALESCE(act.name, art.name) AS item_name,
                     COALESCE(act.base_price_minor_units, art.base_price_minor_units) AS base_price,
+                    COALESCE(act.base_price_mode, art.base_price_mode) AS base_price_mode,
                     COALESCE(act.tax_category_code, art.tax_category_code) AS item_tax_category
              FROM catalog__price_list_items i
              JOIN catalog__price_lists l ON l.id = i.price_list_id
@@ -330,8 +336,10 @@ final readonly class DbalCatalogListReadRepository implements CatalogListReadRep
                 itemCode: RowAccessor::nullableString($row, 'item_code'),
                 itemName: RowAccessor::nullableString($row, 'item_name'),
                 basePriceMinorUnits: RowAccessor::nullableInt($row, 'base_price'),
-                netPriceMinorUnits: RowAccessor::int($row, 'net_price_minor_units'),
-                currency: RowAccessor::string($row, 'net_price_currency'),
+                basePriceMode: RowAccessor::nullableString($row, 'base_price_mode'),
+                priceMinorUnits: RowAccessor::int($row, 'price_minor_units'),
+                priceMode: RowAccessor::string($row, 'price_mode'),
+                currency: RowAccessor::string($row, 'price_currency'),
                 taxCategoryOverride: RowAccessor::nullableString($row, 'tax_category_override'),
                 itemTaxCategoryCode: RowAccessor::nullableString($row, 'item_tax_category'),
             ),

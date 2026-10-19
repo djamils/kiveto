@@ -52,15 +52,20 @@ final readonly class UpdateArticleController
                 $this->commandBus->dispatch(new RenameArticle($articleId, $clinicId, $name));
             }
 
-            if ($form->has('net')) {
-                $net = CatalogEndpoint::cents($request, 'net');
+            if ($form->has('price')) {
+                $price     = CatalogEndpoint::cents($request, 'price');
+                $priceMode = CatalogEndpoint::priceMode($request);
 
-                if (null === $net) {
+                if (null === $price) {
                     return $this->endpoint->refuse('Le prix de vente saisi est invalide.');
                 }
 
-                if ($net !== $article->basePriceMinorUnits) {
-                    $this->commandBus->dispatch(new ChangeArticleBasePrice($articleId, $clinicId, $net, $article->basePriceCurrency));
+                if (null === $priceMode) {
+                    return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
+                }
+
+                if ($price !== $article->basePriceMinorUnits || $priceMode !== $article->basePriceMode) {
+                    $this->commandBus->dispatch(new ChangeArticleBasePrice($articleId, $clinicId, $price, $article->basePriceCurrency, $priceMode));
                 }
             }
 

@@ -6,6 +6,7 @@ namespace App\Context\Consultation\Application\Query\GetConsultationTotalsForAdm
 
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\TaxRateProviderInterface;
+use App\Context\Consultation\Application\Service\DisplayedTotals;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -38,32 +39,20 @@ final readonly class GetConsultationTotalsForAdmissionsHandler
         $ratesByCategory = [];
         $totals          = [];
 
-        foreach ($rows as $admissionId => $row) {
-            $totalHt  = 0;
-            $totalTva = 0;
-
-            foreach ($row['htByTaxCategory'] as $categoryCode => $ht) {
-                $totalHt += $ht;
-
-                if ('' === $categoryCode) {
-                    continue;
-                }
-
-                if (!\array_key_exists($categoryCode, $ratesByCategory)) {
-                    $ratesByCategory[$categoryCode] = $this->taxRates->effectiveRatePercent(
-                        $categoryCode,
-                        $query->clinicId,
-                    );
-                }
-
-                $rate = $ratesByCategory[$categoryCode];
-
-                if (null === $rate) {
-                    continue;
-                }
-
-                $totalTva += (int) round($ht * $rate / 100);
+        $rateOf = function (string $category) use (&$ratesByCategory, $query): ?float {
+            if (!\array_key_exists($category, $ratesByCategory)) {
+                $ratesByCategory[$category] = $this->taxRates->effectiveRatePercent($category, $query->clinicId);
             }
+
+            return $ratesByCategory[$category];
+        };
+
+        foreach ($rows as $admissionId => $row) {
+            ['ht' => $totalHt, 'tva' => $totalTva] = DisplayedTotals::of(
+                $row['htByTaxCategory'],
+                $row['ttcByTaxCategory'],
+                $rateOf,
+            );
 
             $totals[$admissionId] = new AdmissionTotal(
                 admissionId: $admissionId,

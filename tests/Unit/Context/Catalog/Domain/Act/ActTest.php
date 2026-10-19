@@ -17,6 +17,7 @@ use App\Context\Catalog\Domain\Act\ValueObject\ActDuration;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Act\ValueObject\ActName;
 use App\Context\Catalog\Domain\Act\ValueObject\ActStatus;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -36,7 +37,7 @@ final class ActTest extends TestCase
             description: null,
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             createdAt: $now,
@@ -62,7 +63,7 @@ final class ActTest extends TestCase
             description: null,
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             status: ActStatus::ACTIVE,
@@ -115,7 +116,7 @@ final class ActTest extends TestCase
 
         $this->expectException(ArchivedActCannotBeModifiedException::class);
 
-        $act->changeBasePrice(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')), $now);
+        $act->changeBasePrice(CatalogPrice::includingTax(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR'))), $now);
     }
 
     public function testArchiveThenRestoreFullCycle(): void
@@ -155,7 +156,7 @@ final class ActTest extends TestCase
         $now = new \DateTimeImmutable('2026-01-01T10:00:00+00:00');
         $act = $this->makeAct();
 
-        $act->changeBasePrice(Money::fromMinorUnits(9999, CurrencyCode::fromString('EUR')), $now);
+        $act->changeBasePrice(CatalogPrice::includingTax(Money::fromMinorUnits(9999, CurrencyCode::fromString('EUR'))), $now);
 
         $events = $_ = $act->pullDomainEvents();
 
@@ -175,7 +176,7 @@ final class ActTest extends TestCase
             description: null,
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             createdAt: $now,

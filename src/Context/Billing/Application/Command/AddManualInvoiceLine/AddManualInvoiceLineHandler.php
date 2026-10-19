@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Context\Billing\Application\Command\AddManualInvoiceLine;
 
-use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
-use App\Context\Billing\Domain\ValueObject\InvoiceLine;
-use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
-use App\Shared\Domain\Identifier\UuidGeneratorInterface;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\ValueObject\Money;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -21,8 +19,7 @@ final readonly class AddManualInvoiceLineHandler
 {
     public function __construct(
         private InvoiceRepositoryInterface $invoices,
-        private TaxResolverInterface $taxResolver,
-        private UuidGeneratorInterface $uuidGenerator,
+        private InvoiceLineFactory $lines,
         private ClockInterface $clock,
     ) {
     }
@@ -33,29 +30,18 @@ final readonly class AddManualInvoiceLineHandler
             ClinicId::fromString($command->clinicId),
             InvoiceId::fromString($command->invoiceId),
         );
-        $currency = $invoice->currency();
-
-        $net = (int) round((float) $command->quantity * $command->unitPriceMinorUnits);
-        $tax = $this->taxResolver->resolve(
-            $net,
-            $currency->toString(),
-            $command->taxCategoryCode,
-            $command->clinicId,
-        );
 
         $invoice->addLine(
-            InvoiceLine::create(
-                id: InvoiceLineId::fromString($this->uuidGenerator->generate()),
+            $this->lines->line(
+                clinicId: $command->clinicId,
                 label: $command->label,
                 code: null,
                 quantity: $command->quantity,
-                unitNetPrice: Money::fromMinorUnits($command->unitPriceMinorUnits, $currency),
+                enteredUnitPrice: Money::fromMinorUnits($command->unitPriceMinorUnits, $invoice->currency()),
+                priceMode: PriceMode::INCLUDING_TAX,
                 taxCategoryCode: $command->taxCategoryCode,
-                taxRatePercent: $tax->ratePercent,
-                netAmount: Money::fromMinorUnits($tax->netMinorUnits, $currency),
-                taxAmount: Money::fromMinorUnits($tax->taxMinorUnits, $currency),
-                grossAmount: Money::fromMinorUnits($tax->grossMinorUnits, $currency),
                 source: InvoiceLineSource::MANUAL,
+                categoryRequired: true,
             ),
             $this->clock->now(),
         );

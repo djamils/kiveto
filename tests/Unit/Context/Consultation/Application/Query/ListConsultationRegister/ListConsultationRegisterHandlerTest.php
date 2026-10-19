@@ -258,6 +258,7 @@ final class ListConsultationRegisterHandlerTest extends TestCase
             weightKg: '3.900',
             billedItems: $billed,
             htByTaxCategory: $ht,
+            ttcByTaxCategory: [],
             currency: $currency,
         );
     }

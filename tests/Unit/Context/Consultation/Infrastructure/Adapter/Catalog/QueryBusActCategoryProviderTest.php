@@ -52,6 +52,6 @@ final class QueryBusActCategoryProviderTest extends TestCase
 
     private function act(string $code, string $category): ActListRow
     {
-        return new ActListRow('id-' . $code, $code, $code, null, $category, 'veterinary.act', 1000, 'EUR', 15, false, 'ACTIVE');
+        return new ActListRow('id-' . $code, $code, $code, null, $category, 'veterinary.act', 1000, 'EUR', 'incl', 15, false, 'ACTIVE');
     }
 }

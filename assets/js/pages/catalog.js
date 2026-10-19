@@ -7,8 +7,11 @@
  * The mock-up renders from its demo data; this module renders the same way
  * from the `data-payload` of CatalogPageBuilder — the clinic's whole catalogue,
  * archived items included — and searches, filters, sorts and pages it here.
- * Prices travel net of tax in cents (`net`); the page shows and takes them all
- * taxes included, through the rate of the item's accounting family.
+ * Prices travel as the clinic entered them: `price` in cents and `pm`, its
+ * mode ('incl' all taxes included, 'excl' excluding tax). Every price field of
+ * the page is labelled TTC and posts what it shows with mode 'incl'; nothing
+ * is converted before it is stored. An 'excl' price (entered before the modes
+ * existed) is shown TTC through its family's rate, for display only.
  *
  * Every change (sheet saved, archived / restored, bulk price revision or
  * family change, package composition, price list entries, new price list) is
@@ -94,16 +97,21 @@ export function init() {
   const tva = v => famDe(v).t;
   const tvaTxt = t => fmtN(t, t % 1 ? 1 : 0) + ' %';
   const famOpts = () => FAM.map(f => ({ v: f.v, l: f.l, sub: tvaTxt(f.t) }));
-  const ttc = (net, fam) => (net == null ? null : Math.round(net * (1 + tva(fam) / 100)) / 100);
-  const netDe = (prix, fam) => Math.round(prix * 100 / (1 + tva(fam) / 100));
+  // The TTC figure the page shows for a stored price (in euros).
+  const ttc = (price, pm, fam) => (price == null ? null : pm === 'incl' ? price / 100 : Math.round(price * (1 + tva(fam) / 100)) / 100);
+  // The HT figure, a preview from the family's rate unless the price was entered HT.
+  const htDe = x => (x.price == null ? null : x.pm === 'excl' ? x.price / 100 : x.prix / (1 + tva(x.fam) / 100));
+  // What a « Prix TTC » field posts: the typed amount, mode 'incl'. A field left
+  // on the figure it was shown (`shown`) keeps the stored price and its mode.
+  const saisie = (x, prix, shown) => (x.price != null && prix === shown ? { price: x.price, price_mode: x.pm } : { price: Math.round(prix * 100), price_mode: 'incl' });
 
   function charger(d) {
     FAM = d.fam;
-    ACTES = d.acts.map(a => ({ ...a, prix: ttc(a.net, a.fam) }));
-    ARTICLES = d.articles.map(a => ({ ...a, prix: ttc(a.net, a.fam) }));
-    FORFAITS = d.forfaits.map(f => ({ ...f, prix: f.mode === 'fixe' ? ttc(f.net, f.fam) : null, comp: f.comp.map(l => ({ ...l, c: l.item })) }));
+    ACTES = d.acts.map(a => ({ ...a, prix: ttc(a.price, a.pm, a.fam) }));
+    ARTICLES = d.articles.map(a => ({ ...a, prix: ttc(a.price, a.pm, a.fam) }));
+    FORFAITS = d.forfaits.map(f => ({ ...f, prix: f.mode === 'fixe' ? ttc(f.price, f.pm, f.fam) : null, comp: f.comp.map(l => ({ ...l, c: l.item })) }));
     GRILLES = d.grilles.map(g => ({ ...g, tarifs: g.tarifs.map(t => ({ ...t, c: t.item })) }));
-    GRILLES.forEach(g => g.tarifs.forEach(t => { const it = item(t.c); t.p = ttc(t.net, t.fam || (it ? it.fam : null)); }));
+    GRILLES.forEach(g => g.tarifs.forEach(t => { const it = item(t.c); t.p = ttc(t.price, t.pm, t.fam || (it ? it.fam : null)); }));
   }
   const LISTES = { actes: () => ACTES, articles: () => ARTICLES, forfaits: () => FORFAITS };
   const tous = () => [...ACTES, ...ARTICLES];
@@ -203,7 +211,7 @@ export function init() {
       { k: 'dur', l: 'Durée', cls: 'num', sort: a => a.dur, html: a => `<span class="code" style="color:var(--encre)">${durTxt(a)}</span>` },
       { k: 'flags', l: 'Pratique', xo: 1, html: a => `<div class="flags">${a.ag ? '<span class="puce ag">AG</span>' : ''}</div>` },
       { k: 'fam', l: 'Famille · TVA', xo: 1, sort: a => famDe(a.fam).l, html: famCell },
-      { k: 'prix', l: 'Tarif TTC', cls: 'num', sort: a => a.prix, html: a => `<div class="cnum"><b>${fmtE(a.prix)}</b><span>HT ${fmtE(a.net / 100)}</span></div>` },
+      { k: 'prix', l: 'Tarif TTC', cls: 'num', sort: a => a.prix, html: a => `<div class="cnum"><b>${fmtE(a.prix)}</b><span>HT ${fmtE(htDe(a))}</span></div>` },
     ],
     articles: [
       { k: 'lib', l: 'Article', sort: a => a.lib, html: a => `<div class="cid"><b>${esc(a.lib)}${archP(a)}</b><span><span class="code">${esc(a.code)}</span> · ${condTxt(a)}</span></div>` },
@@ -212,7 +220,7 @@ export function init() {
         : `<div class="flags"><span class="puce ${CLASSES[a.classe][0]}">${CLASSES[a.classe][1]}</span>${a.auth ? '<span class="puce lg" data-tip="Lié au registre pharmaceutique">Registre</span>' : ''}</div>`) },
       { k: 'stock', l: 'Stock', cls: 'num', sort: a => (a.suivi && a.stock ? a.stock.q / Math.max(1, a.stock.seuil) : -1), html: stockCell },
       { k: 'achat', l: 'Achat HT', cls: 'num', xo: 1, html: () => '<div class="cnum mute" data-tip="Le prix d\'achat n\'est pas encore suivi dans Kiveto"><b>—</b><span></span></div>' },
-      { k: 'prix', l: 'Prix TTC', cls: 'num', sort: a => a.prix, html: a => `<div class="cnum"><b>${fmtE(a.prix)}</b><span>${tva(a.fam) !== 20 ? 'TVA ' + tvaTxt(tva(a.fam)) : 'HT ' + fmtE(a.net / 100)}</span></div>` },
+      { k: 'prix', l: 'Prix TTC', cls: 'num', sort: a => a.prix, html: a => `<div class="cnum"><b>${fmtE(a.prix)}</b><span>${tva(a.fam) !== 20 ? 'TVA ' + tvaTxt(tva(a.fam)) : 'HT ' + fmtE(htDe(a))}</span></div>` },
     ],
     forfaits: [
       { k: 'lib', l: 'Forfait', sort: f => f.lib, html: f => `<div class="cid"><b>${esc(f.lib)}${archP(f)}</b><span><span class="code">${esc(f.code)}</span> · ${f.comp.length} prestation${f.comp.length > 1 ? 's' : ''}</span></div>` },
@@ -348,9 +356,9 @@ export function init() {
   }
   function vierge(tab) {
     const f0 = c => (FAM.find(f => f.v === c) || FAM[0] || { v: '' }).v;
-    if (tab === 'actes') return { id: '', k: 'acte', code: '', lib: '', desc: '', cat: 'CONSULTATION', dur: 20, ag: false, fam: f0('veterinary.act.consultation'), net: null, prix: null, arch: false };
-    if (tab === 'articles') return { id: '', k: 'article', code: '', lib: '', type: 'med', fam: f0('veterinary.drug.prescription'), net: null, prix: null, gtin: '', uom: 'UNIT', suivi: true, classe: 'RX', auth: null, arch: false, stock: null };
-    return { id: '', k: 'forfait', code: '', lib: '', mode: 'fixe', net: null, prix: null, fam: f0('veterinary.act.preventive'), arch: false, comp: [] };
+    if (tab === 'actes') return { id: '', k: 'acte', code: '', lib: '', desc: '', cat: 'CONSULTATION', dur: 20, ag: false, fam: f0('veterinary.act.consultation'), price: null, pm: 'incl', prix: null, arch: false };
+    if (tab === 'articles') return { id: '', k: 'article', code: '', lib: '', type: 'med', fam: f0('veterinary.drug.prescription'), price: null, pm: 'incl', prix: null, gtin: '', uom: 'UNIT', suivi: true, classe: 'RX', auth: null, arch: false, stock: null };
+    return { id: '', k: 'forfait', code: '', lib: '', mode: 'fixe', price: null, pm: 'incl', prix: null, fam: f0('veterinary.act.preventive'), arch: false, comp: [] };
   }
   $('btnNew').addEventListener('click', () => {
     if (ST.tab === 'grilles') { ouvrirModale('mGrille'); setTimeout(() => $('ngNom').focus(), 50); return; }
@@ -547,16 +555,16 @@ export function init() {
 
   /* What a sheet posts, from its draft. */
   function champs(d) {
-    // An untouched price keeps its stored net figure: going through TTC and back could move it by a cent.
-    const net = d.net != null && d.prix === ttc(d.net, d.fam) ? d.net : netDe(d.prix, d.fam);
-    if (d.k === 'acte') return { name: d.lib.trim(), code: d.code, description: d.desc || '', category: d.cat, tax_category: d.fam, net, duration: d.dur, requires_anesthesia: d.ag };
+    // The « Prix TTC » field posts what it shows, all taxes included.
+    const p = d.prix != null ? saisie(d, d.prix, ttc(d.price, d.pm, d.fam)) : { price: '', price_mode: '' };
+    if (d.k === 'acte') return { name: d.lib.trim(), code: d.code, description: d.desc || '', category: d.cat, tax_category: d.fam, ...p, duration: d.dur, requires_anesthesia: d.ag };
     if (d.k === 'article') {
-      const c = { name: d.lib.trim(), code: d.code, kind: KIND[d.type], tax_category: d.fam, net, gtin: d.gtin || '', unit: d.uom, track_stock: d.suivi };
+      const c = { name: d.lib.trim(), code: d.code, kind: KIND[d.type], tax_category: d.fam, ...p, gtin: d.gtin || '', unit: d.uom, track_stock: d.suivi };
       if (d.type === 'med') c.prescription_class = d.classe;
       if (ST.neuf && d.auth) c.authorization_ref = d.auth;
       return c;
     }
-    return { name: d.lib.trim(), code: d.code, tax_category: d.fam, pricing_mode: d.mode === 'fixe' ? 'FIXED_PRICE' : 'SUM_OF_COMPONENTS', net: d.mode === 'fixe' ? net : '', components: JSON.stringify(d.comp.map(l => { const it = item(l.c); return { type: l.type || (it && it.k === 'acte' ? 'ACT' : 'ARTICLE'), item: l.c, q: l.q }; })) };
+    return { name: d.lib.trim(), code: d.code, tax_category: d.fam, pricing_mode: d.mode === 'fixe' ? 'FIXED_PRICE' : 'SUM_OF_COMPONENTS', ...(d.mode === 'fixe' ? p : { price: '', price_mode: '' }), components: JSON.stringify(d.comp.map(l => { const it = item(l.c); return { type: l.type || (it && it.k === 'acte' ? 'ACT' : 'ARTICLE'), item: l.c, q: l.q }; })) };
   }
   async function enregistrer() {
     const d = ST.draft;
@@ -816,7 +824,7 @@ export function init() {
         await recharger();
         rendre();
         toastUndo(`${it ? it.lib : 'Prestation'} retiré de « ${g.lib} »`, async () => {
-          try { await poster(url('gridItemSave', g.id), { item_id: old.c, item_type: old.type, net: old.net }); await recharger(); rendre(); } catch (err) { echec(err); }
+          try { await poster(url('gridItemSave', g.id), { item_id: old.c, item_type: old.type, price: old.price, price_mode: old.pm }); await recharger(); rendre(); } catch (err) { echec(err); }
         });
       } catch (err) { echec(err); }
       return;
@@ -827,13 +835,13 @@ export function init() {
     if (e.target.dataset.gt == null) return;
     const g = GRILLES.find(x => x.id === ST.grille), tp = g.tarifs[+e.target.dataset.gt], v = parseN(e.target.value), it = item(tp.c);
     if (!(v > 0)) { e.target.value = fmtN(tp.p); return; }
-    const fam = tp.fam || (it ? it.fam : null), avant = tp.net;
+    const avant = { price: tp.price, price_mode: tp.pm };
     try {
-      await poster(url('gridItemSave', g.id), { entry_id: tp.eid, net: netDe(v, fam) });
+      await poster(url('gridItemSave', g.id), { entry_id: tp.eid, ...saisie(tp, v, tp.p) });
       await recharger();
       rendre();
       toastUndo(`${it ? it.lib : 'Prestation'} : ${fmtE(v)} dans « ${g.lib} »`, async () => {
-        try { await poster(url('gridItemSave', g.id), { entry_id: tp.eid, net: avant }); await recharger(); rendre(); } catch (err) { echec(err); }
+        try { await poster(url('gridItemSave', g.id), { entry_id: tp.eid, ...avant }); await recharger(); rendre(); } catch (err) { echec(err); }
       });
     } catch (err) { echec(err); e.target.value = fmtN(tp.p); }
   }, { signal });
@@ -902,7 +910,7 @@ export function init() {
     const p = parseN($('tfPrix').value), ex = tfG.tarifs.find(t => t.c === tfItem.id), x = tfItem, g = tfG;
     $('tfOk').disabled = true;
     try {
-      await poster(url('gridItemSave', g.id), ex ? { entry_id: ex.eid, net: netDe(p, x.fam) } : { item_id: x.id, item_type: x.k === 'acte' ? 'ACT' : 'ARTICLE', net: netDe(p, x.fam) });
+      await poster(url('gridItemSave', g.id), ex ? { entry_id: ex.eid, price: Math.round(p * 100), price_mode: 'incl' } : { item_id: x.id, item_type: x.k === 'acte' ? 'ACT' : 'ARTICLE', price: Math.round(p * 100), price_mode: 'incl' });
       await recharger();
       fermerModales();
       rendre();
@@ -945,15 +953,15 @@ export function init() {
   $('bkFam').addEventListener('click', () => { fmDd.setOptions(famOpts()); $('fmSub').textContent = nEl(ST.sel.size); ouvrirModale('mFam'); }, { signal });
   $('fmOk').addEventListener('click', async () => {
     const v = fmDd.get(), L = selItems().filter(x => x.k !== 'forfait' && !x.arch);
-    // The price all taxes included stays what it was: the net follows the new rate.
-    const av = L.map(x => ({ x, tax_category: x.fam, net: x.net }));
+    // The price all taxes included stays what it was: it is (re)posted TTC, whatever the new rate.
+    const av = L.map(x => ({ x, tax_category: x.fam, price: x.price, price_mode: x.pm }));
     let faits = [];
-    try { faits = await pourChacun(L, x => poster(url(BASE[x.k] + 'Update', x.id), { tax_category: v, net: netDe(x.prix, v) })); } catch (e) { echec(e); }
+    try { faits = await pourChacun(L, x => poster(url(BASE[x.k] + 'Update', x.id), { tax_category: v, price: Math.round(x.prix * 100), price_mode: 'incl' })); } catch (e) { echec(e); }
     fermerModales();
     try { await recharger(); } catch (e) { echec(e); }
     rendre();
     if (faits.length) toastUndo(`Famille « ${famDe(v).l} » appliquée à ${nEl(faits.length)}`, async () => {
-      try { await pourChacun(av.filter(o => faits.includes(o.x)), o => poster(url(BASE[o.x.k] + 'Update', o.x.id), { tax_category: o.tax_category, net: o.net })); await recharger(); rendre(); } catch (e) { echec(e); }
+      try { await pourChacun(av.filter(o => faits.includes(o.x)), o => poster(url(BASE[o.x.k] + 'Update', o.x.id), { tax_category: o.tax_category, price: o.price, price_mode: o.price_mode })); await recharger(); rendre(); } catch (e) { echec(e); }
     });
   }, { signal });
   let rvArr = 0.1;
@@ -974,17 +982,17 @@ export function init() {
   $('bkRev').addEventListener('click', () => { $('rvSub').textContent = `${nEl(ST.sel.size)} sélectionné${ST.sel.size > 1 ? 's' : ''}`; majRev(); ouvrirModale('mRev'); }, { signal });
   $('rvOk').addEventListener('click', async () => {
     const pct = parseN($('rvPct').value) || 0, L = revisables();
-    const av = L.map(x => ({ x, net: x.net }));
+    const av = L.map(x => ({ x, price: x.price, price_mode: x.pm }));
     $('rvOk').disabled = true;
     let faits = [];
-    try { faits = await pourChacun(L, x => poster(url(BASE[x.k] + 'Update', x.id), { net: netDe(arrondir(x.prix * (1 + pct / 100)), x.fam) })); } catch (e) { echec(e); }
+    try { faits = await pourChacun(L, x => poster(url(BASE[x.k] + 'Update', x.id), { price: Math.round(arrondir(x.prix * (1 + pct / 100)) * 100), price_mode: 'incl' })); } catch (e) { echec(e); }
     fermerModales();
     ST.sel.clear();
     try { await recharger(); } catch (e) { echec(e); }
     rendre();
     if (ST.fiche) { ST.fiche = item(ST.fiche.id) || ST.fiche; ST.draft = structuredClone(ST.fiche); ST.dirty = false; rendreFiche(); }
     if (faits.length) toastUndo(`${faits.length} prix révisé${faits.length > 1 ? 's' : ''} de ${pct > 0 ? '+' : ''}${fmtN(pct, pct % 1 ? 1 : 0)} %`, async () => {
-      try { await pourChacun(av.filter(o => faits.includes(o.x)), o => poster(url(BASE[o.x.k] + 'Update', o.x.id), { net: o.net })); await recharger(); rendre(); } catch (e) { echec(e); }
+      try { await pourChacun(av.filter(o => faits.includes(o.x)), o => poster(url(BASE[o.x.k] + 'Update', o.x.id), { price: o.price, price_mode: o.price_mode })); await recharger(); rendre(); } catch (e) { echec(e); }
     });
   }, { signal });
 

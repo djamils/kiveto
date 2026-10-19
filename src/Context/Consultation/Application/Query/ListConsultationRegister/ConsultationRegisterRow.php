@@ -14,7 +14,9 @@ final readonly class ConsultationRegisterRow
      * @param list<string>                              $motifs
      * @param list<array{code: ?string, label: string}> $billedItems     billing lines, in position order
      * @param array<string, int>                        $htByTaxCategory tax category code => pre-tax minor units,
-     *                                                                   the empty key holding the untaxed lines
+     *the empty key holding the untaxed lines
+     * @param array<string, int> $ttcByTaxCategory tax category code => all-taxes-included minor units
+     *                                             (lines whose price was entered TTC)
      */
     public function __construct(
         public string $consultationId,
@@ -31,6 +33,7 @@ final readonly class ConsultationRegisterRow
         public ?string $weightKg,
         public array $billedItems,
         public array $htByTaxCategory,
+        public array $ttcByTaxCategory,
         public string $currency,
     ) {
     }

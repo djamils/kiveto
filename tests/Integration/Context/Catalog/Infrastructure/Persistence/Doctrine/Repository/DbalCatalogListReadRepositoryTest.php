@@ -23,6 +23,7 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListName;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Fixtures\Context\Catalog\Factory\ActEntityFactory;
 use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
@@ -135,6 +136,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         self::assertSame('SURGERY', $row->category);
         self::assertSame(18000, $row->basePriceMinorUnits);
         self::assertSame('EUR', $row->currency);
+        self::assertSame('incl', $row->basePriceMode);
         self::assertSame(45, $row->estimatedDurationMinutes);
         self::assertTrue($row->requiresAnesthesia);
         self::assertFalse($row->isArchived());
@@ -158,6 +160,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
 
         $drugs = $this->catalog->articles($this->clinic(), new CatalogListCriteria(kinds: ['DRUG']));
         self::assertSame(2, $drugs['total']);
+        self::assertSame('incl', $drugs['items'][0]->basePriceMode);
 
         $food = $this->catalog->articles($this->clinic(), new CatalogListCriteria(kinds: ['FOOD', 'CONSUMABLE']));
         self::assertSame(2, $food['total']);
@@ -241,6 +244,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         self::assertSame('Consultation standard', $components[0]->itemName);
         self::assertSame('CONS-A', $components[0]->itemCode);
         self::assertSame(4500, $components[0]->lineTotalMinorUnits());
+        self::assertSame('incl', $components[0]->unitPriceMode);
         self::assertFalse($components[0]->isDangling());
         self::assertSame('Amoxicilline 250', $components[1]->itemName);
         self::assertSame(2500, $components[1]->lineTotalMinorUnits());
@@ -257,6 +261,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
 
         self::assertTrue($row->isFixedPrice());
         self::assertSame(9900, $row->effectivePriceMinorUnits());
+        self::assertSame('incl', $row->fixedPriceMode);
         self::assertSame(4500, $row->componentsTotalMinorUnits);
     }
 
@@ -300,6 +305,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         // A package priced at the sum of nothing carries no currency of its own.
         $sum = $this->catalog->packages($this->clinic(), new CatalogListCriteria(kinds: ['SUM_OF_COMPONENTS']));
         self::assertSame('EUR', $sum['items'][0]->currency);
+        self::assertNull($sum['items'][0]->fixedPriceMode);
         self::assertSame(0, $sum['items'][0]->componentsTotalMinorUnits);
     }
 
@@ -357,7 +363,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
             PriceListItem::create(
                 PriceListItemId::fromString(Uuid::v7()->toRfc4122()),
                 CatalogItemRef::toAct(ActId::fromString($act)),
-                Money::fromMinorUnits(3900, CurrencyCode::fromString('EUR')),
+                CatalogPrice::includingTax(Money::fromMinorUnits(3900, CurrencyCode::fromString('EUR'))),
                 TaxCategoryCode::fromString('veterinary.act.consultation'),
             ),
             $this->now(),
@@ -369,7 +375,9 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         self::assertCount(1, $entries);
         self::assertSame('Consultation standard', $entries[0]->itemName);
         self::assertSame(4500, $entries[0]->basePriceMinorUnits);
-        self::assertSame(3900, $entries[0]->netPriceMinorUnits);
+        self::assertSame(3900, $entries[0]->priceMinorUnits);
+        self::assertSame('incl', $entries[0]->priceMode);
+        self::assertSame('incl', $entries[0]->basePriceMode);
         self::assertSame(-600, $entries[0]->differenceMinorUnits());
         self::assertFalse($entries[0]->isDangling());
     }
@@ -387,7 +395,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
             PriceListItem::create(
                 PriceListItemId::fromString(Uuid::v7()->toRfc4122()),
                 CatalogItemRef::toArticle(ArticleId::fromString(Uuid::v7()->toRfc4122())),
-                Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')),
+                CatalogPrice::includingTax(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR'))),
                 null,
             ),
             $this->now(),
@@ -428,7 +436,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         self::assertCount(2, $entries);
         self::assertSame(
             [16000, 3900],
-            array_map(static fn ($entry): int => $entry->netPriceMinorUnits, $entries),
+            array_map(static fn ($entry): int => $entry->priceMinorUnits, $entries),
         );
     }
 
@@ -495,7 +503,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
         return PriceListItem::create(
             PriceListItemId::fromString(Uuid::v7()->toRfc4122()),
             CatalogItemRef::toAct(ActId::fromString($actId)),
-            Money::fromMinorUnits($netPrice, CurrencyCode::fromString('EUR')),
+            CatalogPrice::includingTax(Money::fromMinorUnits($netPrice, CurrencyCode::fromString('EUR'))),
             null,
         );
     }
@@ -578,7 +586,7 @@ final class DbalCatalogListReadRepositoryTest extends KernelTestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             $mode,
             null !== $fixedPrice
-                ? Money::fromMinorUnits($fixedPrice, CurrencyCode::fromString('EUR'))
+                ? CatalogPrice::includingTax(Money::fromMinorUnits($fixedPrice, CurrencyCode::fromString('EUR')))
                 : null,
             $this->now(),
         );

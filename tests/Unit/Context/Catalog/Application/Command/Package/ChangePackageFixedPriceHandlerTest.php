@@ -34,7 +34,7 @@ final class ChangePackageFixedPriceHandlerTest extends TestCase
         ;
 
         $this->handler($repository, $eventBus)(
-            new ChangePackageFixedPrice(F::PACKAGE_ID, F::CLINIC_ID, 27500, 'EUR'),
+            new ChangePackageFixedPrice(F::PACKAGE_ID, F::CLINIC_ID, 27500, 'EUR', 'incl'),
         );
 
         self::assertSame(27500, $package->fixedPrice()?->minorUnits());
@@ -49,7 +49,7 @@ final class ChangePackageFixedPriceHandlerTest extends TestCase
         $this->expectException(PackageNotFoundException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new ChangePackageFixedPrice(F::PACKAGE_ID, F::CLINIC_ID, 27500, 'EUR'),
+            new ChangePackageFixedPrice(F::PACKAGE_ID, F::CLINIC_ID, 27500, 'EUR', 'incl'),
         );
     }
 

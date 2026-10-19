@@ -44,11 +44,16 @@ final readonly class UpdatePackageController
             $package = $this->queryBus->ask(new GetPackageDetail($packageId, $clinicId));
             \assert($package instanceof PackageDetailView);
 
-            $mode = $form->has('pricing_mode') ? $form->getString('pricing_mode') : $package->pricingMode;
-            $net  = $form->has('net') ? CatalogEndpoint::cents($request, 'net') : $package->fixedPriceMinorUnits;
+            $mode      = $form->has('pricing_mode') ? $form->getString('pricing_mode') : $package->pricingMode;
+            $price     = $form->has('price') ? CatalogEndpoint::cents($request, 'price') : $package->fixedPriceMinorUnits;
+            $priceMode = $form->has('price') ? CatalogEndpoint::priceMode($request) : $package->fixedPriceMode;
 
-            if ('FIXED_PRICE' === $mode && null === $net) {
+            if ('FIXED_PRICE' === $mode && null === $price) {
                 return $this->endpoint->refuse('Le prix forfaitaire saisi est invalide.');
+            }
+
+            if ('FIXED_PRICE' === $mode && null === $priceMode) {
+                return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
             }
 
             $this->commandBus->dispatch(new RevisePackage(
@@ -57,8 +62,9 @@ final readonly class UpdatePackageController
                 name: CatalogEndpoint::text($request, 'name') ?? $package->name,
                 taxCategoryCode: CatalogEndpoint::text($request, 'tax_category') ?? $package->taxCategoryCode,
                 pricingMode: $mode,
-                fixedPriceMinorUnits: 'FIXED_PRICE' === $mode ? $net : null,
+                fixedPriceMinorUnits: 'FIXED_PRICE' === $mode ? $price : null,
                 fixedPriceCurrency: 'FIXED_PRICE' === $mode ? 'EUR' : null,
+                fixedPriceMode: 'FIXED_PRICE' === $mode ? $priceMode : null,
             ));
 
             $wanted = PackageComposition::wanted($request);

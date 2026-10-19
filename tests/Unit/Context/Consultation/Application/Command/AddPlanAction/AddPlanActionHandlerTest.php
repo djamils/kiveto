@@ -18,6 +18,7 @@ use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -62,7 +63,7 @@ final class AddPlanActionHandlerTest extends TestCase
         $this->catalogItems->expects(self::once())
             ->method('resolvePrice')
             ->with(self::identicalTo($act), self::CLINIC_ID)
-            ->willReturn(new CatalogPriceDto(2500, 'EUR', 'STANDARD'))
+            ->willReturn(new CatalogPriceDto(2500, 'EUR', 'incl', 'STANDARD'))
         ;
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:10:00'));
         $this->consultations->expects(self::once())->method('save')->with(self::identicalTo($consultation));
@@ -74,6 +75,9 @@ final class AddPlanActionHandlerTest extends TestCase
         self::assertSame(['EUR'], self::currenciesOf($consultation));
         self::assertSame(['STANDARD'], self::taxCategoriesOf($consultation));
         self::assertSame([2500], self::billedUnitPricesOf($consultation));
+        // The mode the catalogue price was entered in travels with the snapshot.
+        self::assertSame(UnitPriceMode::INCLUDING_TAX, $consultation->getPlanActions()[0]->getUnitPriceMode());
+        self::assertSame(UnitPriceMode::INCLUDING_TAX, $consultation->getBillingLines()[0]->getUnitPriceMode());
     }
 
     public function testAddNonBillableActionNeverCallsTheCatalog(): void
@@ -119,6 +123,7 @@ final class AddPlanActionHandlerTest extends TestCase
             requiresPrescription: false,
             basePriceMinorUnits: 4000,
             currency: 'EUR',
+            basePriceMode: 'incl',
             taxCategoryCode: 'STANDARD',
             status: 'ARCHIVED',
         );
@@ -230,6 +235,7 @@ final class AddPlanActionHandlerTest extends TestCase
             requiresPrescription: false,
             basePriceMinorUnits: 2000,
             currency: 'EUR',
+            basePriceMode: 'incl',
             taxCategoryCode: 'STANDARD',
             status: 'ACTIVE',
         );

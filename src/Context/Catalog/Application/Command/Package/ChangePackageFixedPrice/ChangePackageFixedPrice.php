@@ -13,6 +13,7 @@ final readonly class ChangePackageFixedPrice implements CommandInterface
         public string $clinicId,
         public int $fixedPriceMinorUnits,
         public string $fixedPriceCurrency,
+        public string $fixedPriceMode,
     ) {
     }
 }

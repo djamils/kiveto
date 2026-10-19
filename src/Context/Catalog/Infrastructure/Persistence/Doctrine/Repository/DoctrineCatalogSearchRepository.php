@@ -30,7 +30,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
         // detail query to know whether an item is billable or requires an Rx.
         $actSql = \sprintf(
             "SELECT BIN_TO_UUID(id) AS id, 'ACT' AS type, name, code, status,
-                    base_price_minor_units, base_price_currency, tax_category_code,
+                    base_price_minor_units, base_price_currency, base_price_mode, tax_category_code,
                     0 AS requires_prescription, NULL AS article_kind
             FROM catalog__acts
             WHERE tenant_id = :tenantId AND name LIKE :pattern
@@ -40,7 +40,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
 
         $articleSql = \sprintf(
             "SELECT BIN_TO_UUID(id) AS id, 'ARTICLE' AS type, name, code, status,
-                    base_price_minor_units, base_price_currency, tax_category_code,
+                    base_price_minor_units, base_price_currency, base_price_mode, tax_category_code,
                     COALESCE(drug_requires_rx, 0) AS requires_prescription, kind AS article_kind
             FROM catalog__articles
             WHERE tenant_id = :tenantId AND name LIKE :pattern
@@ -65,6 +65,7 @@ final readonly class DoctrineCatalogSearchRepository implements CatalogSearchRep
                 status: RowAccessor::string($row, 'status'),
                 basePriceMinorUnits: RowAccessor::int($row, 'base_price_minor_units'),
                 basePriceCurrency: RowAccessor::string($row, 'base_price_currency'),
+                basePriceMode: RowAccessor::string($row, 'base_price_mode'),
                 taxCategoryCode: RowAccessor::string($row, 'tax_category_code'),
                 requiresPrescription: 1 === RowAccessor::int($row, 'requires_prescription'),
                 articleKind: RowAccessor::nullableString($row, 'article_kind'),

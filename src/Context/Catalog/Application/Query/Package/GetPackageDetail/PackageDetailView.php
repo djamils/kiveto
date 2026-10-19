@@ -18,6 +18,8 @@ final readonly class PackageDetailView
         public string $pricingMode,
         public ?int $fixedPriceMinorUnits,
         public ?string $fixedPriceCurrency,
+        /** 'incl' (all taxes included) or 'excl': the mode the price was entered in. */
+        public ?string $fixedPriceMode,
         public array $components,
         public string $status,
         public string $createdAt,

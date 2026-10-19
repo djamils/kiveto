@@ -12,6 +12,8 @@ final readonly class CatalogPriceDto
     public function __construct(
         public int $minorUnits,
         public string $currency,
+        /** 'incl' or 'excl': the mode the catalogue price was entered in. */
+        public string $mode,
         public string $taxCategoryCode,
     ) {
     }

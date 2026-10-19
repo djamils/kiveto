@@ -15,6 +15,7 @@ use App\Context\Catalog\Domain\Article\ValueObject\ArticleName;
 use App\Context\Catalog\Domain\Article\ValueObject\DrugProperties;
 use App\Context\Catalog\Domain\Article\ValueObject\Gtin;
 use App\Context\Catalog\Domain\Article\ValueObject\PrescriptionClass;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -34,7 +35,7 @@ final class ArticleTest extends TestCase
             code: ArticleCode::fromString('AMOX'),
             gtin: null,
             taxCategory: TaxCategoryCode::fromString('veterinary.drug.prescription'),
-            basePrice: Money::fromMinorUnits(1500, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(1500, CurrencyCode::fromString('EUR'))),
             unitOfMeasure: UnitOfMeasure::fromString('TABLET'),
             drugProperties: $this->makeDrugProperties(),
             trackStock: true,
@@ -63,7 +64,7 @@ final class ArticleTest extends TestCase
             kind: ArticleKind::DRUG,
             gtin: null,
             taxCategory: TaxCategoryCode::fromString('veterinary.drug.prescription'),
-            basePrice: Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR'))),
             unitOfMeasure: UnitOfMeasure::fromString('UNIT'),
             trackStock: false,
             createdAt: $now,
@@ -163,7 +164,7 @@ final class ArticleTest extends TestCase
             code: ArticleCode::fromString('AMOX-250'),
             gtin: Gtin::fromString('03401234567890'),
             taxCategory: TaxCategoryCode::fromString('veterinary.drug.prescription'),
-            basePrice: Money::fromMinorUnits(1500, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(1500, CurrencyCode::fromString('EUR'))),
             unitOfMeasure: UnitOfMeasure::fromString('TABLET'),
             drugProperties: $this->makeDrugProperties(),
             trackStock: true,

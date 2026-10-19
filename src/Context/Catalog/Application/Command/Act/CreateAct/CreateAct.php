@@ -17,6 +17,7 @@ final readonly class CreateAct implements CommandInterface
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
         public int $estimatedDurationMinutes,
         public bool $requiresAnesthesia,
     ) {

@@ -18,6 +18,8 @@ final readonly class CatalogItemDto
         public bool $requiresPrescription,
         public int $basePriceMinorUnits,
         public string $currency,
+        /** 'incl' or 'excl': the mode the catalogue price was entered in. */
+        public string $basePriceMode,
         public string $taxCategoryCode,
         public string $status,
         /** DRUG, CONSUMABLE, FOOD or EQUIPMENT for an article, null for an act. */

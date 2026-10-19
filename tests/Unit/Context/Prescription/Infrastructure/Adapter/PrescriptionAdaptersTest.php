@@ -171,6 +171,7 @@ final class PrescriptionAdaptersTest extends TestCase
             taxCategoryCode: 'veterinary.drug.prescription',
             basePriceMinorUnits: 5600,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             unitOfMeasure: 'VIAL',
             trackStock: true,
             status: 'ACTIVE',

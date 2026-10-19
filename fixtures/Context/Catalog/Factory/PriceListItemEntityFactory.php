@@ -25,8 +25,9 @@ final class PriceListItemEntityFactory extends PersistentProxyObjectFactory
             'priceListId'         => Uuid::v7(),
             'itemType'            => 'ACT',
             'itemId'              => Uuid::v7()->toRfc4122(),
-            'netPriceMinorUnits'  => self::faker()->numberBetween(1000, 50000),
-            'netPriceCurrency'    => 'EUR',
+            'priceMinorUnits'     => self::faker()->numberBetween(1000, 50000),
+            'priceCurrency'       => 'EUR',
+            'priceMode'           => 'incl',
             'taxCategoryOverride' => null,
         ];
     }

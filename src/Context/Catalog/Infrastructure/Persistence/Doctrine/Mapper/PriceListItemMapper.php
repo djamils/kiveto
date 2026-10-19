@@ -8,9 +8,8 @@ use App\Context\Catalog\Domain\Pricing\PriceListItem;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\PriceListItemEntity;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Uid\Uuid;
 
@@ -24,8 +23,9 @@ final readonly class PriceListItemMapper
         $entity->setPriceListId(Uuid::fromString($priceListId->toString()));
         $entity->setItemType($item->itemRef()->type()->value);
         $entity->setItemId($item->itemRef()->id());
-        $entity->setNetPriceMinorUnits($item->netPrice()->minorUnits());
-        $entity->setNetPriceCurrency($item->netPrice()->currency()->toString());
+        $entity->setPriceMinorUnits($item->price()->minorUnits());
+        $entity->setPriceCurrency($item->price()->currency()->toString());
+        $entity->setPriceMode($item->price()->mode()->value);
         $entity->setTaxCategoryOverride($item->taxCategoryOverride()?->toString());
 
         return $entity;
@@ -40,9 +40,10 @@ final readonly class PriceListItemMapper
         return PriceListItem::create(
             id: PriceListItemId::fromString($entity->getId()->toString()),
             itemRef: CatalogItemRef::fromPrimitives($entity->getItemType(), $entity->getItemId()),
-            netPrice: Money::fromMinorUnits(
-                $entity->getNetPriceMinorUnits(),
-                CurrencyCode::fromString($entity->getNetPriceCurrency()),
+            price: CatalogPrice::fromPrimitives(
+                $entity->getPriceMinorUnits(),
+                $entity->getPriceCurrency(),
+                $entity->getPriceMode(),
             ),
             taxCategoryOverride: $taxCategoryOverride,
         );

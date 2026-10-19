@@ -37,6 +37,7 @@ final class GetActDetailHandler
             taxCategoryCode: $act->taxCategory()->toString(),
             basePriceMinorUnits: $act->basePrice()->minorUnits(),
             basePriceCurrency: $act->basePrice()->currency()->toString(),
+            basePriceMode: $act->basePrice()->mode()->value,
             estimatedDurationMinutes: $act->estimatedDuration()->toMinutes(),
             requiresAnesthesia: $act->requiresAnesthesia(),
             status: $act->status()->value,

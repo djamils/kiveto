@@ -12,6 +12,7 @@ use App\Context\Catalog\Application\Query\Catalog\SearchCatalogItems\SearchCatal
 use App\Context\Catalog\Application\Query\Pricing\ResolvePrice\ResolvePrice;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\ResolvedPrice;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -56,8 +57,9 @@ final class QueryBusCounterCatalogTest extends TestCase
         $articles = new QueryBusCounterCatalog($bus)->search(self::CLINIC_ID, 'front', 10);
 
         self::assertSame(['Croquettes', 'Frontline'], array_map(static fn ($a): string => $a->label, $articles));
-        self::assertSame(4200, $articles[0]->unitNetMinorUnits);
-        self::assertSame(1890, $articles[1]->unitNetMinorUnits);
+        self::assertSame(4200, $articles[0]->unitPriceMinorUnits);
+        self::assertSame('incl', $articles[0]->unitPriceMode);
+        self::assertSame(1890, $articles[1]->unitPriceMinorUnits);
     }
 
     public function testThePrescriptionOnlyMedicinesTheSearchFindsAreListedApart(): void
@@ -102,7 +104,7 @@ final class QueryBusCounterCatalogTest extends TestCase
         self::assertNotNull($article);
         self::assertSame(self::FREE, $article->articleId);
         self::assertSame('FRONTLINE-CB', $article->code);
-        self::assertSame(1700, $article->unitNetMinorUnits);
+        self::assertSame(1700, $article->unitPriceMinorUnits);
         self::assertSame('EUR', $article->currency);
         self::assertSame('veterinary.drug.companion', $article->taxCategoryCode);
     }
@@ -131,7 +133,7 @@ final class QueryBusCounterCatalogTest extends TestCase
 
     private function hit(string $id, string $type, string $name, string $status, bool $rx): CatalogSearchResult
     {
-        return new CatalogSearchResult($id, $type, $name, 'CODE', $status, 1890, 'EUR', 'veterinary.drug.companion', $rx, 'ARTICLE' === $type ? 'DRUG' : null);
+        return new CatalogSearchResult($id, $type, $name, 'CODE', $status, 1890, 'EUR', 'incl', 'veterinary.drug.companion', $rx, 'ARTICLE' === $type ? 'DRUG' : null);
     }
 
     private function detail(string $id, string $status, bool $rx): ArticleDetailView
@@ -146,6 +148,7 @@ final class QueryBusCounterCatalogTest extends TestCase
             taxCategoryCode: 'veterinary.drug.companion',
             basePriceMinorUnits: 1890,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             unitOfMeasure: 'unit',
             trackStock: true,
             status: $status,
@@ -169,6 +172,7 @@ final class QueryBusCounterCatalogTest extends TestCase
             PriceListId::fromString('01960000-0000-7000-8000-00000000b8ff'),
             null,
             new \DateTimeImmutable(),
+            PriceEntryMode::INCLUDING_TAX,
         );
     }
 }

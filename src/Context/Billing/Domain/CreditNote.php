@@ -7,6 +7,7 @@ namespace App\Context\Billing\Domain;
 use App\Context\Billing\Domain\Event\CreditNoteIssued;
 use App\Context\Billing\Domain\Exception\CurrencyMismatchException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
+use App\Context\Billing\Domain\ValueObject\CalculatedAmounts;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -14,6 +15,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -27,11 +29,15 @@ use App\Shared\Money\Domain\ValueObject\Money;
  * never changes afterwards; what it gave back to the client (if they had
  * already paid) is part of it.
  *
- * Amounts are positive here: the document prints them as negative.
+ * Amounts are positive here: the document prints them as negative. They are
+ * worked out once, when the note is issued, from the frozen amounts of the
+ * invoice it credits, and never recalculated.
  */
 final class CreditNote extends AggregateRoot
 {
     private const int MAX_REASON_LENGTH = 255;
+
+    private CalculatedAmounts $amounts;
 
     /**
      * @param list<InvoiceLine> $lines
@@ -54,7 +60,8 @@ final class CreditNote extends AggregateRoot
     }
 
     /**
-     * @param list<InvoiceLine> $lines
+     * @param list<InvoiceLine> $lines     the credited lines, with their amounts
+     * @param list<RateBucket>  $breakdown what the note credits per VAT rate
      */
     public static function issue(
         CreditNoteId $id,
@@ -64,6 +71,7 @@ final class CreditNote extends AggregateRoot
         string $invoiceNumber,
         Payer $payer,
         array $lines,
+        array $breakdown,
         string $reason,
         ?PaymentMethod $refundMethod,
         Money $refunded,
@@ -107,6 +115,8 @@ final class CreditNote extends AggregateRoot
             issuedByUserId: $issuedByUserId,
         );
 
+        $creditNote->amounts = $creditNote->amountsOf($lines, $breakdown);
+
         if ($refunded->minorUnits() < 0 || $refunded->minorUnits() > $creditNote->totalGross()->minorUnits()) {
             throw new InvalidCreditNoteException('A credit note cannot give back more than it credits.');
         }
@@ -131,6 +141,7 @@ final class CreditNote extends AggregateRoot
 
     /**
      * @param list<InvoiceLine> $lines
+     * @param list<RateBucket>  $breakdown
      */
     public static function reconstitute(
         CreditNoteId $id,
@@ -140,6 +151,7 @@ final class CreditNote extends AggregateRoot
         string $invoiceNumber,
         Payer $payer,
         array $lines,
+        array $breakdown,
         string $reason,
         ?PaymentMethod $refundMethod,
         Money $refunded,
@@ -147,7 +159,7 @@ final class CreditNote extends AggregateRoot
         \DateTimeImmutable $issuedAt,
         ?string $issuedByUserId,
     ): self {
-        return new self(
+        $creditNote = new self(
             $id,
             $clinicId,
             $number,
@@ -162,21 +174,64 @@ final class CreditNote extends AggregateRoot
             $issuedAt,
             $issuedByUserId,
         );
+
+        $creditNote->amounts = CalculatedAmounts::of(
+            array_map(static fn (InvoiceLine $line) => $line->amounts(), $lines),
+            $breakdown,
+            $currency,
+        );
+
+        return $creditNote;
     }
 
+    public function amounts(): CalculatedAmounts
+    {
+        return $this->amounts;
+    }
+
+    /** Σ credited line nets (BT-106). */
+    public function totalNetBeforeDiscount(): Money
+    {
+        return $this->amounts->totalLineNet();
+    }
+
+    /** The share of the invoice's discount the note gives back (BT-107). */
+    public function discountAmount(): Money
+    {
+        return $this->amounts->totalAllowance();
+    }
+
+    /** The credited total excl. VAT (BT-109). */
     public function totalNet(): Money
     {
-        return $this->sum(static fn (InvoiceLine $line): int => $line->netAmount()->minorUnits());
+        return $this->amounts->taxBasis();
     }
 
     public function totalTax(): Money
     {
-        return $this->sum(static fn (InvoiceLine $line): int => $line->taxAmount()->minorUnits());
+        return $this->amounts->totalVat();
     }
 
     public function totalGross(): Money
     {
-        return $this->sum(static fn (InvoiceLine $line): int => $line->grossAmount()->minorUnits());
+        return $this->amounts->totalGross();
+    }
+
+    /**
+     * @return list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}>
+     */
+    public function taxBreakdown(): array
+    {
+        return array_map(
+            static fn (RateBucket $bucket): array => [
+                'ratePercent'         => $bucket->ratePercent(),
+                'netMinorUnits'       => $bucket->base()->minorUnits(),
+                'taxMinorUnits'       => $bucket->vat()->minorUnits(),
+                'grossMinorUnits'     => $bucket->gross()->minorUnits(),
+                'allowanceMinorUnits' => $bucket->allowance()->minorUnits(),
+            ],
+            $this->amounts->buckets(),
+        );
     }
 
     /**
@@ -266,16 +321,28 @@ final class CreditNote extends AggregateRoot
     }
 
     /**
-     * @param callable(InvoiceLine): int $extract
+     * The breakdown must account for exactly the credited lines.
+     *
+     * @param list<InvoiceLine> $lines
+     * @param list<RateBucket>  $breakdown
      */
-    private function sum(callable $extract): Money
+    private function amountsOf(array $lines, array $breakdown): CalculatedAmounts
     {
-        $total = 0;
+        $amounts = CalculatedAmounts::of(
+            array_map(static fn (InvoiceLine $line) => $line->amounts(), $lines),
+            $breakdown,
+            $this->currency,
+        );
 
-        foreach ($this->lines as $line) {
-            $total += $extract($line);
+        $lineNets = 0;
+        foreach ($lines as $line) {
+            $lineNets += $line->netAmount()->minorUnits();
         }
 
-        return Money::fromMinorUnits($total, $this->currency);
+        if ($lineNets !== $amounts->totalLineNet()->minorUnits()) {
+            throw new InvalidCreditNoteException('The credited amounts per VAT rate do not match the credited lines.');
+        }
+
+        return $amounts;
     }
 }

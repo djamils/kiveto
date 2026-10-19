@@ -15,9 +15,9 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListName;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListStatus;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceRuleId;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 
 final class PriceList extends AggregateRoot
@@ -108,27 +108,29 @@ final class PriceList extends AggregateRoot
             priceListItemId: $item->id()->toString(),
             itemType: $item->itemRef()->type()->value,
             itemId: $item->itemRef()->id(),
-            netPriceMinorUnits: $item->netPrice()->minorUnits(),
-            netPriceCurrency: $item->netPrice()->currency()->toString(),
+            priceMinorUnits: $item->price()->minorUnits(),
+            priceCurrency: $item->price()->currency()->toString(),
+            priceMode: $item->price()->mode()->value,
         ));
     }
 
     public function updateItem(
         PriceListItemId $itemId,
-        Money $netPrice,
+        CatalogPrice $price,
         ?TaxCategoryCode $taxCategoryOverride,
         \DateTimeImmutable $updatedAt,
     ): void {
         foreach ($this->items as $item) {
             if ($item->id()->equals($itemId)) {
-                $item->updatePrice($netPrice, $taxCategoryOverride);
+                $item->updatePrice($price, $taxCategoryOverride);
                 $this->updatedAt = $updatedAt;
 
                 $this->recordDomainEvent(new PriceListItemUpdated(
                     priceListId: $this->id->toString(),
                     priceListItemId: $itemId->toString(),
-                    newNetPriceMinorUnits: $netPrice->minorUnits(),
-                    newNetPriceCurrency: $netPrice->currency()->toString(),
+                    newPriceMinorUnits: $price->minorUnits(),
+                    newPriceCurrency: $price->currency()->toString(),
+                    newPriceMode: $price->mode()->value,
                 ));
 
                 return;

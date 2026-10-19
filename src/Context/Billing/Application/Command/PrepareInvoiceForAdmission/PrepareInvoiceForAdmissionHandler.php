@@ -7,17 +7,17 @@ namespace App\Context\Billing\Application\Command\PrepareInvoiceForAdmission;
 use App\Context\Billing\Application\Port\BillableLineDto;
 use App\Context\Billing\Application\Port\ConsultationBillingProviderInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
-use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
-use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -39,7 +39,7 @@ final readonly class PrepareInvoiceForAdmissionHandler
     public function __construct(
         private InvoiceRepositoryInterface $invoices,
         private ConsultationBillingProviderInterface $consultationBilling,
-        private TaxResolverInterface $taxResolver,
+        private InvoiceLineFactory $lineFactory,
         private PayerDirectoryInterface $payerDirectory,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
@@ -119,26 +119,14 @@ final readonly class PrepareInvoiceForAdmissionHandler
         CurrencyCode $currency,
         string $clinicId,
     ): InvoiceLine {
-        $net = (int) round((float) $line->quantity * $line->unitPriceMinorUnits);
-
-        $tax = $this->taxResolver->resolve(
-            $net,
-            $currency->toString(),
-            $line->taxCategoryCode,
-            $clinicId,
-        );
-
-        return InvoiceLine::create(
-            id: InvoiceLineId::fromString($this->uuidGenerator->generate()),
+        return $this->lineFactory->line(
+            clinicId: $clinicId,
             label: $line->label,
             code: $line->code,
             quantity: $line->quantity,
-            unitNetPrice: Money::fromMinorUnits($line->unitPriceMinorUnits, $currency),
+            enteredUnitPrice: Money::fromMinorUnits($line->unitPriceMinorUnits, $currency),
+            priceMode: PriceMode::from($line->unitPriceMode),
             taxCategoryCode: $line->taxCategoryCode,
-            taxRatePercent: $tax->ratePercent,
-            netAmount: Money::fromMinorUnits($tax->netMinorUnits, $currency),
-            taxAmount: Money::fromMinorUnits($tax->taxMinorUnits, $currency),
-            grossAmount: Money::fromMinorUnits($tax->grossMinorUnits, $currency),
             source: InvoiceLineSource::CONSULTATION,
             sourceReference: $line->sourceLineId,
         );

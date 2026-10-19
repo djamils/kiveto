@@ -27,6 +27,7 @@ final readonly class PrescriptionLineRecord
         private float $quantity,
         private int $unitPriceMinorUnits,
         private string $currency,
+        private UnitPriceMode $unitPriceMode,
         private ?string $taxCategoryCode,
         private \DateTimeImmutable $createdAtUtc,
         private string $createdByUserId,
@@ -44,6 +45,7 @@ final readonly class PrescriptionLineRecord
         float $quantity,
         int $unitPriceMinorUnits,
         string $currency,
+        UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         \DateTimeImmutable $createdAtUtc,
         UserId $createdByUserId,
@@ -97,6 +99,7 @@ final readonly class PrescriptionLineRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             self::normalize($taxCategoryCode, 'Prescription tax category code', 40),
             $createdAtUtc,
             $createdByUserId->toString(),
@@ -115,6 +118,7 @@ final readonly class PrescriptionLineRecord
         float $quantity,
         int $unitPriceMinorUnits,
         string $currency,
+        UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         \DateTimeImmutable $createdAtUtc,
         string $createdByUserId,
@@ -131,6 +135,7 @@ final readonly class PrescriptionLineRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
             $createdAtUtc,
             $createdByUserId,
@@ -190,6 +195,11 @@ final readonly class PrescriptionLineRecord
     public function getCurrency(): string
     {
         return $this->currency;
+    }
+
+    public function getUnitPriceMode(): UnitPriceMode
+    {
+        return $this->unitPriceMode;
     }
 
     public function getTaxCategoryCode(): ?string

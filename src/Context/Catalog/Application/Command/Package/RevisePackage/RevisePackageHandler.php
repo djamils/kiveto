@@ -11,11 +11,10 @@ use App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -57,7 +56,7 @@ final readonly class RevisePackageHandler
                 throw new ClinicCurrencyMismatchException($clinicCurrency->toString(), $currency);
             }
 
-            $fixedPrice = Money::fromMinorUnits($command->fixedPriceMinorUnits, CurrencyCode::fromString($currency));
+            $fixedPrice = CatalogPrice::fromPrimitives($command->fixedPriceMinorUnits, $currency, $command->fixedPriceMode ?? '');
         }
 
         $package->revise(

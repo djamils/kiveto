@@ -15,6 +15,7 @@ use App\Context\Catalog\Domain\Article\ValueObject\ArticleKind;
 use App\Context\Catalog\Domain\Article\ValueObject\ArticleName;
 use App\Context\Catalog\Domain\Article\ValueObject\DrugProperties;
 use App\Context\Catalog\Domain\Article\ValueObject\PrescriptionClass;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -149,7 +150,7 @@ final class UpdateArticlePrescriptionFlagsHandlerTest extends TestCase
             code: ArticleCode::fromString('AMOX-250'),
             gtin: null,
             taxCategory: TaxCategoryCode::fromString('veterinary.drug.prescription'),
-            basePrice: Money::fromMinorUnits(1250, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(1250, CurrencyCode::fromString('EUR'))),
             unitOfMeasure: UnitOfMeasure::fromString('UNIT'),
             drugProperties: DrugProperties::create(null, true, $class, $controlled),
             trackStock: true,

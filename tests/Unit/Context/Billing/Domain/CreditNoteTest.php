@@ -15,11 +15,16 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\LineAmounts;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
 use PHPUnit\Framework\TestCase;
 
 final class CreditNoteTest extends TestCase
@@ -85,7 +90,7 @@ final class CreditNoteTest extends TestCase
     {
         $this->expectException(CurrencyMismatchException::class);
 
-        $this->issue(lines: [$this->line('USD')]);
+        $this->issue(lines: [$this->line('USD')], breakdown: []);
     }
 
     public function testTheRefundIsInTheCreditNotesCurrency(): void
@@ -119,6 +124,7 @@ final class CreditNoteTest extends TestCase
             'FAC-2026-000040',
             Payer::anonymous(),
             [$this->line('EUR', null)],
+            [$this->bucket()],
             'Geste commercial',
             null,
             Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
@@ -132,8 +138,35 @@ final class CreditNoteTest extends TestCase
         self::assertNull($note->issuedByUserId());
     }
 
+    public function testItCarriesItsBreakdownAndDiscountShare(): void
+    {
+        $note = $this->issue(breakdown: [$this->bucket(1000, 100, 180)]);
+
+        self::assertSame(1000, $note->totalNetBeforeDiscount()->minorUnits());
+        self::assertSame(100, $note->discountAmount()->minorUnits());
+        self::assertSame(900, $note->totalNet()->minorUnits());
+        self::assertSame(1080, $note->totalGross()->minorUnits());
+        self::assertSame([[
+            'ratePercent'         => '20',
+            'netMinorUnits'       => 900,
+            'taxMinorUnits'       => 180,
+            'grossMinorUnits'     => 1080,
+            'allowanceMinorUnits' => 100,
+        ]], $note->taxBreakdown());
+        self::assertSame(900, $note->amounts()->taxBasis()->minorUnits());
+    }
+
+    public function testTheBreakdownMustAccountForTheCreditedLines(): void
+    {
+        $this->expectException(InvalidCreditNoteException::class);
+        $this->expectExceptionMessage('do not match the credited lines');
+
+        $this->issue(breakdown: [$this->bucket(999)]);
+    }
+
     /**
      * @param list<InvoiceLine>|null $lines
+     * @param list<RateBucket>|null  $breakdown
      */
     private function issue(
         int $refunded = 0,
@@ -141,6 +174,7 @@ final class CreditNoteTest extends TestCase
         string $reason = 'Retour produit',
         ?array $lines = null,
         string $refundCurrency = 'EUR',
+        ?array $breakdown = null,
     ): CreditNote {
         return CreditNote::issue(
             id: CreditNoteId::fromString(self::ID),
@@ -150,6 +184,7 @@ final class CreditNoteTest extends TestCase
             invoiceNumber: 'FAC-2026-000040',
             payer: Payer::create(PayerId::fromString(self::CLIENT), 'Sophie Dupont'),
             lines: $lines ?? [$this->line()],
+            breakdown: $breakdown ?? [$this->bucket()],
             reason: $reason,
             refundMethod: $method,
             refunded: Money::fromMinorUnits($refunded, CurrencyCode::fromString($refundCurrency)),
@@ -163,19 +198,24 @@ final class CreditNoteTest extends TestCase
     {
         $money = static fn (int $amount): Money => Money::fromMinorUnits($amount, CurrencyCode::fromString($currency));
 
-        return InvoiceLine::create(
+        return InvoiceLine::reconstitute(
             id: InvoiceLineId::fromString(self::LINE),
             label: 'Frontline Combo Chien pipettes',
             code: 'FRONTLINE-CB',
             quantity: '1',
-            unitNetPrice: $money(1000),
+            enteredUnitPrice: $money(1200),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.drug.companion',
             taxRatePercent: '20',
-            netAmount: $money(1000),
-            taxAmount: $money(200),
-            grossAmount: $money(1200),
+            operationCategory: OperationCategory::GOODS,
             source: InvoiceLineSource::CREDIT,
             sourceReference: $credited,
+            amounts: LineAmounts::of($money(1000), $money(1200), UnitPrice::fromMicroUnits(10_000_000, CurrencyCode::fromString($currency))),
         );
+    }
+
+    private function bucket(int $lineTotal = 1000, int $allowance = 0, int $vat = 200): RateBucket
+    {
+        return RateBucket::of('20', $lineTotal, $allowance, $vat, CurrencyCode::fromString('EUR'));
     }
 }

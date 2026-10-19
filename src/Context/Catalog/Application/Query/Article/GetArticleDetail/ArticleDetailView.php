@@ -16,6 +16,8 @@ final readonly class ArticleDetailView
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        /** 'incl' (all taxes included) or 'excl': the mode the price was entered in. */
+        public string $basePriceMode,
         public string $unitOfMeasure,
         public bool $trackStock,
         public string $status,

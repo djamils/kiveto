@@ -48,6 +48,9 @@ class PrescriptionLineEntity implements ConsultationChildEntity
     #[ORM\Column(type: 'string', length: 3)]
     private string $currency;
 
+    #[ORM\Column(type: 'string', length: 4)]
+    private string $unitPriceMode;
+
     #[ORM\Column(type: 'string', length: 40, nullable: true)]
     private ?string $taxCategoryCode = null;
 
@@ -178,6 +181,16 @@ class PrescriptionLineEntity implements ConsultationChildEntity
     public function setCurrency(string $currency): void
     {
         $this->currency = $currency;
+    }
+
+    public function getUnitPriceMode(): string
+    {
+        return $this->unitPriceMode;
+    }
+
+    public function setUnitPriceMode(string $unitPriceMode): void
+    {
+        $this->unitPriceMode = $unitPriceMode;
     }
 
     public function getTaxCategoryCode(): ?string

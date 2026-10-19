@@ -47,11 +47,12 @@ final class UpdatePriceListItemHandlerTest extends TestCase
                 F::CLINIC_ID,
                 5200,
                 'EUR',
+                'incl',
                 'veterinary.act.surgery',
             ),
         );
 
-        self::assertSame(5200, $item->netPrice()->minorUnits());
+        self::assertSame(5200, $item->price()->minorUnits());
         self::assertSame('veterinary.act.surgery', $item->taxCategoryOverride()?->toString());
     }
 
@@ -65,7 +66,7 @@ final class UpdatePriceListItemHandlerTest extends TestCase
         $repository->expects(self::once())->method('save');
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new UpdatePriceListItem(F::PRICE_LIST_ID, self::ITEM_ID, F::CLINIC_ID, 5200, 'EUR', null),
+            new UpdatePriceListItem(F::PRICE_LIST_ID, self::ITEM_ID, F::CLINIC_ID, 5200, 'EUR', 'incl', null),
         );
 
         self::assertNull($item->taxCategoryOverride());
@@ -80,7 +81,7 @@ final class UpdatePriceListItemHandlerTest extends TestCase
         $this->expectException(PriceListNotFoundException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new UpdatePriceListItem(F::PRICE_LIST_ID, self::ITEM_ID, F::CLINIC_ID, 5200, 'EUR', null),
+            new UpdatePriceListItem(F::PRICE_LIST_ID, self::ITEM_ID, F::CLINIC_ID, 5200, 'EUR', 'incl', null),
         );
     }
 

@@ -13,7 +13,9 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
 use App\Context\Catalog\Domain\Package\ValueObject\Quantity;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Repository\DoctrinePackageRepository;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -43,7 +45,7 @@ final class DoctrinePackageRepositoryTest extends KernelTestCase
             code: PackageCode::fromString('PKG-ZZCHIOT'),
             taxCategory: TaxCategoryCode::fromString('veterinary.act.preventive'),
             pricingMode: PackagePricingMode::FIXED_PRICE,
-            fixedPrice: Money::fromMinorUnits(16500, CurrencyCode::fromString('EUR')),
+            fixedPrice: CatalogPrice::includingTax(Money::fromMinorUnits(16500, CurrencyCode::fromString('EUR'))),
             createdAt: $now,
         );
         $first = $package->addComponent(CatalogItemRef::fromPrimitives('ACT', Uuid::v7()->toRfc4122()), Quantity::of(2), 0, $now);
@@ -54,6 +56,8 @@ final class DoctrinePackageRepositoryTest extends KernelTestCase
         $loaded = $repo->findById($packageId, $clinicId);
         self::assertNotNull($loaded);
         self::assertCount(2, $loaded->components());
+        self::assertSame(16500, $loaded->fixedPrice()?->minorUnits());
+        self::assertSame(PriceEntryMode::INCLUDING_TAX, $loaded->fixedPrice()->mode());
 
         $second = $loaded->components()[1]->id();
         $loaded->removeComponent($first, $now);

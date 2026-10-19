@@ -20,8 +20,6 @@ use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
-use App\Context\Billing\Domain\ValueObject\Discount;
-use App\Context\Billing\Domain\ValueObject\DiscountKind;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
@@ -34,10 +32,10 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Read side of the Billing BC.
  *
- * Totals are recomputed in SQL rather than stored on the invoice row: they are
- * a pure function of the lines, and a denormalised copy is one more thing that
- * can drift. Credit notes are the exception: frozen at issue, they carry their
- * totals, and the register lists them beside the invoices in one query.
+ * Invoices and credit notes carry their totals on their row — calculated per
+ * VAT rate by the aggregate and frozen at issue — so the lists read them as
+ * they are, never recompute them, and can never disagree with the document
+ * they link to. The register lists both in one query.
  */
 final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryInterface
 {
@@ -99,16 +97,6 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             $this->creditNotes->forInvoice($clinicId, $invoiceId),
         );
 
-        $breakdown = [];
-
-        foreach ($invoice->taxBreakdown() as $row) {
-            $breakdown[] = [
-                'ratePercent'   => $row['ratePercent'],
-                'netMinorUnits' => $row['netMinorUnits'],
-                'taxMinorUnits' => $row['taxMinorUnits'],
-            ];
-        }
-
         $discount = $invoice->discount();
 
         return new InvoiceDetails(
@@ -123,7 +111,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             payerAddressLines: $invoice->payer()->addressLines(),
             lines: $lines,
             payments: $payments,
-            taxBreakdown: $breakdown,
+            taxBreakdown: $invoice->taxBreakdown(),
             currency: $invoice->currency()->toString(),
             totalNetBeforeDiscountMinorUnits: $invoice->totalNetBeforeDiscount()->minorUnits(),
             discountMinorUnits: $invoice->discountAmount()->minorUnits(),
@@ -159,16 +147,6 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         );
         $issued = false !== $origin ? RowAccessor::nullableString($origin, 'issued_at') : null;
 
-        $breakdown = [];
-
-        foreach ($note->lines() as $line) {
-            $rate = $line->taxRatePercent();
-
-            $breakdown[$rate] ??= ['ratePercent' => $rate, 'netMinorUnits' => 0, 'taxMinorUnits' => 0];
-            $breakdown[$rate]['netMinorUnits'] += $line->netAmount()->minorUnits();
-            $breakdown[$rate]['taxMinorUnits'] += $line->taxAmount()->minorUnits();
-        }
-
         return new CreditNoteDetails(
             id: $note->id()->toString(),
             clinicId: $note->clinicId()->toString(),
@@ -181,7 +159,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             payerName: $note->payer()->displayName(),
             payerAddressLines: $note->payer()->addressLines(),
             lines: array_map(static fn (InvoiceLine $line): InvoiceLineView => self::lineView($line), $note->lines()),
-            taxBreakdown: array_values($breakdown),
+            taxBreakdown: $note->taxBreakdown(),
             currency: $note->currency()->toString(),
             totalNetMinorUnits: $note->totalNet()->minorUnits(),
             totalTaxMinorUnits: $note->totalTax()->minorUnits(),
@@ -215,13 +193,11 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                 "SELECT 'INVOICE' AS kind, i.id AS id_bin, i.number, i.status, i.currency,
                         i.payer_client_id AS payer_bin, i.payer_name, i.admission_id AS admission_bin,
                         i.created_at, i.issued_at, i.discount_kind, i.discount_value,
-                        %s AS total_net, %s AS total_tax, %s AS total_paid,
+                        i.total_tax_basis AS total_net, i.total_tax, %s AS total_paid,
                         i.credited_minor_units AS credited, i.refunded_minor_units AS refunded,
-                        NULL AS origin_bin, NULL AS origin_number, NULL AS stored_gross, NULL AS reason,
+                        NULL AS origin_bin, NULL AS origin_number, i.total_gross AS stored_gross, NULL AS reason,
                         i.counter_sale_payer, COALESCE(i.issued_at, i.created_at) AS sort_date
                  FROM billing__invoices i WHERE %s",
-                $this->netExpression(),
-                $this->taxExpression(),
                 $this->paidExpression(),
                 $invoices['where'],
             );
@@ -286,17 +262,11 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
     public function forAdmission(ClinicId $clinicId, AdmissionId $admissionId): ?AdmissionInvoiceRow
     {
         $row = $this->connection->fetchAssociative(
-            \sprintf(
-                'SELECT BIN_TO_UUID(i.id) AS id, i.number, i.status, i.currency,
-                        i.discount_kind, i.discount_value,
-                        %s AS total_net, %s AS total_tax
+            'SELECT BIN_TO_UUID(i.id) AS id, i.number, i.status, i.currency, i.total_gross
                  FROM billing__invoices i
                  WHERE i.clinic_id = :clinicId AND i.admission_id = :admissionId
                  ORDER BY i.created_at DESC
                  LIMIT 1',
-                $this->netExpression(),
-                $this->taxExpression(),
-            ),
             [
                 'clinicId'    => Uuid::fromString($clinicId->toString())->toBinary(),
                 'admissionId' => Uuid::fromString($admissionId->toString())->toBinary(),
@@ -311,7 +281,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             id: RowAccessor::string($row, 'id'),
             number: RowAccessor::nullableString($row, 'number'),
             status: RowAccessor::string($row, 'status'),
-            totalGrossMinorUnits: $this->grossAfterDiscount($row),
+            totalGrossMinorUnits: RowAccessor::int($row, 'total_gross'),
             currency: RowAccessor::string($row, 'currency'),
         );
     }
@@ -403,13 +373,11 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
     {
         return $this->connection->fetchAllAssociative(
             \sprintf(
-                'SELECT i.payer_client_id, i.issued_at, i.discount_kind, i.discount_value,
+                'SELECT i.payer_client_id, i.issued_at, i.total_gross AS stored_gross,
                         i.credited_minor_units AS credited, i.refunded_minor_units AS refunded,
-                        %s AS total_net, %s AS total_tax, %s AS total_paid
+                        %s AS total_paid
                  FROM billing__invoices i
                  WHERE i.clinic_id = :clinicId AND i.status IN (:statuses)%s',
-                $this->netExpression(),
-                $this->taxExpression(),
                 $this->paidExpression(),
                 $withPayerOnly ? ' AND i.payer_client_id IS NOT NULL' : '',
             ),
@@ -425,7 +393,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
      */
     private function balanceOf(array $row): int
     {
-        return $this->grossAfterDiscount($row)
+        return RowAccessor::int($row, 'stored_gross')
             - RowAccessor::int($row, 'credited')
             - (int) round((float) RowAccessor::string($row, 'total_paid'))
             + RowAccessor::int($row, 'refunded');
@@ -437,7 +405,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
     private function listRow(array $row): InvoiceListRow
     {
         $note     = SearchInvoicesCriteria::KIND_CREDIT_NOTE === RowAccessor::string($row, 'kind');
-        $gross    = $note ? RowAccessor::int($row, 'stored_gross') : $this->grossAfterDiscount($row);
+        $gross    = RowAccessor::int($row, 'stored_gross');
         $paid     = (int) round((float) RowAccessor::string($row, 'total_paid'));
         $credited = RowAccessor::int($row, 'credited');
         $refunded = RowAccessor::int($row, 'refunded');
@@ -510,9 +478,10 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             label: $line->label(),
             code: $line->code(),
             quantity: $line->quantity(),
-            unitPriceMinorUnits: $line->unitNetPrice()->minorUnits(),
+            unitPriceMinorUnits: $line->enteredUnitPrice()->minorUnits(),
+            unitPriceMode: $line->priceMode()->value,
+            unitNet: $line->unitNet()->toDecimalString(),
             netMinorUnits: $line->netAmount()->minorUnits(),
-            taxMinorUnits: $line->taxAmount()->minorUnits(),
             grossMinorUnits: $line->grossAmount()->minorUnits(),
             taxRatePercent: $line->taxRatePercent(),
             taxCategoryCode: $line->taxCategoryCode(),
@@ -622,45 +591,9 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         return array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $ids);
     }
 
-    private function netExpression(): string
-    {
-        return '(SELECT COALESCE(SUM(l.net_minor_units), 0)
-                 FROM billing__invoice_lines l WHERE l.invoice_id = i.id)';
-    }
-
-    private function taxExpression(): string
-    {
-        return '(SELECT COALESCE(SUM(l.tax_minor_units), 0)
-                 FROM billing__invoice_lines l WHERE l.invoice_id = i.id)';
-    }
-
     private function paidExpression(): string
     {
         return '(SELECT COALESCE(SUM(pm.amount_minor_units), 0)
                  FROM billing__payments pm WHERE pm.invoice_id = i.id)';
-    }
-
-    /**
-     * The lines are stored before any discount, so the same arithmetic the
-     * aggregate performs is replayed here — through the very same value object,
-     * so the list can never disagree with the invoice it links to.
-     *
-     * @param array<string, mixed> $row
-     */
-    private function grossAfterDiscount(array $row): int
-    {
-        $net = (int) round((float) RowAccessor::string($row, 'total_net'));
-        $tax = (int) round((float) RowAccessor::string($row, 'total_tax'));
-
-        $kind  = RowAccessor::nullableString($row, 'discount_kind');
-        $value = RowAccessor::nullableString($row, 'discount_value');
-
-        if (null === $kind || null === $value || 0 === $net) {
-            return $net + $tax;
-        }
-
-        $off = Discount::reconstitute(DiscountKind::from($kind), $value, null)->amountOff($net);
-
-        return ($net - $off) + (int) round($tax * ($net - $off) / $net);
     }
 }

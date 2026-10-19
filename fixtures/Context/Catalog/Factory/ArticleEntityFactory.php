@@ -55,6 +55,7 @@ final class ArticleEntityFactory extends PersistentProxyObjectFactory
             'taxCategoryCode'       => 'veterinary.consumable.standard',
             'basePriceMinorUnits'   => self::faker()->numberBetween(100, 10000),
             'basePriceCurrency'     => 'EUR',
+            'basePriceMode'         => 'incl',
             'unitOfMeasure'         => 'UNIT',
             'drugAuthRef'           => null,
             'drugRequiresRx'        => null,

@@ -49,6 +49,25 @@ class InvoiceEntity
     #[ORM\Column(name: 'payer_address_lines', type: 'json')]
     private array $payerAddressLines = [];
 
+    /** @var list<array{rate: string, lineTotal: int, allowance: int, vat: int}> */
+    #[ORM\Column(name: 'tax_breakdown', type: 'json')]
+    private array $taxBreakdown = [];
+
+    #[ORM\Column(name: 'total_net_before_allowance', type: 'integer', options: ['default' => 0])]
+    private int $totalNetBeforeAllowance = 0;
+
+    #[ORM\Column(name: 'total_allowance', type: 'integer', options: ['default' => 0])]
+    private int $totalAllowance = 0;
+
+    #[ORM\Column(name: 'total_tax_basis', type: 'integer', options: ['default' => 0])]
+    private int $totalTaxBasis = 0;
+
+    #[ORM\Column(name: 'total_tax', type: 'integer', options: ['default' => 0])]
+    private int $totalTax = 0;
+
+    #[ORM\Column(name: 'total_gross', type: 'integer', options: ['default' => 0])]
+    private int $totalGross = 0;
+
     #[ORM\Column(type: 'string', length: 3)]
     private string $currency;
 
@@ -325,5 +344,71 @@ class InvoiceEntity
     public function setCounterSalePayer(?CounterSalePayer $counterSalePayer): void
     {
         $this->counterSalePayer = $counterSalePayer;
+    }
+
+    /**
+     * @return list<array{rate: string, lineTotal: int, allowance: int, vat: int}>
+     */
+    public function getTaxBreakdown(): array
+    {
+        return $this->taxBreakdown;
+    }
+
+    /**
+     * @param list<array{rate: string, lineTotal: int, allowance: int, vat: int}> $taxBreakdown
+     */
+    public function setTaxBreakdown(array $taxBreakdown): void
+    {
+        $this->taxBreakdown = $taxBreakdown;
+    }
+
+    public function getTotalNetBeforeAllowance(): int
+    {
+        return $this->totalNetBeforeAllowance;
+    }
+
+    public function setTotalNetBeforeAllowance(int $totalNetBeforeAllowance): void
+    {
+        $this->totalNetBeforeAllowance = $totalNetBeforeAllowance;
+    }
+
+    public function getTotalAllowance(): int
+    {
+        return $this->totalAllowance;
+    }
+
+    public function setTotalAllowance(int $totalAllowance): void
+    {
+        $this->totalAllowance = $totalAllowance;
+    }
+
+    public function getTotalTaxBasis(): int
+    {
+        return $this->totalTaxBasis;
+    }
+
+    public function setTotalTaxBasis(int $totalTaxBasis): void
+    {
+        $this->totalTaxBasis = $totalTaxBasis;
+    }
+
+    public function getTotalTax(): int
+    {
+        return $this->totalTax;
+    }
+
+    public function setTotalTax(int $totalTax): void
+    {
+        $this->totalTax = $totalTax;
+    }
+
+    public function getTotalGross(): int
+    {
+        return $this->totalGross;
+    }
+
+    public function setTotalGross(int $totalGross): void
+    {
+        $this->totalGross = $totalGross;
     }
 }

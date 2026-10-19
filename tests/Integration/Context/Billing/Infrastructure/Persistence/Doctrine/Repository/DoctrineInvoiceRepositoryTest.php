@@ -19,11 +19,13 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -498,12 +500,11 @@ final class DoctrineInvoiceRepositoryTest extends KernelTestCase
             label: 'Consultation standard',
             code: 'CONS_STD',
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits($net, $eur),
+            enteredUnitPrice: Money::fromMinorUnits($gross, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits($net, $eur),
-            taxAmount: Money::fromMinorUnits($tax, $eur),
-            grossAmount: Money::fromMinorUnits($gross, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: InvoiceLineSource::CONSULTATION,
             sourceReference: 'src-1',
         );

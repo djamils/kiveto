@@ -8,7 +8,9 @@ use App\Context\Billing\Domain\Exception\InvalidDiscountException;
 use App\Shared\Money\Domain\ValueObject\Money;
 
 /**
- * A commercial gesture applied to the whole invoice, before tax.
+ * A commercial gesture applied to the whole invoice: a percentage, or a fixed
+ * amount incl. VAT as shown to the client. The invoice turns it into a
+ * per-rate allowance (InvoiceAmountCalculator).
  *
  * Kept as the reason plus the raw parameter rather than a computed amount, so
  * the invoice can print "-10 % (client fidèle)" and not just a bare figure.
@@ -65,22 +67,6 @@ final class Discount
     public function reason(): ?string
     {
         return $this->reason;
-    }
-
-    /**
-     * The amount taken off a net total, never more than the total itself.
-     */
-    public function amountOff(int $netMinorUnits): int
-    {
-        if ($netMinorUnits <= 0) {
-            return 0;
-        }
-
-        $off = DiscountKind::PERCENTAGE === $this->kind
-            ? (int) round($netMinorUnits * (float) $this->value / 100)
-            : (int) $this->value;
-
-        return min($off, $netMinorUnits);
     }
 
     private static function cleanReason(?string $reason): ?string

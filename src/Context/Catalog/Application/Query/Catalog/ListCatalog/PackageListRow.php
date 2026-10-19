@@ -13,9 +13,11 @@ final readonly class PackageListRow
         public string $taxCategoryCode,
         public string $pricingMode,
         public ?int $fixedPriceMinorUnits,
+        /** 'incl' (all taxes included) or 'excl': the mode the price was entered in. */
+        public ?string $fixedPriceMode,
         public string $currency,
         public int $componentCount,
-        /** The weighted sum of the components' base prices, whatever the mode. */
+        /** The weighted sum of the components' base prices as entered, whatever the pricing mode. */
         public int $componentsTotalMinorUnits,
         public string $status,
     ) {

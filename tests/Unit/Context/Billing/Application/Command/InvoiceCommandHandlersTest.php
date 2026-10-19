@@ -21,7 +21,9 @@ use App\Context\Billing\Application\Command\RemoveInvoiceLine\RemoveInvoiceLineH
 use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Exception\InvalidDiscountException;
+use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
@@ -35,8 +37,10 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -212,7 +216,9 @@ final class InvoiceCommandHandlersTest extends TestCase
             new ApplyInvoiceDiscount(self::CLINIC_ID, self::INVOICE_ID, 'FIXED', '750'),
         );
 
-        self::assertSame(750, $invoice->discountAmount()->minorUnits());
+        // 7.50 € off the price VAT included is 6.25 € off the base.
+        self::assertSame(625, $invoice->discountAmount()->minorUnits());
+        self::assertSame(6000 - 750, $invoice->totalGross()->minorUnits());
     }
 
     public function testANullKindClearsTheDiscount(): void
@@ -267,14 +273,14 @@ final class InvoiceCommandHandlersTest extends TestCase
         $taxResolver = $this->createMock(TaxResolverInterface::class);
         $taxResolver->expects(self::once())
             ->method('resolve')
-            ->with(3000, 'EUR', 'veterinary.consumable.medical', self::CLINIC_ID)
-            ->willReturn(new ResolvedTaxDto(3000, 600, 3600, '20'))
+            ->with(self::CLINIC_ID, 'veterinary.consumable.medical', 'EUR')
+            ->willReturn(new ResolvedTaxDto('20', OperationCategory::GOODS))
         ;
 
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new AddManualInvoiceLineHandler($this->invoices, $taxResolver, $uuids, $this->clock))(
+        (new AddManualInvoiceLineHandler($this->invoices, new InvoiceLineFactory($taxResolver, $uuids), $this->clock))(
             new AddManualInvoiceLine(
                 clinicId: self::CLINIC_ID,
                 invoiceId: self::INVOICE_ID,
@@ -285,9 +291,31 @@ final class InvoiceCommandHandlersTest extends TestCase
             ),
         );
 
+        // The price is typed VAT included: 2 × 15.00 €; rate and nature come
+        // from the category (AC 7).
         self::assertCount(2, $invoice->lines());
         self::assertSame(InvoiceLineSource::MANUAL, $invoice->lines()[1]->source());
-        self::assertSame(3600, $invoice->lines()[1]->grossAmount()->minorUnits());
+        self::assertSame(3000, $invoice->lines()[1]->grossAmount()->minorUnits());
+        self::assertSame(PriceMode::INCLUDING_TAX, $invoice->lines()[1]->priceMode());
+        self::assertSame('20', $invoice->lines()[1]->taxRatePercent());
+        self::assertSame(OperationCategory::GOODS, $invoice->lines()[1]->operationCategory());
+        self::assertSame('Collerette', $invoice->lines()[1]->label());
+    }
+
+    public function testAManualLineNeedsAKnownTaxCategory(): void
+    {
+        $this->invoices->method('get')->willReturn($this->draftWithOneLine());
+        $this->invoices->expects(self::never())->method('save');
+
+        $taxResolver = $this->createStub(TaxResolverInterface::class);
+        $taxResolver->method('resolve')->willReturn(null);
+
+        $this->expectException(InvalidInvoiceLineException::class);
+        $this->expectExceptionMessage('Unknown tax category "veterinary.unknown"');
+
+        (new AddManualInvoiceLineHandler($this->invoices, new InvoiceLineFactory($taxResolver, $this->createStub(UuidGeneratorInterface::class)), $this->clock))(
+            new AddManualInvoiceLine(self::CLINIC_ID, self::INVOICE_ID, 'Collerette', '1', 1500, 'veterinary.unknown'),
+        );
     }
 
     // ── Checkout ──
@@ -477,12 +505,11 @@ final class InvoiceCommandHandlersTest extends TestCase
             label: 'Consultation standard',
             code: 'CONS_STD',
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits(5000, $eur),
+            enteredUnitPrice: Money::fromMinorUnits(6000, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits(5000, $eur),
-            taxAmount: Money::fromMinorUnits(1000, $eur),
-            grossAmount: Money::fromMinorUnits(6000, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: InvoiceLineSource::CONSULTATION,
         );
     }

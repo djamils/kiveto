@@ -52,15 +52,20 @@ final readonly class UpdateActController
                 $this->commandBus->dispatch(new RenameAct($actId, $clinicId, $name));
             }
 
-            if ($form->has('net')) {
-                $net = CatalogEndpoint::cents($request, 'net');
+            if ($form->has('price')) {
+                $price     = CatalogEndpoint::cents($request, 'price');
+                $priceMode = CatalogEndpoint::priceMode($request);
 
-                if (null === $net) {
+                if (null === $price) {
                     return $this->endpoint->refuse('Le tarif saisi est invalide.');
                 }
 
-                if ($net !== $act->basePriceMinorUnits) {
-                    $this->commandBus->dispatch(new ChangeActBasePrice($actId, $clinicId, $net, $act->basePriceCurrency));
+                if (null === $priceMode) {
+                    return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
+                }
+
+                if ($price !== $act->basePriceMinorUnits || $priceMode !== $act->basePriceMode) {
+                    $this->commandBus->dispatch(new ChangeActBasePrice($actId, $clinicId, $price, $act->basePriceCurrency, $priceMode));
                 }
             }
 

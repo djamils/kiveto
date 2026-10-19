@@ -6,6 +6,7 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\PlanActionEntity;
 use Symfony\Component\Uid\Uuid;
 
@@ -29,6 +30,7 @@ final class PlanActionMapper
         $entity->setQuantity((string) $action->getQuantity());
         $entity->setUnitPriceMinorUnits($action->getUnitPriceMinorUnits());
         $entity->setCurrency($action->getCurrency());
+        $entity->setUnitPriceMode($action->getUnitPriceMode()?->value);
         $entity->setTaxCategoryCode($action->getTaxCategoryCode());
         $entity->setCreatedAtUtc($action->getCreatedAtUtc());
         $entity->setCreatedByUserId(Uuid::fromString($action->getCreatedByUserId())->toBinary());
@@ -50,6 +52,7 @@ final class PlanActionMapper
             quantity: (float) $entity->getQuantity(),
             unitPriceMinorUnits: $entity->getUnitPriceMinorUnits(),
             currency: $entity->getCurrency(),
+            unitPriceMode: null !== $entity->getUnitPriceMode() ? UnitPriceMode::from($entity->getUnitPriceMode()) : null,
             taxCategoryCode: $entity->getTaxCategoryCode(),
             createdAtUtc: $entity->getCreatedAtUtc(),
             createdByUserId: Uuid::fromBinary($entity->getCreatedByUserId())->toRfc4122(),

@@ -12,9 +12,9 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
 final readonly class CreditNoteDetails
 {
     /**
-     * @param list<string>                                                             $payerAddressLines
-     * @param list<InvoiceLineView>                                                    $lines
-     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}> $taxBreakdown
+     * @param list<string>                                                                                                             $payerAddressLines
+     * @param list<InvoiceLineView>                                                                                                    $lines
+     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}> $taxBreakdown
      */
     public function __construct(
         public string $id,

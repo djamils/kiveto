@@ -6,6 +6,7 @@ namespace App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\Context\Consultation\Domain\ValueObject\BillingLineRecord;
 use App\Context\Consultation\Domain\ValueObject\BillingLineSource;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Infrastructure\Persistence\Doctrine\Entity\BillingLineEntity;
 use Symfony\Component\Uid\Uuid;
 
@@ -27,6 +28,7 @@ final class BillingLineMapper
         $entity->setQuantity((string) $line->getQuantity());
         $entity->setUnitPriceMinorUnits($line->getUnitPriceMinorUnits());
         $entity->setCurrency($line->getCurrency());
+        $entity->setUnitPriceMode($line->getUnitPriceMode()->value);
         $entity->setTaxCategoryCode($line->getTaxCategoryCode());
         $entity->setPosition($position);
 
@@ -44,6 +46,7 @@ final class BillingLineMapper
             quantity: (float) $entity->getQuantity(),
             unitPriceMinorUnits: $entity->getUnitPriceMinorUnits(),
             currency: $entity->getCurrency(),
+            unitPriceMode: UnitPriceMode::from($entity->getUnitPriceMode()),
             taxCategoryCode: $entity->getTaxCategoryCode(),
         );
     }

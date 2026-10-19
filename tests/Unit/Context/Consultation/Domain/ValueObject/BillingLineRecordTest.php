@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Consultation\Domain\ValueObject;
 
 use App\Context\Consultation\Domain\ValueObject\BillingLineRecord;
 use App\Context\Consultation\Domain\ValueObject\BillingLineSource;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use PHPUnit\Framework\TestCase;
 
 final class BillingLineRecordTest extends TestCase
@@ -22,6 +23,7 @@ final class BillingLineRecordTest extends TestCase
             2.0,
             9900,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA20',
         );
 
@@ -46,6 +48,7 @@ final class BillingLineRecordTest extends TestCase
             1.0,
             0,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
 
@@ -68,6 +71,7 @@ final class BillingLineRecordTest extends TestCase
             1.0,
             9900,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
     }
@@ -85,6 +89,7 @@ final class BillingLineRecordTest extends TestCase
             0.0,
             9900,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
     }
@@ -102,6 +107,7 @@ final class BillingLineRecordTest extends TestCase
             0.001,
             9900,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
     }
@@ -119,6 +125,7 @@ final class BillingLineRecordTest extends TestCase
             1.0,
             -1,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
     }
@@ -136,6 +143,7 @@ final class BillingLineRecordTest extends TestCase
             1.0,
             9900,
             '   ',
+            UnitPriceMode::INCLUDING_TAX,
             null,
         );
     }
@@ -231,6 +239,7 @@ final class BillingLineRecordTest extends TestCase
             quantity: 0.5,
             unitPriceMinorUnits: 333,
             currency: 'EUR',
+            unitPriceMode: UnitPriceMode::INCLUDING_TAX,
             taxCategoryCode: null,
         );
 
@@ -248,6 +257,7 @@ final class BillingLineRecordTest extends TestCase
             quantity: 2.0,
             unitPriceMinorUnits: 1250,
             currency: 'EUR',
+            unitPriceMode: UnitPriceMode::INCLUDING_TAX,
             taxCategoryCode: 'TVA20',
         );
     }

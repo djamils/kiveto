@@ -7,11 +7,10 @@ namespace App\Context\Catalog\Application\Command\Package\ChangePackageFixedPric
 use App\Context\Catalog\Domain\Package\Exception\PackageNotFoundException;
 use App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -34,9 +33,10 @@ final class ChangePackageFixedPriceHandler
         }
 
         $package->changeFixedPrice(
-            Money::fromMinorUnits(
+            CatalogPrice::fromPrimitives(
                 $command->fixedPriceMinorUnits,
-                CurrencyCode::fromString($command->fixedPriceCurrency),
+                $command->fixedPriceCurrency,
+                $command->fixedPriceMode,
             ),
             $this->clock->now(),
         );

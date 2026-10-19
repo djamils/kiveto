@@ -7,6 +7,7 @@ namespace App\Context\Consultation\Application\Query\SearchConsultations;
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\PatientIdsProviderInterface;
 use App\Context\Consultation\Application\Port\TaxRateProviderInterface;
+use App\Context\Consultation\Application\Service\DisplayedTotals;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -84,28 +85,17 @@ final readonly class SearchConsultationsHandler
         string $clinicId,
         array &$ratesByCategory,
     ): ConsultationListItemView {
-        $totalHt  = 0;
-        $totalTva = 0;
+        ['ht' => $totalHt, 'tva' => $totalTva] = DisplayedTotals::of(
+            $row->htByTaxCategory,
+            $row->ttcByTaxCategory,
+            function (string $category) use (&$ratesByCategory, $clinicId): ?float {
+                if (!\array_key_exists($category, $ratesByCategory)) {
+                    $ratesByCategory[$category] = $this->taxRates->effectiveRatePercent($category, $clinicId);
+                }
 
-        foreach ($row->htByTaxCategory as $categoryCode => $ht) {
-            $totalHt += $ht;
-
-            if ('' === $categoryCode) {
-                continue;
-            }
-
-            if (!\array_key_exists($categoryCode, $ratesByCategory)) {
-                $ratesByCategory[$categoryCode] = $this->taxRates->effectiveRatePercent($categoryCode, $clinicId);
-            }
-
-            $rate = $ratesByCategory[$categoryCode];
-
-            if (null === $rate) {
-                continue;
-            }
-
-            $totalTva += (int) round($ht * $rate / 100);
-        }
+                return $ratesByCategory[$category];
+            },
+        );
 
         return new ConsultationListItemView(
             consultationId: $row->consultationId,

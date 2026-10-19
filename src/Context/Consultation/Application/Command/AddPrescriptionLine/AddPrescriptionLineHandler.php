@@ -7,6 +7,7 @@ namespace App\Context\Consultation\Application\Command\AddPrescriptionLine;
 use App\Context\Consultation\Application\Port\CatalogItemProviderInterface;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -49,6 +50,7 @@ final readonly class AddPrescriptionLineHandler
             $command->quantity,
             $price->minorUnits,
             $price->currency,
+            UnitPriceMode::from($price->mode),
             $price->taxCategoryCode,
             UserId::fromString($command->createdByUserId),
             $this->clock->now(),

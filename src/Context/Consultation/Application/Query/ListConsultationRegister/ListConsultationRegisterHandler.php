@@ -9,6 +9,7 @@ use App\Context\Consultation\Application\Port\AdmissionFactsProviderInterface;
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\PatientIdsProviderInterface;
 use App\Context\Consultation\Application\Port\TaxRateProviderInterface;
+use App\Context\Consultation\Application\Service\DisplayedTotals;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -131,24 +132,17 @@ final readonly class ListConsultationRegisterHandler
         array $codes,
         array &$rates,
     ): ConsultationRegisterItem {
-        $totalHt  = 0;
-        $totalTva = 0;
+        ['ht' => $totalHt, 'tva' => $totalTva] = DisplayedTotals::of(
+            $row->htByTaxCategory,
+            $row->ttcByTaxCategory,
+            function (string $category) use (&$rates, $query): ?float {
+                if (!\array_key_exists($category, $rates)) {
+                    $rates[$category] = $this->taxRates->effectiveRatePercent($category, $query->clinicId);
+                }
 
-        foreach ($row->htByTaxCategory as $category => $ht) {
-            $totalHt += $ht;
-
-            if ('' === $category) {
-                continue;
-            }
-
-            if (!\array_key_exists($category, $rates)) {
-                $rates[$category] = $this->taxRates->effectiveRatePercent($category, $query->clinicId);
-            }
-
-            if (null !== $rates[$category]) {
-                $totalTva += (int) round($ht * $rates[$category] / 100);
-            }
-        }
+                return $rates[$category];
+            },
+        );
 
         $labs    = [];
         $surgery = false;
