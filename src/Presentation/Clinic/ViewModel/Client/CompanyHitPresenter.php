@@ -49,7 +49,9 @@ final readonly class CompanyHitPresenter
                 'l'     => 'Siège',
                 'a'     => implode(', ', array_filter([$company->addressLine, '' === $place ? null : $place])),
             ]],
-            'tva' => $this->vatNumber($company->siren),
+            // The head office's address in parts, to prefill a new professional's postal address.
+            'adresse' => ['rue' => $company->addressLine ?? '', 'cp' => $company->postalCode ?? '', 'ville' => $company->city ?? ''],
+            'tva'     => $this->vatNumber($company->siren),
         ];
     }
 

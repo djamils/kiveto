@@ -223,7 +223,9 @@ export function init() {
   on($('pnav'), 'click', e => { const b = e.target.closest('[data-s]'); if (!b) return; allerSection(b.dataset.s); });
   function allerSection(id, k) {
     ST.sec = id; ST.q = ''; $('pq').value = '';
-    try { history.replaceState(history.state, '', P.urls.sections[id]); } catch (_) { /* address unchanged */ }
+    // The way back (`_returnTo`, from a refused checkout) stays in the address; the field to show does not.
+    const rt = new URLSearchParams(location.search).get('_returnTo');
+    try { history.replaceState(history.state, '', P.urls.sections[id] + (rt ? '?_returnTo=' + encodeURIComponent(rt) : '')); } catch (_) { /* address unchanged */ }
     document.querySelectorAll('#pnav .pn-it').forEach(x => x.classList.toggle('on', x.dataset.s === id)); placerInd();
     rendreContenu(true);
     $('pcont').scrollTop = 0;
@@ -484,6 +486,9 @@ export function init() {
   /* ═════════ Start ═════════ */
   rendreNav(); rendreContenu(true);
   on(window, 'resize', placerInd);
+  // Opened to fix a field (`card`, from a refused checkout): it is scrolled to and highlighted.
+  const champ = new URLSearchParams(location.search).get('card');
+  if (champ && /^[a-z]+\.[a-zA-Z]+$/.test(champ)) allerSection(ST.sec, champ);
 }
 
 export function cleanup() {

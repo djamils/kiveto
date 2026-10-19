@@ -816,6 +816,19 @@ export function init() {
     url.searchParams.delete('saved');
     window.history.replaceState(window.history.state, '', url);
   }
+
+  // Opened to fix something (a refused checkout): that card opens, then the URL forgets it.
+  const card = root.dataset.card;
+  if (card && !ARCH) {
+    if (card === 'cCoord') ouvrirCoord();
+    else if ($(card)) {
+      $(card).scrollIntoView({ block: 'center', behavior: 'smooth' });
+      $(card).querySelector('.bmod')?.click();
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('card');
+    window.history.replaceState(window.history.state, '', url);
+  }
 }
 
 export function cleanup() {

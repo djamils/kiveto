@@ -7,6 +7,7 @@ namespace App\Presentation\Clinic\Controller\Billing;
 use App\Context\Billing\Application\Command\PrepareInvoiceForAdmission\PrepareInvoiceForAdmission;
 use App\Presentation\Clinic\ViewModel\Billing\BillingPageBuilder;
 use App\Presentation\Clinic\ViewModel\Billing\BillingRegisterFilters;
+use App\Presentation\Clinic\ViewModel\Billing\ReadinessMessages;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -59,8 +60,14 @@ final class ShowCheckoutController extends AbstractController
             throw $this->createNotFoundException('Facture introuvable.');
         }
 
+        // Back from a refused checkout: the sheet shows what to fix instead of the « Encaisser » window.
+        $readiness = ReadinessMessages::takeFlash($request, $invoiceId);
+
         return $this->render('clinic/billing/index.html.twig', [
-            'payload' => $this->pages->page($clinicId, BillingRegisterFilters::fromRequest($request, 'tout'), $sheet, true),
+            'payload' => [
+                ...$this->pages->page($clinicId, BillingRegisterFilters::fromRequest($request, 'tout'), $sheet, [] === $readiness),
+                'readiness' => $readiness,
+            ],
         ]);
     }
 }

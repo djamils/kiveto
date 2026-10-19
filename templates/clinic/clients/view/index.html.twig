@@ -16,6 +16,8 @@
  #   client             ClientView
  #   sheet              array built by ClientSheetBuilder
  #   savedCard          string  card to flash as saved ('' if none)
+ #   openCard           string  card to open on arrival, cCoord or cFisc ('' if none)
+ #   returnLink         array{raw, url, label}|null  way back to where the sheet was opened from
  #   today              string  Y-m-d in clinic time
  #   currentClinicName  string
  #
@@ -27,6 +29,8 @@
 {% block title %}{{ client.fullName }} — {{ currentClinicName }}{% endblock %}
 
 {% set token = csrf_token('client_sheet') %}
+{# Every form carries the way back, so that it survives a save. #}
+{% set rt = returnLink ? '<input type="hidden" name="_returnTo" value="' ~ (returnLink.raw|e('html_attr')) ~ '">' : '' %}
 {% set archived = client.status == 'archived' %}
 {% set xb = '<button type="button" class="mclose" data-close aria-label="Fermer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' %}
 
@@ -34,11 +38,15 @@
 <div class="dossier" data-page="{{ app.request.attributes.get('_route') }}"
      data-sheet="{{ sheet|json_encode }}"
      data-saved="{{ savedCard }}"
+     data-card="{{ openCard }}"
      data-appt-token="{{ csrf_token('appointment') }}">
 
   <div class="pagehead dos-h">
     <div class="ph-id"><span class="ph-av txt" id="phAv"></span><div style="min-width:0"><h1 id="phNom"></h1><div class="ph-facts" id="phFacts"></div></div></div>
     <div class="right" style="align-items:center">
+      {% if returnLink %}
+        <a class="btn" href="{{ returnLink.url }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>{{ returnLink.label }}</a>
+      {% endif %}
       <button type="button" class="btn" id="btnMenu" aria-label="Plus d'actions">&#8943;</button>
       {% if archived %}
         <button type="button" class="btn primaire" disabled data-tip="Fiche archivée : désarchivez-la pour prendre rendez-vous"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Prendre RDV</button>
@@ -70,7 +78,7 @@
   <div class="mveil" id="mCoord"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="coT">
     <div class="mhead"><div class="mt"><b id="coT">Coordonnées</b><span id="coSub">—</span></div>{{ xb|raw }}</div>
     <form class="mbody fg" id="coForm" method="post" action="{{ path('clinic_clients_profile_update', {id: client.id}) }}" novalidate>
-      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
       <input type="hidden" name="civility" id="coCiv">
     </form>
     <div class="mfoot"><span class="meta" id="coMeta"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="coOk">Enregistrer</button></div>
@@ -80,7 +88,7 @@
   <div class="mveil" id="mEnc"><div class="mbox" style="width:min(440px,94vw)" role="dialog" aria-modal="true" aria-labelledby="encT">
     <div class="mhead"><div class="mt"><b id="encT">Encaisser</b><span id="encS"></span></div>{{ xb|raw }}</div>
     <form class="mbody fg" id="encForm" method="post" action="{{ path('clinic_clients_payment_record', {id: client.id}) }}">
-      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
       <input type="hidden" name="invoice_id" id="encInv">
       <input type="hidden" name="amount" id="encAmt">
       <input type="hidden" name="method" id="encMeth" value="CARD">
@@ -103,7 +111,7 @@
   <div class="mveil" id="mAni"><div class="mbox" style="width:min(560px,94vw)" role="dialog" aria-modal="true" aria-labelledby="aniT">
     <div class="mhead"><div class="mt"><b id="aniT">Nouvel animal</b><span>Rattaché à {{ client.fullName }}</span></div>{{ xb|raw }}</div>
     <form class="mbody fg" id="aniForm" method="post" action="{{ path('clinic_clients_animal_add', {id: client.id}) }}" novalidate>
-      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
       <input type="hidden" name="species" value="dog">
       <input type="hidden" name="sex" value="female">
       <input type="hidden" name="neutered" value="0">
@@ -126,7 +134,7 @@
   <div class="mveil" id="mMsg"><div class="mbox" style="width:min(520px,94vw)" role="dialog" aria-modal="true" aria-labelledby="msgT">
     <div class="mhead"><div class="mt"><b id="msgT">Consigner un échange</b><span>Ajouté à l'historique · rien n'est envoyé au client</span></div>{{ xb|raw }}</div>
     <form class="mbody fg" id="msgForm" method="post" action="{{ path('clinic_clients_communication_log', {id: client.id}) }}" novalidate>
-      <input type="hidden" name="_token" value="{{ token }}">
+      <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
       <input type="hidden" name="channel" value="{{ sheet.prefs.preferred ?? 'phone' }}">
       <input type="hidden" name="direction" value="outbound">
       <div class="f2">
@@ -141,23 +149,23 @@
 
   {# ══ Forms the rail cards and the menu post ══ #}
   <form id="prefForm" method="post" action="{{ path('clinic_clients_communication_preferences_update', {id: client.id}) }}" hidden>
-    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
     <input type="hidden" name="preferred_channel" value="{{ sheet.prefs.preferred ?? '' }}">
   </form>
   <form id="persForm" method="post" action="{{ path('clinic_clients_authorized_person_update', {id: client.id}) }}" hidden>
-    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
     {% for f in ['ap_civility', 'ap_first_name', 'ap_last_name', 'ap_relationship', 'ap_phone'] %}<input type="hidden" name="{{ f }}">{% endfor %}
   </form>
   <form id="fiscForm" method="post" action="{{ path('clinic_clients_tax_profile_update', {id: client.id}) }}" hidden>
-    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
     {% for f in ['fisc', 'rs', 'siren', 'tva'] %}<input type="hidden" name="{{ f }}">{% endfor %}
   </form>
   <form id="fiscVerifyForm" method="post" action="{{ path('clinic_clients_tax_profile_verify', {id: client.id}) }}" hidden>
-    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
   </form>
   {{ include('clinic/clients/_tax_profile_block.html.twig') }}
   <form id="noteForm" method="post" action="{{ path('clinic_clients_note_add', {id: client.id}) }}" hidden>
-    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
     <input type="hidden" name="kind" value="information">
     <input type="hidden" name="content">
   </form>

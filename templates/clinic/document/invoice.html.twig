@@ -14,6 +14,8 @@
 {% set issuedAt = invoice.issuedAt ?? invoice.createdAt %}
 {% set letterhead = clinic is not null ? clinic.letterhead : null %}
 {% set isSettled = invoice.balanceDueMinorUnits <= 0 and invoice.cancelledAt is null and invoice.issuedAt is not null and invoice.status != 'CREDITED' %}
+{% set isProfessional = invoice.processingRule == 'B2B' %}
+{% set hasAllowance = invoice.discountMinorUnits > 0 %}
 
 {% block doc_title %}Facture {{ invoice.number ?? 'brouillon' }}{% endblock %}
 
@@ -23,7 +25,14 @@
   {% if invoice.number %}<b>N° {{ invoice.number }}</b><br/>{% endif %}
   Date d’émission : {{ doc.longDate(issuedAt) }}<br/>
   Date d’exécution des prestations : {{ doc.longDate(invoice.createdAt) }}<br/>
-  Échéance : paiement comptant
+  {# The terms frozen at issue: a due date, or « Facture acquittée » for an invoice settled at once. #}
+  {% if invoice.dueDate %}
+    Échéance : {{ invoice.dueDate|date('d/m/Y', false) }}{% if invoice.paymentTermsNote %} · {{ invoice.paymentTermsNote }}{% endif %}
+  {% elseif invoice.paymentTermsNote %}
+    {{ invoice.paymentTermsNote }}
+  {% else %}
+    Échéance : paiement comptant
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -57,7 +66,14 @@
         <p class="pline">À l'attention de {{ invoice.payerAttention }}</p>
       {% endif %}
       {% if invoice.payerAddressLines is not empty %}
-        <p class="pline">{{ invoice.payerAddressLines|join('<br/>')|raw }}</p>
+        <p class="pline">{{ invoice.payerAddressLines|map(l => l|e)|join('<br/>')|raw }}</p>
+      {% endif %}
+      {% if isProfessional and (invoice.payerSiren or invoice.payerVatNumber) %}
+        <p class="pline">
+          {%- if invoice.payerSiren %}SIREN {{ invoice.payerSiren|split('', 3)|join(' ') }}{% endif %}
+          {%- if invoice.payerSiren and invoice.payerVatNumber %} · {% endif %}
+          {%- if invoice.payerVatNumber %}TVA {{ invoice.payerVatNumber }}{% endif -%}
+        </p>
       {% endif %}
     </td>
     <td>
@@ -98,7 +114,7 @@
     <thead><tr>
       <th>Désignation</th>
       <th class="num" style="width:16mm;">Qté</th>
-      <th class="num" style="width:24mm;">P.U. HT</th>
+      <th class="num" style="width:28mm;">P.U.</th>
       <th class="num" style="width:16mm;">TVA</th>
       <th class="num" style="width:26mm;">Total TTC</th>
     </tr></thead>
@@ -110,7 +126,7 @@
             {% if line.code %}<span class="sub">{{ line.code }}</span>{% endif %}
           </td>
           <td class="num">{{ line.quantity }}</td>
-          <td class="num">{{ line.unitPriceMinorUnits|money(invoice.currency) }}</td>
+          <td class="num">{{ line.unitPriceMinorUnits|money(invoice.currency) }} {{ line.unitPriceMode == 'incl' ? 'TTC' : 'HT' }}</td>
           <td class="num">{{ line.taxRatePercent }} %</td>
           <td class="num" style="font-weight:600;">{{ line.grossMinorUnits|money(invoice.currency) }}</td>
         </tr>
@@ -128,15 +144,21 @@
           <p class="box-t">Récapitulatif de TVA</p>
           <table class="data" style="margin-top:0;">
             <thead><tr>
-              <th>Taux</th><th class="num">Base HT</th><th class="num">TVA</th><th class="num">Total TTC</th>
+              <th>Taux</th>
+              {% if hasAllowance %}<th class="num">Remise</th>{% endif %}
+              <th class="num">Base HT{% if hasAllowance %} après remise{% endif %}</th>
+              <th class="num">TVA</th>
+              <th class="num">Total TTC</th>
             </tr></thead>
             <tbody>
+              {# Per rate, after the share of the discount: the rows add up to the totals. #}
               {% for rate in invoice.taxBreakdown %}
                 <tr>
                   <td>{{ rate.ratePercent }} %</td>
+                  {% if hasAllowance %}<td class="num">− {{ rate.allowanceMinorUnits|money(invoice.currency) }}</td>{% endif %}
                   <td class="num">{{ rate.netMinorUnits|money(invoice.currency) }}</td>
                   <td class="num">{{ rate.taxMinorUnits|money(invoice.currency) }}</td>
-                  <td class="num">{{ (rate.netMinorUnits + rate.taxMinorUnits)|money(invoice.currency) }}</td>
+                  <td class="num">{{ rate.grossMinorUnits|money(invoice.currency) }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -242,11 +264,14 @@
     {% if billing is defined and billing is not null and billing.invoiceFooterNote %}
       {{ billing.invoiceFooterNote }}<br/>
     {% endif %}
-    <b>Conditions de règlement.</b> Paiement comptant à réception des soins, sauf accord écrit préalable.
-    En cas de retard de paiement, application de plein droit de pénalités calculées au taux d’intérêt légal
-    majoré de trois points, ainsi que d’une indemnité forfaitaire de recouvrement de 40 € pour les clients
-    professionnels (articles L. 441-10 et D. 441-5 du code de commerce). Aucun escompte n’est accordé pour
-    paiement anticipé.<br/>
+    {% if invoice.professionalMentions is not empty %}
+      {# The mentions a professional invoice carries, as frozen at issue (late-payment penalties, recovery fee, no discount). #}
+      <b>Conditions de règlement.</b>
+      {%- if invoice.paymentTermsNote %} {{ invoice.paymentTermsNote }}.{% endif %}
+      {{ invoice.professionalMentions|join(' ') }}<br/>
+    {% else %}
+      <b>Conditions de règlement.</b> Paiement comptant à réception des soins, sauf accord écrit préalable.<br/>
+    {% endif %}
     <b>Réclamation.</b> Toute contestation relative à la présente facture doit être adressée par écrit dans
     un délai de trente jours à compter de sa date d’émission. Facture à conserver — elle vaut justificatif
     auprès de votre assurance santé animale et, le cas échéant, pour toute déclaration fiscale.

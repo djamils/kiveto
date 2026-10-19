@@ -8,10 +8,12 @@ use App\Context\Billing\Application\Command\ApplyInvoiceDiscount\ApplyInvoiceDis
 use App\Context\Billing\Application\Command\CheckoutAdmission\CheckoutAdmission;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
+use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Presentation\Clinic\Form\Shared\AmountParser;
 use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
 use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
+use App\Presentation\Clinic\ViewModel\Billing\ReadinessMessages;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -31,6 +33,7 @@ final class SubmitCheckoutController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ReadinessMessages $readiness,
     ) {
     }
 
@@ -77,6 +80,17 @@ final class SubmitCheckoutController extends AbstractController
                 reference: '' !== $reference ? $reference : null,
                 recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
             ));
+        } catch (InvoiceNotTransmissibleException $e) {
+            // Nothing was numbered: the sheet of the draft lists what to fix, each with its link.
+            $draft = $this->queryBus->ask(new GetInvoiceDetails($clinicId, $invoiceId));
+
+            ReadinessMessages::flash($request, $invoiceId, $this->readiness->for(
+                $e->requirements,
+                $draft instanceof InvoiceDetails ? $draft->payerClientId : null,
+                'clinic_checkout|admissionId=' . rawurlencode($admissionId),
+            ));
+
+            return $this->redirectToRoute('clinic_checkout', ['admissionId' => $admissionId]);
         } catch (\DomainException $e) {
             $this->addFlash('error', BillingErrorMessage::of($e));
 

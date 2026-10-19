@@ -12,7 +12,8 @@
  # payload; each change saves its whole section in the background.
  #
  # Variables:
- #   payload  App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder::page()
+ #   payload     App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder::page()
+ #   returnLink  array{raw, url, label}|null  way back to where the page was opened from (Identité, Facturation)
  #
  # Behaviour: assets/js/pages/settings.js — styles: assets/styles/shell/register.css + assets/styles/pages/settings.css
  #}
@@ -27,6 +28,9 @@
   <div class="pagehead">
     <h1>Paramètres<small id="phSub">{{ payload.clinicName }}</small></h1>
     <div class="right" style="align-items:center">
+      {% if returnLink is defined and returnLink %}
+        <a class="btn" href="{{ returnLink.url }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>{{ returnLink.label }}</a>
+      {% endif %}
       <span class="saved" id="saved" role="status"><i></i><span id="savedT">Tout est enregistré</span></span>
     </div>
   </div>

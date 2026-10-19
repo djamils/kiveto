@@ -104,7 +104,7 @@ abstract class AbstractSheetAction extends AbstractController
         return '' === $value ? null : $value;
     }
 
-    private function currentRequest(): ?Request
+    protected function currentRequest(): ?Request
     {
         $requestStack = $this->container->get('request_stack');
         \assert($requestStack instanceof RequestStack);

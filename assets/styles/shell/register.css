@@ -89,6 +89,13 @@
 .reg .bandeau b{display:block;font-weight:600}
 .reg .bandeau.info{background:var(--pin-pale);color:var(--pin-fonce);border:1px solid #e0e7ff}
 .reg .bandeau.crit{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+/* What a professional invoice lacks: one line per item, with where to fix it. */
+.reg .rdy{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.reg .rdy li{display:flex;align-items:baseline;gap:10px}
+.reg .rdy li span{flex:1;min-width:0}
+.reg .rdy a{font-weight:600;color:inherit;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.reg .vt-msg.crit{background:#fef2f2;color:#991b1b}
+.reg .vt-msg.crit b{color:#7f1d1d}
 .reg .lien{color:var(--pin);font-weight:600;font-size:.78rem;display:inline-flex;align-items:center;gap:4px}
 .reg .lien:hover{text-decoration:underline}
 .reg .fi-foot{display:flex;align-items:center;gap:8px;padding:11px 14px;background:var(--carte);border-top:1px solid var(--trait);flex:none}
