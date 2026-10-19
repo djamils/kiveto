@@ -10,6 +10,8 @@ use App\Context\Client\Domain\Event\ClientContactMethodsReplaced;
 use App\Context\Client\Domain\Event\ClientCreated;
 use App\Context\Client\Domain\Event\ClientIdentityUpdated;
 use App\Context\Client\Domain\Event\ClientPostalAddressUpdated;
+use App\Context\Client\Domain\Event\ClientTaxIdentifiersChanged;
+use App\Context\Client\Domain\Event\ClientTaxProfileVerified;
 use App\Context\Client\Domain\Event\ClientUnarchived;
 use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\Event\IntegrationEventInterface;
@@ -236,5 +238,41 @@ final class ClientEventsTest extends TestCase
         $payload = $event->payload();
         self::assertSame('client-123', $payload['clientId']);
         self::assertSame('clinic-456', $payload['clinicId']);
+    }
+
+    public function testClientTaxIdentifiersChangedReturnsCorrectData(): void
+    {
+        $event = new ClientTaxIdentifiersChanged('client-123', 'clinic-456', 'french_business', '441569738', '523456788', null, 'FR31523456788');
+
+        self::assertInstanceOf(DomainEventInterface::class, $event);
+        self::assertSame('client-123', $event->aggregateId());
+        self::assertSame('client.client-tax-identifiers.changed.v1', $event->name());
+        self::assertSame([
+            'clientId'          => 'client-123',
+            'clinicId'          => 'clinic-456',
+            'taxStatus'         => 'french_business',
+            'previousSiren'     => '441569738',
+            'siren'             => '523456788',
+            'previousVatNumber' => null,
+            'vatNumber'         => 'FR31523456788',
+        ], $event->payload());
+    }
+
+    public function testClientTaxProfileVerifiedReturnsCorrectData(): void
+    {
+        $event = new ClientTaxProfileVerified('client-123', 'clinic-456', 'active', 'EARL ELEVAGE DES CALANQUES', '2026-10-18T08:12:00+00:00', 'valid', '2026-10-18T08:12:00+00:00');
+
+        self::assertInstanceOf(DomainEventInterface::class, $event);
+        self::assertSame('client-123', $event->aggregateId());
+        self::assertSame('client.client-tax-profile.verified.v1', $event->name());
+        self::assertSame([
+            'clientId'         => 'client-123',
+            'clinicId'         => 'clinic-456',
+            'companyOutcome'   => 'active',
+            'registryName'     => 'EARL ELEVAGE DES CALANQUES',
+            'companyCheckedAt' => '2026-10-18T08:12:00+00:00',
+            'vatOutcome'       => 'valid',
+            'vatCheckedAt'     => '2026-10-18T08:12:00+00:00',
+        ], $event->payload());
     }
 }

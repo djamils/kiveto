@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Client\Domain;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\Event\ClientCreated;
 use App\Context\Client\Domain\Event\ClientIdentityUpdated;
+use App\Context\Client\Domain\Event\ClientTaxIdentifiersChanged;
 use App\Context\Client\Domain\Event\ClientTaxProfileUpdated;
 use App\Context\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
 use App\Context\Client\Domain\ValueObject\ClientId;
@@ -41,14 +42,15 @@ final class ClientTaxProfileUpdateTest extends TestCase
         self::assertNull($events[0]->payload()['legalName']);
     }
 
-    public function testAStructureIsCreatedWithItsProfileAndASingleEvent(): void
+    public function testAStructureIsCreatedWithItsProfileAndItsIdentifiersToVerify(): void
     {
         $client = $this->create($this->calanques());
         $events = $client->pullDomainEvents();
 
         self::assertSame('Élevage des Calanques', $client->taxProfile()->legalName());
-        self::assertCount(1, $events);
+        self::assertCount(2, $events);
         self::assertInstanceOf(ClientCreated::class, $events[0]);
+        self::assertInstanceOf(ClientTaxIdentifiersChanged::class, $events[1]);
         self::assertSame('Élevage des Calanques', $events[0]->payload()['legalName']);
     }
 
@@ -64,8 +66,9 @@ final class ClientTaxProfileUpdateTest extends TestCase
         self::assertSame($now, $client->updatedAt());
 
         $events = $client->pullDomainEvents();
-        self::assertCount(1, $events);
+        self::assertCount(2, $events);
         self::assertInstanceOf(ClientTaxProfileUpdated::class, $events[0]);
+        self::assertInstanceOf(ClientTaxIdentifiersChanged::class, $events[1]);
         self::assertSame(self::CLIENT_ID, $events[0]->aggregateId());
         self::assertSame([
             'clientId'  => self::CLIENT_ID,
