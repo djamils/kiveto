@@ -23,7 +23,9 @@ final readonly class OnClientIdentityUpdated
         \assert(\is_string($payload['firstName']));
         \assert(\is_string($payload['lastName']));
 
-        $newName = $payload['firstName'] . ' ' . $payload['lastName'];
+        // A structure is labelled by its legal name, a person by their name.
+        $legalName = $payload['legalName'] ?? null;
+        $newName   = \is_string($legalName) ? $legalName : $payload['firstName'] . ' ' . $payload['lastName'];
 
         $this->writer->updateOwnerName($payload['clientId'], $payload['clinicId'], $newName);
     }

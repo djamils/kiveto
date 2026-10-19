@@ -17,6 +17,7 @@ import {
   esc, dates, MOIS, JC, fmtE, fmtQ, IC, icT, MASK, chiffres, champ, lireChamps, masquesLive,
   carte, marquer, flashSaved, menu, ouvrirModale, fermerModales, bindModales, lignes, fonduRail,
 } from 'pages/dossier/kit';
+import { mount as monterFisc, toPayload as fiscPayload, PRO } from 'kiveto/client-tax-profile';
 
 let ac = null;
 
@@ -56,7 +57,7 @@ export function init() {
   /* ── Identity header ── */
   function rendreTete() {
     $('phAv').textContent = (C.prenom[0] + C.nom[0]).toUpperCase();
-    $('phNom').innerHTML = `${esc(nomC())}${ARCH ? '' : `<button type="button" class="ph-edit" id="btnCo" title="Modifier les coordonnées" aria-label="Modifier les coordonnées">${IC.crayon}</button>`}${C.isNew ? ' <span class="vig b">Nouveau client</span>' : ''}`;
+    $('phNom').innerHTML = `${C.rs ? `<span class="ph-rs">${esc(C.rs)}</span>` : ''}${esc(nomC())}${ARCH ? '' : `<button type="button" class="ph-edit" id="btnCo" title="Modifier les coordonnées" aria-label="Modifier les coordonnées">${IC.crayon}</button>`}${C.isNew ? ' <span class="vig b">Nouveau client</span>' : ''}`;
     const adr = C.adr1 ? `${esc(C.adr1)}${C.adr2 ? ', ' + esc(C.adr2) : ''}, ${esc(C.cp)} ${esc(C.ville)}` : '<span style="color:var(--encre-35)">Pas d\'adresse</span>';
     const tels = [C.mob, C.fixe].filter(Boolean).map(t => `<a href="tel:${chiffres(t)}">${esc(t)}</a>`).join(' · ') || '<span style="color:var(--encre-35)">Pas de téléphone</span>';
     $('phFacts').innerHTML = `<span>${IC.pin}${adr}</span><span>${IC.tel}${tels}</span><span>${IC.mail}${C.mail ? `<a href="mailto:${esc(C.mail)}">${esc(C.mail)}</a>` : '<span style="color:var(--encre-35)">Pas d\'e-mail</span>'}</span><span>${C.createdToday ? 'Créé aujourd\'hui' : `Client depuis ${MOIS[+C.depuis.slice(5, 7) - 1]} ${C.depuis.slice(0, 4)}`}</span>`;
@@ -409,6 +410,31 @@ export function init() {
     set('ap_phone', p?.tel);
     f.requestSubmit();
   }
+
+  /* The tax profile: the shared block (kiveto/client-tax-profile) in edit mode. */
+  const F = S.fisc;
+  let FS = null, FUI = null;
+  carte($('cFisc'), {
+    titre: 'Profil fiscal', lecture: ARCH,
+    avant() { FS = { fisc: F.fisc, rs: F.rs, siren: F.siren, tva: F.tva }; },
+    lire() {
+      const ligne = t => `<small style="display:block;color:var(--encre-60);font-size:.74rem;margin-top:2px">${t}</small>`;
+      const ids = F.fisc === PRO ? ligne(`SIREN ${esc(F.sirenAff)} · ${F.tvaAff ? 'TVA ' + esc(F.tvaAff) : 'Pas de n° de TVA'}`) : '';
+      return `<div class="syn-it"><i style="background:${F.fisc === PRO ? 'var(--pin)' : '#cbd5e1'}"></i><div><b>${esc(F.rs || F.label)}</b>${F.rs ? ligne(esc(F.label)) : ''}${ids}</div></div>`;
+    },
+    editer() { return '<div id="fiscBloc"></div>'; },
+    monte() { FUI = monterFisc($('fiscBloc'), FS, () => marquer(CARTES.cFisc), { sirenUrl: F.dblUrl, self: C.id, onCheck: () => {} }); },
+    valider() {
+      if (!FUI.showErrors()) return null;
+      const p = fiscPayload(FS), avant = fiscPayload(F);
+      if (Object.keys(p).every(k => p[k] === avant[k])) return { change: false };
+      return { change: true, appliquer: () => {
+        const f = $('fiscForm');
+        Object.entries(p).forEach(([k, v]) => { f.querySelector(`[name="${k}"]`).value = v; });
+        f.requestSubmit();
+      } };
+    },
+  }, CARTES, signal);
 
   carte($('cNote'), {
     titre: 'Note interne', meta: S.note.meta, lecture: ARCH,

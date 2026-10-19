@@ -42,6 +42,9 @@ class InvoiceEntity
     #[ORM\Column(name: 'payer_name', type: 'string', length: 255)]
     private string $payerName;
 
+    #[ORM\Column(name: 'payer_attention', type: 'string', length: 255, nullable: true)]
+    private ?string $payerAttention = null;
+
     /** @var list<string> */
     #[ORM\Column(name: 'payer_address_lines', type: 'json')]
     private array $payerAddressLines = [];
@@ -146,6 +149,16 @@ class InvoiceEntity
     public function setPayerClientId(?Uuid $payerClientId): void
     {
         $this->payerClientId = $payerClientId;
+    }
+
+    public function getPayerAttention(): ?string
+    {
+        return $this->payerAttention;
+    }
+
+    public function setPayerAttention(?string $payerAttention): void
+    {
+        $this->payerAttention = $payerAttention;
     }
 
     public function getPayerName(): string

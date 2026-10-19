@@ -5,7 +5,7 @@
  # (and its -busy / -vierge variants, which are the same page with more or no
  # data): identity header with the contact facts, the household's animals,
  # the history of every visit (expandable rows), and the rail — appointments
- # to come, account, preferences, authorized person, internal note.
+ # to come, account, preferences, authorized person, tax profile, internal note.
  #
  # The page module (assets/js/pages/clients/sheet.js) renders the cards from
  # the `data-sheet` payload built by ClientSheetBuilder, as the mock-up renders
@@ -57,8 +57,9 @@
       <section class="card fill"><header><h2>Historique</h2><div class="r"><div class="fil chips" id="fil"></div></div></header><div class="cb scr"><div class="rows" id="hist"></div></div></section>
     </div>
     <div class="col rail scr">
+      <section class="card" id="cFisc"></section>
       <section class="card"><header><h2>Prochains rendez-vous</h2></header><div class="cb" id="rdvs"></div></section>
-      <section class="card" id="cCompte"><header><h2>Compte</h2><div class="r"><a class="lien" href="{{ path('clinic_invoices', {q: client.fullName}) }}">Facturation</a></div></header><div class="cb"><div class="kpis" id="kpis"></div><div class="imps" id="imps"></div></div></section>
+      <section class="card" id="cCompte"><header><h2>Compte</h2><div class="r"><a class="lien" href="{{ path('clinic_invoices', {q: client.legalName ?? client.fullName}) }}">Facturation</a></div></header><div class="cb"><div class="kpis" id="kpis"></div><div class="imps" id="imps"></div></div></section>
       <section class="card" id="cPref"></section>
       <section class="card" id="cPers"></section>
       <section class="card" id="cNote"></section>
@@ -147,6 +148,11 @@
     <input type="hidden" name="_token" value="{{ token }}">
     {% for f in ['ap_civility', 'ap_first_name', 'ap_last_name', 'ap_relationship', 'ap_phone'] %}<input type="hidden" name="{{ f }}">{% endfor %}
   </form>
+  <form id="fiscForm" method="post" action="{{ path('clinic_clients_tax_profile_update', {id: client.id}) }}" hidden>
+    <input type="hidden" name="_token" value="{{ token }}">
+    {% for f in ['fisc', 'rs', 'siren', 'tva'] %}<input type="hidden" name="{{ f }}">{% endfor %}
+  </form>
+  {{ include('clinic/clients/_tax_profile_block.html.twig') }}
   <form id="noteForm" method="post" action="{{ path('clinic_clients_note_add', {id: client.id}) }}" hidden>
     <input type="hidden" name="_token" value="{{ token }}">
     <input type="hidden" name="kind" value="information">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Client\Infrastructure\Persistence\Doctrine\Entity;
 
 use App\Context\Client\Domain\ValueObject\ClientStatus;
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Embeddable\PostalAddressEmbeddable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -15,6 +16,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_client_clinic_id', columns: ['clinic_id'])]
 #[ORM\Index(name: 'idx_client_status', columns: ['status'])]
 #[ORM\Index(name: 'idx_client_created_at', columns: ['created_at'])]
+#[ORM\Index(name: 'idx_client_clinic_siren', columns: ['clinic_id', 'siren'])]
 class ClientEntity
 {
     #[ORM\Id]
@@ -32,6 +34,18 @@ class ClientEntity
 
     #[ORM\Column(type: 'string', length: 20, options: ['default' => 'unspecified'])]
     private string $civility = 'unspecified';
+
+    #[ORM\Column(type: 'string', length: 20, enumType: ClientTaxStatus::class, options: ['default' => 'individual'])]
+    private ClientTaxStatus $taxStatus = ClientTaxStatus::INDIVIDUAL;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $legalName = null;
+
+    #[ORM\Column(type: 'string', length: 9, nullable: true, options: ['fixed' => true])]
+    private ?string $siren = null;
+
+    #[ORM\Column(type: 'string', length: 13, nullable: true)]
+    private ?string $vatNumber = null;
 
     #[ORM\Embedded(class: PostalAddressEmbeddable::class, columnPrefix: false)]
     private PostalAddressEmbeddable $postalAddress;
@@ -124,6 +138,46 @@ class ClientEntity
     public function setCivility(string $civility): void
     {
         $this->civility = $civility;
+    }
+
+    public function getTaxStatus(): ClientTaxStatus
+    {
+        return $this->taxStatus;
+    }
+
+    public function setTaxStatus(ClientTaxStatus $taxStatus): void
+    {
+        $this->taxStatus = $taxStatus;
+    }
+
+    public function getLegalName(): ?string
+    {
+        return $this->legalName;
+    }
+
+    public function setLegalName(?string $legalName): void
+    {
+        $this->legalName = $legalName;
+    }
+
+    public function getSiren(): ?string
+    {
+        return $this->siren;
+    }
+
+    public function setSiren(?string $siren): void
+    {
+        $this->siren = $siren;
+    }
+
+    public function getVatNumber(): ?string
+    {
+        return $this->vatNumber;
+    }
+
+    public function setVatNumber(?string $vatNumber): void
+    {
+        $this->vatNumber = $vatNumber;
     }
 
     public function getPostalAddress(): PostalAddressEmbeddable

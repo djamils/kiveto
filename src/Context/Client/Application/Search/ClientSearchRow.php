@@ -13,6 +13,7 @@ final readonly class ClientSearchRow
         public ?string $searchPhone,
         public ?string $primaryEmail,
         public string $status,
+        public ?string $legalName = null,
     ) {
     }
 }

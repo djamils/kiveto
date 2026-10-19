@@ -10,6 +10,7 @@ use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPending
 use App\Context\Billing\Application\Command\DepositPendingCheques\DepositPendingChequesHandler;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNote;
 use App\Context\Billing\Application\Command\IssueCreditNote\IssueCreditNoteHandler;
+use App\Context\Billing\Application\Command\RecordCounterSale\ClientTaxProfileInput;
 use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSaleHandler;
@@ -28,9 +29,11 @@ use App\Context\Billing\Domain\CashClosing;
 use App\Context\Billing\Domain\ChequeDeposit;
 use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
+use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
 use App\Context\Billing\Domain\Exception\InvalidCashClosingException;
 use App\Context\Billing\Domain\Exception\InvalidChequeDepositException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
@@ -411,6 +414,52 @@ final class DeskCommandHandlersTest extends TestCase
         $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: $newcomer));
     }
 
+    /**
+     * @return iterable<string, array{ClientTaxProfileInput, string}>
+     */
+    public static function provideAStructureNeedsAValidTaxProfileCases(): iterable
+    {
+        yield 'unknown status' => [new ClientTaxProfileInput('b2b', 'Élevage des Calanques', '523456788'), 'Unknown tax status'];
+        yield 'no legal name' => [new ClientTaxProfileInput('individual', '  '), 'legal name'];
+        yield 'legal name too long' => [new ClientTaxProfileInput('french_business', str_repeat('é', 256), '523456788'), 'legal name'];
+        yield 'invalid SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456789'), 'SIREN'];
+        yield 'no SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques'), 'SIREN'];
+        yield 'VAT of another SIREN' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788', 'FR19812345676'), 'VAT'];
+    }
+
+    #[DataProvider('provideAStructureNeedsAValidTaxProfileCases')]
+    public function testAStructureNeedsAValidTaxProfile(ClientTaxProfileInput $profile, string $message): void
+    {
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::never())->method('register');
+
+        $this->expectException(InvalidCounterClientTaxProfileException::class);
+        $this->expectExceptionMessageMatches('/' . preg_quote($message, '/') . '/i');
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $this->createStub(PayerDirectoryInterface::class), registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: $profile)));
+    }
+
+    /**
+     * @return iterable<string, array{ClientTaxProfileInput}>
+     */
+    public static function provideAValidStructureIsRegisteredCases(): iterable
+    {
+        yield 'VAT-liable with its VAT number' => [new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523 456 788 00012', 'FR31523456788')];
+        yield 'not VAT-liable' => [new ClientTaxProfileInput('individual', 'Refuge des Collines')];
+    }
+
+    #[DataProvider('provideAValidStructureIsRegisteredCases')]
+    public function testAValidStructureIsRegistered(ClientTaxProfileInput $profile): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(new PayerSnapshotDto(self::CLIENT, (string) $profile->legalName, [], 'Mme Claire Rostand'));
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->willReturn(self::CLIENT);
+
+        $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: $profile)));
+    }
+
     public function testANewcomerWithoutAPhoneHasNoInternationalNumber(): void
     {
         self::assertSame('', new CounterSaleNewClient('madam', 'Benali', 'Nadia')->internationalPhone());
@@ -566,6 +615,76 @@ final class DeskCommandHandlersTest extends TestCase
 
         self::assertSame(3, $view->number);
         self::assertSame('2026-10-14', $view->businessDate);
+    }
+
+    public function testANewProfessionalIsBilledUnderItsLegalNameToItsContact(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('clientWithPhone')->willReturn(null);
+        $payers->expects(self::once())->method('forClient')->with(self::CLIENT, self::CLINIC_ID)
+            ->willReturn(new PayerSnapshotDto(self::CLIENT, 'Élevage des Calanques', ['13400 Aubagne'], 'Mme Claire Rostand'))
+        ;
+
+        $professional = new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788'));
+        $registry     = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->with(self::CLINIC_ID, $professional)->willReturn(self::CLIENT);
+
+        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: $professional));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Élevage des Calanques', $saved->payer()->displayName());
+        self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+        self::assertSame(['13400 Aubagne'], $saved->payer()->addressLines());
+        self::assertSame(CounterSalePayer::NEW_CLIENT, $saved->counterSalePayer());
+    }
+
+    public function testANewProfessionalNotReadBackFailsTheSale(): void
+    {
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->expects(self::never())->method('save');
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(null);
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->method('register')->willReturn(self::CLIENT);
+
+        try {
+            $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(CounterSaleNewClient::MISTER, 'Marchal', 'Hugo', email: 'hugo@lac.fr', taxProfile: new ClientTaxProfileInput('french_business', 'Centre équestre du Lac', '812345676'))));
+            self::fail('The sale went out without the professional\'s legal name.');
+        } catch (CounterClientNotReadBackException $e) {
+            self::assertSame(self::CLIENT, $e->clientId);
+        }
+    }
+
+    public function testAClientOnFileCarriesTheAttentionOfTheirSnapshot(): void
+    {
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn(new PayerSnapshotDto(self::CLIENT, 'Élevage des Calanques', [], 'Mme Claire Rostand'));
+
+        $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, self::CLIENT, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD'));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+    }
+
+    public function testAMobileIsToldApartFromALandline(): void
+    {
+        self::assertTrue(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0718427731')->hasMobile());
+        self::assertFalse(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia', '0491000000')->hasMobile());
+        self::assertFalse(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia')->isProfessional());
     }
 
     // ── Helpers ──

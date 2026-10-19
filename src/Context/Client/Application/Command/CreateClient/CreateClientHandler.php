@@ -55,6 +55,7 @@ final readonly class CreateClientHandler
             identity: $identity,
             contactMethods: $contactMethods,
             createdAt: $now,
+            taxProfile: null === $command->taxProfile ? null : ClientTaxProfileFactory::fromDto($command->taxProfile),
         );
 
         if (null !== $command->postalAddress) {

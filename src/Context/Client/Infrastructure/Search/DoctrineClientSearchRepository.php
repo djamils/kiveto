@@ -15,7 +15,7 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClientSearchRepository implements ClientSearchRepositoryInterface
 {
-    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name'
+    private const string SELECT = 'SELECT BIN_TO_UUID(id) AS id, first_name, last_name, legal_name'
         . ', search_phone, primary_email, status FROM client__search_entries';
 
     public function __construct(
@@ -29,13 +29,9 @@ final readonly class DoctrineClientSearchRepository implements ClientSearchRepos
         $conn         = $this->entityManager->getConnection();
         $clinicBinary = Uuid::fromString($query->clinicId)->toBinary();
 
-        if ($this->normalizer->isPhone($query->term)) {
-            $phone = $this->normalizer->normalizePhone($query->term);
+        $phone = $this->normalizer->isPhone($query->term) ? $this->normalizer->normalizePhone($query->term) : null;
 
-            if (null === $phone) {
-                return [];
-            }
-
+        if (null !== $phone) {
             return $this->searchByPhone($conn, $phone, $clinicBinary, $query->limit);
         }
 
@@ -97,6 +93,7 @@ final readonly class DoctrineClientSearchRepository implements ClientSearchRepos
                     ? $row['primary_email']
                     : null,
                 status: $row['status'],
+                legalName: isset($row['legal_name']) && \is_string($row['legal_name']) ? $row['legal_name'] : null,
             );
         }
 

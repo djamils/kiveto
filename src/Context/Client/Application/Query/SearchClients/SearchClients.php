@@ -22,6 +22,8 @@ final readonly class SearchClients
         public ?array $restrictToIds = null,
         /** @var list<string> clients another context matched on the free text (an animal's name or chip) */
         public array $termMatchingIds = [],
+        // Only structures (clients with a legal name): the counter « Professionnel » tab.
+        public bool $withLegalNameOnly = false,
     ) {
     }
 }

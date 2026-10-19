@@ -1,0 +1,38 @@
+{#
+ # Shared tax-profile block (« profil fiscal »), cloned and driven by
+ # assets/js/shared/client-tax-profile.js wherever a client is created or
+ # edited: the counter « Professionnel » tab, the directory « Nouveau client »
+ # window and the « Profil fiscal » card of the client sheet. The server reads
+ # it back through TaxProfileInput (`fisc`, `rs`, `siren`, `tva`).
+ #
+ # Styles: assets/styles/components/tax-profile.css.
+ #}
+<template id="tplFisc">
+  <div class="fisc">
+    <div class="fisc-opts" role="radiogroup" aria-label="Statut fiscal">
+      <button type="button" class="fisc-opt" data-fv="ind" role="radio" aria-checked="false"><b>Particulier ou structure non assujettie à la TVA</b><small>Particulier, association, refuge…</small></button>
+      <button type="button" class="fisc-opt" data-fv="pro" role="radio" aria-checked="false"><b>Professionnel assujetti à la TVA</b><small>Élevage, centre équestre, entreprise…</small></button>
+    </div>
+    <div class="fisc-f">
+      <label class="fisc-l">Raison sociale <span class="req" data-rs-req>*</span></label>
+      <input class="fisc-in" data-ff="rs" autocomplete="organization" spellcheck="false" aria-label="Raison sociale">
+      <small class="fisc-err" data-fe="rs"></small>
+    </div>
+    <div class="fisc-pro" data-pro hidden>
+      <div class="fisc-2">
+        <div class="fisc-f">
+          <label class="fisc-l">SIREN · 9 chiffres <span class="req">*</span></label>
+          <input class="fisc-in mono" data-ff="siren" inputmode="numeric" autocomplete="off" placeholder="523 456 788" aria-label="SIREN">
+          <small class="fisc-err" data-fe="siren"></small>
+        </div>
+        <div class="fisc-f">
+          <label class="fisc-l">N° de TVA intracommunautaire</label>
+          <input class="fisc-in mono" data-ff="tva" autocomplete="off" placeholder="FR 00 123456789" aria-label="N° de TVA intracommunautaire">
+          <small class="fisc-err" data-fe="tva"></small>
+        </div>
+      </div>
+      <p class="fisc-aide">Une entreprise en franchise en base n'a pas toujours de n° de TVA.</p>
+      <div class="fisc-dbl" data-dbl hidden></div>
+    </div>
+  </div>
+</template>

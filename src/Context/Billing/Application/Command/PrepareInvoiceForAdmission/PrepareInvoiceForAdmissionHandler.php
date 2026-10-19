@@ -110,6 +110,7 @@ final readonly class PrepareInvoiceForAdmissionHandler
             null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
             $snapshot->displayName,
             $snapshot->addressLines,
+            $snapshot->attention,
         );
     }
 

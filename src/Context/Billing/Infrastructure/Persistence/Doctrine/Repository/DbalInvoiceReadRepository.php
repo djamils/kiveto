@@ -146,6 +146,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             creditableMinorUnits: $invoice->creditableAmount()->minorUnits(),
             creditNotes: $creditNotes,
             counterSalePayer: $invoice->counterSalePayer()?->value,
+            payerAttention: $invoice->payer()->attention(),
         );
     }
 
@@ -191,6 +192,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             refundedMinorUnits: $note->refunded()->minorUnits(),
             issuedAt: $note->issuedAt(),
             issuedByUserId: $note->issuedByUserId(),
+            payerAttention: $note->payer()->attention(),
         );
     }
 

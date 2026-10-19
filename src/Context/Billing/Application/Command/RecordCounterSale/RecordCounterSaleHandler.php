@@ -9,7 +9,9 @@ use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Domain\Exception\CounterClientAlreadyKnownException;
+use App\Context\Billing\Domain\Exception\CounterClientNotReadBackException;
 use App\Context\Billing\Domain\Exception\InvalidCounterClientException;
+use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
@@ -29,6 +31,8 @@ use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
+use App\Shared\Domain\ValueObject\Siren;
 use App\Shared\Money\Domain\ValueObject\Money;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -38,7 +42,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * no visit behind it; it is made out to the client chosen, to the newcomer
  * whose record it creates (unless their phone already belongs to a client),
  * or — when the client refuses to give any contact details — to nobody, the
- * refusal being kept with the sale.
+ * refusal being kept with the sale. A professional is billed under its legal
+ * name, to the attention of its contact.
  */
 #[AsMessageHandler]
 final readonly class RecordCounterSaleHandler
@@ -46,6 +51,7 @@ final readonly class RecordCounterSaleHandler
     private const int MAX_QUANTITY = 999;
     private const int MAX_NAME     = 40;
     private const int MAX_EMAIL    = 80;
+    private const int MAX_LEGAL    = 255;
 
     public function __construct(
         private InvoiceRepositoryInterface $invoices,
@@ -166,14 +172,16 @@ final readonly class RecordCounterSaleHandler
                 null !== $snapshot->clientId ? PayerId::fromString($snapshot->clientId) : null,
                 $snapshot->displayName,
                 $snapshot->addressLines,
+                $snapshot->attention,
             ),
             CounterSalePayer::CLIENT,
         ];
     }
 
     /**
-     * Opens the newcomer's record — a name, and a mobile or an e-mail to find
-     * and reach them by — and makes the invoice out to them.
+     * Opens the newcomer's record — a name, and a phone or an e-mail to find
+     * and reach them by — and makes the invoice out to them. A professional is
+     * read back from its record, to be billed under its legal name.
      */
     private function register(string $clinicId, CounterSaleNewClient $client): Payer
     {
@@ -188,6 +196,13 @@ final readonly class RecordCounterSaleHandler
         }
 
         $clientId = $this->clientRegistry->register($clinicId, $client);
+
+        if ($client->isProfessional()) {
+            $snapshot = $this->payerDirectory->forClient($clientId, $clinicId)
+                ?? throw new CounterClientNotReadBackException($clientId);
+
+            return Payer::create(PayerId::fromString($clientId), $snapshot->displayName, $snapshot->addressLines, $snapshot->attention);
+        }
 
         return Payer::create(PayerId::fromString($clientId), $client->displayName());
     }
@@ -218,6 +233,42 @@ final readonly class RecordCounterSaleHandler
 
         if ('' === $client->phone && '' === $client->email) {
             throw new InvalidCounterClientException('A newcomer needs a mobile or an e-mail.');
+        }
+
+        if (null !== $client->taxProfile) {
+            $this->validateTaxProfile($client->taxProfile);
+        }
+    }
+
+    /**
+     * A structure opened at the desk: a known status, a legal name and, when
+     * VAT-liable, a valid SIREN and VAT number. Checked here so that the
+     * Client context never refuses what the desk sends.
+     */
+    private function validateTaxProfile(ClientTaxProfileInput $profile): void
+    {
+        if (!\in_array($profile->status, [ClientTaxProfileInput::INDIVIDUAL, ClientTaxProfileInput::FRENCH_BUSINESS], true)) {
+            throw new InvalidCounterClientTaxProfileException(\sprintf('Unknown tax status "%s".', $profile->status));
+        }
+
+        $legalName = mb_trim((string) $profile->legalName);
+
+        if ('' === $legalName || mb_strlen($legalName) > self::MAX_LEGAL) {
+            throw new InvalidCounterClientTaxProfileException('A structure needs a legal name of at most 255 characters.');
+        }
+
+        if (ClientTaxProfileInput::FRENCH_BUSINESS !== $profile->status) {
+            return;
+        }
+
+        try {
+            $siren = Siren::fromInput((string) $profile->siren);
+
+            if (null !== $profile->vatNumber && '' !== mb_trim($profile->vatNumber)) {
+                FrenchVatNumber::fromInput($profile->vatNumber, $siren);
+            }
+        } catch (\InvalidArgumentException $e) { // InvalidSirenException or InvalidFrenchVatNumberException
+            throw new InvalidCounterClientTaxProfileException($e->getMessage(), previous: $e);
         }
     }
 }

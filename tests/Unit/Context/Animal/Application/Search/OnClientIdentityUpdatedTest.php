@@ -26,4 +26,22 @@ final class OnClientIdentityUpdatedTest extends TestCase
         $handler = new OnClientIdentityUpdated($writer);
         $handler($event);
     }
+
+    public function testAStructureIsLabelledByItsLegalName(): void
+    {
+        $writer = $this->createMock(AnimalSearchEntryWriterInterface::class);
+        $writer->expects(self::once())
+            ->method('updateOwnerName')
+            ->with('01912345-6789-7abc-8def-000000000003', '01912345-6789-7abc-8def-000000000002', 'Élevage des Calanques')
+        ;
+
+        new OnClientIdentityUpdated($writer)(new ClientIdentityUpdated(
+            '01912345-6789-7abc-8def-000000000003',
+            '01912345-6789-7abc-8def-000000000002',
+            'Claire',
+            'Rostand',
+            'madam',
+            'Élevage des Calanques',
+        ));
+    }
 }

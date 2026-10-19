@@ -51,6 +51,9 @@ return [
     'kiveto/shell' => [
         'path' => './assets/js/shell/shell.js',
     ],
+    'kiveto/client-tax-profile' => [
+        'path' => './assets/js/shared/client-tax-profile.js',
+    ],
     'pages/home' => [
         'path' => './assets/js/pages/home.js',
     ],

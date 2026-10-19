@@ -14,6 +14,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * The clients of the clinic the « Vente au comptoir » window finds by name,
  * phone or animal, as JSON. A name needs two letters, a phone three digits.
+ * The « Professionnel » tab (`kind=pro`) looks for structures only, by legal
+ * name or SIREN.
  */
 #[Route(path: '/billing/counter-clients', name: 'clinic_counter_clients', methods: ['GET'])]
 final class CounterClientsController extends AbstractController
@@ -35,6 +37,7 @@ final class CounterClientsController extends AbstractController
             $currentClinicId->toString(),
             $request->query->getString('q'),
             self::LIMIT,
+            'pro' === $request->query->getString('kind'),
         )]);
     }
 }

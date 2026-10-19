@@ -11,6 +11,7 @@ use App\Context\Client\Domain\Event\ClientContactMethodsReplaced;
 use App\Context\Client\Domain\Event\ClientCreated;
 use App\Context\Client\Domain\Event\ClientIdentityUpdated;
 use App\Context\Client\Domain\Event\ClientPostalAddressUpdated;
+use App\Context\Client\Domain\Event\ClientTaxProfileUpdated;
 use App\Context\Client\Domain\Event\ClientUnarchived;
 use App\Context\Client\Domain\Exception\ClientAlreadyArchivedException;
 use App\Context\Client\Domain\Exception\ClientArchivedCannotBeModifiedException;
@@ -21,6 +22,7 @@ use App\Context\Client\Domain\ValueObject\AuthorizedPerson;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
 use App\Context\Client\Domain\ValueObject\ClientStatus;
+use App\Context\Client\Domain\ValueObject\ClientTaxProfile;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationPreferences;
 use App\Context\Client\Domain\ValueObject\Consent;
@@ -41,6 +43,7 @@ final class Client extends AggregateRoot
     private ?PostalAddress $postalAddress       = null;
     private ?AuthorizedPerson $authorizedPerson = null;
     private CommunicationPreferences $communicationPreferences;
+    private ClientTaxProfile $taxProfile;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -57,6 +60,7 @@ final class Client extends AggregateRoot
         ClientIdentity $identity,
         array $contactMethods,
         \DateTimeImmutable $createdAt,
+        ?ClientTaxProfile $taxProfile = null,
     ): self {
         self::validateContactMethods($contactMethods);
 
@@ -70,6 +74,7 @@ final class Client extends AggregateRoot
         $client->updatedAt      = $createdAt;
 
         $client->communicationPreferences = CommunicationPreferences::none();
+        $client->taxProfile               = $taxProfile ?? ClientTaxProfile::default();
 
         $client->recordDomainEvent(new ClientCreated(
             clientId: $id->toString(),
@@ -77,6 +82,7 @@ final class Client extends AggregateRoot
             firstName: $identity->firstName,
             lastName: $identity->lastName,
             contactMethods: self::serializeContactMethods($contactMethods),
+            legalName: $client->taxProfile->legalName(),
         ));
 
         return $client;
@@ -96,6 +102,7 @@ final class Client extends AggregateRoot
         ?PostalAddress $postalAddress = null,
         ?AuthorizedPerson $authorizedPerson = null,
         ?CommunicationPreferences $communicationPreferences = null,
+        ?ClientTaxProfile $taxProfile = null,
     ): self {
         $client                 = new self();
         $client->id             = $id;
@@ -109,6 +116,7 @@ final class Client extends AggregateRoot
 
         $client->authorizedPerson         = $authorizedPerson;
         $client->communicationPreferences = $communicationPreferences ?? CommunicationPreferences::none();
+        $client->taxProfile               = $taxProfile ?? ClientTaxProfile::default();
 
         return $client;
     }
@@ -126,6 +134,30 @@ final class Client extends AggregateRoot
             firstName: $newIdentity->firstName,
             lastName: $newIdentity->lastName,
             civility: $newIdentity->civility->value,
+            legalName: $this->taxProfile->legalName(),
+        ));
+    }
+
+    public function updateTaxProfile(ClientTaxProfile $taxProfile, \DateTimeImmutable $now): void
+    {
+        $this->ensureNotArchived();
+
+        if ($this->taxProfile->equals($taxProfile)) {
+            return;
+        }
+
+        $this->taxProfile = $taxProfile;
+        $this->updatedAt  = $now;
+
+        $this->recordDomainEvent(new ClientTaxProfileUpdated(
+            clientId: $this->id->toString(),
+            clinicId: $this->clinicId->toString(),
+            status: $taxProfile->status()->value,
+            legalName: $taxProfile->legalName(),
+            siren: $taxProfile->siren()?->value(),
+            vatNumber: $taxProfile->vatNumber()?->value(),
+            firstName: $this->identity->firstName,
+            lastName: $this->identity->lastName,
         ));
     }
 
@@ -300,6 +332,11 @@ final class Client extends AggregateRoot
     public function communicationPreferences(): CommunicationPreferences
     {
         return $this->communicationPreferences;
+    }
+
+    public function taxProfile(): ClientTaxProfile
+    {
+        return $this->taxProfile;
     }
 
     public function createdAt(): \DateTimeImmutable

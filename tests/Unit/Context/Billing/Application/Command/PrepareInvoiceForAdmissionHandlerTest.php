@@ -224,6 +224,37 @@ final class PrepareInvoiceForAdmissionHandlerTest extends TestCase
         self::assertSame('CHF', $saved->currency()->toString());
     }
 
+    public function testADraftRereadsTheStructuresCurrentNameUntilIssued(): void
+    {
+        $existing = Invoice::draft(
+            id: InvoiceId::fromString(self::INVOICE_ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            admissionId: AdmissionId::fromString(self::ADMISSION_ID),
+            payer: Payer::create(null, 'Elevage des Calanqes', [], 'Mme Claire Rostand'),
+            currency: CurrencyCode::fromString('EUR'),
+            now: $this->now(),
+        );
+
+        $this->invoices->method('findForAdmission')->willReturn($existing);
+        $this->clock->method('now')->willReturn($this->now());
+        $this->uuidGenerator->method('generate')->willReturn('01960000-0000-7000-8000-000000000302');
+        $this->consultationBilling->method('billableLinesForAdmission')->willReturn([]);
+        $this->payerDirectory->method('forAdmission')
+            ->willReturn(new PayerSnapshotDto(self::CLIENT_ID, 'Élevage des Calanques', [], 'Mme Claire Rostand'))
+        ;
+
+        $saved = null;
+        $this->invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        ($this->handler)(new PrepareInvoiceForAdmission(self::CLINIC_ID, self::ADMISSION_ID));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame('Élevage des Calanques', $saved->payer()->displayName());
+        self::assertSame('Mme Claire Rostand', $saved->payer()->attention());
+    }
+
     private function billableLine(string $label, string $code, string $quantity, int $unitPrice): BillableLineDto
     {
         return new BillableLineDto(

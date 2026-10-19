@@ -20,10 +20,14 @@ use Symfony\Component\Uid\Uuid;
  * to name its payer the moment the visit is charged.
  *
  * An intake with no identified animal, or an animal with no active owner,
- * simply has no payer yet.
+ * simply has no payer yet. A structure is billed under its legal name, to the
+ * attention of its contact person.
  */
 final readonly class DbalPayerDirectory implements PayerDirectoryInterface
 {
+    /** Civility as stored by the Client context => honorific printed before the name. */
+    private const array HONORIFICS = ['madam' => 'Mme', 'mister' => 'M.'];
+
     public function __construct(private Connection $connection)
     {
     }
@@ -31,7 +35,7 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
     public function forAdmission(string $admissionId, string $clinicId): ?PayerSnapshotDto
     {
         $row = $this->connection->fetchAssociative(
-            "SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name,
+            "SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name, c.civility, c.legal_name,
                     c.postal_address_street_line_1, c.postal_address_street_line_2,
                     c.postal_address_postal_code, c.postal_address_city
              FROM admission__admissions a
@@ -54,7 +58,7 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
     public function forClient(string $clientId, string $clinicId): ?PayerSnapshotDto
     {
         $row = $this->connection->fetchAssociative(
-            'SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name,
+            'SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name, c.civility, c.legal_name,
                     c.postal_address_street_line_1, c.postal_address_street_line_2,
                     c.postal_address_postal_code, c.postal_address_city
              FROM client__clients c
@@ -91,17 +95,30 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
      */
     private function snapshot(array $row): ?PayerSnapshotDto
     {
-        $name = mb_trim(
+        $person = mb_trim(
             RowAccessor::string($row, 'first_name') . ' ' . RowAccessor::string($row, 'last_name'),
         );
 
-        if ('' === $name) {
+        $legalName = mb_trim(RowAccessor::nullableString($row, 'legal_name') ?? '');
+
+        if ('' !== $legalName) {
+            $honorific = self::HONORIFICS[RowAccessor::string($row, 'civility')] ?? '';
+
+            return new PayerSnapshotDto(
+                clientId: RowAccessor::string($row, 'client_id'),
+                displayName: $legalName,
+                addressLines: $this->addressOf($row),
+                attention: '' === $person ? null : mb_trim($honorific . ' ' . $person),
+            );
+        }
+
+        if ('' === $person) {
             return null;
         }
 
         return new PayerSnapshotDto(
             clientId: RowAccessor::string($row, 'client_id'),
-            displayName: $name,
+            displayName: $person,
             addressLines: $this->addressOf($row),
         );
     }

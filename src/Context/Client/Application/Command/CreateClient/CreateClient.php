@@ -10,7 +10,8 @@ use App\Context\Client\Application\Command\UpdateClientPostalAddress\PostalAddre
  * Opens a client record. Beyond the identity and the contact methods, the
  * directory's « Nouveau client » window gives at once the civility, the
  * postal address, how the client wants to be reminded (and what they agree
- * to receive) and the animals they come with: all of it lands in one go.
+ * to receive), the animals they come with and, for a structure, its tax
+ * profile (legal name, SIREN, VAT number): all of it lands in one go.
  */
 final readonly class CreateClient
 {
@@ -29,6 +30,8 @@ final readonly class CreateClient
         public ?string $preferredChannel = null,
         public array $channelsByConsentKind = [],
         public array $animals = [],
+        // Null opens a plain individual record.
+        public ?ClientTaxProfileDto $taxProfile = null,
     ) {
     }
 }

@@ -53,6 +53,9 @@
     <td>
       <p class="plabel">Facturé à</p>
       <p class="pname">{{ invoice.payerName }}</p>
+      {% if invoice.payerAttention %}
+        <p class="pline">À l'attention de {{ invoice.payerAttention }}</p>
+      {% endif %}
       {% if invoice.payerAddressLines is not empty %}
         <p class="pline">{{ invoice.payerAddressLines|join('<br/>')|raw }}</p>
       {% endif %}

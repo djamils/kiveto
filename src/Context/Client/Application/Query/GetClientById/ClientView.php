@@ -24,6 +24,10 @@ final readonly class ClientView
         public ?string $preferredChannel = null,
         public array $consents = [],
         public string $civility = 'unspecified',
+        public string $taxStatus = 'individual',
+        public ?string $legalName = null,
+        public ?string $siren = null,
+        public ?string $vatNumber = null,
     ) {
     }
 

@@ -1,0 +1,29 @@
+/* Shared tax-profile block (templates/clinic/clients/_tax_profile_block.html.twig). */
+@layer components {
+  .fisc{display:flex;flex-direction:column;gap:10px}
+  .fisc-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .fisc-opt{display:flex;flex-direction:column;gap:2px;text-align:left;padding:9px 11px;border:1px solid var(--trait);border-radius:9px;background:var(--carte);font:inherit;color:inherit;cursor:pointer;transition:border-color .13s,background .13s,box-shadow .13s}
+  .fisc-opt b{font-size:.8rem;font-weight:600;line-height:1.3}
+  .fisc-opt small{font-size:.7rem;color:var(--encre-60)}
+  .fisc-opt:hover{border-color:var(--encre-35)}
+  .fisc-opt.on{border-color:var(--pin);background:var(--brume);box-shadow:0 0 0 1px var(--pin) inset}
+  .fisc-opt:disabled{opacity:.55;cursor:not-allowed}
+  .fisc-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .fisc-l{font-size:.72rem;font-weight:600;color:var(--encre-60)}
+  .fisc-l .req{color:#b91c1c;margin-left:2px}
+  .fisc-in{width:100%;border:1px solid var(--trait);border-radius:8px;padding:8px 10px;background:var(--brume);font:inherit;font-size:.84rem;color:inherit;outline:none;transition:border-color .13s,background .13s}
+  .fisc-in.mono{font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  .fisc-in:focus{border-color:var(--pin);background:var(--carte)}
+  .fisc-in.ok{border-color:#86efac}
+  .fisc-in.ko{border-color:#ef4444;background:#fef2f2}
+  .fisc-err{font-size:.7rem;color:#b91c1c}
+  .fisc-err:empty{display:none}
+  .fisc-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .fisc-pro{display:flex;flex-direction:column;gap:8px}
+  .fisc-pro[hidden]{display:none}
+  .fisc-aide{font-size:.72rem;color:var(--encre-60);margin:0}
+  .fisc-dbl{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;font-size:.76rem}
+  .fisc-dbl[hidden]{display:none}
+  .fisc-dbl a{margin-left:auto;font-weight:600;color:var(--pin);white-space:nowrap;text-decoration:none}
+  @media (max-width:560px){.fisc-opts,.fisc-2{grid-template-columns:1fr}}
+}

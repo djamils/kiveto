@@ -342,6 +342,31 @@ final class BillingRegisterRepositoryTest extends KernelTestCase
         self::assertSame(1, $this->desk->closingCount($this->clinic()));
     }
 
+    public function testAStructuresContactTravelsFromTheInvoiceToItsCreditNote(): void
+    {
+        $invoice = Invoice::draft(
+            id: InvoiceId::fromString($this->uuids->generate()),
+            clinicId: $this->clinic(),
+            admissionId: null,
+            payer: Payer::create(PayerId::fromString(self::CLIENT_ID), 'Élevage des Calanques', ['13400 Aubagne'], 'Mme Claire Rostand'),
+            currency: CurrencyCode::fromString('EUR'),
+            now: $this->now(),
+        );
+        $invoice->addLine($this->line(5000, 1000), $this->now());
+        $invoice->addLine($this->line(1000, 200), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 31), $this->now());
+        $this->invoices->save($invoice);
+
+        $note = $this->creditNote($invoice, 1200, 'Retour produit', null, 0);
+        $this->creditNotes->save($note);
+
+        self::assertSame('Mme Claire Rostand', $this->invoices->get($this->clinic(), $invoice->id())->payer()->attention());
+        self::assertSame('Mme Claire Rostand', $this->creditNotes->get($this->clinic(), $note->id())->payer()->attention());
+        self::assertSame('Mme Claire Rostand', $this->read->details($this->clinic(), $invoice->id())->payerAttention);
+        self::assertSame('Mme Claire Rostand', $this->read->creditNoteDetails($this->clinic(), $note->id())->payerAttention);
+        self::assertNull($this->read->details($this->clinic(), $this->issued(32)->id())->payerAttention);
+    }
+
     private function connection(): \Doctrine\DBAL\Connection
     {
         return self::service(self::getContainer()->get(\Doctrine\DBAL\Connection::class), \Doctrine\DBAL\Connection::class);

@@ -62,4 +62,15 @@ final class PayerTest extends TestCase
         self::assertFalse($one->equals(Payer::create(null, 'Sophie Dupont', ['12 rue des Lilas'])));
         self::assertFalse($one->equals(Payer::create(PayerId::fromString(self::CLIENT_ID), 'Marc Lefebvre')));
     }
+
+    public function testAStructureIsBilledToTheAttentionOfItsContact(): void
+    {
+        $payer = Payer::create(null, 'Élevage des Calanques', [], '  Mme Claire Rostand ');
+
+        self::assertSame('Mme Claire Rostand', $payer->attention());
+        self::assertNull(Payer::create(null, 'Sophie Dupont', [], '  ')->attention());
+        self::assertNull(Payer::create(null, 'Sophie Dupont')->attention());
+        self::assertFalse($payer->equals(Payer::create(null, 'Élevage des Calanques')));
+        self::assertTrue($payer->equals(Payer::create(null, 'Élevage des Calanques', [], 'Mme Claire Rostand')));
+    }
 }

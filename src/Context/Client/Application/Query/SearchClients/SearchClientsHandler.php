@@ -34,6 +34,7 @@ final readonly class SearchClientsHandler
             direction: $query->direction,
             restrictToIds: $query->restrictToIds,
             termMatchingIds: $query->termMatchingIds,
+            withLegalNameOnly: $query->withLegalNameOnly,
         );
 
         return $this->clientReadRepository->search($clinicId, $criteria);

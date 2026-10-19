@@ -30,6 +30,9 @@
     <td>
       <p class="plabel">Client</p>
       <p class="pname">{{ note.payerName }}</p>
+      {% if note.payerAttention %}
+        <p class="pline">À l'attention de {{ note.payerAttention }}</p>
+      {% endif %}
       {% if note.payerAddressLines is not empty %}
         <p class="pline">{{ note.payerAddressLines|join('<br/>')|raw }}</p>
       {% endif %}

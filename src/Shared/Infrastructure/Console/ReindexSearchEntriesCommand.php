@@ -56,7 +56,7 @@ final class ReindexSearchEntriesCommand extends Command
                 a.microchip_number,
                 a.status,
                 BIN_TO_UUID(o.client_id)    AS primary_owner_client_id,
-                TRIM(CONCAT(c.first_name, ' ', c.last_name)) AS owner_name,
+                COALESCE(NULLIF(c.legal_name, ''), TRIM(CONCAT(c.first_name, ' ', c.last_name))) AS owner_name,
                 cm.value                     AS owner_phone
             FROM animal__animals a
             LEFT JOIN animal__ownerships o
@@ -120,6 +120,7 @@ final class ReindexSearchEntriesCommand extends Command
                 BIN_TO_UUID(c.clinic_id) AS clinic_id,
                 c.first_name,
                 c.last_name,
+                c.legal_name,
                 c.status,
                 cm_phone.value           AS phone,
                 cm_email.value           AS email
@@ -155,6 +156,7 @@ final class ReindexSearchEntriesCommand extends Command
                     ? $row['email']
                     : null,
                 status: $row['status'],
+                legalName: \is_string($row['legal_name']) ? $row['legal_name'] : null,
             ));
 
             $io->progressAdvance();

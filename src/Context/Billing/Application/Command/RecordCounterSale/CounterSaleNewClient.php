@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Command\RecordCounterSale;
 
 /**
- * A newcomer the desk sells to, as typed in the « Nouveau particulier » form:
- * their record is created with the sale. The phone is the national number
- * (ten digits); either of the phone and the e-mail may be empty.
+ * A newcomer the desk sells to, as typed in the « Nouveau particulier » or
+ * « Nouveau professionnel » form: their record is created with the sale. The
+ * phone is the national number (ten digits); either of the phone and the
+ * e-mail may be empty. A professional carries its tax profile, the person
+ * being its contact.
  */
 final readonly class CounterSaleNewClient
 {
@@ -20,7 +22,19 @@ final readonly class CounterSaleNewClient
         public string $firstName,
         public string $phone = '',
         public string $email = '',
+        public ?ClientTaxProfileInput $taxProfile = null,
     ) {
+    }
+
+    public function isProfessional(): bool
+    {
+        return null !== $this->taxProfile;
+    }
+
+    /** A mobile (06, 07) rather than a landline. */
+    public function hasMobile(): bool
+    {
+        return 1 === preg_match('/^0[67]/', $this->phone);
     }
 
     /** « 0612345678 » → « +33612345678 »; empty when there is no phone. */

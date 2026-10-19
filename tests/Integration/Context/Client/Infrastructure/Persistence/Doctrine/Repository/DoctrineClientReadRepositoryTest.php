@@ -362,4 +362,25 @@ final class DoctrineClientReadRepositoryTest extends KernelTestCase
         self::assertSame([$first, $second], $repo->findIdsByPhone(ClinicId::fromString($clinicId), '+33612345678'));
         self::assertSame([], $repo->findIdsByPhone(ClinicId::fromString($clinicId), '+33699999999'));
     }
+
+    public function testFindFullNamesByIdsNamesThisClinicsClientsOnly(): void
+    {
+        $clinicId = '32345678-9abc-def0-1234-56789abcdef0';
+        $first    = '01960000-0000-7000-8000-0000000003c1';
+        $second   = '01960000-0000-7000-8000-0000000003c2';
+        $other    = '01960000-0000-7000-8000-0000000003c3';
+
+        ClientEntityFactory::new()->withId($first)->withClinicId($clinicId)->withName('Paul', 'Martin')->active()->create();
+        ClientEntityFactory::new()->withId($second)->withClinicId($clinicId)->withName('Lucie', 'Morel')->archived()->create();
+        ClientEntityFactory::new()->withId($other)->withClinicId('42345678-9abc-def0-1234-56789abcdef0')->withName('Jean', 'Autre')->active()->create();
+
+        /** @var ClientReadRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClientReadRepositoryInterface::class);
+
+        $names = $repo->findFullNamesByIds(ClinicId::fromString($clinicId), [$first, $second, $other]);
+        ksort($names);
+
+        self::assertSame([$first => 'Paul Martin', $second => 'Lucie Morel'], $names);
+        self::assertSame([], $repo->findFullNamesByIds(ClinicId::fromString($clinicId), []));
+    }
 }

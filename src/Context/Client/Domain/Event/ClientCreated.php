@@ -20,6 +20,7 @@ readonly class ClientCreated extends AbstractDomainEvent
         private string $firstName,
         private string $lastName,
         private array $contactMethods,
+        private ?string $legalName = null,
     ) {
     }
 
@@ -36,6 +37,7 @@ readonly class ClientCreated extends AbstractDomainEvent
             'firstName'      => $this->firstName,
             'lastName'       => $this->lastName,
             'contactMethods' => $this->contactMethods,
+            'legalName'      => $this->legalName,
         ];
     }
 }

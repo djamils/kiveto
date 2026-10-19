@@ -22,6 +22,7 @@
  * Listeners are bound in init() with one AbortSignal and released in cleanup().
  */
 import { showToast, creerDropdown } from 'kiveto/shell';
+import { mount as monterFisc, blank as fiscVide, validate as fiscErr, toPayload as fiscPayload, fmtSiren, fmtVat, PRO } from 'kiveto/client-tax-profile';
 
 const SEARCH_DEBOUNCE_MS = 250;
 const PP_KEY = 'kiveto-fact-pp';
@@ -300,7 +301,7 @@ export function init() {
       : st === 'brou' ? 'Document provisoire — non valable comme facture.' : 'Règlement à réception.'}`;
     return `${st === 'brou' ? '<div class="wm">BROUILLON</div>' : ''}
       <div class="pp-head">${entete}<div class="r"><div class="pp-doc">${av ? 'Avoir' : 'Facture'}</div><p>N° ${esc(o.num || '— (à l\'encaissement)')}<br>Date : ${fmtD(o.d)}<br>${av ? `Sur facture ${esc(o.origin.num)}` : 'Praticien : ' + esc(o.vet ? o.vet.n : '—')}</p></div></div>
-      <div class="pp-meta"><div><p class="k">Client</p><p><b>${esc(c.n)}</b>${(c.adr || []).length ? '<br>' + c.adr.map(esc).join('<br>') : ''}</p></div><div><p class="k">${o.anis.length > 1 ? 'Animaux' : 'Animal'}</p><p>${animauxNoms(o).map(n => `<b>${esc(n)}</b>`).join('<br>') || '—'}</p></div></div>
+      <div class="pp-meta"><div><p class="k">Client</p><p><b>${esc(c.n)}</b>${c.att ? `<br>À l'attention de ${esc(c.att)}` : ''}${(c.adr || []).length ? '<br>' + c.adr.map(esc).join('<br>') : ''}</p></div><div><p class="k">${o.anis.length > 1 ? 'Animaux' : 'Animal'}</p><p>${animauxNoms(o).map(n => `<b>${esc(n)}</b>`).join('<br>') || '—'}</p></div></div>
       <table class="pp-tab"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU TTC</th><th class="n">TVA</th><th class="n">Total TTC</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="pp-tot">${o.remise ? `<div><span>Remise${o.remise.motif ? ` (${esc(o.remise.motif)})` : ''}</span><span>−${fmtE(o.remise.m)} HT</span></div>` : ''}${tva}
         <div class="g"><span>Total TTC</span><span>${sign}${fmtE(o.tot)}</span></div>${reste}</div>
@@ -383,7 +384,7 @@ export function init() {
     const f = $('factForm');
     f.action = act.url;
     $('ffTok').value = act.token;
-    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient', payer: 'ffPayer', civ: 'ffCiv', nom: 'ffNom', pre: 'ffPre', tel: 'ffTel', mail: 'ffMail', imprimer: 'ffPrint' };
+    const map = { invoice_id: 'ffInvoice', method: 'ffMethod', amount: 'ffAmount', reference: 'ffRef', discount_percent: 'ffRem', discount_reason: 'ffRemMotif', lines: 'ffLines', reason: 'ffReason', refund: 'ffRefund', mode: 'ffMode', client: 'ffClient', payer: 'ffPayer', civ: 'ffCiv', nom: 'ffNom', pre: 'ffPre', tel: 'ffTel', mail: 'ffMail', fisc: 'ffFisc', rs: 'ffRs', siren: 'ffSiren', tva: 'ffTva', imprimer: 'ffPrint' };
     Object.entries(map).forEach(([k, id]) => { $(id).value = fields[k] ?? ''; });
     f.requestSubmit();
   }
@@ -489,8 +490,10 @@ export function init() {
 
   /* Vente au comptoir — every sale names its client: one on file, a newcomer
      whose record the sale creates, or nobody when the client refuses to give
-     any contact details (the refusal is kept with the sale). Professional
-     clients (SIREN, e-invoicing) are drawn but not offered yet. */
+     any contact details (the refusal is kept with the sale). The
+     « Professionnel » tab finds a structure on file (legal name or SIREN) or
+     opens one with the shared tax-profile block; the sale stays paid at the
+     counter (transfer, 30-day terms and e-invoicing come later). */
   let VT = null;
   const VT_MODES = ['cb', 'esp', 'chq'];
   const ICX = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
@@ -517,20 +520,24 @@ export function init() {
       if (e.name !== 'AbortError') showToast('Le catalogue n\'a pas pu être lu', 'danger');
     }
   }
-  async function chercherClients(q) {
-    const r = await fetch(`${P.urls.clients}?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' }, signal });
+  /** The person typed in the current tab: the newcomer, or the professional's contact. */
+  const per = () => (VT.ty === 'pro' ? VT.pp : VT.p);
+  /* The refusal of contact details belongs to the « Particulier » tab only. */
+  const sansCoord = () => VT.ty === 'part' && VT.anon;
+  async function chercherClients(q, kind = '') {
+    const r = await fetch(`${P.urls.clients}?q=${encodeURIComponent(q)}${kind ? '&kind=' + kind : ''}`, { headers: { Accept: 'application/json' }, signal });
     if (!r.ok) throw new Error(String(r.status));
     const d = await r.json();
     d.items.forEach(c => VT.known.set(c.id, c));
     return d.items;
   }
   async function rechercheCli() {
-    const q = VT.q, n = norm(q), d = q.replace(/\D/g, '');
-    if (n.length < 2 && d.length < 3) { VT.cl = null; rendreCl(); return; }
+    const pro = VT.ty === 'pro', q = pro ? VT.pq : VT.q, n = norm(q), d = q.replace(/\D/g, '');
+    if (n.length < 2 && d.length < 3) { if (pro) VT.pcl = null; else VT.cl = null; rendreCl(); return; }
     try {
-      const items = await chercherClients(q);
-      if (!VT || VT.q !== q) return;
-      VT.cl = items;
+      const items = await chercherClients(q, pro ? 'pro' : '');
+      if (!VT || (pro ? VT.pq : VT.q) !== q) return;
+      if (pro) VT.pcl = items; else VT.cl = items;
       rendreCl();
     } catch (e) {
       if (e.name !== 'AbortError') showToast('Le fichier clients n\'a pas pu être lu', 'danger');
@@ -538,11 +545,11 @@ export function init() {
   }
   // A newcomer's mobile that already belongs to a client: use their record instead of creating a second one.
   async function chercherDoublon() {
-    const tel = VT.p.tel;
+    const tel = per().tel;
     if (!telOk(tel)) { VT.dbl = null; majPart(); rendreVt(); return; }
     try {
       const items = await chercherClients(tel);
-      if (!VT || VT.p.tel !== tel) return;
+      if (!VT || per().tel !== tel) return;
       VT.dbl = items.find(c => chif(c.tel || '', 10) === tel) || null;
       majPart();
       rendreVt();
@@ -552,7 +559,8 @@ export function init() {
   }
 
   function ouvrirVente() {
-    VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']) };
+    VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']),
+      pc: null, pq: '', pcl: null, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
     $('vtQ').value = '';
     rendreVtTy();
     rendreZone();
@@ -569,8 +577,38 @@ export function init() {
       <span class="s">${esc(c.tel || 'Sans téléphone')}${c.adr ? ' · ' + esc(c.adr) : ''}</span></div>
       <button type="button" class="x" data-vtx aria-label="Changer de client">${ICX}</button></div>`;
   }
+  /** A structure on file: legal name and badge, identifiers, contact and address. */
+  function carteCliPro(c) {
+    const ids = c.siren ? `SIREN ${esc(fmtSiren(c.siren))}${c.tva ? ' · TVA ' + esc(fmtVat(c.tva)) : ''}` : 'sans SIREN';
+    return `<div class="vt-card"><span class="av2">${esc(initiales(c.rs || c.n))}</span><div class="lt"><b>${esc(c.rs || c.n)}${c.badge ? ` <span class="vt-badge">${esc(c.badge)}</span>` : ''}</b>
+      <span class="s">${ids}</span><span class="s">${esc(c.n)}${c.adr ? ' · ' + esc(c.adr) : ''}</span></div>
+      <button type="button" class="x" data-vpx aria-label="Changer de client">${ICX}</button></div>`;
+  }
+  /** The contact person and the means to reach them (shared by the newcomer and the professional's contact). */
+  function champsPersonne(p, telPh, aide) {
+    return `<div class="vt-g"><div class="seg" id="vtCiv"><button type="button" data-v="M." class="${p.civ === 'M.' ? 'on' : ''}">M.</button><button type="button" data-v="Mme" class="${p.civ === 'Mme' ? 'on' : ''}">Mme</button></div>
+        <div class="vt-f"><input class="finput" id="vpNom" placeholder="Nom *" maxlength="40" value="${esc(p.nom)}" aria-label="Nom"></div><div class="vt-f"><input class="finput" id="vpPre" placeholder="Prénom *" maxlength="40" value="${esc(p.pre)}" aria-label="Prénom"></div></div>
+      <div class="vt-g2"><div class="vt-f"><input class="finput" id="vpTel" inputmode="numeric" placeholder="${telPh}" value="${fmtTel(p.tel)}" aria-label="Téléphone"><small id="vpTelH"></small></div>
+        <div class="vt-f"><input class="finput" id="vpMail" type="email" placeholder="E-mail" maxlength="80" value="${esc(p.mail)}" aria-label="E-mail"><small id="vpMailH"></small></div></div>
+      <p class="vt-aide">${aide}</p>
+      <div id="vpDbl"></div>`;
+  }
+  function rendreZonePro(z) {
+    if (VT.pc) { z.innerHTML = carteCliPro(VT.known.get(VT.pc)); return; }
+    if (!VT.pnew) {
+      z.innerHTML = `<div class="crech" style="max-width:none">${LOUPE}<input id="vtPq" placeholder="Raison sociale ou SIREN…" autocomplete="off" value="${esc(VT.pq)}"></div><div class="vt-l" id="vtCl"></div>`;
+      rendreCl();
+      return;
+    }
+    z.innerHTML = `<div id="vtFisc"></div><div class="vt-h" style="margin-top:12px">Contact</div>
+      ${champsPersonne(VT.pp, 'Mobile ou fixe', 'Un téléphone (mobile ou fixe) ou un e-mail au moins.')}
+      <div class="vt-alt"><button type="button" data-vpback>Rechercher un professionnel déjà client</button></div>`;
+    monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { sirenUrl: P.urls.siren, structureOnly: true });
+    majPart();
+  }
   function rendreZone() {
     const z = $('vtZone');
+    if (VT.ty === 'pro') { rendreZonePro(z); return; }
     if (VT.ty === 'cli') {
       if (VT.cli) { z.innerHTML = carteCli(VT.known.get(VT.cli)); return; }
       z.innerHTML = `<div class="crech" style="max-width:none">${LOUPE}<input id="vtCq" placeholder="Nom, téléphone ou animal…" autocomplete="off" value="${esc(VT.q)}"></div><div class="vt-l" id="vtCl"></div>`;
@@ -581,26 +619,29 @@ export function init() {
       z.innerHTML = `<div class="vt-msg warn">${ICO.info}<div><b>Vente sans coordonnées</b><br>Le client refuse de les donner : ticket sans nom, refus tracé dans le journal de caisse.</div><button type="button" class="act" data-vtanon="0">Saisir quand même</button></div>`;
       return;
     }
-    const p = VT.p;
-    z.innerHTML = `<div class="vt-g"><div class="seg" id="vtCiv"><button type="button" data-v="M." class="${p.civ === 'M.' ? 'on' : ''}">M.</button><button type="button" data-v="Mme" class="${p.civ === 'Mme' ? 'on' : ''}">Mme</button></div>
-        <div class="vt-f"><input class="finput" id="vpNom" placeholder="Nom *" maxlength="40" value="${esc(p.nom)}" aria-label="Nom"></div><div class="vt-f"><input class="finput" id="vpPre" placeholder="Prénom *" maxlength="40" value="${esc(p.pre)}" aria-label="Prénom"></div></div>
-      <div class="vt-g2"><div class="vt-f"><input class="finput" id="vpTel" inputmode="numeric" placeholder="Mobile · 06 00 00 00 00" value="${fmtTel(p.tel)}" aria-label="Mobile"><small id="vpTelH"></small></div>
-        <div class="vt-f"><input class="finput" id="vpMail" type="email" placeholder="E-mail" maxlength="80" value="${esc(p.mail)}" aria-label="E-mail"><small id="vpMailH"></small></div></div>
-      <p class="vt-aide">Un mobile ou un e-mail au moins : c'est ce qui permet de retrouver et de joindre ce client.</p>
-      <div id="vpDbl"></div>
+    z.innerHTML = `${champsPersonne(VT.p, 'Mobile · 06 00 00 00 00', 'Un mobile ou un e-mail au moins : c\'est ce qui permet de retrouver et de joindre ce client.')}
       <div class="vt-alt"><button type="button" data-vtanon="1">Le client refuse de donner ses coordonnées</button></div>`;
     majPart();
   }
   function rendreCl() {
     const el = $('vtCl');
     if (!el) return;
+    if (VT.ty === 'pro') {
+      const l = VT.pcl;
+      el.innerHTML = `<div class="vt-grp">Clients de la clinique</div>${!l ? '' : l.length
+        ? l.map(c => `<button type="button" class="vt-o" data-pcli="${esc(c.id)}"><span class="lt"><b>${esc(c.rs || c.n)}${c.badge ? ` <span class="vt-badge">${esc(c.badge)}</span>` : ''}</b><span class="s">${c.siren ? 'SIREN ' + esc(fmtSiren(c.siren)) + ' · ' : ''}${esc(c.n)}</span></span></button>`).join('')
+        : '<div class="vt-vide">Aucun professionnel trouvé.</div>'}
+        <div class="vt-grp off" data-tip="Recherche dans l'annuaire SIRENE — bientôt disponible">Annuaire des entreprises · SIRENE <span class="vt-badge">bientôt</span></div>
+        <button type="button" class="vt-new" data-vpnew>+ Nouveau professionnel</button>`;
+      return;
+    }
     if (!VT.cl) { el.innerHTML = ''; return; }
     el.innerHTML = VT.cl.length
       ? VT.cl.map(c => `<button type="button" class="vt-o" data-cli="${esc(c.id)}"><span class="lt"><b>${esc(c.n)}</b><span class="s">${esc(c.tel || '')}${c.adr ? ' · ' + esc(c.adr) : ''}</span></span></button>`).join('')
       : '<div class="vt-vide">Aucun client trouvé.<button type="button" data-vtnew>Créer un nouveau particulier</button></div>';
   }
   function majPart() {
-    const p = VT.p, t = $('vpTel');
+    const p = per(), t = $('vpTel');
     if (!t) return;
     const th = $('vpTelH'), m = $('vpMail'), mh = $('vpMailH');
     t.classList.toggle('ko', p.tel.length === 10 && !telOk(p.tel));
@@ -618,12 +659,16 @@ export function init() {
   /* ── Articles et règlement ── */
   function clientOk() {
     if (VT.ty === 'cli') return VT.cli ? '' : 'Choisissez le client';
-    if (VT.anon) return '';
-    const p = VT.p;
-    if (p.nom.length < 2) return 'Nom du client requis';
-    if (!p.pre) return 'Prénom du client requis';
-    if (!telOk(p.tel) && !mailOk(p.mail)) return 'Mobile ou e-mail requis';
-    if (p.tel.length && !telOk(p.tel)) return 'Mobile invalide';
+    const pro = VT.ty === 'pro';
+    if (pro && VT.pc) return '';
+    if (pro && !VT.pnew) return 'Choisissez le client';
+    if (pro) { const fe = Object.values(fiscErr(VT.fisc, true))[0]; if (fe) return fe.replace(/\.$/, ''); }
+    if (sansCoord()) return '';
+    const p = per();
+    if (p.nom.length < 2) return pro ? 'Nom du contact requis' : 'Nom du client requis';
+    if (!p.pre) return pro ? 'Prénom du contact requis' : 'Prénom du client requis';
+    if (!telOk(p.tel) && !mailOk(p.mail)) return pro ? 'Téléphone ou e-mail requis' : 'Mobile ou e-mail requis';
+    if (p.tel.length && !telOk(p.tel)) return pro ? 'Téléphone invalide' : 'Mobile invalide';
     if (p.mail && !mailOk(p.mail)) return 'E-mail invalide';
     if (VT.dbl && chif(VT.dbl.tel || '', 10) === p.tel) return 'Client déjà connu : utilisez sa fiche';
     return '';
@@ -636,7 +681,13 @@ export function init() {
     $('vtLines').innerHTML = VT.L.map((x, i) => `<div class="li"><div class="lt"><b>${esc(x.l)}</b><span>${fmtE(x.p)} l'unité</span></div><div class="qty"><button type="button" data-vq="${i}" data-d="-1" aria-label="Un de moins">−</button><input value="${x.q}" readonly aria-label="Quantité"><button type="button" data-vq="${i}" data-d="1" aria-label="Un de plus">+</button></div><span class="m">${fmtE(x.q * x.p)}</span><button type="button" class="rm" data-vrm="${i}" aria-label="Retirer">${ICO.rm}</button></div>`).join('');
     const tot = VT.L.reduce((s, x) => s + x.q * x.p, 0);
     chipsModes('vtMode', VT.mode, VT_MODES);
-    $('vtFe').innerHTML = `<div class="vt-msg">${ICO.info}<div><b>Vente à un particulier</b> · pas de facture électronique : les totaux du jour relèvent de l'e-reporting (bientôt disponible).</div></div>`;
+    if (VT.ty === 'pro') {
+      // Credit sales come with e-invoicing: the professional pays at the counter for now.
+      $('vtMode').insertAdjacentHTML('beforeend', '<button type="button" class="chip" disabled data-tip="Bientôt disponible">Virement · bientôt</button><button type="button" class="chip" disabled data-tip="Bientôt disponible">À régler sous 30 jours · bientôt</button>');
+      $('vtFe').innerHTML = `<div class="vt-msg">${ICO.info}<div><b>Vente à un professionnel</b> · réglée au comptoir. La facture électronique et le paiement à 30 jours seront bientôt disponibles.</div></div>`;
+    } else {
+      $('vtFe').innerHTML = `<div class="vt-msg">${ICO.info}<div><b>Vente à un particulier</b> · pas de facture électronique : les totaux du jour relèvent de l'e-reporting (bientôt disponible).</div></div>`;
+    }
     rendreRemise();
     const manque = clientOk() || (!tot ? 'Ajoutez un article' : '') || (!VT.rem.size ? 'Choisissez comment remettre la facture' : '');
     $('vtTot').textContent = fmtE(tot);
@@ -650,9 +701,9 @@ export function init() {
      yet, so printing is the only channel the desk can pick for now. */
   const REMISE_OFF = { mail: 'L\'envoi par e-mail n\'est pas encore disponible', sms: 'L\'envoi par SMS n\'est pas encore disponible' };
   function rendreRemise() {
-    const LBL = { imp: VT.anon ? 'Imprimer le ticket' : 'Imprimer', mail: 'E-mail', sms: 'SMS' };
-    $('vtRem').innerHTML = (VT.anon ? ['imp'] : ['imp', 'mail', 'sms']).map(r => `<button type="button" class="chip${VT.rem.has(r) ? ' on' : ''}" data-r="${r}"${REMISE_OFF[r] ? ` disabled title="${esc(REMISE_OFF[r])}"` : ''}>${LBL[r]}</button>`).join('');
-    $('vtRemH').textContent = VT.anon ? 'Sans coordonnées, le ticket est remis en main propre.' : VT.rem.has('imp') ? 'Remise en main propre.' : '';
+    const LBL = { imp: sansCoord() ? 'Imprimer le ticket' : 'Imprimer', mail: 'E-mail', sms: 'SMS' };
+    $('vtRem').innerHTML = (sansCoord() ? ['imp'] : ['imp', 'mail', 'sms']).map(r => `<button type="button" class="chip${VT.rem.has(r) ? ' on' : ''}" data-r="${r}"${REMISE_OFF[r] ? ` disabled title="${esc(REMISE_OFF[r])}"` : ''}>${LBL[r]}</button>`).join('');
+    $('vtRemH').textContent = sansCoord() ? 'Sans coordonnées, le ticket est remis en main propre.' : VT.rem.has('imp') ? 'Remise en main propre.' : '';
   }
 
   /* Clôture de caisse */
@@ -826,10 +877,11 @@ export function init() {
     const t = e.target;
     if (!VT) return;
     if (t.id === 'vtCq') { VT.q = t.value; window.clearTimeout(clientTimer); clientTimer = window.setTimeout(rechercheCli, SEARCH_DEBOUNCE_MS); }
-    if (t.id === 'vpNom') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').toUpperCase(); VT.p.nom = t.value.trim(); }
-    if (t.id === 'vpPre') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').replace(/(^|[\s'-])\p{Ll}/gu, x => x.toUpperCase()); VT.p.pre = t.value.trim(); }
-    if (t.id === 'vpTel') { VT.p.tel = chif(t.value, 10); t.value = fmtTel(VT.p.tel); majPart(); chercherDoublon(); }
-    if (t.id === 'vpMail') { t.value = t.value.replace(/\s/g, '').toLowerCase(); VT.p.mail = t.value; majPart(); }
+    if (t.id === 'vtPq') { VT.pq = t.value; window.clearTimeout(clientTimer); clientTimer = window.setTimeout(rechercheCli, SEARCH_DEBOUNCE_MS); }
+    if (t.id === 'vpNom') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').toUpperCase(); per().nom = t.value.trim(); }
+    if (t.id === 'vpPre') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').replace(/(^|[\s'-])\p{Ll}/gu, x => x.toUpperCase()); per().pre = t.value.trim(); }
+    if (t.id === 'vpTel') { per().tel = chif(t.value, 10); t.value = fmtTel(per().tel); majPart(); chercherDoublon(); }
+    if (t.id === 'vpMail') { t.value = t.value.replace(/\s/g, '').toLowerCase(); per().mail = t.value; majPart(); }
     rendreVt();
   }, { signal });
   zone.addEventListener('focusout', () => setTimeout(() => { if (VT) { majPart(); rendreVt(); } }, 0), { signal });
@@ -838,6 +890,17 @@ export function init() {
     const c = e.target.closest('[data-cli]');
     if (c) { VT.ty = 'cli'; VT.cli = c.dataset.cli; rendreVtTy(); rendreZone(); rendreVt(); $('vtQ').focus(); return; }
     if (e.target.closest('[data-vtx]')) { VT.cli = null; rendreZone(); rendreVt(); focusZone(); return; }
+    const pc = e.target.closest('[data-pcli]');
+    if (pc) { VT.pc = pc.dataset.pcli; rendreZone(); rendreVt(); $('vtQ').focus(); return; }
+    if (e.target.closest('[data-vpx]')) { VT.pc = null; rendreZone(); rendreVt(); focusZone(); return; }
+    if (e.target.closest('[data-vpnew]')) {
+      VT.pnew = true;
+      // What was searched is likely the legal name, or the SIREN.
+      const q = VT.pq.trim();
+      if (q && !VT.fisc.rs && !VT.fisc.siren) { if (/^[\d\s.]+$/.test(q)) VT.fisc.siren = q.replace(/\D/g, ''); else VT.fisc.rs = q; }
+      rendreZone(); rendreVt(); focusZone(); return;
+    }
+    if (e.target.closest('[data-vpback]')) { VT.pnew = false; rendreZone(); rendreVt(); focusZone(); return; }
     if (e.target.closest('[data-vtnew]')) {
       const q = VT.q.trim();
       VT.ty = 'part';
@@ -852,7 +915,7 @@ export function init() {
     const an = e.target.closest('[data-vtanon]');
     if (an) { VT.anon = an.dataset.vtanon === '1'; rendreZone(); rendreVt(); return; }
     const cv = e.target.closest('#vtCiv button');
-    if (cv) { VT.p.civ = cv.dataset.v; root.querySelectorAll('#vtCiv button').forEach(x => x.classList.toggle('on', x === cv)); }
+    if (cv) { per().civ = cv.dataset.v; root.querySelectorAll('#vtCiv button').forEach(x => x.classList.toggle('on', x === cv)); }
   }, { signal });
   $('vtQ').addEventListener('input', () => { window.clearTimeout(articleTimer); articleTimer = window.setTimeout(chercherArticles, SEARCH_DEBOUNCE_MS); }, { signal });
   $('vtQ').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); root.querySelector('#vtRes button.citem')?.click(); } }, { signal });
@@ -881,13 +944,15 @@ export function init() {
   }, { signal });
   $('vtOk').addEventListener('click', () => {
     if (!VT || $('vtOk').disabled) return;
-    const p = VT.p, payer = VT.ty === 'cli' ? 'cli' : VT.anon ? 'anon' : 'part';
+    const p = per();
+    const payer = VT.ty === 'cli' || (VT.ty === 'pro' && VT.pc) ? 'cli' : VT.ty === 'pro' ? 'pro' : sansCoord() ? 'anon' : 'part';
     poster({ url: P.urls.counter, token: P.tokens.counter }, {
       lines: VT.L.map(x => `${x.k}:${x.q}`).join(','),
       mode: VT.mode,
       payer,
-      client: payer === 'cli' ? VT.cli : '',
-      ...(payer === 'part' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail } : {}),
+      client: payer === 'cli' ? (VT.ty === 'pro' ? VT.pc : VT.cli) : '',
+      ...(payer === 'part' || payer === 'pro' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail } : {}),
+      ...(payer === 'pro' ? fiscPayload(VT.fisc) : {}),
       imprimer: VT.rem.has('imp') ? '1' : '',
     });
   }, { signal });

@@ -52,6 +52,8 @@ final readonly class InvoiceDetails
         public array $creditNotes = [],
         /** For a counter sale: CLIENT, NEW_CLIENT or REFUSED (see CounterSalePayer). */
         public ?string $counterSalePayer = null,
+        /** « À l'attention de » line under a structure's name. */
+        public ?string $payerAttention = null,
     ) {
     }
 }

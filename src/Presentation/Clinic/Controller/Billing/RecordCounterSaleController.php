@@ -11,6 +11,7 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
 use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
+use App\Presentation\Clinic\ViewModel\Client\TaxProfileInput;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
@@ -28,7 +29,9 @@ use Symfony\Component\Uid\Uuid;
  * `article id:quantity,…`), the means of payment, and who the sale is made
  * to (`payer`): a client of the clinic (`cli`, with `client`), a newcomer
  * whose record is created with it (`part`, with `civ`, `nom`, `pre`, `tel`,
- * `mail`), or a client who refuses to give their contact details (`anon`).
+ * `mail`), a professional opened likewise (`pro`, the same fields plus the
+ * shared tax-profile block `fisc`, `rs`, `siren`, `tva`), or a client who
+ * refuses to give their contact details (`anon`).
  * The invoice is issued and paid at once; the register comes back on its
  * sheet, with the print preview open when the desk hands it over printed
  * (`imprimer`).
@@ -72,6 +75,15 @@ final class RecordCounterSaleController extends AbstractController
             return $back;
         }
 
+        $taxProfile = 'pro' === $payer ? TaxProfileInput::fromArray($request->request->all()) : null;
+
+        // The « Professionnel » tab only creates structures: a legal name is due even when not VAT-liable.
+        if ('pro' === $payer && (null === $taxProfile || null !== $taxProfile->firstError(structureOnly: true))) {
+            $this->addFlash('error', $taxProfile?->firstError(structureOnly: true) ?? 'Choisissez le statut fiscal du professionnel.');
+
+            return $back;
+        }
+
         try {
             $invoiceId = $this->commandBus->dispatch(new RecordCounterSale(
                 clinicId: $clinicId,
@@ -79,7 +91,7 @@ final class RecordCounterSaleController extends AbstractController
                 lines: $lines,
                 method: $method->value,
                 recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
-                newClient: 'part' === $payer ? $this->newClient($request) : null,
+                newClient: \in_array($payer, ['part', 'pro'], true) ? $this->newClient($request, $taxProfile) : null,
                 contactDetailsRefused: 'anon' === $payer,
             ));
         } catch (\DomainException $e) {
@@ -97,7 +109,11 @@ final class RecordCounterSaleController extends AbstractController
                 '%s émise et encaissée · %s%s',
                 $invoice->number ?? 'Facture',
                 BillingSheetBuilder::euros($invoice->totalGrossMinorUnits),
-                'part' === $payer ? \sprintf(' · fiche créée pour %s %s', 'M.' === $request->request->getString('civ') ? 'M.' : 'Mme', $invoice->payerName) : '',
+                match ($payer) {
+                    'part'  => \sprintf(' · fiche créée pour %s %s', 'M.' === $request->request->getString('civ') ? 'M.' : 'Mme', $invoice->payerName),
+                    'pro'   => \sprintf(' · fiche créée pour %s', $invoice->payerName),
+                    default => '',
+                },
             ));
         }
 
@@ -109,10 +125,10 @@ final class RecordCounterSaleController extends AbstractController
     }
 
     /**
-     * The « Nouveau particulier » form, as the window normalised it; the
-     * Billing context checks it.
+     * The « Nouveau particulier » or « Nouveau professionnel » form, as the
+     * window normalised it; the Billing context checks it.
      */
-    private function newClient(Request $request): CounterSaleNewClient
+    private function newClient(Request $request, ?TaxProfileInput $taxProfile): CounterSaleNewClient
     {
         $field = static fn (string $name): string => mb_trim($request->request->getString($name));
 
@@ -123,6 +139,7 @@ final class RecordCounterSaleController extends AbstractController
             firstName: $field('pre'),
             phone: (string) preg_replace('/\D+/', '', $field('tel')),
             email: mb_strtolower($field('mail')),
+            taxProfile: $taxProfile?->toBillingInput(),
         );
     }
 

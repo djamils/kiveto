@@ -125,7 +125,7 @@
     <div class="mhead"><div class="mt"><b>Vente au comptoir</b><span>Sans consultation · la facture est émise à l'encaissement</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
     <div class="mbody scr" style="max-height:74vh;overflow-y:auto">
       <div class="vt-h">Client</div>
-      <div class="seg" id="vtTy"><button type="button" data-t="cli" class="on">Client de la clinique</button><button type="button" data-t="part">Nouveau particulier</button><button type="button" data-t="pro" disabled data-tip="Les clients professionnels (SIREN, facture électronique) — bientôt disponible">Professionnel</button></div>
+      <div class="seg" id="vtTy"><button type="button" data-t="cli" class="on">Client de la clinique</button><button type="button" data-t="part">Nouveau particulier</button><button type="button" data-t="pro">Professionnel</button></div>
       <div id="vtZone"></div>
       <div class="vt-h">Articles</div>
       <div class="crech" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vtQ" placeholder="Scanner ou rechercher un article…" autocomplete="off"></div>
@@ -152,6 +152,8 @@
     <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="cloOk">Clôturer la journée</button></div>
   </div></div>
 
+  {{ include('clinic/clients/_tax_profile_block.html.twig') }}
+
   {# The one form every act on a document goes through #}
   <form id="factForm" method="post" hidden>
     <input type="hidden" name="_token" id="ffTok">
@@ -172,6 +174,10 @@
     <input type="hidden" name="pre" id="ffPre">
     <input type="hidden" name="tel" id="ffTel">
     <input type="hidden" name="mail" id="ffMail">
+    <input type="hidden" name="fisc" id="ffFisc">
+    <input type="hidden" name="rs" id="ffRs">
+    <input type="hidden" name="siren" id="ffSiren">
+    <input type="hidden" name="tva" id="ffTva">
     <input type="hidden" name="imprimer" id="ffPrint">
   </form>
 </div>

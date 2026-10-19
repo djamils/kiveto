@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Fixtures\Context\Client\Story;
 
+use App\Context\Client\Domain\ValueObject\ClientTaxStatus;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
 use App\Fixtures\Context\Client\Factory\ClientCommunicationEntityFactory;
@@ -29,6 +30,13 @@ final class ClientDataStory extends Story
 
     // UI edge-case fixture: client with many animals (triggers "+N" badge in the clients list)
     public const CLIENT_AURELIE_ID = '01936e19-bbbb-7000-8000-00000000000b';
+
+    // Structures (tax profile): VAT-liable businesses, a shared SIREN, an association, an archived one.
+    public const CLIENT_CALANQUES_ID         = '01936e19-cccc-7000-8000-00000000000c';
+    public const CLIENT_CENTRE_EQUESTRE_ID   = '01936e19-dddd-7000-8000-00000000000d';
+    public const CLIENT_CALANQUES_AUBAGNE_ID = '01936e19-eeee-7000-8000-00000000000e';
+    public const CLIENT_REFUGE_ID            = '01936e19-ffff-7000-8000-00000000000f';
+    public const CLIENT_GAEC_ID              = '01936e19-1010-7000-8000-000000000010';
 
     public function build(): void
     {
@@ -398,7 +406,51 @@ final class ClientDataStory extends Story
             ->create()
         ;
 
+        $this->buildProfessionals($parisClinicId);
         $this->buildNotesAndCommunications($parisClinicId);
+    }
+
+    /**
+     * Structures of the Paris clinic, each billed under its legal name to its
+     * contact: a business with and one without VAT number (franchise en
+     * base), a second establishment sharing a SIREN (duplicate warning), an
+     * association that is not VAT-liable, and an archived business.
+     */
+    private function buildProfessionals(string $clinicId): void
+    {
+        $structures = [
+            [self::CLIENT_CALANQUES_ID, 'madam', 'Claire', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques', '523456788', 'FR31523456788', true, '+33 4 91 22 33 44', 'contact@elevage-calanques.fr', ['Chemin des Goudes', 'Marseille', '13008']],
+            [self::CLIENT_CENTRE_EQUESTRE_ID, 'mister', 'Hugo', 'Marchal', ClientTaxStatus::FRENCH_BUSINESS, 'Centre équestre du Lac', '812345676', null, true, '+33 6 45 12 78 90', null, ['Route du Lac', 'Enghien-les-Bains', '95880']],
+            [self::CLIENT_CALANQUES_AUBAGNE_ID, 'mister', 'Paul', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques — site d\'Aubagne', '523456788', null, true, '+33 4 42 03 11 22', null, null],
+            [self::CLIENT_REFUGE_ID, 'madam', 'Inès', 'Perrin', ClientTaxStatus::INDIVIDUAL, 'Refuge des Collines', null, null, true, '+33 6 77 88 99 00', 'refuge.collines@example.org', ['12 rue des Tilleuls', 'Montreuil', '93100']],
+            [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, null],
+        ];
+
+        foreach ($structures as [$id, $civility, $first, $last, $status, $legalName, $siren, $vat, $active, $phone, $email, $address]) {
+            $factory = ClientEntityFactory::new()
+                ->withId($id)
+                ->withClinicId($clinicId)
+                ->withName($first, $last)
+                ->withCivility($civility)
+                ->withTaxProfile($status, $legalName, $siren, $vat)
+            ;
+            $factory = $active ? $factory->active() : $factory->archived();
+
+            if (null !== $address) {
+                $factory = $factory->withPostalAddress(streetLine1: $address[0], city: $address[1], countryCode: 'FR', postalCode: $address[2]);
+            }
+
+            $factory->create();
+
+            // mobile() draws a random number: the label goes first, the number after.
+            $contact = ContactMethodEntityFactory::new()->forClient($id);
+            $contact = str_starts_with($phone, '+33 6') ? $contact->mobile() : $contact->work();
+            $contact->phone($phone)->primary()->create();
+
+            if (null !== $email) {
+                ContactMethodEntityFactory::new()->forClient($id)->email($email)->work()->primary()->create();
+            }
+        }
     }
 
     /**

@@ -26,6 +26,10 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **CommunicationPreferences** : Canal préféré pour les échanges ponctuels + liste des consentements actifs
 - **ClientNote** : Note interne sur un client (`INFORMATION` ou `ATTENTION`), jamais visible du client, jamais modifiée
 - **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe — une entrée de journal, pas un envoi
+- **ClientTaxProfile** (profil fiscal) : statut fiscal (`ClientTaxStatus`), raison sociale facultative, SIREN et n° de TVA
+- **ClientTaxStatus** : `INDIVIDUAL` (« Particulier ou structure non assujettie ») | `FRENCH_BUSINESS` (« Professionnel assujetti à la TVA »). **Assujetti** = soumis à la TVA en France ; avoir un SIREN ne suffit pas (une association non assujettie reste `INDIVIDUAL`)
+- **Raison sociale** (`legalName`) : nom de la structure. Quand elle existe, l'identité du client (civilité, nom, prénom) devient la **personne de contact**, et la facture est adressée à la raison sociale « à l'attention de » ce contact
+- **SIREN** / **N° de TVA** (`Siren`, `FrenchVatNumber`, VO Shared) : identifiants d'un `FRENCH_BUSINESS` uniquement
 
 ## Architecture
 
@@ -110,6 +114,14 @@ src/Client/
 2. Un client `ARCHIVED` ne peut plus être modifié
 3. Un client doit avoir **au moins 1 ContactMethod** (PHONE ou EMAIL)
 
+### Profil fiscal
+1. Par défaut un client est `INDIVIDUAL` sans raison sociale
+2. Raison sociale : facultative pour `INDIVIDUAL`, **obligatoire** pour `FRENCH_BUSINESS` ; espaces retirés, vide = absente, 255 caractères max
+3. SIREN et n° de TVA n'existent que pour `FRENCH_BUSINESS` : **SIREN obligatoire** (espaces, points et tirets retirés ; un SIRET collé est ramené à ses 9 premiers chiffres ; clé de Luhn vérifiée), **TVA facultative** (franchise en base) au format `FR` + clé + SIREN, clé = `(12 + 3 × (SIREN mod 97)) mod 97`
+4. Le SIREN **n'est pas unique** (plusieurs établissements) : un doublon n'est qu'un avertissement (`ListClientIdsBySiren`, archivés compris)
+5. `ClientCreated` porte la raison sociale (null sinon) ; `ClientTaxProfileUpdated` n'est émis que sur une vraie modification (pas à la création, pas si inchangé)
+6. Tri par nom : clé `COALESCE(legal_name, last_name)` puis prénom — une structure se range à sa raison sociale, dans la liste comme dans la recherche
+
 ### ContactMethods
 1. **Au plus 1 primary PHONE** autorisé par client
 2. **Au plus 1 primary EMAIL** autorisé par client
@@ -166,6 +178,10 @@ Crée un nouveau client avec identité et moyens de contact.
 - Pas de doublons
 
 ---
+
+#### UpdateClientTaxProfile
+
+`(clinicId, clientId, ClientTaxProfileDto)` — remplace le profil fiscal. `CreateClient` accepte le même `ClientTaxProfileDto` (`taxProfile`) : les deux passent par `ClientTaxProfileFactory`. Refusé pour un client archivé.
 
 #### UpdateClientIdentity
 Met à jour l'identité (prénom/nom) d'un client.
@@ -428,6 +444,10 @@ Recherche et pagine les clients d'une clinique.
 | clinic_id     | UUID                | NOT NULL, INDEX      |
 | first_name    | VARCHAR(255)        | NOT NULL             |
 | last_name     | VARCHAR(255)        | NOT NULL             |
+| tax_status    | VARCHAR(20)         | NOT NULL, défaut `individual` |
+| legal_name    | VARCHAR(255)        | NULL                 |
+| siren         | CHAR(9)             | NULL, INDEX (clinic_id, siren) |
+| vat_number    | VARCHAR(13)         | NULL                 |
 | status        | ENUM (ClientStatus) | NOT NULL, INDEX      |
 | postal_address_street_line_1 | VARCHAR(255) | NULL              |
 | postal_address_street_line_2 | VARCHAR(255) | NULL              |
@@ -548,6 +568,15 @@ $result = $queryBus->ask($query);
 ---
 
 ## Changelog
+
+### 2026-10-17 - Profil fiscal : clients professionnels
+
+**Ajouts** :
+- ✨ `ClientTaxProfile` / `ClientTaxStatus` sur l'agrégat `Client` (colonnes `tax_status`, `legal_name`, `siren`, `vat_number`)
+- ✨ Command `UpdateClientTaxProfile`, event `ClientTaxProfileUpdated`, query `ListClientIdsBySiren`
+- ✨ `CreateClient.taxProfile` ; `ClientCreated` et `ClientIdentityUpdated` portent `legalName`
+- ✨ `SearchClients.withLegalNameOnly` ; la recherche trouve la raison sociale et le SIREN exact ; l'index de recherche porte la raison sociale (`client__search_entries.legal_name`)
+- ✨ Tri par nom sur `COALESCE(legal_name, last_name)`
 
 ### 2026-10-10 - Fiche client : personne autorisée, consentements, notes, journal
 

@@ -78,6 +78,10 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 $entity->getCommunicationPreferences()['consents'] ?? [],
             ),
             civility: $entity->getCivility(),
+            taxStatus: $entity->getTaxStatus()->value,
+            legalName: $entity->getLegalName(),
+            siren: $entity->getSiren(),
+            vatNumber: $entity->getVatNumber(),
         );
     }
 
@@ -103,6 +107,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 BIN_TO_UUID(c.id) as id,
                 c.first_name as firstName,
                 c.last_name as lastName,
+                c.legal_name as legalName,
                 c.status,
                 c.created_at as createdAt,
                 c.postal_address_city as city,
@@ -145,6 +150,7 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                     primaryEmail: \is_string($row['primaryEmail'] ?? null) ? $row['primaryEmail'] : null,
                     createdAt: (new \DateTimeImmutable($row['createdAt']))->format('c'),
                     city: \is_string($row['city'] ?? null) && '' !== $row['city'] ? $row['city'] : null,
+                    legalName: \is_string($row['legalName'] ?? null) ? $row['legalName'] : null,
                 );
             },
             $results
@@ -172,6 +178,23 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
         $rows = $this->em->getConnection()->fetchFirstColumn($sql, [
             'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
             'phone'    => $phone,
+        ]);
+
+        return array_values(array_filter($rows, \is_string(...)));
+    }
+
+    public function findIdsBySiren(ClinicId $clinicId, string $siren): array
+    {
+        $sql = <<<'SQL'
+            SELECT BIN_TO_UUID(c.id) AS id
+            FROM client__clients c
+            WHERE c.clinic_id = :clinicId AND c.siren = :siren
+            ORDER BY c.created_at, c.id
+        SQL;
+
+        $rows = $this->em->getConnection()->fetchFirstColumn($sql, [
+            'clinicId' => Uuid::fromString($clinicId->toString())->toBinary(),
+            'siren'    => $siren,
         ]);
 
         return array_values(array_filter($rows, \is_string(...)));
@@ -293,6 +316,10 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
             $types['statuses']  = ArrayParameterType::STRING;
         }
 
+        if ($criteria->withLegalNameOnly) {
+            $where[] = 'c.legal_name IS NOT NULL';
+        }
+
         if ([] !== $criteria->cities) {
             $where[]          = 'c.postal_address_city IN (:cities)';
             $params['cities'] = $criteria->cities;
@@ -330,8 +357,15 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
                 $params['phone'] = '%' . $digits . '%';
             }
 
+            // A structure is found by its legal name, or by its exact SIREN.
+            $siren = '';
+            if (1 === preg_match('/^\d{9}$/', (string) preg_replace('/[\s.]+/', '', $criteria->searchTerm))) {
+                $siren           = ' OR c.siren = :siren';
+                $params['siren'] = (string) preg_replace('/[\s.]+/', '', $criteria->searchTerm);
+            }
+
             $where[] = '('
-                . 'c.first_name LIKE :search OR c.last_name LIKE :search'
+                . 'c.first_name LIKE :search OR c.last_name LIKE :search OR c.legal_name LIKE :search' . $siren
                 . ' OR c.postal_address_city LIKE :search'
                 . ' OR EXISTS ('
                 . 'SELECT 1 FROM client__contact_methods cm'
@@ -356,19 +390,22 @@ final readonly class DoctrineClientReadRepository implements ClientReadRepositor
     }
 
     /**
-     * Whitelisted ORDER BY, with the name as a stable tie-break.
+     * Whitelisted ORDER BY, with the name as a stable tie-break. A structure
+     * sorts by its legal name, a person by their last name: one key for the
+     * directory list and the search alike.
      */
     private function buildSearchOrderBy(SearchClientsCriteria $criteria): string
     {
         $direction = 'desc' === $criteria->direction ? 'DESC' : 'ASC';
+        $nameKey   = 'COALESCE(c.legal_name, c.last_name)';
 
         $column = match ($criteria->sort) {
             SearchClientsCriteria::SORT_CITY    => 'c.postal_address_city',
             SearchClientsCriteria::SORT_CREATED => 'c.created_at',
-            default                             => 'c.last_name',
+            default                             => $nameKey,
         };
 
-        return $column . ' ' . $direction . ', c.last_name ASC, c.first_name ASC';
+        return $column . ' ' . $direction . ', ' . $nameKey . ' ASC, c.first_name ASC, c.id ASC';
     }
 
     private function buildPostalAddressDto(ClientEntity $entity): ?PostalAddressDto

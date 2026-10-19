@@ -74,7 +74,7 @@ final readonly class BillingSheetBuilder
             'raw'    => $invoice->status,
             'd'      => $at->format('Y-m-d'),
             'h'      => $at->format('H:i'),
-            'cli'    => $this->client($invoice->payerClientId, $invoice->payerName, $invoice->payerAddressLines),
+            'cli'    => $this->client($invoice->payerClientId, $invoice->payerName, $invoice->payerAddressLines, $invoice->payerAttention),
             'vet'    => null !== $visit && null !== $visit['vetId'] ? ($team[$visit['vetId']] ?? null) : null,
             'anis'   => null !== $visit ? [BillingRegisterViewBuilder::animal($visit['animal'])] : [],
             'objet'  => BillingRegisterViewBuilder::objet($visit, $invoice->admissionId),
@@ -146,7 +146,7 @@ final readonly class BillingSheetBuilder
             'raw'    => 'CREDIT_NOTE',
             'd'      => $at->format('Y-m-d'),
             'h'      => $at->format('H:i'),
-            'cli'    => $this->client($note->payerClientId, $note->payerName, $note->payerAddressLines),
+            'cli'    => $this->client($note->payerClientId, $note->payerName, $note->payerAddressLines, $note->payerAttention),
             'vet'    => null !== $visit && null !== $visit['vetId'] ? ($team[$visit['vetId']] ?? null) : null,
             'anis'   => null !== $visit ? [BillingRegisterViewBuilder::animal($visit['animal'])] : [],
             'objet'  => \sprintf('Avoir sur %s · %s', $note->invoiceNumber, $note->reason),
@@ -228,12 +228,13 @@ final readonly class BillingSheetBuilder
     /**
      * @param list<string> $addressLines
      *
-     * @return array{n: string, court: string, tel: ?string, adr: list<string>, url: ?string}
+     * @return array{n: string, att: ?string, court: string, tel: ?string, adr: list<string>, url: ?string}
      */
-    private function client(?string $clientId, string $name, array $addressLines): array
+    private function client(?string $clientId, string $name, array $addressLines, ?string $attention = null): array
     {
         return [
             'n'     => $name,
+            'att'   => $attention,
             'court' => (string) preg_replace('/^(M\.|Mme|Mlle|Dr) /u', '', $name),
             'tel'   => $this->phone(null !== $clientId ? ($this->visits->phones([$clientId])[$clientId] ?? null) : null),
             'adr'   => $addressLines,

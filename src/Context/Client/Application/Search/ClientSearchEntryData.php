@@ -14,6 +14,7 @@ final readonly class ClientSearchEntryData
         public ?string $phone,
         public ?string $email,
         public string $status,
+        public ?string $legalName = null,
     ) {
     }
 }

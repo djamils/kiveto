@@ -19,9 +19,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * The client cards the pickers show while a client is looked up — the
  * « Vente au comptoir » window, the owner of a new animal, a homonym or a
  * phone already on file in the « Nouveau client » window: the name with its
- * civility, the main phone, the city, the address and the first animals.
+ * civility, the main phone, the city, the address and the first animals —
+ * and for a structure its legal name, SIREN, VAT number and badge (« Pro »
+ * for a VAT-liable business, « Asso » for a structure that is not).
  *
- * @phpstan-type ClientCard array{id: string, n: string, ini: string, tel: string|null, ville: string|null, adr: string|null, ani: list<array{e: string, nom: string}>, url: string}
+ * @phpstan-type ClientCard array{id: string, n: string, ini: string, tel: string|null, ville: string|null, adr: string|null, ani: list<array{e: string, nom: string}>, url: string, rs: string|null, siren: string|null, tva: string|null, fisc: string, badge: string|null}
  */
 final readonly class ClientLookupReader
 {
@@ -35,11 +37,13 @@ final readonly class ClientLookupReader
 
     /**
      * The active clients a name, a phone (two letters or three digits at
-     * least) or one of their animals' names finds.
+     * least) or one of their animals' names finds. For structures only, the
+     * legal name or the SIREN finds them; the animals' index is not asked
+     * (it would bring back people).
      *
      * @return list<ClientCard>
      */
-    public function search(string $clinicId, string $term, int $limit): array
+    public function search(string $clinicId, string $term, int $limit, bool $structuresOnly = false): array
     {
         $term   = mb_substr(mb_trim($term), 0, 100);
         $digits = (string) preg_replace('/\D+/', '', $term);
@@ -49,7 +53,17 @@ final readonly class ClientLookupReader
         }
 
         // « 06 12 34 » is looked up as the digits the phones are stored with.
-        $search  = \strlen($digits) >= 3 && '' === mb_trim((string) preg_replace('/[\d\s.]+/', '', $term)) ? $digits : $term;
+        $search = \strlen($digits) >= 3 && '' === mb_trim((string) preg_replace('/[\d\s.]+/', '', $term)) ? $digits : $term;
+        if ($structuresOnly) {
+            return $this->cards($clinicId, $this->queryBus->ask(new SearchClients(
+                clinicId: $clinicId,
+                searchTerm: $term,
+                status: 'active',
+                limit: $limit,
+                withLegalNameOnly: true,
+            )));
+        }
+
         $matches = $this->queryBus->ask(new ListDirectoryMatches($clinicId, $term));
 
         return $this->cards($clinicId, $this->queryBus->ask(new SearchClients(
@@ -95,6 +109,15 @@ final readonly class ClientLookupReader
         return mb_trim(chunk_split('0' . $m[1], 2, ' '));
     }
 
+    private static function badge(?ClientView $card, ?string $legalName): ?string
+    {
+        if (null !== $card && 'french_business' === $card->taxStatus) {
+            return 'Pro';
+        }
+
+        return null !== $legalName ? 'Asso' : null;
+    }
+
     /**
      * @return list<ClientCard>
      */
@@ -136,7 +159,12 @@ final readonly class ClientLookupReader
                     static fn (AnimalSummary $animal): array => ['e' => self::EMOJI[$animal->species] ?? '🐾', 'nom' => $animal->name],
                     array_filter($owned, static fn (mixed $animal): bool => $animal instanceof AnimalSummary),
                 )),
-                'url' => $this->urls->generate('clinic_clients_view', ['id' => $client->id]),
+                'url'   => $this->urls->generate('clinic_clients_view', ['id' => $client->id]),
+                'rs'    => $client->legalName,
+                'siren' => $card instanceof ClientView ? $card->siren : null,
+                'tva'   => $card instanceof ClientView ? $card->vatNumber : null,
+                'fisc'  => $card instanceof ClientView && 'french_business' === $card->taxStatus ? 'pro' : 'ind',
+                'badge' => self::badge($card instanceof ClientView ? $card : null, $client->legalName),
             ];
         }
 

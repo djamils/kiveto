@@ -28,6 +28,7 @@ final readonly class OnClientIdentityUpdated
             $payload['clinicId'],
             $payload['firstName'],
             $payload['lastName'],
+            \is_string($payload['legalName'] ?? null) ? $payload['legalName'] : null,
         );
     }
 }
