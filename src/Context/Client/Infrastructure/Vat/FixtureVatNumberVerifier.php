@@ -18,7 +18,8 @@ final class FixtureVatNumberVerifier implements VatNumberVerifierInterface
 {
     public const string SERVICE = 'vies';
 
-    private const array VALID = ['FR31523456788', 'FR14441569738', 'FR76392107454'];
+    // FR76392107454 (Haras du Mont Ventoux) is left out on purpose: the demo's rejected number.
+    private const array VALID = ['FR31523456788', 'FR14441569738'];
 
     public function verify(string $vatNumber): VatVerificationResult
     {

@@ -43,6 +43,13 @@ src/Client/
 │   │   ├── ClientIdentityUpdated.php           # Domain event
 │   │   ├── ClientContactMethodsReplaced.php    # Domain event
 │   │   └── ClientArchivedIntegrationEvent.php  # Integration event (cross-BC)
+│   ├── TaxProfile/                             # Vérification de l'entreprise (registre + VIES)
+│   │   ├── TaxProfileVerification.php          # Contrôles datés + demande en cours
+│   │   ├── CompanyCheck.php / CompanyCheckOutcome.php
+│   │   ├── VatCheck.php / VatCheckOutcome.php
+│   │   ├── TaxProfileWarning.php               # Badges (jamais bloquants)
+│   │   ├── LegalNameNormalizer.php             # Comparaison nom saisi / nom officiel
+│   │   └── VerificationRequestOutcome.php      # Réponse à « Revérifier »
 │   ├── Exception/
 │   │   ├── ClientNotFoundException.php
 │   │   ├── ClientClinicMismatchException.php
@@ -91,10 +98,18 @@ src/Client/
 │       ├── ClientRepositoryInterface.php        # Write repository
 │       ├── ClientReadRepositoryInterface.php    # Read repository (findIdsByPhone : doublons de téléphone)
 │       ├── ClientAnimalRegistryInterface.php    # Animaux d'un nouveau client (contexte Animal)
-│       └── AddressDirectoryInterface.php        # Base Adresse Nationale + communes d'un code postal
-│                                                # (adapter GeoplateformeAddressDirectory ; requêtes
-│                                                # SuggestPostalAddresses, ListCommunesForPostalCode)
+│       ├── AddressDirectoryInterface.php        # Base Adresse Nationale + communes d'un code postal
+│       │                                        # (adapter GeoplateformeAddressDirectory ; requêtes
+│       │                                        # SuggestPostalAddresses, ListCommunesForPostalCode)
+│       ├── CompanyRegistryInterface.php         # Annuaire des entreprises (search, findBySiren)
+│       └── VatNumberVerifierInterface.php       # VIES
+│   ├── Verification/
+│   │   ├── OnClientTaxIdentifiersChangedVerify.php      # Nouveaux identifiants → vérification en file
+│   │   └── TaxProfileVerificationScheduleInterface.php  # Profils à revérifier (toutes cliniques)
 └── Infrastructure/
+    ├── Registry/                                # Cached → Throttled → RechercheEntreprises, Fixture, LegalForms (INSEE)
+    ├── Vat/                                     # ViesVatNumberVerifier + ViesErrorMapper, Fixture
+    ├── Scheduler/ClientScheduleProvider.php     # Schedule `client` : revérification nocturne (02:17)
     └── Persistence/
         └── Doctrine/
             ├── Entity/
@@ -121,6 +136,15 @@ src/Client/
 4. Le SIREN **n'est pas unique** (plusieurs établissements) : un doublon n'est qu'un avertissement (`ListClientIdsBySiren`, archivés compris)
 5. `ClientCreated` porte la raison sociale (null sinon) ; `ClientTaxProfileUpdated` n'est émis que sur une vraie modification (pas à la création, pas si inchangé)
 6. Tri par nom : clé `COALESCE(legal_name, last_name)` puis prénom — une structure se range à sa raison sociale, dans la liste comme dans la recherche
+
+### Vérification de l'entreprise (registre + VIES)
+1. **Jamais bloquante** : seuls les contrôles locaux (clé de Luhn du SIREN, clé TVA) refusent une saisie ; la vérification ne produit que des badges (`TaxProfileWarning`), dont seuls « radiée », « SIREN introuvable » et « TVA non reconnue » sont repris au comptoir
+2. **Remise à zéro sur changement d'identifiants** : un SIREN ou un n° de TVA nouveau ou modifié émet `ClientTaxIdentifiersChanged`, remet la vérification à « non vérifiée » et la demande (si le profil est vérifiable) ; un changement de raison sociale seul (« Utiliser le nom officiel ») ne touche à rien
+3. **Réponse tardive ignorée** : une réponse pour un SIREN/TVA qui n'est plus celui du client ne change rien (la demande plus récente reste en attente) ; un client archivé ou devenu particulier ne stocke rien et n'attend plus rien
+4. **Revérification à 30 jours** : chaque nuit (02:17, heure de Paris) les profils jamais vérifiés, en panne (registre ou VIES indisponible) ou vérifiés il y a plus de 30 jours sont redemandés ; « non diffusible » suit le même cycle qu'« active »
+5. **Dédoublonnage 24 h** : `tax_verification_requested_at` marque une demande ; « Revérifier » sur une demande de moins de 24 h répond « Vérification déjà en cours », la nuit ignore ces profils
+6. **Aucun appel réseau dans une transaction** : `VerifyClientTaxProfile` (file `async_external`, worker `external-worker`, sans transaction) appelle le registre et VIES — une panne de l'un n'empêche pas l'autre — puis la commande courte `RecordTaxProfileVerification` enregistre ; une sauvegarde concurrente échoue sur la version du client et le message est rejoué
+7. **Nom différent** : comparaison après `LegalNameNormalizer` (casse, accents, « & » → « et », ponctuation, article initial, une forme juridique en tête ou en fin) ; le nom du registre fait foi, celui de VIES est ignoré
 
 ### ContactMethods
 1. **Au plus 1 primary PHONE** autorisé par client
@@ -182,6 +206,18 @@ Crée un nouveau client avec identité et moyens de contact.
 #### UpdateClientTaxProfile
 
 `(clinicId, clientId, ClientTaxProfileDto)` — remplace le profil fiscal. `CreateClient` accepte le même `ClientTaxProfileDto` (`taxProfile`) : les deux passent par `ClientTaxProfileFactory`. Refusé pour un client archivé.
+
+#### VerifyClientTaxProfile / RecordTaxProfileVerification
+
+`VerifyClientTaxProfile(clinicId, clientId)` (`ExternalApiCommandInterface`, bus `messenger.bus.external_api`) : lit le profil, interroge le registre (`findBySiren`) et VIES, puis envoie `RecordTaxProfileVerification` (bus de commandes, transactionnel, sans réseau) qui appelle `Client::recordTaxProfileVerification()`.
+
+#### RequestTaxProfileVerification
+
+« Revérifier » : `queued` (demande marquée, vérification en file), `already_pending`, `archived`, `not_applicable` ; client inconnu ou d'une autre clinique → `ClientNotFoundException`.
+
+#### ReverifyStaleTaxProfiles
+
+Message du schedule `client` (chaque jour à 02:17) : `findStale` puis `markRequested` (par lots de 500) puis un `VerifyClientTaxProfile` par client sur la file `async_external_batch`.
 
 #### UpdateClientIdentity
 Met à jour l'identité (prénom/nom) d'un client.
@@ -336,6 +372,10 @@ Notes internes et échanges consignés d'un client, du plus récent au plus anci
 
 `ClientView` (GetClientById) expose en plus `authorizedPerson`, `preferredChannel` et `consents` (consentements actifs uniquement).
 
+#### SearchCompanyRegistry
+
+`(query, limit = 8)` → `CompanySearchResult{available, reason, hits}` : moins de 3 caractères (hors SIREN / SIRET) → aucun appel ; panne → `available: false`, `reason` `throttled` (budget épuisé ou 429 : réessayer) ou `down` (saisie manuelle).
+
 #### GetClientById
 Retourne les détails complets d'un client (incluant tous ses contact methods).
 
@@ -448,6 +488,12 @@ Recherche et pagine les clients d'une clinique.
 | legal_name    | VARCHAR(255)        | NULL                 |
 | siren         | CHAR(9)             | NULL, INDEX (clinic_id, siren) |
 | vat_number    | VARCHAR(13)         | NULL                 |
+| tax_company_check_outcome | VARCHAR(20) | NULL = non vérifiée |
+| tax_company_registry_name | VARCHAR(255) | NULL               |
+| tax_company_checked_at | DATETIME_IMMUTABLE | NULL, INDEX `idx_client_tax_checked` |
+| tax_vat_check_outcome | VARCHAR(20)  | NULL = non vérifiée  |
+| tax_vat_checked_at | DATETIME_IMMUTABLE | NULL              |
+| tax_verification_requested_at | DATETIME_IMMUTABLE | NULL = rien en attente |
 | status        | ENUM (ClientStatus) | NOT NULL, INDEX      |
 | postal_address_street_line_1 | VARCHAR(255) | NULL              |
 | postal_address_street_line_2 | VARCHAR(255) | NULL              |
@@ -567,7 +613,38 @@ $result = $queryBus->ask($query);
 
 ---
 
+## Environnements de la vérification
+
+| Environnement | `CLIENT_COMPANY_REGISTRY` | `CLIENT_VAT_VERIFIER` | `EXTERNAL_API_USER_AGENT` |
+|---------------|---------------------------|-----------------------|---------------------------|
+| tests / CI | `fixture` | `fixture` | contact de test (`.env.test`) |
+| dev (défaut) | `fixture` | `fixture` | `Kiveto/0.5` (sans contact : suffisant en `fixture`) |
+| dev (opt-in) | `api` | `vies` | contact obligatoire, ex. `Kiveto/0.5 (+https://kiveto.fr/contact)` |
+| staging / prod | `api` | `vies` | contact obligatoire |
+
+Les adaptateurs fixture (`FixtureCompanyRegistry`, `FixtureVatNumberVerifier`) reprennent les clients de démo ; déclencheurs : recherche « indisponible » (panne), « limite » (budget épuisé), SIREN `999999998` (panne), `900000019` (non diffusible).
+
+Run manuel avec les vrais services : dans `.env.local` (lu par php-fpm et par les workers, qui montent le code)
+
+```dotenv
+CLIENT_COMPANY_REGISTRY=api
+CLIENT_VAT_VERIFIER=vies
+EXTERNAL_API_USER_AGENT="Kiveto/0.5 (+https://kiveto.fr/contact)"
+```
+
+puis `make worker-stop worker-start`.
+Les trois workers du profil `workers` : `messenger-worker` (`async`), `external-worker` (`async_external` puis `async_external_batch`), `scheduler-worker` (`scheduler_default`, `scheduler_client`).
+
 ## Changelog
+
+### 2026-10-19 - Vérification des entreprises clientes
+
+**Ajouts** :
+- ✨ `TaxProfileVerification` sur l'agrégat (6 colonnes `tax_*`), events `ClientTaxIdentifiersChanged` et `ClientTaxProfileVerified`
+- ✨ Ports `CompanyRegistryInterface` (API Recherche d'entreprises) et `VatNumberVerifierInterface` (VIES), adaptateurs HTTP + fixture choisis par variable d'environnement, budgets par conteneur (web 4/s, worker 1/s, VIES 1/s), cache d'une heure sur la recherche
+- ✨ Query `SearchCompanyRegistry` ; commands `VerifyClientTaxProfile`, `RecordTaxProfileVerification`, `RequestTaxProfileVerification`, `ReverifyStaleTaxProfiles` ; schedule `client`
+- ✨ `ClientView` : résultats, dates, `taxVerificationPending`, `taxWarnings`
+- ✨ Libellés des formes juridiques (table INSEE niveau III, septembre 2022)
 
 ### 2026-10-17 - Profil fiscal : clients professionnels
 
