@@ -54,6 +54,25 @@ run the `messenger-worker` compose service (profile `workers`), which
 consumes the `async` transport. On first start it may process a backlog
 of events never consumed in dev.
 
+## Scheduled tasks
+
+`symfony/scheduler` runs the `default` schedule
+(`Infrastructure/Scheduler/DefaultScheduleProvider.php`), consumed by the
+`scheduler-worker` compose service (`messenger:consume scheduler_default`,
+started by `make worker-start`; `make scheduler-debug` lists the next runs).
+
+- **Lock in the database.** The schedule holds a lock from
+  `shared.lock.factory` (`DoctrineDbalStore` on the default connection,
+  table `shared__lock_keys`, created by a `migrations/Shared` migration).
+  Several scheduler workers (rolling deploys) never run the same tick
+  twice; a `flock` store would be per container. The framework lock
+  (`LOCK_DSN`) is disabled on purpose.
+- **Not stateful.** Missed runs are not replayed. Every scheduled task
+  must be idempotent and catch up by itself (e.g. a period-closing task
+  closes every ended, unclosed period; a polling task resumes from its
+  own cursor).
+- Recurring messages are dispatched on the default (command) bus.
+
 ## Responsabilités
 
 - **Domain Events**: Infrastructure pour les événements de domaine (enregistrement, métadonnées, versionning)
