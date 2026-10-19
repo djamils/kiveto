@@ -12,6 +12,7 @@ use App\System\Taxation\Domain\Repository\TaxCategoryRepositoryInterface;
 use App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface;
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
 use App\System\Taxation\Infrastructure\RegimeLoader\RegimeFileLocator;
 use App\System\Taxation\Infrastructure\RegimeLoader\YamlTaxRegimeLoader;
@@ -277,6 +278,7 @@ YAML;
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Consultation',
             null,
+            TaxCategoryNature::SERVICES,
             true,
             $now,
             $now,

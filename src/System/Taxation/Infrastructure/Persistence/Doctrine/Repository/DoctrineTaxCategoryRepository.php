@@ -29,6 +29,7 @@ final readonly class DoctrineTaxCategoryRepository implements TaxCategoryReposit
         } else {
             $existing->setDisplayName($entity->getDisplayName());
             $existing->setDescription($entity->getDescription());
+            $existing->setNature($entity->getNature());
             $existing->setActive($entity->isActive());
             $existing->setUpdatedAt($entity->getUpdatedAt());
         }

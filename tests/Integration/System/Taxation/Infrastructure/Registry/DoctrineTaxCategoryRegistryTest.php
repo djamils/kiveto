@@ -7,6 +7,7 @@ namespace App\Tests\Integration\System\Taxation\Infrastructure\Registry;
 use App\Fixtures\System\Taxation\Factory\TaxCategoryEntityFactory;
 use App\System\Taxation\Domain\Exception\UnknownTaxCategoryException;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Infrastructure\Registry\DoctrineTaxCategoryRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -35,6 +36,16 @@ final class DoctrineTaxCategoryRegistryTest extends KernelTestCase
         self::assertSame('Consultation vétérinaire', $category->displayName());
         self::assertNull($category->description());
         self::assertTrue($category->isActive());
+    }
+
+    public function testNatureOfReturnsTheCategoryNatureOrNullWhenUnknown(): void
+    {
+        TaxCategoryEntityFactory::createOne(['code' => 'veterinary.drug.companion', 'nature' => 'goods']);
+
+        $registry = $this->getRegistry();
+
+        self::assertSame(TaxCategoryNature::GOODS, $registry->natureOf(TaxCategoryCode::fromString('veterinary.drug.companion')));
+        self::assertNull($registry->natureOf(TaxCategoryCode::fromString('veterinary.act.unknown')));
     }
 
     public function testGetThrowsUnknownTaxCategoryException(): void

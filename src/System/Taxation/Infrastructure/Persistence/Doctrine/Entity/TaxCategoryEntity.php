@@ -20,6 +20,9 @@ class TaxCategoryEntity
     #[ORM\Column(type: 'string', length: 512, nullable: true)]
     private ?string $description;
 
+    #[ORM\Column(type: 'string', length: 16)]
+    private string $nature;
+
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $active;
 
@@ -57,6 +60,16 @@ class TaxCategoryEntity
     public function setDescription(?string $description): void
     {
         $this->description = $description;
+    }
+
+    public function getNature(): string
+    {
+        return $this->nature;
+    }
+
+    public function setNature(string $nature): void
+    {
+        $this->nature = $nature;
     }
 
     public function isActive(): bool

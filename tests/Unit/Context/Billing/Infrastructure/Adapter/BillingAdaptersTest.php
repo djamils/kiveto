@@ -25,6 +25,7 @@ use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\LegalMentions;
 use App\System\Taxation\Domain\ValueObject\TaxApplication;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRateId;
 use App\System\Taxation\Domain\ValueObject\TaxRateValue;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
@@ -251,6 +252,7 @@ final class BillingAdaptersTest extends TestCase
         return TaxApplication::of(
             taxRegimeId: TaxRegimeId::fromString('FR'),
             taxCategoryCode: TaxCategoryCode::fromString('veterinary.act.consultation'),
+            nature: TaxCategoryNature::SERVICES,
             appliedRate: AppliedTaxRate::of(
                 TaxRateId::fromString('fr.standard'),
                 TaxRegimeId::fromString('FR'),

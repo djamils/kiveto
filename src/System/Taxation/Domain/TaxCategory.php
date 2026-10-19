@@ -8,12 +8,14 @@ use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\Taxation\Domain\Event\TaxCategoryRegistered;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 
 final class TaxCategory extends AggregateRoot
 {
     private TaxCategoryCode $code;
     private string $displayName;
     private ?string $description;
+    private TaxCategoryNature $nature;
     private bool $active;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
@@ -26,6 +28,7 @@ final class TaxCategory extends AggregateRoot
         TaxCategoryCode $code,
         string $displayName,
         ?string $description,
+        TaxCategoryNature $nature,
         ClockInterface $clock,
     ): self {
         $now            = $clock->now();
@@ -33,6 +36,7 @@ final class TaxCategory extends AggregateRoot
         $c->code        = $code;
         $c->displayName = $displayName;
         $c->description = $description;
+        $c->nature      = $nature;
         $c->active      = true;
         $c->createdAt   = $now;
         $c->updatedAt   = $now;
@@ -45,6 +49,7 @@ final class TaxCategory extends AggregateRoot
         TaxCategoryCode $code,
         string $displayName,
         ?string $description,
+        TaxCategoryNature $nature,
         bool $active,
         \DateTimeImmutable $createdAt,
         \DateTimeImmutable $updatedAt,
@@ -53,6 +58,7 @@ final class TaxCategory extends AggregateRoot
         $c->code        = $code;
         $c->displayName = $displayName;
         $c->description = $description;
+        $c->nature      = $nature;
         $c->active      = $active;
         $c->createdAt   = $createdAt;
         $c->updatedAt   = $updatedAt;
@@ -70,10 +76,11 @@ final class TaxCategory extends AggregateRoot
         $this->active = false;
     }
 
-    public function updateDisplay(string $displayName, ?string $description, ClockInterface $clock): void
+    public function update(string $displayName, ?string $description, TaxCategoryNature $nature, ClockInterface $clock): void
     {
         $this->displayName = $displayName;
         $this->description = $description;
+        $this->nature      = $nature;
         $this->updatedAt   = $clock->now();
     }
 
@@ -90,6 +97,11 @@ final class TaxCategory extends AggregateRoot
     public function description(): ?string
     {
         return $this->description;
+    }
+
+    public function nature(): TaxCategoryNature
+    {
+        return $this->nature;
     }
 
     public function isActive(): bool

@@ -13,6 +13,7 @@ use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\LegalMentions;
 use App\System\Taxation\Domain\ValueObject\TaxApplication;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRateId;
 use App\System\Taxation\Domain\ValueObject\TaxRateValue;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
@@ -55,6 +56,7 @@ final class TaxApplicationTest extends TestCase
         $application = TaxApplication::of(
             $this->regimeId,
             $this->categoryCode,
+            TaxCategoryNature::SERVICES,
             $this->appliedRate,
             $net,
             $tax,
@@ -67,6 +69,7 @@ final class TaxApplicationTest extends TestCase
 
         self::assertSame('FR', $application->taxRegimeId()->toString());
         self::assertSame('veterinary.act.consultation', $application->taxCategoryCode()->toString());
+        self::assertSame(TaxCategoryNature::SERVICES, $application->nature());
         self::assertSame($this->appliedRate, $application->appliedRate());
         self::assertSame(10000, $application->netAmount()->minorUnits());
         self::assertSame(2000, $application->taxAmount()->minorUnits());
@@ -86,6 +89,7 @@ final class TaxApplicationTest extends TestCase
         TaxApplication::of(
             $this->regimeId,
             $this->categoryCode,
+            TaxCategoryNature::SERVICES,
             $this->appliedRate,
             Money::fromMinorUnits(10000, $this->eur),
             Money::fromMinorUnits(2000, $chf),
@@ -104,6 +108,7 @@ final class TaxApplicationTest extends TestCase
         TaxApplication::of(
             $this->regimeId,
             $this->categoryCode,
+            TaxCategoryNature::SERVICES,
             $this->appliedRate,
             Money::fromMinorUnits(10000, $this->eur),
             Money::fromMinorUnits(2000, $this->eur),

@@ -6,6 +6,7 @@ namespace App\Tests\Integration\System\Taxation\Infrastructure\Persistence\Mappe
 
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper\TaxCategoryMapper;
 use PHPUnit\Framework\TestCase;
 
@@ -25,6 +26,7 @@ final class TaxCategoryMapperTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Consultation vétérinaire',
             null,
+            TaxCategoryNature::SERVICES,
             true,
             $now,
             $now,
@@ -48,6 +50,7 @@ final class TaxCategoryMapperTest extends TestCase
             TaxCategoryCode::fromString('veterinary.drug.companion'),
             'Médicaments animaux de compagnie',
             'Médicaments vétérinaires pour animaux de compagnie (taux réduit)',
+            TaxCategoryNature::SERVICES,
             true,
             $now,
             $now,
@@ -71,6 +74,7 @@ final class TaxCategoryMapperTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.surgery'),
             'Acte chirurgical',
             null,
+            TaxCategoryNature::SERVICES,
             false,
             $now,
             $now,
@@ -89,6 +93,7 @@ final class TaxCategoryMapperTest extends TestCase
             TaxCategoryCode::fromString('veterinary.food.therapeutic'),
             'Aliments thérapeutiques',
             'Aliments diététiques à visée thérapeutique',
+            TaxCategoryNature::SERVICES,
             true,
             $now,
             $now,

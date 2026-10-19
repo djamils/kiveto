@@ -11,10 +11,11 @@ Resolves applicable tax rates for any product/service sale and produces
 |------|-----------|
 | **TaxRegime** | A national/regional fiscal framework (e.g. `FR`, `FR-DOM`). Contains a set of `TaxRate`s. |
 | **TaxCategory** | A stable business classification for a product or service (e.g. `veterinary.drug.companion`). |
+| **TaxCategoryNature** | Whether a category supplies **goods** or **services** (`veterinary.act.*` / `veterinary.service.*` → services; `veterinary.drug.*` / `veterinary.food.*` / `veterinary.consumable.*` → goods). Drives the invoicing framework (EN16931 BT-23) of the documents that carry it. |
 | **TaxRate** | A rate within a regime: a percentage value + a validity period + conditions that determine when it applies. |
 | **TaxRateCondition** | The multi-axis filter on a `TaxRate`: matched categories (glob), regions, customer statuses, animal usages, clinic liability. |
 | **FiscalContext** | The context of a sale: country, sale date, customer tax status, animal usage, clinic liability. |
-| **TaxApplication** | The resolved result: net amount, tax amount, gross amount, applied rate, legal mentions. |
+| **TaxApplication** | The resolved result: net amount, tax amount, gross amount, category nature, applied rate, legal mentions. |
 | **MentionTemplate** | A template for a legal mention (e.g. intracom reverse-charge). Conditions determine when it appears. |
 | **LegalMentions** | A collection of rendered `LegalMention` items attached to a `TaxApplication`. |
 | **TaxResolver** | Domain service that resolves `(TaxableItem + TaxRegimeId + FiscalContext) → TaxApplication`. |
@@ -29,6 +30,7 @@ Resolves applicable tax rates for any product/service sale and produces
 3. A `TaxApplication` is only valid when `netAmount + taxAmount === grossAmount` (integer minor units).
 4. Currency must match the expected currency for the regime (`FR → EUR`, `CH → CHF`, `UK/GB → GBP`).
 5. All category patterns in a YAML file must match at least one active `TaxCategory`.
+6. Every category in `categories.yaml` declares its `nature` (`goods` or `services`); the loader (`YamlTaxCategoryCatalogue`) refuses a missing or unknown nature rather than defaulting it.
 
 ---
 

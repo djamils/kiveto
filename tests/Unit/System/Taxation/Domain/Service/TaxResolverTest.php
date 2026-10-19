@@ -28,6 +28,7 @@ use App\System\Taxation\Domain\TaxRegime;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\TaxableItem;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRateCondition;
 use App\System\Taxation\Domain\ValueObject\TaxRateId;
 use App\System\Taxation\Domain\ValueObject\TaxRateValue;
@@ -75,7 +76,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver = $this->makeResolver($regimeRepo, $categoryRegistry);
 
@@ -85,6 +86,7 @@ final class TaxResolverTest extends TestCase
         $application = $resolver->resolve($item, $regimeId, $context);
 
         self::assertSame(2000, $application->appliedRate()->value()->basisPoints());
+        self::assertSame(TaxCategoryNature::SERVICES, $application->nature());
     }
 
     public function testFrDrugCompanionSuperReducedRate(): void
@@ -105,7 +107,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver    = $this->makeResolver($regimeRepo, $categoryRegistry);
         $context     = FiscalContext::minimal(CountryCode::fromString('FR'), $this->saleDate);
@@ -133,7 +135,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver    = $this->makeResolver($regimeRepo, $categoryRegistry);
         $context     = FiscalContext::minimal(CountryCode::fromString('FR'), $this->saleDate);
@@ -161,7 +163,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver    = $this->makeResolver($regimeRepo, $categoryRegistry);
         $context     = FiscalContext::minimal(CountryCode::fromString('FR'), $this->saleDate);
@@ -228,7 +230,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(false);
+        $categoryRegistry->method('natureOf')->willReturn(null);
 
         $resolver = $this->makeResolver($regimeRepo, $categoryRegistry);
 
@@ -261,7 +263,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver = $this->makeResolver($regimeRepo, $categoryRegistry);
 
@@ -298,7 +300,7 @@ final class TaxResolverTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver = $this->makeResolver($regimeRepo, $categoryRegistry);
 

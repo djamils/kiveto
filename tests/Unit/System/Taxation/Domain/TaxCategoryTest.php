@@ -8,6 +8,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\System\Taxation\Domain\Event\TaxCategoryRegistered;
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use PHPUnit\Framework\TestCase;
 
 final class TaxCategoryTest extends TestCase
@@ -28,6 +29,7 @@ final class TaxCategoryTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Acte de consultation vétérinaire',
             null,
+            TaxCategoryNature::SERVICES,
             $this->clock,
         );
 
@@ -40,11 +42,12 @@ final class TaxCategoryTest extends TestCase
     public function testCreateSetsFieldsCorrectly(): void
     {
         $code     = TaxCategoryCode::fromString('veterinary.act.consultation');
-        $category = TaxCategory::create($code, 'Acte de consultation', 'Description', $this->clock);
+        $category = TaxCategory::create($code, 'Acte de consultation', 'Description', TaxCategoryNature::SERVICES, $this->clock);
 
         self::assertSame('veterinary.act.consultation', $category->code()->toString());
         self::assertSame('Acte de consultation', $category->displayName());
         self::assertSame('Description', $category->description());
+        self::assertSame(TaxCategoryNature::SERVICES, $category->nature());
         self::assertTrue($category->isActive());
         self::assertSame($this->now, $category->createdAt());
         self::assertSame($this->now, $category->updatedAt());
@@ -59,6 +62,7 @@ final class TaxCategoryTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Acte de consultation',
             null,
+            TaxCategoryNature::SERVICES,
             true,
             $createdAt,
             $updatedAt,
@@ -76,6 +80,7 @@ final class TaxCategoryTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Test',
             null,
+            TaxCategoryNature::SERVICES,
             $this->clock,
         );
 
@@ -95,6 +100,7 @@ final class TaxCategoryTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Test',
             null,
+            TaxCategoryNature::SERVICES,
             $this->clock,
         );
 
@@ -114,13 +120,15 @@ final class TaxCategoryTest extends TestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Old name',
             'Old description',
+            TaxCategoryNature::SERVICES,
             $this->clock,
         );
 
-        $category->updateDisplay('New name', 'New description', $laterClock);
+        $category->update('New name', 'New description', TaxCategoryNature::GOODS, $laterClock);
 
         self::assertSame('New name', $category->displayName());
         self::assertSame('New description', $category->description());
+        self::assertSame(TaxCategoryNature::GOODS, $category->nature());
         self::assertSame($laterTime, $category->updatedAt());
     }
 }
