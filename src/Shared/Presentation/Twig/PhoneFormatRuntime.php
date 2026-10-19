@@ -11,7 +11,7 @@ namespace App\Shared\Presentation\Twig;
  *   |phone_display        → local format with trunk prefix (🇫🇷 06 12 34 56 78)
  *   |phone_display(true)  → international with dial code, no trunk (🇫🇷 +33 6 12 34 56 78)
  *
- * Exception: Italy keeps trunk prefix in international format (+39 06 1234567).
+ * Italy has no trunk prefix: its leading 0 is part of the number (+39 06 1234567).
  *
  * Country data mirrors the JS COUNTRIES array in phone_input_controller.js.
  */
@@ -19,44 +19,43 @@ final class PhoneFormatRuntime
 {
     /**
      * Sorted by dialCode length descending for longest-match-first detection.
-     * keepTrunk: trunk prefix is part of the number even internationally (Italy).
      * maskLocal: mask for local display (with trunk prefix).
-     * maskIntl: mask for international display (without trunk, or with trunk for keepTrunk countries).
+     * maskIntl: mask for international display (without trunk prefix).
      *
      * @var list<array{
      *   dialCode: string, code: string, trunkPrefix: string,
-     *   maskLocal: string, maskIntl: string, keepTrunk: bool
+     *   maskLocal: string, maskIntl: string
      * }>
      */
     private const array COUNTRIES = [
         ['dialCode'     => '+352', 'code' => 'lu', 'trunkPrefix' => '',
-            'maskLocal' => '### ### ###',    'maskIntl' => '### ### ###',    'keepTrunk' => false],
+            'maskLocal' => '### ### ###',    'maskIntl' => '### ### ###'],
         ['dialCode'     => '+212', 'code' => 'ma', 'trunkPrefix' => '0',
-            'maskLocal' => '## ## ## ## ##', 'maskIntl' => '# ## ## ## ##',  'keepTrunk' => false],
+            'maskLocal' => '## ## ## ## ##', 'maskIntl' => '# ## ## ## ##'],
         ['dialCode'     => '+216', 'code' => 'tn', 'trunkPrefix' => '',
-            'maskLocal' => '## ### ###',     'maskIntl' => '## ### ###',     'keepTrunk' => false],
+            'maskLocal' => '## ### ###',     'maskIntl' => '## ### ###'],
         ['dialCode'     => '+213', 'code' => 'dz', 'trunkPrefix' => '0',
-            'maskLocal' => '### ## ## ##',   'maskIntl' => '## ## ## ##',    'keepTrunk' => false],
+            'maskLocal' => '### ## ## ##',   'maskIntl' => '## ## ## ##'],
         ['dialCode'     => '+33',  'code' => 'fr', 'trunkPrefix' => '0',
-            'maskLocal' => '## ## ## ## ##', 'maskIntl' => '# ## ## ## ##',  'keepTrunk' => false],
+            'maskLocal' => '## ## ## ## ##', 'maskIntl' => '# ## ## ## ##'],
         ['dialCode'     => '+32',  'code' => 'be', 'trunkPrefix' => '0',
-            'maskLocal' => '### ## ## ##',   'maskIntl' => '## ## ## ##',    'keepTrunk' => false],
+            'maskLocal' => '### ## ## ##',   'maskIntl' => '## ## ## ##'],
         ['dialCode'     => '+41',  'code' => 'ch', 'trunkPrefix' => '0',
-            'maskLocal' => '## ### ## ##',   'maskIntl' => '# ### ## ##',    'keepTrunk' => false],
+            'maskLocal' => '## ### ## ##',   'maskIntl' => '# ### ## ##'],
         ['dialCode'     => '+34',  'code' => 'es', 'trunkPrefix' => '',
-            'maskLocal' => '### ## ## ##',   'maskIntl' => '### ## ## ##',   'keepTrunk' => false],
+            'maskLocal' => '### ## ## ##',   'maskIntl' => '### ## ## ##'],
         ['dialCode'     => '+39',  'code' => 'it', 'trunkPrefix' => '',
-            'maskLocal' => '### ### ####',   'maskIntl' => '### ### ####',   'keepTrunk' => true],
+            'maskLocal' => '### ### ####',   'maskIntl' => '### ### ####'],
         ['dialCode'     => '+49',  'code' => 'de', 'trunkPrefix' => '0',
-            'maskLocal' => '### #######',    'maskIntl' => '## #######',     'keepTrunk' => false],
+            'maskLocal' => '### #######',    'maskIntl' => '## #######'],
         ['dialCode'     => '+44',  'code' => 'gb', 'trunkPrefix' => '0',
-            'maskLocal' => '#### ### ####',  'maskIntl' => '#### ### ###',   'keepTrunk' => false],
+            'maskLocal' => '#### ### ####',  'maskIntl' => '#### ### ###'],
         ['dialCode'     => '+1',   'code' => 'us', 'trunkPrefix' => '',
-            'maskLocal' => '(###) ###-####', 'maskIntl' => '(###) ###-####', 'keepTrunk' => false],
+            'maskLocal' => '(###) ###-####', 'maskIntl' => '(###) ###-####'],
     ];
 
     /**
-     * @param bool $international true = show dial code, strip trunk prefix (except keepTrunk countries)
+     * @param bool $international true = show dial code, strip trunk prefix
      * @param bool $showFlag      false = number only, no flag icon
      */
     public function phoneDisplay(mixed $value, bool $international = false, bool $showFlag = true): string
@@ -78,10 +77,8 @@ final class PhoneFormatRuntime
         $national = substr($value, \strlen($country['dialCode']));
 
         if ($international) {
-            $digits = $country['keepTrunk'] && '' !== $country['trunkPrefix']
-                ? $country['trunkPrefix'] . $national
-                : $national;
-            $mask = $country['maskIntl'];
+            $digits = $national;
+            $mask   = $country['maskIntl'];
         } else {
             $digits = '' !== $country['trunkPrefix']
                 ? $country['trunkPrefix'] . $national
@@ -117,7 +114,7 @@ final class PhoneFormatRuntime
     /**
      * @return array{
      *   dialCode: string, code: string, trunkPrefix: string,
-     *   maskLocal: string, maskIntl: string, keepTrunk: bool
+     *   maskLocal: string, maskIntl: string
      * }|null
      */
     private function detectCountry(string $e164): ?array
@@ -133,10 +130,6 @@ final class PhoneFormatRuntime
 
     private function applyMask(string $digits, string $mask): string
     {
-        if ('' === $mask) {
-            return $digits;
-        }
-
         $result = '';
         $di     = 0;
         $len    = \strlen($mask);
