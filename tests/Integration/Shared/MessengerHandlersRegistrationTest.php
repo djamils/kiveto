@@ -12,6 +12,7 @@ final class MessengerHandlersRegistrationTest extends TestCase
     /**
      * This test ensures all handlers have the #[AsMessageHandler] attribute.
      * Without this attribute, the handler won't be registered in Symfony Messenger.
+     * Handlers of external-call commands are bound to their own bus instead.
      */
     public function testAllHandlersHaveAsMessageHandlerAttribute(): void
     {
@@ -36,7 +37,10 @@ final class MessengerHandlersRegistrationTest extends TestCase
             }
 
             // Check if it has the AsMessageHandler attribute
-            if (!str_contains($content, '#[AsMessageHandler]')) {
+            $registered = str_contains($content, '#[AsMessageHandler]')
+                || str_contains($content, "#[AsMessageHandler(bus: 'messenger.bus.external_api')]");
+
+            if (!$registered) {
                 $handlersWithoutAttribute[] = $file->getRelativePathname();
             }
         }
