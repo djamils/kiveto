@@ -378,6 +378,10 @@ services:
             $inner: '@App\Context\Client\Infrastructure\Registry\ThrottledCompanyRegistry'
             $cache: '@cache.app'
 
+    App\Context\Client\Infrastructure\Vat\ViesErrorMapper:
+        arguments:
+            $logger: '@monolog.logger.external_api'
+
     App\Context\Client\Infrastructure\Vat\ViesVatNumberVerifier:
         arguments:
             $client: '@client.vies.http'

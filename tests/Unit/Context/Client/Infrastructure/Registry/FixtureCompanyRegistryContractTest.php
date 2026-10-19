@@ -40,7 +40,7 @@ final class FixtureCompanyRegistryContractTest extends CompanyRegistryContractTe
         self::assertCount(1, $hits);
         self::assertTrue($hits[0]->isAssociation);
         self::assertSame('Association', $hits[0]->legalFormLabel);
-        self::assertSame([], $this->registry()->search('123456782', 5));
+        self::assertSame([], $this->registry()->search('000000000', 5));
     }
 
     public function testACeasedCompanyCarriesItsDate(): void
@@ -132,6 +132,6 @@ final class FixtureCompanyRegistryContractTest extends CompanyRegistryContractTe
 
     protected function unknownSiren(): string
     {
-        return '123456782';
+        return '000000000';
     }
 }

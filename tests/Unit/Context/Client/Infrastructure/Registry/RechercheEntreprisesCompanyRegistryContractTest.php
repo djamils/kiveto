@@ -20,50 +20,57 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 #[CoversClass(RechercheEntreprisesMapper::class)]
 final class RechercheEntreprisesCompanyRegistryContractTest extends CompanyRegistryContractTestCase
 {
+    /** Recorded answers of the API (see tests/Fixtures/recherche-entreprises), by query. */
     private const array ANSWERS = [
-        'calanques'      => 'search-calanques',
-        '52345678800018' => 'search-siret',
-        '812345676'      => 'siren-active',
-        '441569738'      => 'siren-ceased',
+        'la poste'       => 'search-by-name',
+        '35600000000048' => 'search-siret',
+        // A secondary establishment of La Poste: the API answers with the company.
+        '35600000000049' => 'search-siret',
+        '356000000'      => 'siren-active',
+        '879404929'      => 'siren-ceased',
         '900000019'      => 'siren-non-diffusible',
     ];
+
+    private const string UNKNOWN_SIREN = '000000000';
 
     /** @var list<string> */
     private array $urls = [];
 
     public function testTheSearchAsksTheHeadOfficeAndTheComplements(): void
     {
-        $this->registry()->search('calanques', 7);
+        $this->registry()->search('la poste', 7);
 
         self::assertCount(1, $this->urls);
         $url = parse_url($this->urls[0]);
         self::assertIsArray($url);
         self::assertSame('/search', $url['path'] ?? null);
         parse_str($url['query'] ?? '', $query);
-        self::assertSame(['q' => 'calanques', 'per_page' => '7', 'page' => '1', 'minimal' => 'true', 'include' => 'siege,complements'], $query);
+        self::assertSame(['q' => 'la poste', 'per_page' => '7', 'page' => '1', 'minimal' => 'true', 'include' => 'siege,complements'], $query);
     }
 
     public function testAHitCarriesTheCompanyAndItsHeadOffice(): void
     {
-        $hits = $this->registry()->search('calanques', 5);
+        $hits = $this->registry()->search('la poste', 10);
 
-        self::assertCount(2, $hits);
-        self::assertSame('523456788', $hits[0]->siren);
-        self::assertSame('ELEVAGE DES CALANQUES', $hits[0]->name);
-        self::assertSame('EARL', $hits[0]->legalFormLabel);
-        self::assertSame('01.45Z', $hits[0]->nafCode);
+        self::assertCount(10, $hits);
+        self::assertSame('356000000', $hits[0]->siren);
+        self::assertSame('LA POSTE', $hits[0]->name);
+        self::assertSame('SA nationale à conseil d\'administration', $hits[0]->legalFormLabel);
+        self::assertSame('53.10Z', $hits[0]->nafCode);
         self::assertFalse($hits[0]->isAssociation);
-        self::assertSame('12 CHEMIN DES GOUDES', $hits[0]->addressLine);
-        self::assertSame('13008', $hits[0]->postalCode);
-        self::assertSame('MARSEILLE', $hits[0]->city);
-        self::assertFalse($hits[1]->isActive);
-        self::assertSame('2019-06-30', $hits[1]->ceasedOn);
+        self::assertSame('35600000000048', $hits[0]->headOfficeSiret);
+        self::assertSame('DIRECTION GENERALE DE LA POSTE 9 RUE DU COLONEL PIERRE AVIA', $hits[0]->addressLine);
+        self::assertSame('75015', $hits[0]->postalCode);
+        self::assertSame('PARIS', $hits[0]->city);
+        self::assertSame('356000117', $hits[9]->siren);
+        self::assertFalse($hits[9]->isActive);
+        self::assertSame('2011-12-31', $hits[9]->ceasedOn);
     }
 
     public function testThePageSizeStaysWithinTheApiBounds(): void
     {
-        $this->registry()->search('calanques', 100);
-        $this->registry()->search('calanques', 0);
+        $this->registry()->search('la poste', 100);
+        $this->registry()->search('la poste', 0);
 
         self::assertStringContainsString('per_page=25', $this->urls[0]);
         self::assertStringContainsString('per_page=1', $this->urls[1]);
@@ -71,18 +78,18 @@ final class RechercheEntreprisesCompanyRegistryContractTest extends CompanyRegis
 
     public function testASiretQueryKeepsOnlyTheMatchingHeadOffice(): void
     {
-        self::assertSame([], $this->registry()->search('523 456 788 00026', 5));
+        self::assertSame([], $this->registry()->search('356 000 000 00049', 5));
     }
 
     public function testACeasedCompanyRecord(): void
     {
-        $record = $this->registry()->findBySiren('441569738');
+        $record = $this->registry()->findBySiren('879404929');
 
         self::assertNotNull($record);
         self::assertFalse($record->isActive);
         self::assertFalse($record->isConfidential);
-        self::assertSame('2025-12-31', $record->ceasedOn);
-        self::assertSame('GAEC DU MONT', $record->legalName);
+        self::assertSame('2023-12-19', $record->ceasedOn);
+        self::assertSame('M&L TRANSPORTS', $record->legalName);
     }
 
     public function testANonDiffusibleCompanyIsConfidential(): void
@@ -116,7 +123,7 @@ final class RechercheEntreprisesCompanyRegistryContractTest extends CompanyRegis
         $this->expectException(ExternalServiceUnavailable::class);
         $this->expectExceptionMessage('recherche-entreprises is unavailable: unreadable answer.');
 
-        $this->registryAnswering(new MockResponse('<html>maintenance</html>'))->search('calanques', 5);
+        $this->registryAnswering(new MockResponse('<html>maintenance</html>'))->search('la poste', 5);
     }
 
     public function testItCannotBeBuiltWithoutAContact(): void
@@ -145,22 +152,23 @@ final class RechercheEntreprisesCompanyRegistryContractTest extends CompanyRegis
 
     protected function knownSiret(): array
     {
-        return ['52345678800018', '523456788'];
+        return ['35600000000048', '356000000'];
     }
 
     protected function queryWithActiveAndCeased(): string
     {
-        return 'calanques';
+        return 'la poste';
     }
 
     protected function knownSiren(): array
     {
-        return ['812345676', 'CENTRE EQUESTRE DU LAC'];
+        return ['356000000', 'LA POSTE'];
     }
 
     protected function unknownSiren(): string
     {
-        return '123456782';
+        // Recorded as siren-not-found (no result).
+        return self::UNKNOWN_SIREN;
     }
 
     private function registryAnswering(MockResponse $response): RechercheEntreprisesCompanyRegistry

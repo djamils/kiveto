@@ -70,7 +70,7 @@ final class VerifyClientTaxProfileHandlerTest extends TestCase
 
     public function testAnUnknownSirenIsNotFoundAndAnUnknownVatInvalid(): void
     {
-        $record = $this->verify(self::view('123456782', 'FR11123456782'));
+        $record = $this->verify(self::view('000000000', 'FR12000000000'));
 
         self::assertSame('not_found', $record->companyOutcome);
         self::assertNull($record->registryName);

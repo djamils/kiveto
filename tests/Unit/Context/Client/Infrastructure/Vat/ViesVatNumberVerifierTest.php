@@ -36,7 +36,7 @@ final class ViesVatNumberVerifierTest extends TestCase
 
     public function testAnUnknownNumberIsInvalid(): void
     {
-        self::assertFalse($this->verifier(new MockHttpClient(new MockResponse(self::fixture('invalid'))))->verify('FR40812345676')->isValid);
+        self::assertFalse($this->verifier(new MockHttpClient(new MockResponse(self::fixture('invalid'))))->verify('FR12000000000')->isValid);
     }
 
     public function testAMemberStateOutageIsDown(): void
@@ -86,7 +86,7 @@ final class ViesVatNumberVerifierTest extends TestCase
     {
         return new ViesVatNumberVerifier(
             new RetryAfterAwareClient($http, 'vies', new NullLogger(), $this->createStub(ClockInterface::class)),
-            new ViesErrorMapper(),
+            new ViesErrorMapper(new NullLogger()),
             new RateLimiterFactory(['id' => 'vies_test', 'policy' => 'token_bucket', 'limit' => 1, 'rate' => ['interval' => '1 second']], new InMemoryStorage()),
             new ExternalApiUserAgent($userAgent),
         );
