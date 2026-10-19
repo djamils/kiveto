@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicBillingSettings\UpdateClinicBillingSettings;
+use App\Context\Clinic\Domain\Exception\InvoicePrefixAlreadyUsedException;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Settings\SettingsEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -73,6 +74,13 @@ final readonly class UpdateClinicBillingController
      */
     private static function explain(\LogicException $exception): array
     {
+        if ($exception instanceof InvoicePrefixAlreadyUsedException) {
+            return [
+                'Ce préfixe est déjà utilisé par un autre établissement du même SIREN.',
+                InvoicePrefixAlreadyUsedException::SERIES_CREDIT_NOTE === $exception->series ? 'fa.av' : 'fa.prefixe',
+            ];
+        }
+
         $message = $exception->getMessage();
 
         return match (true) {

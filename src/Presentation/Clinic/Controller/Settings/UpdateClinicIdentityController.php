@@ -9,6 +9,8 @@ use App\Context\Clinic\Application\Command\Clinic\ChangeClinicLocale\ChangeClini
 use App\Context\Clinic\Application\Command\Clinic\ChangeClinicTimeZone\ChangeClinicTimeZone;
 use App\Context\Clinic\Application\Command\Clinic\RenameClinic\RenameClinic;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead\UpdateClinicLetterhead;
+use App\Context\Clinic\Domain\Exception\InvalidLetterheadException;
+use App\Context\Clinic\Domain\Exception\InvoicePrefixAlreadyUsedException;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Settings\SettingsEndpoint;
 use App\Shared\Application\Bus\CommandBusInterface;
@@ -95,6 +97,14 @@ final readonly class UpdateClinicIdentityController
      */
     private static function explain(\LogicException $exception): array
     {
+        if ($exception instanceof InvalidLetterheadException) {
+            return self::explainFiscalIdentity($exception);
+        }
+
+        if ($exception instanceof InvoicePrefixAlreadyUsedException) {
+            return ['Ce préfixe est déjà utilisé par un autre établissement du même SIREN.', 'id.siret'];
+        }
+
         $message = $exception->getMessage();
 
         return match (true) {
@@ -107,6 +117,24 @@ final readonly class UpdateClinicIdentityController
             str_contains($message, 'locale')       => ['Cette langue n’est pas reconnue.', 'id.locale'],
             str_contains($message, 'timezone')     => ['Ce fuseau horaire n’est pas reconnu.', 'id.tz'],
             default                                => ['L’identité saisie est invalide.', null],
+        };
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private static function explainFiscalIdentity(InvalidLetterheadException $exception): array
+    {
+        if (InvalidLetterheadException::FIELD_SIRET === $exception->field) {
+            return InvalidLetterheadException::REASON_MISSING === $exception->reason
+                ? ['Renseignez le SIRET pour enregistrer un n° de TVA.', 'id.siret']
+                : ['SIRET invalide : vérifiez les 14 chiffres.', 'id.siret'];
+        }
+
+        return match ($exception->reason) {
+            InvalidLetterheadException::REASON_SIREN_MISMATCH => ['N° de TVA : il ne correspond pas au SIRET.', 'id.tva'],
+            InvalidLetterheadException::REASON_KEY            => ['N° de TVA invalide : clé incorrecte.', 'id.tva'],
+            default                                           => ['N° de TVA invalide : format FR + 2 chiffres + SIREN.', 'id.tva'],
         };
     }
 }

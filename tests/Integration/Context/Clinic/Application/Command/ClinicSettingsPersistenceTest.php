@@ -53,7 +53,7 @@ final class ClinicSettingsPersistenceTest extends KernelTestCase
         $this->commandBus->dispatch(new UpdateClinicLetterhead(
             clinicId: $this->clinicId,
             legalName: 'Clinique des Lilas SELARL',
-            siret: '12345678901234',
+            siret: '81245690300028',
             streetLine1: '12 rue des Lilas',
             city: 'Paris',
             countryCode: 'FR',
@@ -63,7 +63,7 @@ final class ClinicSettingsPersistenceTest extends KernelTestCase
         $letterhead = $this->reload()->letterhead();
 
         self::assertSame('Clinique des Lilas SELARL', $letterhead->legalName);
-        self::assertSame('12345678901234', $letterhead->siret);
+        self::assertSame('81245690300028', $letterhead->siret);
         self::assertNotNull($letterhead->address);
         self::assertSame('Paris', $letterhead->address->city);
     }

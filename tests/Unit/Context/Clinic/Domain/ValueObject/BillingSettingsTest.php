@@ -17,6 +17,17 @@ final class BillingSettingsTest extends TestCase
         self::assertSame('F/2026', BillingSettings::create(invoiceNumberPrefix: 'f/2026')->invoiceNumberPrefix);
     }
 
+    public function testDocumentsAreNumberedUnderTheDefaultPrefixesWhenTheClinicChoseNone(): void
+    {
+        self::assertSame('FAC', BillingSettings::empty()->effectiveInvoicePrefix());
+        self::assertSame('AV', BillingSettings::empty()->effectiveCreditNotePrefix());
+
+        $chosen = BillingSettings::create(invoiceNumberPrefix: 'lyo', creditNotePrefix: 'avlyo');
+
+        self::assertSame('LYO', $chosen->effectiveInvoicePrefix());
+        self::assertSame('AVLYO', $chosen->effectiveCreditNotePrefix());
+    }
+
     public function testAPrefixWithSpacesOrPunctuationIsRefused(): void
     {
         $this->expectException(InvalidBillingSettingsException::class);

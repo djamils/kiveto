@@ -65,12 +65,12 @@ final class ClinicDataStory extends Story
             ])
             ->withBillingSettings([
                 'billingAddress'      => null,
-                'invoiceNumberPrefix' => 'FAC',
+                'invoiceNumberPrefix' => 'PAR',
                 'paymentTermsDays'    => 30,
                 'iban'                => 'FR7630006000011234567890189',
                 'bic'                 => 'AGRIFRPP',
                 'invoiceFooterNote'   => 'Règlement à réception. Aucun escompte pour paiement anticipé.',
-                'creditNotePrefix'    => 'AV',
+                'creditNotePrefix'    => 'AVPAR',
                 // Breeders and shelters are given 45 days; the clinic files monthly.
                 'professionalPaymentTermsDays' => 45,
                 'vatRegime'                    => 'MONTHLY',
@@ -113,6 +113,13 @@ final class ClinicDataStory extends Story
                 email: 'contact@vetofrance-lyon.fr',
                 website: 'www.vetofrance.fr',
             ))
+            // Lyon and Cassis are two establishments of one company (SIREN
+            // 901 122 333): each numbers its documents under prefixes of its own,
+            // so that a number identifies one document of the company.
+            ->withBillingSettings([
+                'invoiceNumberPrefix' => 'LYO',
+                'creditNotePrefix'    => 'AVLYO',
+            ])
             // Continuous hours on weekdays, so the dashboard can count the
             // day's slots.
             ->withOpeningHours([
@@ -158,6 +165,7 @@ final class ClinicDataStory extends Story
             // Cheques are no longer taken at Cassis: the desk shows card, cash and transfer only.
             ->withBillingSettings([
                 'invoiceNumberPrefix'    => 'CAS',
+                'creditNotePrefix'       => 'AVCAS',
                 'paymentTermsDays'       => 0,
                 'vatRegime'              => 'SIMPLIFIED',
                 'acceptedPaymentMethods' => ['CARD', 'CASH', 'TRANSFER'],

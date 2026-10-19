@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead;
 
+use App\Context\Clinic\Application\Service\InvoiceNumberingUniqueness;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
@@ -19,6 +20,7 @@ final class UpdateClinicLetterheadHandler
         private readonly ClinicRepositoryInterface $clinicRepository,
         private readonly ClockInterface $clock,
         private readonly DomainEventPublisher $domainEventPublisher,
+        private readonly InvoiceNumberingUniqueness $numbering,
     ) {
     }
 
@@ -31,7 +33,11 @@ final class UpdateClinicLetterheadHandler
             throw new \RuntimeException(\sprintf('Clinic with ID "%s" not found.', $command->clinicId));
         }
 
-        $clinic->updateLetterhead($this->letterhead($command), $this->clock->now());
+        $letterhead = $this->letterhead($command);
+
+        $this->numbering->assertChangeKeepsSeriesDistinct($clinic, $letterhead, $clinic->billingSettings());
+
+        $clinic->updateLetterhead($letterhead, $this->clock->now());
 
         $this->clinicRepository->save($clinic);
 
