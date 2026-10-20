@@ -18,6 +18,7 @@ use App\Context\Billing\Domain\Exception\InvalidPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Policy\ElectronicInvoiceReadiness;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\Service\FiscalCalendar;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
@@ -130,7 +131,7 @@ final readonly class RecordCounterSaleHandler
         // professional's data is missing, the whole sale rolls back.
         $this->readiness->assertReady($invoice, $seller);
         // Paid in full at the desk, with the issue: framed S2, B2 or M2.
-        $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $invoice->totalGross()->isPositive() ? Payment::create(
+        $invoice->issue($this->numbers->next($clinicId, FiscalCalendar::year($now)), $seller, $now, $invoice->totalGross()->isPositive() ? Payment::create(
             id: PaymentId::fromString($this->uuidGenerator->generate()),
             method: $method,
             amount: $invoice->totalGross(),

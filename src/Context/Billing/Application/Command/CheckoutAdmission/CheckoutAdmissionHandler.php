@@ -8,6 +8,7 @@ use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
 use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Domain\Policy\ElectronicInvoiceReadiness;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\Service\FiscalCalendar;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -65,7 +66,7 @@ final readonly class CheckoutAdmissionHandler
             // sequence untouched and the draft open.
             $this->readiness->assertReady($invoice, $seller);
             // The payment is part of the issue: it decides the framework.
-            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $payment);
+            $invoice->issue($this->numbers->next($clinicId, FiscalCalendar::year($now)), $seller, $now, $payment);
         } elseif (null !== $payment) {
             $invoice->recordPayment($payment, $now);
         }

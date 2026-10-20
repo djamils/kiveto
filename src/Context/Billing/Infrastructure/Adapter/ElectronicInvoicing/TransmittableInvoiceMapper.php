@@ -6,6 +6,7 @@ namespace App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing;
 
 use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Invoice;
+use App\Context\Billing\Domain\Service\FiscalCalendar;
 use App\Context\Billing\Domain\ValueObject\BuyerFiscalIdentity;
 use App\Context\Billing\Domain\ValueObject\CalculatedAmounts;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
@@ -40,11 +41,10 @@ final readonly class TransmittableInvoiceMapper
     private const string VAT_CATEGORY = 'S';
     private const string UNIT_CODE    = 'C62';
     private const string ALLOWANCE    = 'Remise';
-    private const string TIME_ZONE    = 'Europe/Paris';
 
     public function fromInvoice(Invoice $invoice, SellerIdentity $seller): TransmittableInvoice
     {
-        $issuedAt = self::local($invoice->issuedAt() ?? throw new \LogicException('Only an issued invoice is transmitted.'));
+        $issuedAt = FiscalCalendar::local($invoice->issuedAt() ?? throw new \LogicException('Only an issued invoice is transmitted.'));
         $amounts  = $invoice->amounts();
         $terms    = $invoice->paymentTerms();
         // Run at issue: what was paid at the desk (BT-113).
@@ -64,7 +64,7 @@ final readonly class TransmittableInvoiceMapper
             buyerContact: $invoice->payer()->attention(),
             // « Date d'exécution des prestations » on the PDF: the issue date.
             deliveryDate: $issuedAt,
-            dueDate: null !== $terms?->dueDate ? self::local($terms->dueDate) : null,
+            dueDate: null !== $terms?->dueDate ? FiscalCalendar::local($terms->dueDate) : null,
             paymentTermsNote: $terms?->note,
             lineTotal: $amounts->totalLineNet()->minorUnits(),
             allowanceTotal: $amounts->totalAllowance()->minorUnits(),
@@ -83,7 +83,7 @@ final readonly class TransmittableInvoiceMapper
     public function fromCreditNote(CreditNote $creditNote, SellerIdentity $seller): TransmittableInvoice
     {
         $amounts  = $creditNote->amounts();
-        $issuedAt = self::local($creditNote->issuedAt());
+        $issuedAt = FiscalCalendar::local($creditNote->issuedAt());
         $credited = $creditNote->invoiceIssuedAt();
 
         return new TransmittableInvoice(
@@ -113,13 +113,8 @@ final readonly class TransmittableInvoiceMapper
             vatBreakdown: $this->breakdown($amounts),
             notes: $this->notes($seller),
             precedingInvoiceNumber: $creditNote->invoiceNumber(),
-            precedingInvoiceDate: null !== $credited ? self::local($credited) : null,
+            precedingInvoiceDate: null !== $credited ? FiscalCalendar::local($credited) : null,
         );
-    }
-
-    private static function local(\DateTimeImmutable $at): \DateTimeImmutable
-    {
-        return $at->setTimezone(new \DateTimeZone(self::TIME_ZONE));
     }
 
     private function seller(SellerIdentity $seller): TransmittableParty

@@ -10,6 +10,7 @@ use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\CreditNoteCalculator;
+use App\Context\Billing\Domain\Service\FiscalCalendar;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
@@ -83,7 +84,7 @@ final readonly class IssueCreditNoteHandler
         $creditNote = CreditNote::issue(
             id: CreditNoteId::fromString($this->uuidGenerator->generate()),
             clinicId: $clinicId,
-            number: $this->numbers->nextCreditNote($clinicId, (int) $now->format('Y')),
+            number: $this->numbers->nextCreditNote($clinicId, FiscalCalendar::year($now)),
             invoiceId: $invoice->id(),
             invoiceNumber: $number->toString(),
             payer: $invoice->payer(),

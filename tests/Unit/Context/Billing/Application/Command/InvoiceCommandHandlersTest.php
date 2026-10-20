@@ -46,12 +46,14 @@ use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
+use App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\TransmittableInvoiceMapper;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\ProfessionalDocuments;
 use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -100,6 +102,29 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         self::assertSame('FAC-2026-000012', $invoice->number()?->toString());
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
+    }
+
+    /**
+     * The number's year is the year of the issue date, both local to Paris:
+     * on 1 January at 00:30 in Paris it is still 2026 in UTC.
+     */
+    public function testAnInvoiceIssuedJustAfterMidnightOnNewYearsDayInParisIsNumberedAndDatedInTheNewYear(): void
+    {
+        $invoice = ProfessionalDocuments::professionalDraft();
+        $this->invoices->method('get')->willReturn($invoice);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-12-31 23:30:00', new \DateTimeZone('UTC')));
+
+        $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
+        $numbers->expects(self::once())->method('next')->with(self::anything(), 2027)->willReturn(InvoiceNumber::of(2027, 1));
+
+        (new IssueInvoiceHandler($this->invoices, $numbers, $clock, $this->sellers(), $this->events()))(
+            new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID),
+        );
+
+        self::assertSame('FAC-2027-000001', $invoice->number()?->toString());
+        self::assertSame('2027-01-01', (new TransmittableInvoiceMapper())->fromInvoice($invoice, SellerIdentities::complete())->issueDate->format('Y-m-d'));
     }
 
     // ── Record a payment ──
