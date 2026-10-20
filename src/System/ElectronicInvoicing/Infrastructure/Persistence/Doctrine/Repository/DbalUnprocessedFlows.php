@@ -17,17 +17,21 @@ final readonly class DbalUnprocessedFlows implements UnprocessedFlowsInterface
     ) {
     }
 
-    public function record(string $organisationId, string $flowId, string $reason, \DateTimeImmutable $now): int
+    public function record(string $organisationId, string $flowId, string $reason, ?string $error, ?string $content, \DateTimeImmutable $now): int
     {
+        // A flow read once keeps its content when a later run cannot read it.
         $this->connection->executeStatement(
-            'INSERT INTO electronic_invoicing__unprocessed_flows (id, organisation_id, flow_id, reason, attempts, last_seen_at)
-             VALUES (:id, :organisation, :flow, :reason, 1, :now)
-             ON DUPLICATE KEY UPDATE attempts = attempts + 1, reason = VALUES(reason), last_seen_at = VALUES(last_seen_at)',
+            'INSERT INTO electronic_invoicing__unprocessed_flows (id, organisation_id, flow_id, reason, error, content, attempts, last_seen_at)
+             VALUES (:id, :organisation, :flow, :reason, :error, :content, 1, :now)
+             ON DUPLICATE KEY UPDATE attempts = attempts + 1, reason = VALUES(reason), error = VALUES(error),
+                content = COALESCE(VALUES(content), content), last_seen_at = VALUES(last_seen_at)',
             [
                 'id'           => Uuid::fromString($this->uuids->generate())->toBinary(),
                 'organisation' => $organisationId,
                 'flow'         => $flowId,
                 'reason'       => $reason,
+                'error'        => $error,
+                'content'      => $content,
                 'now'          => $now->format('Y-m-d H:i:s'),
             ],
         );

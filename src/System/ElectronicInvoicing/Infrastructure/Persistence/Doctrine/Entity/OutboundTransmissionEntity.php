@@ -87,8 +87,16 @@ class OutboundTransmissionEntity
     #[ORM\Column(name: 'submitted_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $submittedAt = null;
 
+    #[ORM\Column(name: 'internal_because', type: 'smallint', nullable: true)]
+    private ?int $internalBecause = null;
+
     #[ORM\Column(type: 'integer')]
-    private int $version = 0;
+    private int $sequence = 0;
+
+    /** Optimistic lock: a concurrent change fails the flush and the message is retried. */
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer', options: ['default' => 1])]
+    private int $version = 1;
 
     #[ORM\Column(name: 'prepared_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $preparedAt;
@@ -319,14 +327,29 @@ class OutboundTransmissionEntity
         $this->submittedAt = $submittedAt;
     }
 
+    public function getInternalBecause(): ?int
+    {
+        return $this->internalBecause;
+    }
+
+    public function setInternalBecause(?int $internalBecause): void
+    {
+        $this->internalBecause = $internalBecause;
+    }
+
+    public function getSequence(): int
+    {
+        return $this->sequence;
+    }
+
     public function getVersion(): int
     {
         return $this->version;
     }
 
-    public function setVersion(int $version): void
+    public function setSequence(int $sequence): void
     {
-        $this->version = $version;
+        $this->sequence = $sequence;
     }
 
     public function getPreparedAt(): \DateTimeImmutable

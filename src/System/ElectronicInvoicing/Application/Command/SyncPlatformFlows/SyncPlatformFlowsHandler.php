@@ -28,8 +28,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * read in (updatedAt, flowId) order, page after page (capped per run), and
  * the cursor is advanced at the end to the last flow processed: a run cut
  * short resumes exactly after it, flows sharing a timestamp included. A flow
- * that cannot be parsed or that names an unknown document is kept as
- * unprocessed rather than lost.
+ * that cannot be fetched or parsed, or that names an unknown document, is
+ * quarantined — its content and the error kept — and the run goes on with the
+ * others: one bad flow never holds the organisation's synchronisation back.
  */
 #[AsMessageHandler(bus: 'messenger.bus.external_api')]
 final readonly class SyncPlatformFlowsHandler
@@ -92,12 +93,18 @@ final readonly class SyncPlatformFlowsHandler
      */
     private function process(string $organisation, string $flowId): bool
     {
-        $content = $this->fetcher->fetch($organisation, $flowId)->content;
+        try {
+            $content = $this->fetcher->fetch($organisation, $flowId)->content;
+        } catch (\RuntimeException $e) {
+            $this->commandBus->dispatch(new RecordUnprocessedFlow($organisation, $flowId, RecordUnprocessedFlow::UNFETCHABLE, $e->getMessage()));
+
+            return false;
+        }
 
         try {
             $messages = $this->parser->parse($content);
-        } catch (UnparsableLifecycleMessageException) {
-            $this->commandBus->dispatch(new RecordUnprocessedFlow($organisation, $flowId, RecordUnprocessedFlow::UNPARSABLE));
+        } catch (UnparsableLifecycleMessageException $e) {
+            $this->commandBus->dispatch(new RecordUnprocessedFlow($organisation, $flowId, RecordUnprocessedFlow::UNPARSABLE, $e->getMessage(), $content));
 
             return false;
         }
@@ -125,7 +132,7 @@ final readonly class SyncPlatformFlowsHandler
         }
 
         if (!$complete) {
-            $this->commandBus->dispatch(new RecordUnprocessedFlow($organisation, $flowId, RecordUnprocessedFlow::UNRESOLVED));
+            $this->commandBus->dispatch(new RecordUnprocessedFlow($organisation, $flowId, RecordUnprocessedFlow::UNRESOLVED, 'A message names a document or a status this organisation does not have.', $content));
         }
 
         return $complete;

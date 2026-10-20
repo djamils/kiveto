@@ -55,7 +55,9 @@ final class Version20261021160000 extends AbstractMigration
               submission_requested_at DATETIME DEFAULT NULL,
               submission_attempts INT NOT NULL,
               submitted_at DATETIME DEFAULT NULL,
-              version INT NOT NULL,
+              internal_because SMALLINT DEFAULT NULL,
+              sequence INT NOT NULL,
+              version INT DEFAULT 1 NOT NULL,
               prepared_at DATETIME NOT NULL,
               INDEX idx_ei_transmission_schedule (
                 seller_siren, state, submission_requested_at
@@ -89,6 +91,8 @@ final class Version20261021160000 extends AbstractMigration
               organisation_id VARCHAR(9) NOT NULL,
               flow_id VARCHAR(64) NOT NULL,
               reason VARCHAR(16) NOT NULL,
+              error LONGTEXT DEFAULT NULL,
+              content LONGTEXT DEFAULT NULL,
               attempts INT NOT NULL,
               last_seen_at DATETIME NOT NULL,
               UNIQUE INDEX uniq_ei_unprocessed_flow (organisation_id, flow_id),

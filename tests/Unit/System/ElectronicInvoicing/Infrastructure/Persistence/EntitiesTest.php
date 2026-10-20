@@ -21,6 +21,8 @@ final class EntitiesTest extends TestCase
         $entity->setOrganisationId('812456903');
         $entity->setFlowId('f-1');
         $entity->setReason('unparsable');
+        $entity->setError('malformed XML.');
+        $entity->setContent('<broken');
         $entity->setAttempts(2);
         $entity->setLastSeenAt($at);
 
@@ -28,6 +30,8 @@ final class EntitiesTest extends TestCase
         self::assertSame('812456903', $entity->getOrganisationId());
         self::assertSame('f-1', $entity->getFlowId());
         self::assertSame('unparsable', $entity->getReason());
+        self::assertSame('malformed XML.', $entity->getError());
+        self::assertSame('<broken', $entity->getContent());
         self::assertSame(2, $entity->getAttempts());
         self::assertSame($at, $entity->getLastSeenAt());
     }

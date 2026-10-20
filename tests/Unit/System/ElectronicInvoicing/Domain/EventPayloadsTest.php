@@ -6,6 +6,7 @@ namespace App\Tests\Unit\System\ElectronicInvoicing\Domain;
 
 use App\System\ElectronicInvoicing\Domain\Event\InvoiceTransmissionStatusChangedIntegrationEvent;
 use App\System\ElectronicInvoicing\Domain\Event\LifecycleStatusRecorded;
+use App\System\ElectronicInvoicing\Domain\Event\TransmissionAwaitingInvoice;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionBlocked;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionNotRequired;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionPrepared;
@@ -18,12 +19,13 @@ use PHPUnit\Framework\TestCase;
 final class EventPayloadsTest extends TestCase
 {
     /**
-     * @return iterable<string, array{class-string<TransmissionPrepared|TransmissionQueued|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded>, string}>
+     * @return iterable<string, array{class-string<TransmissionPrepared|TransmissionQueued|TransmissionAwaitingInvoice|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded>, string}>
      */
     public static function provideTransmissionEventsCarryTheirSequenceCases(): iterable
     {
         yield 'prepared' => [TransmissionPrepared::class, 'electronic_invoicing.transmission.prepared.v1'];
         yield 'queued' => [TransmissionQueued::class, 'electronic_invoicing.transmission.queued.v1'];
+        yield 'awaiting invoice' => [TransmissionAwaitingInvoice::class, 'electronic_invoicing.transmission-awaiting.invoice.v1'];
         yield 'submitting' => [TransmissionSubmitting::class, 'electronic_invoicing.transmission.submitting.v1'];
         yield 'submitted' => [TransmissionSubmitted::class, 'electronic_invoicing.transmission.submitted.v1'];
         yield 'blocked' => [TransmissionBlocked::class, 'electronic_invoicing.transmission.blocked.v1'];
@@ -32,7 +34,7 @@ final class EventPayloadsTest extends TestCase
     }
 
     /**
-     * @param class-string<TransmissionPrepared|TransmissionQueued|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded> $class
+     * @param class-string<TransmissionPrepared|TransmissionQueued|TransmissionAwaitingInvoice|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded> $class
      */
     #[DataProvider('provideTransmissionEventsCarryTheirSequenceCases')]
     public function testTransmissionEventsCarryTheirSequence(string $class, string $name): void

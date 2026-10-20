@@ -12,6 +12,7 @@ use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionId;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface;
 use App\System\ElectronicInvoicing\Domain\Transmission\TrackingId;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionKind;
+use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionState;
 
 final class InMemoryTransmissions implements OutboundTransmissionRepositoryInterface
 {
@@ -44,6 +45,17 @@ final class InMemoryTransmissions implements OutboundTransmissionRepositoryInter
     public function byDocument(Siren $sellerSiren, TransmissionKind $kind, string $documentNumber): ?OutboundTransmission
     {
         return $this->first(static fn (OutboundTransmission $t): bool => $t->sellerSiren()->equals($sellerSiren) && $kind === $t->kind() && $documentNumber === $t->documentNumber());
+    }
+
+    public function awaitingCreditNotesOf(Siren $sellerSiren, string $invoiceNumber): array
+    {
+        return array_values(array_filter(
+            $this->items,
+            static fn (OutboundTransmission $t): bool => $t->sellerSiren()->equals($sellerSiren)
+                && TransmissionKind::CREDIT_NOTE === $t->kind()
+                && $invoiceNumber === $t->precedingDocumentNumber()
+                && TransmissionState::AWAITING_INVOICE === $t->state(),
+        ));
     }
 
     /**

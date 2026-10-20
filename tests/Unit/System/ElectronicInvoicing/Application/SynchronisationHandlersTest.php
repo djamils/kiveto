@@ -25,6 +25,7 @@ use App\System\ElectronicInvoicing\Application\Command\SyncPlatformFlows\SyncPla
 use App\System\ElectronicInvoicing\Application\Command\VerifyPlatformConnection\VerifyPlatformConnection;
 use App\System\ElectronicInvoicing\Application\Command\VerifyPlatformConnection\VerifyPlatformConnectionHandler;
 use App\System\ElectronicInvoicing\Application\EventSubscriber\OnPlatformConnectionActivatedRelease;
+use App\System\ElectronicInvoicing\Application\Policy\CreditNoteFollowsItsInvoice;
 use App\System\ElectronicInvoicing\Application\Policy\ResolveTransmissionForFlow;
 use App\System\ElectronicInvoicing\Application\Port\ConfiguredPlatformInterface;
 use App\System\ElectronicInvoicing\Application\Port\ParsedLifecycleMessage;
@@ -164,24 +165,35 @@ final class SynchronisationHandlersTest extends TestCase
         self::assertSame('f-499', $this->buses->commandsOf(AdvanceSyncCursor::class)[0]->lastFlowId);
     }
 
-    public function testUnparsableAndUnresolvedFlowsAreKeptThenRetried(): void
+    /**
+     * F7: a flow that cannot be fetched or read is quarantined — content and
+     * error kept — and the others of the organisation go on; the cursor moves.
+     */
+    public function testUnreadableAndUnresolvedFlowsAreQuarantinedThenRetried(): void
     {
         $this->request('doc-1', 'PAR-1');
         $at          = new \DateTimeImmutable('2026-10-21 10:30');
         $unprocessed = new FakeUnprocessedFlows();
         $flows       = new FakePlatformFlows([
+            ['f-0', $at, 'down'],
             ['f-1', $at, 'garbage'],
             ['f-2', $at, '200|PAR-404|812456903'],
             ['f-3', $at, '999|PAR-1|812456903'],
             ['f-4', $at, '200|PAR-1|523456788'],
+            ['f-5', $at, '202|PAR-1|812456903'],
         ]);
 
         $this->sync(InMemoryConnections::verified(TransmittableInvoices::SELLER), $flows, $unprocessed)(new SyncPlatformFlows(TransmittableInvoices::SELLER));
 
         $kept = $this->buses->commandsOf(RecordUnprocessedFlow::class);
-        self::assertSame(['f-1', 'f-2', 'f-3', 'f-4'], array_map(static fn (RecordUnprocessedFlow $c): string => $c->flowId, $kept));
-        self::assertSame(RecordUnprocessedFlow::UNPARSABLE, $kept[0]->reason);
-        self::assertSame(RecordUnprocessedFlow::UNRESOLVED, $kept[1]->reason);
+        self::assertSame(['f-0', 'f-1', 'f-2', 'f-3', 'f-4'], array_map(static fn (RecordUnprocessedFlow $c): string => $c->flowId, $kept));
+        self::assertSame([RecordUnprocessedFlow::UNFETCHABLE, null], [$kept[0]->reason, $kept[0]->content]);
+        self::assertStringContainsString('503', (string) $kept[0]->error);
+        self::assertSame([RecordUnprocessedFlow::UNPARSABLE, 'garbage'], [$kept[1]->reason, $kept[1]->content]);
+        self::assertStringContainsString('not a test message', (string) $kept[1]->error);
+        self::assertSame([RecordUnprocessedFlow::UNRESOLVED, '200|PAR-404|812456903'], [$kept[2]->reason, $kept[2]->content]);
+        self::assertSame(['f-5'], array_map(static fn (RecordLifecycleStatus $c): string => $c->sourceFlowId, $this->buses->commandsOf(RecordLifecycleStatus::class)));
+        self::assertSame('f-5', $this->buses->commandsOf(AdvanceSyncCursor::class)[0]->lastFlowId);
 
         // Next run: f-2's document now exists, it is resolved first.
         $this->request('doc-2', 'PAR-404');
@@ -221,16 +233,23 @@ final class SynchronisationHandlersTest extends TestCase
         self::assertNull($resolver->resolve(TransmittableInvoices::SELLER, $other));
     }
 
-    public function testAnUnprocessedFlowIsLoggedOnItsLastAttempt(): void
+    public function testEveryQuarantineIsLoggedAsAnError(): void
     {
         $unprocessed = new FakeUnprocessedFlows();
         $logger      = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('error');
+        $messages    = [];
+        $logger->expects(self::exactly(RecordUnprocessedFlowHandler::MAX_ATTEMPTS))->method('error')->willReturnCallback(static function (string $message) use (&$messages): void {
+            $messages[] = $message;
+        });
         $handler = new RecordUnprocessedFlowHandler($unprocessed, $this->clock(), $logger);
 
         for ($i = 0; $i < RecordUnprocessedFlowHandler::MAX_ATTEMPTS; ++$i) {
-            $handler(new RecordUnprocessedFlow('812456903', 'f-1', RecordUnprocessedFlow::UNPARSABLE));
+            $handler(new RecordUnprocessedFlow('812456903', 'f-1', RecordUnprocessedFlow::UNPARSABLE, 'malformed XML.', '<broken'));
         }
+
+        self::assertSame(['reason' => 'unparsable', 'error' => 'malformed XML.', 'content' => '<broken'], $unprocessed->quarantined['f-1']);
+        self::assertStringContainsString('quarantined', $messages[0]);
+        self::assertStringContainsString('no longer retried', (string) array_last($messages));
 
         $handler(new RecordUnprocessedFlow('812456903', 'f-1', null));
         self::assertSame([], $unprocessed->attempts);
@@ -336,6 +355,7 @@ final class SynchronisationHandlersTest extends TestCase
             new InMemoryConnections(),
             $this->buses,
             $this->buses->publisher(),
+            new CreditNoteFollowsItsInvoice($this->transmissions),
             $this->uuids(),
             $this->clock(),
         )(new RequestInvoiceTransmission('01960000-0000-7000-8000-0000000ee0c1', TransmittableInvoices::invoice($documentId, $number)));

@@ -26,7 +26,14 @@ use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepos
 use App\System\ElectronicInvoicing\Domain\Transmission\TrackingId;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionKind;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionState;
+use App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Entity\OutboundTransmissionEntity;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\OptimisticLockException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
+use Symfony\Component\Uid\Uuid;
 
 final class PersistenceTest extends KernelTestCase
 {
@@ -84,7 +91,7 @@ final class PersistenceTest extends KernelTestCase
         self::assertSame('523456788', $loaded->addressUsed()?->identifier());
         self::assertSame(self::CONNECTION, $loaded->connectionId()?->toString());
         self::assertSame(1, $loaded->submissionAttempts());
-        self::assertSame($transmission->version(), $loaded->version());
+        self::assertSame($transmission->sequence(), $loaded->sequence());
         self::assertCount(2, $loaded->lifecycle());
         $current = $loaded->currentStatus();
         self::assertNotNull($current);
@@ -138,7 +145,13 @@ final class PersistenceTest extends KernelTestCase
 
         $loaded = $transmissions->get($invoice->id());
         self::assertSame(1, $loaded->submissionAttempts());
-        self::assertSame($invoice->version() + 1, $loaded->version());
+        self::assertSame($invoice->sequence(), $loaded->sequence());
+        // The marker bumps the optimistic lock like any change.
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
+        \assert($em instanceof EntityManagerInterface);
+        $entity = $em->find(OutboundTransmissionEntity::class, Uuid::fromString($invoice->id()->toString()));
+        self::assertInstanceOf(OutboundTransmissionEntity::class, $entity);
+        self::assertSame(2, $entity->getVersion());
 
         $loaded->acknowledgeSubmissionRequested(PlatformConnectionId::fromString(self::CONNECTION), $now);
         $transmissions->save($loaded);
@@ -146,14 +159,89 @@ final class PersistenceTest extends KernelTestCase
         self::assertSame([$invoice->id()->toString()], $schedule->staleRequested($now->modify('+1 minute')));
     }
 
+    /**
+     * F2: a change made meanwhile — here the SQL marker of a release — fails
+     * the stale save instead of being overwritten; Messenger retries it.
+     */
+    public function testAConcurrentChangeFailsTheStaleSave(): void
+    {
+        $transmissions = $this->service(OutboundTransmissionRepositoryInterface::class);
+        $invoice       = $this->prepared('01960000-0000-7000-8000-0000000ee1c1', 'doc-4', 'PAR-4');
+        $transmissions->save($invoice);
+
+        $stale = $transmissions->get($invoice->id());
+        $now   = new \DateTimeImmutable('2026-10-21 12:00:00');
+        $this->service(SubmissionScheduleInterface::class)->markSubmissionRequested([$invoice->id()->toString()], $now, $now);
+        $stale->markBlocked(BlockReason::RENDERING_FAILED, 'stale', $now);
+
+        $this->expectException(OptimisticLockException::class);
+
+        $transmissions->save($stale);
+    }
+
+    /**
+     * F10: two first requests of the same document — the loser is retried
+     * and finds the winner's transmission.
+     */
+    public function testASecondFirstRequestOfTheSameDocumentIsRetried(): void
+    {
+        $transmissions = $this->service(OutboundTransmissionRepositoryInterface::class);
+        $transmissions->save($this->prepared('01960000-0000-7000-8000-0000000ee1d1', 'doc-5', 'PAR-5'));
+
+        $this->expectException(RecoverableMessageHandlingException::class);
+
+        $transmissions->save($this->prepared('01960000-0000-7000-8000-0000000ee1d2', 'doc-5', 'PAR-5'));
+    }
+
+    public function testAnotherConstraintViolationIsNotRetried(): void
+    {
+        $transmissions = $this->service(OutboundTransmissionRepositoryInterface::class);
+        $first         = $this->prepared('01960000-0000-7000-8000-0000000ee1f1', 'doc-10', 'PAR-10');
+        $second        = $this->prepared('01960000-0000-7000-8000-0000000ee1f2', 'doc-11', 'PAR-11');
+        $first->markSubmitted(FlowId::fromString('flow-same'), new \DateTimeImmutable());
+        $transmissions->save($first);
+        $transmissions->save($second);
+        $second->markSubmitted(FlowId::fromString('flow-same'), new \DateTimeImmutable());
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        $transmissions->save($second);
+    }
+
+    public function testTheCreditNotesWaitingForAnInvoiceAreFound(): void
+    {
+        $transmissions = $this->service(OutboundTransmissionRepositoryInterface::class);
+        $now           = new \DateTimeImmutable('2026-10-21 12:00:00');
+
+        foreach ([['ee1e1', 'cn-6', 'AV-6', 'PAR-6'], ['ee1e2', 'cn-7', 'AV-7', 'PAR-6'], ['ee1e3', 'cn-8', 'AV-8', 'PAR-9']] as [$id, $tracking, $number, $invoice]) {
+            $note = $this->prepared('01960000-0000-7000-8000-0000000' . $id, $tracking, $number, kind: TransmissionKind::CREDIT_NOTE, preceding: $invoice);
+            $note->awaitPrecedingInvoice($now);
+            $transmissions->save($note);
+        }
+
+        $internal = $this->prepared('01960000-0000-7000-8000-0000000ee1e4', 'cn-9', 'AV-9', kind: TransmissionKind::CREDIT_NOTE, preceding: 'PAR-6');
+        $internal->markInternal(LifecycleStatusCode::REJECTED, $now);
+        $transmissions->save($internal);
+
+        $waiting = $transmissions->awaitingCreditNotesOf(Siren::fromInput('812456903'), 'PAR-6');
+        self::assertSame(['AV-6', 'AV-7'], array_map(static fn (OutboundTransmission $t): string => $t->documentNumber(), $waiting));
+        self::assertSame(TransmissionState::AWAITING_INVOICE, $waiting[0]->state());
+        self::assertSame(LifecycleStatusCode::REJECTED, $transmissions->get($internal->id())->internalBecause());
+    }
+
     public function testUnprocessedFlowsAreCountedAndResolved(): void
     {
         $flows = $this->service(UnprocessedFlowsInterface::class);
         $now   = new \DateTimeImmutable('2026-10-21 12:00:00');
 
-        self::assertSame(1, $flows->record('812456903', 'f-1', 'unparsable', $now));
-        self::assertSame(2, $flows->record('812456903', 'f-1', 'unresolved', $now));
-        self::assertSame(1, $flows->record('812456903', 'f-2', 'unparsable', $now));
+        self::assertSame(1, $flows->record('812456903', 'f-1', 'unparsable', 'malformed XML.', '<broken', $now));
+        // A later run that cannot even fetch it keeps the content read before.
+        self::assertSame(2, $flows->record('812456903', 'f-1', 'unfetchable', 'HTTP 503', null, $now));
+        self::assertSame(1, $flows->record('812456903', 'f-2', 'unparsable', null, null, $now));
+        self::assertSame(
+            ['reason' => 'unfetchable', 'error' => 'HTTP 503', 'content' => '<broken'],
+            $this->connection()->fetchAssociative("SELECT reason, error, content FROM electronic_invoicing__unprocessed_flows WHERE flow_id = 'f-1'"),
+        );
         self::assertSame(['f-1', 'f-2'], $flows->toRetry('812456903', 5));
         self::assertSame(['f-2'], $flows->toRetry('812456903', 2));
 
@@ -170,7 +258,7 @@ final class PersistenceTest extends KernelTestCase
         self::assertSame('<x/>', $store->load($reference));
     }
 
-    private function prepared(string $id, string $tracking, string $number, ?string $buyer = '523456788', TransmissionKind $kind = TransmissionKind::INVOICE): OutboundTransmission
+    private function prepared(string $id, string $tracking, string $number, ?string $buyer = '523456788', TransmissionKind $kind = TransmissionKind::INVOICE, ?string $preceding = null): OutboundTransmission
     {
         return OutboundTransmission::prepare(
             id: OutboundTransmissionId::fromString($id),
@@ -181,10 +269,18 @@ final class PersistenceTest extends KernelTestCase
             documentDate: new \DateTimeImmutable('2026-10-21'),
             sellerSiren: Siren::fromInput('812456903'),
             buyerSiren: null !== $buyer ? Siren::fromInput($buyer) : null,
-            precedingDocumentNumber: null,
+            precedingDocumentNumber: $preceding,
             payload: ['number' => $number],
             now: new \DateTimeImmutable('2026-10-21 10:00:00'),
         );
+    }
+
+    private function connection(): Connection
+    {
+        $connection = self::getContainer()->get('doctrine.dbal.default_connection');
+        \assert($connection instanceof Connection);
+
+        return $connection;
     }
 
     /**

@@ -65,15 +65,6 @@ enum LifecycleStatusCode: int
         };
     }
 
-    /**
-     * Refused, rejected or cancelled: the document no longer exists for the
-     * tax authority.
-     */
-    public function voidsDocument(): bool
-    {
-        return \in_array($this, [self::REFUSED, self::REJECTED, self::CANCELLED], true);
-    }
-
     public function requiresAction(): bool
     {
         return \in_array($this, [self::DISPUTED, self::SUSPENDED, self::REFUSED, self::REJECTED, self::ROUTING_ERROR, self::INADMISSIBLE], true);

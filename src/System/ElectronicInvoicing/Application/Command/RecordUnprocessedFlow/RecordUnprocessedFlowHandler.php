@@ -11,8 +11,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Keeps a flow that could not be processed so that the next runs retry it;
- * past the last attempt it is logged for support — never silently lost.
+ * Quarantines a flow that could not be processed — its raw content and the
+ * error kept, an error logged for support — so that the next runs retry it;
+ * past the last attempt it is no longer retried, never silently lost.
  */
 #[AsMessageHandler]
 final readonly class RecordUnprocessedFlowHandler
@@ -35,15 +36,19 @@ final readonly class RecordUnprocessedFlowHandler
             return;
         }
 
-        $attempts = $this->flows->record($command->organisationId, $command->flowId, $command->reason, $this->clock->now());
+        $attempts = $this->flows->record($command->organisationId, $command->flowId, $command->reason, $command->error, $command->content, $this->clock->now());
 
-        if ($attempts >= self::MAX_ATTEMPTS) {
-            $this->logger->error('A platform flow could not be processed and is no longer retried.', [
+        $this->logger->error(
+            $attempts >= self::MAX_ATTEMPTS
+                ? 'A platform flow could not be processed and is no longer retried.'
+                : 'A platform flow could not be processed: quarantined, retried by the next synchronisation.',
+            [
                 'organisationId' => $command->organisationId,
                 'flowId'         => $command->flowId,
                 'reason'         => $command->reason,
+                'error'          => $command->error,
                 'attempts'       => $attempts,
-            ]);
-        }
+            ],
+        );
     }
 }

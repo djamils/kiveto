@@ -13,15 +13,23 @@ use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionId;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface;
 use App\System\ElectronicInvoicing\Domain\Transmission\TrackingId;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionKind;
+use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionState;
 use App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Entity\LifecycleEventEntity;
 use App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Entity\OutboundTransmissionEntity;
 use App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\OutboundTransmissionMapper;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * Transmissions and their append-only lifecycle events: a saved transmission
  * adds the statuses it did not have yet, never rewrites the others.
+ *
+ * Two writers never overwrite each other: the version column is an
+ * optimistic lock, a concurrent change fails the flush and Messenger retries
+ * the message against fresh data. Two first requests of the same document
+ * collide on its tracking id: the loser is retried and finds the winner's.
  */
 final readonly class DoctrineOutboundTransmissionRepository implements OutboundTransmissionRepositoryInterface
 {
@@ -54,7 +62,15 @@ final readonly class DoctrineOutboundTransmissionRepository implements OutboundT
             }
         }
 
-        $this->em->flush();
+        try {
+            $this->em->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            if (null !== $existing) {
+                throw $e;
+            }
+
+            throw new RecoverableMessageHandlingException(\sprintf('Transmission of %s recorded concurrently.', $transmission->trackingId()->toString()), 0, $e);
+        }
     }
 
     public function get(OutboundTransmissionId $id): OutboundTransmission
@@ -81,6 +97,18 @@ final readonly class DoctrineOutboundTransmissionRepository implements OutboundT
     public function byDocument(Siren $sellerSiren, TransmissionKind $kind, string $documentNumber): ?OutboundTransmission
     {
         return $this->findOne(['sellerSiren' => $sellerSiren->value(), 'kind' => $kind->value, 'documentNumber' => $documentNumber]);
+    }
+
+    public function awaitingCreditNotesOf(Siren $sellerSiren, string $invoiceNumber): array
+    {
+        $entities = $this->em->getRepository(OutboundTransmissionEntity::class)->findBy([
+            'sellerSiren'             => $sellerSiren->value(),
+            'kind'                    => TransmissionKind::CREDIT_NOTE->value,
+            'precedingDocumentNumber' => $invoiceNumber,
+            'state'                   => TransmissionState::AWAITING_INVOICE->value,
+        ], ['documentDate' => 'ASC', 'documentNumber' => 'ASC']);
+
+        return array_map($this->toDomain(...), $entities);
     }
 
     /**

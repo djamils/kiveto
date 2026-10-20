@@ -58,9 +58,9 @@ final class TransmissionPipelineTest extends KernelTestCase
         self::assertNotNull($transmission->flowId());
 
         // Replaying the synchronisation records nothing new.
-        $version = $transmission->version();
+        $sequence = $transmission->sequence();
         $this->runWorkers();
-        self::assertSame($version, $this->transmission('doc-1')->version());
+        self::assertSame($sequence, $this->transmission('doc-1')->sequence());
     }
 
     /**

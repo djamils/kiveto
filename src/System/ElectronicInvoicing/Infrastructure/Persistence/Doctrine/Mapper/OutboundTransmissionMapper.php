@@ -36,6 +36,7 @@ final readonly class OutboundTransmissionMapper
         $scheme     = $entity->getElectronicAddressScheme();
         $identifier = $entity->getElectronicAddressIdentifier();
         $flowId     = $entity->getFlowId();
+        $internal   = $entity->getInternalBecause();
 
         return OutboundTransmission::reconstitute(
             id: OutboundTransmissionId::fromString($entity->getId()->toRfc4122()),
@@ -68,7 +69,8 @@ final readonly class OutboundTransmissionMapper
                 ),
                 $events,
             ),
-            version: $entity->getVersion(),
+            internalBecause: null !== $internal ? LifecycleStatusCode::from($internal) : null,
+            sequence: $entity->getSequence(),
             preparedAt: $entity->getPreparedAt(),
         );
     }
@@ -100,7 +102,9 @@ final readonly class OutboundTransmissionMapper
         $entity->setSubmissionRequestedAt($transmission->submissionRequestedAt());
         $entity->setSubmissionAttempts($transmission->submissionAttempts());
         $entity->setSubmittedAt($transmission->submittedAt());
-        $entity->setVersion($transmission->version());
+        $entity->setInternalBecause($transmission->internalBecause()?->value);
+        // The version column is Doctrine's optimistic lock, never copied.
+        $entity->setSequence($transmission->sequence());
         $entity->setPreparedAt($transmission->preparedAt());
 
         return $entity;

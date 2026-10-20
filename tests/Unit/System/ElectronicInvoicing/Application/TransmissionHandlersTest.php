@@ -14,16 +14,21 @@ use App\System\ElectronicInvoicing\Application\Command\RecordSubmissionReceipt\R
 use App\System\ElectronicInvoicing\Application\Command\RecordSubmissionReceipt\RecordSubmissionReceiptHandler;
 use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionBlocked\RecordTransmissionBlocked;
 use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionBlocked\RecordTransmissionBlockedHandler;
-use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionNotRequired\RecordTransmissionNotRequired;
-use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionNotRequired\RecordTransmissionNotRequiredHandler;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\RequestInvoiceTransmission;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\RequestInvoiceTransmissionHandler;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\TransmittableInvoice;
+use App\System\ElectronicInvoicing\Application\Command\SettleCreditNote\SettleCreditNote;
+use App\System\ElectronicInvoicing\Application\Command\SettleCreditNote\SettleCreditNoteHandler;
 use App\System\ElectronicInvoicing\Application\Command\SubmitTransmission\SubmitTransmission;
 use App\System\ElectronicInvoicing\Application\Command\SubmitTransmission\SubmitTransmissionHandler;
+use App\System\ElectronicInvoicing\Application\EventSubscriber\OnInvoiceStatusSettleCreditNotes;
+use App\System\ElectronicInvoicing\Application\EventSubscriber\OnInvoiceSubmittedSettleCreditNotes;
+use App\System\ElectronicInvoicing\Application\Policy\CreditNoteFollowsItsInvoice;
 use App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface;
 use App\System\ElectronicInvoicing\Application\Port\InvoiceDocumentRendererInterface;
 use App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionId;
+use App\System\ElectronicInvoicing\Domain\Event\LifecycleStatusRecorded;
+use App\System\ElectronicInvoicing\Domain\Event\TransmissionSubmitted;
 use App\System\ElectronicInvoicing\Domain\Port\DirectoryEntry;
 use App\System\ElectronicInvoicing\Domain\Port\DirectoryLookupInterface;
 use App\System\ElectronicInvoicing\Domain\Port\FlowSubmitterInterface;
@@ -93,7 +98,11 @@ final class TransmissionHandlersTest extends TestCase
         self::assertCount(1, $this->buses->external);
     }
 
-    public function testACreditNoteOfAVoidInvoiceIsNotRequired(): void
+    /**
+     * F5: the only credit note kept off the platform is one whose invoice was
+     * refused (210) or rejected (213).
+     */
+    public function testACreditNoteOfARefusedInvoiceStaysInternal(): void
     {
         $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
         $invoice     = $this->transmission($this->request($connections, TransmittableInvoices::invoice()));
@@ -103,17 +112,44 @@ final class TransmissionHandlersTest extends TestCase
         $note = $this->transmission($this->request($connections, TransmittableInvoices::creditNote()));
 
         self::assertSame(TransmissionState::NOT_REQUIRED, $note->state());
+        self::assertSame(LifecycleStatusCode::REFUSED, $note->internalBecause());
         self::assertCount(1, $this->buses->external);
     }
 
-    public function testACreditNoteOfALiveInvoiceIsQueued(): void
+    /**
+     * F4 / F5: a credit note waits — no attempt counted — while its invoice is
+     * queued, blocked or not even requested; it is never « not required ».
+     */
+    public function testACreditNoteWaitsWhileItsInvoiceIsNotSubmitted(): void
     {
         $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
+
+        $orphan = $this->transmission($this->request($connections, TransmittableInvoices::creditNote('cn-0', 'AVPAR-0', 'PAR-0')));
+        self::assertSame('awaiting_invoice', $orphan->viewState());
+
         $this->request($connections, TransmittableInvoices::invoice());
+        $queued = $this->transmission($this->request($connections, TransmittableInvoices::creditNote()));
+        self::assertSame('awaiting_invoice', $queued->viewState());
+        self::assertSame(0, $queued->submissionAttempts());
+
+        $blocked = $this->transmission($this->request($connections, TransmittableInvoices::invoice('doc-2', 'PAR-2')));
+        $blocked->markBlocked(BlockReason::RENDERING_FAILED, 'bad', $this->now());
+        $waiting = $this->transmission($this->request($connections, TransmittableInvoices::creditNote('cn-2', 'AVPAR-2', 'PAR-2')));
+        self::assertSame('awaiting_invoice', $waiting->viewState());
+
+        // Only the two invoices were sent.
+        self::assertCount(2, $this->buses->external);
+    }
+
+    public function testACreditNoteOfASubmittedInvoiceIsQueued(): void
+    {
+        $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
+        $this->submitted($this->request($connections, TransmittableInvoices::invoice()));
 
         $note = $this->transmission($this->request($connections, TransmittableInvoices::creditNote()));
 
         self::assertSame('queued', $note->viewState());
+        self::assertCount(2, $this->buses->external);
     }
 
     // ── Submit ──
@@ -237,33 +273,94 @@ final class TransmissionHandlersTest extends TestCase
         self::assertSame([], $submitter->flows);
     }
 
-    public function testACreditNoteWaitsForItsInvoiceThenFollowsIt(): void
+    public function testACreditNoteFollowsItsSubmittedInvoice(): void
     {
         $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
-        $invoice     = $this->transmission($this->request($connections, TransmittableInvoices::invoice()));
-        $note        = $this->request($connections, TransmittableInvoices::creditNote());
-        $submitter   = new FakeSubmitter();
+        $this->submitted($this->request($connections, TransmittableInvoices::invoice()));
+        $note      = $this->request($connections, TransmittableInvoices::creditNote());
+        $submitter = new FakeSubmitter();
 
         $this->submitHandler($submitter, connections: $connections)(new SubmitTransmission($note));
-        self::assertSame([], $submitter->flows);
 
-        $invoice->markSubmitting(DocumentReference::of('f', str_repeat('a', 64)), ElectronicAddress::of('0225', 'x'), $this->now());
-        $invoice->markSubmitted(FlowId::fromString('flow-inv'), $this->now());
-
-        $this->submitHandler($submitter, connections: $connections)(new SubmitTransmission($note));
         self::assertCount(1, $submitter->flows);
+        self::assertSame([], $this->buses->commandsOf(SettleCreditNote::class));
     }
 
-    public function testACreditNoteWhoseInvoiceWasRefusedMeanwhileIsNotRequired(): void
+    /**
+     * F4: a queued credit note whose invoice is no longer on the platform's
+     * side is put back to wait instead of burning its attempts.
+     */
+    public function testAQueuedCreditNoteWhoseInvoiceIsNotAcceptedIsSettledNotSent(): void
     {
         $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
-        $invoice     = $this->transmission($this->request($connections, TransmittableInvoices::invoice()));
+        $invoice     = $this->submitted($this->request($connections, TransmittableInvoices::invoice()));
         $note        = $this->request($connections, TransmittableInvoices::creditNote());
-        $invoice->markBlocked(BlockReason::RENDERING_FAILED, null, $this->now());
+        $invoice->recordLifecycleStatus(LifecycleStatusCode::INADMISSIBLE, 'IRR_SYNTAX', null, FlowId::fromString('cdar-1'), $this->now());
+        $submitter = new FakeSubmitter();
+
+        $this->submitHandler($submitter, connections: $connections)(new SubmitTransmission($note));
+
+        self::assertSame([], $submitter->flows);
+        self::assertSame($note, $this->buses->commandsOf(SettleCreditNote::class)[0]->transmissionId);
+
+        $this->settle($connections)(new SettleCreditNote($note));
+        self::assertSame('awaiting_invoice', $this->transmission($note)->viewState());
+        self::assertSame(0, $this->transmission($note)->submissionAttempts());
+    }
+
+    public function testACreditNoteWhoseInvoiceWasRejectedMeanwhileStaysInternal(): void
+    {
+        $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
+        $invoice     = $this->submitted($this->request($connections, TransmittableInvoices::invoice()));
+        $note        = $this->request($connections, TransmittableInvoices::creditNote());
+        $invoice->recordLifecycleStatus(LifecycleStatusCode::REJECTED, 'REJ_SEMAN', null, FlowId::fromString('cdar-1'), $this->now());
 
         $this->submitHandler(connections: $connections)(new SubmitTransmission($note));
+        $this->settle($connections)(new SettleCreditNote($note));
 
-        self::assertCount(1, $this->buses->commandsOf(RecordTransmissionNotRequired::class));
+        self::assertSame(TransmissionState::NOT_REQUIRED, $this->transmission($note)->state());
+        self::assertSame(LifecycleStatusCode::REJECTED, $this->transmission($note)->internalBecause());
+    }
+
+    // ── Credit notes released by their invoice ──
+
+    public function testASubmittedInvoiceReleasesItsWaitingCreditNotes(): void
+    {
+        $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
+        $invoice     = $this->request($connections, TransmittableInvoices::invoice());
+        $first       = $this->request($connections, TransmittableInvoices::creditNote());
+        $second      = $this->request($connections, TransmittableInvoices::creditNote('cn-2', 'AVPAR-2026-000002'));
+        $other       = $this->request($connections, TransmittableInvoices::creditNote('cn-3', 'AVPAR-2026-000003', 'PAR-9'));
+        $this->submitted($invoice);
+        $this->buses->external = [];
+
+        $event = new TransmissionSubmitted($invoice, 'c', 'doc-1', 9, '2026-10-21T10:00:00+00:00');
+        new OnInvoiceSubmittedSettleCreditNotes($this->transmissions, $this->buses)($event);
+        new OnInvoiceStatusSettleCreditNotes($this->transmissions, $this->buses)(new LifecycleStatusRecorded($invoice, 'c', 'doc-1', 10, '2026-10-21T10:00:00+00:00'));
+
+        self::assertSame([$first, $second, $first, $second], array_map(static fn (SettleCreditNote $c): string => $c->transmissionId, $this->buses->commandsOf(SettleCreditNote::class)));
+
+        $this->settle($connections)(new SettleCreditNote($first));
+        $this->settle($connections)(new SettleCreditNote($first));
+        self::assertSame('queued', $this->transmission($first)->viewState());
+        self::assertSame(1, $this->transmission($first)->submissionAttempts());
+        self::assertCount(1, $this->buses->external);
+        self::assertSame('awaiting_invoice', $this->transmission($other)->viewState());
+
+        // Without a verified connection it is released, not sent.
+        $this->settle(new InMemoryConnections())(new SettleCreditNote($second));
+        self::assertSame('pending_connection', $this->transmission($second)->viewState());
+        self::assertCount(1, $this->buses->external);
+    }
+
+    public function testOnlyAnInvoiceReleasesCreditNotes(): void
+    {
+        $connections = InMemoryConnections::verified(TransmittableInvoices::SELLER);
+        $note        = $this->request($connections, TransmittableInvoices::creditNote());
+
+        new OnInvoiceSubmittedSettleCreditNotes($this->transmissions, $this->buses)(new TransmissionSubmitted($note, 'c', 'cn-1', 3, '2026-10-21T10:00:00+00:00'));
+
+        self::assertSame([], $this->buses->commandsOf(SettleCreditNote::class));
     }
 
     // ── Record ──
@@ -286,9 +383,10 @@ final class TransmissionHandlersTest extends TestCase
         new RecordTransmissionBlockedHandler($this->transmissions, $this->buses->publisher(), $this->clock())(new RecordTransmissionBlocked($other, 'PLATFORM_REFUSED', 'no'));
         self::assertSame(BlockReason::PLATFORM_REFUSED, $this->transmission($other)->blockReason());
 
-        $third = $this->request(new InMemoryConnections(), TransmittableInvoices::invoice('doc-3', 'PAR-3'));
-        new RecordTransmissionNotRequiredHandler($this->transmissions, $this->buses->publisher(), $this->clock())(new RecordTransmissionNotRequired($third, 'void'));
-        self::assertSame(TransmissionState::NOT_REQUIRED, $this->transmission($third)->state());
+        // A receipt after a block is recorded all the same (F6).
+        new RecordSubmissionReceiptHandler($this->transmissions, $this->buses->publisher())(new RecordSubmissionReceipt($other, 'flow-2', $at));
+        self::assertSame(TransmissionState::SUBMITTED, $this->transmission($other)->state());
+        self::assertSame('flow-2', $this->transmission($other)->flowId()?->toString());
     }
 
     private function request(InMemoryConnections $connections, TransmittableInvoice $invoice): string
@@ -298,9 +396,31 @@ final class TransmissionHandlersTest extends TestCase
             $connections,
             $this->buses,
             $this->buses->publisher(),
+            new CreditNoteFollowsItsInvoice($this->transmissions),
             $this->uuids(),
             $this->clock(),
         )(new RequestInvoiceTransmission('01960000-0000-7000-8000-0000000ee0c1', $invoice));
+    }
+
+    private function settle(InMemoryConnections $connections): SettleCreditNoteHandler
+    {
+        return new SettleCreditNoteHandler(
+            $this->transmissions,
+            $connections,
+            new CreditNoteFollowsItsInvoice($this->transmissions),
+            $this->buses,
+            $this->buses->publisher(),
+            $this->clock(),
+        );
+    }
+
+    private function submitted(string $id): OutboundTransmission
+    {
+        $transmission = $this->transmission($id);
+        $transmission->markSubmitting(DocumentReference::of('f-' . $id, str_repeat('a', 64)), ElectronicAddress::of('0225', 'x'), $this->now());
+        $transmission->markSubmitted(FlowId::fromString('flow-' . $id), $this->now());
+
+        return $transmission;
     }
 
     private function submitHandler(
@@ -319,6 +439,7 @@ final class TransmissionHandlersTest extends TestCase
             $store,
             $submitter,
             $this->buses,
+            new CreditNoteFollowsItsInvoice($this->transmissions),
             $logger,
         );
     }

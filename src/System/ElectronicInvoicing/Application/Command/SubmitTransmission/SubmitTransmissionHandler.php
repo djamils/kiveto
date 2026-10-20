@@ -9,11 +9,11 @@ use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use App\System\ElectronicInvoicing\Application\Command\RecordSubmissionPrepared\RecordSubmissionPrepared;
 use App\System\ElectronicInvoicing\Application\Command\RecordSubmissionReceipt\RecordSubmissionReceipt;
 use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionBlocked\RecordTransmissionBlocked;
-use App\System\ElectronicInvoicing\Application\Command\RecordTransmissionNotRequired\RecordTransmissionNotRequired;
-use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\RequestInvoiceTransmissionHandler;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\TransmittableElectronicAddress;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\TransmittableInvoice;
+use App\System\ElectronicInvoicing\Application\Command\SettleCreditNote\SettleCreditNote;
 use App\System\ElectronicInvoicing\Application\Exception\RenderingFailedException;
+use App\System\ElectronicInvoicing\Application\Policy\CreditNoteFollowsItsInvoice;
 use App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface;
 use App\System\ElectronicInvoicing\Application\Port\InvoiceDocumentRendererInterface;
 use App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface;
@@ -25,7 +25,6 @@ use App\System\ElectronicInvoicing\Domain\Transmission\BlockReason;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmission;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionId;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface;
-use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionKind;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionState;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -53,6 +52,7 @@ final readonly class SubmitTransmissionHandler
         private DocumentStoreInterface $documents,
         private FlowSubmitterInterface $submitter,
         private CommandBusInterface $commandBus,
+        private CreditNoteFollowsItsInvoice $creditNotes,
         #[Autowire(service: 'monolog.logger.external_api')]
         private LoggerInterface $logger,
     ) {
@@ -67,7 +67,11 @@ final readonly class SubmitTransmissionHandler
             return;
         }
 
-        if (!$this->precedingInvoiceAllows($transmission)) {
+        // A credit note never reaches the platform before its invoice: it is
+        // put back to wait (no attempt counted), or kept internal.
+        if (TransmissionState::PREPARED === $transmission->state() && !$this->creditNotes->maySend($transmission)) {
+            $this->commandBus->dispatch(new SettleCreditNote($command->transmissionId));
+
             return;
         }
 
@@ -112,30 +116,6 @@ final readonly class SubmitTransmissionHandler
             flowId: $receipt->flowId,
             submittedAt: $receipt->submittedAt->format(\DateTimeInterface::ATOM),
         ));
-    }
-
-    /**
-     * A credit note never reaches the platform before its invoice; it is not
-     * sent at all once that invoice is void.
-     */
-    private function precedingInvoiceAllows(OutboundTransmission $transmission): bool
-    {
-        $number = $transmission->precedingDocumentNumber();
-
-        if (TransmissionKind::CREDIT_NOTE !== $transmission->kind() || null === $number) {
-            return true;
-        }
-
-        $invoice = $this->transmissions->byDocument($transmission->sellerSiren(), TransmissionKind::INVOICE, $number);
-
-        if (null !== $invoice && !RequestInvoiceTransmissionHandler::canBeCredited($invoice)) {
-            $this->commandBus->dispatch(new RecordTransmissionNotRequired($transmission->id()->toString(), 'The credited invoice is void for the tax authority or was never accepted.'));
-
-            return false;
-        }
-
-        // Not yet submitted: it stays requested and the catch-up retries it.
-        return true === $invoice?->wasAccepted();
     }
 
     /**

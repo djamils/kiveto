@@ -9,7 +9,8 @@ use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * A platform flow the synchronisation could not process yet; retried, kept for support.
+ * A platform flow the synchronisation could not process yet — quarantined
+ * with its raw content and the error, retried, kept for support.
  */
 #[ORM\Entity]
 #[ORM\Table]
@@ -28,6 +29,13 @@ class UnprocessedFlowEntity
 
     #[ORM\Column(type: 'string', length: 16)]
     private string $reason;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $error = null;
+
+    /** The raw flow as the platform returned it, kept for support. */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $content = null;
 
     #[ORM\Column(type: 'integer')]
     private int $attempts = 0;
@@ -73,6 +81,26 @@ class UnprocessedFlowEntity
     public function setReason(string $reason): void
     {
         $this->reason = $reason;
+    }
+
+    public function getError(): ?string
+    {
+        return $this->error;
+    }
+
+    public function setError(?string $error): void
+    {
+        $this->error = $error;
+    }
+
+    public function getContent(): ?string
+    {
+        return $this->content;
+    }
+
+    public function setContent(?string $content): void
+    {
+        $this->content = $content;
     }
 
     public function getAttempts(): int

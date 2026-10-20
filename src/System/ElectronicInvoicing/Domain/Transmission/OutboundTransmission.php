@@ -9,6 +9,7 @@ use App\Shared\Domain\Event\DomainEventInterface;
 use App\Shared\Domain\ValueObject\Siren;
 use App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionId;
 use App\System\ElectronicInvoicing\Domain\Event\LifecycleStatusRecorded;
+use App\System\ElectronicInvoicing\Domain\Event\TransmissionAwaitingInvoice;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionBlocked;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionNotRequired;
 use App\System\ElectronicInvoicing\Domain\Event\TransmissionPrepared;
@@ -24,10 +25,18 @@ use App\System\ElectronicInvoicing\Domain\Exception\InvalidTransmissionTransitio
  * The neutral payload is kept as requested; the file is rendered once, when
  * the transmission starts submitting, and from then on the same bytes (same
  * sha256) are sent on every retry, so a platform that already has them
- * answers with the same flow id. A status reported while still submitting
- * proves the platform received the file: the transmission moves to
- * submitted first, its flow id coming with the receipt. Duplicates are ignored, never an error that would make a
- * message loop.
+ * answers with the same flow id.
+ *
+ * What the platform reports is never lost: a receipt, a flow id or a status
+ * is recorded whatever Kiveto thought of the transmission — waiting, blocked
+ * or internal. It proves the platform has the file, so the transmission moves
+ * to submitted; only a second deposit of the same document stays an alarm.
+ * Duplicates are ignored, never an error that would make a message loop.
+ *
+ * A credit note waits for its invoice (AWAITING_INVOICE, no submission
+ * attempt counted) until that invoice is submitted. It is only kept out of
+ * the platform — an internal credit note — when its invoice was refused (210)
+ * or rejected (213): that invoice no longer exists for the tax authority.
  */
 final class OutboundTransmission extends AggregateRoot
 {
@@ -59,7 +68,8 @@ final class OutboundTransmission extends AggregateRoot
         private int $submissionAttempts,
         private ?\DateTimeImmutable $submittedAt,
         private array $lifecycle,
-        private int $version,
+        private ?LifecycleStatusCode $internalBecause,
+        private int $sequence,
         private readonly \DateTimeImmutable $preparedAt,
     ) {
     }
@@ -102,6 +112,7 @@ final class OutboundTransmission extends AggregateRoot
             0,
             null,
             [],
+            null,
             0,
             $now,
         );
@@ -137,7 +148,8 @@ final class OutboundTransmission extends AggregateRoot
         int $submissionAttempts,
         ?\DateTimeImmutable $submittedAt,
         array $lifecycle,
-        int $version,
+        ?LifecycleStatusCode $internalBecause,
+        int $sequence,
         \DateTimeImmutable $preparedAt,
     ): self {
         return new self(
@@ -162,7 +174,8 @@ final class OutboundTransmission extends AggregateRoot
             $submissionAttempts,
             $submittedAt,
             $lifecycle,
-            $version,
+            $internalBecause,
+            $sequence,
             $preparedAt,
         );
     }
@@ -221,40 +234,28 @@ final class OutboundTransmission extends AggregateRoot
     }
 
     /**
-     * The platform received the file under $flowId. The same flow id again is
-     * a no-op; another flow id for a document already submitted is a double
-     * deposit and blocks the transmission.
+     * The platform received the file under $flowId — recorded whatever the
+     * local state. The same flow id again is a no-op; another flow id for a
+     * document already submitted is a double deposit: kept in the detail, and
+     * the transmission blocked.
      */
     public function markSubmitted(FlowId $flowId, \DateTimeImmutable $at): void
     {
-        // A status arrived before the receipt: the platform had the file, its
-        // flow id comes now.
-        $received = [TransmissionState::SUBMITTED, TransmissionState::ACCEPTED, TransmissionState::INADMISSIBLE];
-
-        if (null === $this->flowId && \in_array($this->state, $received, true)) {
-            $this->flowId = $flowId;
-            ++$this->version;
-
-            return;
-        }
-
         if (null !== $this->flowId) {
-            if (!$this->flowId->equals($flowId) && TransmissionState::BLOCKED !== $this->state) {
-                $this->block(BlockReason::DUPLICATE_FLOW, \sprintf('Flow %s received for a document already submitted as %s.', $flowId->toString(), $this->flowId->toString()), $at);
+            if (!$this->flowId->equals($flowId)) {
+                $this->duplicateFlow($flowId, $at);
             }
 
             return;
         }
 
-        if (TransmissionState::SUBMITTING !== $this->state) {
-            return;
+        $this->flowId = $flowId;
+        $this->submittedAt ??= $at;
+
+        // A status came before the receipt: the platform had the file already.
+        if (!$this->platformHasIt()) {
+            $this->submitted($at);
         }
-
-        $this->state       = TransmissionState::SUBMITTED;
-        $this->flowId      = $flowId;
-        $this->submittedAt = $at;
-
-        $this->changed(TransmissionSubmitted::class, $at);
     }
 
     public function markBlocked(BlockReason $reason, ?string $detail, \DateTimeImmutable $now): void
@@ -266,21 +267,58 @@ final class OutboundTransmission extends AggregateRoot
         $this->block($reason, $detail, $now);
     }
 
-    public function markNotRequired(string $reason, \DateTimeImmutable $now): void
+    /**
+     * A credit note whose invoice is not on the platform yet: it waits,
+     * without counting the attempts made so far — none of them reached the
+     * platform.
+     */
+    public function awaitPrecedingInvoice(\DateTimeImmutable $now): void
     {
-        if (TransmissionState::PREPARED !== $this->state) {
+        if (TransmissionKind::CREDIT_NOTE !== $this->kind || TransmissionState::PREPARED !== $this->state) {
             return;
         }
 
-        $this->state  = TransmissionState::NOT_REQUIRED;
-        $this->detail = $reason;
+        $this->state                 = TransmissionState::AWAITING_INVOICE;
+        $this->submissionAttempts    = 0;
+        $this->submissionRequestedAt = null;
+
+        $this->changed(TransmissionAwaitingInvoice::class, $now);
+    }
+
+    /**
+     * Its invoice was submitted: the credit note is ready to be sent.
+     */
+    public function releaseFromPrecedingInvoice(\DateTimeImmutable $now): void
+    {
+        if (TransmissionState::AWAITING_INVOICE !== $this->state) {
+            return;
+        }
+
+        $this->state = TransmissionState::PREPARED;
+
+        $this->changed(TransmissionPrepared::class, $now);
+    }
+
+    /**
+     * Its invoice was refused or rejected ($invoiceStatus, 210 or 213): it no
+     * longer exists for the tax authority, and the credit note stays internal.
+     */
+    public function markInternal(LifecycleStatusCode $invoiceStatus, \DateTimeImmutable $now): void
+    {
+        if (!\in_array($this->state, [TransmissionState::PREPARED, TransmissionState::AWAITING_INVOICE], true)) {
+            return;
+        }
+
+        $this->state           = TransmissionState::NOT_REQUIRED;
+        $this->internalBecause = $invoiceStatus;
+        $this->detail          = \sprintf('The credited invoice was %s (%d).', LifecycleStatusCode::REFUSED === $invoiceStatus ? 'refused' : 'rejected', $invoiceStatus->value);
 
         $this->changed(TransmissionNotRequired::class, $now);
     }
 
     /**
-     * Records a status the platform reported; the same status from the same
-     * flow is ignored.
+     * Records a status the platform reported, whatever the local state; the
+     * same status from the same flow is ignored.
      */
     public function recordLifecycleStatus(LifecycleStatusCode $code, ?string $reasonCode, ?string $reasonText, FlowId $sourceFlowId, \DateTimeImmutable $at): void
     {
@@ -292,18 +330,16 @@ final class OutboundTransmission extends AggregateRoot
             }
         }
 
-        // A status proves the platform received the file. It comes in a flow of
-        // its own: the deposit flow id is left to the receipt.
-        if (TransmissionState::SUBMITTING === $this->state) {
-            $this->state       = TransmissionState::SUBMITTED;
-            $this->submittedAt = $at;
-
-            $this->changed(TransmissionSubmitted::class, $at);
+        // A status proves the platform has the file. It comes in a flow of its
+        // own: the deposit flow id is left to the receipt.
+        if (!$this->platformHasIt() && !$this->isDuplicateFlow()) {
+            $this->submittedAt ??= $at;
+            $this->submitted($at);
         }
 
         $this->lifecycle[] = $event;
 
-        if (LifecycleStatusCode::INADMISSIBLE === $code) {
+        if (LifecycleStatusCode::INADMISSIBLE === $code && !$this->isDuplicateFlow()) {
             $this->state = TransmissionState::INADMISSIBLE;
         } elseif (TransmissionState::SUBMITTED === $this->state) {
             $this->state = TransmissionState::ACCEPTED;
@@ -322,7 +358,7 @@ final class OutboundTransmission extends AggregateRoot
         foreach ($this->lifecycle as $event) {
             $later = null === $current
                 || $event->at > $current->at
-                || ($event->at === $current->at && $event->code->value > $current->code->value);
+                || (0 === ($event->at <=> $current->at) && $event->code->value > $current->code->value);
 
             if ($later) {
                 $current = $event;
@@ -333,17 +369,18 @@ final class OutboundTransmission extends AggregateRoot
     }
 
     /**
-     * False once the document was refused, rejected or cancelled.
+     * The status by which the buyer refused (210) or rejected (213) the
+     * document, if it did: the document no longer exists for the tax authority.
      */
-    public function isFiscallyAlive(): bool
+    public function refusedOrRejected(): ?LifecycleStatusCode
     {
         foreach ($this->lifecycle as $event) {
-            if ($event->code->voidsDocument()) {
-                return false;
+            if (\in_array($event->code, [LifecycleStatusCode::REFUSED, LifecycleStatusCode::REJECTED], true)) {
+                return $event->code;
             }
         }
 
-        return true;
+        return null;
     }
 
     /**
@@ -355,8 +392,9 @@ final class OutboundTransmission extends AggregateRoot
     }
 
     /**
-     * What the issuing context shows: pending_connection, queued, submitting,
-     * submitted, accepted, inadmissible, blocked or not_required.
+     * What the issuing context shows: pending_connection, queued,
+     * awaiting_invoice, submitting, submitted, accepted, inadmissible, blocked
+     * or not_required (an internal credit note).
      */
     public function viewState(): string
     {
@@ -488,10 +526,16 @@ final class OutboundTransmission extends AggregateRoot
         return $this->lifecycle;
     }
 
-    /** Incremented on every change: the sequence of the events it publishes. */
-    public function version(): int
+    /** Why a credit note stayed internal: its invoice's refusal (210) or rejection (213). */
+    public function internalBecause(): ?LifecycleStatusCode
     {
-        return $this->version;
+        return $this->internalBecause;
+    }
+
+    /** Incremented on every change: the sequence of the events it publishes. */
+    public function sequence(): int
+    {
+        return $this->sequence;
     }
 
     public function preparedAt(): \DateTimeImmutable
@@ -514,6 +558,48 @@ final class OutboundTransmission extends AggregateRoot
         return true;
     }
 
+    /**
+     * Whether the platform holds the file, by its receipt or a status.
+     */
+    private function platformHasIt(): bool
+    {
+        return \in_array($this->state, [TransmissionState::SUBMITTED, TransmissionState::ACCEPTED, TransmissionState::INADMISSIBLE], true);
+    }
+
+    private function isDuplicateFlow(): bool
+    {
+        return TransmissionState::BLOCKED === $this->state && BlockReason::DUPLICATE_FLOW === $this->blockReason;
+    }
+
+    /**
+     * Whatever Kiveto thought — waiting, blocked, internal — the platform
+     * has the file.
+     */
+    private function submitted(\DateTimeImmutable $at): void
+    {
+        $this->state           = TransmissionState::SUBMITTED;
+        $this->blockReason     = null;
+        $this->detail          = null;
+        $this->internalBecause = null;
+
+        $this->changed(TransmissionSubmitted::class, $at);
+    }
+
+    private function duplicateFlow(FlowId $flowId, \DateTimeImmutable $at): void
+    {
+        $detail = \sprintf('Flow %s received for a document already submitted as %s.', $flowId->toString(), (string) $this->flowId?->toString());
+
+        if ($this->isDuplicateFlow()) {
+            if (str_contains((string) $this->detail, $flowId->toString())) {
+                return;
+            }
+
+            $detail = $this->detail . ' ' . $detail;
+        }
+
+        $this->block(BlockReason::DUPLICATE_FLOW, $detail, $at);
+    }
+
     private function block(BlockReason $reason, ?string $detail, \DateTimeImmutable $now): void
     {
         $this->state       = TransmissionState::BLOCKED;
@@ -524,18 +610,18 @@ final class OutboundTransmission extends AggregateRoot
     }
 
     /**
-     * @param class-string<TransmissionPrepared|TransmissionQueued|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded> $event
+     * @param class-string<TransmissionPrepared|TransmissionQueued|TransmissionAwaitingInvoice|TransmissionSubmitting|TransmissionSubmitted|TransmissionBlocked|TransmissionNotRequired|LifecycleStatusRecorded> $event
      */
     private function changed(string $event, \DateTimeImmutable $now): void
     {
-        ++$this->version;
+        ++$this->sequence;
 
         /** @var DomainEventInterface $instance */
         $instance = new $event(
             $this->id->toString(),
             $this->clinicId,
             $this->trackingId->toString(),
-            $this->version,
+            $this->sequence,
             $now->format(\DateTimeInterface::ATOM),
         );
 

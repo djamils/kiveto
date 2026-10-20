@@ -8,10 +8,11 @@ use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmission;
 
 /**
  * Where a document stands on its way to the platform, as the issuing context
- * shows it. `state` is one of pending_connection, queued, submitting,
- * submitted, accepted, inadmissible, blocked or not_required; the status is
- * the latest lifecycle status reported, if any; `sequence` increases with
- * every change.
+ * shows it. `state` is one of pending_connection, queued, awaiting_invoice,
+ * submitting, submitted, accepted, inadmissible, blocked or not_required (an
+ * internal credit note, `reasonCode` then being the status — 210 or 213 —
+ * that voided its invoice); the status is the latest lifecycle status
+ * reported, if any; `sequence` increases with every change.
  */
 final readonly class TransmissionStatusView
 {
@@ -32,18 +33,19 @@ final readonly class TransmissionStatusView
 
     public static function of(OutboundTransmission $transmission): self
     {
-        $status  = $transmission->currentStatus();
-        $address = $transmission->addressUsed();
+        $status   = $transmission->currentStatus();
+        $address  = $transmission->addressUsed();
+        $internal = $transmission->internalBecause();
 
         return new self(
             clinicId: $transmission->clinicId(),
             documentId: $transmission->trackingId()->toString(),
-            sequence: $transmission->version(),
+            sequence: $transmission->sequence(),
             state: $transmission->viewState(),
             blockReason: $transmission->blockReason()?->value,
             statusCode: $status?->code->value,
             statusLabel: $status?->code->label(),
-            reasonCode: $status?->reasonCode,
+            reasonCode: $status->reasonCode ?? (null !== $internal ? (string) $internal->value : null),
             reasonText: $status->reasonText ?? $transmission->detail(),
             requiresAction: $transmission->requiresAction(),
             electronicAddress: null !== $address ? $address->scheme() . ':' . $address->identifier() : null,

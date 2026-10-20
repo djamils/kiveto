@@ -10,20 +10,21 @@ use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\Siren;
 use App\System\ElectronicInvoicing\Application\Command\SubmitTransmission\SubmitTransmission;
+use App\System\ElectronicInvoicing\Application\Policy\CreditNoteFollowsItsInvoice;
 use App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmission;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionId;
 use App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface;
 use App\System\ElectronicInvoicing\Domain\Transmission\TrackingId;
 use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionKind;
-use App\System\ElectronicInvoicing\Domain\Transmission\TransmissionState;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * Records the document to transmit — no rendering, no network. When the
  * organisation already has a verified connection the submission is queued
  * right away (async_external, in the same transaction); otherwise the
- * transmission waits until a connection becomes active.
+ * transmission waits until a connection becomes active. A credit note whose
+ * invoice is not submitted yet waits for it.
  */
 #[AsMessageHandler]
 final readonly class RequestInvoiceTransmissionHandler
@@ -33,6 +34,7 @@ final readonly class RequestInvoiceTransmissionHandler
         private PlatformConnectionRepositoryInterface $connections,
         private ExternalApiCommandBusInterface $externalApiCommandBus,
         private DomainEventPublisher $domainEventPublisher,
+        private CreditNoteFollowsItsInvoice $creditNotes,
         private UuidGeneratorInterface $uuids,
         private ClockInterface $clock,
     ) {
@@ -65,16 +67,8 @@ final readonly class RequestInvoiceTransmissionHandler
             now: $now,
         );
 
-        if (TransmissionKind::CREDIT_NOTE === $kind && null !== $invoice->precedingInvoiceNumber) {
-            $preceding = $this->transmissions->byDocument($seller, TransmissionKind::INVOICE, $invoice->precedingInvoiceNumber);
-
-            if (null !== $preceding && !self::canBeCredited($preceding)) {
-                $transmission->markNotRequired('The credited invoice is void for the tax authority or was never accepted.', $now);
-            }
-        }
-
         $connection = $this->connections->byOrganisation($seller);
-        $send       = TransmissionState::PREPARED === $transmission->state()
+        $send       = $this->creditNotes->settle($transmission, $now)
             && null !== $connection
             && $connection->acceptsSubmissions()
             && $transmission->requestSubmission($connection->id(), $now);
@@ -87,18 +81,5 @@ final readonly class RequestInvoiceTransmissionHandler
         }
 
         return $transmission->id()->toString();
-    }
-
-    /**
-     * A credit note follows its invoice only while the invoice still exists
-     * for the tax authority and the platform took it.
-     */
-    public static function canBeCredited(OutboundTransmission $invoice): bool
-    {
-        if (!$invoice->isFiscallyAlive()) {
-            return false;
-        }
-
-        return !\in_array($invoice->state(), [TransmissionState::BLOCKED, TransmissionState::INADMISSIBLE, TransmissionState::NOT_REQUIRED], true);
     }
 }

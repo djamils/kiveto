@@ -26,11 +26,8 @@ final class TransmissionValueObjectsTest extends TestCase
         self::assertSame('Irrecevable', LifecycleStatusCode::INADMISSIBLE->label());
     }
 
-    public function testVoidingAndActionStatuses(): void
+    public function testActionStatuses(): void
     {
-        $void = array_values(array_filter(LifecycleStatusCode::cases(), static fn (LifecycleStatusCode $c): bool => $c->voidsDocument()));
-        self::assertSame([LifecycleStatusCode::REFUSED, LifecycleStatusCode::REJECTED, LifecycleStatusCode::CANCELLED], $void);
-
         $action = array_values(array_filter(LifecycleStatusCode::cases(), static fn (LifecycleStatusCode $c): bool => $c->requiresAction()));
         self::assertSame([207, 208, 210, 213, 221, 501], array_map(static fn (LifecycleStatusCode $c): int => $c->value, $action));
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\ElectronicInvoicing\Support;
 
+use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use App\System\ElectronicInvoicing\Domain\Port\FlowContent;
 use App\System\ElectronicInvoicing\Domain\Port\FlowFetcherInterface;
 use App\System\ElectronicInvoicing\Domain\Port\FlowPage;
@@ -42,6 +43,10 @@ final class FakePlatformFlows implements FlowSearcherInterface, FlowFetcherInter
     public function fetch(string $organisationId, string $flowId): FlowContent
     {
         foreach ($this->flows as [$id, , $content]) {
+            if ($id === $flowId && 'down' === $content) {
+                throw ExternalServiceUnavailable::failed('platform', 503);
+            }
+
             if ($id === $flowId) {
                 return new FlowContent($id, $content);
             }
