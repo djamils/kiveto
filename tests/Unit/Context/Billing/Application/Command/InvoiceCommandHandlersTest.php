@@ -46,6 +46,8 @@ use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -92,7 +94,7 @@ final class InvoiceCommandHandlersTest extends TestCase
             ->willReturn(InvoiceNumber::of(2026, 12))
         ;
 
-        (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers()))(
+        (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers(), $this->events()))(
             new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID),
         );
 
@@ -114,7 +116,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::never())->method('closeAfterCheckout');
 
-        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(
                 clinicId: self::CLINIC_ID,
                 invoiceId: self::INVOICE_ID,
@@ -140,7 +142,7 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         $this->expectException(\ValueError::class);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $this->createStub(AdmissionCoordinatorInterface::class), $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $this->createStub(AdmissionCoordinatorInterface::class), $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'BITCOIN', 100),
         );
     }
@@ -156,7 +158,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::once())->method('closeAfterCheckout')->with(self::ADMISSION_ID, self::CLINIC_ID);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 6000),
         );
 
@@ -171,7 +173,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $this->invoices->expects(self::once())->method('get')->willReturn($invoice);
         $this->invoices->expects(self::once())->method('save')->with($invoice);
 
-        (new CancelInvoiceHandler($this->invoices, $this->clock))(
+        (new CancelInvoiceHandler($this->invoices, $this->clock, $this->events()))(
             new CancelInvoice(self::CLINIC_ID, self::INVOICE_ID, 'Doublon'),
         );
 
@@ -344,7 +346,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $numbers->expects(self::never())->method('next');
 
         try {
-            (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers()))(new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID));
+            (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers(), $this->events()))(new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID));
             self::fail('The draft should have been refused.');
         } catch (InvoiceNotTransmissibleException $e) {
             self::assertContains(ReadinessRequirement::BUYER_SIREN, $e->requirements);
@@ -373,7 +375,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
 
@@ -399,7 +401,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 2000),
         );
 
@@ -421,7 +423,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 6000),
         );
 
@@ -443,7 +445,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 0),
         );
 
@@ -477,7 +479,7 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
     }
@@ -506,7 +508,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
 
@@ -566,5 +568,10 @@ final class InvoiceCommandHandlersTest extends TestCase
         $sellers->method('forClinic')->willReturn(SellerIdentities::complete());
 
         return $sellers;
+    }
+
+    private function events(): DomainEventPublisher
+    {
+        return new DomainEventPublisher($this->createStub(EventBusInterface::class));
     }
 }

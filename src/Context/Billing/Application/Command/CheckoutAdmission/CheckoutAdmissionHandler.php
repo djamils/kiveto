@@ -15,6 +15,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -35,6 +36,7 @@ final readonly class CheckoutAdmissionHandler
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
         private SellerIdentityProviderInterface $sellers,
+        private DomainEventPublisher $domainEventPublisher,
         private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
@@ -69,6 +71,7 @@ final readonly class CheckoutAdmissionHandler
         }
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
 
         $admissionId = $invoice->admissionId();
 

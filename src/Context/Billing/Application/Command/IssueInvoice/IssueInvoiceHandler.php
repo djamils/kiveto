@@ -10,6 +10,7 @@ use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -21,6 +22,7 @@ final readonly class IssueInvoiceHandler
         private InvoiceNumberGeneratorInterface $numbers,
         private ClockInterface $clock,
         private SellerIdentityProviderInterface $sellers,
+        private DomainEventPublisher $domainEventPublisher,
         private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
@@ -38,5 +40,6 @@ final readonly class IssueInvoiceHandler
         $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now);
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
     }
 }

@@ -17,6 +17,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -40,6 +41,7 @@ final readonly class IssueCreditNoteHandler
         private InvoiceNumberGeneratorInterface $numbers,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
         private CreditNoteCalculator $calculator = new CreditNoteCalculator(),
     ) {
     }
@@ -99,7 +101,9 @@ final readonly class IssueCreditNoteHandler
         );
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
         $this->creditNotes->save($creditNote);
+        $this->domainEventPublisher->publish($creditNote);
 
         return $creditNote->id()->toString();
     }

@@ -66,6 +66,8 @@ use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -757,7 +759,7 @@ final class DeskCommandHandlersTest extends TestCase
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('nextCreditNote')->willReturn(InvoiceNumber::of(2026, 2, 'AV'));
 
-        return new IssueCreditNoteHandler($invoices, $notes, $numbers, $this->uuids(), $this->clock());
+        return new IssueCreditNoteHandler($invoices, $notes, $numbers, $this->uuids(), $this->clock(), $this->events());
     }
 
     /**
@@ -811,7 +813,7 @@ final class DeskCommandHandlersTest extends TestCase
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('next')->willReturn(InvoiceNumber::of(2026, 10));
 
-        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, new InvoiceLineFactory($tax, $this->uuids()), $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock(), $this->sellers());
+        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, new InvoiceLineFactory($tax, $this->uuids()), $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock(), $this->sellers(), $this->events());
     }
 
     private function cheque(string $paymentId, int $amount): ChequeView
@@ -895,5 +897,10 @@ final class DeskCommandHandlersTest extends TestCase
         $sellers->method('forClinic')->willReturn(SellerIdentities::complete());
 
         return $sellers;
+    }
+
+    private function events(): DomainEventPublisher
+    {
+        return new DomainEventPublisher($this->createStub(EventBusInterface::class));
     }
 }

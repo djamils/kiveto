@@ -12,6 +12,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -30,6 +31,7 @@ final readonly class RecordInvoicePaymentHandler
         private AdmissionCoordinatorInterface $admissions,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -55,6 +57,7 @@ final readonly class RecordInvoicePaymentHandler
         );
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
 
         $admissionId = $invoice->admissionId();
 

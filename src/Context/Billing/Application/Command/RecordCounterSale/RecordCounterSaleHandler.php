@@ -29,6 +29,7 @@ use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -64,6 +65,7 @@ final readonly class RecordCounterSaleHandler
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
         private SellerIdentityProviderInterface $sellers,
+        private DomainEventPublisher $domainEventPublisher,
         private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
@@ -138,6 +140,7 @@ final readonly class RecordCounterSaleHandler
         ) : null);
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
 
         return $invoice->id()->toString();
     }
