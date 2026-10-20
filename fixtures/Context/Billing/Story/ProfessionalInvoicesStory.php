@@ -38,6 +38,9 @@ use Zenstruck\Foundry\Story;
  */
 final class ProfessionalInvoicesStory extends Story
 {
+    /** The nominal invoice the e-invoicing demo stops at « Reçue ». */
+    public const string RECEIVED_INVOICE_ID = '01960000-0000-7000-8000-0000000e1d01';
+
     /** label, Taxation category, unit price incl. VAT (cents), quantity */
     private const array CONSULTATION = ['Consultation', 'veterinary.act.consultation', 6000, '1'];
     private const array VACCINE      = ['Vaccin CHPPiL', 'veterinary.act.vaccination', 7200, '1'];
@@ -76,6 +79,12 @@ final class ProfessionalInvoicesStory extends Story
             reason: 'Produit retourné',
         ));
 
+        // Nominal too, issued yesterday: the e-invoicing demo stops it at « Reçue ».
+        $this->invoice(ClientDataStory::CLIENT_CALANQUES_ID, [self::VACCINE], 1, paid: true, id: self::RECEIVED_INVOICE_ID);
+        // Lyon and Cassis: their company (one SIREN) has no platform connection.
+        $this->invoice(ClientDataStory::CLIENT_RHONE_ID, [self::CONSULTATION, self::WORMER], 4, paid: true, clinicId: ClinicDataStory::GROUP_CLINIC_ID);
+        $this->invoice(ClientDataStory::CLIENT_CALANCO_ID, [self::VACCINE], 3, paid: false, clinicId: ClinicDataStory::CALM_CLINIC_ID);
+
         // A professional without a street: its draft cannot be numbered yet.
         $this->draft(ClientDataStory::CLIENT_CALANQUES_AUBAGNE_ID, [self::CONSULTATION], 1);
     }
@@ -83,11 +92,18 @@ final class ProfessionalInvoicesStory extends Story
     /**
      * @param list<array{string, string, int, string}> $items
      */
-    private function invoice(string $clientId, array $items, int $daysAgo, bool $paid, ?Discount $discount = null): Invoice
-    {
-        $invoice = $this->draft($clientId, $items, $daysAgo, $discount);
+    private function invoice(
+        string $clientId,
+        array $items,
+        int $daysAgo,
+        bool $paid,
+        ?Discount $discount = null,
+        ?string $id = null,
+        string $clinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID,
+    ): Invoice {
+        $invoice = $this->draft($clientId, $items, $daysAgo, $discount, $id, $clinicId);
         $at      = $invoice->createdAt();
-        $clinic  = ClinicId::fromString(ClinicDataStory::INDEPENDENT_CLINIC_ID);
+        $clinic  = ClinicId::fromString($clinicId);
         $seller  = $this->sellers->forClinic($clinic->toString());
 
         new ElectronicInvoiceReadiness()->assertReady($invoice, $seller);
@@ -107,15 +123,20 @@ final class ProfessionalInvoicesStory extends Story
     /**
      * @param list<array{string, string, int, string}> $items
      */
-    private function draft(string $clientId, array $items, int $daysAgo, ?Discount $discount = null): Invoice
-    {
-        $clinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
-        $at       = new \DateTimeImmutable(\sprintf('-%d days 10:30', $daysAgo));
-        $payer    = $this->payers->forClient($clientId, $clinicId);
+    private function draft(
+        string $clientId,
+        array $items,
+        int $daysAgo,
+        ?Discount $discount = null,
+        ?string $id = null,
+        string $clinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID,
+    ): Invoice {
+        $at    = new \DateTimeImmutable(\sprintf('-%d days 10:30', $daysAgo));
+        $payer = $this->payers->forClient($clientId, $clinicId);
         \assert(null !== $payer);
 
         $invoice = Invoice::draft(
-            id: InvoiceId::fromString(Uuid::v7()->toRfc4122()),
+            id: InvoiceId::fromString($id ?? Uuid::v7()->toRfc4122()),
             clinicId: ClinicId::fromString($clinicId),
             admissionId: null,
             payer: $payer->toPayer(),

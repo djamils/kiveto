@@ -28,6 +28,7 @@ use App\Fixtures\Context\Scheduling\Story\CalmDayClinicStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingPlanningBlockStory;
 use App\Fixtures\Context\Scheduling\Story\SchedulingStory;
 use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
+use App\Fixtures\System\ElectronicInvoicing\Story\ElectronicInvoicingDemoStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
@@ -104,6 +105,7 @@ final class ClinicDataset extends Story
         BillingDemoStory::load();
         DirectoryBalancesStory::load();
         ProfessionalInvoicesStory::load();
+        ElectronicInvoicingDemoStory::load();
 
         // The flow board's day: passages paid this morning, a no-show, a late
         // booking, an arrival check-in, a booking with a balance due.

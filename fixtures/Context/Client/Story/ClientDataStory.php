@@ -49,6 +49,11 @@ final class ClientDataStory extends Story
     public const CLIENT_LUBERON_ID      = '01936e19-1515-7000-8000-000000000015'; // 501 Irrecevable
     public const CLIENT_SAINTE_BAUME_ID = '01936e19-1616-7000-8000-000000000016'; // 200 non transmise
 
+    // Professionals of the Lyon and Cassis establishments, whose company has
+    // no e-invoicing platform connection yet.
+    public const CLIENT_RHONE_ID   = '01936e19-1717-7000-8000-000000000017';
+    public const CLIENT_CALANCO_ID = '01936e19-1818-7000-8000-000000000018';
+
     public function build(): void
     {
         $parisClinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
@@ -418,6 +423,12 @@ final class ClientDataStory extends Story
         ;
 
         $this->buildProfessionals($parisClinicId);
+        $this->createProfessionals($lyonClinicId, [
+            [self::CLIENT_RHONE_ID, 'madam', 'Agathe', 'Morel', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Monts du Rhône', '694123456', null, true, '+33 4 78 41 23 45', 'contact@monts-du-rhone.fr', ['Chemin des Crêtes', 'Vaugneray', '69670'], null],
+        ]);
+        $this->createProfessionals(ClinicDataStory::CALM_CLINIC_ID, [
+            [self::CLIENT_CALANCO_ID, 'mister', 'Marius', 'Ferrand', ClientTaxStatus::FRENCH_BUSINESS, 'Pension canine de Port-Miou', '831123450', null, true, '+33 4 42 01 12 34', null, ['Avenue de l\'Amiral Ganteaume', 'Cassis', '13260'], null],
+        ]);
         $this->buildNotesAndCommunications($parisClinicId);
     }
 
@@ -458,6 +469,14 @@ final class ClientDataStory extends Story
                 [CompanyCheckOutcome::NOT_FOUND, null, 'yesterday 08:15', VatCheckOutcome::UNCHECKED, null]],
         ];
 
+        $this->createProfessionals($clinicId, $structures);
+    }
+
+    /**
+     * @param list<array{string, string, string, string, ClientTaxStatus, string, ?string, ?string, bool, string, ?string, ?array{string, string, string}, ?array{CompanyCheckOutcome, ?string, ?string, VatCheckOutcome, ?string}}> $structures
+     */
+    private function createProfessionals(string $clinicId, array $structures): void
+    {
         foreach ($structures as [$id, $civility, $first, $last, $status, $legalName, $siren, $vat, $active, $phone, $email, $address, $verification]) {
             $factory = ClientEntityFactory::new()
                 ->withId($id)
