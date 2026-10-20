@@ -19,9 +19,19 @@ interface TransmissionStatusProjectionInterface
     public const string REQUEST_FAILED = 'request_failed';
 
     /**
-     * The professional document was issued: its transmission is requested.
+     * The professional document was issued: its transmission is requested,
+     * and the neutral document frozen at issue is kept to be sent as is.
+     *
+     * @param array<string, mixed> $document
      */
-    public function markRequested(string $documentId, string $kind, \DateTimeImmutable $now): void;
+    public function markRequested(string $documentId, string $kind, array $document, \DateTimeImmutable $now): void;
+
+    /**
+     * The neutral document frozen when the professional document was issued.
+     *
+     * @return array<string, mixed>|null null when nothing was frozen (not a professional document)
+     */
+    public function frozenDocument(string $documentId, string $kind): ?array;
 
     /**
      * The request never reached ElectronicInvoicing: someone must act.

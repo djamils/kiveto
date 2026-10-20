@@ -23,16 +23,37 @@ final readonly class DbalTransmissionStatusProjection implements TransmissionSta
     {
     }
 
-    public function markRequested(string $documentId, string $kind, \DateTimeImmutable $now): void
+    public function markRequested(string $documentId, string $kind, array $document, \DateTimeImmutable $now): void
     {
         $this->connection->executeStatement(
             \sprintf(
-                'UPDATE %s SET transmission_state = :state, transmission_sequence = 0, transmission_updated_at = :now
+                'UPDATE %s SET transmission_state = :state, transmission_document = :document, transmission_sequence = 0, transmission_updated_at = :now
                  WHERE id = :id AND transmission_state IS NULL',
                 self::TABLES[$kind],
             ),
-            ['state' => self::REQUESTED, 'now' => $now->format(self::DATE_FORMAT), 'id' => Uuid::fromString($documentId)->toBinary()],
+            [
+                'state'    => self::REQUESTED,
+                'document' => json_encode($document, \JSON_THROW_ON_ERROR),
+                'now'      => $now->format(self::DATE_FORMAT),
+                'id'       => Uuid::fromString($documentId)->toBinary(),
+            ],
         );
+    }
+
+    public function frozenDocument(string $documentId, string $kind): ?array
+    {
+        $document = $this->connection->fetchOne(
+            \sprintf('SELECT transmission_document FROM %s WHERE id = :id', self::TABLES[$kind]),
+            ['id' => Uuid::fromString($documentId)->toBinary()],
+        );
+
+        if (!\is_string($document)) {
+            return null;
+        }
+
+        $decoded = json_decode($document, true, 512, \JSON_THROW_ON_ERROR);
+
+        return \is_array($decoded) ? array_combine(array_map(strval(...), array_keys($decoded)), $decoded) : null;
     }
 
     public function markRequestFailed(string $documentId, string $kind, \DateTimeImmutable $now): void

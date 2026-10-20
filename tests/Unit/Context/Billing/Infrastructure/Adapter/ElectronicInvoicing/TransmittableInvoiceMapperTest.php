@@ -8,13 +8,18 @@ use App\Context\Billing\Domain\ValueObject\SellerIdentity;
 use App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\CommandBusElectronicInvoiceTransmitter;
 use App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\TransmittableInvoiceMapper;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\RequestInvoiceTransmission;
 use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmission\TransmittableInvoice;
+use App\System\ElectronicInvoicing\Application\Query\GetTransmissionStatus\GetTransmissionStatus;
+use App\System\ElectronicInvoicing\Application\Query\GetTransmissionStatus\TransmissionStatusView;
 use App\System\ElectronicInvoicing\Infrastructure\Format\Cii\CiiInvoiceRenderer;
 use App\System\ElectronicInvoicing\Infrastructure\Format\XsdValidator;
+use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Support\Billing\ProfessionalDocuments;
 use App\Tests\Support\Billing\SellerIdentities;
 use App\Tests\Unit\System\ElectronicInvoicing\Infrastructure\Format\AfnorSamplesXsdTest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class TransmittableInvoiceMapperTest extends TestCase
@@ -46,7 +51,8 @@ final class TransmittableInvoiceMapperTest extends TestCase
         self::assertSame($document->lineTotal - $document->allowanceTotal, $document->taxBasis);
         self::assertSame($document->taxBasis + $document->vatTotal, $document->grossTotal);
         self::assertSame($document->grossTotal - $document->paidAmount, $document->duePayable);
-        self::assertSame(0, $document->paidAmount);
+        // BT-113: what was paid at the desk when it was issued.
+        self::assertSame(1000, $document->paidAmount);
         self::assertSame($document->taxBasis, array_sum(array_map(static fn ($vat): int => $vat->base, $document->vatBreakdown)));
         self::assertNotEmpty($document->allowances);
 
@@ -68,12 +74,55 @@ final class TransmittableInvoiceMapperTest extends TestCase
         self::assertSame(ProfessionalDocuments::CREDIT_NOTE, $note->documentId);
         self::assertSame('381', $note->typeCode);
         self::assertSame('FAC-2026-000007', $note->precedingInvoiceNumber);
-        self::assertSame($invoice->issuedAt(), $note->precedingInvoiceDate);
+        self::assertSame('2026-10-21', $note->precedingInvoiceDate?->format('Y-m-d'));
         self::assertSame(['Vaccin CHPPiL'], array_map(static fn ($line): string => $line->name, $note->lines));
         self::assertSame(0, $note->paidAmount);
         self::assertSame($note->grossTotal, $note->duePayable);
         self::assertNull($note->dueDate);
         self::assertValidCii($note);
+    }
+
+    /**
+     * AC 17c: a professional sale paid at the desk leaves framed « already
+     * paid » (S2, B2 or M2) with BT-113 equal to its total incl. VAT.
+     */
+    public function testASalePaidAtTheDeskLeavesPaidWithItsWholeTotal(): void
+    {
+        $document = new TransmittableInvoiceMapper()->fromInvoice(ProfessionalDocuments::issuedInvoice(paidInFull: true), SellerIdentities::complete());
+
+        self::assertSame('M2', $document->invoicingFramework);
+        self::assertSame($document->grossTotal, $document->paidAmount);
+        self::assertSame(0, $document->duePayable);
+        self::assertNull($document->dueDate);
+        self::assertValidCii($document);
+    }
+
+    /**
+     * F12: the issue date is the local date in Europe/Paris, as on the PDF —
+     * 23:30 stays that day, 00:30 is the next one.
+     *
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function provideTheIssueDateIsTheLocalDateInParisCases(): iterable
+    {
+        yield '23:30 in Paris (21:30 UTC)' => ['2026-10-21 21:30:00', '2026-10-21', '20261021'];
+        yield '00:30 in Paris (22:30 UTC the day before)' => ['2026-10-21 22:30:00', '2026-10-22', '20261022'];
+        yield '00:30 in Paris in winter (23:30 UTC)' => ['2026-12-31 23:30:00', '2027-01-01', '20270101'];
+    }
+
+    #[DataProvider('provideTheIssueDateIsTheLocalDateInParisCases')]
+    public function testTheIssueDateIsTheLocalDateInParis(string $utc, string $date, string $cii): void
+    {
+        $invoice = ProfessionalDocuments::issuedInvoice(new \DateTimeImmutable($utc, new \DateTimeZone('UTC')));
+        $mapper  = new TransmittableInvoiceMapper();
+
+        $document = TransmittableInvoice::fromArray($mapper->fromInvoice($invoice, SellerIdentities::complete())->toArray());
+        $note     = $mapper->fromCreditNote(ProfessionalDocuments::creditNoteOf($invoice), SellerIdentities::complete());
+
+        self::assertSame($date, $document->issueDate->format('Y-m-d'));
+        self::assertSame($date, $document->deliveryDate?->format('Y-m-d'));
+        self::assertSame($date, $note->precedingInvoiceDate?->format('Y-m-d'));
+        self::assertStringContainsString(\sprintf('<udt:DateTimeString format="102">%s</udt:DateTimeString>', $cii), self::cii($document));
     }
 
     public function testASellerWithoutLegalSentenceSendsOnlyTheProfessionalMentions(): void
@@ -113,7 +162,7 @@ final class TransmittableInvoiceMapperTest extends TestCase
         new TransmittableInvoiceMapper()->fromInvoice(ProfessionalDocuments::privateInvoice(), SellerIdentities::complete());
     }
 
-    public function testTheTransmitterRequestsTheTransmissionOnTheCommandBus(): void
+    public function testTheTransmitterFreezesThenSendsTheDocumentAsFrozen(): void
     {
         $invoice  = ProfessionalDocuments::issuedInvoice();
         $commands = [];
@@ -124,21 +173,43 @@ final class TransmittableInvoiceMapperTest extends TestCase
             return null;
         });
 
-        $transmitter = new CommandBusElectronicInvoiceTransmitter($bus, new TransmittableInvoiceMapper());
-        $transmitter->transmitInvoice($invoice, SellerIdentities::complete());
-        $transmitter->transmitCreditNote(ProfessionalDocuments::creditNoteOf($invoice), SellerIdentities::complete());
+        $transmitter = new CommandBusElectronicInvoiceTransmitter($bus, $this->createStub(QueryBusInterface::class), new TransmittableInvoiceMapper(), new FrozenClock(ProfessionalDocuments::now()));
+        $invoiceDoc  = $transmitter->freezeInvoice($invoice, SellerIdentities::complete());
+        $noteDoc     = $transmitter->freezeCreditNote(ProfessionalDocuments::creditNoteOf($invoice), SellerIdentities::complete());
+        $transmitter->transmit(ProfessionalDocuments::CLINIC, $invoiceDoc);
+        $transmitter->transmit(ProfessionalDocuments::CLINIC, $noteDoc);
 
         self::assertContainsOnlyInstancesOf(RequestInvoiceTransmission::class, $commands);
         self::assertSame(
             [[ProfessionalDocuments::CLINIC, TransmittableInvoice::KIND_INVOICE], [ProfessionalDocuments::CLINIC, TransmittableInvoice::KIND_CREDIT_NOTE]],
             array_map(static fn (RequestInvoiceTransmission $c): array => [$c->clinicId, $c->invoice->kind], $commands),
         );
+        self::assertSame($invoiceDoc, $commands[0]->invoice->toArray());
+    }
+
+    public function testTheTransmitterReadsWhatElectronicInvoicingHas(): void
+    {
+        $queries = $this->createStub(QueryBusInterface::class);
+        $queries->method('ask')->willReturnCallback(static fn (GetTransmissionStatus $query): ?TransmissionStatusView => 'known' === $query->documentId
+            ? new TransmissionStatusView(ProfessionalDocuments::CLINIC, 'known', 4, 'not_required', null, null, null, '213', 'The credited invoice was rejected (213).', false, null)
+            : null);
+
+        $transmitter = new CommandBusElectronicInvoiceTransmitter($this->createStub(CommandBusInterface::class), $queries, new TransmittableInvoiceMapper(), new FrozenClock(ProfessionalDocuments::now()));
+        $status      = $transmitter->status('known');
+
+        self::assertNotNull($status);
+        self::assertSame(['known', 4, 'not_required', '213', false], [$status->documentId, $status->sequence, $status->state, $status->reasonCode, $status->requiresAction]);
+        self::assertSame(ProfessionalDocuments::now()->format('c'), $status->updatedAt->format('c'));
+        self::assertNull($transmitter->status('unknown'));
     }
 
     private static function assertValidCii(TransmittableInvoice $document): void
     {
-        $xml = new CiiInvoiceRenderer(new XsdValidator(), AfnorSamplesXsdTest::SCHEMA)->render($document, $document->buyer->electronicAddress);
+        self::assertSame([], new XsdValidator()->validate(self::cii($document), AfnorSamplesXsdTest::SCHEMA));
+    }
 
-        self::assertSame([], new XsdValidator()->validate($xml, AfnorSamplesXsdTest::SCHEMA));
+    private static function cii(TransmittableInvoice $document): string
+    {
+        return new CiiInvoiceRenderer(new XsdValidator(), AfnorSamplesXsdTest::SCHEMA)->render($document, $document->buyer->electronicAddress);
     }
 }

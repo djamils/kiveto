@@ -9,6 +9,7 @@ use App\Context\Billing\Application\Command\RecordCounterSale\ClientTaxProfileIn
 use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClient;
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Command\RecordTransmissionStatus\RecordTransmissionStatus;
+use App\Context\Billing\Application\Command\RequestDocumentTransmission\RequestDocumentTransmission;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
@@ -61,6 +62,30 @@ final class ElectronicInvoicingBridgeTest extends KernelTestCase
     }
 
     /**
+     * AC 17c / F3: a professional sale paid at the desk is frozen at issue
+     * framed « already paid » with BT-113 equal to its total; what is sent
+     * later is that frozen document, even after the seller changed.
+     */
+    public function testWhatIsSentIsTheDocumentFrozenAtIssue(): void
+    {
+        $invoiceId = $this->sell();
+        $frozen    = $this->frozenDocumentOf($invoiceId);
+
+        self::assertSame('B2', $frozen['invoicingFramework'] ?? null);
+        self::assertSame($frozen['grossTotal'] ?? null, $frozen['paidAmount'] ?? null);
+        self::assertSame(0, $frozen['duePayable'] ?? null);
+
+        $this->connection()->executeStatement("UPDATE clinic__clinics SET letterhead_legal_name = 'Nouvelle raison sociale' WHERE id = UUID_TO_BIN(:id)", ['id' => self::CLINIC_ID]);
+        MessengerDrain::drain(self::getContainer());
+
+        $payload = $this->connection()->fetchOne('SELECT payload FROM electronic_invoicing__outbound_transmissions WHERE tracking_id = :id', ['id' => $invoiceId]);
+        self::assertIsString($payload);
+        self::assertSame($frozen, json_decode($payload, true, 512, \JSON_THROW_ON_ERROR));
+        self::assertIsArray($frozen['seller'] ?? null);
+        self::assertSame('SELARL Clinique Vétérinaire de Paris', $frozen['seller']['name'] ?? null);
+    }
+
+    /**
      * AC 39: a private sale requests nothing.
      */
     public function testAPrivateSaleRequestsNothing(): void
@@ -69,6 +94,10 @@ final class ElectronicInvoicingBridgeTest extends KernelTestCase
 
         self::assertNull($this->transmissionOf($invoiceId));
         self::assertSame(0, $this->rowCount(self::OUTBOX));
+
+        // Asked all the same, it has nothing frozen to send.
+        $this->commands()->dispatch(new RequestDocumentTransmission(self::CLINIC_ID, $invoiceId, 'invoice'));
+        self::assertSame(0, $this->rowCount('SELECT COUNT(*) FROM electronic_invoicing__outbound_transmissions WHERE tracking_id = :id', ['id' => $invoiceId]));
     }
 
     /**
@@ -144,6 +173,27 @@ final class ElectronicInvoicingBridgeTest extends KernelTestCase
         self::assertSame('request_failed', $this->transmissionOf($stale)?->state);
     }
 
+    /**
+     * F8: a document electronic invoicing already has is never given up —
+     * its status is projected instead.
+     */
+    public function testTheReconciliationProjectsWhatElectronicInvoicingHas(): void
+    {
+        $invoiceId = $this->sell();
+        MessengerDrain::drain(self::getContainer());
+        // Its report lost: Billing still sees it requested, two days later.
+        $this->connection()->executeStatement(
+            "UPDATE billing__invoices SET transmission_state = 'requested', transmission_sequence = 0, issued_at = NOW() - INTERVAL 2 DAY WHERE id = UUID_TO_BIN(:id)",
+            ['id' => $invoiceId],
+        );
+
+        $this->commands()->dispatch(new ReconcileProfessionalTransmissions());
+
+        $transmission = $this->transmissionOf($invoiceId);
+        self::assertSame('pending_connection', $transmission?->state);
+        self::assertFalse($transmission->requiresAction);
+    }
+
     private function sell(string $phone = '0491223355', bool $professional = true): string
     {
         $this->clinic();
@@ -204,6 +254,19 @@ final class ElectronicInvoicingBridgeTest extends KernelTestCase
         \assert(\is_bool($changed));
 
         return $changed;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function frozenDocumentOf(string $invoiceId): array
+    {
+        $document = $this->connection()->fetchOne('SELECT transmission_document FROM billing__invoices WHERE id = UUID_TO_BIN(:id)', ['id' => $invoiceId]);
+        self::assertIsString($document);
+        $decoded = json_decode($document, true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+
+        return array_combine(array_map(strval(...), array_keys($decoded)), $decoded);
     }
 
     private function transmissionOf(string $invoiceId): ?TransmissionView

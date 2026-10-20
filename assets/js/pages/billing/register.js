@@ -198,6 +198,14 @@ export function init() {
     : o.cpt === 'REFUSED' ? 'Comptoir · refus des coordonnées' : o.cpt === 'NEW_CLIENT' ? 'Comptoir · nouvelle fiche' : o.cpt ? 'Vente au comptoir' : o.cli.passage ? 'sans fiche client' : '—');
   // The « Facture électronique » pill of a professional document; none for a private one.
   const txPuce = tx => (tx ? `<span class="puce t-${esc(tx.tone)}">${esc(tx.text)}</span>` : '');
+  // The next step of an « Action requise » banner, as a link.
+  const txLien = (link, o) => {
+    if (link === 'credit_note' && o.actions?.avoir) return ' <button type="button" class="bandeau-lien" data-tx-avoir>Créer l\'avoir</button>';
+    if (link === 'credit_note' && o.avoirs?.length) return ` Avoir déjà émis : ${o.avoirs.map(a => `<a class="bandeau-lien" href="${esc(P.urls.detailsAv.replace(NIL, a.id))}" data-goto="${esc(a.id)}" data-kind="av">${esc(a.num)}</a>`).join(', ')}.`;
+    if (link === 'client' && o.cli?.url) return ` <a class="bandeau-lien" href="${esc(o.cli.url)}">Ouvrir la fiche client</a>`;
+    if (link === 'support') return ' <button type="button" class="bandeau-lien" data-toast="Support — la messagerie intégrée arrive bientôt">Contacter le support</button>';
+    return '';
+  };
   const COLS = [
     { l: 'Date', html: o => `<div class="mdate"><b>${o.d === TODAY ? "Aujourd'hui" : dCourt(o.d)} · ${o.h}</b><span class="num-o">${esc(o.num || 'numéro à l\'encaissement')}</span></div>` },
     { l: 'Client', html: o => `<div class="pat"><div style="min-width:0"><b>${esc(o.cli.n)}</b><span class="anis">${anisHtml(o)}</span></div></div>` },
@@ -341,7 +349,7 @@ export function init() {
     // A transmission someone has to act on comes first: the platform is waiting on the clinic.
     const txa = o.tx?.action;
     if (txa) {
-      band = `<div class="bandeau crit">${ICO.crit}<div><b>${esc(txa.title)} · ${esc(o.tx.text)}</b>${txa.reason ? `${esc(txa.reason)}<br>` : ''}${esc(txa.next)}</div></div>${band}`;
+      band = `<div class="bandeau crit">${ICO.crit}<div><b>${esc(txa.title)} · ${esc(o.tx.text)}</b>${txa.reason ? `${esc(txa.reason)}<br>` : ''}${esc(txa.next)}${txLien(txa.link, o)}</div></div>${band}`;
     }
 
     const lien = (href, ico, b, s, goto) => `<a class="ocons" href="${esc(href)}"${goto ? ` data-goto="${esc(goto.id)}" data-kind="${goto.kind}"` : ''}><span class="e"${goto && goto.kind === 'av' ? ' style="background:#f5f3ff;color:#6d28d9"' : ''}>${ico}</span><span class="lt"><b>${b}</b><span>${s}</span></span><span class="lien">Ouvrir ${ICO.ext}</span></a>`;
@@ -877,6 +885,7 @@ export function init() {
     const g = e.target.closest('[data-goto]');
     if (g) { e.preventDefault(); ouvrirFiche(g.dataset.goto, g.dataset.kind); return; }
     if (e.target.closest('#fiThumb') && ST.fiche) ouvrirApercu(ST.fiche);
+    if (e.target.closest('[data-tx-avoir]') && ST.fiche) ouvrirAvoir(ST.fiche);
   }, { signal });
   $('fiHead').addEventListener('click', e => { if (e.target.closest('#fiX')) fermerFiche(); }, { signal });
   $('fiFoot').addEventListener('click', e => {

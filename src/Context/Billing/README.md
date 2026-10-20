@@ -83,7 +83,7 @@ invoicing framework, payment terms and a local readiness check.
 | `GetInvoiceDetails`, `SearchInvoices`, … | Read models built on the frozen totals, with the transmission status of professional documents. |
 | `RequestDocumentTransmission` | Reloads an issued B2B invoice or credit note and hands it to ElectronicInvoicing. |
 | `RecordTransmissionStatus` | Projects a status reported by ElectronicInvoicing (newer sequence only). |
-| `ReconcileProfessionalTransmissions` | Hourly (schedule `billing`, minute 23): re-requests documents still « requested » after an hour; after 24 hours marks them `request_failed` and logs an error. |
+| `ReconcileProfessionalTransmissions` | Hourly (schedule `billing`, minute 23): for each document still « requested » after an hour, projects its status when ElectronicInvoicing has it, otherwise re-requests it, and after 24 hours marks it `request_failed` and logs an error. Each document on its own: a failure is logged and the next one goes on. |
 
 ## Electronic invoicing bridge
 
@@ -94,18 +94,22 @@ approved platform by the `ElectronicInvoicing` system context
 
 1. **Issue.** `InvoiceIssued` / `CreditNoteIssued` carry the processing rule.
    For B2B, `InvoiceIssuedIntegrationBridge` / `CreditNoteIssuedIntegrationBridge`
-   mark the projection `requested` and write a
-   `ProfessionalDocumentIssuedIntegrationEvent` to the outbox — in the issuing
-   transaction: a rollback leaves neither, and the issue never depends on the
-   transmission.
+   **freeze the neutral document** (`ElectronicInvoiceTransmitterInterface::freeze*`,
+   stored in `transmission_document`), mark the projection `requested` and
+   write a `ProfessionalDocumentIssuedIntegrationEvent` to the outbox — in the
+   issuing transaction: a rollback leaves none of them, and the issue never
+   depends on the transmission. `TransmittableInvoiceMapper` builds the
+   document from the frozen amounts, with the seller's identity and the amount
+   paid at the desk (BT-113) as they are at that moment, dates as local dates
+   in Europe/Paris (as on the PDF): lines named as on the PDF (BT-153), the VAT
+   breakdown, allowances, the professional mentions (PMD, PMT, AAB) and the
+   seller's legal sentence (REG). Nothing else of the visit leaves: not the
+   animal, not the invoice notes. Payments received after the issue never
+   change it (they will be reported by status 212).
 2. **Request.** `OnProfessionalDocumentIssuedRequestTransmission` (async)
-   dispatches `RequestDocumentTransmission`, which goes through
-   `ElectronicInvoiceTransmitterInterface` → `CommandBusElectronicInvoiceTransmitter`
-   (`Infrastructure/Adapter/ElectronicInvoicing/`). `TransmittableInvoiceMapper`
-   builds the neutral document from the **stored, frozen** amounts: lines named
-   as on the PDF (BT-153), the VAT breakdown, allowances, the professional
-   mentions (PMD, PMT, AAB) and the seller's legal sentence (REG). Nothing else
-   of the visit leaves: not the animal, not the invoice notes.
+   dispatches `RequestDocumentTransmission`, which hands the frozen document
+   as is to `CommandBusElectronicInvoiceTransmitter`
+   (`Infrastructure/Adapter/ElectronicInvoicing/`) — nothing is read again.
 3. **Status.** `OnInvoiceTransmissionStatusChanged` receives
    `InvoiceTransmissionStatusChangedIntegrationEvent` and dispatches
    `RecordTransmissionStatus`; `DbalTransmissionStatusProjection` writes the
@@ -116,14 +120,15 @@ approved platform by the `ElectronicInvoicing` system context
 States shown on the list and the sheet (`TransmissionBadge`, Presentation):
 `requested` « Transmission demandée », `request_failed` « Transmission non
 demandée » (Action requise), `pending_connection` « Plateforme non connectée »,
-`queued` / `submitting` « En attente d'envoi », `submitted` « Transmise »,
-`not_required` « Non transmis — facture d'origine annulée », `blocked` (one
+`queued` / `submitting` « En attente d'envoi », `awaiting_invoice` « En
+attente de la facture d'origine » (a credit note), `submitted` « Transmise »,
+`not_required` « Avoir interne — facture refusée / rejetée », `blocked` (one
 label per reason), then the French label of the latest lifecycle status
 (« Approuvée », « Refusée », « En litige », …; 200 `NON_TRANSMISE`
-« Déposée — client sans plateforme »). « Action requise » gives the next step:
-« Créez un avoir puis une nouvelle facture. » (210, 213, 220), « Contactez le
-client. » (207, 208), « Contactez le support Kiveto. » (221, 501, blocked,
-request failed).
+« Déposée — client sans plateforme »). « Action requise » gives the next step
+with its link: « Créez un avoir puis une nouvelle facture. » (210, 213, 220 —
+opens the credit note), « Contactez le client. » (207, 208 — the client's
+sheet), « Contactez le support Kiveto. » (221, 501, blocked, request failed).
 
 Billing imports from ElectronicInvoicing only its `Application\Command\…`,
 `Application\Query\…` and `Domain\Event\*IntegrationEvent`

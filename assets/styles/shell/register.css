@@ -94,6 +94,7 @@
 .reg .rdy li{display:flex;align-items:baseline;gap:10px}
 .reg .rdy li span{flex:1;min-width:0}
 .reg .rdy a{font-weight:600;color:inherit;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.reg .bandeau-lien{font:inherit;font-weight:600;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
 .reg .vt-msg.crit{background:#fef2f2;color:#991b1b}
 .reg .vt-msg.crit b{color:#7f1d1d}
 .reg .lien{color:var(--pin);font-weight:600;font-size:.78rem;display:inline-flex;align-items:center;gap:4px}

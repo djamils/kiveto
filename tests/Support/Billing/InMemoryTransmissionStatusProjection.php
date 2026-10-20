@@ -15,6 +15,9 @@ final class InMemoryTransmissionStatusProjection implements TransmissionStatusPr
     /** @var list<array{string, string}> */
     public array $requested = [];
 
+    /** @var array<string, array<string, mixed>> */
+    public array $documents = [];
+
     /** @var list<array{string, string}> */
     public array $failed = [];
 
@@ -26,9 +29,15 @@ final class InMemoryTransmissionStatusProjection implements TransmissionStatusPr
 
     public ?\DateTimeImmutable $askedBefore = null;
 
-    public function markRequested(string $documentId, string $kind, \DateTimeImmutable $now): void
+    public function markRequested(string $documentId, string $kind, array $document, \DateTimeImmutable $now): void
     {
-        $this->requested[] = [$documentId, $kind];
+        $this->requested[]            = [$documentId, $kind];
+        $this->documents[$documentId] = $document;
+    }
+
+    public function frozenDocument(string $documentId, string $kind): ?array
+    {
+        return $this->documents[$documentId] ?? null;
     }
 
     public function markRequestFailed(string $documentId, string $kind, \DateTimeImmutable $now): void

@@ -12,15 +12,12 @@ use App\Context\Billing\Application\Command\RequestDocumentTransmission\RequestD
 use App\Context\Billing\Application\Command\RequestDocumentTransmission\RequestDocumentTransmissionHandler;
 use App\Context\Billing\Application\EventSubscriber\OnInvoiceTransmissionStatusChanged;
 use App\Context\Billing\Application\EventSubscriber\OnProfessionalDocumentIssuedRequestTransmission;
-use App\Context\Billing\Application\Port\ElectronicInvoiceTransmitterInterface;
 use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Application\Port\TransmissionStatusProjectionInterface;
 use App\Context\Billing\Application\Port\TransmissionStatusUpdate;
-use App\Context\Billing\Domain\CreditNote;
 use App\Context\Billing\Domain\Event\CreditNoteIssued;
 use App\Context\Billing\Domain\Event\InvoiceIssued;
 use App\Context\Billing\Domain\Event\ProfessionalDocumentIssuedIntegrationEvent;
-use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Infrastructure\Messaging\Consumer\CreditNoteIssuedIntegrationBridge;
@@ -33,6 +30,7 @@ use App\Shared\Domain\Time\ClockInterface;
 use App\System\ElectronicInvoicing\Domain\Event\InvoiceTransmissionStatusChangedIntegrationEvent;
 use App\Tests\Support\Billing\InMemoryTransmissionStatusProjection;
 use App\Tests\Support\Billing\ProfessionalDocuments;
+use App\Tests\Support\Billing\RecordingTransmitter;
 use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\TestCase;
@@ -56,15 +54,23 @@ final class ElectronicInvoicingBridgeTest extends TestCase
 
     // ── Issued → requested (outbox) ──
 
-    public function testAProfessionalInvoiceIsMarkedRequestedAndAnnounced(): void
+    /**
+     * F3: the document is frozen at issue — the seller and the amount paid
+     * as they are then — and kept to be sent as is.
+     */
+    public function testAProfessionalInvoiceIsFrozenMarkedRequestedAndAnnounced(): void
     {
         $projection = new InMemoryTransmissionStatusProjection();
 
-        new InvoiceIssuedIntegrationBridge($this->publisher(), $projection, $this->clock())(
+        $this->invoiceBridge($projection)(
             new InvoiceIssued(self::DOC, self::CLINIC, 'FAC-2026-000001', 12000, 'EUR', '2026-10-21T10:00:00+02:00', 'B2B'),
         );
 
         self::assertSame([[self::DOC, TransmissionStatusProjectionInterface::KIND_INVOICE]], $projection->requested);
+        self::assertSame(
+            ['documentId' => ProfessionalDocuments::INVOICE, 'number' => 'FAC-2026-000007', 'paid' => 1000, 'seller' => SellerIdentities::complete()->legalName],
+            $projection->documents[self::DOC],
+        );
         self::assertCount(1, $this->published);
         $event = $this->published[0];
         self::assertInstanceOf(ProfessionalDocumentIssuedIntegrationEvent::class, $event);
@@ -85,10 +91,10 @@ final class ElectronicInvoicingBridgeTest extends TestCase
     {
         $projection = new InMemoryTransmissionStatusProjection();
 
-        new InvoiceIssuedIntegrationBridge($this->publisher(), $projection, $this->clock())(
+        $this->invoiceBridge($projection)(
             new InvoiceIssued(self::DOC, self::CLINIC, 'FAC-2026-000001', 12000, 'EUR', '2026-10-21T10:00:00+02:00'),
         );
-        new CreditNoteIssuedIntegrationBridge($this->publisher(), $projection, $this->clock())(
+        $this->creditNoteBridge($projection)(
             new CreditNoteIssued(self::DOC, self::CLINIC, self::DOC, 'AV-2026-000001', 1000, 0, 'EUR', '2026-10-21T10:00:00+02:00'),
         );
 
@@ -100,11 +106,12 @@ final class ElectronicInvoicingBridgeTest extends TestCase
     {
         $projection = new InMemoryTransmissionStatusProjection();
 
-        new CreditNoteIssuedIntegrationBridge($this->publisher(), $projection, $this->clock())(
+        $this->creditNoteBridge($projection)(
             new CreditNoteIssued(self::DOC, self::CLINIC, ProfessionalDocuments::INVOICE, 'AV-2026-000001', 1000, 0, 'EUR', '2026-10-21T10:00:00+02:00', 'B2B'),
         );
 
         self::assertSame([[self::DOC, TransmissionStatusProjectionInterface::KIND_CREDIT_NOTE]], $projection->requested);
+        self::assertSame('AV-2026-000001', $projection->documents[self::DOC]['number'] ?? null);
         $event = $this->published[0] ?? null;
         self::assertInstanceOf(ProfessionalDocumentIssuedIntegrationEvent::class, $event);
         self::assertSame('credit_note', $event->kind);
@@ -121,55 +128,57 @@ final class ElectronicInvoicingBridgeTest extends TestCase
 
     // ── Request ──
 
-    public function testAnIssuedProfessionalInvoiceIsHandedOver(): void
+    /**
+     * F3: what is sent is the document frozen at issue — nothing is read again.
+     */
+    public function testTheDocumentFrozenAtIssueIsHandedOver(): void
     {
-        $invoice     = ProfessionalDocuments::issuedInvoice();
-        $transmitter = $this->createMock(ElectronicInvoiceTransmitterInterface::class);
-        $transmitter->expects(self::once())->method('transmitInvoice')->with($invoice, self::anything());
-        $transmitter->expects(self::never())->method('transmitCreditNote');
+        $projection                       = new InMemoryTransmissionStatusProjection();
+        $projection->documents[self::DOC] = ['documentId' => self::DOC, 'paid' => 1000];
+        $transmitter                      = new RecordingTransmitter();
 
-        $this->requestHandler($transmitter, invoice: $invoice)(new RequestDocumentTransmission(self::CLINIC, ProfessionalDocuments::INVOICE, 'invoice'));
-    }
+        new RequestDocumentTransmissionHandler($projection, $transmitter)(new RequestDocumentTransmission(self::CLINIC, self::DOC, 'invoice'));
+        // Nothing frozen: not a professional document, nothing to send.
+        new RequestDocumentTransmissionHandler($projection, $transmitter)(new RequestDocumentTransmission(self::CLINIC, 'private', 'invoice'));
 
-    public function testNeitherAPrivateInvoiceNorADraftIsHandedOver(): void
-    {
-        $transmitter = $this->createMock(ElectronicInvoiceTransmitterInterface::class);
-        $transmitter->expects(self::never())->method('transmitInvoice');
-
-        $this->requestHandler($transmitter, invoice: ProfessionalDocuments::privateInvoice())(new RequestDocumentTransmission(self::CLINIC, ProfessionalDocuments::INVOICE, 'invoice'));
-        $this->requestHandler($transmitter, invoice: ProfessionalDocuments::professionalDraft())(new RequestDocumentTransmission(self::CLINIC, ProfessionalDocuments::INVOICE, 'invoice'));
-    }
-
-    public function testAProfessionalCreditNoteIsHandedOverAndAPrivateOneIsNot(): void
-    {
-        $professional = ProfessionalDocuments::creditNoteOf(ProfessionalDocuments::issuedInvoice());
-        $transmitter  = $this->createMock(ElectronicInvoiceTransmitterInterface::class);
-        $transmitter->expects(self::once())->method('transmitCreditNote')->with($professional, self::anything());
-
-        $this->requestHandler($transmitter, creditNote: $professional)(new RequestDocumentTransmission(self::CLINIC, ProfessionalDocuments::CREDIT_NOTE, 'credit_note'));
-        $this->requestHandler($transmitter, creditNote: ProfessionalDocuments::creditNoteOf(ProfessionalDocuments::privateInvoice()))(new RequestDocumentTransmission(self::CLINIC, ProfessionalDocuments::CREDIT_NOTE, 'credit_note'));
+        self::assertSame([[self::CLINIC, ['documentId' => self::DOC, 'paid' => 1000]]], $transmitter->transmitted);
     }
 
     // ── Reconciliation ──
 
     /**
-     * AC 33: re-requested after an hour, given up after a day.
+     * AC 33: re-requested after an hour, given up after a day — F8: unless
+     * electronic invoicing has the document already, whose status is then
+     * projected; one failure is logged and the others go on.
      */
     public function testTheReconciliationRetriesThenGivesUp(): void
     {
         $projection          = new InMemoryTransmissionStatusProjection();
         $projection->waiting = [
+            ['clinicId' => self::CLINIC, 'documentId' => 'failing', 'kind' => 'invoice', 'issuedAt' => new \DateTimeImmutable('2026-10-20 08:00:00')],
             ['clinicId' => self::CLINIC, 'documentId' => 'recent', 'kind' => 'invoice', 'issuedAt' => new \DateTimeImmutable('2026-10-21 08:00:00')],
+            ['clinicId' => self::CLINIC, 'documentId' => 'known', 'kind' => 'invoice', 'issuedAt' => new \DateTimeImmutable('2026-10-20 08:00:00')],
             ['clinicId' => self::CLINIC, 'documentId' => 'stale', 'kind' => 'credit_note', 'issuedAt' => new \DateTimeImmutable('2026-10-20 09:00:00')],
         ];
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('error')->with(self::anything(), ['documentId' => 'stale', 'kind' => 'credit_note']);
+        $transmitter                    = new RecordingTransmitter();
+        $transmitter->failing           = ['failing'];
+        $transmitter->statuses['known'] = new TransmissionStatusUpdate('known', 3, 'queued', null, null, null, null, null, false, new \DateTimeImmutable());
+        $errors                         = [];
+        $logger                         = $this->createMock(LoggerInterface::class);
+        $logger->method('error')->willReturnCallback(static function (string $message, array $context) use (&$errors): void {
+            $errors[] = [$message, $context['documentId'] ?? null, isset($context['exception'])];
+        });
 
-        new ReconcileProfessionalTransmissionsHandler($projection, $this->commands(), $this->clock(), $logger)(new ReconcileProfessionalTransmissions());
+        new ReconcileProfessionalTransmissionsHandler($projection, $transmitter, $this->commands(), $this->clock(), $logger)(new ReconcileProfessionalTransmissions());
 
         self::assertSame('2026-10-21 09:00:00', $projection->askedBefore?->format('Y-m-d H:i:s'));
         self::assertSame([[self::CLINIC, 'recent', 'invoice']], $this->requests());
         self::assertSame([['stale', 'credit_note']], $projection->failed);
+        self::assertSame(['known'], array_map(static fn (TransmissionStatusUpdate $u): string => $u->documentId, $projection->applied));
+        self::assertSame([
+            ['A professional document could not be reconciled with electronic invoicing.', 'failing', true],
+            ['A professional document was never handed to electronic invoicing.', 'stale', false],
+        ], $errors);
     }
 
     // ── Status reports ──
@@ -211,22 +220,28 @@ final class ElectronicInvoicingBridgeTest extends TestCase
         self::assertInstanceOf(ReconcileProfessionalTransmissions::class, iterator_to_array($message->getMessages($context))[0] ?? null);
     }
 
-    private function requestHandler(ElectronicInvoiceTransmitterInterface $transmitter, ?Invoice $invoice = null, ?CreditNote $creditNote = null): RequestDocumentTransmissionHandler
+    private function invoiceBridge(InMemoryTransmissionStatusProjection $projection): InvoiceIssuedIntegrationBridge
     {
         $invoices = $this->createMock(InvoiceRepositoryInterface::class);
-        if (null !== $invoice) {
-            $invoices->method('get')->willReturn($invoice);
-        }
+        $invoices->method('get')->willReturn(ProfessionalDocuments::issuedInvoice());
 
+        return new InvoiceIssuedIntegrationBridge($this->publisher(), $projection, $invoices, $this->sellers(), new RecordingTransmitter(), $this->clock());
+    }
+
+    private function creditNoteBridge(InMemoryTransmissionStatusProjection $projection): CreditNoteIssuedIntegrationBridge
+    {
         $creditNotes = $this->createMock(CreditNoteRepositoryInterface::class);
-        if (null !== $creditNote) {
-            $creditNotes->method('get')->willReturn($creditNote);
-        }
+        $creditNotes->method('get')->willReturn(ProfessionalDocuments::creditNoteOf(ProfessionalDocuments::issuedInvoice()));
 
+        return new CreditNoteIssuedIntegrationBridge($this->publisher(), $projection, $creditNotes, $this->sellers(), new RecordingTransmitter(), $this->clock());
+    }
+
+    private function sellers(): SellerIdentityProviderInterface
+    {
         $sellers = $this->createMock(SellerIdentityProviderInterface::class);
         $sellers->method('forClinic')->willReturn(SellerIdentities::complete());
 
-        return new RequestDocumentTransmissionHandler($invoices, $creditNotes, $sellers, $transmitter);
+        return $sellers;
     }
 
     /**

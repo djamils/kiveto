@@ -21,6 +21,9 @@ use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\Payment;
+use App\Context\Billing\Domain\ValueObject\PaymentId;
+use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Domain\ValueObject\FrenchVatNumber;
@@ -40,14 +43,25 @@ final class ProfessionalDocuments
 
     private static int $ids = 0;
 
-    public static function issuedInvoice(): Invoice
+    /**
+     * Issued at $issuedAt (default: now()) with 10 € paid at the desk, or its
+     * whole total when $paidInFull.
+     */
+    public static function issuedInvoice(?\DateTimeImmutable $issuedAt = null, bool $paidInFull = false): Invoice
     {
+        $issuedAt ??= self::now();
         $invoice = self::draft(self::professional());
         self::add($invoice, 'Vaccin CHPPiL', 6000, InvoiceLineSource::CONSULTATION, OperationCategory::SERVICES);
         self::add($invoice, 'Croquettes rénales', 4550, InvoiceLineSource::MANUAL, OperationCategory::GOODS, '5.5');
         $invoice->applyDiscount(Discount::percentage('10'), self::now());
         $invoice->setNotes(self::NOTES, self::now());
-        $invoice->issue(InvoiceNumber::of(2026, 7), SellerIdentities::complete(), self::now(), 1000);
+        $invoice->issue(InvoiceNumber::of(2026, 7), SellerIdentities::complete(), $issuedAt, Payment::create(
+            id: PaymentId::fromString('01960000-0000-7000-8000-0000000fc0f1'),
+            method: PaymentMethod::CARD,
+            amount: $paidInFull ? $invoice->totalGross() : Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')),
+            receivedAt: $issuedAt,
+            reference: null,
+        ));
 
         return $invoice;
     }

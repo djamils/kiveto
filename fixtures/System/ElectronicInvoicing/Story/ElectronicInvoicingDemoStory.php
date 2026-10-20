@@ -28,10 +28,11 @@ use Zenstruck\Foundry\Story;
 /**
  * The e-invoicing demo: the Paris clinic's company (SIREN 812456903) is
  * connected to the local platform simulator and every professional document
- * has gone as far as its buyer's scenario takes it — Approuvée, Rejetée,
- * Refusée (its credit note « Non transmis »), En litige, Irrecevable,
+ * has gone as far as its buyer's scenario takes it — Approuvée, Rejetée and
+ * Refusée (their credit notes « Avoir interne »), En litige, Irrecevable,
  * « Déposée — client sans plateforme », and one stopped at « Reçue ». Lyon and
- * Cassis (SIREN 901122333) stay unconnected: « Plateforme non connectée ».
+ * Cassis (SIREN 901122333) stay unconnected: « Plateforme non connectée », and
+ * Lyon's credit note « En attente de la facture d'origine ».
  *
  * Nothing waits for a worker: the platform calls queued on the external
  * transports are consumed here, the simulator is played by hand, and Billing's
@@ -68,8 +69,8 @@ final class ElectronicInvoicingDemoStory extends Story
         $this->simulator->advanceAll();
         $this->synchronise();
 
-        // Then the credit note of the refused invoice (not required any more)
-        // and yesterday's invoice, stopped once received.
+        // Then the credit notes — internal once their invoice was refused or
+        // rejected — and yesterday's invoice, stopped once received.
         $this->request(array_filter($documents, $later));
         $this->consume($this->external);
         // The deposit already played 200: one more step is 202 « Reçue ».

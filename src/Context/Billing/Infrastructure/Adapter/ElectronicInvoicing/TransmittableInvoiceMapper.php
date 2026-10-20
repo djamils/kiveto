@@ -30,19 +30,25 @@ use App\System\ElectronicInvoicing\Application\Command\RequestInvoiceTransmissio
  * Each line is named exactly as it prints on the PDF (BT-153: the catalogue or
  * consultation label). Nothing else of the visit leaves the clinic: not the
  * animal, not the invoice notes, not any free text of the consultation.
+ *
+ * It runs when the document is issued, so the seller and the amount paid
+ * (BT-113) are those of that moment. Dates are local dates in Europe/Paris,
+ * as printed on the PDF: an invoice issued at 00:30 is dated that day.
  */
 final readonly class TransmittableInvoiceMapper
 {
     private const string VAT_CATEGORY = 'S';
     private const string UNIT_CODE    = 'C62';
     private const string ALLOWANCE    = 'Remise';
+    private const string TIME_ZONE    = 'Europe/Paris';
 
     public function fromInvoice(Invoice $invoice, SellerIdentity $seller): TransmittableInvoice
     {
-        $issuedAt = $invoice->issuedAt() ?? throw new \LogicException('Only an issued invoice is transmitted.');
+        $issuedAt = self::local($invoice->issuedAt() ?? throw new \LogicException('Only an issued invoice is transmitted.'));
         $amounts  = $invoice->amounts();
         $terms    = $invoice->paymentTerms();
-        $paid     = $invoice->amountPaid()->minorUnits();
+        // Run at issue: what was paid at the desk (BT-113).
+        $paid = $invoice->amountPaid()->minorUnits();
 
         return new TransmittableInvoice(
             documentId: $invoice->id()->toString(),
@@ -58,7 +64,7 @@ final readonly class TransmittableInvoiceMapper
             buyerContact: $invoice->payer()->attention(),
             // « Date d'exécution des prestations » on the PDF: the issue date.
             deliveryDate: $issuedAt,
-            dueDate: $terms?->dueDate,
+            dueDate: null !== $terms?->dueDate ? self::local($terms->dueDate) : null,
             paymentTermsNote: $terms?->note,
             lineTotal: $amounts->totalLineNet()->minorUnits(),
             allowanceTotal: $amounts->totalAllowance()->minorUnits(),
@@ -76,13 +82,15 @@ final readonly class TransmittableInvoiceMapper
 
     public function fromCreditNote(CreditNote $creditNote, SellerIdentity $seller): TransmittableInvoice
     {
-        $amounts = $creditNote->amounts();
+        $amounts  = $creditNote->amounts();
+        $issuedAt = self::local($creditNote->issuedAt());
+        $credited = $creditNote->invoiceIssuedAt();
 
         return new TransmittableInvoice(
             documentId: $creditNote->id()->toString(),
             kind: TransmittableInvoice::KIND_CREDIT_NOTE,
             number: $creditNote->number()->toString(),
-            issueDate: $creditNote->issuedAt(),
+            issueDate: $issuedAt,
             typeCode: $creditNote->typeCode()->value,
             invoicingFramework: (string) $creditNote->framework()?->code(),
             processingRule: $creditNote->processingRule()->value,
@@ -90,7 +98,7 @@ final readonly class TransmittableInvoiceMapper
             seller: $this->seller($seller),
             buyer: $this->buyer($creditNote->payer()),
             buyerContact: $creditNote->payer()->attention(),
-            deliveryDate: $creditNote->issuedAt(),
+            deliveryDate: $issuedAt,
             dueDate: null,
             paymentTermsNote: null,
             lineTotal: $amounts->totalLineNet()->minorUnits(),
@@ -105,8 +113,13 @@ final readonly class TransmittableInvoiceMapper
             vatBreakdown: $this->breakdown($amounts),
             notes: $this->notes($seller),
             precedingInvoiceNumber: $creditNote->invoiceNumber(),
-            precedingInvoiceDate: $creditNote->invoiceIssuedAt(),
+            precedingInvoiceDate: null !== $credited ? self::local($credited) : null,
         );
+    }
+
+    private static function local(\DateTimeImmutable $at): \DateTimeImmutable
+    {
+        return $at->setTimezone(new \DateTimeZone(self::TIME_ZONE));
     }
 
     private function seller(SellerIdentity $seller): TransmittableParty

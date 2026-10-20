@@ -14,6 +14,9 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
  * Tones: `wait` (on its way), `sync` (handed to the platform), `ok` (approved
  * or paid), `info` (nothing to do), `alert` (stuck or refused). A private
  * (B2C) document has no transmission, hence no badge.
+ *
+ * The banner's next step comes with its link: `credit_note` (issue the credit
+ * note from the sheet), `client` (the client's sheet) or `support`.
  */
 final class TransmissionBadge
 {
@@ -26,6 +29,18 @@ final class TransmissionBadge
     private const string NEXT_REISSUE = 'Créez un avoir puis une nouvelle facture.';
     private const string NEXT_CLIENT  = 'Contactez le client.';
     private const string NEXT_SUPPORT = 'Contactez le support Kiveto.';
+
+    private const array LINKS = [
+        self::NEXT_REISSUE => 'credit_note',
+        self::NEXT_CLIENT  => 'client',
+        self::NEXT_SUPPORT => 'support',
+    ];
+
+    /** Why a credit note stayed internal: the status that voided its invoice. */
+    private const array INTERNAL_BECAUSE = [
+        '210' => 'Avoir interne — facture refusée',
+        '213' => 'Avoir interne — facture rejetée',
+    ];
 
     /** Lifecycle statuses that read as a happy ending. */
     private const array OK_CODES = [205, 206, 209, 211, 212, 214];
@@ -55,12 +70,12 @@ final class TransmissionBadge
         'request_failed'     => ['Transmission non demandée', self::ALERT],
         'pending_connection' => ['Plateforme non connectée', self::WAIT],
         'queued'             => ['En attente d\'envoi', self::WAIT],
+        'awaiting_invoice'   => ['En attente de la facture d\'origine', self::WAIT],
         'submitting'         => ['En attente d\'envoi', self::WAIT],
-        'not_required'       => ['Non transmis — facture d\'origine annulée', self::INFO],
     ];
 
     /**
-     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string}}|null
+     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string, link: string}}|null
      */
     public static function of(?TransmissionView $view): ?array
     {
@@ -72,6 +87,10 @@ final class TransmissionBadge
             [$text, $tone] = self::EARLY_STATES[$view->state];
 
             return self::badge($view, $text, $tone, 'request_failed' === $view->state ? self::NEXT_SUPPORT : null);
+        }
+
+        if ('not_required' === $view->state) {
+            return ['text' => self::INTERNAL_BECAUSE[$view->reasonCode ?? ''] ?? 'Avoir interne', 'tone' => self::INFO];
         }
 
         if ('blocked' === $view->state) {
@@ -86,7 +105,7 @@ final class TransmissionBadge
     }
 
     /**
-     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string}}
+     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string, link: string}}
      */
     private static function status(TransmissionView $view, int $code): array
     {
@@ -110,7 +129,7 @@ final class TransmissionBadge
     }
 
     /**
-     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string}}
+     * @return array{text: string, tone: string, action?: array{title: string, next: string, reason: ?string, link: string}}
      */
     private static function badge(TransmissionView $view, string $text, string $tone, ?string $next): array
     {
@@ -121,7 +140,8 @@ final class TransmissionBadge
         }
 
         $reason = null !== $view->reason && '' !== mb_trim($view->reason) ? $view->reason : null;
+        $next ??= self::NEXT_SUPPORT;
 
-        return $badge + ['action' => ['title' => 'Action requise', 'next' => $next ?? self::NEXT_SUPPORT, 'reason' => $reason]];
+        return $badge + ['action' => ['title' => 'Action requise', 'next' => $next, 'reason' => $reason, 'link' => self::LINKS[$next]]];
     }
 }

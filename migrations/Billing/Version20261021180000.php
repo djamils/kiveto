@@ -11,7 +11,7 @@ final class Version20261021180000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Transmission status of professional documents, projected from ElectronicInvoicing.';
+        return 'Transmission status of professional documents, projected from ElectronicInvoicing, and the neutral document frozen at issue.';
     }
 
     public function up(Schema $schema): void
@@ -20,6 +20,7 @@ final class Version20261021180000 extends AbstractMigration
             $this->addSql(<<<SQL
                 ALTER TABLE {$table}
                   ADD transmission_state VARCHAR(20) DEFAULT NULL,
+                  ADD transmission_document JSON DEFAULT NULL,
                   ADD transmission_block_reason VARCHAR(40) DEFAULT NULL,
                   ADD transmission_status_code SMALLINT DEFAULT NULL,
                   ADD transmission_status_label VARCHAR(64) DEFAULT NULL,
@@ -37,7 +38,7 @@ final class Version20261021180000 extends AbstractMigration
         foreach (['billing__invoices', 'billing__credit_notes'] as $table) {
             $this->addSql(<<<SQL
                 ALTER TABLE {$table}
-                  DROP transmission_state, DROP transmission_block_reason, DROP transmission_status_code,
+                  DROP transmission_state, DROP transmission_document, DROP transmission_block_reason, DROP transmission_status_code,
                   DROP transmission_status_label, DROP transmission_reason_code, DROP transmission_reason,
                   DROP transmission_requires_action, DROP transmission_sequence, DROP transmission_updated_at
             SQL);
