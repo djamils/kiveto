@@ -293,8 +293,12 @@ final class Invoice extends AggregateRoot
      * (B2B for a business subject to French VAT), its invoicing framework
      * (BT-23) and its payment terms — due after the seller's professional
      * terms, or settled when what is paid at the desk covers it.
+     *
+     * The payment taken at the desk is recorded here, with the issue, so that
+     * the framework (paid or to pay) and the amount paid (BT-113) are always
+     * the same fact: a professional sale paid in full is framed S2, B2 or M2.
      */
-    public function issue(InvoiceNumber $number, SellerIdentity $seller, \DateTimeImmutable $now, int $paidAtIssueMinorUnits = 0): void
+    public function issue(InvoiceNumber $number, SellerIdentity $seller, \DateTimeImmutable $now, ?Payment $paidAtIssue = null): void
     {
         $this->ensureEditable();
 
@@ -308,7 +312,8 @@ final class Invoice extends AggregateRoot
             throw new InvoiceRequiresIdentifiedPayerException($this->id->toString());
         }
 
-        $settled = $paidAtIssueMinorUnits >= $this->totalGross()->minorUnits();
+        $paid    = $this->amountPaid()->minorUnits() + ($paidAtIssue?->amount()->minorUnits() ?? 0);
+        $settled = $paid >= $this->totalGross()->minorUnits();
 
         $this->number       = $number;
         $this->status       = InvoiceStatus::ISSUED;
@@ -327,6 +332,12 @@ final class Invoice extends AggregateRoot
             issuedAt: $now->format(\DateTimeInterface::ATOM),
             processingRule: $this->frozenRule->value,
         ));
+
+        if (null !== $paidAtIssue) {
+            $this->recordPayment($paidAtIssue, $now);
+
+            return;
+        }
 
         // A fully discounted or zero-amount invoice is settled the moment it is
         // issued: there is nothing left to collect.

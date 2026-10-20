@@ -45,27 +45,27 @@ final readonly class CheckoutAdmissionHandler
         $invoice  = $this->invoices->get($clinicId, InvoiceId::fromString($command->invoiceId));
         $now      = $this->clock->now();
 
+        $payment = $command->amountMinorUnits > 0
+            ? Payment::create(
+                id: PaymentId::fromString($this->uuidGenerator->generate()),
+                method: PaymentMethod::from($command->method),
+                amount: Money::fromMinorUnits($command->amountMinorUnits, $invoice->currency()),
+                receivedAt: $now,
+                reference: $command->reference,
+                recordedByUserId: $command->recordedByUserId,
+            )
+            : null;
+
         if ($invoice->status()->isEditable()) {
             $seller = $this->sellers->forClinic($command->clinicId);
 
             // Checked before the number is drawn: a refusal leaves the
             // sequence untouched and the draft open.
             $this->readiness->assertReady($invoice, $seller);
-            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $command->amountMinorUnits);
-        }
-
-        if ($command->amountMinorUnits > 0) {
-            $invoice->recordPayment(
-                Payment::create(
-                    id: PaymentId::fromString($this->uuidGenerator->generate()),
-                    method: PaymentMethod::from($command->method),
-                    amount: Money::fromMinorUnits($command->amountMinorUnits, $invoice->currency()),
-                    receivedAt: $now,
-                    reference: $command->reference,
-                    recordedByUserId: $command->recordedByUserId,
-                ),
-                $now,
-            );
+            // The payment is part of the issue: it decides the framework.
+            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $payment);
+        } elseif (null !== $payment) {
+            $invoice->recordPayment($payment, $now);
         }
 
         $this->invoices->save($invoice);

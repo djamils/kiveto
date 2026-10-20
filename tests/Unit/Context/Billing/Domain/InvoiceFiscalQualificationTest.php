@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Billing\Domain;
 
 use App\Context\Billing\Domain\Event\InvoiceIssued;
+use App\Context\Billing\Domain\Event\InvoicePaid;
+use App\Context\Billing\Domain\Event\PaymentRecorded;
 use App\Context\Billing\Domain\Exception\InvoiceCannotBeCancelledException;
 use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\Exception\IssuedProfessionalInvoiceCannotBeCancelledException;
@@ -19,10 +21,14 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
+use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\InvoiceTypeCode;
 use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\Payment;
+use App\Context\Billing\Domain\ValueObject\PaymentId;
+use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Billing\Domain\ValueObject\ProcessingRule;
 use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
@@ -79,7 +85,7 @@ final class InvoiceFiscalQualificationTest extends TestCase
     {
         $invoice = $this->draft($this->professional());
         $this->add($invoice, 4500, OperationCategory::SERVICES);
-        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now(), $invoice->totalGross()->minorUnits());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now(), $this->payment($invoice->totalGross()->minorUnits()));
 
         self::assertSame('S2', $invoice->framework()?->code());
         self::assertNull($invoice->paymentTerms()?->dueDate);
@@ -87,6 +93,42 @@ final class InvoiceFiscalQualificationTest extends TestCase
 
         $issued = array_values(array_filter($invoice->pullDomainEvents(), static fn (object $e): bool => $e instanceof InvoiceIssued));
         self::assertSame('B2B', $issued[0]->processingRule);
+    }
+
+    /**
+     * AC 17c: the payment taken at the desk is recorded with the issue — the
+     * framework and the amount paid are the same fact.
+     */
+    public function testThePaymentTakenAtIssueIsRecordedWithIt(): void
+    {
+        $invoice = $this->draft($this->professional());
+        $this->add($invoice, 4500, OperationCategory::SERVICES);
+        $this->add($invoice, 1290, OperationCategory::GOODS);
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now(), $this->payment($invoice->totalGross()->minorUnits()));
+
+        self::assertSame('M2', $invoice->framework()?->code());
+        self::assertSame(InvoiceStatus::PAID, $invoice->status());
+        self::assertSame($invoice->totalGross()->minorUnits(), $invoice->amountPaid()->minorUnits());
+        self::assertCount(1, $invoice->payments());
+        self::assertSame(
+            [InvoiceIssued::class, PaymentRecorded::class, InvoicePaid::class],
+            array_values(array_filter(
+                array_map(static fn (object $event): string => $event::class, $invoice->pullDomainEvents()),
+                static fn (string $event): bool => \in_array($event, [InvoiceIssued::class, PaymentRecorded::class, InvoicePaid::class], true),
+            )),
+        );
+    }
+
+    public function testAPartPaidAtIssueLeavesTheInvoiceToPay(): void
+    {
+        $invoice = $this->draft($this->professional());
+        $this->add($invoice, 4500, OperationCategory::SERVICES);
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now(), $this->payment(1000));
+
+        self::assertSame('S1', $invoice->framework()?->code());
+        self::assertSame(InvoiceStatus::PARTIALLY_PAID, $invoice->status());
+        self::assertSame(1000, $invoice->amountPaid()->minorUnits());
+        self::assertSame('Paiement à 30 jours', $invoice->paymentTerms()?->note);
     }
 
     public function testGoodsLeftToPayAreFramedB1WithADueDate(): void
@@ -106,7 +148,7 @@ final class InvoiceFiscalQualificationTest extends TestCase
     {
         $invoice = $this->draft($this->professional());
         $this->add($invoice, 6499, OperationCategory::GOODS);
-        $invoice->issue(InvoiceNumber::of(2026, 2), SellerIdentities::complete(null), $this->now(), 100);
+        $invoice->issue(InvoiceNumber::of(2026, 2), SellerIdentities::complete(null), $this->now(), $this->payment(100));
 
         self::assertSame('B1', $invoice->framework()?->code());
         self::assertSame('Paiement à 30 jours', $invoice->paymentTerms()?->note);
@@ -117,7 +159,7 @@ final class InvoiceFiscalQualificationTest extends TestCase
         $invoice = $this->draft($this->professional());
         $this->add($invoice, 4500, OperationCategory::SERVICES);
         $this->add($invoice, 1290, OperationCategory::GOODS);
-        $invoice->issue(InvoiceNumber::of(2026, 3), SellerIdentities::complete(), $this->now(), $invoice->totalGross()->minorUnits());
+        $invoice->issue(InvoiceNumber::of(2026, 3), SellerIdentities::complete(), $this->now(), $this->payment($invoice->totalGross()->minorUnits()));
 
         self::assertSame('M2', $invoice->framework()?->code());
     }
@@ -272,6 +314,17 @@ final class InvoiceFiscalQualificationTest extends TestCase
             operationCategory: $nature,
             source: InvoiceLineSource::MANUAL,
         ), $this->now());
+    }
+
+    private function payment(int $amount): Payment
+    {
+        return Payment::create(
+            id: PaymentId::fromString('01960000-0000-7000-8000-0000000fa0f1'),
+            method: PaymentMethod::CARD,
+            amount: Money::fromMinorUnits($amount, CurrencyCode::fromString('EUR')),
+            receivedAt: $this->now(),
+            reference: null,
+        );
     }
 
     private function now(): \DateTimeImmutable

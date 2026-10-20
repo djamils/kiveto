@@ -447,6 +447,7 @@ final class DeskCommandHandlersTest extends TestCase
 
     /**
      * AC 14: a new professional with its address is created and invoiced B2B in one step.
+     * AC 17c: paid at the desk, it is framed « already paid » with its whole total paid.
      */
     public function testANewProfessionalWithItsAddressIsInvoicedB2bInOneStep(): void
     {
@@ -477,6 +478,8 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertSame(ProcessingRule::B2B, $saved->processingRule());
         self::assertSame('B2', $saved->framework()?->code());
         self::assertSame(InvoiceStatus::PAID, $saved->status());
+        self::assertCount(1, $saved->payments());
+        self::assertSame($saved->totalGross()->minorUnits(), $saved->amountPaid()->minorUnits());
     }
 
     public function testANewProfessionalWithoutAnAddressIsRefusedBeforeNumbering(): void

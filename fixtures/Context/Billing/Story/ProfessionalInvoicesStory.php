@@ -89,20 +89,15 @@ final class ProfessionalInvoicesStory extends Story
         $at      = $invoice->createdAt();
         $clinic  = ClinicId::fromString(ClinicDataStory::INDEPENDENT_CLINIC_ID);
         $seller  = $this->sellers->forClinic($clinic->toString());
-        $total   = $invoice->totalGross()->minorUnits();
 
         new ElectronicInvoiceReadiness()->assertReady($invoice, $seller);
-        $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $seller, $at, $paid ? $total : 0);
-
-        if ($paid) {
-            $invoice->recordPayment(Payment::create(
-                id: PaymentId::fromString(Uuid::v7()->toRfc4122()),
-                method: PaymentMethod::TRANSFER,
-                amount: $invoice->balanceDue(),
-                receivedAt: $at,
-                reference: null,
-            ), $at);
-        }
+        $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $seller, $at, $paid ? Payment::create(
+            id: PaymentId::fromString(Uuid::v7()->toRfc4122()),
+            method: PaymentMethod::TRANSFER,
+            amount: $invoice->totalGross(),
+            receivedAt: $at,
+            reference: null,
+        ) : null);
 
         $this->invoices->save($invoice);
 

@@ -129,6 +129,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         self::assertSame(2000, $invoice->amountPaid()->minorUnits());
         self::assertSame('CHQ-1', $invoice->payments()[0]->reference());
         self::assertSame(InvoiceStatus::PARTIALLY_PAID, $invoice->status());
+        self::assertSame('1', mb_substr((string) $invoice->framework()?->code(), 1));
     }
 
     public function testAnUnknownPaymentMethodIsRejected(): void
@@ -378,6 +379,9 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         self::assertSame(InvoiceStatus::PAID, $invoice->status());
         self::assertSame('FAC-2026-000005', $invoice->number()?->toString());
+        // Paid in full with the issue: framed « already paid ».
+        self::assertSame('2', mb_substr((string) $invoice->framework()?->code(), 1));
+        self::assertCount(1, $invoice->payments());
     }
 
     public function testAPartialCheckoutLeavesTheVisitOpen(): void
@@ -468,9 +472,12 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::never())->method('closeAfterCheckout');
 
+        $uuids = $this->createStub(UuidGeneratorInterface::class);
+        $uuids->method('generate')->willReturn(self::NEW_ID);
+
         $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $this->createMock(UuidGeneratorInterface::class), $this->clock, $this->sellers()))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
     }

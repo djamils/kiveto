@@ -127,18 +127,15 @@ final readonly class RecordCounterSaleHandler
         // Checked before the number is drawn: nothing is created when a
         // professional's data is missing, the whole sale rolls back.
         $this->readiness->assertReady($invoice, $seller);
-        $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $invoice->totalGross()->minorUnits());
-
-        if ($invoice->balanceDue()->isPositive()) {
-            $invoice->recordPayment(Payment::create(
-                id: PaymentId::fromString($this->uuidGenerator->generate()),
-                method: $method,
-                amount: $invoice->balanceDue(),
-                receivedAt: $now,
-                reference: $command->reference,
-                recordedByUserId: $command->recordedByUserId,
-            ), $now);
-        }
+        // Paid in full at the desk, with the issue: framed S2, B2 or M2.
+        $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $seller, $now, $invoice->totalGross()->isPositive() ? Payment::create(
+            id: PaymentId::fromString($this->uuidGenerator->generate()),
+            method: $method,
+            amount: $invoice->totalGross(),
+            receivedAt: $now,
+            reference: $command->reference,
+            recordedByUserId: $command->recordedByUserId,
+        ) : null);
 
         $this->invoices->save($invoice);
 
