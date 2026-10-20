@@ -105,3 +105,5 @@ framework:
             App\Shared\Domain\Event\IntegrationEventInterface: async
             # Commands calling external services (batch senders override with a TransportNamesStamp)
             App\Shared\Application\Bus\ExternalApiCommandInterface: async_external
+            # Steps of the local e-invoicing platform simulator (dev / test / demo), delayed
+            App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
