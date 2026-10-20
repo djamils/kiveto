@@ -80,10 +80,59 @@ invoicing framework, payment terms and a local readiness check.
 | `RecordCounterSale` | Bills articles at the desk (to a client, a newcomer — a professional with its address — or nobody), checks readiness, issues and pays. |
 | `AddManualInvoiceLine` | Adds a line typed VAT included with a mandatory Taxation category. |
 | `IssueCreditNote` | Credits lines of an issued invoice (type 381, BT-25/26 of the invoice). |
-| `GetInvoiceDetails`, `SearchInvoices`, … | Read models built on the frozen totals. |
+| `GetInvoiceDetails`, `SearchInvoices`, … | Read models built on the frozen totals, with the transmission status of professional documents. |
+| `RequestDocumentTransmission` | Reloads an issued B2B invoice or credit note and hands it to ElectronicInvoicing. |
+| `RecordTransmissionStatus` | Projects a status reported by ElectronicInvoicing (newer sequence only). |
+| `ReconcileProfessionalTransmissions` | Hourly (schedule `billing`, minute 23): re-requests documents still « requested » after an hour; after 24 hours marks them `request_failed` and logs an error. |
+
+## Electronic invoicing bridge
+
+Professional (B2B) invoices and credit notes are transmitted to the clinic's
+approved platform by the `ElectronicInvoicing` system context
+(`src/System/ElectronicInvoicing`). Private (B2C) documents go nowhere
+(e-reporting comes later).
+
+1. **Issue.** `InvoiceIssued` / `CreditNoteIssued` carry the processing rule.
+   For B2B, `InvoiceIssuedIntegrationBridge` / `CreditNoteIssuedIntegrationBridge`
+   mark the projection `requested` and write a
+   `ProfessionalDocumentIssuedIntegrationEvent` to the outbox — in the issuing
+   transaction: a rollback leaves neither, and the issue never depends on the
+   transmission.
+2. **Request.** `OnProfessionalDocumentIssuedRequestTransmission` (async)
+   dispatches `RequestDocumentTransmission`, which goes through
+   `ElectronicInvoiceTransmitterInterface` → `CommandBusElectronicInvoiceTransmitter`
+   (`Infrastructure/Adapter/ElectronicInvoicing/`). `TransmittableInvoiceMapper`
+   builds the neutral document from the **stored, frozen** amounts: lines named
+   as on the PDF (BT-153), the VAT breakdown, allowances, the professional
+   mentions (PMD, PMT, AAB) and the seller's legal sentence (REG). Nothing else
+   of the visit leaves: not the animal, not the invoice notes.
+3. **Status.** `OnInvoiceTransmissionStatusChanged` receives
+   `InvoiceTransmissionStatusChangedIntegrationEvent` and dispatches
+   `RecordTransmissionStatus`; `DbalTransmissionStatusProjection` writes the
+   `transmission_*` columns of `billing__invoices` / `billing__credit_notes`
+   only when the event's sequence is greater than the stored one (duplicates and
+   late deliveries change nothing). Reads never call ElectronicInvoicing.
+
+States shown on the list and the sheet (`TransmissionBadge`, Presentation):
+`requested` « Transmission demandée », `request_failed` « Transmission non
+demandée » (Action requise), `pending_connection` « Plateforme non connectée »,
+`queued` / `submitting` « En attente d'envoi », `submitted` « Transmise »,
+`not_required` « Non transmis — facture d'origine annulée », `blocked` (one
+label per reason), then the French label of the latest lifecycle status
+(« Approuvée », « Refusée », « En litige », …; 200 `NON_TRANSMISE`
+« Déposée — client sans plateforme »). « Action requise » gives the next step:
+« Créez un avoir puis une nouvelle facture. » (210, 213, 220), « Contactez le
+client. » (207, 208), « Contactez le support Kiveto. » (221, 501, blocked,
+request failed).
+
+Billing imports from ElectronicInvoicing only its `Application\Command\…`,
+`Application\Query\…` and `Domain\Event\*IntegrationEvent`
+(`tests/Unit/Architecture/ElectronicInvoicingBoundaryTest.php`).
 
 ## Fixture examples
 
 Demo invoices are built by `fixtures/Context/Billing/Story/*`: visits of the
 demo admissions, counter sales, debts for the directory balances, and B2B
-invoices to the demo professionals.
+invoices to the demo professionals. `fixtures/System/ElectronicInvoicing/Story/ElectronicInvoicingDemoStory.php`
+transmits them through the local platform simulator (Paris connected, Lyon
+and Cassis not), so every transmission badge appears.

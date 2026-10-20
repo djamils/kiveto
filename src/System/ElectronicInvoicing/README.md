@@ -107,6 +107,15 @@ Console:
 - `app:electronic-invoicing:simulate <sellerSiren> <documentNumber> <statusCode> [--reason=CODE]`
   appends a status; `--advance-all` plays every pending step now.
 
+## Consumers
+
+Billing is the only consumer so far: it requests a transmission for every
+issued B2B invoice / credit note (`RequestInvoiceTransmission`) and projects
+`InvoiceTransmissionStatusChangedIntegrationEvent` onto its documents (see
+`src/Context/Billing/README.md`, « Electronic invoicing bridge »). The demo data
+(`ElectronicInvoicingDemoStory`) connects the Paris company to the simulator and
+plays every scenario.
+
 ## Formats
 
 - `CiiInvoiceRenderer` — CII D22B (`XMLWriter`), amounts from integer minor
