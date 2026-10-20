@@ -105,6 +105,7 @@ final readonly class BillingSheetBuilder
             'nature'  => self::nature($invoice->lines),
             'annul'   => null !== $invoice->cancelledAt ? ['d' => $invoice->cancelledAt->setTimezone($tz)->format('Y-m-d'), 'motif' => $invoice->cancellationReason] : null,
             'hist'    => $this->invoiceHistory($invoice, $team, $tz),
+            'tx'      => TransmissionBadge::of($invoice->transmission),
             'pdf'     => $this->urls->generate('clinic_invoice_pdf', ['invoiceId' => $invoice->id]),
             'actions' => $this->actions($invoice, $visit, $credited, $paid),
         ];
@@ -167,6 +168,7 @@ final readonly class BillingSheetBuilder
             'tot'     => $note->totalGrossMinorUnits,
             'nature'  => self::nature($note->lines),
             'hist'    => $hist,
+            'tx'      => TransmissionBadge::of($note->transmission),
             'pdf'     => $this->urls->generate('clinic_credit_note_pdf', ['creditNoteId' => $note->id]),
             'actions' => [],
         ];

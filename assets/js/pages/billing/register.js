@@ -196,12 +196,15 @@ export function init() {
   const anisHtml = o => (o.anis.length
     ? o.anis.map(a => `<span class="ani-e">${a.e}</span><span>${esc(a.n)}</span>`).join('<span> · </span>')
     : o.cpt === 'REFUSED' ? 'Comptoir · refus des coordonnées' : o.cpt === 'NEW_CLIENT' ? 'Comptoir · nouvelle fiche' : o.cpt ? 'Vente au comptoir' : o.cli.passage ? 'sans fiche client' : '—');
+  // The « Facture électronique » pill of a professional document; none for a private one.
+  const txPuce = tx => (tx ? `<span class="puce t-${esc(tx.tone)}">${esc(tx.text)}</span>` : '');
   const COLS = [
     { l: 'Date', html: o => `<div class="mdate"><b>${o.d === TODAY ? "Aujourd'hui" : dCourt(o.d)} · ${o.h}</b><span class="num-o">${esc(o.num || 'numéro à l\'encaissement')}</span></div>` },
     { l: 'Client', html: o => `<div class="pat"><div style="min-width:0"><b>${esc(o.cli.n)}</b><span class="anis">${anisHtml(o)}</span></div></div>` },
     { l: 'Objet', xo: 1, html: o => `<div class="objet">${esc(o.objet)}</div>` },
     { l: 'Praticien', xo: 1, html: o => (o.vet ? `<span class="prs"><span class="av" style="background:${esc(o.vet.c)}">${esc(o.vet.ini)}</span>${esc(o.vet.n)}</span>` : '<span class="prs" style="color:var(--encre-35)">—</span>') },
     { l: 'Statut', html: o => { const [c, l] = STATUTS[o.st]; return `<span class="puce ${c}">${l}</span>`; } },
+    { l: 'Facture électronique', xo: 1, html: o => txPuce(o.tx) },
     { l: 'Montant TTC', cls: 'num', html: o => `<div class="mtt${o.kind === 'av' ? ' neg' : ''}">${o.kind === 'av' ? '−' : ''}${fmtE(o.tot)}</div>` },
     { l: 'Reste dû', cls: 'num', html: o => {
       if (o.st === 'brou') return '<div class="du ok">en cours</div>';
@@ -314,7 +317,7 @@ export function init() {
     const o = ST.fiche;
     if (!o) return;
     const st = o.st, [sc, sl] = STATUTS[st], av = o.kind === 'av', A = o.actions || {}, c = o.cli;
-    $('fiHead').innerHTML = `<div class="fi-ico">${ICO.rx}</div><div class="fi-t"><b>${esc(c.n)}</b><span><span class="code">${esc(o.num || 'Brouillon')}</span> · <span class="puce ${sc}">${sl}</span></span></div><button type="button" class="fi-x" id="fiX" data-tip="Fermer · Échap" aria-label="Fermer">${ICO.x}</button>`;
+    $('fiHead').innerHTML = `<div class="fi-ico">${ICO.rx}</div><div class="fi-t"><b>${esc(c.n)}</b><span><span class="code">${esc(o.num || 'Brouillon')}</span> · <span class="puce ${sc}">${sl}</span>${o.tx ? ` · ${txPuce(o.tx)}` : ''}</span></div><button type="button" class="fi-x" id="fiX" data-tip="Fermer · Échap" aria-label="Fermer">${ICO.x}</button>`;
 
     let band = '';
     if (st === 'brou' && ST.ready && ST.ready.id === o.id) {
@@ -333,6 +336,12 @@ export function init() {
       band = `<div class="bandeau info">${ICO.info}<div><b>Entièrement créditée</b>Par ${o.avoirs.map(a => esc(a.num)).join(', ')} · la facture reste au registre avec son numéro.</div></div>`;
     } else if (st === 'ann') {
       band = `<div class="bandeau crit">${ICO.crit}<div><b>Annulée${o.annul ? ` le ${fmtD(o.annul.d)}` : ''}</b>${esc(o.annul?.motif || '')} · conservée au registre.</div></div>`;
+    }
+
+    // A transmission someone has to act on comes first: the platform is waiting on the clinic.
+    const txa = o.tx?.action;
+    if (txa) {
+      band = `<div class="bandeau crit">${ICO.crit}<div><b>${esc(txa.title)} · ${esc(o.tx.text)}</b>${txa.reason ? `${esc(txa.reason)}<br>` : ''}${esc(txa.next)}</div></div>${band}`;
     }
 
     const lien = (href, ico, b, s, goto) => `<a class="ocons" href="${esc(href)}"${goto ? ` data-goto="${esc(goto.id)}" data-kind="${goto.kind}"` : ''}><span class="e"${goto && goto.kind === 'av' ? ' style="background:#f5f3ff;color:#6d28d9"' : ''}>${ico}</span><span class="lt"><b>${b}</b><span>${s}</span></span><span class="lien">Ouvrir ${ICO.ext}</span></a>`;

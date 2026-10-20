@@ -38,6 +38,12 @@
 .fact .ani-e{font-size:.82rem;margin-right:2px}
 .fact .puce.s-av{background:#f5f3ff;color:#6d28d9}
 .fact .puce.s-annav{background:#f8fafc;color:var(--encre-35);box-shadow:inset 0 0 0 1px var(--trait)}
+/* Electronic invoicing: where a professional document stands with the approved platform */
+.fact .puce.t-wait{background:var(--color-warning-bg);color:var(--color-warning-text)}
+.fact .puce.t-sync{background:var(--color-info-bg);color:var(--color-info-text)}
+.fact .puce.t-ok{background:var(--color-success-bg);color:var(--color-success-text)}
+.fact .puce.t-info{background:var(--slate-50);color:var(--text-muted);box-shadow:inset 0 0 0 1px var(--border-medium)}
+.fact .puce.t-alert{background:var(--color-danger-bg);color:var(--color-danger-text)}
 .fact tr.annav td{color:var(--encre-35)}
 .fact .pagehead .phk{display:flex;align-items:center;margin-left:8px}
 .fact .pagehead .phk span{display:flex;align-items:baseline;gap:6px;padding:0 14px;border-left:1px solid var(--trait);font-size:.74rem;color:var(--encre-60);white-space:nowrap}
