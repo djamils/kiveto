@@ -63,6 +63,8 @@ final readonly class InvoiceDetails
         public ?string $paymentTermsNote = null,
         public array $professionalMentions = [],
         public ?string $invoicingFramework = null,
+        // Null for a private client's invoice: it is not transmitted.
+        public ?TransmissionView $transmission = null,
     ) {
     }
 }

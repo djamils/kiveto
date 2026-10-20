@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Query\GetCreditNoteDetails;
 
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
+use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
 
 /**
  * Everything the sheet and the printable credit note need.
@@ -45,6 +46,7 @@ final readonly class CreditNoteDetails
         public ?string $payerSiren = null,
         public ?string $payerVatNumber = null,
         public int $discountMinorUnits = 0,
+        public ?TransmissionView $transmission = null,
     ) {
     }
 }

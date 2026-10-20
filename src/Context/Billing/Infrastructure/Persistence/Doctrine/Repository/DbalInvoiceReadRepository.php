@@ -12,6 +12,7 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\CreditNoteSummaryVie
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\PaymentView;
+use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Domain\CreditNote;
@@ -144,6 +145,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             paymentTermsNote: $invoice->paymentTerms()?->note,
             professionalMentions: ProcessingRule::B2B === $invoice->processingRule() ? array_values(PaymentTerms::PROFESSIONAL_MENTIONS) : [],
             invoicingFramework: $invoice->framework()?->code(),
+            transmission: $this->transmissionOf('billing__invoices', $invoice->id()->toString()),
         );
     }
 
@@ -184,6 +186,7 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             payerSiren: $note->payer()->fiscalIdentity()?->siren()?->value(),
             payerVatNumber: $note->payer()->fiscalIdentity()?->vatNumber()?->value(),
             discountMinorUnits: $note->discountAmount()->minorUnits(),
+            transmission: $this->transmissionOf('billing__credit_notes', $note->id()->toString()),
         );
     }
 
@@ -209,7 +212,9 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         i.total_tax_basis AS total_net, i.total_tax, %s AS total_paid,
                         i.credited_minor_units AS credited, i.refunded_minor_units AS refunded,
                         NULL AS origin_bin, NULL AS origin_number, i.total_gross AS stored_gross, NULL AS reason,
-                        i.counter_sale_payer, COALESCE(i.issued_at, i.created_at) AS sort_date
+                        i.counter_sale_payer, COALESCE(i.issued_at, i.created_at) AS sort_date,
+                        i.transmission_state, i.transmission_block_reason, i.transmission_status_code, i.transmission_status_label,
+                        i.transmission_reason_code, i.transmission_reason, i.transmission_requires_action
                  FROM billing__invoices i WHERE %s",
                 $this->paidExpression(),
                 $invoices['where'],
@@ -225,7 +230,9 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         c.total_net_minor_units AS total_net, c.total_tax_minor_units AS total_tax,
                         c.refunded_minor_units AS total_paid, 0 AS credited, 0 AS refunded,
                         c.invoice_id AS origin_bin, c.invoice_number AS origin_number,
-                        c.total_gross_minor_units AS stored_gross, c.reason, NULL AS counter_sale_payer, c.issued_at AS sort_date
+                        c.total_gross_minor_units AS stored_gross, c.reason, NULL AS counter_sale_payer, c.issued_at AS sort_date,
+                        c.transmission_state, c.transmission_block_reason, c.transmission_status_code, c.transmission_status_label,
+                        c.transmission_reason_code, c.transmission_reason, c.transmission_requires_action
                  FROM billing__credit_notes c LEFT JOIN billing__invoices oi ON oi.id = c.invoice_id
                  WHERE %s",
                 $notes['where'],
@@ -253,7 +260,8 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
                         BIN_TO_UUID(d.admission_bin) AS admission_id, d.created_at, d.issued_at,
                         d.discount_kind, d.discount_value, d.total_net, d.total_tax, d.total_paid,
                         d.credited, d.refunded, BIN_TO_UUID(d.origin_bin) AS origin_id, d.origin_number, d.stored_gross, d.reason,
-                        d.counter_sale_payer
+                        d.counter_sale_payer, d.transmission_state, d.transmission_block_reason, d.transmission_status_code,
+                        d.transmission_status_label, d.transmission_reason_code, d.transmission_reason, d.transmission_requires_action
                  FROM (%s) d
                  ORDER BY %s %s, d.created_at DESC
                  LIMIT %d OFFSET %d',
@@ -444,7 +452,44 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
             originInvoiceNumber: RowAccessor::nullableString($row, 'origin_number'),
             reason: RowAccessor::nullableString($row, 'reason'),
             counterSalePayer: RowAccessor::nullableString($row, 'counter_sale_payer'),
+            transmission: self::transmission($row),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function transmission(array $row): ?TransmissionView
+    {
+        $state = RowAccessor::nullableString($row, 'transmission_state');
+
+        if (null === $state) {
+            return null;
+        }
+
+        $code = $row['transmission_status_code'] ?? null;
+
+        return new TransmissionView(
+            state: $state,
+            blockReason: RowAccessor::nullableString($row, 'transmission_block_reason'),
+            statusCode: is_numeric($code) ? (int) $code : null,
+            statusLabel: RowAccessor::nullableString($row, 'transmission_status_label'),
+            reasonCode: RowAccessor::nullableString($row, 'transmission_reason_code'),
+            reason: RowAccessor::nullableString($row, 'transmission_reason'),
+            requiresAction: \in_array($row['transmission_requires_action'] ?? 0, [1, '1', true], true),
+        );
+    }
+
+    private function transmissionOf(string $table, string $id): ?TransmissionView
+    {
+        $row = $this->connection->fetchAssociative(
+            \sprintf('SELECT transmission_state, transmission_block_reason, transmission_status_code, transmission_status_label,
+                            transmission_reason_code, transmission_reason, transmission_requires_action
+                     FROM %s WHERE id = :id', $table),
+            ['id' => Uuid::fromString($id)->toBinary()],
+        );
+
+        return false === $row ? null : self::transmission($row);
     }
 
     /**

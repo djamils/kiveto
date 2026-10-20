@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Billing\Application\Query\SearchInvoices;
 
+use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
+
 final readonly class InvoiceListRow
 {
     public function __construct(
@@ -30,6 +32,8 @@ final readonly class InvoiceListRow
         public ?string $reason = null,
         /** For a counter sale: CLIENT, NEW_CLIENT or REFUSED (see CounterSalePayer). */
         public ?string $counterSalePayer = null,
+        /** For a professional document: where its electronic transmission stands. */
+        public ?TransmissionView $transmission = null,
     ) {
     }
 }

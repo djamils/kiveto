@@ -633,6 +633,12 @@ services:
     App\Context\Billing\Application\Port\CounterCatalogInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Catalog\QueryBusCounterCatalog
 
+    App\Context\Billing\Application\Port\ElectronicInvoiceTransmitterInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\CommandBusElectronicInvoiceTransmitter
+
+    App\Context\Billing\Application\Port\TransmissionStatusProjectionInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalTransmissionStatusProjection
+
     App\Context\Billing\Application\Port\SellerIdentityProviderInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusSellerIdentityProvider
 
