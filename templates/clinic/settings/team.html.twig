@@ -66,13 +66,13 @@
 
   {# ── Invitation ── #}
   <div class="mveil" id="mInv"><div class="mbox" style="width:min(560px,94vw)">
-    <div class="mhead"><div class="mt"><b>Inviter un membre</b><span>Son accès est créé aussitôt : transmettez-lui son mot de passe provisoire.</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ x_svg|raw }}</button></div>
+    <div class="mhead"><div class="mt"><b>Inviter un membre</b><span>Un e-mail l'invite à choisir son mot de passe. Le lien est valable 72 heures.</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ x_svg|raw }}</button></div>
     <div class="mbody">
       <div class="g2"><div class="frow"><label class="flbl" for="ivP">Prénom <span class="req">*</span></label><input class="finput" id="ivP" autocomplete="off"></div><div class="frow"><label class="flbl" for="ivN">Nom <span class="req">*</span></label><input class="finput" id="ivN" autocomplete="off"></div></div>
       <div class="frow"><label class="flbl" for="ivE">E-mail <span class="req">*</span></label><input class="finput" id="ivE" type="email" autocomplete="off" placeholder="prenom@clinique.fr"></div>
       <div class="frow"><label class="flbl">Rôle</label><div class="chips" id="ivR"></div><p class="hint" id="ivRh"></p></div>
       <div class="frow" id="ivOrdreRow"><label class="flbl" for="ivO">N° d'inscription à l'Ordre <span class="req">*</span></label><input class="finput" id="ivO" placeholder="Ex. 24871" maxlength="32" autocomplete="off"><p class="hint">Requis pour prescrire : il figure sur chaque ordonnance.</p></div>
-      <div class="frow"><label class="flbl" for="ivM">Mot de passe provisoire</label><input class="finput" id="ivM" type="text" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Au moins 8 caractères"><p class="hint">Inutile s'il a déjà un compte Kiveto dans une autre clinique : il retrouve son mot de passe.</p></div>
+      <p class="hint">S'il a déjà un compte Kiveto dans une autre clinique, il rejoint l'équipe aussitôt, sans e-mail : il garde son mot de passe.</p>
       <div class="frow"><div class="swrow" style="border:none;padding:0"><span class="sw" id="ivAdm" role="switch" aria-checked="false" tabindex="0"></span><div><b>Gère la clinique</b><small>Équipe, facturation et paramètres, en plus de son rôle.</small></div></div></div>
       <div class="frow"><div class="swrow" style="border:none;padding:0"><span class="sw" id="ivTmp" role="switch" aria-checked="false" tabindex="0"></span><div><b>Accès temporaire</b><small>Remplacement, stage : l'accès se coupe seul à la date choisie.</small></div></div></div>
       <div class="frow" id="ivFinRow" style="display:none"><label class="flbl" for="ivFin">Fin de l'accès</label><input class="finput" type="date" id="ivFin" style="width:180px"></div>

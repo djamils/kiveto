@@ -285,6 +285,9 @@ services:
     App\Context\Clinic\Application\Port\UserSearchForOnboardingInterface:
         class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\IdentityAccessUserSearchAdapter
 
+    App\Context\Clinic\Application\Port\InvitationStatusReaderInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\QueryBusInvitationStatusReader
+
     App\Context\Clinic\Domain\Staff\Repository\StaffProfileRepositoryInterface:
         class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineStaffProfileRepository
 
