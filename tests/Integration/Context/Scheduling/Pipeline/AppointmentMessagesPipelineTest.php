@@ -25,6 +25,7 @@ use App\System\Notification\Domain\Message\OutboundMessage;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
 use App\Tests\Support\MessengerDrain;
 use App\Tests\Unit\Context\Scheduling\Support\Appointments;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Zenstruck\Foundry\Test\Factories;
@@ -84,6 +85,41 @@ final class AppointmentMessagesPipelineTest extends KernelTestCase
         $cancellation = $this->message('appointment:' . Appointments::ID . ':cancellation:2');
         self::assertSame('Rendez-vous annulé — votre animal, mardi 5 mars à 9h30', $cancellation->content()?->subject);
         self::assertStringContainsString("METHOD:CANCEL\r\n", $this->files()->read($cancellation->attachments()[0]->storageKey));
+    }
+
+    public function testEveryAppointmentChangeQueuesTheSyncTwoMinutesLater(): void
+    {
+        $this->commandBus()->dispatch(new CancelAppointment(Appointments::ID, Appointments::CLINIC));
+
+        $delays = $this->connection()->fetchFirstColumn(
+            "SELECT TIMESTAMPDIFF(SECOND, created_at, available_at) FROM shared__messenger_messages WHERE queue_name = 'default' AND body LIKE ?",
+            ['%SyncAppointmentNotification%'],
+        );
+        self::assertCount(1, $delays);
+        self::assertSame(120, is_numeric($delays[0]) ? (int) $delays[0] : null);
+    }
+
+    public function testTheDeathOfTheAnimalCancelsWithoutAMessage(): void
+    {
+        $this->syncNow();
+        $this->message('appointment:' . Appointments::ID . ':confirmation:1');
+
+        // AC 18: DeclareAnimalDeathController cancels with notifyClient: false.
+        $this->commandBus()->dispatch(new CancelAppointment(Appointments::ID, Appointments::CLINIC, notifyClient: false));
+        $this->connection()->executeStatement("UPDATE shared__messenger_messages SET available_at = created_at WHERE queue_name = 'default'");
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $messages = self::getContainer()->get('test.' . OutboundMessageRepositoryInterface::class);
+        \assert($messages instanceof OutboundMessageRepositoryInterface);
+        self::assertNull($messages->findByIdempotencyKey(IdempotencyKey::fromString('appointment:' . Appointments::ID . ':cancellation:2')));
+    }
+
+    private function connection(): Connection
+    {
+        $connection = self::getContainer()->get('doctrine.dbal.default_connection');
+        \assert($connection instanceof Connection);
+
+        return $connection;
     }
 
     /** The debounced sync, its delay elapsed. */
