@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\Billing;
 
+use App\Context\Billing\Application\Port\ClientContact;
+use App\Context\Billing\Application\Port\ClientContactInterface;
+use App\Context\Billing\Application\Port\DeliveryStatus;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\CreditNoteDetails;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\GetCreditNoteDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\CreditNoteSummaryView;
@@ -11,6 +14,9 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\PaymentView;
+use App\Context\Billing\Application\Query\ListInvoiceDispatches\InvoiceDispatchHistory;
+use App\Context\Billing\Application\Query\ListInvoiceDispatches\InvoiceDispatchView;
+use App\Context\Billing\Application\Query\ListInvoiceDispatches\ListInvoiceDispatches;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Presentation\Twig\PhoneFormatRuntime;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -34,6 +40,7 @@ final readonly class BillingSheetBuilder
         private UrlGeneratorInterface $urls,
         private CsrfTokenManagerInterface $csrf,
         private PhoneFormatRuntime $phones,
+        private ClientContactInterface $contacts,
     ) {
     }
 
@@ -63,7 +70,10 @@ final readonly class BillingSheetBuilder
             $credited = [...$credited, ...$note->creditedLineIds];
         }
 
-        $paid = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
+        $paid       = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
+        $dispatches = $this->queryBus->ask(new ListInvoiceDispatches($clinicId, $invoiceId));
+        \assert($dispatches instanceof InvoiceDispatchHistory);
+        $contact = null !== $invoice->payerClientId ? $this->contacts->contactOf($clinicId, $invoice->payerClientId) : null;
 
         return [
             'id'     => $invoice->id,
@@ -95,19 +105,20 @@ final readonly class BillingSheetBuilder
                 'ht'  => $rate['netMinorUnits'],
                 'tva' => $rate['taxMinorUnits'],
             ], $invoice->taxBreakdown),
-            'remise'  => $invoice->discountMinorUnits > 0 ? ['m' => $invoice->discountMinorUnits, 'motif' => $invoice->discountReason] : null,
-            'tot'     => $invoice->totalGrossMinorUnits,
-            'paye'    => max(0, $paid),
-            'credite' => $invoice->creditedMinorUnits,
-            'du'      => max(0, $invoice->balanceDueMinorUnits),
-            'credit'  => max(0, -$invoice->balanceDueMinorUnits),
-            'pays'    => array_map(fn (PaymentView $payment): array => $this->payment($payment, $team, $tz), $invoice->payments),
-            'nature'  => self::nature($invoice->lines),
-            'annul'   => null !== $invoice->cancelledAt ? ['d' => $invoice->cancelledAt->setTimezone($tz)->format('Y-m-d'), 'motif' => $invoice->cancellationReason] : null,
-            'hist'    => $this->invoiceHistory($invoice, $team, $tz),
-            'tx'      => TransmissionBadge::of($invoice->transmission),
-            'pdf'     => $this->urls->generate('clinic_invoice_pdf', ['invoiceId' => $invoice->id]),
-            'actions' => $this->actions($invoice, $visit, $credited, $paid),
+            'remise'   => $invoice->discountMinorUnits > 0 ? ['m' => $invoice->discountMinorUnits, 'motif' => $invoice->discountReason] : null,
+            'tot'      => $invoice->totalGrossMinorUnits,
+            'paye'     => max(0, $paid),
+            'credite'  => $invoice->creditedMinorUnits,
+            'du'       => max(0, $invoice->balanceDueMinorUnits),
+            'credit'   => max(0, -$invoice->balanceDueMinorUnits),
+            'pays'     => array_map(fn (PaymentView $payment): array => $this->payment($payment, $team, $tz), $invoice->payments),
+            'nature'   => self::nature($invoice->lines),
+            'annul'    => null !== $invoice->cancelledAt ? ['d' => $invoice->cancelledAt->setTimezone($tz)->format('Y-m-d'), 'motif' => $invoice->cancellationReason] : null,
+            'hist'     => $this->invoiceHistory($invoice, $dispatches, $team, $tz),
+            'relances' => $dispatches->reminderCount,
+            'tx'       => TransmissionBadge::of($invoice->transmission),
+            'pdf'      => $this->urls->generate('clinic_invoice_pdf', ['invoiceId' => $invoice->id]),
+            'actions'  => $this->actions($invoice, $visit, $credited, $paid, $contact, $dispatches),
         ];
     }
 
@@ -333,7 +344,7 @@ final readonly class BillingSheetBuilder
      *
      * @return list<array{d: string, h: string, t: string, s: string}>
      */
-    private function invoiceHistory(InvoiceDetails $invoice, array $team, \DateTimeZone $tz): array
+    private function invoiceHistory(InvoiceDetails $invoice, InvoiceDispatchHistory $dispatches, array $team, \DateTimeZone $tz): array
     {
         $entry = static fn (\DateTimeImmutable $at, string $t, string $s): array => [
             'd' => $at->setTimezone($tz)->format('Y-m-d'),
@@ -375,20 +386,44 @@ final readonly class BillingSheetBuilder
             $hist[] = $entry($invoice->cancelledAt, 'Annulée', $invoice->cancellationReason ?? '');
         }
 
+        foreach ($dispatches->dispatches as $dispatch) {
+            $hist[] = $entry($dispatch->at, self::dispatchLine($dispatch, $tz), null !== $dispatch->authorUserId ? ($team[$dispatch->authorUserId]['n'] ?? '') : '');
+        }
+
         usort($hist, static fn (array $a, array $b): int => ($a['d'] . $a['h']) <=> ($b['d'] . $b['h']));
 
         return $hist;
     }
 
     /**
-     * The acts still open on the invoice, each with its form target.
+     * « Envoi par e-mail le 26/10/2026 · Délivré », « Relance le 26/10/2026 ·
+     * E-mail Délivré · SMS En cours »: what was sent and where it stands now.
+     */
+    private static function dispatchLine(InvoiceDispatchView $dispatch, \DateTimeZone $tz): string
+    {
+        $day = $dispatch->at->setTimezone($tz)->format('d/m/Y');
+
+        if (InvoiceDispatchView::SEND === $dispatch->kind) {
+            return \sprintf('Envoi par e-mail le %s · %s', $day, $dispatch->deliveries[0]->label ?? 'En cours');
+        }
+
+        $statuses = [] !== $dispatch->deliveries
+            ? array_map(static fn (DeliveryStatus $d): string => (ClientContact::SMS === $d->channel ? 'SMS ' : 'E-mail ') . $d->label, $dispatch->deliveries)
+            : ['En cours'];
+
+        return \sprintf('Relance le %s · %s', $day, implode(' · ', $statuses));
+    }
+
+    /**
+     * The acts still open on the invoice, each with its form target. « Envoyer »
+     * and « Relancer » are drawn disabled with the reason when they cannot go.
      *
      * @param array{consultationId: ?string}|null $visit
      * @param list<string>                        $credited
      *
      * @return array<string, mixed>
      */
-    private function actions(InvoiceDetails $invoice, ?array $visit, array $credited, int $paid): array
+    private function actions(InvoiceDetails $invoice, ?array $visit, array $credited, int $paid, ?ClientContact $contact, InvoiceDispatchHistory $dispatches): array
     {
         $form = fn (string $route, array $params, string $intent): array => [
             'url'   => $this->urls->generate($route, $params),
@@ -409,6 +444,21 @@ final readonly class BillingSheetBuilder
 
         if (\in_array($invoice->status, ['ISSUED', 'PARTIALLY_PAID'], true) && $invoice->balanceDueMinorUnits > 0) {
             $actions['pay'] = $form('clinic_invoice_pay', ['invoiceId' => $invoice->id], 'invoice_pay_' . $invoice->id);
+
+            $reachable         = null !== $contact && [] !== $contact->reminderChannels();
+            $actions['remind'] = $form('clinic_invoices_remind', [], 'billing_invoices_remind') + [
+                'tip' => match (true) {
+                    !$reachable                => 'Aucune adresse e-mail ni mobile pour ce client',
+                    $dispatches->remindedToday => 'Déjà relancée aujourd\'hui',
+                    default                    => null,
+                },
+            ];
+        }
+
+        if (\in_array($invoice->status, ['ISSUED', 'PARTIALLY_PAID', 'PAID'], true)) {
+            $actions['send'] = $form('clinic_invoices_send', [], 'billing_invoices_send') + [
+                'tip' => null !== $contact && $contact->canReceiveInvoice() ? null : 'Aucune adresse e-mail pour ce client',
+            ];
         }
 
         $creditable = \in_array($invoice->status, ['ISSUED', 'PARTIALLY_PAID', 'PAID'], true)

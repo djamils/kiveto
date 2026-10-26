@@ -755,6 +755,9 @@ services:
     App\Context\Billing\Application\Port\SmsSegmentEstimatorInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Notification\QueryBusSmsSegmentEstimator
 
+    App\Context\Billing\Application\Port\DeliveryStatusReaderInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\QueryBusDeliveryStatusReader
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================

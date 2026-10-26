@@ -15,9 +15,12 @@
  * Payments, checkouts, credit notes and counter sales post #factForm to their
  * single-action controllers, which come back to the document with a toast.
  * The cheque remittance and the cash closing are posted in the background.
- * Printing and downloading open the PDFs the server renders. What the clinic
- * cannot do yet (e-mail, reminders, instalments, accounting export,
- * e-invoicing) is drawn but disabled.
+ * Printing and downloading open the PDFs the server renders. « Envoyer »
+ * (sheet and bulk) and « Relancer » (sheet, bulk, « Relancer tous les
+ * impayés » after a confirmation with the clients and SMS counts) are
+ * posted in the background: the server only queues them and answers with
+ * the toast. What the clinic cannot do yet (instalments, accounting export,
+ * e-invoicing, sending a credit note) is drawn but disabled.
  *
  * Listeners are bound in init() with one AbortSignal and released in cleanup().
  */
@@ -73,7 +76,8 @@ const METHOD = { cb: 'CARD', esp: 'CASH', chq: 'CHECK', vir: 'TRANSFER' };
 const STATUTS = { brou: ['s-brou', 'Brouillon'], emise: ['s-deliv', 'Émise'], annav: ['s-annav', 'Annulée par avoir'], ann: ['s-annav', 'Annulée'], av: ['s-av', 'Avoir'] };
 const FILTRE_STATUTS = [['brou', 'Brouillon'], ['emise', 'Émise'], ['annav', 'Annulée par avoir'], ['av', 'Avoir']];
 const MOTIFS_AV = ['Erreur de facturation', 'Retour produit', 'Geste commercial', 'Prestation non réalisée'];
-const ENVOI_TIP = 'L\'envoi par e-mail et SMS n\'est pas encore disponible';
+const AVOIR_TIP = 'L\'envoi d\'un avoir par e-mail n\'est pas encore disponible';
+const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 export function init() {
   const root = document.querySelector('.fact[data-payload]');
@@ -258,6 +262,13 @@ export function init() {
     $('bulk').classList.toggle('on', n > 0);
     $('bulkN').textContent = n;
     $('bulkL').textContent = n > 1 ? 'sélectionnées' : 'sélectionnée';
+    // What the selection can be sent / reminded: the server re-checks and says what it left out.
+    const rows = [...ST.sel].map(id => ST.known.get(id)).filter(o => o && o.kind === 'fac' && o.st === 'emise');
+    const envoi = rows.some(o => o.mail), relance = rows.some(o => o.du > 0 && o.rel);
+    $('bkSend').disabled = !envoi;
+    $('bkSend').dataset.tip = envoi ? 'Envoyer par e-mail les factures émises' : 'Aucune facture émise avec une adresse e-mail dans la sélection';
+    $('bkRel').disabled = !relance;
+    $('bkRel').dataset.tip = relance ? 'Relancer les factures impayées' : 'Aucune facture impayée à relancer dans la sélection';
   }
 
   /* Drafts are not invoices yet: the bulk bar leaves them out. */
@@ -336,7 +347,8 @@ export function init() {
         : `<div class="bandeau info">${ICO.info}<div><b>Prête à encaisser</b>La facture reprend le plan de traitement de la visite ; elle prend son numéro à l'encaissement.</div></div>`;
     } else if (!av && o.du) {
       const j = o.retard || ST.known.get(o.id)?.retard || 0;
-      band = `<div class="dueband${j ? ' retard' : ''}"><div class="lt"><small>${j ? `Reste dû · en retard de ${j} jours` : 'Reste dû'}</small><b>${fmtE(o.du)}</b></div>${j ? `<button type="button" class="btn" id="fiRel" disabled data-tip="${ENVOI_TIP}">Relancer</button>` : ''}</div>`;
+      const R = A.remind, rel = o.relances ? ` · relancée ${o.relances} fois` : '';
+      band = `<div class="dueband${j ? ' retard' : ''}"><div class="lt"><small>${j ? `Reste dû · en retard de ${j} jours` : 'Reste dû'}${rel}</small><b>${fmtE(o.du)}</b></div>${R ? `<button type="button" class="btn" id="fiRel"${R.tip ? ` disabled data-tip="${esc(R.tip)}"` : ''}>Relancer</button>` : ''}</div>`;
     } else if (!av && st === 'emise') {
       const last = o.pays.at(-1);
       band = `<div class="paidband">${ICO.ok}<span><b>Soldée</b>${last ? ` · le ${fmtD(last.d)} par ${esc(last.l.toLowerCase())}` : ''}${o.credit ? ` · ${fmtE(o.credit)} en avoir client` : ''}</span></div>`;
@@ -387,7 +399,9 @@ export function init() {
     pp.style.transform = `scale(${k})`;
     th.style.height = (pp.offsetHeight * k + 28) + 'px';
 
-    const envoi = `<button type="button" class="btn" disabled data-tip="${ENVOI_TIP}">Envoyer</button>`;
+    const envoi = A.send
+      ? `<button type="button" class="btn" id="fiSend"${A.send.tip ? ` disabled data-tip="${esc(A.send.tip)}"` : ''}>Envoyer</button>`
+      : `<button type="button" class="btn" disabled data-tip="${AVOIR_TIP}">Envoyer</button>`;
     if (st === 'brou') {
       $('fiFoot').innerHTML = `<span class="sp"></span>${A.consultation ? `<a class="btn${A.checkout ? '' : ' primaire'}" href="${esc(A.consultation)}">Reprendre dans la consultation</a>` : ''}${A.checkout ? `<button type="button" class="btn primaire" id="fiPay2"${A.checkout.hasLines ? '' : ' disabled data-tip="Aucun acte à encaisser"'}>Encaisser ${fmtE(o.du)}</button>` : ''}`;
     } else if (av) {
@@ -416,6 +430,60 @@ export function init() {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'L\'opération n\'a pas pu être enregistrée');
     return d;
+  }
+
+  /* « Envoyer » / « Relancer »: queued by the server, which answers with the toast. */
+  async function posterIds(url, token, ids, extra = {}) {
+    const body = new FormData();
+    body.append('_token', token);
+    ids.forEach(id => body.append('ids[]', id));
+    Object.entries(extra).forEach(([k, v]) => body.append(k, v));
+    const r = await fetch(url, { method: 'POST', body, headers: { Accept: 'application/json' }, signal });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'L\'opération n\'a pas pu être enregistrée');
+    return d;
+  }
+  async function envoyer(ids) {
+    try {
+      const d = await posterIds(P.urls.send, P.tokens.send, ids);
+      showToast(d.message, d.queued.length ? '' : 'warning');
+      if (ST.fiche && ids.includes(ST.fiche.id)) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast(e.message, 'danger');
+    }
+  }
+  async function relancer(ids, all = false) {
+    try {
+      const d = await posterIds(P.urls.remind, P.tokens.remind, ids, all ? { all: '1' } : {});
+      fermerModales();
+      showToast(d.message, d.queued.length ? '' : 'warning');
+      if (ST.fiche && (all || ids.includes(ST.fiche.id))) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast(e.message, 'danger');
+    }
+  }
+
+  /* The confirmation of a bulk reminder: « N clients · environ S SMS ». */
+  let REL = null;
+  async function confirmerRelance(ids, all = false) {
+    const q = new URLSearchParams();
+    if (all) q.set('all', '1'); else ids.forEach(id => q.append('ids[]', id));
+    try {
+      const r = await fetch(`${P.urls.remindPrev}?${q}`, { headers: { Accept: 'application/json' }, signal });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = await r.json();
+      if (!d.invoices) { showToast(all ? 'Aucune facture impayée à relancer aujourd\'hui' : 'Aucune facture de la sélection à relancer aujourd\'hui', 'warning'); return; }
+      REL = { ids, all };
+      $('relT').textContent = all ? 'Relancer tous les impayés' : 'Relancer la sélection';
+      $('relS').textContent = `${plur(d.invoices, 'facture')} impayée${d.invoices > 1 ? 's' : ''}`;
+      $('relN').textContent = `${plur(d.clients, 'client')} · ${d.segments ? `environ ${d.segments} SMS` : 'aucun SMS'}`;
+      $('relX').textContent = d.skipped ? `${plur(d.skipped, 'facture')} laissée${d.skipped > 1 ? 's' : ''} de côté : déjà relancée aujourd'hui, réglée ou client sans coordonnées.` : '';
+      $('relOk').textContent = `Relancer ${plur(d.invoices, 'facture')}`;
+      $('relOk').disabled = false;
+      ouvrirModale('mRel');
+    } catch (e) {
+      if (e.name !== 'AbortError') showToast('Les impayés n\'ont pas pu être comptés', 'danger');
+    }
   }
 
   /* ═════════ Windows ═════════ */
@@ -886,6 +954,8 @@ export function init() {
     if (g) { e.preventDefault(); ouvrirFiche(g.dataset.goto, g.dataset.kind); return; }
     if (e.target.closest('#fiThumb') && ST.fiche) ouvrirApercu(ST.fiche);
     if (e.target.closest('[data-tx-avoir]') && ST.fiche) ouvrirAvoir(ST.fiche);
+    const rel = e.target.closest('#fiRel');
+    if (rel && !rel.disabled && ST.fiche) relancer([ST.fiche.id]);
   }, { signal });
   $('fiHead').addEventListener('click', e => { if (e.target.closest('#fiX')) fermerFiche(); }, { signal });
   $('fiFoot').addEventListener('click', e => {
@@ -896,6 +966,7 @@ export function init() {
     if (b.id === 'fiPay2') ouvrirPay(o);
     if (b.id === 'fiPrint') ouvrirApercu(o);
     if (b.id === 'fiAv') ouvrirAvoir(o);
+    if (b.id === 'fiSend') envoyer([o.id]);
   }, { signal });
 
   $('pvPrint').addEventListener('click', () => {
@@ -1103,6 +1174,14 @@ export function init() {
   }, { signal });
 
   $('bkX').addEventListener('click', () => { ST.sel.clear(); rendre(); }, { signal });
+  $('bkSend').addEventListener('click', () => { if (!$('bkSend').disabled) envoyer([...ST.sel]); }, { signal });
+  $('bkRel').addEventListener('click', () => { if (!$('bkRel').disabled) confirmerRelance([...ST.sel]); }, { signal });
+  $('btnRelTous').addEventListener('click', () => confirmerRelance([], true), { signal });
+  $('relOk').addEventListener('click', () => {
+    if (!REL || $('relOk').disabled) return;
+    $('relOk').disabled = true;
+    relancer(REL.ids, REL.all);
+  }, { signal });
   $('bkPrint').addEventListener('click', () => {
     const s = selDocs();
     if (!s.n) { showToast('Rien à imprimer : les brouillons ne sont pas encore des factures'); return; }
