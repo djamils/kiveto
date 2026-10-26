@@ -11,12 +11,11 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackageCode;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -43,9 +42,10 @@ final class CreatePackageHandler
         $fixedPrice = null;
 
         if (null !== $command->fixedPriceMinorUnits && null !== $command->fixedPriceCurrency) {
-            $fixedPrice = Money::fromMinorUnits(
+            $fixedPrice = CatalogPrice::fromPrimitives(
                 $command->fixedPriceMinorUnits,
-                CurrencyCode::fromString($command->fixedPriceCurrency),
+                $command->fixedPriceCurrency,
+                $command->fixedPriceMode ?? '',
             );
         }
 

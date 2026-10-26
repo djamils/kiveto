@@ -42,6 +42,7 @@ final readonly class ListBillableLinesForAdmissionHandler
                 unitPriceMinorUnits: $row['unitPriceMinorUnits'],
                 currency: $row['currency'],
                 taxCategoryCode: $row['taxCategoryCode'],
+                unitPriceMode: $row['unitPriceMode'],
             ),
             $rows,
         );

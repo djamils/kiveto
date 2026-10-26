@@ -12,6 +12,7 @@ final class TaxApplication
     private function __construct(
         private readonly TaxRegimeId $taxRegimeId,
         private readonly TaxCategoryCode $taxCategoryCode,
+        private readonly TaxCategoryNature $nature,
         private readonly AppliedTaxRate $appliedRate,
         private readonly Money $netAmount,
         private readonly Money $taxAmount,
@@ -26,6 +27,7 @@ final class TaxApplication
     public static function of(
         TaxRegimeId $taxRegimeId,
         TaxCategoryCode $taxCategoryCode,
+        TaxCategoryNature $nature,
         AppliedTaxRate $appliedRate,
         Money $netAmount,
         Money $taxAmount,
@@ -56,6 +58,7 @@ final class TaxApplication
         return new self(
             $taxRegimeId,
             $taxCategoryCode,
+            $nature,
             $appliedRate,
             $netAmount,
             $taxAmount,
@@ -75,6 +78,14 @@ final class TaxApplication
     public function taxCategoryCode(): TaxCategoryCode
     {
         return $this->taxCategoryCode;
+    }
+
+    /**
+     * Goods or services: what the category of the item supplies.
+     */
+    public function nature(): TaxCategoryNature
+    {
+        return $this->nature;
     }
 
     public function appliedRate(): AppliedTaxRate

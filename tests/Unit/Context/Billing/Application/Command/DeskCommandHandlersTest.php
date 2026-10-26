@@ -19,12 +19,15 @@ use App\Context\Billing\Application\Port\CounterArticleDto;
 use App\Context\Billing\Application\Port\CounterCatalogInterface;
 use App\Context\Billing\Application\Port\CounterClientRegistryInterface;
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
+use App\Context\Billing\Application\Port\PayerFiscalSnapshotDto;
 use App\Context\Billing\Application\Port\PayerSnapshotDto;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
 use App\Context\Billing\Application\Query\GetCashDesk\CashClosingView;
 use App\Context\Billing\Application\Query\GetCashDesk\ChequeView;
 use App\Context\Billing\Application\Query\GetCashDesk\TakingsView;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\CashClosing;
 use App\Context\Billing\Domain\ChequeDeposit;
 use App\Context\Billing\Domain\CreditNote;
@@ -37,11 +40,13 @@ use App\Context\Billing\Domain\Exception\InvalidCounterClientTaxProfileException
 use App\Context\Billing\Domain\Exception\InvalidCreditNoteException;
 use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
 use App\Context\Billing\Domain\Exception\InvalidPayerException;
+use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\CashClosingRepositoryInterface;
 use App\Context\Billing\Domain\Repository\ChequeDepositRepositoryInterface;
 use App\Context\Billing\Domain\Repository\CreditNoteRepositoryInterface;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\Service\CreditNoteCalculator;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
@@ -53,14 +58,21 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
+use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -122,7 +134,7 @@ final class DeskCommandHandlersTest extends TestCase
     {
         $invoice = $this->draft();
         $invoice->applyDiscount(Discount::percentage('10', null), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 9), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 9), SellerIdentities::complete(), $this->now());
 
         $saved = null;
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
@@ -136,7 +148,9 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertInstanceOf(CreditNote::class, $saved);
         self::assertSame(1800, $saved->totalNet()->minorUnits());
         self::assertSame(360, $saved->totalTax()->minorUnits());
-        self::assertSame(1800, $saved->lines()[0]->unitNetPrice()->minorUnits());
+        // The line keeps its frozen net; the discount is credited per rate.
+        self::assertSame(2000, $saved->lines()[0]->netAmount()->minorUnits());
+        self::assertSame(200, $saved->discountAmount()->minorUnits());
         self::assertNull($saved->refundMethod());
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
     }
@@ -145,23 +159,9 @@ final class DeskCommandHandlersTest extends TestCase
     {
         $invoice = $this->draft();
         $invoice->applyDiscount(Discount::percentage('33', null), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 9), $this->now());
-        $invoice->credit(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')), false, $this->now());
-
-        $previous = CreditNote::issue(
-            CreditNoteId::fromString('01960000-0000-7000-8000-00000000f0aa'),
-            ClinicId::fromString(self::CLINIC_ID),
-            InvoiceNumber::of(2026, 1, 'AV'),
-            InvoiceId::fromString(self::INVOICE_ID),
-            'FAC-2026-000009',
-            Payer::anonymous(),
-            [$this->line(self::LINE_B, 1000, 200, InvoiceLineSource::CREDIT, self::LINE_B)],
-            'Erreur',
-            null,
-            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
-            CurrencyCode::fromString('EUR'),
-            $this->now(),
-        );
+        $invoice->issue(InvoiceNumber::of(2026, 9), SellerIdentities::complete(), $this->now());
+        $previous = $this->previousNote($invoice, self::LINE_B, '01960000-0000-7000-8000-00000000f0aa');
+        $invoice->credit($previous->totalGross(), false, $this->now());
 
         $saved = null;
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
@@ -180,20 +180,7 @@ final class DeskCommandHandlersTest extends TestCase
     public function testALineIsCreditedOnce(): void
     {
         $invoice  = $this->issued();
-        $previous = CreditNote::issue(
-            CreditNoteId::fromString('01960000-0000-7000-8000-00000000f0ab'),
-            ClinicId::fromString(self::CLINIC_ID),
-            InvoiceNumber::of(2026, 1, 'AV'),
-            InvoiceId::fromString(self::INVOICE_ID),
-            'FAC-2026-000009',
-            Payer::anonymous(),
-            [$this->line(self::LINE_B, 2000, 400, InvoiceLineSource::CREDIT, self::LINE_B)],
-            'Erreur',
-            null,
-            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
-            CurrencyCode::fromString('EUR'),
-            $this->now(),
-        );
+        $previous = $this->previousNote($invoice, self::LINE_B, '01960000-0000-7000-8000-00000000f0ab');
 
         $notes = $this->createMock(CreditNoteRepositoryInterface::class);
         $notes->method('forInvoice')->willReturn([$previous]);
@@ -460,6 +447,65 @@ final class DeskCommandHandlersTest extends TestCase
         $this->saleHandler($this->createStub(InvoiceRepositoryInterface::class), $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CASH', newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491000000', taxProfile: $profile)));
     }
 
+    /**
+     * AC 14: a new professional with its address is created and invoiced B2B in one step.
+     * AC 17c: paid at the desk, it is framed « already paid » with its whole total paid.
+     */
+    public function testANewProfessionalWithItsAddressIsInvoicedB2bInOneStep(): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn($this->professionalSnapshot(['Chemin des Goudes'], '13008', 'Marseille'));
+
+        $registry = $this->createMock(CounterClientRegistryInterface::class);
+        $registry->expects(self::once())->method('register')->willReturn(self::CLIENT);
+
+        $saved    = null;
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->method('save')->willReturnCallback(static function (Invoice $invoice) use (&$saved): void {
+            $saved = $invoice;
+        });
+
+        $this->saleHandler($invoices, $payers, registry: $registry)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(
+            CounterSaleNewClient::MADAM,
+            'Rostand',
+            'Claire',
+            '0491000000',
+            taxProfile: new ClientTaxProfileInput('french_business', 'EARL Élevage des Calanques', '523456788', 'FR31523456788'),
+            street: 'Chemin des Goudes',
+            postalCode: '13008',
+            city: 'Marseille',
+        )));
+
+        self::assertInstanceOf(Invoice::class, $saved);
+        self::assertSame(ProcessingRule::B2B, $saved->processingRule());
+        self::assertSame('B2', $saved->framework()?->code());
+        self::assertSame(InvoiceStatus::PAID, $saved->status());
+        self::assertCount(1, $saved->payments());
+        self::assertSame($saved->totalGross()->minorUnits(), $saved->amountPaid()->minorUnits());
+    }
+
+    public function testANewProfessionalWithoutAnAddressIsRefusedBeforeNumbering(): void
+    {
+        $payers = $this->createMock(PayerDirectoryInterface::class);
+        $payers->method('forClient')->willReturn($this->professionalSnapshot([], null, null));
+
+        $invoices = $this->createMock(InvoiceRepositoryInterface::class);
+        $invoices->expects(self::never())->method('save');
+
+        try {
+            $this->saleHandler($invoices, $payers)(new RecordCounterSale(self::CLINIC_ID, null, [['articleId' => self::ARTICLE, 'quantity' => 1]], 'CARD', newClient: new CounterSaleNewClient(
+                CounterSaleNewClient::MADAM,
+                'Rostand',
+                'Claire',
+                '0491000000',
+                taxProfile: new ClientTaxProfileInput('french_business', 'EARL Élevage des Calanques', '523456788', 'FR31523456788'),
+            )));
+            self::fail('Expected the sale to be refused.');
+        } catch (InvoiceNotTransmissibleException $e) {
+            self::assertSame([ReadinessRequirement::BUYER_ADDRESS], $e->requirements);
+        }
+    }
+
     public function testANewcomerWithoutAPhoneHasNoInternationalNumber(): void
     {
         self::assertSame('', new CounterSaleNewClient('madam', 'Benali', 'Nadia')->internationalPhone());
@@ -687,6 +733,22 @@ final class DeskCommandHandlersTest extends TestCase
         self::assertFalse(new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Benali', 'Nadia')->isProfessional());
     }
 
+    /**
+     * @param list<string> $street
+     */
+    private function professionalSnapshot(array $street, ?string $postalCode, ?string $city): PayerSnapshotDto
+    {
+        return new PayerSnapshotDto(self::CLIENT, 'EARL Élevage des Calanques', [], 'Mme Claire Rostand', new PayerFiscalSnapshotDto(
+            'french_business',
+            'EARL Élevage des Calanques',
+            '523456788',
+            'FR31523456788',
+            $street,
+            $postalCode,
+            $city,
+        ));
+    }
+
     // ── Helpers ──
 
     private function creditHandler(Invoice $invoice, CreditNoteRepositoryInterface $notes): IssueCreditNoteHandler
@@ -697,7 +759,32 @@ final class DeskCommandHandlersTest extends TestCase
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('nextCreditNote')->willReturn(InvoiceNumber::of(2026, 2, 'AV'));
 
-        return new IssueCreditNoteHandler($invoices, $notes, $numbers, $this->uuids(), $this->clock());
+        return new IssueCreditNoteHandler($invoices, $notes, $numbers, $this->uuids(), $this->clock(), $this->events());
+    }
+
+    /**
+     * A credit note already issued against $invoice for one of its lines.
+     */
+    private function previousNote(Invoice $invoice, string $lineId, string $noteId): CreditNote
+    {
+        $line   = array_values(array_filter($invoice->lines(), static fn (InvoiceLine $l): bool => $l->id()->toString() === $lineId));
+        $credit = new CreditNoteCalculator()->credit($invoice, $line, [], fn (): InvoiceLineId => InvoiceLineId::fromString($this->uuids()->generate()));
+
+        return CreditNote::issue(
+            CreditNoteId::fromString($noteId),
+            ClinicId::fromString(self::CLINIC_ID),
+            InvoiceNumber::of(2026, 1, 'AV'),
+            InvoiceId::fromString(self::INVOICE_ID),
+            'FAC-2026-000009',
+            Payer::anonymous(),
+            $credit['lines'],
+            $credit['breakdown'],
+            'Erreur',
+            null,
+            Money::fromMinorUnits(0, CurrencyCode::fromString('EUR')),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        );
     }
 
     private function emptyNotes(): CreditNoteRepositoryInterface
@@ -717,16 +804,16 @@ final class DeskCommandHandlersTest extends TestCase
     ): RecordCounterSaleHandler {
         if (null === $catalog) {
             $catalog = $this->createMock(CounterCatalogInterface::class);
-            $catalog->method('article')->willReturn(new CounterArticleDto(self::ARTICLE, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', $unitPrice, 'EUR', 'veterinary.drug.companion'));
+            $catalog->method('article')->willReturn(new CounterArticleDto(self::ARTICLE, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', $unitPrice, 'EUR', 'veterinary.drug.companion', 'excl'));
         }
 
         $tax = $this->createMock(TaxResolverInterface::class);
-        $tax->method('resolve')->willReturnCallback(static fn (int $net): ResolvedTaxDto => new ResolvedTaxDto($net, (int) round($net * 0.2), $net + (int) round($net * 0.2), '20'));
+        $tax->method('resolve')->willReturn(new ResolvedTaxDto('20', OperationCategory::GOODS));
 
         $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
         $numbers->method('next')->willReturn(InvoiceNumber::of(2026, 10));
 
-        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, $tax, $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock());
+        return new RecordCounterSaleHandler($invoices, $numbers, $catalog, new InvoiceLineFactory($tax, $this->uuids()), $payers, $registry ?? $this->createStub(CounterClientRegistryInterface::class), $this->uuids(), $this->clock(), $this->sellers(), $this->events());
     }
 
     private function cheque(string $paymentId, int $amount): ChequeView
@@ -754,7 +841,7 @@ final class DeskCommandHandlersTest extends TestCase
     private function issued(): Invoice
     {
         $invoice = $this->draft();
-        $invoice->issue(InvoiceNumber::of(2026, 9), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 9), SellerIdentities::complete(), $this->now());
 
         return $invoice;
     }
@@ -768,12 +855,11 @@ final class DeskCommandHandlersTest extends TestCase
             label: 'Ligne ' . $net,
             code: null,
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits($net, $eur),
+            enteredUnitPrice: Money::fromMinorUnits($net + $tax, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits($net, $eur),
-            taxAmount: Money::fromMinorUnits($tax, $eur),
-            grossAmount: Money::fromMinorUnits($net + $tax, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: $source,
             sourceReference: $reference,
         );
@@ -803,5 +889,18 @@ final class DeskCommandHandlersTest extends TestCase
     private function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('2026-10-14 10:00:00');
+    }
+
+    private function sellers(): SellerIdentityProviderInterface
+    {
+        $sellers = $this->createStub(SellerIdentityProviderInterface::class);
+        $sellers->method('forClinic')->willReturn(SellerIdentities::complete());
+
+        return $sellers;
+    }
+
+    private function events(): DomainEventPublisher
+    {
+        return new DomainEventPublisher($this->createStub(EventBusInterface::class));
     }
 }

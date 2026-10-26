@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Clinic\Application\Command\Clinic\UpdateClinicBillingSettings;
 
+use App\Context\Clinic\Application\Service\InvoiceNumberingUniqueness;
 use App\Context\Clinic\Domain\Exception\InvalidBillingSettingsException;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\BillingSettings;
@@ -21,6 +22,7 @@ final class UpdateClinicBillingSettingsHandler
         private readonly ClinicRepositoryInterface $clinicRepository,
         private readonly ClockInterface $clock,
         private readonly DomainEventPublisher $domainEventPublisher,
+        private readonly InvoiceNumberingUniqueness $numbering,
     ) {
     }
 
@@ -32,7 +34,11 @@ final class UpdateClinicBillingSettingsHandler
             throw new \RuntimeException(\sprintf('Clinic with ID "%s" not found.', $command->clinicId));
         }
 
-        $clinic->updateBillingSettings($this->settings($command), $this->clock->now());
+        $settings = $this->settings($command);
+
+        $this->numbering->assertChangeKeepsSeriesDistinct($clinic, $clinic->letterhead(), $settings);
+
+        $clinic->updateBillingSettings($settings, $this->clock->now());
 
         $this->clinicRepository->save($clinic);
 

@@ -102,6 +102,8 @@ export function init() {
     fiche: P.sheet || null,
     seq: 0,
     posting: false,
+    // Back from a refused checkout: what the draft's professional invoice lacks, each with where to fix it.
+    ready: P.sheet && Array.isArray(P.readiness) && P.readiness.length ? { id: P.sheet.id, items: P.readiness } : null,
   };
   const remember = () => ST.rows.forEach(o => ST.known.set(o.id, o));
   remember();
@@ -194,12 +196,23 @@ export function init() {
   const anisHtml = o => (o.anis.length
     ? o.anis.map(a => `<span class="ani-e">${a.e}</span><span>${esc(a.n)}</span>`).join('<span> · </span>')
     : o.cpt === 'REFUSED' ? 'Comptoir · refus des coordonnées' : o.cpt === 'NEW_CLIENT' ? 'Comptoir · nouvelle fiche' : o.cpt ? 'Vente au comptoir' : o.cli.passage ? 'sans fiche client' : '—');
+  // The « Facture électronique » pill of a professional document; none for a private one.
+  const txPuce = tx => (tx ? `<span class="puce t-${esc(tx.tone)}">${esc(tx.text)}</span>` : '');
+  // The next step of an « Action requise » banner, as a link.
+  const txLien = (link, o) => {
+    if (link === 'credit_note' && o.actions?.avoir) return ' <button type="button" class="bandeau-lien" data-tx-avoir>Créer l\'avoir</button>';
+    if (link === 'credit_note' && o.avoirs?.length) return ` Avoir déjà émis : ${o.avoirs.map(a => `<a class="bandeau-lien" href="${esc(P.urls.detailsAv.replace(NIL, a.id))}" data-goto="${esc(a.id)}" data-kind="av">${esc(a.num)}</a>`).join(', ')}.`;
+    if (link === 'client' && o.cli?.url) return ` <a class="bandeau-lien" href="${esc(o.cli.url)}">Ouvrir la fiche client</a>`;
+    if (link === 'support') return ' <button type="button" class="bandeau-lien" data-toast="Support — la messagerie intégrée arrive bientôt">Contacter le support</button>';
+    return '';
+  };
   const COLS = [
     { l: 'Date', html: o => `<div class="mdate"><b>${o.d === TODAY ? "Aujourd'hui" : dCourt(o.d)} · ${o.h}</b><span class="num-o">${esc(o.num || 'numéro à l\'encaissement')}</span></div>` },
     { l: 'Client', html: o => `<div class="pat"><div style="min-width:0"><b>${esc(o.cli.n)}</b><span class="anis">${anisHtml(o)}</span></div></div>` },
     { l: 'Objet', xo: 1, html: o => `<div class="objet">${esc(o.objet)}</div>` },
     { l: 'Praticien', xo: 1, html: o => (o.vet ? `<span class="prs"><span class="av" style="background:${esc(o.vet.c)}">${esc(o.vet.ini)}</span>${esc(o.vet.n)}</span>` : '<span class="prs" style="color:var(--encre-35)">—</span>') },
     { l: 'Statut', html: o => { const [c, l] = STATUTS[o.st]; return `<span class="puce ${c}">${l}</span>`; } },
+    { l: 'Facture électronique', xo: 1, html: o => txPuce(o.tx) },
     { l: 'Montant TTC', cls: 'num', html: o => `<div class="mtt${o.kind === 'av' ? ' neg' : ''}">${o.kind === 'av' ? '−' : ''}${fmtE(o.tot)}</div>` },
     { l: 'Reste dû', cls: 'num', html: o => {
       if (o.st === 'brou') return '<div class="du ok">en cours</div>';
@@ -312,10 +325,12 @@ export function init() {
     const o = ST.fiche;
     if (!o) return;
     const st = o.st, [sc, sl] = STATUTS[st], av = o.kind === 'av', A = o.actions || {}, c = o.cli;
-    $('fiHead').innerHTML = `<div class="fi-ico">${ICO.rx}</div><div class="fi-t"><b>${esc(c.n)}</b><span><span class="code">${esc(o.num || 'Brouillon')}</span> · <span class="puce ${sc}">${sl}</span></span></div><button type="button" class="fi-x" id="fiX" data-tip="Fermer · Échap" aria-label="Fermer">${ICO.x}</button>`;
+    $('fiHead').innerHTML = `<div class="fi-ico">${ICO.rx}</div><div class="fi-t"><b>${esc(c.n)}</b><span><span class="code">${esc(o.num || 'Brouillon')}</span> · <span class="puce ${sc}">${sl}</span>${o.tx ? ` · ${txPuce(o.tx)}` : ''}</span></div><button type="button" class="fi-x" id="fiX" data-tip="Fermer · Échap" aria-label="Fermer">${ICO.x}</button>`;
 
     let band = '';
-    if (st === 'brou') {
+    if (st === 'brou' && ST.ready && ST.ready.id === o.id) {
+      band = `<div class="bandeau crit">${ICO.crit}<div><b>Facture non émise</b>Une facture professionnelle exige ces informations ; rien n'a été numéroté, le brouillon reste ouvert.<ul class="rdy">${ST.ready.items.map(x => `<li><span>${esc(x.text)}</span>${x.href ? `<a href="${esc(x.href)}">${esc(x.label)}</a>` : ''}</li>`).join('')}</ul></div></div>`;
+    } else if (st === 'brou') {
       band = o.cons && o.cons.open
         ? `<div class="bandeau info">${ICO.info}<div><b>Consultation en cours</b>La facture se complète au fil du plan de traitement ; elle sera numérotée et encaissée à la clôture.</div></div>`
         : `<div class="bandeau info">${ICO.info}<div><b>Prête à encaisser</b>La facture reprend le plan de traitement de la visite ; elle prend son numéro à l'encaissement.</div></div>`;
@@ -329,6 +344,12 @@ export function init() {
       band = `<div class="bandeau info">${ICO.info}<div><b>Entièrement créditée</b>Par ${o.avoirs.map(a => esc(a.num)).join(', ')} · la facture reste au registre avec son numéro.</div></div>`;
     } else if (st === 'ann') {
       band = `<div class="bandeau crit">${ICO.crit}<div><b>Annulée${o.annul ? ` le ${fmtD(o.annul.d)}` : ''}</b>${esc(o.annul?.motif || '')} · conservée au registre.</div></div>`;
+    }
+
+    // A transmission someone has to act on comes first: the platform is waiting on the clinic.
+    const txa = o.tx?.action;
+    if (txa) {
+      band = `<div class="bandeau crit">${ICO.crit}<div><b>${esc(txa.title)} · ${esc(o.tx.text)}</b>${txa.reason ? `${esc(txa.reason)}<br>` : ''}${esc(txa.next)}${txLien(txa.link, o)}</div></div>${band}`;
     }
 
     const lien = (href, ico, b, s, goto) => `<a class="ocons" href="${esc(href)}"${goto ? ` data-goto="${esc(goto.id)}" data-kind="${goto.kind}"` : ''}><span class="e"${goto && goto.kind === 'av' ? ' style="background:#f5f3ff;color:#6d28d9"' : ''}>${ico}</span><span class="lt"><b>${b}</b><span>${s}</span></span><span class="lien">Ouvrir ${ICO.ext}</span></a>`;
@@ -563,10 +584,11 @@ export function init() {
 
   function ouvrirVente() {
     VT = { L: [], res: [], rx: [], mode: accepted(VT_MODES)[0], ty: 'cli', cli: null, q: '', cl: null, anon: false, dbl: null, known: new Map(), p: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, rem: new Set(['imp']),
-      pc: null, pq: '', pcl: null, preg: null, pregQ: '', pregDown: false, pregSlow: false, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' } };
+      pc: null, pq: '', pcl: null, preg: null, pregQ: '', pregDown: false, pregSlow: false, pnew: false, fisc: fiscVide(PRO), pp: { civ: 'Mme', nom: '', pre: '', tel: '', mail: '' }, pa: { adr: '', cp: '', ville: '' }, ready: null };
     $('vtQ').value = '';
     rendreVtTy();
     rendreZone();
+    rendreReady();
     rendreVt();
     chercherArticles();
     ouvrirModale('mVente');
@@ -603,7 +625,13 @@ export function init() {
       rendreCl();
       return;
     }
-    z.innerHTML = `<div id="vtFisc"></div><div class="vt-h" style="margin-top:12px">Contact</div>
+    const a = VT.pa;
+    z.innerHTML = `<div id="vtFisc"></div><div class="vt-h" style="margin-top:12px">Adresse</div>
+      <div class="vt-f"><input class="finput" id="vpAdr" placeholder="Adresse" maxlength="80" value="${esc(a.adr)}" aria-label="Adresse"></div>
+      <div class="vt-g2"><div class="vt-f"><input class="finput" id="vpCp" inputmode="numeric" placeholder="Code postal" maxlength="5" value="${esc(a.cp)}" aria-label="Code postal"></div>
+        <div class="vt-f"><input class="finput" id="vpVille" placeholder="Ville" maxlength="80" value="${esc(a.ville)}" aria-label="Ville"></div></div>
+      <p class="vt-aide">En France. Obligatoire pour un professionnel assujetti à la TVA : elle figure sur sa facture électronique.</p>
+      <div class="vt-h" style="margin-top:12px">Contact</div>
       ${champsPersonne(VT.pp, 'Mobile ou fixe', 'Un téléphone (mobile ou fixe) ou un e-mail au moins.')}
       <div class="vt-alt"><button type="button" data-vpback>Rechercher un professionnel déjà client</button></div>`;
     monterFisc($('vtFisc'), VT.fisc, () => rendreVt(), { sirenUrl: P.urls.siren, structureOnly: true });
@@ -690,6 +718,16 @@ export function init() {
     $('vpDbl').innerHTML = dbl ? `<div class="vt-msg warn">${ICO.info}<div><b>Ce numéro est déjà celui de ${esc(dbl.n)}</b><br>Utilisez sa fiche pour ne pas créer de doublon.</div><button type="button" class="act" data-cli="${esc(dbl.id)}">Utiliser sa fiche</button></div>` : '';
   }
 
+  /* What the professional invoice still lacked when the sale was refused (nothing was recorded). */
+  function rendreReady() {
+    const el = $('vtReady');
+    if (!el) return;
+    const L = VT && VT.ready;
+    el.innerHTML = L && L.length
+      ? `<div class="vt-msg crit">${ICO.crit}<div><b>La facture professionnelle ne peut pas être émise</b><ul class="rdy">${L.map(x => `<li><span>${esc(x.text)}</span>${x.href ? `<a href="${esc(x.href)}">${esc(x.label)}</a>` : ''}</li>`).join('')}</ul></div></div>`
+      : '';
+  }
+
   /* ── Articles et règlement ── */
   function clientOk() {
     if (VT.ty === 'cli') return VT.cli ? '' : 'Choisissez le client';
@@ -697,6 +735,12 @@ export function init() {
     if (pro && VT.pc) return '';
     if (pro && !VT.pnew) return 'Choisissez le client';
     if (pro) { const fe = Object.values(fiscErr(VT.fisc, true))[0]; if (fe) return fe.replace(/\.$/, ''); }
+    // A VAT-liable professional is invoiced at its postal address.
+    if (pro && VT.fisc.fisc === PRO) {
+      if (!VT.pa.adr.trim()) return 'Adresse du professionnel requise';
+      if (!/^\d{5}$/.test(VT.pa.cp)) return 'Code postal requis (5 chiffres)';
+      if (!VT.pa.ville.trim()) return 'Ville requise';
+    }
     if (sansCoord()) return '';
     const p = per();
     if (p.nom.length < 2) return pro ? 'Nom du contact requis' : 'Nom du client requis';
@@ -841,6 +885,7 @@ export function init() {
     const g = e.target.closest('[data-goto]');
     if (g) { e.preventDefault(); ouvrirFiche(g.dataset.goto, g.dataset.kind); return; }
     if (e.target.closest('#fiThumb') && ST.fiche) ouvrirApercu(ST.fiche);
+    if (e.target.closest('[data-tx-avoir]') && ST.fiche) ouvrirAvoir(ST.fiche);
   }, { signal });
   $('fiHead').addEventListener('click', e => { if (e.target.closest('#fiX')) fermerFiche(); }, { signal });
   $('fiFoot').addEventListener('click', e => {
@@ -901,8 +946,10 @@ export function init() {
     if (!b || b.disabled || !VT) return;
     VT.ty = b.dataset.t;
     VT.anon = false;
+    VT.ready = null;
     rendreVtTy();
     rendreZone();
+    rendreReady();
     rendreVt();
     focusZone();
   }, { signal });
@@ -916,6 +963,9 @@ export function init() {
     if (t.id === 'vpPre') { t.value = t.value.replace(/[^A-Za-zÀ-ÿ' -]/g, '').replace(/(^|[\s'-])\p{Ll}/gu, x => x.toUpperCase()); per().pre = t.value.trim(); }
     if (t.id === 'vpTel') { per().tel = chif(t.value, 10); t.value = fmtTel(per().tel); majPart(); chercherDoublon(); }
     if (t.id === 'vpMail') { t.value = t.value.replace(/\s/g, '').toLowerCase(); per().mail = t.value; majPart(); }
+    if (t.id === 'vpAdr') VT.pa.adr = t.value;
+    if (t.id === 'vpCp') { t.value = chif(t.value, 5); VT.pa.cp = t.value; }
+    if (t.id === 'vpVille') VT.pa.ville = t.value;
     rendreVt();
   }, { signal });
   zone.addEventListener('focusout', () => setTimeout(() => { if (VT) { majPart(); rendreVt(); } }, 0), { signal });
@@ -923,10 +973,10 @@ export function init() {
     if (!VT) return;
     const c = e.target.closest('[data-cli]');
     if (c) { VT.ty = 'cli'; VT.cli = c.dataset.cli; rendreVtTy(); rendreZone(); rendreVt(); $('vtQ').focus(); return; }
-    if (e.target.closest('[data-vtx]')) { VT.cli = null; rendreZone(); rendreVt(); focusZone(); return; }
+    if (e.target.closest('[data-vtx]')) { VT.cli = null; VT.ready = null; rendreZone(); rendreReady(); rendreVt(); focusZone(); return; }
     const pc = e.target.closest('[data-pcli]');
     if (pc) { VT.pc = pc.dataset.pcli; rendreZone(); rendreVt(); $('vtQ').focus(); return; }
-    if (e.target.closest('[data-vpx]')) { VT.pc = null; rendreZone(); rendreVt(); focusZone(); return; }
+    if (e.target.closest('[data-vpx]')) { VT.pc = null; VT.ready = null; rendreZone(); rendreReady(); rendreVt(); focusZone(); return; }
     if (e.target.closest('[data-vpnew]')) {
       VT.pnew = true;
       // What was searched is likely the legal name, or the SIREN.
@@ -940,6 +990,7 @@ export function init() {
       const h = (VT.preg || []).find(x => x.siren === sir.dataset.sir);
       if (h) {
         VT.fisc = h.ass ? { ...fiscVide(PRO), rs: h.n, siren: h.siren, tva: h.tva || '' } : { ...fiscVide(IND), rs: h.n };
+        if (h.adresse) VT.pa = { adr: h.adresse.rue || '', cp: chif(h.adresse.cp || '', 5), ville: h.adresse.ville || '' };
         VT.pnew = true;
         rendreZone(); rendreVt(); focusZone();
       }
@@ -987,19 +1038,45 @@ export function init() {
     if (VT.rem.has(b.dataset.r)) VT.rem.delete(b.dataset.r); else VT.rem.add(b.dataset.r);
     rendreVt();
   }, { signal });
-  $('vtOk').addEventListener('click', () => {
-    if (!VT || $('vtOk').disabled) return;
+  /* The sale is posted in the background so that a refusal keeps the window
+     as typed: an error comes back as a toast, what a professional invoice
+     lacks inline (see RecordCounterSaleController); a recorded sale goes to
+     its invoice. */
+  $('vtOk').addEventListener('click', async () => {
+    if (!VT || $('vtOk').disabled || ST.posting) return;
     const p = per();
     const payer = VT.ty === 'cli' || (VT.ty === 'pro' && VT.pc) ? 'cli' : VT.ty === 'pro' ? 'pro' : sansCoord() ? 'anon' : 'part';
-    poster({ url: P.urls.counter, token: P.tokens.counter }, {
+    const fields = {
+      _token: P.tokens.counter,
       lines: VT.L.map(x => `${x.k}:${x.q}`).join(','),
       mode: VT.mode,
       payer,
       client: payer === 'cli' ? (VT.ty === 'pro' ? VT.pc : VT.cli) : '',
       ...(payer === 'part' || payer === 'pro' ? { civ: p.civ, nom: p.nom, pre: p.pre, tel: p.tel, mail: p.mail } : {}),
-      ...(payer === 'pro' ? fiscPayload(VT.fisc) : {}),
+      ...(payer === 'pro' ? { ...fiscPayload(VT.fisc), adr: VT.pa.adr.trim(), cp: VT.pa.cp, ville: VT.pa.ville.trim() } : {}),
       imprimer: VT.rem.has('imp') ? '1' : '',
-    });
+    };
+    const body = new FormData();
+    Object.entries(fields).forEach(([k, v]) => body.append(k, v ?? ''));
+    ST.posting = true;
+    $('vtOk').disabled = true;
+    VT.ready = null;
+    rendreReady();
+    try {
+      const r = await fetch(P.urls.counter, { method: 'POST', body, headers: { Accept: 'application/json' }, signal });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.redirect) {
+        if (window.Turbo && typeof window.Turbo.visit === 'function') window.Turbo.visit(d.redirect); else window.location.href = d.redirect;
+        return;
+      }
+      ST.posting = false;
+      if (Array.isArray(d.readiness)) { VT.ready = d.readiness; rendreReady(); $('vtReady').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      else showToast(d.error || 'La vente n\'a pas pu être enregistrée', 'danger');
+      rendreVt();
+    } catch (e) {
+      ST.posting = false;
+      if (e.name !== 'AbortError') { showToast('La vente n\'a pas pu être enregistrée', 'danger'); rendreVt(); }
+    }
   }, { signal });
 
   $('btnClo').addEventListener('click', ouvrirClo, { signal });

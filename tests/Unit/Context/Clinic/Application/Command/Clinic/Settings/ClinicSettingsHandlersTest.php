@@ -19,6 +19,7 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinicHandler;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\LetterheadDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettings;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSettingsHandler;
+use App\Context\Clinic\Application\Service\InvoiceNumberingUniqueness;
 use App\Context\Clinic\Domain\Clinic;
 use App\Context\Clinic\Domain\Exception\InvalidBillingSettingsException;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
@@ -48,7 +49,7 @@ final class ClinicSettingsHandlersTest extends TestCase
     {
         $clinic = self::clinic();
 
-        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher()))(new UpdateClinicBillingSettings(
+        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher(), $this->numbering()))(new UpdateClinicBillingSettings(
             clinicId: self::CLINIC_ID,
             streetLine1: '5 rue du Port',
             streetLine2: 'Bât. B',
@@ -81,7 +82,7 @@ final class ClinicSettingsHandlersTest extends TestCase
     {
         $clinic = self::clinic();
 
-        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher()))(new UpdateClinicBillingSettings(
+        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher(), $this->numbering()))(new UpdateClinicBillingSettings(
             clinicId: self::CLINIC_ID,
             streetLine1: '5 rue du Port',
             city: '  ',
@@ -97,7 +98,7 @@ final class ClinicSettingsHandlersTest extends TestCase
     {
         $this->expectException(InvalidBillingSettingsException::class);
 
-        (new UpdateClinicBillingSettingsHandler($this->repository(self::clinic(), saves: false), $this->clock(), $this->publisher()))(new UpdateClinicBillingSettings(
+        (new UpdateClinicBillingSettingsHandler($this->repository(self::clinic(), saves: false), $this->clock(), $this->publisher(), $this->numbering()))(new UpdateClinicBillingSettings(
             clinicId: self::CLINIC_ID,
             vatRegime: 'WEEKLY',
         ));
@@ -144,7 +145,7 @@ final class ClinicSettingsHandlersTest extends TestCase
     {
         $clinic = self::clinic();
 
-        (new UpdateClinicLetterheadHandler($this->repository($clinic), $this->clock(), $this->publisher()))(new UpdateClinicLetterhead(
+        (new UpdateClinicLetterheadHandler($this->repository($clinic), $this->clock(), $this->publisher(), $this->numbering()))(new UpdateClinicLetterhead(
             clinicId: self::CLINIC_ID,
             ordinalCouncil: 'paca',
             liabilityInsurer: 'MACSF',
@@ -161,7 +162,7 @@ final class ClinicSettingsHandlersTest extends TestCase
      */
     public static function provideAWriteToAnUnknownClinicIsRefusedCases(): iterable
     {
-        yield 'billing' => [static fn (ClinicRepositoryInterface $r, ClockInterface $c, DomainEventPublisher $p) => (new UpdateClinicBillingSettingsHandler($r, $c, $p))(new UpdateClinicBillingSettings(self::CLINIC_ID))];
+        yield 'billing' => [static fn (ClinicRepositoryInterface $r, ClockInterface $c, DomainEventPublisher $p) => (new UpdateClinicBillingSettingsHandler($r, $c, $p, new InvoiceNumberingUniqueness($r)))(new UpdateClinicBillingSettings(self::CLINIC_ID))];
         yield 'hours' => [static fn (ClinicRepositoryInterface $r, ClockInterface $c, DomainEventPublisher $p) => (new UpdateClinicOpeningHoursHandler($r, $c, $p))(new UpdateClinicOpeningHours(self::CLINIC_ID, [], []))];
         yield 'colour' => [static fn (ClinicRepositoryInterface $r, ClockInterface $c, DomainEventPublisher $p) => (new ChangeClinicBrandColorHandler($r, $c, $p))(new ChangeClinicBrandColor(self::CLINIC_ID, null))];
         yield 'logo' => [static fn (ClinicRepositoryInterface $r, ClockInterface $c, DomainEventPublisher $p) => (new ChangeClinicLogoHandler($r, $c, $p))(new ChangeClinicLogo(self::CLINIC_ID, null))];
@@ -188,7 +189,7 @@ final class ClinicSettingsHandlersTest extends TestCase
         $clinic = self::clinic();
         $at     = new \DateTimeImmutable('2026-10-15T10:00:00Z');
         $clinic->updateLetterhead(Letterhead::create(legalName: 'SELARL', ordinalCouncil: 'idf', liabilityInsurer: 'MACSF'), $at);
-        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher()))(new UpdateClinicBillingSettings(
+        (new UpdateClinicBillingSettingsHandler($this->repository($clinic), $this->clock(), $this->publisher(), $this->numbering()))(new UpdateClinicBillingSettings(
             clinicId: self::CLINIC_ID,
             streetLine1: '5 rue du Port',
             city: 'Marseille',
@@ -252,6 +253,11 @@ final class ClinicSettingsHandlersTest extends TestCase
         self::assertSame('Assurance responsabilité civile professionnelle : MACSF, contrat n° 4401', $dto->letterhead->liabilitySentence());
         self::assertSame('Assurance responsabilité civile professionnelle : MACSF', LetterheadDto::fromDomain(Letterhead::create(liabilityInsurer: 'MACSF'))->liabilitySentence());
         self::assertNull(LetterheadDto::fromDomain(Letterhead::empty())->liabilitySentence());
+    }
+
+    private function numbering(): InvoiceNumberingUniqueness
+    {
+        return new InvoiceNumberingUniqueness($this->createStub(ClinicRepositoryInterface::class));
     }
 
     private function repository(Clinic $clinic, bool $saves = true, int $times = 1): ClinicRepositoryInterface

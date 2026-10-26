@@ -43,6 +43,7 @@ final class PackageEntityFactory extends PersistentProxyObjectFactory
             'pricingMode'          => PackagePricingMode::SUM_OF_COMPONENTS,
             'fixedPriceMinorUnits' => null,
             'fixedPriceCurrency'   => null,
+            'fixedPriceMode'       => null,
             'status'               => PackageStatus::ACTIVE,
             'createdAt'            => $now,
             'updatedAt'            => $now,

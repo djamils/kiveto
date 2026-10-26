@@ -38,7 +38,8 @@ final readonly class ConsultationDetailsDTO
      *     followUpDays: ?int,
      *     quantity: float,
      *     unitPriceMinorUnits: ?int,
-     *     currency: ?string
+     *     currency: ?string,
+     *     unitPriceMode: ?string
      * }> $planActions
      * @param list<array{
      *     id: string,
@@ -51,7 +52,8 @@ final readonly class ConsultationDetailsDTO
      *     route: ?string,
      *     quantity: float,
      *     unitPriceMinorUnits: int,
-     *     currency: string
+     *     currency: string,
+     *     unitPriceMode: string
      * }> $prescriptionLines
      * @param list<array{
      *     id: string,
@@ -62,6 +64,7 @@ final readonly class ConsultationDetailsDTO
      *     quantity: float,
      *     unitPriceMinorUnits: int,
      *     currency: string,
+     *     unitPriceMode: string,
      *     taxCategoryCode: ?string,
      *     totalMinorUnits: int
      * }> $billingLines

@@ -44,6 +44,9 @@ class ArticleEntity
     #[ORM\Column(name: 'base_price_currency', type: 'string', length: 3)]
     private string $basePriceCurrency;
 
+    #[ORM\Column(name: 'base_price_mode', type: 'string', length: 4)]
+    private string $basePriceMode;
+
     #[ORM\Column(name: 'unit_of_measure', type: 'string', length: 20)]
     private string $unitOfMeasure;
 
@@ -159,6 +162,16 @@ class ArticleEntity
     public function setBasePriceCurrency(string $basePriceCurrency): void
     {
         $this->basePriceCurrency = $basePriceCurrency;
+    }
+
+    public function getBasePriceMode(): string
+    {
+        return $this->basePriceMode;
+    }
+
+    public function setBasePriceMode(string $basePriceMode): void
+    {
+        $this->basePriceMode = $basePriceMode;
     }
 
     public function getUnitOfMeasure(): string

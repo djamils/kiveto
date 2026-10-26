@@ -25,6 +25,7 @@ use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesHandler;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use PHPUnit\Framework\TestCase;
 
 final class InvoiceQueryHandlersTest extends TestCase
@@ -177,14 +178,13 @@ final class InvoiceQueryHandlersTest extends TestCase
         self::assertSame(1, $view->pageCount());
     }
 
-    public function testAnUnpricedLineIsBilledUntaxed(): void
+    public function testAResolvedTaxCarriesRateNatureAndMentions(): void
     {
-        $tax = ResolvedTaxDto::untaxed(4500);
+        $tax = new ResolvedTaxDto('5.5', OperationCategory::GOODS, ['Mention']);
 
-        self::assertSame(4500, $tax->netMinorUnits);
-        self::assertSame(0, $tax->taxMinorUnits);
-        self::assertSame(4500, $tax->grossMinorUnits);
-        self::assertSame('0', $tax->ratePercent);
+        self::assertSame('5.5', $tax->ratePercent);
+        self::assertSame(OperationCategory::GOODS, $tax->nature);
+        self::assertSame(['Mention'], $tax->legalMentions);
     }
 
     private function details(): InvoiceDetails

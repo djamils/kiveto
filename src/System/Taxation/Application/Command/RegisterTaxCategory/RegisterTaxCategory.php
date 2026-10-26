@@ -6,6 +6,7 @@ namespace App\System\Taxation\Application\Command\RegisterTaxCategory;
 
 use App\Shared\Application\Bus\CommandInterface;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 
 final readonly class RegisterTaxCategory implements CommandInterface
 {
@@ -13,6 +14,7 @@ final readonly class RegisterTaxCategory implements CommandInterface
         public readonly TaxCategoryCode $code,
         public readonly string $displayName,
         public readonly ?string $description,
+        public readonly TaxCategoryNature $nature,
     ) {
     }
 }

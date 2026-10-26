@@ -9,6 +9,7 @@ use App\Context\Client\Application\Query\GetClientById\GetClientById;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Presentation\Clinic\ViewModel\Client\ClientSheetBuilder;
+use App\Presentation\Clinic\ViewModel\Shared\ReturnLink;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Localization\TimeZone;
@@ -21,11 +22,15 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/clients/{id}', name: 'clinic_clients_view', methods: ['GET'])]
 final class ViewClientController extends AbstractController
 {
+    /** The cards a link may open: the contact details window and the tax profile. */
+    private const array CARDS = ['cCoord', 'cFisc'];
+
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly ClientSheetBuilder $sheetBuilder,
         private readonly ClockInterface $clock,
+        private readonly ReturnLink $returnLink,
     ) {
     }
 
@@ -53,7 +58,10 @@ final class ViewClientController extends AbstractController
             'client' => $client,
             'sheet'  => $this->sheetBuilder->build($client, $clinicTz, $now),
             // The card a form was just saved from, flashed green by the page.
-            'savedCard'         => $request->query->getString('saved'),
+            'savedCard' => $request->query->getString('saved'),
+            // Opened from elsewhere (a refused checkout): the card to open, and the way back.
+            'openCard'          => \in_array($request->query->getString('card'), self::CARDS, true) ? $request->query->getString('card') : '',
+            'returnLink'        => $this->returnLink->from($request->query->getString('_returnTo')),
             'today'             => $now->setTimezone($clinicTz)->format('Y-m-d'),
             'currentClinicId'   => $currentClinicId->toString(),
             'currentClinicName' => $clinic->name,

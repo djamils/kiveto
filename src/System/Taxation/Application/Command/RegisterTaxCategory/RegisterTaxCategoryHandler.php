@@ -25,14 +25,14 @@ final readonly class RegisterTaxCategoryHandler
         $existing = $this->categoryRepo->findByCode($command->code);
 
         if (null === $existing) {
-            $category = TaxCategory::create($command->code, $command->displayName, $command->description, $this->clock);
+            $category = TaxCategory::create($command->code, $command->displayName, $command->description, $command->nature, $this->clock);
             $this->categoryRepo->save($category);
             $this->domainEventPublisher->publish($category);
 
             return;
         }
 
-        $existing->updateDisplay($command->displayName, $command->description, $this->clock);
+        $existing->update($command->displayName, $command->description, $command->nature, $this->clock);
         $this->categoryRepo->save($existing);
     }
 }

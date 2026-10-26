@@ -26,6 +26,7 @@ use App\System\Taxation\Domain\Service\TaxResolver;
 use App\System\Taxation\Domain\TaxRegime;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRateCondition;
 use App\System\Taxation\Domain\ValueObject\TaxRateId;
 use App\System\Taxation\Domain\ValueObject\TaxRateValue;
@@ -70,7 +71,7 @@ final class ResolveTaxHandlerTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver = $this->makeRealResolver($regimeRepo, $categoryRegistry);
         $handler  = new ResolveTaxHandler($resolver);
@@ -161,7 +162,7 @@ final class ResolveTaxHandlerTest extends TestCase
         $regimeRepo->method('findById')->willReturn($regime);
 
         $categoryRegistry = $this->createStub(TaxCategoryRegistryInterface::class);
-        $categoryRegistry->method('has')->willReturn(true);
+        $categoryRegistry->method('natureOf')->willReturn(TaxCategoryNature::SERVICES);
 
         $resolver = $this->makeRealResolver($regimeRepo, $categoryRegistry);
         $handler  = new ResolveTaxHandler($resolver);

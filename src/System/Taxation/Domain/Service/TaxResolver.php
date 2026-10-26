@@ -40,7 +40,9 @@ final readonly class TaxResolver
             throw new UnknownTaxRegimeException($regimeId->toString());
         }
 
-        if (!$this->categoryRegistry->has($item->category())) {
+        $nature = $this->categoryRegistry->natureOf($item->category());
+
+        if (null === $nature) {
             throw new UnknownTaxCategoryException($item->category()->toString());
         }
 
@@ -94,6 +96,7 @@ final readonly class TaxResolver
         return TaxApplication::of(
             $regimeId,
             $item->category(),
+            $nature,
             $appliedRate,
             $item->netAmount(),
             $taxAmount,

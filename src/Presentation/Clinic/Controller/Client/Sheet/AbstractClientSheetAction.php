@@ -9,7 +9,9 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Forms of the client sheet come back to the sheet; the card they were
- * submitted from is named so the page can flash it as saved.
+ * submitted from is named so the page can flash it as saved. A sheet opened
+ * with a `_returnTo` target (see ReturnToResolver) posts it along, and keeps
+ * it: its « Retour à … » button survives the save.
  */
 abstract class AbstractClientSheetAction extends AbstractSheetAction
 {
@@ -17,9 +19,16 @@ abstract class AbstractClientSheetAction extends AbstractSheetAction
 
     protected function backToSheet(string $clientId, ?string $savedCard = null): RedirectResponse
     {
+        $returnTo = $this->currentRequest()?->request->getString('_returnTo') ?? '';
+
         return $this->redirectToRoute(
             'clinic_clients_view',
-            null === $savedCard ? ['id' => $clientId] : ['id' => $clientId, 'saved' => $savedCard],
+            [
+                'id' => $clientId,
+                ...(null === $savedCard ? [] : ['saved' => $savedCard]),
+                // Only the target travels; the sheet checks it against the whitelist before showing it.
+                ...('' === $returnTo ? [] : ['_returnTo' => $returnTo]),
+            ],
             RedirectResponse::HTTP_SEE_OTHER,
         );
     }

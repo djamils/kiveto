@@ -20,13 +20,19 @@ use App\Context\Billing\Application\Command\RemoveInvoiceLine\RemoveInvoiceLine;
 use App\Context\Billing\Application\Command\RemoveInvoiceLine\RemoveInvoiceLineHandler;
 use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Application\Service\InvoiceLineFactory;
 use App\Context\Billing\Domain\Exception\InvalidDiscountException;
+use App\Context\Billing\Domain\Exception\InvalidInvoiceLineException;
+use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
+use App\Context\Billing\Domain\ValueObject\BuyerFiscalIdentity;
+use App\Context\Billing\Domain\ValueObject\BuyerTaxStatus;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\DiscountKind;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -35,12 +41,20 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ReadinessRequirement;
+use App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\TransmittableInvoiceMapper;
+use App\Shared\Application\Bus\EventBusInterface;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Tests\Support\Billing\ProfessionalDocuments;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -82,12 +96,35 @@ final class InvoiceCommandHandlersTest extends TestCase
             ->willReturn(InvoiceNumber::of(2026, 12))
         ;
 
-        (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock))(
+        (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers(), $this->events()))(
             new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID),
         );
 
         self::assertSame('FAC-2026-000012', $invoice->number()?->toString());
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
+    }
+
+    /**
+     * The number's year is the year of the issue date, both local to Paris:
+     * on 1 January at 00:30 in Paris it is still 2026 in UTC.
+     */
+    public function testAnInvoiceIssuedJustAfterMidnightOnNewYearsDayInParisIsNumberedAndDatedInTheNewYear(): void
+    {
+        $invoice = ProfessionalDocuments::professionalDraft();
+        $this->invoices->method('get')->willReturn($invoice);
+
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new \DateTimeImmutable('2026-12-31 23:30:00', new \DateTimeZone('UTC')));
+
+        $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
+        $numbers->expects(self::once())->method('next')->with(self::anything(), 2027)->willReturn(InvoiceNumber::of(2027, 1));
+
+        (new IssueInvoiceHandler($this->invoices, $numbers, $clock, $this->sellers(), $this->events()))(
+            new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID),
+        );
+
+        self::assertSame('FAC-2027-000001', $invoice->number()?->toString());
+        self::assertSame('2027-01-01', (new TransmittableInvoiceMapper())->fromInvoice($invoice, SellerIdentities::complete())->issueDate->format('Y-m-d'));
     }
 
     // ── Record a payment ──
@@ -104,7 +141,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::never())->method('closeAfterCheckout');
 
-        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(
                 clinicId: self::CLINIC_ID,
                 invoiceId: self::INVOICE_ID,
@@ -119,6 +156,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         self::assertSame(2000, $invoice->amountPaid()->minorUnits());
         self::assertSame('CHQ-1', $invoice->payments()[0]->reference());
         self::assertSame(InvoiceStatus::PARTIALLY_PAID, $invoice->status());
+        self::assertSame('1', mb_substr((string) $invoice->framework()?->code(), 1));
     }
 
     public function testAnUnknownPaymentMethodIsRejected(): void
@@ -129,7 +167,7 @@ final class InvoiceCommandHandlersTest extends TestCase
 
         $this->expectException(\ValueError::class);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $this->createStub(AdmissionCoordinatorInterface::class), $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $this->createStub(AdmissionCoordinatorInterface::class), $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'BITCOIN', 100),
         );
     }
@@ -145,7 +183,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::once())->method('closeAfterCheckout')->with(self::ADMISSION_ID, self::CLINIC_ID);
 
-        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock))(
+        (new RecordInvoicePaymentHandler($this->invoices, $admissions, $uuids, $this->clock, $this->events()))(
             new RecordInvoicePayment(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 6000),
         );
 
@@ -160,7 +198,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $this->invoices->expects(self::once())->method('get')->willReturn($invoice);
         $this->invoices->expects(self::once())->method('save')->with($invoice);
 
-        (new CancelInvoiceHandler($this->invoices, $this->clock))(
+        (new CancelInvoiceHandler($this->invoices, $this->clock, $this->events()))(
             new CancelInvoice(self::CLINIC_ID, self::INVOICE_ID, 'Doublon'),
         );
 
@@ -212,7 +250,9 @@ final class InvoiceCommandHandlersTest extends TestCase
             new ApplyInvoiceDiscount(self::CLINIC_ID, self::INVOICE_ID, 'FIXED', '750'),
         );
 
-        self::assertSame(750, $invoice->discountAmount()->minorUnits());
+        // 7.50 € off the price VAT included is 6.25 € off the base.
+        self::assertSame(625, $invoice->discountAmount()->minorUnits());
+        self::assertSame(6000 - 750, $invoice->totalGross()->minorUnits());
     }
 
     public function testANullKindClearsTheDiscount(): void
@@ -267,14 +307,14 @@ final class InvoiceCommandHandlersTest extends TestCase
         $taxResolver = $this->createMock(TaxResolverInterface::class);
         $taxResolver->expects(self::once())
             ->method('resolve')
-            ->with(3000, 'EUR', 'veterinary.consumable.medical', self::CLINIC_ID)
-            ->willReturn(new ResolvedTaxDto(3000, 600, 3600, '20'))
+            ->with(self::CLINIC_ID, 'veterinary.consumable.medical', 'EUR')
+            ->willReturn(new ResolvedTaxDto('20', OperationCategory::GOODS))
         ;
 
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new AddManualInvoiceLineHandler($this->invoices, $taxResolver, $uuids, $this->clock))(
+        (new AddManualInvoiceLineHandler($this->invoices, new InvoiceLineFactory($taxResolver, $uuids), $this->clock))(
             new AddManualInvoiceLine(
                 clinicId: self::CLINIC_ID,
                 invoiceId: self::INVOICE_ID,
@@ -285,9 +325,59 @@ final class InvoiceCommandHandlersTest extends TestCase
             ),
         );
 
+        // The price is typed VAT included: 2 × 15.00 €; rate and nature come
+        // from the category (AC 7).
         self::assertCount(2, $invoice->lines());
         self::assertSame(InvoiceLineSource::MANUAL, $invoice->lines()[1]->source());
-        self::assertSame(3600, $invoice->lines()[1]->grossAmount()->minorUnits());
+        self::assertSame(3000, $invoice->lines()[1]->grossAmount()->minorUnits());
+        self::assertSame(PriceMode::INCLUDING_TAX, $invoice->lines()[1]->priceMode());
+        self::assertSame('20', $invoice->lines()[1]->taxRatePercent());
+        self::assertSame(OperationCategory::GOODS, $invoice->lines()[1]->operationCategory());
+        self::assertSame('Collerette', $invoice->lines()[1]->label());
+    }
+
+    public function testAManualLineNeedsAKnownTaxCategory(): void
+    {
+        $this->invoices->method('get')->willReturn($this->draftWithOneLine());
+        $this->invoices->expects(self::never())->method('save');
+
+        $taxResolver = $this->createStub(TaxResolverInterface::class);
+        $taxResolver->method('resolve')->willReturn(null);
+
+        $this->expectException(InvalidInvoiceLineException::class);
+        $this->expectExceptionMessage('Unknown tax category "veterinary.unknown"');
+
+        (new AddManualInvoiceLineHandler($this->invoices, new InvoiceLineFactory($taxResolver, $this->createStub(UuidGeneratorInterface::class)), $this->clock))(
+            new AddManualInvoiceLine(self::CLINIC_ID, self::INVOICE_ID, 'Collerette', '1', 1500, 'veterinary.unknown'),
+        );
+    }
+
+    // ── Readiness ──
+
+    public function testAProfessionalDraftThatIsNotReadyIsNeverNumbered(): void
+    {
+        $invoice = Invoice::draft(
+            InvoiceId::fromString(self::INVOICE_ID),
+            ClinicId::fromString(self::CLINIC_ID),
+            null,
+            Payer::create(null, 'EARL', [], null, BuyerFiscalIdentity::of(BuyerTaxStatus::FRENCH_BUSINESS, 'EARL', null, null, [], null, null)),
+            CurrencyCode::fromString('EUR'),
+            new \DateTimeImmutable('2026-10-21'),
+        );
+        $this->invoices->method('get')->willReturn($invoice);
+        $this->invoices->expects(self::never())->method('save');
+
+        $numbers = $this->createMock(InvoiceNumberGeneratorInterface::class);
+        $numbers->expects(self::never())->method('next');
+
+        try {
+            (new IssueInvoiceHandler($this->invoices, $numbers, $this->clock, $this->sellers(), $this->events()))(new IssueInvoice(self::CLINIC_ID, self::INVOICE_ID));
+            self::fail('The draft should have been refused.');
+        } catch (InvoiceNotTransmissibleException $e) {
+            self::assertContains(ReadinessRequirement::BUYER_SIREN, $e->requirements);
+        }
+
+        self::assertNull($invoice->number());
     }
 
     // ── Checkout ──
@@ -310,12 +400,15 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
 
         self::assertSame(InvoiceStatus::PAID, $invoice->status());
         self::assertSame('FAC-2026-000005', $invoice->number()?->toString());
+        // Paid in full with the issue: framed « already paid ».
+        self::assertSame('2', mb_substr((string) $invoice->framework()?->code(), 1));
+        self::assertCount(1, $invoice->payments());
     }
 
     public function testAPartialCheckoutLeavesTheVisitOpen(): void
@@ -333,7 +426,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 2000),
         );
 
@@ -355,7 +448,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CARD', 6000),
         );
 
@@ -377,7 +470,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 0),
         );
 
@@ -406,9 +499,12 @@ final class InvoiceCommandHandlersTest extends TestCase
         $admissions = $this->createMock(AdmissionCoordinatorInterface::class);
         $admissions->expects(self::never())->method('closeAfterCheckout');
 
+        $uuids = $this->createStub(UuidGeneratorInterface::class);
+        $uuids->method('generate')->willReturn(self::NEW_ID);
+
         $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $this->createMock(UuidGeneratorInterface::class), $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
     }
@@ -437,7 +533,7 @@ final class InvoiceCommandHandlersTest extends TestCase
         $uuids = $this->createMock(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn(self::NEW_ID);
 
-        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock))(
+        (new CheckoutAdmissionHandler($this->invoices, $numbers, $admissions, $uuids, $this->clock, $this->sellers(), $this->events()))(
             new CheckoutAdmission(self::CLINIC_ID, self::INVOICE_ID, 'CASH', 6000),
         );
 
@@ -463,7 +559,7 @@ final class InvoiceCommandHandlersTest extends TestCase
     private function issuedInvoice(): Invoice
     {
         $invoice = $this->draftWithOneLine();
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
 
         return $invoice;
     }
@@ -477,12 +573,11 @@ final class InvoiceCommandHandlersTest extends TestCase
             label: 'Consultation standard',
             code: 'CONS_STD',
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits(5000, $eur),
+            enteredUnitPrice: Money::fromMinorUnits(6000, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: '20',
-            netAmount: Money::fromMinorUnits(5000, $eur),
-            taxAmount: Money::fromMinorUnits(1000, $eur),
-            grossAmount: Money::fromMinorUnits(6000, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: InvoiceLineSource::CONSULTATION,
         );
     }
@@ -490,5 +585,18 @@ final class InvoiceCommandHandlersTest extends TestCase
     private function now(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('2026-08-22 10:00:00');
+    }
+
+    private function sellers(): SellerIdentityProviderInterface
+    {
+        $sellers = $this->createStub(SellerIdentityProviderInterface::class);
+        $sellers->method('forClinic')->willReturn(SellerIdentities::complete());
+
+        return $sellers;
+    }
+
+    private function events(): DomainEventPublisher
+    {
+        return new DomainEventPublisher($this->createStub(EventBusInterface::class));
     }
 }

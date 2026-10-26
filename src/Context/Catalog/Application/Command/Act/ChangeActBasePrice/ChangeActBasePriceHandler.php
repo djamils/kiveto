@@ -9,11 +9,10 @@ use App\Context\Catalog\Domain\Act\Exception\ActNotFoundException;
 use App\Context\Catalog\Domain\Act\Repository\ActRepositoryInterface;
 use App\Context\Catalog\Domain\Act\ValueObject\ActId;
 use App\Context\Catalog\Domain\Exception\ClinicCurrencyMismatchException;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -44,9 +43,10 @@ final class ChangeActBasePriceHandler
         }
 
         $act->changeBasePrice(
-            Money::fromMinorUnits(
+            CatalogPrice::fromPrimitives(
                 $command->basePriceMinorUnits,
-                CurrencyCode::fromString($command->basePriceCurrency),
+                $command->basePriceCurrency,
+                $command->basePriceMode,
             ),
             $this->clock->now(),
         );

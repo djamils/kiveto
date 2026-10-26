@@ -122,6 +122,15 @@ Every call to a third-party HTTP service follows one convention
   only synchronous external call allowed is a read-only lookup answering a
   user in a web request, outside any transaction.
 
+Electronic invoicing (`src/System/ElectronicInvoicing`) reuses these bricks:
+its platform ports are called only from `ExternalApiCommandInterface` handlers
+(`SubmitTransmission` on `async_external`, `SyncPlatformFlows` on
+`async_external_batch`), which dispatch transactional *record* commands; the
+adapter is picked by `ELECTRONIC_INVOICING_PLATFORM` (`disabled` | `simulator`,
+the local simulator standing for the fixture adapter, refused in production);
+its schedule `electronic_invoicing` (and Billing's `billing`) follow the
+scheduled-task rules above.
+
 Not yet migrated: `GeoplateformeAddressDirectory` (Client) and
 `GotenbergPdfRenderer` (Shared) still use the default client.
 

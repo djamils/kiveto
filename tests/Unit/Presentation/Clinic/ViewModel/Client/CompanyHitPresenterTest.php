@@ -16,14 +16,15 @@ final class CompanyHitPresenterTest extends TestCase
         $hit = new CompanyHitPresenter()->hit(new CompanySummary('523456788', 'Élevage des Calanques', 'EARL', '01.45Z', false, true, null, '52345678800018', '12 Chemin des Goudes', '13008', 'Marseille'));
 
         self::assertSame([
-            'siren' => '523456788',
-            'n'     => 'Élevage des Calanques',
-            'forme' => 'EARL',
-            'naf'   => '01.45Z',
-            'ass'   => true,
-            'cesse' => null,
-            'ets'   => [['siret' => '52345678800018', 'l' => 'Siège', 'a' => '12 Chemin des Goudes, 13008 Marseille']],
-            'tva'   => 'FR31523456788',
+            'siren'   => '523456788',
+            'n'       => 'Élevage des Calanques',
+            'forme'   => 'EARL',
+            'naf'     => '01.45Z',
+            'ass'     => true,
+            'cesse'   => null,
+            'ets'     => [['siret' => '52345678800018', 'l' => 'Siège', 'a' => '12 Chemin des Goudes, 13008 Marseille']],
+            'adresse' => ['rue' => '12 Chemin des Goudes', 'cp' => '13008', 'ville' => 'Marseille'],
+            'tva'     => 'FR31523456788',
         ], $hit);
     }
 

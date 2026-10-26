@@ -59,6 +59,7 @@ final class CreateActHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             basePriceMinorUnits: 5000,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 20,
             requiresAnesthesia: false,
         ));
@@ -81,6 +82,7 @@ final class CreateActHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             basePriceMinorUnits: 5000,
             basePriceCurrency: 'USD',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 20,
             requiresAnesthesia: false,
         ));
@@ -102,6 +104,7 @@ final class CreateActHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             basePriceMinorUnits: 5000,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 20,
             requiresAnesthesia: false,
         ));
@@ -128,6 +131,7 @@ final class CreateActHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.unknown',
             basePriceMinorUnits: 5000,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 20,
             requiresAnesthesia: false,
         ));

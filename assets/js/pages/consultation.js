@@ -89,6 +89,8 @@ export function init() {
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const fmtE = (minor) => (Math.round(Number(minor) || 0) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' €';
+  // Catalogue prices keep the mode they were entered in: TTC unless entered HT.
+  const modeTxt = (pm) => (pm === 'excl' ? 'HT' : 'TTC');
   const fmtN = (x, d = 2) => String(Math.round(Number(x) * 10 ** d) / 10 ** d).replace('.', ',');
   const num = (v) => parseFloat(String(v ?? '').replace(',', '.'));
   const pad = (n) => String(n).padStart(2, '0');
@@ -529,11 +531,11 @@ export function init() {
     const items = [];
     (S.planActions || []).forEach((a) => {
       const k = PLAN_KIND[a.kind] || 'OTH';
-      items.push({ src: 'plan', id: a.id, k, d: a.description, posology: a.posology, duree: a.durationDays, fu: a.followUpDays, qte: a.quantity, pu: a.unitPriceMinorUnits, code: a.catalogCode, deliv: k === 'MED' ? 'ordo' : null, tot: billingOf(a.id)?.totalMinorUnits || 0 });
+      items.push({ src: 'plan', id: a.id, k, d: a.description, posology: a.posology, duree: a.durationDays, fu: a.followUpDays, qte: a.quantity, pu: a.unitPriceMinorUnits, pm: a.unitPriceMode, code: a.catalogCode, deliv: k === 'MED' ? 'ordo' : null, tot: billingOf(a.id)?.totalMinorUnits || 0 });
     });
     (S.prescriptionLines || []).forEach((l) => {
       const k = l.articleKind && l.articleKind !== 'DRUG' ? 'PRD' : 'MED';
-      items.push({ src: 'rx', id: l.id, k, d: l.label, articleId: l.articleId, code: l.code, dose: l.dose, freq: l.frequency, duree: l.durationDays, voie: l.route, qte: l.quantity, pu: l.unitPriceMinorUnits, stock: l.stock, deliv: 'clinique', tot: billingOf(l.id)?.totalMinorUnits || 0 });
+      items.push({ src: 'rx', id: l.id, k, d: l.label, articleId: l.articleId, code: l.code, dose: l.dose, freq: l.frequency, duree: l.durationDays, voie: l.route, qte: l.quantity, pu: l.unitPriceMinorUnits, pm: l.unitPriceMode, stock: l.stock, deliv: 'clinique', tot: billingOf(l.id)?.totalMinorUnits || 0 });
     });
     return items;
   }
@@ -690,9 +692,9 @@ export function init() {
   }
   const catalogKinds = { MED: 'MED', ACT: 'ACT', PRD: 'PRD' };
   const fromCatalog = (k, c) => {
-    if (k === 'ACT') return { k, d: c.name, catalogItemId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, qte: 1 };
-    if (k === 'PRD') return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, stock: c.stock, qte: 1 };
-    return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, stock: c.stock, conflicts: c.allergyConflicts || [], dose: '', freq: '1×/j', duree: 7, voie: 'Per os', qte: 1, deliv: c.stock === 0 ? 'ordo' : 'clinique' };
+    if (k === 'ACT') return { k, d: c.name, catalogItemId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, pm: c.basePriceMode, qte: 1 };
+    if (k === 'PRD') return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, pm: c.basePriceMode, stock: c.stock, qte: 1 };
+    return { k, d: c.name, articleId: c.itemId, code: c.code, pu: c.basePriceMinorUnits, pm: c.basePriceMode, stock: c.stock, conflicts: c.allergyConflicts || [], dose: '', freq: '1×/j', duree: 7, voie: 'Per os', qte: 1, deliv: c.stock === 0 ? 'ordo' : 'clinique' };
   };
   function rendreEd() {
     const K = KINDS[ED.k];
@@ -766,7 +768,7 @@ export function init() {
         <div class="seg" id="fDeliv" style="margin-bottom:10px"><button type="button" data-v="clinique"${it.articleId ? '' : ` disabled data-tip="Choisissez le médicament dans le catalogue pour le délivrer ici"`}>Délivré par la clinique</button><button type="button" data-v="ordo">Ordonnance seule</button></div>
         <div class="g3">
           <div class="frow" id="rowQte"><label class="flbl">Quantité</label>${stepper('fQte', it.qte || 1)}</div>
-          <div class="frow" id="rowPu"><label class="flbl">Prix unitaire HT</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
+          <div class="frow" id="rowPu"><label class="flbl">Prix unitaire ${modeTxt(it.pm)}</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
           <div class="frow"><label class="flbl">Renouvellements</label><div class="dd off" id="fRenouv" data-tip="Se règle sur l'ordonnance, à sa signature"></div></div>
         </div>
         <p class="qhint" id="fQhint" style="margin-top:-4px"></p>
@@ -778,7 +780,7 @@ export function init() {
     if (ED.k === 'ACT' || ED.k === 'PRD') {
       h += `<div class="ed-sec"><p class="ed-st">Facturation</p><div class="g3">
           <div class="frow"><label class="flbl">Quantité</label>${stepper('fQte', it.qte || 1)}</div>
-          <div class="frow"><label class="flbl">Prix unitaire HT</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
+          <div class="frow"><label class="flbl">Prix unitaire ${modeTxt(it.pm)}</label>${unitIn('fPu', it.pu != null ? fmtN(it.pu / 100) : '—', '€', 'disabled data-tip="Prix du catalogue de la clinique"')}</div>
           <div class="frow"><label class="flbl">Remise</label>${unitIn('fRemise', '0', '%', `disabled data-tip="${SOON}"`)}</div>
         </div>${it.libre ? '<p class="qhint warn">Saisie libre : l\'acte figure au compte rendu mais n\'est pas facturé.</p>' : ''}</div>`;
       if (ED.k === 'ACT') h += `<div class="g2"><div class="frow"><label class="flbl">Réalisé par</label><div class="dd off" id="fPar" data-tip="${SOON}"></div></div>
@@ -858,7 +860,7 @@ export function init() {
       $('fCalc').innerHTML = `${I_CALC}<span>Visée : <b>${DAYS[d.getDay()]} ${fmtCourt(it.fu || 0)}</b>${d.getDay() === 0 ? ' (dimanche — décalez au lundi)' : ''} · le créneau se réserve dans l'agenda</span>`;
     }
     const t = totLigne(it);
-    tot.innerHTML = t ? `<small>${it.k === 'MED' ? 'Facturé HT' : 'Total ligne HT'}</small><b>${fmtE(t)}</b>` : (it.k === 'MED' && it.deliv === 'ordo' ? '<small>Non facturé</small><b>Ordonnance seule</b>' : '');
+    tot.innerHTML = t ? `<small>${it.k === 'MED' ? 'Facturé' : 'Total ligne'} ${modeTxt(it.pm)}</small><b>${fmtE(t)}</b>` : (it.k === 'MED' && it.deliv === 'ordo' ? '<small>Non facturé</small><b>Ordonnance seule</b>' : '');
     ok.disabled = !String(it.d || '').trim();
     ok.textContent = ED.mode === 'edit' ? 'Enregistrer' : `Ajouter au plan${t ? ' — ' + fmtE(t) : ''}`;
   }
@@ -956,8 +958,8 @@ export function init() {
       Pp.innerHTML = `${br || !DOCS.invoice ? '<div class="wm">BROUILLON</div>' : ''}
         <div class="pp-head">${ENTETE}<div class="r"><div class="pp-doc">Facture</div><p>N° ${DOCS.invoice && !br ? esc(DOCS.invoice.number) : '— (à l\'émission)'}<br>Date : ${today}<br>Praticien : ${esc(VET_NAME)}</p></div></div>
         <div class="pp-meta"><div><p class="k">Client</p><p>${ownerLine()}</p></div><div><p class="k">Animal</p><p>${animalLine()}</p></div></div>
-        <table class="pp-tab"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU HT</th><th class="n">Total HT</th></tr></thead><tbody>
-        ${L.map((l) => `<tr><td>${esc(l.label)}${l.code ? `<small>${esc(l.code)}</small>` : ''}</td><td class="n">${fmtN(l.quantity)}</td><td class="n">${fmtE(l.unitPriceMinorUnits)}</td><td class="n">${fmtE(l.totalMinorUnits)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#94a3b8">Aucune ligne facturable.</td></tr>'}
+        <table class="pp-tab"><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">PU</th><th class="n">Total</th></tr></thead><tbody>
+        ${L.map((l) => `<tr><td>${esc(l.label)}${l.code ? `<small>${esc(l.code)}</small>` : ''}</td><td class="n">${fmtN(l.quantity)}</td><td class="n">${fmtE(l.unitPriceMinorUnits)} ${modeTxt(l.unitPriceMode)}</td><td class="n">${fmtE(l.totalMinorUnits)} ${modeTxt(l.unitPriceMode)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:#94a3b8">Aucune ligne facturable.</td></tr>'}
         </tbody></table>
         <div class="pp-tot"><div><span>Total HT</span><span>${fmtE(S.totals?.totalHtMinorUnits || 0)}</span></div><div><span>TVA</span><span>${fmtE(S.totals?.totalTvaMinorUnits || 0)}</span></div><div class="g"><span>Total TTC</span><span>${fmtE(ttc())}</span></div></div>
         <div class="pp-foot"><span>${br ? 'Document provisoire — non valable comme facture.' : 'Règlement à réception.'}</span><span>Page 1/1</span></div>`;

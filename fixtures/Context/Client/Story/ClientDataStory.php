@@ -41,6 +41,19 @@ final class ClientDataStory extends Story
     public const CLIENT_GAEC_ID              = '01936e19-1010-7000-8000-000000000010';
     public const CLIENT_HARAS_ID             = '01936e19-1111-7000-8000-000000000011';
 
+    // Professionals whose SIREN plays a scenario of the local e-invoicing
+    // platform simulator (status reached by their invoices).
+    public const CLIENT_MISTRAL_ID      = '01936e19-1212-7000-8000-000000000012'; // 213 Rejetée
+    public const CLIENT_CRAU_ID         = '01936e19-1313-7000-8000-000000000013'; // 210 Refusée
+    public const CLIENT_ALPILLES_ID     = '01936e19-1414-7000-8000-000000000014'; // 207 En litige
+    public const CLIENT_LUBERON_ID      = '01936e19-1515-7000-8000-000000000015'; // 501 Irrecevable
+    public const CLIENT_SAINTE_BAUME_ID = '01936e19-1616-7000-8000-000000000016'; // 200 non transmise
+
+    // Professionals of the Lyon and Cassis establishments, whose company has
+    // no e-invoicing platform connection yet.
+    public const CLIENT_RHONE_ID   = '01936e19-1717-7000-8000-000000000017';
+    public const CLIENT_CALANCO_ID = '01936e19-1818-7000-8000-000000000018';
+
     public function build(): void
     {
         $parisClinicId = ClinicDataStory::INDEPENDENT_CLINIC_ID;
@@ -410,6 +423,12 @@ final class ClientDataStory extends Story
         ;
 
         $this->buildProfessionals($parisClinicId);
+        $this->createProfessionals($lyonClinicId, [
+            [self::CLIENT_RHONE_ID, 'madam', 'Agathe', 'Morel', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Monts du Rhône', '694123456', null, true, '+33 4 78 41 23 45', 'contact@monts-du-rhone.fr', ['Chemin des Crêtes', 'Vaugneray', '69670'], null],
+        ]);
+        $this->createProfessionals(ClinicDataStory::CALM_CLINIC_ID, [
+            [self::CLIENT_CALANCO_ID, 'mister', 'Marius', 'Ferrand', ClientTaxStatus::FRENCH_BUSINESS, 'Pension canine de Port-Miou', '831123450', null, true, '+33 4 42 01 12 34', null, ['Avenue de l\'Amiral Ganteaume', 'Cassis', '13260'], null],
+        ]);
         $this->buildNotesAndCommunications($parisClinicId);
     }
 
@@ -432,15 +451,32 @@ final class ClientDataStory extends Story
                 [CompanyCheckOutcome::ACTIVE, 'Élevage des Calanques', 'yesterday 08:12', VatCheckOutcome::VALID, null]],
             [self::CLIENT_CENTRE_EQUESTRE_ID, 'mister', 'Hugo', 'Marchal', ClientTaxStatus::FRENCH_BUSINESS, 'Centre équestre du Lac', '812345676', null, true, '+33 6 45 12 78 90', null, ['Route du Lac', 'Enghien-les-Bains', '95880'],
                 [CompanyCheckOutcome::UNCHECKED, null, null, VatCheckOutcome::UNCHECKED, '-5 minutes']],
+            // No street: its draft shows the readiness banner at the counter.
             [self::CLIENT_CALANQUES_AUBAGNE_ID, 'mister', 'Paul', 'Rostand', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage des Calanques — site d\'Aubagne', '523456788', null, true, '+33 4 42 03 11 22', null, null,
                 [CompanyCheckOutcome::ACTIVE, 'Élevage des Calanques', 'yesterday 08:13', VatCheckOutcome::NOT_APPLICABLE, null]],
             [self::CLIENT_REFUGE_ID, 'madam', 'Inès', 'Perrin', ClientTaxStatus::INDIVIDUAL, 'Refuge des Collines', null, null, true, '+33 6 77 88 99 00', 'refuge.collines@example.org', ['12 rue des Tilleuls', 'Montreuil', '93100'], null],
-            [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, null,
+            [self::CLIENT_GAEC_ID, 'mister', 'Bernard', 'Lacoste', ClientTaxStatus::FRENCH_BUSINESS, 'GAEC du Mont', '441569738', 'FR14441569738', false, '+33 5 55 12 34 56', null, ['Lieu-dit Le Mont', 'Saint-Yrieix-la-Perche', '87500'],
                 [CompanyCheckOutcome::CEASED, 'GAEC du Mont', '-3 days', VatCheckOutcome::VALID, null]],
             [self::CLIENT_HARAS_ID, 'madam', 'Lucie', 'Fabre', ClientTaxStatus::FRENCH_BUSINESS, 'Écuries du Mont Ventoux', '392107454', 'FR76392107454', true, '+33 4 90 65 12 34', 'accueil@haras-ventoux.fr', ['Chemin du Ventoux', 'Bédoin', '84410'],
                 [CompanyCheckOutcome::ACTIVE, 'Haras du Mont Ventoux', 'yesterday 08:14', VatCheckOutcome::INVALID, null]],
+            [self::CLIENT_MISTRAL_ID, 'mister', 'Julien', 'Arnaud', ClientTaxStatus::FRENCH_BUSINESS, 'Élevage du Mistral', '000002139', 'FR27000002139', true, '+33 4 90 12 21 39', 'contact@elevage-mistral.fr', ['Mas du Mistral', 'Saint-Rémy-de-Provence', '13210'], null],
+            [self::CLIENT_CRAU_ID, 'madam', 'Mathilde', 'Garnier', ClientTaxStatus::FRENCH_BUSINESS, 'Haras de la Crau', '000002105', 'FR22000002105', true, '+33 4 90 47 21 05', 'accueil@haras-crau.fr', ['Route de Saint-Martin-de-Crau', 'Arles', '13200'], null],
+            [self::CLIENT_ALPILLES_ID, 'mister', 'Romain', 'Blanc', ClientTaxStatus::FRENCH_BUSINESS, 'Chenil des Alpilles', '000002071', 'FR17000002071', true, '+33 4 90 54 20 71', null, ['Chemin des Baux', 'Maussane-les-Alpilles', '13520'], null],
+            [self::CLIENT_LUBERON_ID, 'madam', 'Élise', 'Martin', ClientTaxStatus::FRENCH_BUSINESS, 'Pension du Luberon', '000005017', 'FR28000005017', true, '+33 4 90 72 50 17', 'pension.luberon@example.fr', ['Hameau des Bories', 'Gordes', '84220'], null],
+            // The simulator's buyer without a platform; the registry knows no
+            // such SIREN either: « Entreprise introuvable » on its sheet.
+            [self::CLIENT_SAINTE_BAUME_ID, 'mister', 'Denis', 'Roux', ClientTaxStatus::FRENCH_BUSINESS, 'Ferme de la Sainte-Baume', '000000000', 'FR12000000000', true, '+33 4 42 04 00 00', null, ['Route du Plan d\'Aups', 'Nans-les-Pins', '83860'],
+                [CompanyCheckOutcome::NOT_FOUND, null, 'yesterday 08:15', VatCheckOutcome::UNCHECKED, null]],
         ];
 
+        $this->createProfessionals($clinicId, $structures);
+    }
+
+    /**
+     * @param list<array{string, string, string, string, ClientTaxStatus, string, ?string, ?string, bool, string, ?string, ?array{string, string, string}, ?array{CompanyCheckOutcome, ?string, ?string, VatCheckOutcome, ?string}}> $structures
+     */
+    private function createProfessionals(string $clinicId, array $structures): void
+    {
         foreach ($structures as [$id, $civility, $first, $last, $status, $legalName, $siren, $vat, $active, $phone, $email, $address, $verification]) {
             $factory = ClientEntityFactory::new()
                 ->withId($id)

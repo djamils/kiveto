@@ -29,11 +29,16 @@ final readonly class CreatePackageController
             return $refused;
         }
 
-        $mode = $request->request->getString('pricing_mode', 'SUM_OF_COMPONENTS');
-        $net  = 'FIXED_PRICE' === $mode ? CatalogEndpoint::cents($request, 'net') : null;
+        $mode      = $request->request->getString('pricing_mode', 'SUM_OF_COMPONENTS');
+        $price     = 'FIXED_PRICE' === $mode ? CatalogEndpoint::cents($request, 'price') : null;
+        $priceMode = 'FIXED_PRICE' === $mode ? CatalogEndpoint::priceMode($request) : null;
 
-        if ('FIXED_PRICE' === $mode && null === $net) {
+        if ('FIXED_PRICE' === $mode && null === $price) {
             return $this->endpoint->refuse('Le prix forfaitaire saisi est invalide.');
+        }
+
+        if ('FIXED_PRICE' === $mode && null === $priceMode) {
+            return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
         }
 
         $clinicId = $this->endpoint->clinicId();
@@ -45,8 +50,9 @@ final readonly class CreatePackageController
                 code: mb_strtoupper(mb_trim($request->request->getString('code'))),
                 taxCategoryCode: $request->request->getString('tax_category'),
                 pricingMode: $mode,
-                fixedPriceMinorUnits: $net,
-                fixedPriceCurrency: null !== $net ? 'EUR' : null,
+                fixedPriceMinorUnits: $price,
+                fixedPriceCurrency: null !== $price ? 'EUR' : null,
+                fixedPriceMode: $priceMode,
             ));
             \assert(\is_string($id));
 

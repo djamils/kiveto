@@ -56,14 +56,15 @@ interface ConsultationReadRepositoryInterface
     ): bool;
 
     /**
-     * Pre-tax billing totals per visit, broken down by tax category.
+     * Billing totals per visit, broken down by tax category and split by the
+     * mode the line prices were entered in (pre-tax or all taxes included).
      *
      * Same shape as the list rows and for the same reason: this repository
      * stays bus-free, so the VAT is applied by the handler.
      *
      * @param list<string> $admissionIds
      *
-     * @return array<string, array{htByTaxCategory: array<string, int>, currency: string}>
+     * @return array<string, array{htByTaxCategory: array<string, int>, ttcByTaxCategory: array<string, int>, currency: string}>
      */
     public function totalsForAdmissions(ClinicId $clinicId, array $admissionIds): array;
 
@@ -81,6 +82,7 @@ interface ConsultationReadRepositoryInterface
      *     quantity: string,
      *     unitPriceMinorUnits: int,
      *     currency: string,
+     *     unitPriceMode: string,
      *     taxCategoryCode: ?string
      * }>
      */

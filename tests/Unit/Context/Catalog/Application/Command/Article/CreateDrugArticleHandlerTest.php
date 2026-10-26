@@ -195,6 +195,7 @@ final class CreateDrugArticleHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.drug.prescription',
             basePriceMinorUnits: 1250,
             basePriceCurrency: $currency,
+            basePriceMode: 'incl',
             unitOfMeasure: 'UNIT',
             authorizationRef: $authorizationRef,
             requiresPrescription: $requiresPrescription,

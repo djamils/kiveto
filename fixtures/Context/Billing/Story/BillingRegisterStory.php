@@ -196,8 +196,10 @@ final class BillingRegisterStory extends Story
     private function boxes(string $invoiceId): void
     {
         $lines = $this->connection->fetchAllAssociative(
-            'SELECT BIN_TO_UUID(id) AS id, label, unit_price_minor_units, tax_category_code
-             FROM billing__invoice_lines WHERE invoice_id = :id AND quantity > :max',
+            "SELECT BIN_TO_UUID(id) AS id, label, tax_category_code,
+                    CASE unit_price_mode WHEN 'incl' THEN unit_price_minor_units
+                         ELSE ROUND(unit_price_minor_units * (1 + tax_rate_percent / 100)) END AS unit_gross
+             FROM billing__invoice_lines WHERE invoice_id = :id AND quantity > :max",
             ['id' => $this->binary($invoiceId), 'max' => self::MAX_BOXES],
         );
 
@@ -208,8 +210,8 @@ final class BillingRegisterStory extends Story
                 $invoiceId,
                 RowAccessor::string($line, 'label'),
                 '1',
-                RowAccessor::int($line, 'unit_price_minor_units'),
-                RowAccessor::nullableString($line, 'tax_category_code'),
+                RowAccessor::int($line, 'unit_gross'),
+                RowAccessor::nullableString($line, 'tax_category_code') ?? 'veterinary.drug.prescription',
             ));
         }
     }
@@ -423,7 +425,7 @@ final class BillingRegisterStory extends Story
     {
         $row = $this->connection->fetchAssociative(
             'SELECT i.credited_minor_units, i.refunded_minor_units,
-                    (SELECT COALESCE(SUM(l.gross_minor_units), 0) FROM billing__invoice_lines l WHERE l.invoice_id = i.id) AS gross,
+                    i.total_gross AS gross,
                     (SELECT COALESCE(SUM(p.amount_minor_units), 0) FROM billing__payments p WHERE p.invoice_id = i.id) AS paid
              FROM billing__invoices i WHERE i.id = :id',
             ['id' => $this->binary($invoiceId)],

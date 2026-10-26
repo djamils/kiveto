@@ -59,6 +59,9 @@ final class CommandBusCounterClientRegistryTest extends TestCase
             '0491000000',
             'contact@calanques.fr',
             new ClientTaxProfileInput('french_business', 'Élevage des Calanques', '523456788', 'FR31523456788'),
+            ' Chemin des Goudes ',
+            '13008',
+            'Marseille',
         ));
 
         self::assertCount(1, $sent);
@@ -69,6 +72,31 @@ final class CommandBusCounterClientRegistryTest extends TestCase
         self::assertSame('Élevage des Calanques', $sent[0]->taxProfile->legalName);
         self::assertSame('523456788', $sent[0]->taxProfile->siren);
         self::assertSame('FR31523456788', $sent[0]->taxProfile->vatNumber);
+        self::assertNotNull($sent[0]->postalAddress);
+        self::assertSame('Chemin des Goudes', $sent[0]->postalAddress->streetLine1);
+        self::assertSame('13008', $sent[0]->postalAddress->postalCode);
+        self::assertSame('Marseille', $sent[0]->postalAddress->city);
+        self::assertSame('FR', $sent[0]->postalAddress->countryCode);
+    }
+
+    public function testAnAddressWithoutPostalCodeKeepsItNull(): void
+    {
+        $sent = [];
+
+        new CommandBusCounterClientRegistry($this->bus($sent))->register(self::CLINIC_ID, new CounterSaleNewClient('mister', 'Petit', 'Lucas', email: 'lucas@example.fr', street: '1 rue', city: 'Lyon'));
+
+        self::assertInstanceOf(CreateClient::class, $sent[0]);
+        self::assertNull($sent[0]->postalAddress?->postalCode);
+    }
+
+    public function testNoAddressIsSentWhenNoneWasTyped(): void
+    {
+        $sent = [];
+
+        new CommandBusCounterClientRegistry($this->bus($sent))->register(self::CLINIC_ID, new CounterSaleNewClient('mister', 'Petit', 'Lucas', email: 'lucas@example.fr', street: '1 rue'));
+
+        self::assertInstanceOf(CreateClient::class, $sent[0]);
+        self::assertNull($sent[0]->postalAddress);
     }
 
     public function testAProfessionalsMobileStaysAMobile(): void

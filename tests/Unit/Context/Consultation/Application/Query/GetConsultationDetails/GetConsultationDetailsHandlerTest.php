@@ -57,6 +57,27 @@ final class GetConsultationDetailsHandlerTest extends TestCase
         ], $result->totals);
     }
 
+    public function testALinePricedAllTaxesIncludedHoldsItsVatRatherThanAddingIt(): void
+    {
+        $taxRates = $this->createStub(TaxRateProviderInterface::class);
+        $taxRates->method('effectiveRatePercent')->willReturn(20.0);
+
+        $details = $this->detailsWithBillingLines([
+            $this->billingLine(id: 'l1', total: 6000, taxCategoryCode: 'veterinary.act.consultation', mode: 'incl'),
+            $this->billingLine(id: 'l2', total: 1000, taxCategoryCode: 'veterinary.act.consultation'),
+        ]);
+
+        $result = $this->handle($details, $taxRates);
+
+        // 60,00 € TTC holds 50,00 € + 10,00 € of VAT; 10,00 € HT takes 2,00 € on top.
+        self::assertSame([
+            'totalHtMinorUnits'  => 6000,
+            'totalTvaMinorUnits' => 1200,
+            'totalTtcMinorUnits' => 7200,
+            'currency'           => 'CHF',
+        ], $result->totals);
+    }
+
     public function testEachTaxCategoryIsAskedForOnlyOnce(): void
     {
         $calls = [];
@@ -160,11 +181,12 @@ final class GetConsultationDetailsHandlerTest extends TestCase
      *     quantity: float,
      *     unitPriceMinorUnits: int,
      *     currency: string,
+     *     unitPriceMode: string,
      *     taxCategoryCode: ?string,
      *     totalMinorUnits: int
      * }
      */
-    private function billingLine(string $id, int $total, ?string $taxCategoryCode): array
+    private function billingLine(string $id, int $total, ?string $taxCategoryCode, string $mode = 'excl'): array
     {
         return [
             'id'                  => $id,
@@ -176,6 +198,7 @@ final class GetConsultationDetailsHandlerTest extends TestCase
             'unitPriceMinorUnits' => $total,
             // A non-EUR currency proves the totals take it from the lines.
             'currency'        => 'CHF',
+            'unitPriceMode'   => $mode,
             'taxCategoryCode' => $taxCategoryCode,
             'totalMinorUnits' => $total,
         ];
@@ -191,6 +214,7 @@ final class GetConsultationDetailsHandlerTest extends TestCase
      *     quantity: float,
      *     unitPriceMinorUnits: int,
      *     currency: string,
+     *     unitPriceMode: string,
      *     taxCategoryCode: ?string,
      *     totalMinorUnits: int
      * }> $billingLines

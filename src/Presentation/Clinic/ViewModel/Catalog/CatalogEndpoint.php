@@ -18,6 +18,8 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  */
 final readonly class CatalogEndpoint
 {
+    public const string INVALID_PRICE_MODE = 'Le prix doit être saisi TTC ou HT.';
+
     public function __construct(
         private CsrfTokenManagerInterface $csrf,
         private CurrentClinicContextInterface $currentClinicContext,
@@ -67,6 +69,17 @@ final readonly class CatalogEndpoint
         $raw = mb_trim($request->request->getString($key));
 
         return 1 === preg_match('/^\d{1,9}$/', $raw) ? (int) $raw : null;
+    }
+
+    /**
+     * How the posted price was typed — 'incl' for a « Prix TTC » field, 'excl'
+     * for a field labelled HT — or null when the field is anything else.
+     */
+    public static function priceMode(Request $request, string $key = 'price_mode'): ?string
+    {
+        $raw = mb_trim($request->request->getString($key));
+
+        return \in_array($raw, ['incl', 'excl'], true) ? $raw : null;
     }
 
     /** A trimmed text field, null when absent or empty. */

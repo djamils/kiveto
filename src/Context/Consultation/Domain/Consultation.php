@@ -33,6 +33,7 @@ use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
 use App\Context\Consultation\Domain\ValueObject\PrescriptionLineRecord;
 use App\Context\Consultation\Domain\ValueObject\TypedVitalRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
 use App\Context\Consultation\Domain\ValueObject\VitalType;
@@ -545,6 +546,7 @@ final class Consultation extends AggregateRoot
         float $quantity,
         ?int $unitPriceMinorUnits,
         ?string $currency,
+        ?UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         UserId $createdByUserId,
         \DateTimeImmutable $occurredAt,
@@ -561,6 +563,7 @@ final class Consultation extends AggregateRoot
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
             $occurredAt,
             $createdByUserId,
@@ -624,6 +627,7 @@ final class Consultation extends AggregateRoot
         float $quantity,
         int $unitPriceMinorUnits,
         string $currency,
+        UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
         UserId $createdByUserId,
         \DateTimeImmutable $occurredAt,
@@ -641,6 +645,7 @@ final class Consultation extends AggregateRoot
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
             $occurredAt,
             $createdByUserId,
@@ -945,8 +950,9 @@ final class Consultation extends AggregateRoot
 
             $unitPrice = $action->getUnitPriceMinorUnits();
             $currency  = $action->getCurrency();
+            $mode      = $action->getUnitPriceMode();
 
-            if (null === $unitPrice || null === $currency) {
+            if (null === $unitPrice || null === $currency || null === $mode) {
                 continue;
             }
 
@@ -966,6 +972,7 @@ final class Consultation extends AggregateRoot
                     $action->getQuantity(),
                     $unitPrice,
                     $currency,
+                    $mode,
                     $action->getTaxCategoryCode(),
                 );
         }
@@ -983,6 +990,7 @@ final class Consultation extends AggregateRoot
                     $line->getQuantity(),
                     $line->getUnitPriceMinorUnits(),
                     $line->getCurrency(),
+                    $line->getUnitPriceMode(),
                     $line->getTaxCategoryCode(),
                 );
         }

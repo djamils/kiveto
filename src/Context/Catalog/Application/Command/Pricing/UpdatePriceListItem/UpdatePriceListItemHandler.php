@@ -8,11 +8,10 @@ use App\Context\Catalog\Domain\Pricing\Exception\PriceListNotFoundException;
 use App\Context\Catalog\Domain\Pricing\Repository\PriceListRepositoryInterface;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -41,9 +40,10 @@ final class UpdatePriceListItemHandler
 
         $priceList->updateItem(
             PriceListItemId::fromString($command->priceListItemId),
-            Money::fromMinorUnits(
-                $command->netPriceMinorUnits,
-                CurrencyCode::fromString($command->netPriceCurrency),
+            CatalogPrice::fromPrimitives(
+                $command->priceMinorUnits,
+                $command->priceCurrency,
+                $command->priceMode,
             ),
             $taxOverride,
             $this->clock->now(),

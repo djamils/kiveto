@@ -25,7 +25,9 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListName;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListStatus;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PricingContext;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\Service\CurrencyRegistry;
@@ -81,6 +83,10 @@ final class PriceResolverTest extends TestCase
         $resolved = $this->makeResolver()->resolve($this->actRef(), $this->makeContext(self::PRICE_LIST_ID));
 
         self::assertSame(1480, $resolved->netAmount->minorUnits());
+        self::assertSame(1480, $resolved->amount()->minorUnits());
+        self::assertSame(1480, $resolved->baseAmount->minorUnits());
+        self::assertSame(PriceEntryMode::INCLUDING_TAX, $resolved->mode());
+        self::assertTrue($resolved->price()->equals(CatalogPrice::includingTax(Money::fromMinorUnits(1480, CurrencyCode::fromString('EUR')))));
         self::assertSame(self::PRICE_LIST_ID, $resolved->sourcePriceList->toString());
         self::assertNotNull($resolved->sourcePriceListItem);
         self::assertSame(self::ITEM_ID, $resolved->sourcePriceListItem->toString());
@@ -126,6 +132,7 @@ final class PriceResolverTest extends TestCase
         $resolved = $this->makeResolver()->resolve($this->actRef(), $this->makeContext(self::PRICE_LIST_ID));
 
         self::assertSame(5000, $resolved->netAmount->minorUnits());
+        self::assertSame(PriceEntryMode::INCLUDING_TAX, $resolved->mode());
         self::assertNull($resolved->sourcePriceListItem);
     }
 
@@ -212,7 +219,7 @@ final class PriceResolverTest extends TestCase
             $items[] = PriceListItem::create(
                 id: PriceListItemId::fromString(self::ITEM_ID),
                 itemRef: $this->actRef(),
-                netPrice: Money::fromMinorUnits(1480, CurrencyCode::fromString('EUR')),
+                price: CatalogPrice::includingTax(Money::fromMinorUnits(1480, CurrencyCode::fromString('EUR'))),
                 taxCategoryOverride: null,
             );
         }
@@ -240,7 +247,7 @@ final class PriceResolverTest extends TestCase
             description: null,
             category: ActCategory::CONSULTATION,
             taxCategory: TaxCategoryCode::fromString('veterinary.act.consultation'),
-            basePrice: Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(5000, CurrencyCode::fromString('EUR'))),
             estimatedDuration: ActDuration::ofMinutes(20),
             requiresAnesthesia: false,
             createdAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),

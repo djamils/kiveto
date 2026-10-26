@@ -23,7 +23,16 @@ final readonly class CounterSaleNewClient
         public string $phone = '',
         public string $email = '',
         public ?ClientTaxProfileInput $taxProfile = null,
+        // The postal address a professional's invoice is made out to (France).
+        public string $street = '',
+        public string $postalCode = '',
+        public string $city = '',
     ) {
+    }
+
+    public function hasAddress(): bool
+    {
+        return '' !== mb_trim($this->street) && '' !== mb_trim($this->city);
     }
 
     public function isProfessional(): bool

@@ -113,6 +113,7 @@ final readonly class BillingRegisterViewBuilder
                 'tot'    => $row->totalGrossMinorUnits,
                 'du'     => max(0, $row->balanceDueMinorUnits),
                 'retard' => $note ? 0 : self::overdueDays($row, $now),
+                'tx'     => TransmissionBadge::of($row->transmission),
                 'url'    => $this->url($row),
             ];
         }, $items);

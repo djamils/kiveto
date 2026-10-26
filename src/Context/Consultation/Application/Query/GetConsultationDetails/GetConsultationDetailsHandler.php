@@ -6,6 +6,7 @@ namespace App\Context\Consultation\Application\Query\GetConsultationDetails;
 
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\TaxRateProviderInterface;
+use App\Context\Consultation\Application\Service\DisplayedTotals;
 use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -44,35 +45,31 @@ final readonly class GetConsultationDetailsHandler
      */
     private function computeTotals(ConsultationDetailsDTO $details, string $clinicId): array
     {
-        $totalHt  = 0;
-        $totalTva = 0;
         $currency = self::DEFAULT_CURRENCY;
+        $amounts  = ['excl' => [], 'incl' => []];
+
+        foreach ($details->billingLines as $line) {
+            $currency = $line['currency'];
+            $mode     = 'incl' === $line['unitPriceMode'] ? 'incl' : 'excl';
+            $category = $line['taxCategoryCode'] ?? '';
+
+            $amounts[$mode][$category] = ($amounts[$mode][$category] ?? 0) + $line['totalMinorUnits'];
+        }
 
         /** @var array<string, float|null> $ratesByCategory */
         $ratesByCategory = [];
 
-        foreach ($details->billingLines as $line) {
-            $totalHt += $line['totalMinorUnits'];
-            $currency = $line['currency'];
+        ['ht' => $totalHt, 'tva' => $totalTva] = DisplayedTotals::of(
+            $amounts['excl'],
+            $amounts['incl'],
+            function (string $category) use (&$ratesByCategory, $clinicId): ?float {
+                if (!\array_key_exists($category, $ratesByCategory)) {
+                    $ratesByCategory[$category] = $this->taxRates->effectiveRatePercent($category, $clinicId);
+                }
 
-            $categoryCode = $line['taxCategoryCode'];
-
-            if (null === $categoryCode) {
-                continue;
-            }
-
-            if (!\array_key_exists($categoryCode, $ratesByCategory)) {
-                $ratesByCategory[$categoryCode] = $this->taxRates->effectiveRatePercent($categoryCode, $clinicId);
-            }
-
-            $rate = $ratesByCategory[$categoryCode];
-
-            if (null === $rate) {
-                continue;
-            }
-
-            $totalTva += (int) round($line['totalMinorUnits'] * $rate / 100);
-        }
+                return $ratesByCategory[$category];
+            },
+        );
 
         return [
             'totalHtMinorUnits'  => $totalHt,

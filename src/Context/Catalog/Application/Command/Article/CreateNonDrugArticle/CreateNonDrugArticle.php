@@ -17,6 +17,7 @@ final readonly class CreateNonDrugArticle implements CommandInterface
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
         public string $unitOfMeasure,
         public bool $trackStock,
     ) {

@@ -63,8 +63,7 @@ final readonly class BillingSheetBuilder
             $credited = [...$credited, ...$note->creditedLineIds];
         }
 
-        $paid  = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
-        $ratio = $invoice->totalNetBeforeDiscountMinorUnits > 0 ? $invoice->totalNetMinorUnits / $invoice->totalNetBeforeDiscountMinorUnits : 1.0;
+        $paid = $invoice->amountPaidMinorUnits - $invoice->refundedMinorUnits;
 
         return [
             'id'     => $invoice->id,
@@ -90,10 +89,11 @@ final readonly class BillingSheetBuilder
                 'remb'  => null !== $note->refundMethod ? ['mode' => self::MODES[$note->refundMethod] ?? 'autre', 'l' => $note->refundMethodLabel, 'm' => $note->refundedMinorUnits] : null,
             ], $invoice->creditNotes),
             'lignes' => array_map(fn (InvoiceLineView $line): array => $this->line($line, \in_array($line->id, $credited, true)), $invoice->lines),
-            'tva'    => array_map(static fn (array $rate): array => [
+            // The breakdown is already discounted: its rows add up to the totals.
+            'tva' => array_map(static fn (array $rate): array => [
                 't'   => self::rate($rate['ratePercent']),
-                'ht'  => (int) round($rate['netMinorUnits'] * $ratio),
-                'tva' => (int) round($rate['taxMinorUnits'] * $ratio),
+                'ht'  => $rate['netMinorUnits'],
+                'tva' => $rate['taxMinorUnits'],
             ], $invoice->taxBreakdown),
             'remise'  => $invoice->discountMinorUnits > 0 ? ['m' => $invoice->discountMinorUnits, 'motif' => $invoice->discountReason] : null,
             'tot'     => $invoice->totalGrossMinorUnits,
@@ -105,6 +105,7 @@ final readonly class BillingSheetBuilder
             'nature'  => self::nature($invoice->lines),
             'annul'   => null !== $invoice->cancelledAt ? ['d' => $invoice->cancelledAt->setTimezone($tz)->format('Y-m-d'), 'motif' => $invoice->cancellationReason] : null,
             'hist'    => $this->invoiceHistory($invoice, $team, $tz),
+            'tx'      => TransmissionBadge::of($invoice->transmission),
             'pdf'     => $this->urls->generate('clinic_invoice_pdf', ['invoiceId' => $invoice->id]),
             'actions' => $this->actions($invoice, $visit, $credited, $paid),
         ];
@@ -167,6 +168,7 @@ final readonly class BillingSheetBuilder
             'tot'     => $note->totalGrossMinorUnits,
             'nature'  => self::nature($note->lines),
             'hist'    => $hist,
+            'tx'      => TransmissionBadge::of($note->transmission),
             'pdf'     => $this->urls->generate('clinic_credit_note_pdf', ['creditNoteId' => $note->id]),
             'actions' => [],
         ];

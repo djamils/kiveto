@@ -98,6 +98,7 @@ final class CatalogDomainEventsTest extends TestCase
                 self::CLINIC_ID,
                 6500,
                 'EUR',
+                'incl',
             ),
         ];
         yield 'ActCreated' => [
@@ -110,6 +111,7 @@ final class CatalogDomainEventsTest extends TestCase
                 'veterinary.act.consultation',
                 5000,
                 'EUR',
+                'incl',
                 20,
                 false,
             ),
@@ -146,6 +148,7 @@ final class CatalogDomainEventsTest extends TestCase
                 self::CLINIC_ID,
                 420,
                 'EUR',
+                'incl',
             ),
         ];
         yield 'ArticleCreated' => [
@@ -159,6 +162,7 @@ final class CatalogDomainEventsTest extends TestCase
                 'veterinary.consumable',
                 350,
                 'EUR',
+                'incl',
                 'UNIT',
                 true,
             ),
@@ -229,6 +233,7 @@ final class CatalogDomainEventsTest extends TestCase
                 self::CLINIC_ID,
                 27500,
                 'EUR',
+                'incl',
             ),
         ];
         yield 'PriceListCreated' => [
@@ -247,6 +252,7 @@ final class CatalogDomainEventsTest extends TestCase
                 '01960000-0000-7000-8000-00000000c003',
                 300,
                 'EUR',
+                'incl',
             ),
         ];
         yield 'PriceListItemRemoved' => [
@@ -261,6 +267,7 @@ final class CatalogDomainEventsTest extends TestCase
                 '01960000-0000-7000-8000-00000000e001',
                 5200,
                 'EUR',
+                'incl',
             ),
         ];
         yield 'PriceRuleAdded' => [

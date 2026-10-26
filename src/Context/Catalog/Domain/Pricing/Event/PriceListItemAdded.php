@@ -16,8 +16,9 @@ final readonly class PriceListItemAdded extends AbstractDomainEvent
         public string $priceListItemId,
         public string $itemType,
         public string $itemId,
-        public int $netPriceMinorUnits,
-        public string $netPriceCurrency,
+        public int $priceMinorUnits,
+        public string $priceCurrency,
+        public string $priceMode,
     ) {
     }
 
@@ -30,12 +31,13 @@ final readonly class PriceListItemAdded extends AbstractDomainEvent
     public function payload(): array
     {
         return [
-            'priceListId'        => $this->priceListId,
-            'priceListItemId'    => $this->priceListItemId,
-            'itemType'           => $this->itemType,
-            'itemId'             => $this->itemId,
-            'netPriceMinorUnits' => $this->netPriceMinorUnits,
-            'netPriceCurrency'   => $this->netPriceCurrency,
+            'priceListId'     => $this->priceListId,
+            'priceListItemId' => $this->priceListItemId,
+            'itemType'        => $this->itemType,
+            'itemId'          => $this->itemId,
+            'priceMinorUnits' => $this->priceMinorUnits,
+            'priceCurrency'   => $this->priceCurrency,
+            'priceMode'       => $this->priceMode,
         ];
     }
 }

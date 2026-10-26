@@ -6,8 +6,10 @@ namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Settings\SettingsPageBuilder;
+use App\Presentation\Clinic\ViewModel\Shared\ReturnLink;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -22,10 +24,11 @@ final class ShowClinicIdentityController extends AbstractController
         private readonly SettingsPageBuilder $page,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly ClinicPermissionGuard $guard,
+        private readonly ReturnLink $returnLink,
     ) {
     }
 
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
         $this->guard->require(ClinicPermissionGuard::MANAGE_STAFF);
 
@@ -34,6 +37,8 @@ final class ShowClinicIdentityController extends AbstractController
 
         return $this->render('clinic/settings/page.html.twig', [
             'payload' => $this->page->page($clinicId->toString(), 'identite'),
+            // Opened from a refused checkout: the way back to it.
+            'returnLink' => $this->returnLink->from($request->query->getString('_returnTo')),
         ]);
     }
 }

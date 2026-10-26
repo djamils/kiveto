@@ -8,15 +8,18 @@ use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClie
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
+use App\Context\Billing\Domain\Exception\InvoiceNotTransmissibleException;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
 use App\Presentation\Clinic\ViewModel\Billing\BillingErrorMessage;
 use App\Presentation\Clinic\ViewModel\Billing\BillingSheetBuilder;
+use App\Presentation\Clinic\ViewModel\Billing\ReadinessMessages;
 use App\Presentation\Clinic\ViewModel\Client\TaxProfileInput;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -30,11 +33,18 @@ use Symfony\Component\Uid\Uuid;
  * to (`payer`): a client of the clinic (`cli`, with `client`), a newcomer
  * whose record is created with it (`part`, with `civ`, `nom`, `pre`, `tel`,
  * `mail`), a professional opened likewise (`pro`, the same fields plus the
- * shared tax-profile block `fisc`, `rs`, `siren`, `tva`), or a client who
+ * shared tax-profile block `fisc`, `rs`, `siren`, `tva` and its postal address
+ * `adr`, `cp`, `ville`, required when it is VAT-liable), or a client who
  * refuses to give their contact details (`anon`).
  * The invoice is issued and paid at once; the register comes back on its
  * sheet, with the print preview open when the desk hands it over printed
  * (`imprimer`).
+ *
+ * The window posts in the background (`Accept: application/json`): a refusal
+ * comes back as `{error}` or, for a professional invoice that cannot be
+ * numbered, `{readiness: [{text, href, label}]}` shown inline while the window
+ * keeps what was typed; a success as `{redirect}`. A plain form post gets the
+ * same outcomes as a toast and a redirect.
  */
 #[Route(path: '/billing/counter-sale', name: 'clinic_counter_sale', methods: ['POST'])]
 final class RecordCounterSaleController extends AbstractController
@@ -46,17 +56,16 @@ final class RecordCounterSaleController extends AbstractController
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ReadinessMessages $readiness,
     ) {
     }
 
     public function __invoke(Request $request): Response
     {
-        $back = $this->redirectToRoute('clinic_invoices');
+        $json = 'json' === $request->getPreferredFormat();
 
         if (!$this->csrfTokenManager->isTokenValid(new CsrfToken('billing_counter_sale', $request->request->getString('_token')))) {
-            $this->addFlash('error', 'Token de sécurité invalide. Veuillez réessayer.');
-
-            return $back;
+            return $this->refuse($json, 'Token de sécurité invalide. Veuillez réessayer.');
         }
 
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
@@ -67,37 +76,48 @@ final class RecordCounterSaleController extends AbstractController
         $lines    = $this->lines($request->request->getString('lines'));
         $payer    = $request->request->getString('payer');
         $client   = $request->request->getString('client');
+        $clientId = 'cli' === $payer && Uuid::isValid($client) ? $client : null;
         $user     = $this->getUser();
 
         if (null === $method || [] === $lines) {
-            $this->addFlash('error', 'Ajoutez au moins un article et choisissez le moyen de paiement.');
-
-            return $back;
+            return $this->refuse($json, 'Ajoutez au moins un article et choisissez le moyen de paiement.');
         }
 
         $taxProfile = 'pro' === $payer ? TaxProfileInput::fromArray($request->request->all()) : null;
 
         // The « Professionnel » tab only creates structures: a legal name is due even when not VAT-liable.
         if ('pro' === $payer && (null === $taxProfile || null !== $taxProfile->firstError(structureOnly: true))) {
-            $this->addFlash('error', $taxProfile?->firstError(structureOnly: true) ?? 'Choisissez le statut fiscal du professionnel.');
+            return $this->refuse($json, $taxProfile?->firstError(structureOnly: true) ?? 'Choisissez le statut fiscal du professionnel.');
+        }
 
-            return $back;
+        $newClient = \in_array($payer, ['part', 'pro'], true) ? $this->newClient($request, $taxProfile) : null;
+
+        // A VAT-liable professional is invoiced at its postal address (France).
+        if (true === $taxProfile?->isProfessional() && null !== $newClient && !self::hasFrenchAddress($newClient)) {
+            return $this->refuse($json, 'Indiquez l\'adresse du professionnel : adresse, code postal et ville.');
         }
 
         try {
             $invoiceId = $this->commandBus->dispatch(new RecordCounterSale(
                 clinicId: $clinicId,
-                payerClientId: 'cli' === $payer && Uuid::isValid($client) ? $client : null,
+                payerClientId: $clientId,
                 lines: $lines,
                 method: $method->value,
                 recordedByUserId: $user instanceof SecurityUser ? $user->id() : null,
-                newClient: \in_array($payer, ['part', 'pro'], true) ? $this->newClient($request, $taxProfile) : null,
+                newClient: $newClient,
                 contactDetailsRefused: 'anon' === $payer,
             ));
-        } catch (\DomainException $e) {
-            $this->addFlash('error', BillingErrorMessage::of($e));
+        } catch (InvoiceNotTransmissibleException $e) {
+            // Nothing was created: the window lists what to fix; a newcomer has no sheet to link to yet.
+            $messages = $this->readiness->for($e->requirements, $clientId, 'clinic_invoices');
 
-            return $back;
+            if ($json) {
+                return new JsonResponse(['readiness' => $messages], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            return $this->refuse(false, implode(' · ', array_column($messages, 'text')));
+        } catch (\DomainException $e) {
+            return $this->refuse($json, BillingErrorMessage::of($e));
         }
 
         \assert(\is_string($invoiceId));
@@ -117,11 +137,29 @@ final class RecordCounterSaleController extends AbstractController
             ));
         }
 
-        return $this->redirectToRoute('clinic_invoice_details', [
+        $target = $this->generateUrl('clinic_invoice_details', [
             'invoiceId' => $invoiceId,
             'per'       => '0',
             ...($request->request->getBoolean('imprimer') ? ['imprimer' => '1'] : []),
         ]);
+
+        return $json ? new JsonResponse(['redirect' => $target]) : $this->redirect($target);
+    }
+
+    private function refuse(bool $json, string $message): Response
+    {
+        if ($json) {
+            return new JsonResponse(['error' => $message], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $this->addFlash('error', $message);
+
+        return $this->redirectToRoute('clinic_invoices');
+    }
+
+    private static function hasFrenchAddress(CounterSaleNewClient $client): bool
+    {
+        return $client->hasAddress() && 1 === preg_match('/^\d{5}$/', $client->postalCode);
     }
 
     /**
@@ -140,6 +178,10 @@ final class RecordCounterSaleController extends AbstractController
             phone: (string) preg_replace('/\D+/', '', $field('tel')),
             email: mb_strtolower($field('mail')),
             taxProfile: $taxProfile?->toBillingInput(),
+            // Only a professional's tab asks for the address.
+            street: null !== $taxProfile ? $field('adr') : '',
+            postalCode: null !== $taxProfile ? (string) preg_replace('/\D+/', '', $field('cp')) : '',
+            city: null !== $taxProfile ? $field('ville') : '',
         );
     }
 

@@ -12,8 +12,9 @@ final readonly class UpdatePriceListItem implements CommandInterface
         public string $priceListId,
         public string $priceListItemId,
         public string $clinicId,
-        public int $netPriceMinorUnits,
-        public string $netPriceCurrency,
+        public int $priceMinorUnits,
+        public string $priceCurrency,
+        public string $priceMode,
         public ?string $taxCategoryOverride,
     ) {
     }

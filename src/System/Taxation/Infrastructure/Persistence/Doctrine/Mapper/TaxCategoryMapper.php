@@ -6,6 +6,7 @@ namespace App\System\Taxation\Infrastructure\Persistence\Doctrine\Mapper;
 
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Entity\TaxCategoryEntity;
 
 final readonly class TaxCategoryMapper
@@ -16,6 +17,7 @@ final readonly class TaxCategoryMapper
             TaxCategoryCode::fromString($entity->getCode()),
             $entity->getDisplayName(),
             $entity->getDescription(),
+            TaxCategoryNature::from($entity->getNature()),
             $entity->isActive(),
             $entity->getCreatedAt(),
             $entity->getUpdatedAt(),
@@ -28,6 +30,7 @@ final readonly class TaxCategoryMapper
         $entity->setCode($category->code()->toString());
         $entity->setDisplayName($category->displayName());
         $entity->setDescription($category->description());
+        $entity->setNature($category->nature()->value);
         $entity->setActive($category->isActive());
         $entity->setCreatedAt($category->createdAt());
         $entity->setUpdatedAt($category->updatedAt());

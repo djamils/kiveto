@@ -8,6 +8,7 @@ use App\Context\Consultation\Application\Port\CatalogItemProviderInterface;
 use App\Context\Consultation\Domain\Repository\ConsultationRepositoryInterface;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -38,6 +39,7 @@ final readonly class AddPlanActionHandler
 
         $unitPriceMinorUnits = null;
         $currency            = null;
+        $unitPriceMode       = null;
         $taxCategoryCode     = null;
         $catalogCode         = $command->catalogCode;
 
@@ -57,6 +59,7 @@ final readonly class AddPlanActionHandler
             $catalogCode         = $act->code;
             $unitPriceMinorUnits = $price->minorUnits;
             $currency            = $price->currency;
+            $unitPriceMode       = UnitPriceMode::from($price->mode);
             $taxCategoryCode     = $price->taxCategoryCode;
         }
 
@@ -70,6 +73,7 @@ final readonly class AddPlanActionHandler
             $command->quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
             UserId::fromString($command->createdByUserId),
             $this->clock->now(),

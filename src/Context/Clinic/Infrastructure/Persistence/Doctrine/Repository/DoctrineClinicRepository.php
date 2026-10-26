@@ -10,7 +10,9 @@ use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Entity\ClinicEntity;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMapper;
+use App\Shared\Domain\ValueObject\Siren;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineClinicRepository implements ClinicRepositoryInterface
@@ -83,5 +85,30 @@ final readonly class DoctrineClinicRepository implements ClinicRepositoryInterfa
         ]);
 
         return $count > 0;
+    }
+
+    public function findOthersWithSiren(Siren $siren, ClinicId $excluding): array
+    {
+        /** @var list<ClinicEntity> $entities */
+        $entities = $this->em->createQueryBuilder()
+            ->select('c')
+            ->from(ClinicEntity::class, 'c')
+            ->where('c.letterhead.siret LIKE :siren')
+            ->andWhere('c.id != :excluding')
+            ->setParameter('siren', $siren->value() . '%')
+            ->setParameter('excluding', Uuid::fromString($excluding->toString()), UuidType::NAME)
+            ->orderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult()
+        ;
+
+        $clinics = array_map($this->mapper->toDomain(...), $entities);
+
+        // A stored SIRET that merely starts with these digits but is not a valid
+        // one does not make its clinic an establishment of the company.
+        return array_values(array_filter(
+            $clinics,
+            static fn (Clinic $clinic): bool => $clinic->letterhead()->siren()?->equals($siren) ?? false,
+        ));
     }
 }

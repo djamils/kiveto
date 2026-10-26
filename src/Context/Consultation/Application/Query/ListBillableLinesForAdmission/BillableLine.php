@@ -18,6 +18,8 @@ final readonly class BillableLine
         public int $unitPriceMinorUnits,
         public string $currency,
         public ?string $taxCategoryCode,
+        /** 'incl' or 'excl': the mode the snapshotted unit price was entered in. */
+        public string $unitPriceMode,
     ) {
     }
 }

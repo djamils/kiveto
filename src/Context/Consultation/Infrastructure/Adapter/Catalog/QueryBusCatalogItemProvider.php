@@ -52,6 +52,7 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
                 requiresPrescription: $result->requiresPrescription,
                 basePriceMinorUnits: $result->basePriceMinorUnits,
                 currency: $result->basePriceCurrency,
+                basePriceMode: $result->basePriceMode,
                 taxCategoryCode: $result->taxCategoryCode,
                 status: $result->status,
                 articleKind: $result->articleKind,
@@ -78,6 +79,7 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
                 requiresPrescription: false,
                 basePriceMinorUnits: $view->basePriceMinorUnits,
                 currency: $view->basePriceCurrency,
+                basePriceMode: $view->basePriceMode,
                 taxCategoryCode: $view->taxCategoryCode,
                 status: $view->status,
             );
@@ -97,6 +99,7 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
             requiresPrescription: true === $view->requiresPrescription,
             basePriceMinorUnits: $view->basePriceMinorUnits,
             currency: $view->basePriceCurrency,
+            basePriceMode: $view->basePriceMode,
             taxCategoryCode: $view->taxCategoryCode,
             status: $view->status,
             articleKind: $view->kind,
@@ -118,13 +121,15 @@ final readonly class QueryBusCatalogItemProvider implements CatalogItemProviderI
             return new CatalogPriceDto(
                 minorUnits: $item->basePriceMinorUnits,
                 currency: $item->currency,
+                mode: $item->basePriceMode,
                 taxCategoryCode: $item->taxCategoryCode,
             );
         }
 
         return new CatalogPriceDto(
-            minorUnits: $resolved->netAmount->minorUnits(),
-            currency: $resolved->netAmount->currency()->toString(),
+            minorUnits: $resolved->amount()->minorUnits(),
+            currency: $resolved->amount()->currency()->toString(),
+            mode: $resolved->mode()->value,
             taxCategoryCode: $item->taxCategoryCode,
         );
     }

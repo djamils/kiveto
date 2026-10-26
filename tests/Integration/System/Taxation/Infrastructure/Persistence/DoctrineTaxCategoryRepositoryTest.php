@@ -7,6 +7,7 @@ namespace App\Tests\Integration\System\Taxation\Infrastructure\Persistence;
 use App\Fixtures\System\Taxation\Factory\TaxCategoryEntityFactory;
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Infrastructure\Persistence\Doctrine\Repository\DoctrineTaxCategoryRepository;
 use App\Tests\Shared\Time\FrozenClock;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -23,6 +24,7 @@ final class DoctrineTaxCategoryRepositoryTest extends KernelTestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Consultation vétérinaire',
             null,
+            TaxCategoryNature::SERVICES,
             $clock,
         );
 
@@ -45,6 +47,7 @@ final class DoctrineTaxCategoryRepositoryTest extends KernelTestCase
             TaxCategoryCode::fromString('veterinary.drug.companion'),
             'Médicaments animaux de compagnie',
             'Médicaments vétérinaires pour animaux de compagnie (taux réduit)',
+            TaxCategoryNature::SERVICES,
             $clock,
         );
 
@@ -66,13 +69,14 @@ final class DoctrineTaxCategoryRepositoryTest extends KernelTestCase
             TaxCategoryCode::fromString('veterinary.act.consultation'),
             'Consultation vétérinaire',
             null,
+            TaxCategoryNature::SERVICES,
             $clock,
         );
 
         $repo = $this->getRepository();
         $repo->save($category);
 
-        $category->updateDisplay('Consultation vétérinaire (updated)', 'Une description', $clock);
+        $category->update('Consultation vétérinaire (updated)', 'Une description', TaxCategoryNature::SERVICES, $clock);
         $repo->save($category);
 
         $found = $repo->findByCode(TaxCategoryCode::fromString('veterinary.act.consultation'));

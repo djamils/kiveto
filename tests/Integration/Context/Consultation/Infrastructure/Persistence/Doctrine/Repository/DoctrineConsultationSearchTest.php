@@ -16,6 +16,7 @@ use App\Context\Consultation\Domain\ValueObject\DiagnosisCertainty;
 use App\Context\Consultation\Domain\ValueObject\DiagnosisSource;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -302,11 +303,14 @@ final class DoctrineConsultationSearchTest extends KernelTestCase
 
         $rows = $this->rowsById($this->search(new SearchConsultationsCriteria())['items']);
 
-        self::assertSame(['veterinary.act.consultation' => 8000], $rows[self::CONSULT_2]->htByTaxCategory);
+        // Prices entered all taxes included are summed apart from the pre-tax ones.
+        self::assertSame([], $rows[self::CONSULT_2]->htByTaxCategory);
+        self::assertSame(['veterinary.act.consultation' => 8000], $rows[self::CONSULT_2]->ttcByTaxCategory);
         self::assertSame('EUR', $rows[self::CONSULT_2]->currency);
 
         // A plan action without a tax category lands under the empty key.
         self::assertSame(['' => 3500], $rows[self::CONSULT_1]->htByTaxCategory);
+        self::assertSame([], $rows[self::CONSULT_1]->ttcByTaxCategory);
 
         // No billing line at all: nothing to break down, and no currency to report.
         self::assertSame([], $rows[self::CONSULT_3]->htByTaxCategory);
@@ -350,6 +354,7 @@ final class DoctrineConsultationSearchTest extends KernelTestCase
             1.0,
             3500,
             'EUR',
+            UnitPriceMode::EXCLUDING_TAX,
             null,
             $user,
             new \DateTimeImmutable('2026-05-01 09:10:00'),
@@ -370,6 +375,7 @@ final class DoctrineConsultationSearchTest extends KernelTestCase
                 1.0,
                 4000,
                 'EUR',
+                UnitPriceMode::INCLUDING_TAX,
                 'veterinary.act.consultation',
                 UserId::fromString(self::VET_BOB),
                 new \DateTimeImmutable(\sprintf('2026-05-02 09:%02d:00', 10 + $index)),

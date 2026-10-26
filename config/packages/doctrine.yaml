@@ -33,6 +33,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/System/Translation/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\System\Translation\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Translation
+            ElectronicInvoicing:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/System/ElectronicInvoicing/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Entity'
+                alias: ElectronicInvoicing
             Taxation:
                 type: attribute
                 is_bundle: false

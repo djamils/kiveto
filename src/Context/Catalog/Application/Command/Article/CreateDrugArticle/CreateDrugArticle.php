@@ -16,6 +16,7 @@ final readonly class CreateDrugArticle implements CommandInterface
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
         public string $unitOfMeasure,
         public ?string $authorizationRef,
         public bool $requiresPrescription,

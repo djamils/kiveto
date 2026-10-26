@@ -176,11 +176,11 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         $rows = $this->connection->fetchAllAssociative(
             "SELECT BIN_TO_UUID(c.admission_id) AS admission_id,
                     COALESCE(bl.tax_category_code, '') AS tax_category_code,
-                    bl.currency, SUM(bl.quantity * bl.unit_price_minor_units) AS total_ht
+                    bl.currency, bl.unit_price_mode, SUM(bl.quantity * bl.unit_price_minor_units) AS total
              FROM consultation__consultations c
              INNER JOIN consultation__billing_lines bl ON bl.consultation_id = c.id
              WHERE c.clinic_id = :clinicId AND c.admission_id IN (:admissionIds)
-             GROUP BY c.admission_id, bl.tax_category_code, bl.currency",
+             GROUP BY c.admission_id, bl.tax_category_code, bl.currency, bl.unit_price_mode",
             [
                 'clinicId'     => Uuid::fromString($clinicId->toString())->toBinary(),
                 'admissionIds' => self::toBinaryIds($admissionIds),
@@ -192,12 +192,10 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
         foreach ($rows as $row) {
             $admissionId = RowAccessor::string($row, 'admission_id');
-            $category    = RowAccessor::string($row, 'tax_category_code');
+            $totals[$admissionId] ??= ['htByTaxCategory' => [], 'ttcByTaxCategory' => [], 'currency' => ''];
 
-            $totals[$admissionId]['htByTaxCategory'][$category] = (int) round(
-                (float) RowAccessor::string($row, 'total_ht')
-            );
-            $totals[$admissionId]['currency'] = RowAccessor::string($row, 'currency');
+            $totals[$admissionId][self::amountsKey($row)][RowAccessor::string($row, 'tax_category_code')] = self::sum($row);
+            $totals[$admissionId]['currency']                                                             = RowAccessor::string($row, 'currency');
         }
 
         return $totals;
@@ -208,7 +206,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
         $rows = $this->connection->fetchAllAssociative(
             'SELECT BIN_TO_UUID(c.id) AS consultation_id, BIN_TO_UUID(bl.id) AS source_line_id,
                     bl.label, bl.code, bl.quantity, bl.unit_price_minor_units, bl.currency,
-                    bl.tax_category_code
+                    bl.unit_price_mode, bl.tax_category_code
              FROM consultation__consultations c
              INNER JOIN consultation__billing_lines bl ON bl.consultation_id = c.id
              WHERE c.clinic_id = :clinicId AND c.admission_id = :admissionId
@@ -230,6 +228,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 'quantity'            => RowAccessor::string($row, 'quantity'),
                 'unitPriceMinorUnits' => RowAccessor::int($row, 'unit_price_minor_units'),
                 'currency'            => RowAccessor::string($row, 'currency'),
+                'unitPriceMode'       => RowAccessor::string($row, 'unit_price_mode'),
                 'taxCategoryCode'     => RowAccessor::nullableString($row, 'tax_category_code'),
             ];
         }
@@ -324,7 +323,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
         foreach ($rows as $row) {
             $binaryId = RowAccessor::string($row, 'id');
-            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'currency' => ''];
+            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'ttcByTaxCategory' => [], 'currency' => ''];
 
             $items[] = new ConsultationListRow(
                 consultationId: RowAccessor::uuid($row, 'id'),
@@ -336,6 +335,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 chiefComplaint: RowAccessor::nullableString($row, 'chief_complaint'),
                 motifs: $motifs[$binaryId] ?? [],
                 htByTaxCategory: $amount['htByTaxCategory'],
+                ttcByTaxCategory: $amount['ttcByTaxCategory'],
                 currency: $amount['currency'],
             );
         }
@@ -388,7 +388,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
         foreach ($rows as $row) {
             $binaryId = RowAccessor::string($row, 'id');
-            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'currency' => ''];
+            $amount   = $amounts[$binaryId] ?? ['htByTaxCategory' => [], 'ttcByTaxCategory' => [], 'currency' => ''];
 
             $items[] = new ConsultationRegisterRow(
                 consultationId: RowAccessor::uuid($row, 'id'),
@@ -405,6 +405,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 weightKg: RowAccessor::nullableString($row, 'weight_kg'),
                 billedItems: $billed[$binaryId] ?? [],
                 htByTaxCategory: $amount['htByTaxCategory'],
+                ttcByTaxCategory: $amount['ttcByTaxCategory'],
                 currency: $amount['currency'],
             );
         }
@@ -736,7 +737,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
      *
      * @param list<string> $binaryConsultationIds
      *
-     * @return array<string, array{htByTaxCategory: array<string, int>, currency: string}>
+     * @return array<string, array{htByTaxCategory: array<string, int>, ttcByTaxCategory: array<string, int>, currency: string}>
      */
     private function fetchAmountsFor(array $binaryConsultationIds): array
     {
@@ -746,10 +747,10 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT consultation_id, COALESCE(tax_category_code, '') AS tax_category_code,
-                    currency, SUM(quantity * unit_price_minor_units) AS total_ht
+                    currency, unit_price_mode, SUM(quantity * unit_price_minor_units) AS total
              FROM consultation__billing_lines
              WHERE consultation_id IN (:ids)
-             GROUP BY consultation_id, tax_category_code, currency",
+             GROUP BY consultation_id, tax_category_code, currency, unit_price_mode",
             ['ids' => $binaryConsultationIds],
             ['ids' => ArrayParameterType::BINARY],
         );
@@ -758,15 +759,37 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
 
         foreach ($rows as $row) {
             $consultationId = RowAccessor::string($row, 'consultation_id');
-            $category       = RowAccessor::string($row, 'tax_category_code');
+            $amounts[$consultationId] ??= ['htByTaxCategory' => [], 'ttcByTaxCategory' => [], 'currency' => ''];
 
-            $amounts[$consultationId]['htByTaxCategory'][$category] = (int) round(
-                (float) RowAccessor::string($row, 'total_ht')
-            );
-            $amounts[$consultationId]['currency'] = RowAccessor::string($row, 'currency');
+            $amounts[$consultationId][self::amountsKey($row)][RowAccessor::string($row, 'tax_category_code')] = self::sum($row);
+            $amounts[$consultationId]['currency']                                                             = RowAccessor::string($row, 'currency');
         }
 
         return $amounts;
+    }
+
+    /**
+     * Where a grouped sum of line prices belongs: with the pre-tax sums, or
+     * with the all-taxes-included ones when the prices were entered TTC.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return 'htByTaxCategory'|'ttcByTaxCategory'
+     */
+    private static function amountsKey(array $row): string
+    {
+        return 'incl' === RowAccessor::string($row, 'unit_price_mode') ? 'ttcByTaxCategory' : 'htByTaxCategory';
+    }
+
+    /**
+     * A grouped sum of quantity × unit price (a DECIMAL string), rounded to
+     * the minor unit.
+     *
+     * @param array<string, mixed> $row
+     */
+    private static function sum(array $row): int
+    {
+        return (int) round((float) RowAccessor::string($row, 'total'));
     }
 
     /**
@@ -991,14 +1014,15 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
      *     followUpDays: ?int,
      *     quantity: float,
      *     unitPriceMinorUnits: ?int,
-     *     currency: ?string
+     *     currency: ?string,
+     *     unitPriceMode: ?string
      * }>
      */
     private function fetchPlanActions(string $consultationIdBinary): array
     {
         $rows = $this->fetchChildren(
             'SELECT id, kind, description, catalog_code, posology, duration_days, follow_up_days,
-                    quantity, unit_price_minor_units, currency
+                    quantity, unit_price_minor_units, currency, unit_price_mode
              FROM consultation__plan_actions
              WHERE consultation_id = :consultationId ORDER BY position ASC',
             $consultationIdBinary,
@@ -1018,7 +1042,8 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
              *     followUpDays: ?int,
              *     quantity: float,
              *     unitPriceMinorUnits: ?int,
-             *     currency: ?string
+             *     currency: ?string,
+             *     unitPriceMode: ?string
              * }
              */
             static fn (array $row): array => [
@@ -1032,6 +1057,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 'quantity'            => (float) RowAccessor::string($row, 'quantity'),
                 'unitPriceMinorUnits' => RowAccessor::nullableInt($row, 'unit_price_minor_units'),
                 'currency'            => RowAccessor::nullableString($row, 'currency'),
+                'unitPriceMode'       => RowAccessor::nullableString($row, 'unit_price_mode'),
             ],
             $rows,
         );
@@ -1049,14 +1075,15 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
      *     route: ?string,
      *     quantity: float,
      *     unitPriceMinorUnits: int,
-     *     currency: string
+     *     currency: string,
+     *     unitPriceMode: string
      * }>
      */
     private function fetchPrescriptionLines(string $consultationIdBinary): array
     {
         $rows = $this->fetchChildren(
             'SELECT id, article_id, code, label, dose, frequency, duration_days, route,
-                    quantity, unit_price_minor_units, currency
+                    quantity, unit_price_minor_units, currency, unit_price_mode
              FROM consultation__prescription_lines
              WHERE consultation_id = :consultationId ORDER BY position ASC',
             $consultationIdBinary,
@@ -1077,7 +1104,8 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
              *     route: ?string,
              *     quantity: float,
              *     unitPriceMinorUnits: int,
-             *     currency: string
+             *     currency: string,
+             *     unitPriceMode: string
              * }
              */
             static fn (array $row): array => [
@@ -1092,6 +1120,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                 'quantity'            => (float) RowAccessor::string($row, 'quantity'),
                 'unitPriceMinorUnits' => RowAccessor::int($row, 'unit_price_minor_units'),
                 'currency'            => RowAccessor::string($row, 'currency'),
+                'unitPriceMode'       => RowAccessor::string($row, 'unit_price_mode'),
             ],
             $rows,
         );
@@ -1107,6 +1136,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
      *     quantity: float,
      *     unitPriceMinorUnits: int,
      *     currency: string,
+     *     unitPriceMode: string,
      *     taxCategoryCode: ?string,
      *     totalMinorUnits: int
      * }>
@@ -1115,7 +1145,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
     {
         $rows = $this->fetchChildren(
             'SELECT id, source_line_id, source, label, code, quantity,
-                    unit_price_minor_units, currency, tax_category_code
+                    unit_price_minor_units, currency, unit_price_mode, tax_category_code
              FROM consultation__billing_lines
              WHERE consultation_id = :consultationId ORDER BY position ASC',
             $consultationIdBinary,
@@ -1134,6 +1164,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
              *     quantity: float,
              *     unitPriceMinorUnits: int,
              *     currency: string,
+             *     unitPriceMode: string,
              *     taxCategoryCode: ?string,
              *     totalMinorUnits: int
              * }
@@ -1151,6 +1182,7 @@ final readonly class DoctrineConsultationReadRepository implements ConsultationR
                     'quantity'            => $quantity,
                     'unitPriceMinorUnits' => $unitPrice,
                     'currency'            => RowAccessor::string($row, 'currency'),
+                    'unitPriceMode'       => RowAccessor::string($row, 'unit_price_mode'),
                     'taxCategoryCode'     => RowAccessor::nullableString($row, 'tax_category_code'),
                     'totalMinorUnits'     => (int) round($unitPrice * $quantity),
                 ];

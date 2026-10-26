@@ -92,7 +92,7 @@ final class CatalogListQueryHandlersTest extends TestCase
     public function testTheComponentsOfAPackageAreForwarded(): void
     {
         $components = [
-            new PackageComponentRow('c1', 'ACT', 'a1', 'CONS', 'Consultation', 4500, 'EUR', 2, 0),
+            new PackageComponentRow('c1', 'ACT', 'a1', 'CONS', 'Consultation', 4500, 'incl', 'EUR', 2, 0),
         ];
 
         $catalog = $this->createMock(CatalogListReadRepositoryInterface::class);
@@ -113,7 +113,7 @@ final class CatalogListQueryHandlersTest extends TestCase
     public function testTheEntriesOfAPriceListAreForwarded(): void
     {
         $entries = [
-            new PriceListEntryRow('e1', 'ACT', 'a1', 'CONS', 'Consultation', 4500, 3900, 'EUR', null, 'tax.act'),
+            new PriceListEntryRow('e1', 'ACT', 'a1', 'CONS', 'Consultation', 4500, 'incl', 3900, 'incl', 'EUR', null, 'tax.act'),
         ];
 
         $catalog = $this->createMock(CatalogListReadRepositoryInterface::class);
@@ -129,6 +129,10 @@ final class CatalogListQueryHandlersTest extends TestCase
 
         self::assertSame($entries, $result);
         self::assertSame(-600, $result[0]->differenceMinorUnits());
+
+        // Prices entered in different modes are not compared: Catalog never converts them.
+        $mixed = new PriceListEntryRow('e2', 'ACT', 'a1', 'CONS', 'Consultation', 4500, 'excl', 3900, 'incl', 'EUR', null, 'tax.act');
+        self::assertNull($mixed->differenceMinorUnits());
     }
 
     public function testTheCountersAreForwarded(): void
@@ -183,11 +187,11 @@ final class CatalogListQueryHandlersTest extends TestCase
 
     public function testADanglingReferenceIsFlaggedRatherThanPriced(): void
     {
-        $component = new PackageComponentRow('c1', 'ACT', 'a1', null, null, null, 'EUR', 3, 0);
+        $component = new PackageComponentRow('c1', 'ACT', 'a1', null, null, null, null, 'EUR', 3, 0);
         self::assertTrue($component->isDangling());
         self::assertSame(0, $component->lineTotalMinorUnits());
 
-        $entry = new PriceListEntryRow('e1', 'ACT', 'a1', null, null, null, 3900, 'EUR', null, null);
+        $entry = new PriceListEntryRow('e1', 'ACT', 'a1', null, null, null, null, 3900, 'incl', 'EUR', null, null);
         self::assertTrue($entry->isDangling());
         self::assertNull($entry->differenceMinorUnits());
     }
@@ -203,6 +207,7 @@ final class CatalogListQueryHandlersTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             basePriceMinorUnits: 4500,
             currency: 'EUR',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 20,
             requiresAnesthesia: false,
             status: $status,
@@ -220,6 +225,7 @@ final class CatalogListQueryHandlersTest extends TestCase
             taxCategoryCode: 'veterinary.drug.prescription',
             basePriceMinorUnits: 1250,
             currency: 'EUR',
+            basePriceMode: 'incl',
             unitOfMeasure: 'UNIT',
             trackStock: true,
             authorizationRef: null,
@@ -243,6 +249,7 @@ final class CatalogListQueryHandlersTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             pricingMode: $mode,
             fixedPriceMinorUnits: $fixedPrice,
+            fixedPriceMode: null !== $fixedPrice ? 'incl' : null,
             currency: 'EUR',
             componentCount: 2,
             componentsTotalMinorUnits: $componentsTotal,

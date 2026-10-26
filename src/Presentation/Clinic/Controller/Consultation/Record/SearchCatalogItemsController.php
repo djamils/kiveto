@@ -72,6 +72,7 @@ final class SearchCatalogItemsController extends AbstractController
                     'requiresPrescription' => $item->requiresPrescription,
                     'basePriceMinorUnits'  => $item->basePriceMinorUnits,
                     'currency'             => $item->currency,
+                    'basePriceMode'        => $item->basePriceMode,
                     'status'               => $item->status,
                     'articleKind'          => $item->articleKind,
                     'stock'                => 'ARTICLE' === $item->itemType ? ($stock[$item->itemId] ?? null) : null,

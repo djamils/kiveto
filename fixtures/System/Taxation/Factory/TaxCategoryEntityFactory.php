@@ -25,6 +25,7 @@ final class TaxCategoryEntityFactory extends PersistentProxyObjectFactory
             'code'        => 'veterinary.' . self::faker()->unique()->word() . '.' . self::faker()->word(),
             'displayName' => self::faker()->sentence(3),
             'description' => null,
+            'nature'      => 'services',
             'active'      => true,
             'createdAt'   => $now,
             'updatedAt'   => $now,

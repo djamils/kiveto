@@ -10,9 +10,10 @@ final readonly class CounterArticleDto
         public string $articleId,
         public string $label,
         public ?string $code,
-        public int $unitNetMinorUnits,
+        public int $unitPriceMinorUnits,
         public string $currency,
         public ?string $taxCategoryCode,
+        public string $unitPriceMode = 'excl',
     ) {
     }
 }

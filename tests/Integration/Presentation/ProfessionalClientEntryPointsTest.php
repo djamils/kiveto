@@ -8,13 +8,17 @@ use App\Context\Billing\Application\Command\RecordCounterSale\CounterSaleNewClie
 use App\Context\Billing\Application\Command\RecordCounterSale\RecordCounterSale;
 use App\Context\Client\Application\Command\CreateClient\ClientTaxProfileDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
 use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
+use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
+use App\Fixtures\System\Taxation\Story\TaxonomyBootstrapStory;
 use App\Presentation\Clinic\ViewModel\Client\TaxProfileInput;
 use App\Presentation\Clinic\ViewModel\Directory\DirectoryRegistrar;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Tests\Support\RecordingCommandBus;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
@@ -46,7 +50,25 @@ final class ProfessionalClientEntryPointsTest extends KernelTestCase
         $fromDirectory = $bus->recorded(CreateClient::class);
         $bus->reset();
 
-        $article  = ArticleEntityFactory::new()->forClinic(self::CLINIC_ID)->create(['basePriceMinorUnits' => 1500]);
+        TaxonomyBootstrapStory::load();
+
+        // The clinic sells as a complete seller, so the professional's
+        // invoice passes readiness and the sale goes through.
+        ClinicEntityFactory::new()
+            ->with(['id' => Uuid::fromString(self::CLINIC_ID)])
+            ->withLetterhead(new LetterheadEmbeddable(
+                legalName: 'SELARL Clinique Vétérinaire de Paris',
+                siret: '81245690300028',
+                vatNumber: 'FR20812456903',
+                streetLine1: '18 rue des Abbesses',
+                postalCode: '75018',
+                city: 'Paris',
+                countryCode: 'FR',
+            ))
+            ->create()
+        ;
+
+        $article  = ArticleEntityFactory::new()->forClinic(self::CLINIC_ID)->create(['basePriceMinorUnits' => 1500, 'taxCategoryCode' => 'veterinary.consumable.medical']);
         $tax      = TaxProfileInput::fromArray(self::BLOCK);
         $commands = self::getContainer()->get(CommandBusInterface::class);
         \assert(null !== $tax && $commands instanceof CommandBusInterface);
@@ -56,7 +78,7 @@ final class ProfessionalClientEntryPointsTest extends KernelTestCase
             payerClientId: null,
             lines: [['articleId' => $article->getId()->toRfc4122(), 'quantity' => 1]],
             method: 'CARD',
-            newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491223355', taxProfile: $tax->toBillingInput()),
+            newClient: new CounterSaleNewClient(CounterSaleNewClient::MADAM, 'Rostand', 'Claire', '0491223355', taxProfile: $tax->toBillingInput(), street: 'Chemin des Goudes', postalCode: '13008', city: 'Marseille'),
         ));
 
         $fromCounter = $bus->recorded(CreateClient::class);

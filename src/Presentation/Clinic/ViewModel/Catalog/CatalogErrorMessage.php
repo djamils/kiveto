@@ -14,6 +14,7 @@ use App\Context\Catalog\Domain\Article\Exception\DuplicateGtinException;
 use App\Context\Catalog\Domain\Article\Exception\InvalidDrugPropertiesException;
 use App\Context\Catalog\Domain\Article\Exception\RegulatoryRestoreForbiddenException;
 use App\Context\Catalog\Domain\Exception\ClinicCurrencyMismatchException;
+use App\Context\Catalog\Domain\Exception\InvalidPriceEntryModeException;
 use App\Context\Catalog\Domain\Package\Exception\ArchivedItemInPackageException;
 use App\Context\Catalog\Domain\Package\Exception\DuplicatePackageCodeException;
 use App\Context\Catalog\Domain\Package\Exception\InvalidPackagePricingModeException;
@@ -53,6 +54,8 @@ final class CatalogErrorMessage
             $exception instanceof InvalidActNameException => 'Le libellé est obligatoire.',
 
             $exception instanceof ClinicCurrencyMismatchException => 'Ce tarif n’est pas dans la devise de la clinique.',
+
+            $exception instanceof InvalidPriceEntryModeException => CatalogEndpoint::INVALID_PRICE_MODE,
 
             $exception instanceof PriceListNotFoundException => 'Cette grille tarifaire est introuvable.',
 

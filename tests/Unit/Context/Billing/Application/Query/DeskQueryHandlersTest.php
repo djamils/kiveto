@@ -31,6 +31,7 @@ use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Billing\Domain\ValueObject\ChequeDepositId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CreditNoteId;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use PHPUnit\Framework\TestCase;
 
 final class DeskQueryHandlersTest extends TestCase
@@ -128,22 +129,42 @@ final class DeskQueryHandlersTest extends TestCase
     {
         $catalog = $this->createMock(CounterCatalogInterface::class);
         $catalog->expects(self::once())->method('search')->with(self::CLINIC_ID, 'front', 50)
-            ->willReturn([new CounterArticleDto(self::DOC_ID, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', 1890, 'EUR', 'veterinary.drug.companion')])
+            ->willReturn([
+                new CounterArticleDto(self::DOC_ID, 'Frontline Combo Chien pipettes', 'FRONTLINE-CB', 1890, 'EUR', 'veterinary.drug.companion', 'excl'),
+                new CounterArticleDto(self::DOC_ID, 'Croquettes 10 kg', 'CROQ-10', 6499, 'EUR', 'veterinary.food.therapeutic', 'incl'),
+            ])
         ;
 
         $tax = $this->createMock(TaxResolverInterface::class);
-        $tax->expects(self::once())->method('resolve')->with(1890, 'EUR', 'veterinary.drug.companion', self::CLINIC_ID)
-            ->willReturn(new ResolvedTaxDto(1890, 104, 1994, '5.5'))
+        $tax->expects(self::exactly(2))->method('resolve')
+            ->willReturn(new ResolvedTaxDto('5.5', OperationCategory::GOODS))
         ;
 
         $articles = (new SearchCounterArticlesHandler($catalog, $tax))(new SearchCounterArticles(self::CLINIC_ID, '  front ', 500));
 
-        self::assertCount(1, $articles);
+        self::assertCount(2, $articles);
         self::assertInstanceOf(CounterArticleView::class, $articles[0]);
+        // 18.90 € excl. at 5.5 % → 19.94 € at the desk.
         self::assertSame(1994, $articles[0]->unitGrossMinorUnits);
         self::assertSame(1890, $articles[0]->unitNetMinorUnits);
         self::assertSame('5.5', $articles[0]->taxRatePercent);
         self::assertSame('FRONTLINE-CB', $articles[0]->code);
+        // A price entered VAT included is the price at the desk.
+        self::assertSame(6499, $articles[1]->unitGrossMinorUnits);
+    }
+
+    public function testAnArticleWhoseCategoryCannotBeResolvedIsSoldUntaxed(): void
+    {
+        $catalog = $this->createStub(CounterCatalogInterface::class);
+        $catalog->method('search')->willReturn([new CounterArticleDto(self::DOC_ID, 'Article', null, 1000, 'EUR', null, 'excl')]);
+
+        $tax = $this->createStub(TaxResolverInterface::class);
+        $tax->method('resolve')->willReturn(null);
+
+        $articles = (new SearchCounterArticlesHandler($catalog, $tax))(new SearchCounterArticles(self::CLINIC_ID, 'art', 10));
+
+        self::assertSame(1000, $articles[0]->unitGrossMinorUnits);
+        self::assertSame('0', $articles[0]->taxRatePercent);
     }
 
     public function testTheOverdueLimitIsPassedThrough(): void

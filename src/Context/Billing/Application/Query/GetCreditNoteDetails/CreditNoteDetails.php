@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Query\GetCreditNoteDetails;
 
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
+use App\Context\Billing\Application\Query\GetInvoiceDetails\TransmissionView;
 
 /**
  * Everything the sheet and the printable credit note need.
@@ -12,9 +13,9 @@ use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceLineView;
 final readonly class CreditNoteDetails
 {
     /**
-     * @param list<string>                                                             $payerAddressLines
-     * @param list<InvoiceLineView>                                                    $lines
-     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}> $taxBreakdown
+     * @param list<string>                                                                                                             $payerAddressLines
+     * @param list<InvoiceLineView>                                                                                                    $lines
+     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}> $taxBreakdown
      */
     public function __construct(
         public string $id,
@@ -41,6 +42,11 @@ final readonly class CreditNoteDetails
         public ?string $issuedByUserId,
         /** « À l'attention de » line under a structure's name. */
         public ?string $payerAttention = null,
+        public string $processingRule = 'B2C',
+        public ?string $payerSiren = null,
+        public ?string $payerVatNumber = null,
+        public int $discountMinorUnits = 0,
+        public ?TransmissionView $transmission = null,
     ) {
     }
 }

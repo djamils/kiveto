@@ -33,10 +33,16 @@ final readonly class CreateArticleController
             return $refused;
         }
 
-        $net = CatalogEndpoint::cents($request, 'net');
+        $price = CatalogEndpoint::cents($request, 'price');
 
-        if (null === $net) {
+        if (null === $price) {
             return $this->endpoint->refuse('Le prix de vente saisi est invalide.');
+        }
+
+        $priceMode = CatalogEndpoint::priceMode($request);
+
+        if (null === $priceMode) {
+            return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
         }
 
         $form     = $request->request;
@@ -59,8 +65,9 @@ final readonly class CreateArticleController
                     code: $code,
                     gtin: $gtin,
                     taxCategoryCode: $tax,
-                    basePriceMinorUnits: $net,
+                    basePriceMinorUnits: $price,
                     basePriceCurrency: 'EUR',
+                    basePriceMode: $priceMode,
                     unitOfMeasure: $unit,
                     authorizationRef: CatalogEndpoint::text($request, 'authorization_ref'),
                     requiresPrescription: 'NONE' !== $class,
@@ -76,8 +83,9 @@ final readonly class CreateArticleController
                     kind: $kind,
                     gtin: $gtin,
                     taxCategoryCode: $tax,
-                    basePriceMinorUnits: $net,
+                    basePriceMinorUnits: $price,
                     basePriceCurrency: 'EUR',
+                    basePriceMode: $priceMode,
                     unitOfMeasure: $unit,
                     trackStock: $stock,
                 ));

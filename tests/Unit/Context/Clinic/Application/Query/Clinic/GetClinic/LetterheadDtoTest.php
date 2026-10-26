@@ -50,9 +50,9 @@ final class LetterheadDtoTest extends TestCase
 
     public function testTheSiretIsGroupedTheWayItIsWrittenOnPaper(): void
     {
-        $dto = LetterheadDto::fromDomain(Letterhead::create(siret: '81245690300027'));
+        $dto = LetterheadDto::fromDomain(Letterhead::create(siret: '81245690300028'));
 
-        self::assertSame('812 456 903 00027', $dto->formattedSiret());
+        self::assertSame('812 456 903 00028', $dto->formattedSiret());
     }
 
     public function testNoSiretMeansNothingToPrint(): void

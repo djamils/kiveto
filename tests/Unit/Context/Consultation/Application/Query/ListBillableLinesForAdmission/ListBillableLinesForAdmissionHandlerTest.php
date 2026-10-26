@@ -34,6 +34,7 @@ final class ListBillableLinesForAdmissionHandlerTest extends TestCase
                     'quantity'            => '1.00',
                     'unitPriceMinorUnits' => 5000,
                     'currency'            => 'EUR',
+                    'unitPriceMode'       => 'incl',
                     'taxCategoryCode'     => 'veterinary.act.consultation',
                 ],
             ])
@@ -49,6 +50,7 @@ final class ListBillableLinesForAdmissionHandlerTest extends TestCase
         self::assertSame('1.00', $lines[0]->quantity);
         self::assertSame(5000, $lines[0]->unitPriceMinorUnits);
         self::assertSame('EUR', $lines[0]->currency);
+        self::assertSame('incl', $lines[0]->unitPriceMode);
         self::assertSame('veterinary.act.consultation', $lines[0]->taxCategoryCode);
         self::assertSame('01960000-0000-7000-8000-00000000f003', $lines[0]->consultationId);
         self::assertSame('01960000-0000-7000-8000-00000000f004', $lines[0]->sourceLineId);

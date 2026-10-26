@@ -13,6 +13,7 @@ final readonly class ChangeArticleBasePrice implements CommandInterface
         public string $clinicId,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
     ) {
     }
 }

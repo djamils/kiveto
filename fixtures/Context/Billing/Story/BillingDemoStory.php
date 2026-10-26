@@ -9,8 +9,6 @@ use App\Context\Billing\Application\Command\CancelInvoice\CancelInvoice;
 use App\Context\Billing\Application\Command\IssueInvoice\IssueInvoice;
 use App\Context\Billing\Application\Command\PrepareInvoiceForAdmission\PrepareInvoiceForAdmission;
 use App\Context\Billing\Application\Command\RecordInvoicePayment\RecordInvoicePayment;
-use App\Context\Billing\Domain\ValueObject\Discount;
-use App\Context\Billing\Domain\ValueObject\DiscountKind;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
@@ -218,11 +216,7 @@ final class BillingDemoStory extends Story
     private function balanceOf(string $clinicId, string $invoiceId): int
     {
         $row = $this->connection->fetchAssociative(
-            'SELECT i.discount_kind, i.discount_value,
-                    (SELECT COALESCE(SUM(l.net_minor_units), 0)
-                     FROM billing__invoice_lines l WHERE l.invoice_id = i.id) AS total_net,
-                    (SELECT COALESCE(SUM(l.tax_minor_units), 0)
-                     FROM billing__invoice_lines l WHERE l.invoice_id = i.id) AS total_tax,
+            'SELECT i.total_gross,
                     (SELECT COALESCE(SUM(p.amount_minor_units), 0)
                      FROM billing__payments p WHERE p.invoice_id = i.id) AS total_paid
              FROM billing__invoices i
@@ -237,20 +231,7 @@ final class BillingDemoStory extends Story
             return 0;
         }
 
-        $net  = RowAccessor::int($row, 'total_net');
-        $tax  = RowAccessor::int($row, 'total_tax');
-        $paid = RowAccessor::int($row, 'total_paid');
-
-        $kind  = RowAccessor::nullableString($row, 'discount_kind');
-        $value = RowAccessor::nullableString($row, 'discount_value');
-
-        if (null !== $kind && null !== $value && 0 !== $net) {
-            $off = Discount::reconstitute(DiscountKind::from($kind), $value, null)->amountOff($net);
-            $net -= $off;
-            $tax = (int) round($tax * $net / ($net + $off));
-        }
-
-        return $net + $tax - $paid;
+        return RowAccessor::int($row, 'total_gross') - RowAccessor::int($row, 'total_paid');
     }
 
     /**

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Context\Billing\Application\Command\CheckoutAdmission;
 
 use App\Context\Billing\Application\Port\AdmissionCoordinatorInterface;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
+use App\Context\Billing\Domain\Policy\ElectronicInvoiceReadiness;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
+use App\Context\Billing\Domain\Service\FiscalCalendar;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -13,6 +16,7 @@ use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -32,6 +36,9 @@ final readonly class CheckoutAdmissionHandler
         private AdmissionCoordinatorInterface $admissions,
         private UuidGeneratorInterface $uuidGenerator,
         private ClockInterface $clock,
+        private SellerIdentityProviderInterface $sellers,
+        private DomainEventPublisher $domainEventPublisher,
+        private ElectronicInvoiceReadiness $readiness = new ElectronicInvoiceReadiness(),
     ) {
     }
 
@@ -41,25 +48,31 @@ final readonly class CheckoutAdmissionHandler
         $invoice  = $this->invoices->get($clinicId, InvoiceId::fromString($command->invoiceId));
         $now      = $this->clock->now();
 
-        if ($invoice->status()->isEditable()) {
-            $invoice->issue($this->numbers->next($clinicId, (int) $now->format('Y')), $now);
-        }
+        $payment = $command->amountMinorUnits > 0
+            ? Payment::create(
+                id: PaymentId::fromString($this->uuidGenerator->generate()),
+                method: PaymentMethod::from($command->method),
+                amount: Money::fromMinorUnits($command->amountMinorUnits, $invoice->currency()),
+                receivedAt: $now,
+                reference: $command->reference,
+                recordedByUserId: $command->recordedByUserId,
+            )
+            : null;
 
-        if ($command->amountMinorUnits > 0) {
-            $invoice->recordPayment(
-                Payment::create(
-                    id: PaymentId::fromString($this->uuidGenerator->generate()),
-                    method: PaymentMethod::from($command->method),
-                    amount: Money::fromMinorUnits($command->amountMinorUnits, $invoice->currency()),
-                    receivedAt: $now,
-                    reference: $command->reference,
-                    recordedByUserId: $command->recordedByUserId,
-                ),
-                $now,
-            );
+        if ($invoice->status()->isEditable()) {
+            $seller = $this->sellers->forClinic($command->clinicId);
+
+            // Checked before the number is drawn: a refusal leaves the
+            // sequence untouched and the draft open.
+            $this->readiness->assertReady($invoice, $seller);
+            // The payment is part of the issue: it decides the framework.
+            $invoice->issue($this->numbers->next($clinicId, FiscalCalendar::year($now)), $seller, $now, $payment);
+        } elseif (null !== $payment) {
+            $invoice->recordPayment($payment, $now);
         }
 
         $this->invoices->save($invoice);
+        $this->domainEventPublisher->publish($invoice);
 
         $admissionId = $invoice->admissionId();
 

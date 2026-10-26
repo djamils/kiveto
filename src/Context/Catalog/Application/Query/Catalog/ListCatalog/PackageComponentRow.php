@@ -16,6 +16,8 @@ final readonly class PackageComponentRow
         public ?string $itemCode,
         public ?string $itemName,
         public ?int $unitPriceMinorUnits,
+        /** The component's base price mode ('incl' or 'excl'), null when the item is gone. */
+        public ?string $unitPriceMode,
         public string $currency,
         public int $quantity,
         public int $weight,

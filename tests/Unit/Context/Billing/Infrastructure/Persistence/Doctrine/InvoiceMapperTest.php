@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Context\Billing\Infrastructure\Persistence\Doctrine;
 
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
+use App\Context\Billing\Domain\ValueObject\BuyerFiscalIdentity;
+use App\Context\Billing\Domain\ValueObject\BuyerTaxStatus;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\CounterSalePayer;
 use App\Context\Billing\Domain\ValueObject\Discount;
@@ -16,16 +18,25 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\LineAmounts;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\ProcessingRule;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\Entity\InvoiceLineEntity;
 use App\Context\Billing\Infrastructure\Persistence\Doctrine\InvoiceMapper;
 use App\Shared\Domain\ValueObject\CurrencyCode;
+use App\Shared\Domain\ValueObject\FrenchVatNumber;
+use App\Shared\Domain\ValueObject\Siren;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -83,6 +94,19 @@ final class InvoiceMapperTest extends TestCase
         self::assertSame(self::USER_ID, $restored->payments()[0]->recordedByUserId());
         self::assertSame(CounterSalePayer::NEW_CLIENT, $restored->counterSalePayer());
         self::assertSame(CounterSalePayer::NEW_CLIENT, $entity->getCounterSalePayer());
+        // The frozen amounts come back as they were issued.
+        self::assertSame(5400, $restored->totalGross()->minorUnits());
+        self::assertSame(500, $restored->discountAmount()->minorUnits());
+        self::assertSame(6000, $restored->lines()[0]->grossAmount()->minorUnits());
+        self::assertSame(PriceMode::INCLUDING_TAX, $restored->lines()[0]->priceMode());
+        self::assertSame(OperationCategory::SERVICES, $restored->lines()[0]->operationCategory());
+        self::assertSame('41.666667', $restored->lines()[0]->unitNet()->toDecimalString());
+        self::assertSame([['rate' => '20', 'lineTotal' => 5000, 'allowance' => 500, 'vat' => 900]], $entity->getTaxBreakdown());
+        self::assertSame(5000, $entity->getTotalNetBeforeAllowance());
+        self::assertSame(500, $entity->getTotalAllowance());
+        self::assertSame(4500, $entity->getTotalTaxBasis());
+        self::assertSame(900, $entity->getTotalTax());
+        self::assertSame(5400, $entity->getTotalGross());
     }
 
     public function testDecimalColumnsComeBackInTheirOriginalShape(): void
@@ -98,8 +122,9 @@ final class InvoiceMapperTest extends TestCase
         $line->setCode(null);
         $line->setQuantity('2.00');
         $line->setUnitPriceMinorUnits(5000);
+        $line->setUnitPriceMode('excl');
+        $line->setUnitNetMicroUnits(50_000_000);
         $line->setNetMinorUnits(10000);
-        $line->setTaxMinorUnits(2000);
         $line->setGrossMinorUnits(12000);
         $line->setTaxRatePercent('20.0000');
         $line->setTaxCategoryCode(null);
@@ -124,8 +149,8 @@ final class InvoiceMapperTest extends TestCase
         $line->setCode(null);
         $line->setQuantity('1');
         $line->setUnitPriceMinorUnits(0);
+        $line->setUnitPriceMode('incl');
         $line->setNetMinorUnits(0);
-        $line->setTaxMinorUnits(0);
         $line->setGrossMinorUnits(0);
         $line->setTaxRatePercent('0.0000');
         $line->setTaxCategoryCode(null);
@@ -221,9 +246,11 @@ final class InvoiceMapperTest extends TestCase
         self::assertSame('Consultation standard', $entity->getLabel());
         self::assertSame('CONS_STD', $entity->getCode());
         self::assertSame('1', $entity->getQuantity());
-        self::assertSame(5000, $entity->getUnitPriceMinorUnits());
+        self::assertSame(6000, $entity->getUnitPriceMinorUnits());
+        self::assertSame('incl', $entity->getUnitPriceMode());
+        self::assertSame(41_666_667, $entity->getUnitNetMicroUnits());
+        self::assertSame('services', $entity->getOperationCategory());
         self::assertSame(5000, $entity->getNetMinorUnits());
-        self::assertSame(1000, $entity->getTaxMinorUnits());
         self::assertSame(6000, $entity->getGrossMinorUnits());
         self::assertSame('20', $entity->getTaxRatePercent());
         self::assertSame('veterinary.act.consultation', $entity->getTaxCategoryCode());
@@ -246,6 +273,73 @@ final class InvoiceMapperTest extends TestCase
         self::assertNull($entity->getCancellationReason());
     }
 
+    public function testAProfessionalInvoiceKeepsItsFrozenFiscalData(): void
+    {
+        $siren   = Siren::fromInput('523456788');
+        $invoice = Invoice::draft(
+            InvoiceId::fromString(self::INVOICE_ID),
+            ClinicId::fromString(self::CLINIC_ID),
+            null,
+            Payer::create(PayerId::fromString(self::CLIENT_ID), 'EARL Élevage des Calanques', ['Chemin des Goudes', '13008 Marseille'], null, BuyerFiscalIdentity::of(
+                BuyerTaxStatus::FRENCH_BUSINESS,
+                'EARL Élevage des Calanques',
+                $siren,
+                FrenchVatNumber::forSiren($siren),
+                ['Chemin des Goudes'],
+                '13008',
+                'Marseille',
+            )),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        );
+        $invoice->addLine(InvoiceLine::create(
+            id: InvoiceLineId::fromString(self::LINE_ID),
+            label: 'Consultation',
+            code: null,
+            quantity: '1',
+            enteredUnitPrice: Money::fromMinorUnits(6000, CurrencyCode::fromString('EUR')),
+            priceMode: PriceMode::INCLUDING_TAX,
+            taxCategoryCode: 'veterinary.act.consultation',
+            taxRatePercent: '20',
+            operationCategory: OperationCategory::SERVICES,
+            source: InvoiceLineSource::CONSULTATION,
+        ), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 8), SellerIdentities::complete(), $this->now());
+
+        $entity = $this->mapper->toEntity($invoice);
+
+        self::assertSame('B2B', $entity->getProcessingRule());
+        self::assertSame('S1', $entity->getInvoicingFramework());
+        self::assertSame('Paiement à 30 jours', $entity->getPaymentTermsNote());
+        self::assertSame('0225', $entity->getPayerElectronicAddressScheme());
+        self::assertSame('523456788', $entity->getPayerElectronicAddress());
+        self::assertSame(['Chemin des Goudes'], $entity->getPayerStreet());
+
+        $restored = $this->mapper->toDomain($entity, [$this->mapper->lineToEntity($invoice->lines()[0], $invoice->id(), 0)], []);
+
+        self::assertSame(ProcessingRule::B2B, $restored->processingRule());
+        self::assertSame('S1', $restored->framework()?->code());
+        self::assertSame($invoice->paymentTerms()?->dueDate?->format('Y-m-d'), $restored->paymentTerms()?->dueDate?->format('Y-m-d'));
+        self::assertTrue($restored->payer()->equals($invoice->payer()));
+        self::assertSame($invoice->totalGross()->minorUnits(), $restored->totalGross()->minorUnits());
+    }
+
+    public function testADraftStoresNoProcessingRule(): void
+    {
+        $entity = $this->mapper->toEntity(Invoice::draft(
+            InvoiceId::fromString(self::INVOICE_ID),
+            ClinicId::fromString(self::CLINIC_ID),
+            null,
+            Payer::anonymous(),
+            CurrencyCode::fromString('EUR'),
+            $this->now(),
+        ));
+
+        self::assertNull($entity->getProcessingRule());
+        self::assertNull($entity->getPayerTaxStatus());
+        self::assertNull($entity->getPayerStreet());
+    }
+
     private function invoice(): Invoice
     {
         $eur = CurrencyCode::fromString('EUR');
@@ -258,19 +352,23 @@ final class InvoiceMapperTest extends TestCase
             admissionId: AdmissionId::fromString(self::ADMISSION_ID),
             payer: Payer::create(PayerId::fromString(self::CLIENT_ID), 'Sophie Dupont', ['12 rue des Lilas']),
             lines: [
-                InvoiceLine::create(
+                InvoiceLine::reconstitute(
                     id: InvoiceLineId::fromString(self::LINE_ID),
                     label: 'Consultation standard',
                     code: 'CONS_STD',
                     quantity: '1',
-                    unitNetPrice: Money::fromMinorUnits(5000, $eur),
+                    enteredUnitPrice: Money::fromMinorUnits(6000, $eur),
+                    priceMode: PriceMode::INCLUDING_TAX,
                     taxCategoryCode: 'veterinary.act.consultation',
                     taxRatePercent: '20',
-                    netAmount: Money::fromMinorUnits(5000, $eur),
-                    taxAmount: Money::fromMinorUnits(1000, $eur),
-                    grossAmount: Money::fromMinorUnits(6000, $eur),
+                    operationCategory: OperationCategory::SERVICES,
                     source: InvoiceLineSource::CONSULTATION,
                     sourceReference: 'src-1',
+                    amounts: LineAmounts::of(
+                        Money::fromMinorUnits(5000, $eur),
+                        Money::fromMinorUnits(6000, $eur),
+                        UnitPrice::fromMicroUnits(41_666_667, $eur),
+                    ),
                 ),
             ],
             payments: [
@@ -293,6 +391,7 @@ final class InvoiceMapperTest extends TestCase
             cancelledAt: null,
             cancellationReason: null,
             counterSalePayer: CounterSalePayer::NEW_CLIENT,
+            frozenBreakdown: [RateBucket::of('20', 5000, 500, 900, $eur)],
         );
     }
 

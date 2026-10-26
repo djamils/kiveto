@@ -16,6 +16,7 @@ use App\Context\Consultation\Domain\ValueObject\DiagnosisCertainty;
 use App\Context\Consultation\Domain\ValueObject\DiagnosisSource;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -165,7 +166,8 @@ final class DoctrineConsultationRegisterTest extends KernelTestCase
         self::assertSame('Pyomètre', $closed->primaryDiagnosis);
         self::assertSame('3.200', $closed->weightKg);
         self::assertSame([['code' => 'STERIL', 'label' => 'Ovariectomie'], ['code' => null, 'label' => 'Soins']], $closed->billedItems);
-        self::assertSame(['veterinary.act.surgery' => 16500, '' => 1000], $closed->htByTaxCategory);
+        self::assertSame([], $closed->htByTaxCategory);
+        self::assertSame(['veterinary.act.surgery' => 16500, '' => 1000], $closed->ttcByTaxCategory);
         self::assertSame('EUR', $closed->currency);
 
         // The only diagnosis counts even when not marked primary.
@@ -213,8 +215,8 @@ final class DoctrineConsultationRegisterTest extends KernelTestCase
         $closed->recordChiefComplaint('Stérilisation', new \DateTimeImmutable('2026-05-08 09:01:00'));
         $closed->setMotifs(['Stérilisation'], new \DateTimeImmutable('2026-05-08 09:01:00'));
         $closed->recordVitals(Vitals::create(3.2), new \DateTimeImmutable('2026-05-08 09:02:00'));
-        $closed->addPlanAction(PlanActionKind::PERFORMED_ACT, 'Ovariectomie', 'STERIL', null, null, null, 1.0, 16500, 'EUR', 'veterinary.act.surgery', $alice, new \DateTimeImmutable('2026-05-08 09:03:00'));
-        $closed->addPlanAction(PlanActionKind::PERFORMED_ACT, 'Soins', null, null, null, null, 1.0, 1000, 'EUR', null, $alice, new \DateTimeImmutable('2026-05-08 09:04:00'));
+        $closed->addPlanAction(PlanActionKind::PERFORMED_ACT, 'Ovariectomie', 'STERIL', null, null, null, 1.0, 16500, 'EUR', UnitPriceMode::INCLUDING_TAX, 'veterinary.act.surgery', $alice, new \DateTimeImmutable('2026-05-08 09:03:00'));
+        $closed->addPlanAction(PlanActionKind::PERFORMED_ACT, 'Soins', null, null, null, null, 1.0, 1000, 'EUR', UnitPriceMode::INCLUDING_TAX, null, $alice, new \DateTimeImmutable('2026-05-08 09:04:00'));
         $closed->addDiagnosis(null, 'Kyste ovarien', DiagnosisCertainty::POSSIBLE, null, false, DiagnosisSource::MANUAL, $alice, new \DateTimeImmutable('2026-05-08 09:05:00'));
         $closed->addDiagnosis(null, 'Pyomètre', DiagnosisCertainty::CERTAIN, null, true, DiagnosisSource::MANUAL, $alice, new \DateTimeImmutable('2026-05-08 09:06:00'));
         $closed->close($alice, 'Ovariectomie sans complication', new \DateTimeImmutable('2026-05-08 09:40:00'));

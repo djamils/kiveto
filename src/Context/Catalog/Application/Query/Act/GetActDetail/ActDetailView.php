@@ -16,6 +16,8 @@ final readonly class ActDetailView
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        /** 'incl' (all taxes included) or 'excl': the mode the price was entered in. */
+        public string $basePriceMode,
         public int $estimatedDurationMinutes,
         public bool $requiresAnesthesia,
         public string $status,

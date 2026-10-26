@@ -32,6 +32,7 @@ use App\Context\Catalog\Domain\Pricing\PriceListItem;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListName;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListStatus;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Context\Catalog\Infrastructure\Adapter\HealthRegistry\PharmaceuticalRef;
 use App\Shared\Domain\UnitOfMeasure\ValueObject\UnitOfMeasure;
@@ -60,9 +61,10 @@ final class CatalogCommandFixtures
         return self::$now ??= new \DateTimeImmutable('2026-08-22 10:00:00');
     }
 
-    public static function eur(int $minorUnits): Money
+    /** A catalogue price in euros, entered all taxes included. */
+    public static function eur(int $minorUnits): CatalogPrice
     {
-        return Money::fromMinorUnits($minorUnits, CurrencyCode::fromString('EUR'));
+        return CatalogPrice::includingTax(Money::fromMinorUnits($minorUnits, CurrencyCode::fromString('EUR')));
     }
 
     public static function act(ActStatus $status = ActStatus::ACTIVE): Act

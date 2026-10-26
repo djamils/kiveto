@@ -6,11 +6,15 @@ namespace App\Tests\Unit\Context\Clinic\Application\Command\Clinic\UpdateClinicL
 
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead\UpdateClinicLetterhead;
 use App\Context\Clinic\Application\Command\Clinic\UpdateClinicLetterhead\UpdateClinicLetterheadHandler;
+use App\Context\Clinic\Application\Service\InvoiceNumberingUniqueness;
 use App\Context\Clinic\Domain\Clinic;
 use App\Context\Clinic\Domain\Event\ClinicLetterheadUpdated;
+use App\Context\Clinic\Domain\Exception\InvalidLetterheadException;
+use App\Context\Clinic\Domain\Exception\InvoicePrefixAlreadyUsedException;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Context\Clinic\Domain\ValueObject\Letterhead;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Localization\Locale;
@@ -38,8 +42,8 @@ final class UpdateClinicLetterheadHandlerTest extends TestCase
             clinicId: self::CLINIC_ID,
             legalName: 'Clinique Vétérinaire de Paris',
             legalForm: 'SELARL',
-            siret: '812 456 903 00027',
-            vatNumber: 'FR41812456903',
+            siret: '812 456 903 00028',
+            vatNumber: 'FR20812456903',
             rcsCity: 'Paris',
             rcsNumber: '812 456 903',
             apeCode: '7500Z',
@@ -56,11 +60,66 @@ final class UpdateClinicLetterheadHandlerTest extends TestCase
         $letterhead = $clinic->letterhead();
 
         self::assertSame('Clinique Vétérinaire de Paris', $letterhead->legalName);
-        self::assertSame('81245690300027', $letterhead->siret);
+        self::assertSame('81245690300028', $letterhead->siret);
+        self::assertSame('FR20812456903', $letterhead->vatNumber);
         $address = $letterhead->address;
         self::assertNotNull($address);
         self::assertSame('18 rue des Abbesses', $address->streetLine1);
         self::assertSame('75018', $address->postalCode);
+    }
+
+    public function testAVatNumberThatDoesNotMatchTheSiretIsRefused(): void
+    {
+        $repository = $this->createMock(ClinicRepositoryInterface::class);
+        $repository->method('findById')->willReturn(self::clinic());
+        $repository->expects(self::never())->method('save');
+
+        $handler = new UpdateClinicLetterheadHandler(
+            $repository,
+            $this->createStub(ClockInterface::class),
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+            new InvoiceNumberingUniqueness($repository),
+        );
+
+        try {
+            $handler(new UpdateClinicLetterhead(clinicId: self::CLINIC_ID, siret: '81245690300028', vatNumber: 'FR00901122333'));
+            self::fail('The VAT number of another company should have been refused.');
+        } catch (InvalidLetterheadException $exception) {
+            self::assertSame(InvalidLetterheadException::FIELD_VAT_NUMBER, $exception->field);
+            self::assertSame(InvalidLetterheadException::REASON_SIREN_MISMATCH, $exception->reason);
+        }
+    }
+
+    public function testASiretThatMakesTwoSeriesOfTheCompanyCollideIsRefused(): void
+    {
+        $lyon = Clinic::create(
+            ClinicId::fromString('01960000-0000-7000-8000-000000000101'),
+            'Lyon',
+            ClinicSlug::fromString('lyon'),
+            TimeZone::fromString('Europe/Paris'),
+            Locale::fromString('fr-FR'),
+            CountryCode::fromString('FR'),
+            CurrencyCode::fromString('EUR'),
+            new \DateTimeImmutable('2026-01-01T10:00:00Z'),
+        );
+        $lyon->updateLetterhead(Letterhead::create(siret: '90112233300015'), new \DateTimeImmutable('2026-01-01T10:00:00Z'));
+
+        $repository = $this->createMock(ClinicRepositoryInterface::class);
+        $repository->method('findById')->willReturn(self::clinic());
+        $repository->method('findOthersWithSiren')->willReturn([$lyon]);
+        $repository->expects(self::never())->method('save');
+
+        $handler = new UpdateClinicLetterheadHandler(
+            $repository,
+            $this->createStub(ClockInterface::class),
+            new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+            new InvoiceNumberingUniqueness($repository),
+        );
+
+        // Both clinics number under the default « FAC »: joining the company would collide.
+        $this->expectException(InvoicePrefixAlreadyUsedException::class);
+
+        $handler(new UpdateClinicLetterhead(clinicId: self::CLINIC_ID, siret: '90112233300023'));
     }
 
     public function testAnAddressWithoutACityIsNoAddress(): void
@@ -108,6 +167,7 @@ final class UpdateClinicLetterheadHandlerTest extends TestCase
             $repository,
             $clock,
             new DomainEventPublisher($this->createStub(EventBusInterface::class)),
+            new InvoiceNumberingUniqueness($repository),
         );
 
         $this->expectException(\RuntimeException::class);
@@ -137,7 +197,7 @@ final class UpdateClinicLetterheadHandlerTest extends TestCase
         $eventBus = $this->createMock(EventBusInterface::class);
         $eventBus->expects($expectsPublish ? self::once() : self::never())->method('publish');
 
-        return new UpdateClinicLetterheadHandler($repository, $clock, new DomainEventPublisher($eventBus));
+        return new UpdateClinicLetterheadHandler($repository, $clock, new DomainEventPublisher($eventBus), new InvoiceNumberingUniqueness($repository));
     }
 
     private static function clinic(): Clinic

@@ -17,6 +17,7 @@ use App\Context\Catalog\Domain\Article\ValueObject\ArticleCode;
 use App\Context\Catalog\Domain\Exception\StarterCatalogNotAvailableException;
 use App\Context\Catalog\Domain\Pricing\Repository\PriceListRepositoryInterface;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Shared\Application\Bus\CommandBusInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -42,7 +43,7 @@ final class ApplyStarterCatalogHandler
         $currency    = $this->clinicInfoProvider->getCurrencyCode($clinicId)->toString();
 
         $path = \sprintf(
-            '%s/../../Infrastructure/Resources/starter-catalogs/%s/%s.yaml',
+            '%s/../../../../Infrastructure/Resources/starter-catalogs/%s/%s.yaml',
             __DIR__,
             strtolower($countryCode),
             $command->catalogType,
@@ -76,6 +77,7 @@ final class ApplyStarterCatalogHandler
         /** @var list<string> $failed */
         $failed = [];
 
+        // Starter catalogues list their prices all taxes included, as a clinic enters them.
         // Create acts
         foreach ($acts as $actData) {
             $code = isset($actData['code']) && \is_string($actData['code']) ? $actData['code'] : '';
@@ -97,6 +99,7 @@ final class ApplyStarterCatalogHandler
                     taxCategoryCode: isset($actData['tax_category_code']) && \is_string($actData['tax_category_code']) ? $actData['tax_category_code'] : '',
                     basePriceMinorUnits: isset($actData['base_price_minor_units']) && \is_int($actData['base_price_minor_units']) ? $actData['base_price_minor_units'] : 0,
                     basePriceCurrency: $currency,
+                    basePriceMode: PriceEntryMode::INCLUDING_TAX->value,
                     estimatedDurationMinutes: isset($actData['estimated_duration_minutes']) && \is_int($actData['estimated_duration_minutes']) ? $actData['estimated_duration_minutes'] : 20,
                     requiresAnesthesia: isset($actData['requires_anesthesia']) && \is_bool($actData['requires_anesthesia']) && $actData['requires_anesthesia'],
                 ));
@@ -132,6 +135,7 @@ final class ApplyStarterCatalogHandler
                     taxCategoryCode: isset($articleData['tax_category_code']) && \is_string($articleData['tax_category_code']) ? $articleData['tax_category_code'] : '',
                     basePriceMinorUnits: isset($articleData['base_price_minor_units']) && \is_int($articleData['base_price_minor_units']) ? $articleData['base_price_minor_units'] : 0,
                     basePriceCurrency: $currency,
+                    basePriceMode: PriceEntryMode::INCLUDING_TAX->value,
                     unitOfMeasure: isset($articleData['unit_of_measure']) && \is_string($articleData['unit_of_measure']) ? $articleData['unit_of_measure'] : 'UNIT',
                     authorizationRef: $authRef,
                     requiresPrescription: isset($articleData['requires_prescription']) && \is_bool($articleData['requires_prescription']) && $articleData['requires_prescription'],
@@ -170,6 +174,7 @@ final class ApplyStarterCatalogHandler
                     taxCategoryCode: isset($articleData['tax_category_code']) && \is_string($articleData['tax_category_code']) ? $articleData['tax_category_code'] : '',
                     basePriceMinorUnits: isset($articleData['base_price_minor_units']) && \is_int($articleData['base_price_minor_units']) ? $articleData['base_price_minor_units'] : 0,
                     basePriceCurrency: $currency,
+                    basePriceMode: PriceEntryMode::INCLUDING_TAX->value,
                     unitOfMeasure: isset($articleData['unit_of_measure']) && \is_string($articleData['unit_of_measure']) ? $articleData['unit_of_measure'] : 'UNIT',
                     trackStock: !isset($articleData['track_stock']) || !\is_bool($articleData['track_stock']) || $articleData['track_stock'],
                 ));

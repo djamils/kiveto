@@ -6,6 +6,7 @@ namespace App\Context\Billing\Infrastructure\Adapter\Taxation;
 
 use App\Context\Billing\Application\Port\ResolvedTaxDto;
 use App\Context\Billing\Application\Port\TaxResolverInterface;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -15,17 +16,20 @@ use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Application\Query\ResolveTax\ResolveTax;
 use App\System\Taxation\Domain\ValueObject\FiscalContext;
+use App\System\Taxation\Domain\ValueObject\LegalMention;
 use App\System\Taxation\Domain\ValueObject\TaxApplication;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use App\System\Taxation\Domain\ValueObject\TaxRegimeId;
 
 /**
- * Splits a net amount into net + VAT through the Taxation BC.
+ * Resolves the VAT rate, nature and legal mentions of a tax category through
+ * the Taxation BC.
  *
- * When the rules cannot price a line — an unknown category, a clinic whose
- * regime is not configured — the line is billed untaxed rather than blocking
- * the whole checkout. That is visible on the invoice (0 %), which is far better
- * than a receptionist unable to take the money.
+ * When the rules cannot resolve a category — an unknown category, a clinic
+ * whose regime is not configured — the answer is null: a private client's
+ * line is then billed untaxed rather than blocking the checkout, which is
+ * visible on the invoice (0 %); a professional invoice refuses it.
  */
 final class QueryBusTaxResolver implements TaxResolverInterface
 {
@@ -38,25 +42,21 @@ final class QueryBusTaxResolver implements TaxResolverInterface
     ) {
     }
 
-    public function resolve(
-        int $netMinorUnits,
-        string $currency,
-        ?string $taxCategoryCode,
-        string $clinicId,
-    ): ResolvedTaxDto {
+    public function resolve(string $clinicId, ?string $taxCategoryCode, string $currency): ?ResolvedTaxDto
+    {
         if (null === $taxCategoryCode || '' === $taxCategoryCode) {
-            return ResolvedTaxDto::untaxed($netMinorUnits);
+            return null;
         }
 
         $clinic = $this->clinic($clinicId);
 
         if (null === $clinic) {
-            return ResolvedTaxDto::untaxed($netMinorUnits);
+            return null;
         }
 
         try {
             $result = $this->queryBus->ask(new ResolveTax(
-                netAmount: Money::fromMinorUnits($netMinorUnits, CurrencyCode::fromString($currency)),
+                netAmount: Money::zero(CurrencyCode::fromString($currency)),
                 categoryCode: TaxCategoryCode::fromString($taxCategoryCode),
                 regimeId: TaxRegimeId::fromString($this->regimeIdFor($clinic)),
                 fiscalContext: FiscalContext::minimal(
@@ -65,18 +65,23 @@ final class QueryBusTaxResolver implements TaxResolverInterface
                 ),
             ));
         } catch (\Throwable) {
-            return ResolvedTaxDto::untaxed($netMinorUnits);
+            return null;
         }
 
         if (!$result instanceof TaxApplication) {
-            return ResolvedTaxDto::untaxed($netMinorUnits);
+            return null;
         }
 
         return new ResolvedTaxDto(
-            netMinorUnits: $result->netAmount()->minorUnits(),
-            taxMinorUnits: $result->taxAmount()->minorUnits(),
-            grossMinorUnits: $result->grossAmount()->minorUnits(),
             ratePercent: $result->appliedRate()->value()->toPercentString(),
+            nature: match ($result->nature()) {
+                TaxCategoryNature::GOODS    => OperationCategory::GOODS,
+                TaxCategoryNature::SERVICES => OperationCategory::SERVICES,
+            },
+            legalMentions: array_map(
+                static fn (LegalMention $mention): string => $mention->text,
+                $result->legalMentions()->toArray(),
+            ),
         );
     }
 

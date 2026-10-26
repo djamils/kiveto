@@ -18,6 +18,7 @@ use App\Context\Billing\Domain\Exception\InvoiceRequiresIdentifiedPayerException
 use App\Context\Billing\Domain\Exception\PaymentExceedsBalanceException;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\ValueObject\AdmissionId;
+use App\Context\Billing\Domain\ValueObject\CalculationMode;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\Discount;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
@@ -26,13 +27,19 @@ use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
 use App\Context\Billing\Domain\ValueObject\InvoiceNumber;
 use App\Context\Billing\Domain\ValueObject\InvoiceStatus;
+use App\Context\Billing\Domain\ValueObject\LineAmounts;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
+use App\Context\Billing\Domain\ValueObject\RateBucket;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
+use App\Shared\Money\Domain\ValueObject\UnitPrice;
+use App\Tests\Support\Billing\SellerIdentities;
 use PHPUnit\Framework\TestCase;
 
 final class InvoiceTest extends TestCase
@@ -85,12 +92,11 @@ final class InvoiceTest extends TestCase
                 label: 'Consultation',
                 code: null,
                 quantity: '1',
-                unitNetPrice: Money::fromMinorUnits(5000, $usd),
+                enteredUnitPrice: Money::fromMinorUnits(6000, $usd),
+                priceMode: PriceMode::INCLUDING_TAX,
                 taxCategoryCode: null,
                 taxRatePercent: '20',
-                netAmount: Money::fromMinorUnits(5000, $usd),
-                taxAmount: Money::fromMinorUnits(1000, $usd),
-                grossAmount: Money::fromMinorUnits(6000, $usd),
+                operationCategory: null,
                 source: InvoiceLineSource::MANUAL,
             ),
             $this->now(),
@@ -116,7 +122,7 @@ final class InvoiceTest extends TestCase
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
         (void) $invoice->pullDomainEvents();
 
-        $invoice->issue(InvoiceNumber::of(2026, 42), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 42), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
         self::assertSame('FAC-2026-000042', $invoice->number()?->toString());
@@ -136,7 +142,7 @@ final class InvoiceTest extends TestCase
         $this->expectException(InvoiceRequiresIdentifiedPayerException::class);
         $this->expectExceptionMessage('without an identified client');
 
-        $invoice->issue(InvoiceNumber::of(2026, 43), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 43), SellerIdentities::complete(), $this->now());
     }
 
     public function testACounterSaleToAPasserByIsIssued(): void
@@ -151,7 +157,7 @@ final class InvoiceTest extends TestCase
         );
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
 
-        $invoice->issue(InvoiceNumber::of(2026, 44), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 44), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::ISSUED, $invoice->status());
     }
@@ -200,7 +206,7 @@ final class InvoiceTest extends TestCase
         $this->expectException(InvoiceHasNoLinesException::class);
         $this->expectExceptionMessage('cannot be issued without a single line');
 
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
     }
 
     public function testAPaymentThatSettlesTheInvoiceMarksItPaid(): void
@@ -296,7 +302,7 @@ final class InvoiceTest extends TestCase
         $invoice->applyDiscount(Discount::percentage('100', 'Geste commercial'), $this->now());
         (void) $invoice->pullDomainEvents();
 
-        $invoice->issue(InvoiceNumber::of(2026, 7), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 7), SellerIdentities::complete(), $this->now());
 
         self::assertSame(InvoiceStatus::PAID, $invoice->status());
         self::assertSame(0, $invoice->totalGross()->minorUnits());
@@ -456,7 +462,7 @@ final class InvoiceTest extends TestCase
             status: InvoiceStatus::PARTIALLY_PAID,
             admissionId: AdmissionId::fromString(self::ADMISSION_ID),
             payer: Payer::create(PayerId::fromString(self::CLIENT_ID), 'Sophie Dupont', ['1 rue des Lilas']),
-            lines: [$this->line(5000, 1000, 6000)],
+            lines: [$this->storedLine(5000, 6000)],
             payments: [$this->payment(2000)],
             discount: Discount::percentage('5'),
             currency: CurrencyCode::fromString('EUR'),
@@ -467,9 +473,12 @@ final class InvoiceTest extends TestCase
             paidAt: null,
             cancelledAt: null,
             cancellationReason: null,
+            frozenBreakdown: [RateBucket::of('20', 5000, 250, 950, CurrencyCode::fromString('EUR'))],
         );
 
         self::assertSame('FAC-2026-000003', $invoice->number()?->toString());
+        self::assertSame(5700, $invoice->totalGross()->minorUnits());
+        self::assertSame(250, $invoice->discountAmount()->minorUnits());
         self::assertSame(self::CLINIC_ID, $invoice->clinicId()->toString());
         self::assertSame('Reste à régler', $invoice->notes());
         self::assertSame('5', $invoice->discount()?->value());
@@ -481,6 +490,112 @@ final class InvoiceTest extends TestCase
         self::assertSame(['1 rue des Lilas'], $invoice->payer()->addressLines());
         self::assertNull($invoice->cancelledAt());
         self::assertNull($invoice->cancellationReason());
+    }
+
+    /**
+     * An issued invoice keeps the amounts it was issued with, even when the
+     * calculator would now give something else (AC 4c).
+     */
+    public function testAnIssuedInvoiceIsNeverRecalculatedOnReload(): void
+    {
+        // What a different calculator would have frozen: 59.99 € for a line
+        // that the current one prices 60.00 €.
+        $invoice = $this->reconstituted(InvoiceStatus::ISSUED, [RateBucket::of('20', 4999, 0, 1000, CurrencyCode::fromString('EUR'))], 4999, 5999);
+
+        self::assertSame(5999, $invoice->totalGross()->minorUnits());
+        self::assertSame(4999, $invoice->lines()[0]->netAmount()->minorUnits());
+        self::assertSame(5999, $invoice->taxBreakdown()[0]['grossMinorUnits']);
+    }
+
+    public function testADraftIsRecalculatedOnReload(): void
+    {
+        $invoice = $this->reconstituted(InvoiceStatus::DRAFT, null, 4999, 5999);
+
+        self::assertSame(6000, $invoice->totalGross()->minorUnits());
+        self::assertSame(5000, $invoice->lines()[0]->netAmount()->minorUnits());
+    }
+
+    public function testAnIssuedInvoiceCannotBeReloadedWithoutItsFrozenAmounts(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('needs its frozen amounts');
+
+        $this->reconstituted(InvoiceStatus::ISSUED, null, 5000, 6000);
+    }
+
+    public function testTheBreakdownOfADiscountedInvoiceAddsUpToItsTotals(): void
+    {
+        $invoice = $this->draft();
+        $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
+        $invoice->addLine($this->line(1000, 55, 1055, '01960000-0000-7000-8000-0000000000c4', '5.5'), $this->now());
+        $invoice->applyDiscount(Discount::percentage('10'), $this->now());
+
+        $gross = 0;
+        $net   = 0;
+        foreach ($invoice->taxBreakdown() as $rate) {
+            self::assertSame($rate['grossMinorUnits'], $rate['netMinorUnits'] + $rate['taxMinorUnits']);
+            $gross += $rate['grossMinorUnits'];
+            $net += $rate['netMinorUnits'];
+        }
+
+        self::assertSame($invoice->totalGross()->minorUnits(), $gross);
+        self::assertSame($invoice->totalNet()->minorUnits(), $net);
+        self::assertSame(CalculationMode::INCLUDING_TAX_FIRST, $invoice->calculationMode());
+        self::assertSame($invoice->totalGross()->minorUnits(), $invoice->amounts()->totalGross()->minorUnits());
+    }
+
+    /**
+     * @param list<RateBucket>|null $breakdown
+     */
+    private function reconstituted(InvoiceStatus $status, ?array $breakdown, int $net, int $gross): Invoice
+    {
+        return Invoice::reconstitute(
+            id: InvoiceId::fromString(self::INVOICE_ID),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            number: InvoiceStatus::DRAFT === $status ? null : InvoiceNumber::of(2026, 3),
+            status: $status,
+            admissionId: AdmissionId::fromString(self::ADMISSION_ID),
+            payer: Payer::create(PayerId::fromString(self::CLIENT_ID), 'Sophie Dupont'),
+            lines: [$this->storedLine($net, $gross)],
+            payments: [],
+            discount: null,
+            currency: CurrencyCode::fromString('EUR'),
+            notes: null,
+            createdAt: $this->now(),
+            updatedAt: $this->now(),
+            issuedAt: InvoiceStatus::DRAFT === $status ? null : $this->now(),
+            paidAt: null,
+            cancelledAt: null,
+            cancellationReason: null,
+            frozenBreakdown: $breakdown,
+        );
+    }
+
+    /**
+     * A 60.00 € consultation (VAT incl.) as stored with the amounts its invoice froze.
+     */
+    private function storedLine(int $net, int $gross): InvoiceLine
+    {
+        $eur = CurrencyCode::fromString('EUR');
+
+        return InvoiceLine::reconstitute(
+            id: InvoiceLineId::fromString('01960000-0000-7000-8000-0000000000b1'),
+            label: 'Consultation standard',
+            code: 'CONS_STD',
+            quantity: '1',
+            enteredUnitPrice: Money::fromMinorUnits(6000, $eur),
+            priceMode: PriceMode::INCLUDING_TAX,
+            taxCategoryCode: 'veterinary.act.consultation',
+            taxRatePercent: '20',
+            operationCategory: OperationCategory::SERVICES,
+            source: InvoiceLineSource::CONSULTATION,
+            sourceReference: 'line-1',
+            amounts: LineAmounts::of(
+                Money::fromMinorUnits($net, $eur),
+                Money::fromMinorUnits($gross, $eur),
+                UnitPrice::fromMicroUnits($net * 10_000, $eur),
+            ),
+        );
     }
 
     private function draft(): Invoice
@@ -499,11 +614,14 @@ final class InvoiceTest extends TestCase
     {
         $invoice = $this->draft();
         $invoice->addLine($this->line(5000, 1000, 6000), $this->now());
-        $invoice->issue(InvoiceNumber::of(2026, 1), $this->now());
+        $invoice->issue(InvoiceNumber::of(2026, 1), SellerIdentities::complete(), $this->now());
 
         return $invoice;
     }
 
+    /**
+     * A line sold $gross VAT included; the invoice calculates it into $net + $tax.
+     */
     private function line(
         int $net,
         int $tax,
@@ -511,19 +629,18 @@ final class InvoiceTest extends TestCase
         string $id = '01960000-0000-7000-8000-0000000000b1',
         string $rate = '20',
     ): InvoiceLine {
-        $eur = CurrencyCode::fromString('EUR');
+        self::assertSame($gross, $net + $tax);
 
         return InvoiceLine::create(
             id: InvoiceLineId::fromString($id),
             label: 'Consultation standard',
             code: 'CONS_STD',
             quantity: '1',
-            unitNetPrice: Money::fromMinorUnits($net, $eur),
+            enteredUnitPrice: Money::fromMinorUnits($gross, CurrencyCode::fromString('EUR')),
+            priceMode: PriceMode::INCLUDING_TAX,
             taxCategoryCode: 'veterinary.act.consultation',
             taxRatePercent: $rate,
-            netAmount: Money::fromMinorUnits($net, $eur),
-            taxAmount: Money::fromMinorUnits($tax, $eur),
-            grossAmount: Money::fromMinorUnits($gross, $eur),
+            operationCategory: OperationCategory::SERVICES,
             source: InvoiceLineSource::CONSULTATION,
             sourceReference: 'line-1',
         );

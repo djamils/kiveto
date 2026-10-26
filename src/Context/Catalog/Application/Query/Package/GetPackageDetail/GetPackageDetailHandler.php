@@ -50,6 +50,7 @@ final class GetPackageDetailHandler
             pricingMode: $package->pricingMode()->value,
             fixedPriceMinorUnits: $fixedPrice?->minorUnits(),
             fixedPriceCurrency: $fixedPrice?->currency()->toString(),
+            fixedPriceMode: $fixedPrice?->mode()->value,
             components: $components,
             status: $package->status()->value,
             createdAt: $package->createdAt()->format(\DateTimeInterface::ATOM),

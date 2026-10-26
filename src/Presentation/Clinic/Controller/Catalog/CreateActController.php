@@ -27,10 +27,16 @@ final readonly class CreateActController
             return $refused;
         }
 
-        $net = CatalogEndpoint::cents($request, 'net');
+        $price = CatalogEndpoint::cents($request, 'price');
 
-        if (null === $net) {
+        if (null === $price) {
             return $this->endpoint->refuse('Le tarif saisi est invalide.');
+        }
+
+        $priceMode = CatalogEndpoint::priceMode($request);
+
+        if (null === $priceMode) {
+            return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
         }
 
         try {
@@ -41,8 +47,9 @@ final readonly class CreateActController
                 description: CatalogEndpoint::text($request, 'description'),
                 category: $request->request->getString('category'),
                 taxCategoryCode: $request->request->getString('tax_category'),
-                basePriceMinorUnits: $net,
+                basePriceMinorUnits: $price,
                 basePriceCurrency: 'EUR',
+                basePriceMode: $priceMode,
                 estimatedDurationMinutes: $request->request->getInt('duration', 20),
                 requiresAnesthesia: $request->request->getBoolean('requires_anesthesia'),
             ));

@@ -19,6 +19,7 @@ use App\Context\Consultation\Domain\ValueObject\ExamStatus;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
 use App\Context\Consultation\Domain\ValueObject\VitalType;
@@ -266,6 +267,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             2.0,
             3500,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA20',
             $user,
             $at,
@@ -279,6 +281,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             null,
             null,
             1.0,
+            null,
             null,
             null,
             null,
@@ -296,6 +299,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             null,
             null,
             null,
+            null,
             $user,
             $at,
         );
@@ -307,6 +311,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             7,
             null,
             1.0,
+            null,
             null,
             null,
             null,
@@ -324,6 +329,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             3.0,
             1250,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA10',
             $user,
             $at,
@@ -573,6 +579,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             2.0,
             1000,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
             $user,
             $at,
@@ -588,6 +595,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
             1.0,
             2000,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
             $user,
             $at,
@@ -691,6 +699,7 @@ final class DoctrineConsultationRepositoryTest extends KernelTestCase
                 null,
                 null,
                 1.0,
+                null,
                 null,
                 null,
                 null,

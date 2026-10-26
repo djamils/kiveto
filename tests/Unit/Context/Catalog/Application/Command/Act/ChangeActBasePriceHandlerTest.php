@@ -36,7 +36,7 @@ final class ChangeActBasePriceHandlerTest extends TestCase
             ->with([], self::isInstanceOf(ActBasePriceChanged::class))
         ;
 
-        $this->handler($repository, $eventBus)(new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'EUR'));
+        $this->handler($repository, $eventBus)(new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'EUR', 'incl'));
 
         self::assertSame(6500, $act->basePrice()->minorUnits());
         self::assertSame('EUR', $act->basePrice()->currency()->toString());
@@ -51,7 +51,7 @@ final class ChangeActBasePriceHandlerTest extends TestCase
         $this->expectException(ClinicCurrencyMismatchException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'USD'),
+            new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'USD', 'incl'),
         );
     }
 
@@ -64,7 +64,7 @@ final class ChangeActBasePriceHandlerTest extends TestCase
         $this->expectException(ActNotFoundException::class);
 
         $this->handler($repository, $this->createStub(EventBusInterface::class))(
-            new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'EUR'),
+            new ChangeActBasePrice(F::ACT_ID, F::CLINIC_ID, 6500, 'EUR', 'incl'),
         );
     }
 

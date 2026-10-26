@@ -10,12 +10,11 @@ use App\Context\Catalog\Domain\Pricing\Repository\PriceListRepositoryInterface;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -46,9 +45,10 @@ final class AddPriceListItemHandler
         $item = PriceListItem::create(
             id: PriceListItemId::fromString($this->uuidGenerator->generate()),
             itemRef: CatalogItemRef::fromPrimitives($command->itemType, $command->itemId),
-            netPrice: Money::fromMinorUnits(
-                $command->netPriceMinorUnits,
-                CurrencyCode::fromString($command->netPriceCurrency),
+            price: CatalogPrice::fromPrimitives(
+                $command->priceMinorUnits,
+                $command->priceCurrency,
+                $command->priceMode,
             ),
             taxCategoryOverride: $taxOverride,
         );

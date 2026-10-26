@@ -13,6 +13,8 @@
 {% import 'clinic/document/_macros.html.twig' as doc %}
 
 {% set letterhead = clinic is not null ? clinic.letterhead : null %}
+{% set isProfessional = note.processingRule == 'B2B' %}
+{% set hasAllowance = note.discountMinorUnits > 0 %}
 
 {% block doc_title %}Avoir {{ note.number }}{% endblock %}
 
@@ -21,7 +23,7 @@
 {% block doc_meta %}
   <b>N° {{ note.number }}</b><br/>
   Date d’émission : {{ doc.longDate(note.issuedAt) }}<br/>
-  Sur la facture {{ note.invoiceNumber }}{% if note.invoiceIssuedAt %} du {{ note.invoiceIssuedAt|date('d/m/Y', 'Europe/Paris') }}{% endif %}
+  Avoir sur facture n° {{ note.invoiceNumber }}{% if note.invoiceIssuedAt %} du {{ note.invoiceIssuedAt|date('d/m/Y', 'Europe/Paris') }}{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -34,7 +36,14 @@
         <p class="pline">À l'attention de {{ note.payerAttention }}</p>
       {% endif %}
       {% if note.payerAddressLines is not empty %}
-        <p class="pline">{{ note.payerAddressLines|join('<br/>')|raw }}</p>
+        <p class="pline">{{ note.payerAddressLines|map(l => l|e)|join('<br/>')|raw }}</p>
+      {% endif %}
+      {% if isProfessional and (note.payerSiren or note.payerVatNumber) %}
+        <p class="pline">
+          {%- if note.payerSiren %}SIREN {{ note.payerSiren|split('', 3)|join(' ') }}{% endif %}
+          {%- if note.payerSiren and note.payerVatNumber %} · {% endif %}
+          {%- if note.payerVatNumber %}TVA {{ note.payerVatNumber }}{% endif -%}
+        </p>
       {% endif %}
     </td>
     <td>
@@ -65,7 +74,7 @@
     <thead><tr>
       <th>Désignation</th>
       <th class="num" style="width:16mm;">Qté</th>
-      <th class="num" style="width:24mm;">P.U. HT</th>
+      <th class="num" style="width:28mm;">P.U.</th>
       <th class="num" style="width:16mm;">TVA</th>
       <th class="num" style="width:26mm;">Total TTC</th>
     </tr></thead>
@@ -74,7 +83,7 @@
         <tr>
           <td>{{ line.label }}{% if line.code %}<span class="sub">{{ line.code }}</span>{% endif %}</td>
           <td class="num">{{ line.quantity }}</td>
-          <td class="num">− {{ line.unitPriceMinorUnits|money(note.currency) }}</td>
+          <td class="num">− {{ line.unitPriceMinorUnits|money(note.currency) }} {{ line.unitPriceMode == 'incl' ? 'TTC' : 'HT' }}</td>
           <td class="num">{{ line.taxRatePercent }} %</td>
           <td class="num" style="font-weight:600;">− {{ line.grossMinorUnits|money(note.currency) }}</td>
         </tr>
@@ -88,13 +97,22 @@
         <div class="box" style="margin-top:0;">
           <p class="box-t">Récapitulatif de TVA</p>
           <table class="data" style="margin-top:0;">
-            <thead><tr><th>Taux</th><th class="num">Base HT</th><th class="num">TVA</th></tr></thead>
+            <thead><tr>
+              <th>Taux</th>
+              {% if hasAllowance %}<th class="num">Remise</th>{% endif %}
+              <th class="num">Base HT{% if hasAllowance %} après remise{% endif %}</th>
+              <th class="num">TVA</th>
+              <th class="num">Total TTC</th>
+            </tr></thead>
             <tbody>
+              {# Per rate, after the share of the invoice's discount given back: the rows add up to the totals. #}
               {% for rate in note.taxBreakdown %}
                 <tr>
                   <td>{{ rate.ratePercent }} %</td>
+                  {% if hasAllowance %}<td class="num">+ {{ rate.allowanceMinorUnits|money(note.currency) }}</td>{% endif %}
                   <td class="num">− {{ rate.netMinorUnits|money(note.currency) }}</td>
                   <td class="num">− {{ rate.taxMinorUnits|money(note.currency) }}</td>
+                  <td class="num">− {{ rate.grossMinorUnits|money(note.currency) }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -104,6 +122,16 @@
     </td>
     <td style="vertical-align:top;">
       <table class="totals">
+        {% if hasAllowance %}
+          <tr>
+            <td>Total HT avant remise</td>
+            <td>− {{ (note.totalNetMinorUnits + note.discountMinorUnits)|money(note.currency) }}</td>
+          </tr>
+          <tr>
+            <td>Remise de la facture</td>
+            <td style="color:#b45309;">+ {{ note.discountMinorUnits|money(note.currency) }}</td>
+          </tr>
+        {% endif %}
         <tr class="sep"><td>Total HT</td><td>− {{ note.totalNetMinorUnits|money(note.currency) }}</td></tr>
         <tr><td>TVA</td><td>− {{ note.totalTaxMinorUnits|money(note.currency) }}</td></tr>
         <tr class="grand"><td>Total de l’avoir</td><td>− {{ note.totalGrossMinorUnits|money(note.currency) }}</td></tr>

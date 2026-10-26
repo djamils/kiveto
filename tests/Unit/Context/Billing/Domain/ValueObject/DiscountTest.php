@@ -13,37 +13,22 @@ use PHPUnit\Framework\TestCase;
 
 final class DiscountTest extends TestCase
 {
-    public function testAPercentageTakesItsShareOff(): void
+    public function testAPercentageKeepsItsParameters(): void
     {
         $discount = Discount::percentage('12.5', '  Client fidèle  ');
 
         self::assertSame(DiscountKind::PERCENTAGE, $discount->kind());
         self::assertSame('12.5', $discount->value());
         self::assertSame('Client fidèle', $discount->reason());
-        self::assertSame(1250, $discount->amountOff(10000));
     }
 
-    public function testAFixedDiscountTakesItsAmountOff(): void
+    public function testAFixedDiscountKeepsItsAmount(): void
     {
         $discount = Discount::fixed(Money::fromMinorUnits(1500, CurrencyCode::fromString('EUR')));
 
         self::assertSame(DiscountKind::FIXED, $discount->kind());
         self::assertSame('1500', $discount->value());
         self::assertNull($discount->reason());
-        self::assertSame(1500, $discount->amountOff(10000));
-    }
-
-    public function testADiscountNeverExceedsTheAmountItAppliesTo(): void
-    {
-        $discount = Discount::fixed(Money::fromMinorUnits(99999, CurrencyCode::fromString('EUR')));
-
-        self::assertSame(4000, $discount->amountOff(4000));
-    }
-
-    public function testNothingIsTakenOffANonPositiveTotal(): void
-    {
-        self::assertSame(0, Discount::percentage('10')->amountOff(0));
-        self::assertSame(0, Discount::percentage('10')->amountOff(-500));
     }
 
     public function testABlankReasonBecomesNull(): void
@@ -85,10 +70,10 @@ final class DiscountTest extends TestCase
     public function testItIsReconstitutedFromItsStoredParts(): void
     {
         $percentage = Discount::reconstitute(DiscountKind::PERCENTAGE, '10', 'Fidélité');
-        self::assertSame(1000, $percentage->amountOff(10000));
+        self::assertSame('10', $percentage->value());
 
         $fixed = Discount::reconstitute(DiscountKind::FIXED, '750', null);
         self::assertSame(DiscountKind::FIXED, $fixed->kind());
-        self::assertSame(750, $fixed->amountOff(10000));
+        self::assertSame('750', $fixed->value());
     }
 }

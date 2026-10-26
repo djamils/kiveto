@@ -198,7 +198,9 @@ final readonly class ClinicMapper
             )
             : null;
 
-        return Letterhead::create(
+        // Read back as stored, unchecked: a row saved before the SIRET and the VAT
+        // number were checked must still load.
+        return Letterhead::reconstitute(
             legalName: $embeddable->legalName,
             legalForm: $embeddable->legalForm,
             shareCapital: $embeddable->shareCapital,

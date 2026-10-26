@@ -31,10 +31,15 @@ final readonly class SavePriceListItemController
             return $refused;
         }
 
-        $net = CatalogEndpoint::cents($request, 'net');
+        $price     = CatalogEndpoint::cents($request, 'price');
+        $priceMode = CatalogEndpoint::priceMode($request);
 
-        if (null === $net) {
+        if (null === $price) {
             return $this->endpoint->refuse('Le prix saisi est invalide.');
+        }
+
+        if (null === $priceMode) {
+            return $this->endpoint->refuse(CatalogEndpoint::INVALID_PRICE_MODE);
         }
 
         $clinicId = $this->endpoint->clinicId();
@@ -47,8 +52,9 @@ final readonly class SavePriceListItemController
                     priceListId: $priceListId,
                     priceListItemId: $entryId,
                     clinicId: $clinicId,
-                    netPriceMinorUnits: $net,
-                    netPriceCurrency: 'EUR',
+                    priceMinorUnits: $price,
+                    priceCurrency: 'EUR',
+                    priceMode: $priceMode,
                     taxCategoryOverride: null,
                 ));
             } elseif (null !== $itemId) {
@@ -57,8 +63,9 @@ final readonly class SavePriceListItemController
                     clinicId: $clinicId,
                     itemType: $request->request->getString('item_type', 'ACT'),
                     itemId: $itemId,
-                    netPriceMinorUnits: $net,
-                    netPriceCurrency: 'EUR',
+                    priceMinorUnits: $price,
+                    priceCurrency: 'EUR',
+                    priceMode: $priceMode,
                     taxCategoryOverride: null,
                 ));
             } else {

@@ -6,7 +6,7 @@ namespace App\Context\Catalog\Domain\Pricing;
 
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
-use App\Shared\Money\Domain\ValueObject\Money;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 
 final class PriceListItem
@@ -14,24 +14,24 @@ final class PriceListItem
     private function __construct(
         private PriceListItemId $id,
         private CatalogItemRef $itemRef,
-        private Money $netPrice,
+        private CatalogPrice $price,
         private ?TaxCategoryCode $taxCategoryOverride,
     ) {
-        if ($netPrice->minorUnits() < 0) {
-            throw new \DomainException('PriceListItem netPrice cannot be negative.');
+        if ($price->minorUnits() < 0) {
+            throw new \DomainException('PriceListItem price cannot be negative.');
         }
     }
 
     public static function create(
         PriceListItemId $id,
         CatalogItemRef $itemRef,
-        Money $netPrice,
+        CatalogPrice $price,
         ?TaxCategoryCode $taxCategoryOverride,
     ): self {
         return new self(
             id: $id,
             itemRef: $itemRef,
-            netPrice: $netPrice,
+            price: $price,
             taxCategoryOverride: $taxCategoryOverride,
         );
     }
@@ -46,9 +46,9 @@ final class PriceListItem
         return $this->itemRef;
     }
 
-    public function netPrice(): Money
+    public function price(): CatalogPrice
     {
-        return $this->netPrice;
+        return $this->price;
     }
 
     public function taxCategoryOverride(): ?TaxCategoryCode
@@ -56,13 +56,13 @@ final class PriceListItem
         return $this->taxCategoryOverride;
     }
 
-    public function updatePrice(Money $netPrice, ?TaxCategoryCode $taxCategoryOverride): void
+    public function updatePrice(CatalogPrice $price, ?TaxCategoryCode $taxCategoryOverride): void
     {
-        if ($netPrice->minorUnits() < 0) {
-            throw new \DomainException('PriceListItem netPrice cannot be negative.');
+        if ($price->minorUnits() < 0) {
+            throw new \DomainException('PriceListItem price cannot be negative.');
         }
 
-        $this->netPrice            = $netPrice;
+        $this->price               = $price;
         $this->taxCategoryOverride = $taxCategoryOverride;
     }
 }

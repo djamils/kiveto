@@ -12,6 +12,7 @@ use App\Context\Animal\Application\Command\RecordAnimalWeight\RecordAnimalWeight
 use App\Context\Animal\Application\Command\RecordPreventiveCare\RecordPreventiveCare;
 use App\Context\Animal\Application\Command\UpdateAnimalInsurance\UpdateAnimalInsurance;
 use App\Context\Animal\Application\Command\UpdateAnimalLifeCycle\UpdateAnimalLifeCycle;
+use App\Context\Billing\Application\Port\SellerIdentityProviderInterface;
 use App\Context\Billing\Domain\Invoice;
 use App\Context\Billing\Domain\Repository\InvoiceRepositoryInterface;
 use App\Context\Billing\Domain\Service\InvoiceNumberGeneratorInterface;
@@ -21,11 +22,13 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLine;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineId;
 use App\Context\Billing\Domain\ValueObject\InvoiceLineSource;
+use App\Context\Billing\Domain\ValueObject\OperationCategory;
 use App\Context\Billing\Domain\ValueObject\Payer;
 use App\Context\Billing\Domain\ValueObject\PayerId;
 use App\Context\Billing\Domain\ValueObject\Payment;
 use App\Context\Billing\Domain\ValueObject\PaymentId;
 use App\Context\Billing\Domain\ValueObject\PaymentMethod;
+use App\Context\Billing\Domain\ValueObject\PriceMode;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\ArticleEntity;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
@@ -103,6 +106,7 @@ final class ClientSheetStatesStory extends Story
         private readonly Connection $connection,
         private readonly InvoiceRepositoryInterface $invoices,
         private readonly InvoiceNumberGeneratorInterface $numbers,
+        private readonly SellerIdentityProviderInterface $sellers,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -577,27 +581,23 @@ final class ClientSheetStatesStory extends Story
         );
 
         foreach ($lines as [$label, $quantity, $unitGross]) {
-            $gross = $quantity * $unitGross;
-            $net   = (int) round($gross / 1.2);
-
             $invoice->addLine(InvoiceLine::create(
                 id: InvoiceLineId::fromString(Uuid::v7()->toRfc4122()),
                 label: $label,
                 code: null,
                 quantity: (string) $quantity,
-                unitNetPrice: Money::fromMinorUnits((int) round($unitGross / 1.2), $eur),
+                enteredUnitPrice: Money::fromMinorUnits($unitGross, $eur),
+                priceMode: PriceMode::INCLUDING_TAX,
                 taxCategoryCode: 'veterinary.act.consultation',
                 taxRatePercent: '20',
-                netAmount: Money::fromMinorUnits($net, $eur),
-                taxAmount: Money::fromMinorUnits($gross - $net, $eur),
-                grossAmount: Money::fromMinorUnits($gross, $eur),
+                operationCategory: OperationCategory::SERVICES,
                 source: InvoiceLineSource::MANUAL,
                 sourceReference: null,
             ), $at);
         }
 
         if (null !== $payment) {
-            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $at);
+            $invoice->issue($this->numbers->next($clinic, (int) $at->format('Y')), $this->sellers->forClinic($clinic->toString()), $at);
 
             if ('UNPAID' !== $payment) {
                 $invoice->recordPayment(Payment::create(

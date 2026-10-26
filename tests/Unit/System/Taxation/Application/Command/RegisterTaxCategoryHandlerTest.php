@@ -12,6 +12,7 @@ use App\System\Taxation\Application\Command\RegisterTaxCategory\RegisterTaxCateg
 use App\System\Taxation\Domain\Repository\TaxCategoryRepositoryInterface;
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 use PHPUnit\Framework\TestCase;
 
 final class RegisterTaxCategoryHandlerTest extends TestCase
@@ -29,7 +30,7 @@ final class RegisterTaxCategoryHandlerTest extends TestCase
     public function testNewCategoryCreatedAndPublished(): void
     {
         $code    = TaxCategoryCode::fromString('veterinary.act.consultation');
-        $command = new RegisterTaxCategory($code, 'Acte de consultation', null);
+        $command = new RegisterTaxCategory($code, 'Acte de consultation', null, TaxCategoryNature::SERVICES);
 
         $categoryRepo = $this->createMock(TaxCategoryRepositoryInterface::class);
         $categoryRepo->method('findByCode')->willReturn(null);
@@ -52,12 +53,13 @@ final class RegisterTaxCategoryHandlerTest extends TestCase
             $code,
             'Old name',
             null,
+            TaxCategoryNature::SERVICES,
             true,
             $this->now,
             $this->now,
         );
 
-        $command = new RegisterTaxCategory($code, 'New name', 'New description');
+        $command = new RegisterTaxCategory($code, 'New name', 'New description', TaxCategoryNature::SERVICES);
 
         $categoryRepo = $this->createMock(TaxCategoryRepositoryInterface::class);
         $categoryRepo->method('findByCode')->willReturn($existing);

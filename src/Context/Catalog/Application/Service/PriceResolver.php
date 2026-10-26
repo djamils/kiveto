@@ -17,10 +17,10 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PricingContext;
 use App\Context\Catalog\Domain\Pricing\ValueObject\ResolvedPrice;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemType;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Money\Domain\Service\RoundingPolicyRegistry;
-use App\Shared\Money\Domain\ValueObject\Money;
 
 final class PriceResolver
 {
@@ -56,7 +56,7 @@ final class PriceResolver
         foreach ($priceList->items() as $item) {
             if ($item->itemRef()->equals($itemRef)) {
                 $foundItem = $item;
-                $basePrice = $item->netPrice();
+                $basePrice = $item->price();
                 break;
             }
         }
@@ -91,16 +91,17 @@ final class PriceResolver
 
         // 7. Return ResolvedPrice
         return new ResolvedPrice(
-            netAmount: $result['netAmount'],
-            baseAmount: $basePrice,
+            netAmount: $result['price']->amount(),
+            baseAmount: $basePrice->amount(),
             appliedRules: $result['appliedRules'],
             sourcePriceList: $priceList->id(),
             sourcePriceListItem: $foundItem?->id(),
             resolvedAt: $this->clock->now(),
+            mode: $basePrice->mode(),
         );
     }
 
-    private function loadBasePrice(CatalogItemRef $itemRef, ClinicId $clinicId): ?Money
+    private function loadBasePrice(CatalogItemRef $itemRef, ClinicId $clinicId): ?CatalogPrice
     {
         return match ($itemRef->type()) {
             CatalogItemType::ACT => $this->actRepository

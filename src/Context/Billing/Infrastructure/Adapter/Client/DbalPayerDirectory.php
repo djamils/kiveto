@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Billing\Infrastructure\Adapter\Client;
 
 use App\Context\Billing\Application\Port\PayerDirectoryInterface;
+use App\Context\Billing\Application\Port\PayerFiscalSnapshotDto;
 use App\Context\Billing\Application\Port\PayerSnapshotDto;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
 use Doctrine\DBAL\Connection;
@@ -28,6 +29,9 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
     /** Civility as stored by the Client context => honorific printed before the name. */
     private const array HONORIFICS = ['madam' => 'Mme', 'mister' => 'M.'];
 
+    /** The Client context's tax status of a business subject to French VAT. */
+    private const string FRENCH_BUSINESS = 'french_business';
+
     public function __construct(private Connection $connection)
     {
     }
@@ -37,7 +41,8 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
         $row = $this->connection->fetchAssociative(
             "SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name, c.civility, c.legal_name,
                     c.postal_address_street_line_1, c.postal_address_street_line_2,
-                    c.postal_address_postal_code, c.postal_address_city
+                    c.postal_address_postal_code, c.postal_address_city, c.postal_address_country_code,
+                    c.tax_status, c.siren, c.vat_number
              FROM admission__admissions a
              INNER JOIN patient__patients p ON p.id = a.patient_id
              INNER JOIN animal__ownerships o ON o.animal_id = p.animal_link_id
@@ -60,7 +65,8 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
         $row = $this->connection->fetchAssociative(
             'SELECT BIN_TO_UUID(c.id) AS client_id, c.first_name, c.last_name, c.civility, c.legal_name,
                     c.postal_address_street_line_1, c.postal_address_street_line_2,
-                    c.postal_address_postal_code, c.postal_address_city
+                    c.postal_address_postal_code, c.postal_address_city, c.postal_address_country_code,
+                    c.tax_status, c.siren, c.vat_number
              FROM client__clients c
              WHERE c.id = :clientId AND c.clinic_id = :clinicId',
             [
@@ -109,6 +115,7 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
                 displayName: $legalName,
                 addressLines: $this->addressOf($row),
                 attention: '' === $person ? null : mb_trim($honorific . ' ' . $person),
+                fiscal: $this->fiscalOf($row),
             );
         }
 
@@ -120,6 +127,42 @@ final readonly class DbalPayerDirectory implements PayerDirectoryInterface
             clientId: RowAccessor::string($row, 'client_id'),
             displayName: $person,
             addressLines: $this->addressOf($row),
+            fiscal: $this->fiscalOf($row),
+        );
+    }
+
+    /**
+     * A professional's tax identity and structured address; null for a
+     * private client.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function fiscalOf(array $row): ?PayerFiscalSnapshotDto
+    {
+        $status = RowAccessor::string($row, 'tax_status');
+
+        if (self::FRENCH_BUSINESS !== $status) {
+            return null;
+        }
+
+        $street = [];
+        foreach (['postal_address_street_line_1', 'postal_address_street_line_2'] as $column) {
+            $line = mb_trim(RowAccessor::nullableString($row, $column) ?? '');
+
+            if ('' !== $line) {
+                $street[] = $line;
+            }
+        }
+
+        return new PayerFiscalSnapshotDto(
+            taxStatus: $status,
+            legalName: RowAccessor::nullableString($row, 'legal_name'),
+            siren: RowAccessor::nullableString($row, 'siren'),
+            vatNumber: RowAccessor::nullableString($row, 'vat_number'),
+            streetLines: $street,
+            postalCode: RowAccessor::nullableString($row, 'postal_address_postal_code'),
+            city: RowAccessor::nullableString($row, 'postal_address_city'),
+            countryCode: RowAccessor::nullableString($row, 'postal_address_country_code') ?? 'FR',
         );
     }
 

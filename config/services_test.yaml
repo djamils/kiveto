@@ -74,3 +74,24 @@ services:
     App\Tests\Support\ScheduleProviders:
         public: true
         arguments: [!tagged_locator { tag: 'scheduler.schedule_provider', index_by: 'name' }]
+
+    # ElectronicInvoicing services read by the integration tests.
+    test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
+        alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface
+        public: true
+
+    test.App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface:
+        alias: App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface
+        public: true
+
+    test.App\System\ElectronicInvoicing\Application\Port\SubmissionScheduleInterface:
+        alias: App\System\ElectronicInvoicing\Application\Port\SubmissionScheduleInterface
+        public: true
+
+    test.App\System\ElectronicInvoicing\Application\Port\UnprocessedFlowsInterface:
+        alias: App\System\ElectronicInvoicing\Application\Port\UnprocessedFlowsInterface
+        public: true
+
+    test.App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface:
+        alias: App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface
+        public: true

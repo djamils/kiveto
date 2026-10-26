@@ -25,11 +25,14 @@ class PriceListItemEntity
     #[ORM\Column(name: 'item_id', type: 'string', length: 36)]
     private string $itemId;
 
-    #[ORM\Column(name: 'net_price_minor_units', type: 'integer')]
-    private int $netPriceMinorUnits;
+    #[ORM\Column(name: 'price_minor_units', type: 'integer')]
+    private int $priceMinorUnits;
 
-    #[ORM\Column(name: 'net_price_currency', type: 'string', length: 3)]
-    private string $netPriceCurrency;
+    #[ORM\Column(name: 'price_currency', type: 'string', length: 3)]
+    private string $priceCurrency;
+
+    #[ORM\Column(name: 'price_mode', type: 'string', length: 4)]
+    private string $priceMode;
 
     #[ORM\Column(name: 'tax_category_override', type: 'string', length: 50, nullable: true)]
     private ?string $taxCategoryOverride = null;
@@ -74,24 +77,34 @@ class PriceListItemEntity
         $this->itemId = $itemId;
     }
 
-    public function getNetPriceMinorUnits(): int
+    public function getPriceMinorUnits(): int
     {
-        return $this->netPriceMinorUnits;
+        return $this->priceMinorUnits;
     }
 
-    public function setNetPriceMinorUnits(int $netPriceMinorUnits): void
+    public function setPriceMinorUnits(int $priceMinorUnits): void
     {
-        $this->netPriceMinorUnits = $netPriceMinorUnits;
+        $this->priceMinorUnits = $priceMinorUnits;
     }
 
-    public function getNetPriceCurrency(): string
+    public function getPriceCurrency(): string
     {
-        return $this->netPriceCurrency;
+        return $this->priceCurrency;
     }
 
-    public function setNetPriceCurrency(string $netPriceCurrency): void
+    public function setPriceCurrency(string $priceCurrency): void
     {
-        $this->netPriceCurrency = $netPriceCurrency;
+        $this->priceCurrency = $priceCurrency;
+    }
+
+    public function getPriceMode(): string
+    {
+        return $this->priceMode;
+    }
+
+    public function setPriceMode(string $priceMode): void
+    {
+        $this->priceMode = $priceMode;
     }
 
     public function getTaxCategoryOverride(): ?string

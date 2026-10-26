@@ -11,9 +11,12 @@ final readonly class InvoiceLineView
         public string $label,
         public ?string $code,
         public string $quantity,
+        /** The unit price as entered, VAT included or not according to unitPriceMode. */
         public int $unitPriceMinorUnits,
+        public string $unitPriceMode,
+        /** The unit net price at six decimals (BT-146). */
+        public string $unitNet,
         public int $netMinorUnits,
-        public int $taxMinorUnits,
         public int $grossMinorUnits,
         public string $taxRatePercent,
         public ?string $taxCategoryCode,

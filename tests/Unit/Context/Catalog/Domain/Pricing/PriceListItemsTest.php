@@ -46,7 +46,7 @@ final class PriceListItemsTest extends TestCase
             F::now(),
         );
 
-        self::assertSame(5200, $item->netPrice()->minorUnits());
+        self::assertSame(5200, $item->price()->minorUnits());
         self::assertSame('veterinary.act.surgery', $item->taxCategoryOverride()?->toString());
         self::assertSame(F::now(), $priceList->updatedAt());
 
@@ -64,7 +64,7 @@ final class PriceListItemsTest extends TestCase
         $priceList->removeItem($unknown, F::now());
 
         self::assertCount(1, $priceList->items());
-        self::assertSame(4500, $priceList->items()[0]->netPrice()->minorUnits());
+        self::assertSame(4500, $priceList->items()[0]->price()->minorUnits());
         self::assertSame([], $priceList->pullDomainEvents());
     }
 

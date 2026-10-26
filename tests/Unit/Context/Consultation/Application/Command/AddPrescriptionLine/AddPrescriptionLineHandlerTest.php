@@ -18,6 +18,7 @@ use App\Context\Consultation\Domain\ValueObject\ClinicId;
 use App\Context\Consultation\Domain\ValueObject\ConsultationId;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PrescriptionLineRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Shared\Domain\Time\ClockInterface;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
@@ -62,7 +63,7 @@ final class AddPrescriptionLineHandlerTest extends TestCase
         $this->catalogItems->expects(self::once())
             ->method('resolvePrice')
             ->with(self::identicalTo($article), self::CLINIC_ID)
-            ->willReturn(new CatalogPriceDto(1250, 'EUR', 'REDUCED'))
+            ->willReturn(new CatalogPriceDto(1250, 'EUR', 'incl', 'REDUCED'))
         ;
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:10:00'));
         $this->consultations->expects(self::once())->method('save')->with(self::identicalTo($consultation));
@@ -75,6 +76,8 @@ final class AddPrescriptionLineHandlerTest extends TestCase
         self::assertSame(['EUR'], self::currenciesOf($consultation));
         self::assertSame(['REDUCED'], self::taxCategoriesOf($consultation));
         self::assertSame([1250], self::billedUnitPricesOf($consultation));
+        self::assertSame(UnitPriceMode::INCLUDING_TAX, $consultation->getPrescriptionLines()[0]->getUnitPriceMode());
+        self::assertSame(UnitPriceMode::INCLUDING_TAX, $consultation->getBillingLines()[0]->getUnitPriceMode());
     }
 
     #[AllowMockObjectsWithoutExpectations]
@@ -88,6 +91,7 @@ final class AddPrescriptionLineHandlerTest extends TestCase
             requiresPrescription: true,
             basePriceMinorUnits: 1750,
             currency: 'EUR',
+            basePriceMode: 'incl',
             taxCategoryCode: 'REDUCED',
             status: 'ARCHIVED',
         );
@@ -154,7 +158,7 @@ final class AddPrescriptionLineHandlerTest extends TestCase
         $this->catalogItems->expects(self::once())->method('detail')->willReturn($article);
         $this->catalogItems->expects(self::once())
             ->method('resolvePrice')
-            ->willReturn(new CatalogPriceDto(1250, 'EUR', 'REDUCED'))
+            ->willReturn(new CatalogPriceDto(1250, 'EUR', 'incl', 'REDUCED'))
         ;
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 09:10:00'));
         $this->consultations->expects(self::never())->method('save');
@@ -190,6 +194,7 @@ final class AddPrescriptionLineHandlerTest extends TestCase
             requiresPrescription: true,
             basePriceMinorUnits: 1000,
             currency: 'EUR',
+            basePriceMode: 'incl',
             taxCategoryCode: 'REDUCED',
             status: 'ACTIVE',
         );

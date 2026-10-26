@@ -20,9 +20,9 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageStatus;
 use App\Context\Catalog\Domain\Package\ValueObject\Quantity;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Aggregate\AggregateRoot;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 
 final class Package extends AggregateRoot
@@ -35,7 +35,7 @@ final class Package extends AggregateRoot
         private PackageCode $code,
         private TaxCategoryCode $taxCategory,
         private PackagePricingMode $pricingMode,
-        private ?Money $fixedPrice,
+        private ?CatalogPrice $fixedPrice,
         private array $components,
         private PackageStatus $status,
         private \DateTimeImmutable $createdAt,
@@ -50,7 +50,7 @@ final class Package extends AggregateRoot
         PackageCode $code,
         TaxCategoryCode $taxCategory,
         PackagePricingMode $pricingMode,
-        ?Money $fixedPrice,
+        ?CatalogPrice $fixedPrice,
         \DateTimeImmutable $createdAt,
     ): self {
         if (PackagePricingMode::FIXED_PRICE === $pricingMode && null === $fixedPrice) {
@@ -94,7 +94,7 @@ final class Package extends AggregateRoot
         PackageCode $code,
         TaxCategoryCode $taxCategory,
         PackagePricingMode $pricingMode,
-        ?Money $fixedPrice,
+        ?CatalogPrice $fixedPrice,
         array $components,
         PackageStatus $status,
         \DateTimeImmutable $createdAt,
@@ -154,7 +154,7 @@ final class Package extends AggregateRoot
         }
     }
 
-    public function changeFixedPrice(Money $fixedPrice, \DateTimeImmutable $updatedAt): void
+    public function changeFixedPrice(CatalogPrice $fixedPrice, \DateTimeImmutable $updatedAt): void
     {
         if (PackagePricingMode::FIXED_PRICE !== $this->pricingMode) {
             throw new InvalidPackagePricingModeException('Can only change fixed price on FIXED_PRICE mode packages.');
@@ -168,6 +168,7 @@ final class Package extends AggregateRoot
             clinicId: $this->clinicId->toString(),
             newPriceMinorUnits: $fixedPrice->minorUnits(),
             newPriceCurrency: $fixedPrice->currency()->toString(),
+            newPriceMode: $fixedPrice->mode()->value,
         ));
     }
 
@@ -180,7 +181,7 @@ final class Package extends AggregateRoot
         PackageName $name,
         TaxCategoryCode $taxCategory,
         PackagePricingMode $pricingMode,
-        ?Money $fixedPrice,
+        ?CatalogPrice $fixedPrice,
         \DateTimeImmutable $updatedAt,
     ): void {
         if (PackagePricingMode::FIXED_PRICE === $pricingMode && null === $fixedPrice) {
@@ -217,6 +218,7 @@ final class Package extends AggregateRoot
             taxCategoryCode: $taxCategory->toString(),
             pricingMode: $pricingMode->value,
             fixedPriceMinorUnits: $fixedPrice?->minorUnits(),
+            fixedPriceMode: $fixedPrice?->mode()->value,
         ));
     }
 
@@ -280,7 +282,7 @@ final class Package extends AggregateRoot
         return $this->pricingMode;
     }
 
-    public function fixedPrice(): ?Money
+    public function fixedPrice(): ?CatalogPrice
     {
         return $this->fixedPrice;
     }

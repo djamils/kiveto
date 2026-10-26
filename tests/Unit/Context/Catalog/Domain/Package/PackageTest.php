@@ -11,6 +11,7 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageStatus;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Money\Domain\ValueObject\Money;
@@ -48,7 +49,7 @@ final class PackageTest extends TestCase
             code: PackageCode::fromString('PKG-TEST'),
             taxCategory: TaxCategoryCode::fromString('veterinary.act.surgery'),
             pricingMode: PackagePricingMode::SUM_OF_COMPONENTS,
-            fixedPrice: Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR')),
+            fixedPrice: CatalogPrice::includingTax(Money::fromMinorUnits(1000, CurrencyCode::fromString('EUR'))),
             createdAt: $now,
         );
     }
@@ -81,7 +82,7 @@ final class PackageTest extends TestCase
 
     public function testFixedPricePackageCreation(): void
     {
-        $fixedPrice = Money::fromMinorUnits(38000, CurrencyCode::fromString('EUR'));
+        $fixedPrice = CatalogPrice::includingTax(Money::fromMinorUnits(38000, CurrencyCode::fromString('EUR')));
         $pkg        = $this->makePackage(PackagePricingMode::FIXED_PRICE, $fixedPrice);
 
         self::assertSame(PackagePricingMode::FIXED_PRICE, $pkg->pricingMode());
@@ -89,7 +90,7 @@ final class PackageTest extends TestCase
         self::assertSame(38000, $pkg->fixedPrice()->minorUnits());
     }
 
-    private function makePackage(?PackagePricingMode $mode = null, ?Money $fixedPrice = null): Package
+    private function makePackage(?PackagePricingMode $mode = null, ?CatalogPrice $fixedPrice = null): Package
     {
         $now  = new \DateTimeImmutable('2026-01-01T10:00:00+00:00');
         $mode = $mode ?? PackagePricingMode::SUM_OF_COMPONENTS;

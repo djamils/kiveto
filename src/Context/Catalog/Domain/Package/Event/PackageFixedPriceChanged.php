@@ -16,6 +16,7 @@ final readonly class PackageFixedPriceChanged extends AbstractDomainEvent
         public string $clinicId,
         public int $newPriceMinorUnits,
         public string $newPriceCurrency,
+        public string $newPriceMode,
     ) {
     }
 
@@ -32,6 +33,7 @@ final readonly class PackageFixedPriceChanged extends AbstractDomainEvent
             'clinicId'           => $this->clinicId,
             'newPriceMinorUnits' => $this->newPriceMinorUnits,
             'newPriceCurrency'   => $this->newPriceCurrency,
+            'newPriceMode'       => $this->newPriceMode,
         ];
     }
 }

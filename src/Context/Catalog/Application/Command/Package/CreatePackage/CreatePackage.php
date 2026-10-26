@@ -16,6 +16,7 @@ final readonly class CreatePackage implements CommandInterface
         public string $pricingMode,
         public ?int $fixedPriceMinorUnits,
         public ?string $fixedPriceCurrency,
+        public ?string $fixedPriceMode,
     ) {
     }
 }

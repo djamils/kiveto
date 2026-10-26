@@ -7,8 +7,8 @@ namespace App\Context\Catalog\Application\Query\Pricing\GetPriceList;
 final readonly class PriceListView
 {
     /**
-     * @param list<array{id: string, itemType: string, itemId: string, netPriceMinorUnits: int, netPriceCurrency: string, taxCategoryOverride: string|null}> $items
-     * @param list<array{id: string, ruleType: string, condition: array<mixed>, adjustment: array<mixed>}>                                                   $rules
+     * @param list<array{id: string, itemType: string, itemId: string, priceMinorUnits: int, priceCurrency: string, priceMode: string, taxCategoryOverride: string|null}> $items
+     * @param list<array{id: string, ruleType: string, condition: array<mixed>, adjustment: array<mixed>}>                                                                $rules
      */
     public function __construct(
         public string $id,

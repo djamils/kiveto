@@ -10,11 +10,12 @@ namespace App\Context\Billing\Application\Query\GetInvoiceDetails;
 final readonly class InvoiceDetails
 {
     /**
-     * @param list<string>                                                             $payerAddressLines
-     * @param list<InvoiceLineView>                                                    $lines
-     * @param list<PaymentView>                                                        $payments
-     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int}> $taxBreakdown
-     * @param list<CreditNoteSummaryView>                                              $creditNotes
+     * @param list<string>                                                                                                             $payerAddressLines
+     * @param list<InvoiceLineView>                                                                                                    $lines
+     * @param list<PaymentView>                                                                                                        $payments
+     * @param list<array{ratePercent: string, netMinorUnits: int, taxMinorUnits: int, grossMinorUnits: int, allowanceMinorUnits: int}> $taxBreakdown
+     * @param list<CreditNoteSummaryView>                                                                                              $creditNotes
+     * @param list<string>                                                                                                             $professionalMentions the legal mentions a professional invoice carries
      */
     public function __construct(
         public string $id,
@@ -54,6 +55,16 @@ final readonly class InvoiceDetails
         public ?string $counterSalePayer = null,
         /** « À l'attention de » line under a structure's name. */
         public ?string $payerAttention = null,
+        // B2B for a business subject to French VAT, B2C otherwise.
+        public string $processingRule = 'B2C',
+        public ?string $payerSiren = null,
+        public ?string $payerVatNumber = null,
+        public ?\DateTimeImmutable $dueDate = null,
+        public ?string $paymentTermsNote = null,
+        public array $professionalMentions = [],
+        public ?string $invoicingFramework = null,
+        // Null for a private client's invoice: it is not transmitted.
+        public ?TransmissionView $transmission = null,
     ) {
     }
 }

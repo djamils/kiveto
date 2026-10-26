@@ -50,6 +50,7 @@ final class ActEntityFactory extends PersistentProxyObjectFactory
             'taxCategoryCode'          => 'veterinary.act.consultation',
             'basePriceMinorUnits'      => self::faker()->numberBetween(1000, 50000),
             'basePriceCurrency'        => 'EUR',
+            'basePriceMode'            => 'incl',
             'estimatedDurationMinutes' => self::faker()->randomElement([15, 20, 30, 45, 60, 90]),
             'requiresAnesthesia'       => self::faker()->boolean(15),
             'status'                   => ActStatus::ACTIVE,

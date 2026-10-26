@@ -127,6 +127,7 @@ final class CreateNonDrugArticleHandlerTest extends TestCase
             taxCategoryCode: 'veterinary.food',
             basePriceMinorUnits: 2490,
             basePriceCurrency: $currency,
+            basePriceMode: 'incl',
             unitOfMeasure: 'UNIT',
             trackStock: false,
         );

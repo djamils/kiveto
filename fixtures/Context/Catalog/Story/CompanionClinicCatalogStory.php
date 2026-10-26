@@ -31,6 +31,9 @@ use Zenstruck\Foundry\Story;
  * pickers come back empty. Both clinics share the same reference list — codes
  * are unique per tenant, not globally — and differ only by their price lists.
  *
+ * Every price is entered all taxes included (mode `incl`), as a clinic types
+ * it at the counter; Catalog stores it as entered and never converts it.
+ *
  * Requires the PharmaceuticalRegistry stories (CoreMedicationsStory,
  * ControlledSubstancesStory, LivestockMedicationsStory) to be loaded first:
  * drug articles reference their marketing authorizations by commercial name.
@@ -66,33 +69,33 @@ final class CompanionClinicCatalogStory extends Story
     private function createActs(Uuid $clinicUuid): array
     {
         $definitions = [
-            ['code' => 'CONS_STD', 'desc' => 'Examen clinique général, conseils et prescription.', 'name' => 'Consultation standard', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 5000, 'duration' => 20, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'CONS_URGENCE', 'desc' => 'Sans rendez-vous ou hors créneaux, prise en charge immédiate.', 'name' => "Consultation d'urgence", 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.emergency', 'price' => 9000, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'CONS_NAC', 'desc' => 'Lapins, rongeurs, oiseaux et reptiles.', 'name' => 'Consultation NAC', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 5500, 'duration' => 25, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'CONS_SUIVI', 'desc' => 'Contrôle d\'un traitement, dans les 15 jours suivant une consultation.', 'name' => 'Consultation de suivi', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 3500, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'VACC_CHPPIL', 'desc' => 'Carré, hépatite, parvovirose, parainfluenza et leptospirose.', 'name' => 'Vaccination CHPPiL', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 6200, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'VACC_TYPHUS', 'desc' => 'Typhus, coryza (herpès et calicivirus).', 'name' => 'Vaccination typhus-coryza', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 5800, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'VACC_RAGE', 'desc' => 'Vaccin, certificat et passeport européen.', 'name' => 'Vaccination antirabique', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 4500, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'STERIL_FEMELLE', 'desc' => 'Ovariectomie sous anesthésie générale, contrôle à J+10 compris.', 'name' => 'Stérilisation femelle', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 25000, 'duration' => 90, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
-            ['code' => 'CASTRATION_MALE', 'desc' => 'Orchiectomie sous anesthésie générale, contrôle post-opératoire compris.', 'name' => 'Castration mâle', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 15000, 'duration' => 45, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
-            ['code' => 'SUTURE_PLAIE', 'desc' => 'Parage, suture et pansement ; anesthésie adaptée à l\'étendue de la plaie.', 'name' => 'Suture de plaie', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 11000, 'duration' => 40, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
-            ['code' => 'DETARTRAGE', 'desc' => 'Ultrasons et polissage sous anesthésie générale.', 'name' => 'Détartrage complet', 'category' => 'SURGERY', 'tax' => 'veterinary.act.dental', 'price' => 12000, 'duration' => 45, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
-            ['code' => 'EXTRACTION_DENT', 'desc' => 'Par dent, sous anesthésie générale ; se cumule avec le détartrage.', 'name' => 'Extraction dentaire', 'category' => 'SURGERY', 'tax' => 'veterinary.act.dental', 'price' => 7500, 'duration' => 30, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
-            ['code' => 'RADIO_THORAX', 'desc' => 'Trois incidences, avec interprétation.', 'name' => 'Radiographie thorax', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 8000, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'RADIO_MEMBRE', 'desc' => 'Deux incidences, avec interprétation.', 'name' => 'Radiographie de membre', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 7000, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'ECHO_ABDO', 'desc' => 'Examen de l\'abdomen avec compte rendu et images.', 'name' => 'Échographie abdominale', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 9500, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'BILAN_SANG', 'desc' => 'Numération formule et biochimie 10 paramètres.', 'name' => 'Bilan sanguin complet', 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 6500, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'ANALYSE_URINE', 'desc' => 'Bandelette, densité, culot et culture avec antibiogramme si positive.', 'name' => "Analyse d'urine (ECBU)", 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 4200, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'BILAN_RENAL', 'desc' => 'Urée, créatinine et SDMA, en interne ou envoyé au laboratoire.', 'name' => 'Bilan rénal (urée, créatinine, SDMA)', 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 8800, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'HOSP_JOUR', 'desc' => 'Surveillance, soins et repas sur la journée, hors médicaments et perfusion.', 'name' => 'Hospitalisation à la journée', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 4500, 'duration' => 480, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'HOSP_NUIT', 'desc' => 'Surveillance de 19:00 à 08:00, hors médicaments et perfusion.', 'name' => 'Hospitalisation de nuit', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 6800, 'duration' => 720, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'PERFUSION', 'desc' => 'Pose du cathéter et fluidothérapie sur 24 h.', 'name' => 'Pose de perfusion et fluidothérapie', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 5200, 'duration' => 20, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'IDENT_PUCE', 'desc' => 'Pose de l\'insert et déclaration au fichier national I-CAD.', 'name' => 'Identification par puce électronique', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 6500, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'VERMIF', 'desc' => 'Vermifuge adapté au poids, administré pendant la consultation.', 'name' => 'Vermifugation', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 2500, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'BILAN_GERIA', 'desc' => 'Examen complet, tension artérielle, bilans sanguin et urinaire, pour les animaux de plus de 8 ans.', 'name' => 'Bilan gériatrique annuel', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 12500, 'duration' => 45, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'CERTIF_SANTE', 'desc' => 'Examen clinique et certificat signé (voyage, vente, pension).', 'name' => 'Certificat de bonne santé', 'category' => 'OTHER', 'tax' => 'veterinary.act.consultation', 'price' => 3500, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'EUTHANASIE', 'desc' => 'Sédation préalable, euthanasie et temps de recueillement avec la famille.', 'name' => 'Euthanasie et accompagnement', 'category' => 'OTHER', 'tax' => 'veterinary.act.consultation', 'price' => 9000, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
-            ['code' => 'OLD_CONS', 'desc' => 'Ancien tarif de consultation, remplacé par la consultation standard.', 'name' => 'Ancienne consultation', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 4000, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ARCHIVED],
+            ['code' => 'CONS_STD', 'desc' => 'Examen clinique général, conseils et prescription.', 'name' => 'Consultation standard', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 6000, 'duration' => 20, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'CONS_URGENCE', 'desc' => 'Sans rendez-vous ou hors créneaux, prise en charge immédiate.', 'name' => "Consultation d'urgence", 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.emergency', 'price' => 10800, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'CONS_NAC', 'desc' => 'Lapins, rongeurs, oiseaux et reptiles.', 'name' => 'Consultation NAC', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 6600, 'duration' => 25, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'CONS_SUIVI', 'desc' => 'Contrôle d\'un traitement, dans les 15 jours suivant une consultation.', 'name' => 'Consultation de suivi', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 4200, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'VACC_CHPPIL', 'desc' => 'Carré, hépatite, parvovirose, parainfluenza et leptospirose.', 'name' => 'Vaccination CHPPiL', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 7450, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'VACC_TYPHUS', 'desc' => 'Typhus, coryza (herpès et calicivirus).', 'name' => 'Vaccination typhus-coryza', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 6950, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'VACC_RAGE', 'desc' => 'Vaccin, certificat et passeport européen.', 'name' => 'Vaccination antirabique', 'category' => 'VACCINATION', 'tax' => 'veterinary.act.vaccination', 'price' => 5400, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'STERIL_FEMELLE', 'desc' => 'Ovariectomie sous anesthésie générale, contrôle à J+10 compris.', 'name' => 'Stérilisation femelle', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 30000, 'duration' => 90, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
+            ['code' => 'CASTRATION_MALE', 'desc' => 'Orchiectomie sous anesthésie générale, contrôle post-opératoire compris.', 'name' => 'Castration mâle', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 18000, 'duration' => 45, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
+            ['code' => 'SUTURE_PLAIE', 'desc' => 'Parage, suture et pansement ; anesthésie adaptée à l\'étendue de la plaie.', 'name' => 'Suture de plaie', 'category' => 'SURGERY', 'tax' => 'veterinary.act.surgery', 'price' => 13200, 'duration' => 40, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
+            ['code' => 'DETARTRAGE', 'desc' => 'Ultrasons et polissage sous anesthésie générale.', 'name' => 'Détartrage complet', 'category' => 'SURGERY', 'tax' => 'veterinary.act.dental', 'price' => 14400, 'duration' => 45, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
+            ['code' => 'EXTRACTION_DENT', 'desc' => 'Par dent, sous anesthésie générale ; se cumule avec le détartrage.', 'name' => 'Extraction dentaire', 'category' => 'SURGERY', 'tax' => 'veterinary.act.dental', 'price' => 9000, 'duration' => 30, 'anesthesia' => true, 'status' => ActStatus::ACTIVE],
+            ['code' => 'RADIO_THORAX', 'desc' => 'Trois incidences, avec interprétation.', 'name' => 'Radiographie thorax', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 9600, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'RADIO_MEMBRE', 'desc' => 'Deux incidences, avec interprétation.', 'name' => 'Radiographie de membre', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 8400, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'ECHO_ABDO', 'desc' => 'Examen de l\'abdomen avec compte rendu et images.', 'name' => 'Échographie abdominale', 'category' => 'IMAGING', 'tax' => 'veterinary.act.imaging', 'price' => 11400, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'BILAN_SANG', 'desc' => 'Numération formule et biochimie 10 paramètres.', 'name' => 'Bilan sanguin complet', 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 7800, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'ANALYSE_URINE', 'desc' => 'Bandelette, densité, culot et culture avec antibiogramme si positive.', 'name' => "Analyse d'urine (ECBU)", 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 5050, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'BILAN_RENAL', 'desc' => 'Urée, créatinine et SDMA, en interne ou envoyé au laboratoire.', 'name' => 'Bilan rénal (urée, créatinine, SDMA)', 'category' => 'LABORATORY', 'tax' => 'veterinary.act.laboratory', 'price' => 10550, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'HOSP_JOUR', 'desc' => 'Surveillance, soins et repas sur la journée, hors médicaments et perfusion.', 'name' => 'Hospitalisation à la journée', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 4950, 'duration' => 480, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'HOSP_NUIT', 'desc' => 'Surveillance de 19:00 à 08:00, hors médicaments et perfusion.', 'name' => 'Hospitalisation de nuit', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 7500, 'duration' => 720, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'PERFUSION', 'desc' => 'Pose du cathéter et fluidothérapie sur 24 h.', 'name' => 'Pose de perfusion et fluidothérapie', 'category' => 'HOSPITALIZATION', 'tax' => 'veterinary.act.hospitalization', 'price' => 5700, 'duration' => 20, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'IDENT_PUCE', 'desc' => 'Pose de l\'insert et déclaration au fichier national I-CAD.', 'name' => 'Identification par puce électronique', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 7800, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'VERMIF', 'desc' => 'Vermifuge adapté au poids, administré pendant la consultation.', 'name' => 'Vermifugation', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 3000, 'duration' => 10, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'BILAN_GERIA', 'desc' => 'Examen complet, tension artérielle, bilans sanguin et urinaire, pour les animaux de plus de 8 ans.', 'name' => 'Bilan gériatrique annuel', 'category' => 'PREVENTION', 'tax' => 'veterinary.act.preventive', 'price' => 15000, 'duration' => 45, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'CERTIF_SANTE', 'desc' => 'Examen clinique et certificat signé (voyage, vente, pension).', 'name' => 'Certificat de bonne santé', 'category' => 'OTHER', 'tax' => 'veterinary.act.consultation', 'price' => 4200, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'EUTHANASIE', 'desc' => 'Sédation préalable, euthanasie et temps de recueillement avec la famille.', 'name' => 'Euthanasie et accompagnement', 'category' => 'OTHER', 'tax' => 'veterinary.act.consultation', 'price' => 10800, 'duration' => 30, 'anesthesia' => false, 'status' => ActStatus::ACTIVE],
+            ['code' => 'OLD_CONS', 'desc' => 'Ancien tarif de consultation, remplacé par la consultation standard.', 'name' => 'Ancienne consultation', 'category' => 'CONSULTATION', 'tax' => 'veterinary.act.consultation', 'price' => 4800, 'duration' => 15, 'anesthesia' => false, 'status' => ActStatus::ARCHIVED],
         ];
 
         $acts = [];
@@ -107,6 +110,7 @@ final class CompanionClinicCatalogStory extends Story
                 'taxCategoryCode'          => $definition['tax'],
                 'basePriceMinorUnits'      => $definition['price'],
                 'basePriceCurrency'        => 'EUR',
+                'basePriceMode'            => 'incl',
                 'estimatedDurationMinutes' => $definition['duration'],
                 'requiresAnesthesia'       => $definition['anesthesia'],
                 'status'                   => $definition['status'],
@@ -126,22 +130,22 @@ final class CompanionClinicCatalogStory extends Story
     private function createDrugArticles(Uuid $clinicUuid): array
     {
         $definitions = [
-            ['code' => 'APOQUEL-36', 'name' => 'Apoquel 3,6 mg comprimés', 'auth' => 'Apoquel 3,6 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 4890, 'unit' => 'TABLET', 'gtin' => '03661103046394', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'CERENIA-10', 'name' => 'Cerenia 10 mg/mL solution injectable', 'auth' => 'Cerenia 10 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 3550, 'unit' => 'VIAL', 'gtin' => '03661103046400', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'CONVENIA-80', 'name' => 'Convenia 80 mg/mL solution injectable', 'auth' => 'Convenia 80 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 9800, 'unit' => 'VIAL', 'gtin' => '03661103046424', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'VETMEDIN-125', 'name' => 'Vetmedin 1,25 mg comprimés', 'auth' => 'Vetmedin 1,25 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 3250, 'unit' => 'TABLET', 'gtin' => '03661103046431', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'SYNULOX-500', 'name' => 'Synulox 500 mg comprimés', 'auth' => 'Synulox 500 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 1500, 'unit' => 'TABLET', 'gtin' => '03661103046455', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'MELOXIDYL-1', 'name' => 'Meloxidyl 1 mg/mL suspension buvable', 'auth' => 'Meloxidyl 1 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 980, 'unit' => 'BOTTLE', 'gtin' => '03661103046479', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'STRONGHOLD-45', 'name' => 'Stronghold 45 mg pipettes', 'auth' => 'Stronghold 45 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 2450, 'unit' => 'PIPETTE', 'gtin' => '03661103046448', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'FRONTLINE-CB', 'name' => 'Frontline Combo Chien pipettes', 'auth' => 'Frontline Combo Chien', 'class' => 'NONE', 'tax' => 'veterinary.drug.companion', 'price' => 1890, 'unit' => 'PIPETTE', 'gtin' => '03661103046417', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'CYSTAID-PLUS', 'name' => 'Cystaid Plus gélules', 'auth' => 'Cystaid Plus', 'class' => 'NONE', 'tax' => 'veterinary.drug.companion', 'price' => 2190, 'unit' => 'CAPSULE', 'gtin' => '03661103046462', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'KETAMINE-100', 'name' => 'Ketamine 100 mg/mL solution injectable', 'auth' => 'Ketamine 100 mg/mL', 'class' => 'RX_NARCOTIC', 'tax' => 'veterinary.drug.prescription', 'price' => 5600, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'NARKETAN-10', 'name' => 'Narketan 10 mg/mL solution injectable', 'auth' => 'Narketan 10 mg/mL', 'class' => 'RX_NARCOTIC', 'tax' => 'veterinary.drug.prescription', 'price' => 5900, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'MEDETO-1', 'name' => 'Medetomidine 1 mg/mL solution injectable', 'auth' => 'Medetomidine 1 mg/mL', 'class' => 'RX_CONTROLLED', 'tax' => 'veterinary.drug.prescription', 'price' => 6400, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'BAYTRIL-10', 'name' => 'Baytril 10% solution buvable', 'auth' => 'Baytril 10% Solution', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 4200, 'unit' => 'BOTTLE', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'OXYTETRA-200', 'name' => 'Oxytetracycline 200 mg/mL solution injectable', 'auth' => 'Oxytetracycline 200 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 3800, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'TERRAMYCIN-LA', 'name' => 'Terramycin LA solution injectable', 'auth' => 'Terramycin LA', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 4600, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'RILEXINE-300', 'name' => 'Rilexine 300 mg comprimés', 'auth' => 'Rilexine 300 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 1750, 'unit' => 'TABLET', 'gtin' => '03661103046486', 'status' => ArticleStatus::ARCHIVED],
+            ['code' => 'APOQUEL-36', 'name' => 'Apoquel 3,6 mg comprimés', 'auth' => 'Apoquel 3,6 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 5850, 'unit' => 'TABLET', 'gtin' => '03661103046394', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'CERENIA-10', 'name' => 'Cerenia 10 mg/mL solution injectable', 'auth' => 'Cerenia 10 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 4260, 'unit' => 'VIAL', 'gtin' => '03661103046400', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'CONVENIA-80', 'name' => 'Convenia 80 mg/mL solution injectable', 'auth' => 'Convenia 80 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 11750, 'unit' => 'VIAL', 'gtin' => '03661103046424', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'VETMEDIN-125', 'name' => 'Vetmedin 1,25 mg comprimés', 'auth' => 'Vetmedin 1,25 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 3900, 'unit' => 'TABLET', 'gtin' => '03661103046431', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'SYNULOX-500', 'name' => 'Synulox 500 mg comprimés', 'auth' => 'Synulox 500 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 1800, 'unit' => 'TABLET', 'gtin' => '03661103046455', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'MELOXIDYL-1', 'name' => 'Meloxidyl 1 mg/mL suspension buvable', 'auth' => 'Meloxidyl 1 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 1180, 'unit' => 'BOTTLE', 'gtin' => '03661103046479', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'STRONGHOLD-45', 'name' => 'Stronghold 45 mg pipettes', 'auth' => 'Stronghold 45 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 2940, 'unit' => 'PIPETTE', 'gtin' => '03661103046448', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'FRONTLINE-CB', 'name' => 'Frontline Combo Chien pipettes', 'auth' => 'Frontline Combo Chien', 'class' => 'NONE', 'tax' => 'veterinary.drug.companion', 'price' => 1990, 'unit' => 'PIPETTE', 'gtin' => '03661103046417', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'CYSTAID-PLUS', 'name' => 'Cystaid Plus gélules', 'auth' => 'Cystaid Plus', 'class' => 'NONE', 'tax' => 'veterinary.drug.companion', 'price' => 2310, 'unit' => 'CAPSULE', 'gtin' => '03661103046462', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'KETAMINE-100', 'name' => 'Ketamine 100 mg/mL solution injectable', 'auth' => 'Ketamine 100 mg/mL', 'class' => 'RX_NARCOTIC', 'tax' => 'veterinary.drug.prescription', 'price' => 6700, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'NARKETAN-10', 'name' => 'Narketan 10 mg/mL solution injectable', 'auth' => 'Narketan 10 mg/mL', 'class' => 'RX_NARCOTIC', 'tax' => 'veterinary.drug.prescription', 'price' => 7100, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'MEDETO-1', 'name' => 'Medetomidine 1 mg/mL solution injectable', 'auth' => 'Medetomidine 1 mg/mL', 'class' => 'RX_CONTROLLED', 'tax' => 'veterinary.drug.prescription', 'price' => 7700, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'BAYTRIL-10', 'name' => 'Baytril 10% solution buvable', 'auth' => 'Baytril 10% Solution', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 4290, 'unit' => 'BOTTLE', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'OXYTETRA-200', 'name' => 'Oxytetracycline 200 mg/mL solution injectable', 'auth' => 'Oxytetracycline 200 mg/mL', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 3880, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'TERRAMYCIN-LA', 'name' => 'Terramycin LA solution injectable', 'auth' => 'Terramycin LA', 'class' => 'RX', 'tax' => 'veterinary.drug.livestock', 'price' => 4700, 'unit' => 'VIAL', 'gtin' => null, 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'RILEXINE-300', 'name' => 'Rilexine 300 mg comprimés', 'auth' => 'Rilexine 300 mg', 'class' => 'RX', 'tax' => 'veterinary.drug.prescription', 'price' => 2100, 'unit' => 'TABLET', 'gtin' => '03661103046486', 'status' => ArticleStatus::ARCHIVED],
         ];
 
         $articles = [];
@@ -162,6 +166,7 @@ final class CompanionClinicCatalogStory extends Story
                 'taxCategoryCode'       => $definition['tax'],
                 'basePriceMinorUnits'   => $definition['price'],
                 'basePriceCurrency'     => 'EUR',
+                'basePriceMode'         => 'incl',
                 'unitOfMeasure'         => $definition['unit'],
                 'drugAuthRef'           => $authorization->getId(),
                 'drugRequiresRx'        => 'NONE' !== $definition['class'],
@@ -184,18 +189,18 @@ final class CompanionClinicCatalogStory extends Story
     private function createNonDrugArticles(Uuid $clinicUuid): array
     {
         $definitions = [
-            ['code' => 'COLLAR-E', 'name' => 'Collerette élisabéthaine', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 800, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'SERINGUE-5', 'name' => 'Seringue stérile 5 mL', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 60, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'CATH-22G', 'name' => 'Cathéter veineux 22G', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 320, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'FIL-SUT-30', 'name' => 'Fil de suture résorbable 3/0', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 750, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'COMPRESSE', 'name' => 'Compresses stériles (boîte de 50)', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 1250, 'unit' => 'BOX', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'SHAMPOING-DERM', 'name' => 'Shampooing dermatologique', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.hygiene', 'price' => 1690, 'unit' => 'BOTTLE', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'FOOD-RC', 'name' => 'Royal Canin Veterinary Diet', 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.therapeutic', 'price' => 5500, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'FOOD-HILLS-KD', 'name' => "Hill's Prescription Diet k/d rénal", 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.therapeutic', 'price' => 4900, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'FOOD-JUNIOR', 'name' => 'Croquettes croissance chiot', 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.preventive', 'price' => 3800, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'MUSEL-T2', 'name' => 'Muselière panier taille 2', 'kind' => ArticleKind::EQUIPMENT, 'tax' => 'veterinary.consumable.hygiene', 'price' => 1450, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'HARNAIS-POST', 'name' => 'Harnais de soutien post-opératoire', 'kind' => ArticleKind::EQUIPMENT, 'tax' => 'veterinary.consumable.medical', 'price' => 4200, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
-            ['code' => 'OLD-COLLAR', 'name' => 'Collerette souple (ancien modèle)', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 650, 'unit' => 'UNIT', 'status' => ArticleStatus::ARCHIVED],
+            ['code' => 'COLLAR-E', 'name' => 'Collerette élisabéthaine', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 960, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'SERINGUE-5', 'name' => 'Seringue stérile 5 mL', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 70, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'CATH-22G', 'name' => 'Cathéter veineux 22G', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 380, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'FIL-SUT-30', 'name' => 'Fil de suture résorbable 3/0', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 900, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'COMPRESSE', 'name' => 'Compresses stériles (boîte de 50)', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 1500, 'unit' => 'BOX', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'SHAMPOING-DERM', 'name' => 'Shampooing dermatologique', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.hygiene', 'price' => 2030, 'unit' => 'BOTTLE', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'FOOD-RC', 'name' => 'Royal Canin Veterinary Diet', 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.therapeutic', 'price' => 5800, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'FOOD-HILLS-KD', 'name' => "Hill's Prescription Diet k/d rénal", 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.therapeutic', 'price' => 5150, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'FOOD-JUNIOR', 'name' => 'Croquettes croissance chiot', 'kind' => ArticleKind::FOOD, 'tax' => 'veterinary.food.preventive', 'price' => 4560, 'unit' => 'KG', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'MUSEL-T2', 'name' => 'Muselière panier taille 2', 'kind' => ArticleKind::EQUIPMENT, 'tax' => 'veterinary.consumable.hygiene', 'price' => 1740, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'HARNAIS-POST', 'name' => 'Harnais de soutien post-opératoire', 'kind' => ArticleKind::EQUIPMENT, 'tax' => 'veterinary.consumable.medical', 'price' => 5050, 'unit' => 'UNIT', 'status' => ArticleStatus::ACTIVE],
+            ['code' => 'OLD-COLLAR', 'name' => 'Collerette souple (ancien modèle)', 'kind' => ArticleKind::CONSUMABLE, 'tax' => 'veterinary.consumable.medical', 'price' => 780, 'unit' => 'UNIT', 'status' => ArticleStatus::ARCHIVED],
         ];
 
         $created = [];
@@ -209,6 +214,7 @@ final class CompanionClinicCatalogStory extends Story
                 'taxCategoryCode'     => $definition['tax'],
                 'basePriceMinorUnits' => $definition['price'],
                 'basePriceCurrency'   => 'EUR',
+                'basePriceMode'       => 'incl',
                 'unitOfMeasure'       => $definition['unit'],
                 'trackStock'          => ArticleKind::EQUIPMENT !== $definition['kind'],
                 'status'              => $definition['status'],
@@ -234,8 +240,9 @@ final class CompanionClinicCatalogStory extends Story
             'name'                 => 'Pack stérilisation femelle complète',
             'taxCategoryCode'      => 'veterinary.act.surgery',
             'pricingMode'          => PackagePricingMode::FIXED_PRICE,
-            'fixedPriceMinorUnits' => 38000,
+            'fixedPriceMinorUnits' => 45600,
             'fixedPriceCurrency'   => 'EUR',
+            'fixedPriceMode'       => 'incl',
             'status'               => PackageStatus::ACTIVE,
         ]);
 
@@ -253,8 +260,9 @@ final class CompanionClinicCatalogStory extends Story
             'name'                 => 'Pack chiot première année',
             'taxCategoryCode'      => 'veterinary.act.preventive',
             'pricingMode'          => PackagePricingMode::FIXED_PRICE,
-            'fixedPriceMinorUnits' => 16500,
+            'fixedPriceMinorUnits' => 19800,
             'fixedPriceCurrency'   => 'EUR',
+            'fixedPriceMode'       => 'incl',
             'status'               => PackageStatus::ACTIVE,
         ]);
 
@@ -333,37 +341,39 @@ final class CompanionClinicCatalogStory extends Story
         ]);
 
         $defaultItems = [
-            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'price' => 4800],
-            ['type' => 'ACT', 'id' => $acts['VACC_CHPPIL']->getId(), 'price' => 5900],
-            ['type' => 'ACT', 'id' => $acts['BILAN_SANG']->getId(), 'price' => 6200],
-            ['type' => 'ARTICLE', 'id' => $articles['SYNULOX-500']->getId(), 'price' => 1350],
-            ['type' => 'ARTICLE', 'id' => $articles['MELOXIDYL-1']->getId(), 'price' => 890],
+            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'price' => 5750],
+            ['type' => 'ACT', 'id' => $acts['VACC_CHPPIL']->getId(), 'price' => 7100],
+            ['type' => 'ACT', 'id' => $acts['BILAN_SANG']->getId(), 'price' => 7450],
+            ['type' => 'ARTICLE', 'id' => $articles['SYNULOX-500']->getId(), 'price' => 1620],
+            ['type' => 'ARTICLE', 'id' => $articles['MELOXIDYL-1']->getId(), 'price' => 1070],
         ];
 
         foreach ($defaultItems as $item) {
             PriceListItemEntityFactory::createOne([
-                'priceListId'        => $defaultList->getId(),
-                'itemType'           => $item['type'],
-                'itemId'             => $item['id']->toRfc4122(),
-                'netPriceMinorUnits' => $item['price'],
-                'netPriceCurrency'   => 'EUR',
+                'priceListId'     => $defaultList->getId(),
+                'itemType'        => $item['type'],
+                'itemId'          => $item['id']->toRfc4122(),
+                'priceMinorUnits' => $item['price'],
+                'priceCurrency'   => 'EUR',
+                'priceMode'       => 'incl',
             ]);
         }
 
         // Night tariff overrides on the non-default list (exercises explicit
         // price-list resolution, see PriceResolver regression tests)
         $nightItems = [
-            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'price' => 7500],
-            ['type' => 'ACT', 'id' => $acts['CONS_URGENCE']->getId(), 'price' => 13500],
+            ['type' => 'ACT', 'id' => $acts['CONS_STD']->getId(), 'price' => 9000],
+            ['type' => 'ACT', 'id' => $acts['CONS_URGENCE']->getId(), 'price' => 16200],
         ];
 
         foreach ($nightItems as $item) {
             PriceListItemEntityFactory::createOne([
-                'priceListId'        => $nightList->getId(),
-                'itemType'           => $item['type'],
-                'itemId'             => $item['id']->toRfc4122(),
-                'netPriceMinorUnits' => $item['price'],
-                'netPriceCurrency'   => 'EUR',
+                'priceListId'     => $nightList->getId(),
+                'itemType'        => $item['type'],
+                'itemId'          => $item['id']->toRfc4122(),
+                'priceMinorUnits' => $item['price'],
+                'priceCurrency'   => 'EUR',
+                'priceMode'       => 'incl',
             ]);
         }
     }

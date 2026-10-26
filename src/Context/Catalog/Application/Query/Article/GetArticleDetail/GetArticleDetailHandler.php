@@ -39,6 +39,7 @@ final class GetArticleDetailHandler
             taxCategoryCode: $article->taxCategory()->toString(),
             basePriceMinorUnits: $article->basePrice()->minorUnits(),
             basePriceCurrency: $article->basePrice()->currency()->toString(),
+            basePriceMode: $article->basePrice()->mode()->value,
             unitOfMeasure: $article->unitOfMeasure()->toString(),
             trackStock: $article->trackStock(),
             status: $article->status()->value,

@@ -9,6 +9,7 @@ use App\System\Taxation\Domain\Repository\TaxCategoryRepositoryInterface;
 use App\System\Taxation\Domain\Service\TaxCategoryRegistryInterface;
 use App\System\Taxation\Domain\TaxCategory;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
+use App\System\Taxation\Domain\ValueObject\TaxCategoryNature;
 
 final readonly class DoctrineTaxCategoryRegistry implements TaxCategoryRegistryInterface
 {
@@ -36,5 +37,10 @@ final readonly class DoctrineTaxCategoryRegistry implements TaxCategoryRegistryI
     public function has(TaxCategoryCode $code): bool
     {
         return null !== $this->repo->findByCode($code);
+    }
+
+    public function natureOf(TaxCategoryCode $code): ?TaxCategoryNature
+    {
+        return $this->repo->findByCode($code)?->nature();
     }
 }

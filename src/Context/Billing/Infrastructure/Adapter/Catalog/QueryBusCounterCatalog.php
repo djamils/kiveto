@@ -39,13 +39,16 @@ final readonly class QueryBusCounterCatalog implements CounterCatalogInterface
                 continue;
             }
 
+            [$price, $mode] = $this->price($clinicId, $result->id, $result->basePriceMinorUnits, $result->basePriceMode);
+
             $articles[] = new CounterArticleDto(
                 articleId: $result->id,
                 label: $result->name,
                 code: $result->code,
-                unitNetMinorUnits: $this->price($clinicId, $result->id, $result->basePriceMinorUnits),
+                unitPriceMinorUnits: $price,
                 currency: $result->basePriceCurrency,
                 taxCategoryCode: $result->taxCategoryCode,
+                unitPriceMode: $mode,
             );
         }
 
@@ -78,21 +81,31 @@ final readonly class QueryBusCounterCatalog implements CounterCatalogInterface
             return null;
         }
 
+        [$price, $mode] = $this->price($clinicId, $view->id, $view->basePriceMinorUnits, $view->basePriceMode);
+
         return new CounterArticleDto(
             articleId: $view->id,
             label: $view->name,
             code: $view->code,
-            unitNetMinorUnits: $this->price($clinicId, $view->id, $view->basePriceMinorUnits),
+            unitPriceMinorUnits: $price,
             currency: $view->basePriceCurrency,
             taxCategoryCode: $view->taxCategoryCode,
+            unitPriceMode: $mode,
         );
     }
 
-    private function price(string $clinicId, string $articleId, int $basePrice): int
+    /**
+     * The price the clinic entered for the article, with whether it included VAT.
+     *
+     * @return array{int, string}
+     */
+    private function price(string $clinicId, string $articleId, int $basePrice, string $baseMode): array
     {
         $resolved = $this->ask(new ResolvePrice(clinicId: $clinicId, priceListId: null, itemType: 'ARTICLE', itemId: $articleId));
 
-        return $resolved instanceof ResolvedPrice ? $resolved->netAmount->minorUnits() : $basePrice;
+        return $resolved instanceof ResolvedPrice
+            ? [$resolved->amount()->minorUnits(), $resolved->mode()->value]
+            : [$basePrice, $baseMode];
     }
 
     /**

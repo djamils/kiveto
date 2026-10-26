@@ -26,6 +26,9 @@ parameters:
     # Procurement BC parameters
     procurement.simulation.profile: 'DEMO_FAST'
 
+    # ElectronicInvoicing: delay between two statuses of the local platform simulator (ms)
+    electronic_invoicing.simulator.step_delay: 30000
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -630,6 +633,15 @@ services:
     App\Context\Billing\Application\Port\CounterCatalogInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Catalog\QueryBusCounterCatalog
 
+    App\Context\Billing\Application\Port\ElectronicInvoiceTransmitterInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\ElectronicInvoicing\CommandBusElectronicInvoiceTransmitter
+
+    App\Context\Billing\Application\Port\TransmissionStatusProjectionInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalTransmissionStatusProjection
+
+    App\Context\Billing\Application\Port\SellerIdentityProviderInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusSellerIdentityProvider
+
     App\Context\Billing\Application\Port\CounterClientRegistryInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry
 
@@ -863,6 +875,81 @@ services:
     App\Context\Procurement\Application\Port\OrderBookReadRepositoryInterface:
         alias: App\Context\Procurement\Infrastructure\Persistence\Doctrine\Repository\DbalOrderBookReadRepository
 
+    # ============================================================================
+    # BOUNDED CONTEXT: ELECTRONIC INVOICING (System)
+    # ============================================================================
+
+    App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Repository\DoctrinePlatformConnectionRepository
+
+    App\System\ElectronicInvoicing\Domain\Transmission\OutboundTransmissionRepositoryInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Repository\DoctrineOutboundTransmissionRepository
+
+    App\System\ElectronicInvoicing\Application\Port\SubmissionScheduleInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Repository\DbalSubmissionSchedule
+
+    App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Storage\FileStorageDocumentStore
+
+    App\System\ElectronicInvoicing\Application\Port\InvoiceDocumentRendererInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Format\Cii\CiiInvoiceRenderer
+        arguments:
+            $schemaPath: '%kernel.project_dir%/src/System/ElectronicInvoicing/Infrastructure/Resources/xsd/cii-d22b/uncefact/CrossIndustryInvoice_100pD22B.xsd'
+
+    App\System\ElectronicInvoicing\Application\Port\LifecycleMessageParserInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Format\Cdar\CdarParser
+
+    App\System\ElectronicInvoicing\Application\Port\UnprocessedFlowsInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Repository\DbalUnprocessedFlows
+
+    # The approved platform, picked by env var when first used (disabled | simulator);
+    # the simulator is refused in production at that moment.
+    electronic_invoicing.platform.candidates:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            - disabled: '@App\System\ElectronicInvoicing\Infrastructure\Platform\Disabled\DisabledPlatform'
+              simulator: '@App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\LocalPlatformSimulator'
+
+    App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\SimulatedFlowStoreInterface:
+        class: App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\DoctrineSimulatedFlowStore
+
+    App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\LocalPlatformSimulator:
+        arguments:
+            $schemaPath: '%kernel.project_dir%/src/System/ElectronicInvoicing/Infrastructure/Resources/xsd/cii-d22b/uncefact/CrossIndustryInvoice_100pD22B.xsd'
+
+    App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\SimulationScheduler:
+        arguments:
+            $commandBus: '@messenger.bus.command'
+            $stepDelay: '%electronic_invoicing.simulator.step_delay%'
+
+    App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector:
+        arguments:
+            $candidates: '@electronic_invoicing.platform.candidates'
+            $platform: '%env(ELECTRONIC_INVOICING_PLATFORM)%'
+            $environment: '%kernel.environment%'
+
+    App\System\ElectronicInvoicing\Application\Port\ConfiguredPlatformInterface: '@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector'
+
+    App\System\ElectronicInvoicing\Domain\Port\FlowSubmitterInterface:
+        class: App\System\ElectronicInvoicing\Domain\Port\FlowSubmitterInterface
+        factory: ['@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector', 'submitter']
+
+    App\System\ElectronicInvoicing\Domain\Port\FlowSearcherInterface:
+        class: App\System\ElectronicInvoicing\Domain\Port\FlowSearcherInterface
+        factory: ['@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector', 'searcher']
+
+    App\System\ElectronicInvoicing\Domain\Port\FlowFetcherInterface:
+        class: App\System\ElectronicInvoicing\Domain\Port\FlowFetcherInterface
+        factory: ['@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector', 'fetcher']
+
+    App\System\ElectronicInvoicing\Domain\Port\DirectoryLookupInterface:
+        class: App\System\ElectronicInvoicing\Domain\Port\DirectoryLookupInterface
+        factory: ['@App\System\ElectronicInvoicing\Infrastructure\Platform\PlatformSelector', 'directory']
+
+    App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\PlatformConnectionMapper: ~
+    App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\OutboundTransmissionMapper: ~
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
@@ -871,6 +958,9 @@ when@dev: &services_dev
             autoconfigure: true
 
 when@test:
+    parameters:
+        electronic_invoicing.simulator.step_delay: 0
+
     services:
         App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:
             class: App\Context\Animal\Infrastructure\Search\DoctrineAnimalSearchRepository

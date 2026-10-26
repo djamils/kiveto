@@ -24,6 +24,7 @@ final readonly class BillingLineRecord
         private float $quantity,
         private int $unitPriceMinorUnits,
         private string $currency,
+        private UnitPriceMode $unitPriceMode,
         private ?string $taxCategoryCode,
     ) {
     }
@@ -36,6 +37,7 @@ final readonly class BillingLineRecord
         float $quantity,
         int $unitPriceMinorUnits,
         string $currency,
+        UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
     ): self {
         $label = trim($label);
@@ -65,6 +67,7 @@ final readonly class BillingLineRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
         );
     }
@@ -78,6 +81,7 @@ final readonly class BillingLineRecord
         float $quantity,
         int $unitPriceMinorUnits,
         string $currency,
+        UnitPriceMode $unitPriceMode,
         ?string $taxCategoryCode,
     ): self {
         return new self(
@@ -89,6 +93,7 @@ final readonly class BillingLineRecord
             $quantity,
             $unitPriceMinorUnits,
             $currency,
+            $unitPriceMode,
             $taxCategoryCode,
         );
     }
@@ -118,6 +123,7 @@ final readonly class BillingLineRecord
             $quantity,
             $this->unitPriceMinorUnits,
             $this->currency,
+            $this->unitPriceMode,
             $this->taxCategoryCode,
         );
     }
@@ -160,6 +166,11 @@ final readonly class BillingLineRecord
     public function getCurrency(): string
     {
         return $this->currency;
+    }
+
+    public function getUnitPriceMode(): UnitPriceMode
+    {
+        return $this->unitPriceMode;
     }
 
     public function getTaxCategoryCode(): ?string

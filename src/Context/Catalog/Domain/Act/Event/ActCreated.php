@@ -20,6 +20,7 @@ final readonly class ActCreated extends AbstractDomainEvent
         public string $taxCategoryCode,
         public int $basePriceMinorUnits,
         public string $basePriceCurrency,
+        public string $basePriceMode,
         public int $estimatedDurationMinutes,
         public bool $requiresAnesthesia,
     ) {
@@ -42,6 +43,7 @@ final readonly class ActCreated extends AbstractDomainEvent
             'taxCategoryCode'          => $this->taxCategoryCode,
             'basePriceMinorUnits'      => $this->basePriceMinorUnits,
             'basePriceCurrency'        => $this->basePriceCurrency,
+            'basePriceMode'            => $this->basePriceMode,
             'estimatedDurationMinutes' => $this->estimatedDurationMinutes,
             'requiresAnesthesia'       => $this->requiresAnesthesia,
         ];

@@ -19,6 +19,13 @@ final readonly class BillingSettings
 {
     public const int MAX_PAYMENT_TERMS_DAYS = 365;
 
+    /**
+     * The prefixes a document is numbered under when the clinic chose none —
+     * the very ones the Billing context falls back to when it numbers them.
+     */
+    public const string DEFAULT_INVOICE_PREFIX     = 'FAC';
+    public const string DEFAULT_CREDIT_NOTE_PREFIX = 'AV';
+
     /** The ways of paying a clinic can choose to take at its desk. */
     public const array PAYMENT_METHODS = ['CARD', 'CASH', 'CHECK', 'TRANSFER'];
 
@@ -110,6 +117,18 @@ final readonly class BillingSettings
             vatOnDebits: $vatOnDebits,
             acceptedPaymentMethods: self::methods($acceptedPaymentMethods),
         );
+    }
+
+    /** The prefix the invoices are actually numbered under. */
+    public function effectiveInvoicePrefix(): string
+    {
+        return $this->invoiceNumberPrefix ?? self::DEFAULT_INVOICE_PREFIX;
+    }
+
+    /** The prefix the credit notes are actually numbered under. */
+    public function effectiveCreditNotePrefix(): string
+    {
+        return $this->creditNotePrefix ?? self::DEFAULT_CREDIT_NOTE_PREFIX;
     }
 
     /** Whether the desk takes this payment method. */

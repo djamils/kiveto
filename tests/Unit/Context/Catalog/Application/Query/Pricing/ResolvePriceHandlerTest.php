@@ -19,6 +19,7 @@ use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListItemId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListName;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListStatus;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
@@ -122,7 +123,7 @@ final class ResolvePriceHandlerTest extends TestCase
         $item = PriceListItem::create(
             id: PriceListItemId::fromString('01950000-0000-7000-0000-0000000000b3'),
             itemRef: CatalogItemRef::toAct(ActId::fromString(self::ACT_ID)),
-            netPrice: Money::fromMinorUnits(1480, CurrencyCode::fromString('EUR')),
+            price: CatalogPrice::includingTax(Money::fromMinorUnits(1480, CurrencyCode::fromString('EUR'))),
             taxCategoryOverride: null,
         );
 

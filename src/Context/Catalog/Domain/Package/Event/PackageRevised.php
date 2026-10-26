@@ -18,6 +18,7 @@ final readonly class PackageRevised extends AbstractDomainEvent
         public string $taxCategoryCode,
         public string $pricingMode,
         public ?int $fixedPriceMinorUnits,
+        public ?string $fixedPriceMode,
     ) {
     }
 
@@ -36,6 +37,7 @@ final readonly class PackageRevised extends AbstractDomainEvent
             'taxCategoryCode'      => $this->taxCategoryCode,
             'pricingMode'          => $this->pricingMode,
             'fixedPriceMinorUnits' => $this->fixedPriceMinorUnits,
+            'fixedPriceMode'       => $this->fixedPriceMode,
         ];
     }
 }

@@ -12,11 +12,10 @@ use App\Context\Catalog\Domain\Package\ValueObject\PackageId;
 use App\Context\Catalog\Domain\Package\ValueObject\PackageName;
 use App\Context\Catalog\Domain\Package\ValueObject\Quantity;
 use App\Context\Catalog\Domain\Shared\ValueObject\CatalogItemRef;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\PackageComponentEntity;
 use App\Context\Catalog\Infrastructure\Persistence\Doctrine\Entity\PackageEntity;
-use App\Shared\Domain\ValueObject\CurrencyCode;
-use App\Shared\Money\Domain\ValueObject\Money;
 use App\System\Taxation\Domain\ValueObject\TaxCategoryCode;
 use Symfony\Component\Uid\Uuid;
 
@@ -44,9 +43,11 @@ final readonly class PackageMapper
         if (null !== $fixedPrice) {
             $entity->setFixedPriceMinorUnits($fixedPrice->minorUnits());
             $entity->setFixedPriceCurrency($fixedPrice->currency()->toString());
+            $entity->setFixedPriceMode($fixedPrice->mode()->value);
         } else {
             $entity->setFixedPriceMinorUnits(null);
             $entity->setFixedPriceCurrency(null);
+            $entity->setFixedPriceMode(null);
         }
 
         return $entity;
@@ -70,9 +71,10 @@ final readonly class PackageMapper
         $fixedPrice = null;
 
         if (null !== $entity->getFixedPriceMinorUnits() && null !== $entity->getFixedPriceCurrency()) {
-            $fixedPrice = Money::fromMinorUnits(
+            $fixedPrice = CatalogPrice::fromPrimitives(
                 $entity->getFixedPriceMinorUnits(),
-                CurrencyCode::fromString($entity->getFixedPriceCurrency()),
+                $entity->getFixedPriceCurrency(),
+                $entity->getFixedPriceMode() ?? '',
             );
         }
 

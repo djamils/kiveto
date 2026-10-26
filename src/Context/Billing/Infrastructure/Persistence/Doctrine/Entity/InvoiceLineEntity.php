@@ -33,11 +33,17 @@ class InvoiceLineEntity
     #[ORM\Column(name: 'unit_price_minor_units', type: 'integer')]
     private int $unitPriceMinorUnits;
 
+    #[ORM\Column(name: 'unit_price_mode', type: 'string', length: 4)]
+    private string $unitPriceMode = 'excl';
+
+    #[ORM\Column(name: 'unit_net_micro_units', type: 'bigint')]
+    private int $unitNetMicroUnits = 0;
+
+    #[ORM\Column(name: 'operation_category', type: 'string', length: 16, nullable: true)]
+    private ?string $operationCategory = null;
+
     #[ORM\Column(name: 'net_minor_units', type: 'integer')]
     private int $netMinorUnits;
-
-    #[ORM\Column(name: 'tax_minor_units', type: 'integer')]
-    private int $taxMinorUnits;
 
     #[ORM\Column(name: 'gross_minor_units', type: 'integer')]
     private int $grossMinorUnits;
@@ -127,16 +133,6 @@ class InvoiceLineEntity
         $this->netMinorUnits = $netMinorUnits;
     }
 
-    public function getTaxMinorUnits(): int
-    {
-        return $this->taxMinorUnits;
-    }
-
-    public function setTaxMinorUnits(int $taxMinorUnits): void
-    {
-        $this->taxMinorUnits = $taxMinorUnits;
-    }
-
     public function getGrossMinorUnits(): int
     {
         return $this->grossMinorUnits;
@@ -195,5 +191,35 @@ class InvoiceLineEntity
     public function setPosition(int $position): void
     {
         $this->position = $position;
+    }
+
+    public function getUnitPriceMode(): string
+    {
+        return $this->unitPriceMode;
+    }
+
+    public function setUnitPriceMode(string $unitPriceMode): void
+    {
+        $this->unitPriceMode = $unitPriceMode;
+    }
+
+    public function getUnitNetMicroUnits(): int
+    {
+        return $this->unitNetMicroUnits;
+    }
+
+    public function setUnitNetMicroUnits(int $unitNetMicroUnits): void
+    {
+        $this->unitNetMicroUnits = $unitNetMicroUnits;
+    }
+
+    public function getOperationCategory(): ?string
+    {
+        return $this->operationCategory;
+    }
+
+    public function setOperationCategory(?string $operationCategory): void
+    {
+        $this->operationCategory = $operationCategory;
     }
 }

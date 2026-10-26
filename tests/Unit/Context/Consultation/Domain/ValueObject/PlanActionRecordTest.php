@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Consultation\Domain\ValueObject;
 
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
 use App\Context\Consultation\Domain\ValueObject\PlanActionRecord;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use PHPUnit\Framework\TestCase;
 
@@ -27,6 +28,7 @@ final class PlanActionRecordTest extends TestCase
             2.0,
             4500,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             '  TVA20  ',
             $createdAt,
             UserId::fromString(self::USER_ID),
@@ -42,6 +44,7 @@ final class PlanActionRecordTest extends TestCase
         self::assertSame(2.0, $action->getQuantity());
         self::assertSame(4500, $action->getUnitPriceMinorUnits());
         self::assertSame('EUR', $action->getCurrency());
+        self::assertSame(UnitPriceMode::INCLUDING_TAX, $action->getUnitPriceMode());
         self::assertSame('TVA20', $action->getTaxCategoryCode());
         self::assertSame($createdAt, $action->getCreatedAtUtc());
         self::assertSame(self::USER_ID, $action->getCreatedByUserId());
@@ -72,6 +75,7 @@ final class PlanActionRecordTest extends TestCase
             1.0,
             null,
             null,
+            null,
             '   ',
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
@@ -94,6 +98,7 @@ final class PlanActionRecordTest extends TestCase
             1.0,
             0,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
@@ -135,6 +140,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -156,6 +162,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -174,6 +181,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             1.0,
+            null,
             null,
             null,
             str_repeat('t', 41),
@@ -198,6 +206,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -216,6 +225,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             0,
             1.0,
+            null,
             null,
             null,
             null,
@@ -240,6 +250,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -260,6 +271,29 @@ final class PlanActionRecordTest extends TestCase
             1.0,
             -1,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
+            null,
+            new \DateTimeImmutable('2026-08-20 14:00:00'),
+            UserId::fromString(self::USER_ID),
+        );
+    }
+
+    public function testCreateRejectsPriceWithoutItsMode(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Plan action price requires its price mode');
+
+        PlanActionRecord::create(
+            PlanActionKind::PERFORMED_ACT,
+            'Acte',
+            null,
+            null,
+            null,
+            null,
+            1.0,
+            4500,
+            'EUR',
+            null,
             null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
@@ -281,6 +315,7 @@ final class PlanActionRecordTest extends TestCase
             1.0,
             4500,
             null,
+            UnitPriceMode::INCLUDING_TAX,
             null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
@@ -302,6 +337,7 @@ final class PlanActionRecordTest extends TestCase
             1.0,
             4500,
             '  ',
+            UnitPriceMode::INCLUDING_TAX,
             null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
@@ -409,6 +445,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -427,6 +464,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             100000.0,
+            null,
             null,
             null,
             null,
@@ -478,6 +516,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             null,
+            null,
             new \DateTimeImmutable('2026-08-20 14:00:00'),
             UserId::fromString(self::USER_ID),
         );
@@ -493,6 +532,7 @@ final class PlanActionRecordTest extends TestCase
             null,
             null,
             1.0,
+            null,
             null,
             null,
             null,
@@ -514,6 +554,7 @@ final class PlanActionRecordTest extends TestCase
             quantity: 1.5,
             unitPriceMinorUnits: 9900,
             currency: 'EUR',
+            unitPriceMode: UnitPriceMode::INCLUDING_TAX,
             taxCategoryCode: 'TVA20',
             createdAtUtc: $createdAt,
             createdByUserId: self::USER_ID,

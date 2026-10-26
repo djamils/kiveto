@@ -6,11 +6,13 @@ namespace App\Tests\Unit\Context\Catalog\Application\Command\Package;
 
 use App\Context\Catalog\Application\Command\Package\CreatePackage\CreatePackage;
 use App\Context\Catalog\Application\Command\Package\CreatePackage\CreatePackageHandler;
+use App\Context\Catalog\Domain\Exception\InvalidPriceEntryModeException;
 use App\Context\Catalog\Domain\Package\Event\PackageCreated;
 use App\Context\Catalog\Domain\Package\Exception\DuplicatePackageCodeException;
 use App\Context\Catalog\Domain\Package\Package;
 use App\Context\Catalog\Domain\Package\Repository\PackageRepositoryInterface;
 use App\Context\Catalog\Domain\Package\ValueObject\PackagePricingMode;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
@@ -45,7 +47,21 @@ final class CreatePackageHandlerTest extends TestCase
         self::assertInstanceOf(Package::class, $saved);
         self::assertSame(PackagePricingMode::FIXED_PRICE, $saved->pricingMode());
         self::assertSame(25000, $saved->fixedPrice()?->minorUnits());
+        self::assertSame(PriceEntryMode::INCLUDING_TAX, $saved->fixedPrice()->mode());
         self::assertSame([], $saved->components());
+    }
+
+    public function testAFixedPriceWithoutItsModeIsRefused(): void
+    {
+        $repository = $this->createMock(PackageRepositoryInterface::class);
+        $repository->method('existsByCode')->willReturn(false);
+        $repository->expects(self::never())->method('save');
+
+        $this->expectException(InvalidPriceEntryModeException::class);
+
+        $this->handler($repository, $this->createStub(EventBusInterface::class))(
+            $this->command('FIXED_PRICE', 25000, 'EUR', null),
+        );
     }
 
     public function testASumOfComponentsPackageIsCreatedWithoutPrice(): void
@@ -100,7 +116,7 @@ final class CreatePackageHandlerTest extends TestCase
         );
     }
 
-    private function command(string $pricingMode, ?int $minorUnits, ?string $currency): CreatePackage
+    private function command(string $pricingMode, ?int $minorUnits, ?string $currency, ?string $mode = 'incl'): CreatePackage
     {
         return new CreatePackage(
             clinicId: F::CLINIC_ID,
@@ -110,6 +126,7 @@ final class CreatePackageHandlerTest extends TestCase
             pricingMode: $pricingMode,
             fixedPriceMinorUnits: $minorUnits,
             fixedPriceCurrency: $currency,
+            fixedPriceMode: $mode,
         );
     }
 

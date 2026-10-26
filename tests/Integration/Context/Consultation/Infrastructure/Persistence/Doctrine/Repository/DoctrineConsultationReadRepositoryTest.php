@@ -17,6 +17,7 @@ use App\Context\Consultation\Domain\ValueObject\ExamStatus;
 use App\Context\Consultation\Domain\ValueObject\NoteType;
 use App\Context\Consultation\Domain\ValueObject\PatientId;
 use App\Context\Consultation\Domain\ValueObject\PlanActionKind;
+use App\Context\Consultation\Domain\ValueObject\UnitPriceMode;
 use App\Context\Consultation\Domain\ValueObject\UserId;
 use App\Context\Consultation\Domain\ValueObject\Vitals;
 use App\Context\Consultation\Domain\ValueObject\VitalType;
@@ -111,6 +112,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             2.0,
             3500,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA20',
             $user,
             $at,
@@ -123,6 +125,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             7,
             null,
             1.0,
+            null,
             null,
             null,
             null,
@@ -140,6 +143,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             3.0,
             1250,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA10',
             $user,
             $at,
@@ -258,6 +262,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'quantity'            => 2.0,
                 'unitPriceMinorUnits' => 3500,
                 'currency'            => 'EUR',
+                'unitPriceMode'       => 'incl',
             ],
             [
                 'id'                  => $planActions[1]->getId(),
@@ -270,6 +275,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'quantity'            => 1.0,
                 'unitPriceMinorUnits' => null,
                 'currency'            => null,
+                'unitPriceMode'       => null,
             ],
         ], $dto->planActions);
 
@@ -287,6 +293,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'quantity'            => 3.0,
                 'unitPriceMinorUnits' => 1250,
                 'currency'            => 'EUR',
+                'unitPriceMode'       => 'incl',
             ],
         ], $dto->prescriptionLines);
 
@@ -301,6 +308,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'quantity'            => 2.0,
                 'unitPriceMinorUnits' => 3500,
                 'currency'            => 'EUR',
+                'unitPriceMode'       => 'incl',
                 'taxCategoryCode'     => 'TVA20',
                 'totalMinorUnits'     => 7000,
             ],
@@ -313,6 +321,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
                 'quantity'            => 3.0,
                 'unitPriceMinorUnits' => 1250,
                 'currency'            => 'EUR',
+                'unitPriceMode'       => 'incl',
                 'taxCategoryCode'     => 'TVA10',
                 'totalMinorUnits'     => 3750,
             ],
@@ -498,7 +507,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             self::PATIENT_ID,
             new \DateTimeImmutable('2026-04-10 11:00:00'),
         );
-        $this->addBilledAct($second, 'Radiographie', 'RADIO', 2.0, 7000);
+        $this->addBilledAct($second, 'Radiographie', 'RADIO', 2.0, 7000, UnitPriceMode::EXCLUDING_TAX);
         $this->saveOnAdmission($second, $admissionId);
 
         $lines = $this->readRepository->billingLinesForAdmission(
@@ -514,8 +523,16 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         self::assertSame(5000, $lines[0]['unitPriceMinorUnits']);
         self::assertSame('EUR', $lines[0]['currency']);
         self::assertSame('TVA20', $lines[0]['taxCategoryCode']);
+        self::assertSame('incl', $lines[0]['unitPriceMode']);
         self::assertSame('Radiographie', $lines[1]['label']);
         self::assertSame('2.00', $lines[1]['quantity']);
+        self::assertSame('excl', $lines[1]['unitPriceMode']);
+
+        // The visit totals keep the prices entered TTC apart from the pre-tax ones.
+        self::assertSame(
+            [$admissionId => ['htByTaxCategory' => ['TVA20' => 14000], 'ttcByTaxCategory' => ['TVA20' => 5000], 'currency' => 'EUR']],
+            $this->readRepository->totalsForAdmissions(ClinicId::fromString(self::CLINIC_ID), [$admissionId]),
+        );
     }
 
     public function testBillingLinesOfAnotherClinicAreInvisible(): void
@@ -557,6 +574,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             1.0,
             1850,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             'TVA20',
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10 09:05:00'),
@@ -599,6 +617,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             1.0,
             1850,
             'EUR',
+            UnitPriceMode::INCLUDING_TAX,
             null,
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10 09:05:00'),
@@ -646,6 +665,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
         string $code,
         float $quantity,
         int $unitPrice,
+        UnitPriceMode $mode = UnitPriceMode::INCLUDING_TAX,
     ): void {
         $consultation->addPlanAction(
             PlanActionKind::PERFORMED_ACT,
@@ -657,6 +677,7 @@ final class DoctrineConsultationReadRepositoryTest extends KernelTestCase
             $quantity,
             $unitPrice,
             'EUR',
+            $mode,
             'TVA20',
             UserId::fromString(self::USER_ID),
             new \DateTimeImmutable('2026-04-10 09:05:00'),

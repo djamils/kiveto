@@ -17,6 +17,7 @@ use App\Context\Catalog\Domain\Article\ValueObject\ArticleId;
 use App\Context\Catalog\Domain\Article\ValueObject\ArticleKind;
 use App\Context\Catalog\Domain\Article\ValueObject\ArticleName;
 use App\Context\Catalog\Domain\Article\ValueObject\Gtin;
+use App\Context\Catalog\Domain\ValueObject\CatalogPrice;
 use App\Context\Catalog\Domain\ValueObject\ClinicId;
 use App\Shared\Application\Bus\EventBusInterface;
 use App\Shared\Application\Event\DomainEventPublisher;
@@ -234,7 +235,7 @@ final class ReviseArticleDetailsHandlerTest extends TestCase
             kind: ArticleKind::CONSUMABLE,
             gtin: null !== $gtin ? Gtin::fromString($gtin) : null,
             taxCategory: TaxCategoryCode::fromString('veterinary.consumable.medical'),
-            basePrice: Money::fromMinorUnits(667, CurrencyCode::fromString('EUR')),
+            basePrice: CatalogPrice::includingTax(Money::fromMinorUnits(667, CurrencyCode::fromString('EUR'))),
             unitOfMeasure: UnitOfMeasure::fromString($unit),
             trackStock: $trackStock,
             createdAt: new \DateTimeImmutable('2026-01-01 10:00:00'),

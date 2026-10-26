@@ -13,6 +13,7 @@ use App\Context\Catalog\Application\Query\Catalog\SearchCatalogItems\SearchCatal
 use App\Context\Catalog\Application\Query\Pricing\ResolvePrice\ResolvePrice;
 use App\Context\Catalog\Domain\Pricing\ValueObject\PriceListId;
 use App\Context\Catalog\Domain\Pricing\ValueObject\ResolvedPrice;
+use App\Context\Catalog\Domain\ValueObject\PriceEntryMode;
 use App\Context\Consultation\Application\Port\CatalogItemDto;
 use App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusCatalogItemProvider;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -51,6 +52,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
                         status: 'ACTIVE',
                         basePriceMinorUnits: 3500,
                         basePriceCurrency: 'EUR',
+                        basePriceMode: 'incl',
                         taxCategoryCode: 'veterinary.act.consultation',
                         requiresPrescription: false,
                     ),
@@ -62,6 +64,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
                         status: 'ARCHIVED',
                         basePriceMinorUnits: 1200,
                         basePriceCurrency: 'CHF',
+                        basePriceMode: 'incl',
                         taxCategoryCode: 'veterinary.medicine.oral',
                         requiresPrescription: true,
                         articleKind: 'DRUG',
@@ -80,6 +83,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
         self::assertFalse($items[0]->requiresPrescription);
         self::assertSame(3500, $items[0]->basePriceMinorUnits);
         self::assertSame('EUR', $items[0]->currency);
+        self::assertSame('incl', $items[0]->basePriceMode);
         self::assertSame('veterinary.act.consultation', $items[0]->taxCategoryCode);
         self::assertSame('ACTIVE', $items[0]->status);
 
@@ -112,6 +116,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
                 status: 'ACTIVE',
                 basePriceMinorUnits: 3500,
                 basePriceCurrency: 'EUR',
+                basePriceMode: 'incl',
                 taxCategoryCode: 'veterinary.act.consultation',
                 requiresPrescription: false,
             ),
@@ -148,6 +153,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
         self::assertFalse($item->requiresPrescription);
         self::assertSame(3500, $item->basePriceMinorUnits);
         self::assertSame('EUR', $item->currency);
+        self::assertSame('incl', $item->basePriceMode);
         self::assertSame('veterinary.act.consultation', $item->taxCategoryCode);
         self::assertSame('ACTIVE', $item->status);
     }
@@ -197,6 +203,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
         self::assertSame($expected, $item->requiresPrescription);
         self::assertSame(1200, $item->basePriceMinorUnits);
         self::assertSame('CHF', $item->currency);
+        self::assertSame('incl', $item->basePriceMode);
         self::assertSame('veterinary.medicine.oral', $item->taxCategoryCode);
         self::assertSame('ACTIVE', $item->status);
         self::assertSame('MEDICATION', $item->articleKind);
@@ -270,6 +277,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
 
         self::assertSame(2900, $price->minorUnits);
         self::assertSame('CHF', $price->currency);
+        self::assertSame('incl', $price->mode);
         // The tax category always comes from the catalog item, never from the price.
         self::assertSame('veterinary.act.consultation', $price->taxCategoryCode);
     }
@@ -283,6 +291,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
 
         self::assertSame(3500, $price->minorUnits);
         self::assertSame('EUR', $price->currency);
+        self::assertSame('incl', $price->mode);
         self::assertSame('veterinary.act.consultation', $price->taxCategoryCode);
     }
 
@@ -391,6 +400,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
             requiresPrescription: false,
             basePriceMinorUnits: 3500,
             currency: 'EUR',
+            basePriceMode: 'incl',
             taxCategoryCode: 'veterinary.act.consultation',
             status: 'ACTIVE',
         );
@@ -408,6 +418,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
             taxCategoryCode: 'veterinary.act.consultation',
             basePriceMinorUnits: 3500,
             basePriceCurrency: 'EUR',
+            basePriceMode: 'incl',
             estimatedDurationMinutes: 30,
             requiresAnesthesia: false,
             status: 'ACTIVE',
@@ -428,6 +439,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
             taxCategoryCode: 'veterinary.medicine.oral',
             basePriceMinorUnits: 1200,
             basePriceCurrency: 'CHF',
+            basePriceMode: 'incl',
             unitOfMeasure: 'UNIT',
             trackStock: true,
             status: 'ACTIVE',
@@ -480,6 +492,7 @@ final class QueryBusCatalogItemProviderTest extends TestCase
             sourcePriceList: PriceListId::fromString(self::PRICE_LIST_ID),
             sourcePriceListItem: null,
             resolvedAt: new \DateTimeImmutable('2026-04-10 09:00:00'),
+            mode: PriceEntryMode::INCLUDING_TAX,
         );
     }
 }
