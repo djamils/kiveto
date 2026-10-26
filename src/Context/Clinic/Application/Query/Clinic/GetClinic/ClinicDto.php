@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Application\Query\Clinic\GetClinic;
 
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
+use App\Shared\Application\Document\DocumentClinic;
 
 final readonly class ClinicDto
 {
@@ -27,5 +28,18 @@ final readonly class ClinicDto
         public ?string $brandColor = null,
         public ?string $logoKey = null,
     ) {
+    }
+
+    /**
+     * The clinic as the shared document templates print it.
+     */
+    public function toDocumentClinic(): DocumentClinic
+    {
+        return new DocumentClinic(
+            name: $this->name,
+            letterhead: $this->letterhead?->toDocumentLetterhead(),
+            brandColor: $this->brandColor,
+            logoKey: $this->logoKey,
+        );
     }
 }

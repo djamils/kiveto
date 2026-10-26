@@ -61,4 +61,66 @@ final class LocalFileSystemStorageTest extends TestCase
 
         new LocalFileSystemStorage($this->root, '')->read('../../etc/passwd');
     }
+
+    public function testAFileIsStoredAtItsExactKeyAndOverwrittenByARetry(): void
+    {
+        $storage = new LocalFileSystemStorage($this->root, '');
+
+        $storage->storeAt('billing/sent/invoice/42.pdf', 'first');
+        $storage->storeAt('billing/sent/invoice/42.pdf', 'second');
+
+        self::assertSame('second', $storage->read('billing/sent/invoice/42.pdf'));
+        self::assertFileExists($this->root . '/billing/sent/invoice/42.pdf');
+    }
+
+    public function testADeletedFileIsGoneAndDeletingItAgainIsNotAnError(): void
+    {
+        $storage = new LocalFileSystemStorage($this->root, '');
+        $storage->storeAt('notification/attachments/abc/rdv.ics', 'x');
+
+        $storage->delete('notification/attachments/abc/rdv.ics');
+        $storage->delete('notification/attachments/abc/rdv.ics');
+
+        self::assertFileDoesNotExist($this->root . '/notification/attachments/abc/rdv.ics');
+    }
+
+    public function testAKeyCannotLeaveTheStorageWhenStoringOrDeleting(): void
+    {
+        $storage = new LocalFileSystemStorage($this->root, '');
+
+        foreach (['../escape.pdf', '/', ''] as $key) {
+            try {
+                $storage->storeAt($key, 'x');
+                self::fail('Stored at ' . $key);
+            } catch (\RuntimeException) {
+            }
+        }
+
+        $this->expectException(\RuntimeException::class);
+
+        $storage->delete('a/../../b');
+    }
+
+    public function testAFolderThatCannotBeCreatedIsReported(): void
+    {
+        $storage = new LocalFileSystemStorage($this->root, '');
+        $storage->storeAt('taken', 'a file where a folder is needed');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot create the folder');
+
+        $storage->storeAt('taken/inside.pdf', 'x');
+    }
+
+    public function testAFileThatCannotBeWrittenIsReported(): void
+    {
+        $storage = new LocalFileSystemStorage($this->root, '');
+        $storage->storeAt('folder/file.pdf', 'x');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot write');
+
+        // The key names a folder: no file can be written there.
+        $storage->storeAt('folder', 'x');
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Application\Query\Clinic\GetClinic;
 
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
+use App\Shared\Application\Document\DocumentLetterhead;
 
 /**
  * The identity block as the documents need it: flat strings, plus the address
@@ -71,6 +72,27 @@ final readonly class LetterheadDto
             ordinalCouncil: $letterhead->ordinalCouncil?->label(),
             liabilityInsurer: $letterhead->liabilityInsurer,
             liabilityPolicyNumber: $letterhead->liabilityPolicyNumber,
+        );
+    }
+
+    /**
+     * The identity block as the shared document templates print it.
+     */
+    public function toDocumentLetterhead(): DocumentLetterhead
+    {
+        return new DocumentLetterhead(
+            legalName: $this->legalName,
+            addressLines: $this->addressLines,
+            city: $this->city,
+            phone: $this->phone,
+            email: $this->email,
+            website: $this->website,
+            formattedSiret: $this->formattedSiret(),
+            vatNumber: $this->vatNumber,
+            ordinalNumber: $this->ordinalNumber,
+            ordinalCouncil: $this->ordinalCouncil,
+            legalSentence: $this->legalSentence(),
+            liabilitySentence: $this->liabilitySentence(),
         );
     }
 
