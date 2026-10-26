@@ -59,7 +59,7 @@ final class InvoiceDispatchEndpointsTest extends WebTestCase
         $this->browser = self::createClient();
         $this->browser->disableReboot();
 
-        ClinicEntityFactory::new()->withId(self::CLINIC)->withName('Clinique Montmartre')->create();
+        ClinicEntityFactory::new()->withId(self::CLINIC)->withName('Clinique Montmartre')->with(['timeZone' => 'Europe/Paris'])->create();
         $admin = ClinicUserFactory::new()->withEmail('claire.admin@example.com')->withPlainPassword('mot-de-passe')->create();
         ClinicMembershipEntityFactory::new()->withClinicId(self::CLINIC)->withUserId($admin->getId()->toRfc4122())->asManager()->asEmployee()->asClinicAdministrator()->create();
         $this->seedInvoice();
