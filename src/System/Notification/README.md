@@ -73,7 +73,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `RequestNotification` | command | Resolves the sender, renders and freezes the content, applies the SMS cap (non-critical SMS, under the profile lock) with the optional e-mail fallback, saves the message and queues `DispatchOutboundMessage`. Returns the message id. |
-| `DispatchOutboundMessage` | external (`async_external_notification`) | Hands the message to the e-mail or SMS transport and records the outcome. |
+| `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Hands the message to the e-mail or SMS transport and records the outcome. |
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
