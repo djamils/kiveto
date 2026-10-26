@@ -1014,6 +1014,9 @@ services:
             $segmentsPerVeterinarian: '%notification.sms.segments_per_veterinarian%'
             $overageUnitPrice: '%notification.sms.overage_unit_price%'
 
+    App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalInAppNotificationRepository
+
     App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface:
         class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalSmsThresholdRepository
 

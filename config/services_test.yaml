@@ -92,6 +92,10 @@ services:
         alias: App\System\Notification\Application\Port\MessageRendererInterface
         public: true
 
+    test.App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface:
+        alias: App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface
+        public: true
+
     test.App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface:
         alias: App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface
         public: true

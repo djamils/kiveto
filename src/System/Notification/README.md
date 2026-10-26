@@ -79,6 +79,10 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `GetSmsUsage` | query | Month (Europe/Paris), quota, used, queued, overage, overage amount (cents HT), cap, percent, cap reached. |
 | `PreviewSmsSegments` | query | Segments that `count` SMS of a purpose would consume for a clinic (bulk reminder confirmation); 0 without messaging profile. |
 | `GetMessageStatuses` | query | Current status and French label of many messages, by id (invoice history). |
+| `PostInAppNotification` | command | One bell entry per user of a clinic (kinds `NEW_APPOINTMENT`, `CRITICAL_STOCK`, `EXPIRING_LOTS`, `SMS_QUOTA`, all under « Activité »), at most once per user and idempotency key (INSERT IGNORE). |
+| `MarkInAppNotificationRead` / `MarkAllInAppNotificationsRead` | command | The user reads one of their entries / all their entries of the current clinic. |
+| `WithdrawInAppNotification` | command | Deletes the unread entries posted under a key (e.g. a new appointment cancelled before being seen). |
+| `ListInAppNotifications` / `CountUnreadInAppNotifications` | query | The user's entries of the current clinic over the last 30 days (newest first, optional limit) / their unread count. |
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
