@@ -534,6 +534,17 @@ services:
     App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter
 
+    # Client messages of appointments (notifications spec, D2): what each
+    # client was told, the reminders, and the clinic's reminder delay.
+    App\Context\Scheduling\Domain\Notification\AppointmentNotificationStateRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DbalAppointmentNotificationStateRepository
+
+    App\Context\Scheduling\Domain\Notification\ReminderSettingsRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DbalReminderSettingsRepository
+
+    App\Context\Scheduling\Application\Port\ClinicDirectoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\QueryBusClinicDirectory
+
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT
     # ============================================================================
