@@ -98,6 +98,10 @@ services:
     App\Shared\Application\Pdf\PdfRendererInterface:
         class: App\Shared\Infrastructure\Pdf\GotenbergPdfRenderer
 
+    # Document templates (Twig) turned into PDF by the renderer above
+    App\Shared\Application\Document\DocumentPdfRendererInterface:
+        class: App\Shared\Infrastructure\Document\TwigGotenbergDocumentPdfRenderer
+
     # Message Context and Actor Context (singletons)
     App\Shared\Application\Messaging\MessageContext: ~
     App\Shared\Application\Security\ActorContext: ~
@@ -647,6 +651,12 @@ services:
 
     App\Context\Billing\Application\Port\SellerIdentityProviderInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusSellerIdentityProvider
+
+    App\Context\Billing\Application\Port\ClinicDocumentContextInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentContext
+
+    App\Context\Billing\Application\Port\InvoicePdfRendererInterface:
+        class: App\Context\Billing\Infrastructure\Document\InvoicePdfRenderer
 
     App\Context\Billing\Application\Port\CounterClientRegistryInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry
