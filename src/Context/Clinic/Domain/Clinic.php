@@ -11,6 +11,7 @@ use App\Context\Clinic\Domain\Event\ClinicClosed;
 use App\Context\Clinic\Domain\Event\ClinicCreated;
 use App\Context\Clinic\Domain\Event\ClinicLetterheadUpdated;
 use App\Context\Clinic\Domain\Event\ClinicLocaleChanged;
+use App\Context\Clinic\Domain\Event\ClinicMessagingSettingsChanged;
 use App\Context\Clinic\Domain\Event\ClinicOpeningHoursUpdated;
 use App\Context\Clinic\Domain\Event\ClinicRenamed;
 use App\Context\Clinic\Domain\Event\ClinicSlugChanged;
@@ -23,6 +24,7 @@ use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\ClinicStatus;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
+use App\Context\Clinic\Domain\ValueObject\MessagingSettings;
 use App\Context\Clinic\Domain\ValueObject\OpeningHours;
 use App\Shared\Domain\Aggregate\AggregateRoot;
 use App\Shared\Domain\Localization\Locale;
@@ -49,6 +51,8 @@ final class Clinic extends AggregateRoot
     private ?HexColor $brandColor = null;
     /** The stored file of the logo it prints on its documents. */
     private ?string $logoKey = null;
+    /** The SMS sender and overage cap it chose; null until it chooses (defaults from its name). */
+    private ?MessagingSettings $messagingSettings = null;
     private \DateTimeImmutable $createdAt;
     private \DateTimeImmutable $updatedAt;
 
@@ -119,25 +123,27 @@ final class Clinic extends AggregateRoot
         ?BillingSettings $billingSettings = null,
         ?HexColor $brandColor = null,
         ?string $logoKey = null,
+        ?MessagingSettings $messagingSettings = null,
     ): self {
-        $clinic                   = new self();
-        $clinic->id               = $id;
-        $clinic->name             = $name;
-        $clinic->slug             = $slug;
-        $clinic->timeZone         = $timeZone;
-        $clinic->locale           = $locale;
-        $clinic->countryCode      = $countryCode;
-        $clinic->jurisdictionCode = $jurisdictionCode;
-        $clinic->currencyCode     = $currencyCode;
-        $clinic->status           = $status;
-        $clinic->clinicGroupId    = $clinicGroupId;
-        $clinic->letterhead       = $letterhead ?? Letterhead::empty();
-        $clinic->openingHours     = $openingHours ?? OpeningHours::empty();
-        $clinic->billingSettings  = $billingSettings ?? BillingSettings::empty();
-        $clinic->brandColor       = $brandColor;
-        $clinic->logoKey          = $logoKey;
-        $clinic->createdAt        = $createdAt;
-        $clinic->updatedAt        = $updatedAt;
+        $clinic                    = new self();
+        $clinic->id                = $id;
+        $clinic->name              = $name;
+        $clinic->slug              = $slug;
+        $clinic->timeZone          = $timeZone;
+        $clinic->locale            = $locale;
+        $clinic->countryCode       = $countryCode;
+        $clinic->jurisdictionCode  = $jurisdictionCode;
+        $clinic->currencyCode      = $currencyCode;
+        $clinic->status            = $status;
+        $clinic->clinicGroupId     = $clinicGroupId;
+        $clinic->letterhead        = $letterhead ?? Letterhead::empty();
+        $clinic->openingHours      = $openingHours ?? OpeningHours::empty();
+        $clinic->billingSettings   = $billingSettings ?? BillingSettings::empty();
+        $clinic->brandColor        = $brandColor;
+        $clinic->logoKey           = $logoKey;
+        $clinic->messagingSettings = $messagingSettings;
+        $clinic->createdAt         = $createdAt;
+        $clinic->updatedAt         = $updatedAt;
 
         return $clinic;
     }
@@ -320,6 +326,26 @@ final class Clinic extends AggregateRoot
         $this->recordBrandingChange();
     }
 
+    /**
+     * The SMS sender name and the overage cap, chosen together. Choosing the
+     * very values already chosen changes nothing.
+     */
+    public function changeMessagingSettings(MessagingSettings $settings, \DateTimeImmutable $updatedAt): void
+    {
+        if (null !== $this->messagingSettings && $settings->equals($this->messagingSettings)) {
+            return;
+        }
+
+        $this->messagingSettings = $settings;
+        $this->updatedAt         = $updatedAt;
+
+        $this->recordDomainEvent(new ClinicMessagingSettingsChanged(
+            clinicId: $this->id->toString(),
+            smsSender: $settings->smsSender,
+            overageCapSegments: $settings->overageCapSegments,
+        ));
+    }
+
     public function close(\DateTimeImmutable $updatedAt): void
     {
         if (ClinicStatus::CLOSED === $this->status) {
@@ -407,6 +433,18 @@ final class Clinic extends AggregateRoot
     public function logoKey(): ?string
     {
         return $this->logoKey;
+    }
+
+    /** The settings in force: the chosen ones, else the defaults derived from the name. */
+    public function messagingSettings(): MessagingSettings
+    {
+        return $this->messagingSettings ?? MessagingSettings::defaultFor($this->name);
+    }
+
+    /** The settings the clinic chose, null while it has chosen none. */
+    public function chosenMessagingSettings(): ?MessagingSettings
+    {
+        return $this->messagingSettings;
     }
 
     public function createdAt(): \DateTimeImmutable

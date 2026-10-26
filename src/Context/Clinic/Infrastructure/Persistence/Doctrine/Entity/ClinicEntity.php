@@ -64,6 +64,10 @@ class ClinicEntity
     #[ORM\Column(name: 'billing_settings', type: 'json', options: ['default' => '{}'])]
     private array $billingSettings = [];
 
+    /** @var array<string, mixed> */
+    #[ORM\Column(name: 'messaging_settings', type: 'json', options: ['default' => '{}'])]
+    private array $messagingSettings = [];
+
     #[ORM\Column(name: 'brand_color', type: 'string', length: 7, nullable: true)]
     private ?string $brandColor = null;
 
@@ -227,6 +231,18 @@ class ClinicEntity
     public function setLetterhead(LetterheadEmbeddable $letterhead): void
     {
         $this->letterhead = $letterhead;
+    }
+
+    /** @return array<string, mixed> */
+    public function getMessagingSettings(): array
+    {
+        return $this->messagingSettings;
+    }
+
+    /** @param array<string, mixed> $messagingSettings */
+    public function setMessagingSettings(array $messagingSettings): void
+    {
+        $this->messagingSettings = $messagingSettings;
     }
 
     public function getBrandColor(): ?string

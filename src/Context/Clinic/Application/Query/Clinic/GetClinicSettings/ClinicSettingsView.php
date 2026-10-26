@@ -32,6 +32,10 @@ final readonly class ClinicSettingsView
         public ?string $brandColor = null,
         /** The stored file of the logo, null when there is none. */
         public ?string $logoKey = null,
+        /** The name the clinic's SMS come from (chosen, or derived from its name). */
+        public string $smsSender = '',
+        /** Segments accepted beyond the monthly SMS quota. */
+        public int $overageCapSegments = 0,
     ) {
     }
 
