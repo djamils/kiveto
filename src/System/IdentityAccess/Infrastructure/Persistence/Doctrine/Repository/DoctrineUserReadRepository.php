@@ -8,8 +8,10 @@ use App\System\IdentityAccess\Application\Port\UserReadRepositoryInterface;
 use App\System\IdentityAccess\Application\Query\ListUsers\UserCollection;
 use App\System\IdentityAccess\Application\Query\ListUsers\UserListItem;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\UserEntity;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class DoctrineUserReadRepository implements UserReadRepositoryInterface
 {
@@ -90,5 +92,27 @@ final readonly class DoctrineUserReadRepository implements UserReadRepositoryInt
             users: $users,
             total: \count($users),
         );
+    }
+
+    public function statuses(array $userIds): array
+    {
+        if ([] === $userIds) {
+            return [];
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT BIN_TO_UUID(id) AS id, status FROM ' . $this->tableName . ' WHERE id IN (:ids)',
+            ['ids' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), $userIds)],
+            ['ids' => ArrayParameterType::BINARY],
+        );
+
+        $statuses = [];
+
+        foreach ($rows as $row) {
+            \assert(\is_string($row['id']) && \is_string($row['status']));
+            $statuses[$row['id']] = $row['status'];
+        }
+
+        return $statuses;
     }
 }

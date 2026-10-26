@@ -316,4 +316,29 @@ final class DoctrineUserReadRepositoryTest extends KernelTestCase
         self::assertContains('PORTAL', $types);
         self::assertContains('BACKOFFICE', $types);
     }
+
+    public function testStatusesAnswersTheKnownUsersOnly(): void
+    {
+        $active   = ClinicUserFactory::new()->active()->create();
+        $disabled = ClinicUserFactory::new()->disabled()->create();
+        $pending  = ClinicUserFactory::createOne(['status' => UserStatus::PENDING]);
+
+        $statuses = $this->repository->statuses([
+            $active->getId()->toRfc4122(),
+            $disabled->getId()->toRfc4122(),
+            $pending->getId()->toRfc4122(),
+            '01912345-6789-7abc-8def-0000000000ff',
+        ]);
+
+        $expected = [
+            $active->getId()->toRfc4122()   => 'ACTIVE',
+            $disabled->getId()->toRfc4122() => 'DISABLED',
+            $pending->getId()->toRfc4122()  => 'PENDING',
+        ];
+        ksort($expected);
+        ksort($statuses);
+
+        self::assertSame($expected, $statuses);
+        self::assertSame([], $this->repository->statuses([]));
+    }
 }
