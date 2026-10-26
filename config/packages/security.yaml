@@ -19,6 +19,12 @@ security:
             id: App\System\IdentityAccess\Infrastructure\Security\Symfony\ContextUserProvider.backoffice
 
     firewalls:
+        # Brevo delivery webhooks (any host): no session, no user; the request
+        # parsers authenticate Brevo (IP ranges + shared secret).
+        webhook:
+            pattern: ^/webhook/
+            security: false
+
         dev:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/

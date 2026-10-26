@@ -1,0 +1,15 @@
+{
+    "id": 1471511,
+    "to": "33612345678",
+    "sms_count": 1,
+    "credits_used": 1.0,
+    "messageId": 1511882900176220,
+    "remaining_credit": 8742.5,
+    "date": "2026-10-26 10:42:07",
+    "type": "sms",
+    "tag": "appointment:a-1:reminder",
+    "msg_status": "hard_bounce",
+    "ts_event": 1793007745,
+    "status": "KO",
+    "description": "Unknown or inactive number"
+}

@@ -1,0 +1,17 @@
+{
+    "event": "error",
+    "email": "sophie.dubois@example.fr",
+    "id": 1004521,
+    "date": "2026-10-26 10:42:07",
+    "ts": 1793007727,
+    "message-id": "<202610260942.81234567890@smtp-relay.mailin.fr>",
+    "subject": "Votre rendez-vous est confirmé",
+    "tag": "[\"appointment:a-1:confirmation:1\"]",
+    "sending_ip": "185.41.28.109",
+    "tags": [
+        "appointment:a-1:confirmation:1"
+    ],
+    "ts_event": 1793007727,
+    "ts_epoch": 1793007727223,
+    "reason": "Sending error"
+}
