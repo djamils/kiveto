@@ -292,6 +292,16 @@ services:
 
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\StaffProfileMapper: ~
 
+    # Veterinarian daily counts (SMS quota, D6) and what Clinic pushes to Notification
+    App\Context\Clinic\Application\Port\UserAccountStatusInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\QueryBusUserAccountStatus
+
+    App\Context\Clinic\Application\Port\VeterinarianDailyCountStoreInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalVeterinarianDailyCountStore
+
+    App\Context\Clinic\Application\Port\MessagingProfileSyncInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\Notification\NotificationMessagingProfileSync
+
     # ============================================================================
     # BOUNDED CONTEXT: ACCESS CONTROL (RBAC)
     # ============================================================================
