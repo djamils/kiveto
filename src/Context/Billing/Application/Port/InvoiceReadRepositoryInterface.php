@@ -59,4 +59,15 @@ interface InvoiceReadRepositoryInterface
      * through it.
      */
     public function forAdmission(ClinicId $clinicId, AdmissionId $admissionId): ?AdmissionInvoiceRow;
+
+    /**
+     * The clinic's issued and partly paid invoices (credit notes never are),
+     * oldest first, with what is left to pay — all of them, or only those of
+     * these ids.
+     *
+     * @param list<InvoiceId>|null $only
+     *
+     * @return list<OutstandingInvoiceRow>
+     */
+    public function outstandingInvoices(ClinicId $clinicId, ?array $only = null): array;
 }

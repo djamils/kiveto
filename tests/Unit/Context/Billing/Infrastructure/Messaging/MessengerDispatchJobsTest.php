@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Context\Billing\Infrastructure\Messaging;
 
 use App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail;
+use App\Context\Billing\Application\Command\SendUnpaidReminder\SendUnpaidReminder;
 use App\Context\Billing\Infrastructure\Messaging\MessengerDispatchJobs;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
@@ -12,7 +13,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class MessengerDispatchJobsTest extends TestCase
 {
-    public function testTheSendIsQueuedOnTheRawCommandBus(): void
+    public function testTheJobsAreQueuedOnTheRawCommandBus(): void
     {
         $bus = new class implements MessageBusInterface {
             /** @var list<Envelope> */
@@ -24,10 +25,14 @@ final class MessengerDispatchJobsTest extends TestCase
             }
         };
 
-        new MessengerDispatchJobs($bus)->sendInvoiceEmail('d-1');
+        $jobs = new MessengerDispatchJobs($bus);
+        $jobs->sendInvoiceEmail('d-1');
+        $jobs->sendUnpaidReminder('d-2');
 
-        $message = $bus->sent[0]->getMessage();
-        self::assertInstanceOf(SendInvoiceEmail::class, $message);
-        self::assertSame('d-1', $message->dispatchId);
+        [$send, $reminder] = $bus->sent;
+        self::assertInstanceOf(SendInvoiceEmail::class, $send->getMessage());
+        self::assertSame('d-1', $send->getMessage()->dispatchId);
+        self::assertInstanceOf(SendUnpaidReminder::class, $reminder->getMessage());
+        self::assertSame('d-2', $reminder->getMessage()->dispatchId);
     }
 }

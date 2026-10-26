@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Billing\Pipeline;
 
+use App\Context\Billing\Application\Command\RemindUnpaidInvoices\RemindUnpaidInvoices;
 use App\Context\Billing\Application\Command\SendInvoiceToClient\InvoiceDispatchOutcome;
 use App\Context\Billing\Application\Command\SendInvoiceToClient\SendInvoiceToClient;
 use App\Context\Billing\Application\Port\InvoicePdfRendererInterface;
+use App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface;
+use App\Context\Billing\Application\Query\PrepareUnpaidReminder\PrepareUnpaidReminder;
+use App\Context\Billing\Application\Query\PrepareUnpaidReminder\UnpaidReminderPreview;
 use App\Context\Billing\Domain\Dispatch\InvoiceDispatch;
 use App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface;
 use App\Context\Billing\Domain\Invoice;
@@ -30,6 +34,7 @@ use App\Context\Client\Domain\ValueObject\ClinicId as ClientClinicId;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Storage\FileStorageInterface;
 use App\Shared\Domain\ValueObject\CurrencyCode;
 use App\Shared\Domain\ValueObject\EmailAddress;
@@ -110,6 +115,45 @@ final class InvoiceDispatchPipelineTest extends KernelTestCase
         self::assertSame('%PDF-' . self::INVOICE, $files->read($attachment->storageKey));
     }
 
+    public function testTheUnpaidInvoiceIsRemindedWithTheSamePdfOnceADay(): void
+    {
+        $this->commandBus()->dispatch(new SendInvoiceToClient(self::CLINIC, [self::INVOICE], null));
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $preview = $this->queryBus()->ask(new PrepareUnpaidReminder(self::CLINIC));
+        \assert($preview instanceof UnpaidReminderPreview);
+        self::assertSame([[self::INVOICE], 1, 0, 0], [$preview->invoiceIds, $preview->clientCount, $preview->smsCount, $preview->smsSegments]);
+
+        $outcome = $this->commandBus()->dispatch(new RemindUnpaidInvoices(self::CLINIC, null, null));
+        \assert($outcome instanceof InvoiceDispatchOutcome);
+        self::assertSame([self::INVOICE], $outcome->queued);
+        MessengerDrain::drain(self::getContainer(), ['async']);
+
+        $reminder = $this->dispatches()[1];
+        $message  = $this->message('invoice:' . self::INVOICE . ':reminder:' . $reminder->id()->toString() . ':email');
+        self::assertSame('Rappel : facture FAC-2026-000814 en attente de règlement', $message->content()?->subject);
+        self::assertSame('billing/sent/invoice/' . self::INVOICE . '.pdf', $message->attachments()[0]->storageKey);
+        self::assertSame([self::INVOICE], $this->renderer->rendered, 'AC 25b: the PDF stored at the first send is attached again.');
+
+        $again = $this->queryBus()->ask(new PrepareUnpaidReminder(self::CLINIC, [self::INVOICE]));
+        \assert($again instanceof UnpaidReminderPreview);
+        self::assertSame([[], 1], [$again->invoiceIds, $again->skippedCount]);
+    }
+
+    public function testTheOutstandingInvoicesAreReadWithWhatIsLeftToPay(): void
+    {
+        $invoices = self::getContainer()->get(InvoiceReadRepositoryInterface::class);
+        \assert($invoices instanceof InvoiceReadRepositoryInterface);
+        $clinic = ClinicId::fromString(self::CLINIC);
+
+        $rows = $invoices->outstandingInvoices($clinic);
+        self::assertCount(1, $rows);
+        self::assertSame([self::INVOICE, 'FAC-2026-000814', self::CLIENT, 8870, '2026-10-16 08:30'], [$rows[0]->id, $rows[0]->number, $rows[0]->payerClientId, $rows[0]->balanceDueMinorUnits, $rows[0]->issuedAt->format('Y-m-d H:i')]);
+        self::assertCount(1, $invoices->outstandingInvoices($clinic, [InvoiceId::fromString(self::INVOICE)]));
+        self::assertSame([], $invoices->outstandingInvoices($clinic, [InvoiceId::fromString(self::CLIENT)]));
+        self::assertSame([], $invoices->outstandingInvoices($clinic, []));
+    }
+
     /**
      * @return list<InvoiceDispatch>
      */
@@ -161,6 +205,14 @@ final class InvoiceDispatchPipelineTest extends KernelTestCase
         $invoices = self::getContainer()->get(InvoiceRepositoryInterface::class);
         \assert($invoices instanceof InvoiceRepositoryInterface);
         $invoices->save($invoice);
+    }
+
+    private function queryBus(): QueryBusInterface
+    {
+        $bus = self::getContainer()->get(QueryBusInterface::class);
+        \assert($bus instanceof QueryBusInterface);
+
+        return $bus;
     }
 
     private function commandBus(): CommandBusInterface

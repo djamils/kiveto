@@ -12,4 +12,7 @@ interface DispatchJobsInterface
 {
     /** SendInvoiceEmail, run by a worker. */
     public function sendInvoiceEmail(string $dispatchId): void;
+
+    /** SendUnpaidReminder, run by a worker. */
+    public function sendUnpaidReminder(string $dispatchId): void;
 }

@@ -97,7 +97,7 @@ final class InvoiceMessages
             clientId: $contact->clientId,
             invoiceId: $invoice->id,
             idempotencyKey: self::reminderKey($dispatch, $invoice, 'sms'),
-            parameters: self::reminderSmsParameters($invoice),
+            parameters: self::reminderSmsParameters(self::number($invoice), self::issuedAt($invoice), $invoice->balanceDueMinorUnits),
             fallbackAddress: $fallback ? $contact->email : null,
             fallbackParameters: $fallback ? self::reminderEmailParameters($invoice, $contact, $visit) : null,
         );
@@ -109,12 +109,12 @@ final class InvoiceMessages
      *
      * @return array<string, string>
      */
-    public static function reminderSmsParameters(InvoiceDetails $invoice): array
+    public static function reminderSmsParameters(string $number, \DateTimeImmutable $issuedAt, int $balanceDueMinorUnits): array
     {
         return [
-            'invoiceNumber' => self::number($invoice),
-            'shortDate'     => InvoiceLabels::shortDate(self::issuedAt($invoice)),
-            'balanceDue'    => InvoiceLabels::euros(max(0, $invoice->balanceDueMinorUnits)),
+            'invoiceNumber' => $number,
+            'shortDate'     => InvoiceLabels::shortDate($issuedAt),
+            'balanceDue'    => InvoiceLabels::euros(max(0, $balanceDueMinorUnits)),
         ];
     }
 

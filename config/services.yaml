@@ -752,6 +752,9 @@ services:
     App\Context\Billing\Application\Port\DispatchJobsInterface:
         class: App\Context\Billing\Infrastructure\Messaging\MessengerDispatchJobs
 
+    App\Context\Billing\Application\Port\SmsSegmentEstimatorInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\QueryBusSmsSegmentEstimator
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================
