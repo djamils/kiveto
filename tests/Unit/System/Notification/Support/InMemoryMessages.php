@@ -53,6 +53,13 @@ final class InMemoryMessages implements OutboundMessageRepositoryInterface
         ));
     }
 
+    public function findContentToPurge(\DateTimeImmutable $before, int $limit): array
+    {
+        $due = array_filter($this->messages, static fn (OutboundMessage $m): bool => null === $m->contentPurgedAt() && ($m->sentAt() ?? $m->createdAt()) < $before);
+
+        return \array_slice(array_values(array_map(static fn (OutboundMessage $m): OutboundMessageId => $m->id(), $due)), 0, $limit);
+    }
+
     /**
      * @return list<OutboundMessage>
      */

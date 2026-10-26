@@ -93,6 +93,17 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
         return $this->sum('status = :status', $clinicId, ['status' => DeliveryStatus::QUEUED->value]);
     }
 
+    public function findContentToPurge(\DateTimeImmutable $before, int $limit): array
+    {
+        $ids = $this->em->getConnection()->fetchFirstColumn(
+            'SELECT id FROM notification__outbound_messages WHERE content_purged_at IS NULL AND COALESCE(sent_at, created_at) < :before'
+            . ' ORDER BY COALESCE(sent_at, created_at), id LIMIT ' . max(1, $limit),
+            ['before' => OutboundMessageMapper::utc($before)->format('Y-m-d H:i:s')],
+        );
+
+        return array_map(static fn (mixed $id): OutboundMessageId => OutboundMessageId::fromString(Uuid::fromBinary(\is_string($id) ? $id : '')->toRfc4122()), $ids);
+    }
+
     /**
      * @param array<string, string> $criteria
      */

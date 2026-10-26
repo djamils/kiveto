@@ -86,6 +86,15 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
+## Retention (schedule `notification`, DB-locked, Europe/Paris)
+
+| When | Command | What |
+|---|---|---|
+| 03:41 daily | `PurgeInAppNotifications` | Bell entries older than 30 days are deleted. |
+| 03:47 daily | `PurgeMessageContents` | Messages handed over (or, never handed over, created) more than 24 months ago lose bodies and recipient; `NOTIFICATION`-owned files are deleted, `REQUESTER` files never touched; metadata stays. |
+| every 61 s | `RematchDeliveryEvents` | Kept webhook events whose provider id is now recorded are applied (race with `RecordDispatchOutcome`). 61 s, not 60: the worker's time limit is a multiple of 60. |
+| 03:53 daily | `PurgeUnmatchedDeliveryEvents` | Events kept more than 24 h are matched one last time, then dropped and logged (`external_api`). |
+
 ## Events
 
 - `OutboundMessageStatusChangedIntegrationEvent` — every status a message takes.

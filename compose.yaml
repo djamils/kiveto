@@ -114,7 +114,7 @@ services:
         GID: ${HOST_GID:-1000}
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     profiles: ["workers"]
-    command: php -d memory_limit=512M bin/console messenger:consume scheduler_default scheduler_client scheduler_electronic_invoicing scheduler_billing --time-limit=3540 -vv
+    command: php -d memory_limit=512M bin/console messenger:consume scheduler_default scheduler_client scheduler_electronic_invoicing scheduler_billing scheduler_notification --time-limit=3540 -vv
     restart: unless-stopped
     volumes:
       - ./:/var/www/html:cached

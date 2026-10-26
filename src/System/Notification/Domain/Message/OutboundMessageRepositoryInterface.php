@@ -27,4 +27,12 @@ interface OutboundMessageRepositoryInterface
 
     /** Segments of the clinic's SMS still waiting to be handed to the provider. */
     public function sumQueuedSegments(string $clinicId): int;
+
+    /**
+     * Messages whose content is not purged yet and that were handed over —
+     * or, never handed over, created — before $before; oldest first.
+     *
+     * @return list<OutboundMessageId>
+     */
+    public function findContentToPurge(\DateTimeImmutable $before, int $limit): array;
 }
