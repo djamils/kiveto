@@ -363,7 +363,7 @@ function onDpClick(e) {
 // ═════════ Nouveau client ═════════
 
 function ouvrirNvCli(depuis) {
-  NC = { fisc: fiscVide(IND), civ: '', nom: '', pre: '', mob: '', fixe: '', mail: '', rue: '', cpl: '', cp: '', ville: '', ban: false, rap: '', rapTouche: false, news: false, autre: false, dbl: null, homo: null, communes: undefined, adrS: [], envoi: false, anis: [depuis || aniVide()] };
+  NC = { fisc: fiscVide(IND), civ: '', nom: '', pre: '', mob: '', fixe: '', mail: '', rue: '', cpl: '', cp: '', ville: '', ban: false, rap: '', rapTouche: false, rsms: false, rsmsTouche: false, news: false, autre: false, dbl: null, homo: null, communes: undefined, adrS: [], envoi: false, anis: [depuis || aniVide()] };
   rendreNcCli();
   rendreNcAnis();
   majNc();
@@ -385,9 +385,10 @@ function rendreNcCli() {
     <div class="nw-row"><div class="nw-f"><input class="nw-in" id="ncMail" type="email" placeholder="E-mail" maxlength="80" value="${esc(c.mail)}" aria-label="E-mail"><small id="ncMailH"></small></div></div>
     <div class="nw-h">Adresse <span class="opt">· facultative</span></div>
     <div id="ncAdr"></div>
-    <div class="nw-h">Rappels de vaccins et de rendez-vous</div>
+    <div class="nw-h">Canal préféré · rappels de vaccins</div>
     <div class="nw-row"><div class="nw-seg" id="ncRap"><button type="button" data-v="sms">SMS</button><button type="button" data-v="mail">E-mail</button><button type="button" data-v="aucun">Aucun</button></div></div>
-    <button type="button" class="nw-chk${c.news ? ' on' : ''}" id="ncNews">Accepte les actualités de la clinique</button>`;
+    <div class="nw-row"><button type="button" class="nw-chk${c.rsms ? ' on' : ''}" id="ncRsms" role="checkbox" aria-checked="${c.rsms}" data-tip="Un SMS avant chaque rendez-vous, actif par défaut avec un mobile">Rappels SMS de rendez-vous</button>
+    <button type="button" class="nw-chk${c.news ? ' on' : ''}" id="ncNews">Accepte les actualités de la clinique</button></div>`;
   monterFisc($('ncFisc'), c.fisc, () => { $('ncContactH').hidden = c.fisc.fisc === IND; majNc(); }, {
     sirenUrl: CFG.urls.siren,
     registryUrl: CFG.urls.registry,
@@ -448,6 +449,15 @@ function majRap() {
     b.disabled = !dispo[b.dataset.v];
     b.style.opacity = dispo[b.dataset.v] ? '' : '.4';
   });
+  // SMS appointment reminders are on by default (D9) as soon as a mobile is entered.
+  const rsms = $('ncRsms');
+  if (rsms) {
+    if (!c.rsmsTouche) c.rsms = dispo.sms;
+    if (!dispo.sms) c.rsms = false;
+    rsms.disabled = !dispo.sms;
+    rsms.classList.toggle('on', c.rsms);
+    rsms.setAttribute('aria-checked', String(c.rsms));
+  }
   // The news go by SMS or e-mail: without either there is nothing to agree to.
   const news = $('ncNews');
   if (news) {
@@ -616,6 +626,7 @@ function bindClient(signal) {
     if (cv) { c.civ = cv.dataset.v; document.querySelectorAll('#ncCiv button').forEach((x) => x.classList.toggle('on', x === cv)); majNc(); return; }
     const rp = e.target.closest('#ncRap button');
     if (rp && !rp.disabled) { c.rap = rp.dataset.v; c.rapTouche = true; majRap(); return; }
+    if (e.target.closest('#ncRsms') && !$('ncRsms').disabled) { c.rsms = !c.rsms; c.rsmsTouche = true; majRap(); return; }
     if (e.target.closest('#ncNews') && !$('ncNews').disabled) { c.news = !c.news; $('ncNews').classList.toggle('on', c.news); return; }
     if (e.target.closest('[data-autre]')) { c.autre = true; majNc(); }
   }, { signal });
@@ -638,7 +649,7 @@ function bindClient(signal) {
     envoyer(CFG.urls.client, {
       ...fiscPayload(c.fisc),
       civ: c.civ, nom: c.nom, pre: c.pre, mob: c.mob, fixe: c.fixe, mail: c.mail,
-      rue: c.rue, cpl: c.cpl, cp: c.cp, ville: c.ville, rap: c.rap, news: c.news, autre: c.autre,
+      rue: c.rue, cpl: c.cpl, cp: c.cp, ville: c.ville, rap: c.rap, rsms: c.rsms, news: c.news, autre: c.autre,
       anis: c.anis.filter((a) => !aniVierge(a)).map(aniPayload),
     });
   }, { signal });

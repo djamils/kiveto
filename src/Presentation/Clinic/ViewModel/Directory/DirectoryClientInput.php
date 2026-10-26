@@ -13,8 +13,9 @@ use App\Presentation\Clinic\ViewModel\Flux\DeskRegistration;
  * The client of the directory's « Nouveau client » window, as its page
  * module normalised it: civility, NOM typed in capitals, Prénom, a mobile
  * and/or a landline (one valid phone at least), an e-mail, an optional
- * postal address, the channel of the vaccine and appointment reminders, the
- * clinic's news, and the tax profile of a structure (shared block, see
+ * postal address, the preferred channel (also the channel of the vaccine
+ * reminders), the SMS appointment reminders (ticked by default with a
+ * mobile, D9), the clinic's news, and the tax profile of a structure (shared block, see
  * TaxProfileInput). The checks the window runs are run again here, in its
  * words.
  */
@@ -36,6 +37,7 @@ final readonly class DirectoryClientInput
         public string $postalCode,
         public string $city,
         public string $reminders,
+        public bool $smsReminders,
         public bool $news,
         public bool $household,
         public ?TaxProfileInput $taxProfile = null,
@@ -106,6 +108,8 @@ final readonly class DirectoryClientInput
             city: $city,
             // A channel the client cannot be reached on is no reminder at all.
             reminders: true === ($available[$reminders] ?? false) ? $reminders : self::REMINDERS_NONE,
+            // Without a mobile there is no SMS to send.
+            smsReminders: $mobileOk && true === ($raw['rsms'] ?? false),
             news: true === ($raw['news'] ?? false),
             household: true === ($raw['autre'] ?? false),
             taxProfile: $tax,
@@ -195,18 +199,24 @@ final readonly class DirectoryClientInput
     }
 
     /**
-     * Reminders of vaccines and appointments on the chosen channel; the
-     * clinic's news on every channel the client can receive them on.
+     * Appointment reminders by SMS when ticked, and by e-mail when it is the
+     * chosen channel (the e-mail stands in when the SMS cap is reached);
+     * vaccine reminders on the chosen channel; the clinic's news on every
+     * channel the client can receive them on.
      *
      * @return array<string, list<string>>
      */
     public function consents(): array
     {
-        $consents = [];
-        $channel  = $this->preferredChannel();
+        $consents    = [];
+        $channel     = $this->preferredChannel();
+        $appointment = array_keys(array_filter(['sms' => $this->smsReminders, 'email' => 'email' === $channel]));
+
+        if ([] !== $appointment) {
+            $consents['appointment_reminders'] = $appointment;
+        }
 
         if (null !== $channel) {
-            $consents['appointment_reminders'] = [$channel];
             $consents['vaccination_reminders'] = [$channel];
         }
 
