@@ -130,12 +130,44 @@ BREVO_WEBHOOK_TOKEN=<secret>
 A developer may put the same values in `.env.local` to test the real Brevo
 account. Mailpit (dev): http://localhost:8025 (`docker compose up -d mailer`).
 
+### Brevo webhooks
+
+`POST /webhook/brevo_mailer` (transactional e-mail events) and
+`POST /webhook/brevo_sms` (SMS events), served by `symfony/webhook` on any host
+(production: `hooks.kiveto.fr`, allowed by `NOTIFICATION_WEBHOOK_HOST` in
+`framework.trusted_hosts`), behind the stateless `webhook` firewall
+(`security: false`). Both parsers are Kiveto's (`Infrastructure/Webhook`):
+`BrevoRequestGuard` accepts a call only from Brevo's ranges
+(`notification.brevo.webhook_ips`, client IP read through
+`SYMFONY_TRUSTED_PROXIES`) carrying `BREVO_WEBHOOK_TOKEN` (`Authorization:
+Bearer` header, else `?token=`; masked in the Nginx and Monolog logs). The
+e-mail payload goes through the bridge's `BrevoPayloadConverter`, the SMS
+payload through `BrevoSmsPayloadConverter`. The parsed event is queued
+(`ConsumeRemoteEventMessage` → `async`) and Brevo gets a 200; the worker's
+`MailerEventConsumer` / `SmsEventConsumer` dispatch `RecordDeliveryEvent`:
+
+| Brevo e-mail event | Kind | Brevo SMS status | Kind |
+|---|---|---|---|
+| `request` | SENT | `sent`, `accepted` | SENT |
+| `delivered` | DELIVERED | `delivered` | DELIVERED |
+| `deferred`, `soft_bounce` | DEFERRED | soft bounce | DEFERRED |
+| `hard_bounce` | BOUNCED | hard bounce | BOUNCED |
+| `invalid_email`, `blocked`, `error` | REJECTED | `rejected`, `blocked`, `skip` | REJECTED |
+| `spam` | COMPLAINT | `error` | FAILED |
+| opens, clicks, unsubscriptions | ignored | replies, (un)subscriptions | ignored |
+
+The SMS field names (`messageId`, `msg_status`, `ts_event` else `date`,
+`description`, `to`) come from Brevo's documentation and are checked against
+a live event at J1; SMS statuses are compared without case or separators
+(`hard_bounce` = `hardBounce`).
+
 ### Brevo webhooks in dev (tunnel)
 
 Brevo must reach the workstation: run `cloudflared tunnel --url http://localhost:80`,
 then configure in Brevo the tunnel URL followed by `/webhook/brevo_mailer`
 (transactional e-mail events) and `/webhook/brevo_sms` (SMS events), with the
-shared secret `BREVO_WEBHOOK_TOKEN`. The tunnel hides Brevo's IP: set
+shared secret `BREVO_WEBHOOK_TOKEN` (the dev `NOTIFICATION_WEBHOOK_HOST` allows
+`*.trycloudflare.com`). The tunnel hides Brevo's IP: set
 `NOTIFICATION_WEBHOOK_SKIP_IP_CHECK=1` in `.env.local` — it disables the IP
 check only (the secret stays mandatory) and is refused when `APP_ENV=prod`.
 
