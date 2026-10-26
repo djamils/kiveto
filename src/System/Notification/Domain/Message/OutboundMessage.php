@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\System\Notification\Domain\Message;
 
 use App\Shared\Domain\Aggregate\AggregateRoot;
+use App\System\Notification\Domain\Delivery\DeliveryEvent;
 use App\System\Notification\Domain\Event\OutboundMessageQueued;
 use App\System\Notification\Domain\Event\OutboundMessageStatusChanged;
 
@@ -214,6 +215,19 @@ final class OutboundMessage extends AggregateRoot
         $this->apply(new StatusChange($status, $occurredAt, $source, $reason));
 
         return true;
+    }
+
+    /**
+     * An event reported by the provider: a complaint sets the flag, a status
+     * goes through the precedence. Returns whether it changed the message.
+     */
+    public function recordProviderEvent(DeliveryEvent $event): bool
+    {
+        if (null === $event->status) {
+            return $this->recordComplaint($event->occurredAt);
+        }
+
+        return $this->recordStatus($event->status, $event->occurredAt, self::SOURCE_PROVIDER, $event->reason);
     }
 
     /** The recipient marked the message as spam: a flag, not a status. */

@@ -12,6 +12,7 @@ use App\System\Notification\Application\Command\UpsertClinicMessagingProfile\Ups
 use App\System\Notification\Domain\Message\DeliveryStatus;
 use App\System\Notification\Domain\Message\OutboundMessageId;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
+use App\Tests\Support\MessengerDrain;
 use App\Tests\Support\RecordingExternalApiCommandBus;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -69,6 +70,24 @@ final class RequestNotificationPipelineTest extends KernelTestCase
         self::assertSame(1, $connection->fetchOne('SELECT COUNT(*) FROM notification__veterinarian_counts WHERE clinic_id = ?', [Uuid::fromString(self::CLINIC)->toBinary()]));
 
         self::assertSame($id, $bus->dispatch(new RequestNotification('APPOINTMENT_REMINDER', 'SMS', '+33612345678', 'Sophie Dubois', self::CLINIC, null, 'appointment', 'a-1', 'appointment:a-1:reminder', [])), 'replayed: same message, parameters not even checked');
+    }
+
+    /**
+     * The external worker hands the queued message to the transport of
+     * MAILER_DSN (null:// here) and records it SENT.
+     */
+    public function testTheExternalWorkerSendsTheQueuedMessage(): void
+    {
+        $id = $this->commandBus()->dispatch(new RequestNotification('TEST', 'EMAIL', 'claire@kiveto.fr', 'Claire', self::CLINIC, null, 'clinic', self::CLINIC, 'test:pipeline:1', ['sentAtLabel' => '26/10/2026 à 10:42']));
+        \assert(\is_string($id));
+
+        MessengerDrain::drain(self::getContainer(), ['async_external_notification']);
+
+        $messages = self::getContainer()->get('test.' . OutboundMessageRepositoryInterface::class);
+        \assert($messages instanceof OutboundMessageRepositoryInterface);
+        $message = $messages->get(OutboundMessageId::fromString($id));
+        self::assertSame(DeliveryStatus::SENT, $message->status());
+        self::assertNotNull($message->externalMessageId());
     }
 
     private function commandBus(): CommandBusInterface

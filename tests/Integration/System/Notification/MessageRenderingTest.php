@@ -158,12 +158,18 @@ final class MessageRenderingTest extends KernelTestCase
         $storage = self::getContainer()->get(FileStorageInterface::class);
         \assert($storage instanceof FileStorageInterface);
         $storage->storeAt(self::LOGO_KEY, 'PNG');
+        $storage->storeAt('notification-test/clinic-logo.svg', '<svg/>');
 
         try {
             $content = self::renderStatic(MessagePurpose::INVOICE_SENT, Channel::EMAIL, self::reference()['INVOICE_SENT']['EMAIL'], InMemoryProfiles::montmartre(logo: self::LOGO_KEY));
+            $svg     = self::renderStatic(MessagePurpose::INVOICE_SENT, Channel::EMAIL, self::reference()['INVOICE_SENT']['EMAIL'], InMemoryProfiles::montmartre(logo: 'notification-test/clinic-logo.svg'));
         } finally {
             $storage->delete(self::LOGO_KEY);
+            $storage->delete('notification-test/clinic-logo.svg');
         }
+
+        self::assertNull($svg->inlineLogoKey, 'mail clients do not show an SVG inline: the initial is used');
+        self::assertStringNotContainsString('cid:', (string) $svg->html);
 
         self::assertSame(self::LOGO_KEY, $content->inlineLogoKey);
         self::assertStringContainsString('src="cid:' . RenderedContent::INLINE_LOGO_CID . '"', (string) $content->html);

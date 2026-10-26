@@ -18,7 +18,7 @@ use Twig\Environment;
  * E-mails: the subject is the `subject` block of the HTML template, the HTML
  * has its CSS inlined by the layout (`inline_css`), the text part is the
  * `.txt.twig` sibling. The clinic logo is referenced as `cid:logo` when its
- * stored file can be read — the dispatch embeds it from the content's
+ * stored file is a PNG, JPEG or GIF and can be read — the dispatch embeds it from the content's
  * `inlineLogoKey` — else the clinic initial is shown.
  *
  * SMS: string parameters and the clinic name / phone are transliterated to
@@ -28,6 +28,8 @@ use Twig\Environment;
 final readonly class TwigMessageRenderer implements MessageRendererInterface
 {
     private const string DEFAULT_ACCENT = '#1e1b4b';
+
+    private const array INLINE_LOGO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif'];
 
     public function __construct(
         private Environment $twig,
@@ -56,7 +58,7 @@ final readonly class TwigMessageRenderer implements MessageRendererInterface
      */
     private function email(string $name, array $parameters, ?ClinicMessagingProfile $profile): RenderedContent
     {
-        $logoKey = null !== $profile && null !== $profile->logoStorageKey && $this->readable($profile->logoStorageKey) ? $profile->logoStorageKey : null;
+        $logoKey = null !== $profile && null !== $profile->logoStorageKey && self::inlineable($profile->logoStorageKey) && $this->readable($profile->logoStorageKey) ? $profile->logoStorageKey : null;
         $context = [...$parameters, 'clinic' => null !== $profile ? self::clinic($profile, $logoKey) : null];
 
         $template = $this->twig->load('notification/email/' . $name . '.html.twig');
@@ -102,6 +104,15 @@ final readonly class TwigMessageRenderer implements MessageRendererInterface
             'logoCid'     => null !== $logoKey ? RenderedContent::INLINE_LOGO_CID : null,
             'footerLine'  => implode(' · ', array_filter([$profile->name, $profile->addressLine, $profile->phoneDisplay], static fn (string $part): bool => '' !== $part)),
         ];
+    }
+
+    /**
+     * Only the formats every mail client shows inline (and Brevo accepts as
+     * attachment); an SVG or WebP logo is replaced by the initial.
+     */
+    private static function inlineable(string $key): bool
+    {
+        return \in_array(mb_strtolower(pathinfo($key, \PATHINFO_EXTENSION)), self::INLINE_LOGO_EXTENSIONS, true);
     }
 
     private function readable(string $key): bool

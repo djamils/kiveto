@@ -43,17 +43,15 @@ framework:
             # Outbound notifications handed to Brevo (e-mail, SMS), consumed by the
             # external worker after `async_external`. Own queue and retry policy so
             # that ElectronicInvoicing's `async_external` strategy stays unchanged.
-            # A provider's Retry-After is honoured by the handler throwing a
-            # RecoverableMessageHandlingException with a retry delay.
+            # DispatchRetryStrategy: 5 retries, 30 s × 3, never shorter than the
+            # provider's Retry-After (429); exhausted → DispatchFailureListener.
             async_external_notification:
                 dsn: 'doctrine://default?queue_name=external_notification'
                 options:
                     table_name: 'shared__messenger_messages'
                     auto_setup: false
                 retry_strategy:
-                    max_retries: 5
-                    delay: 30000
-                    multiplier: 3
+                    service: App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy
             sync: 'sync://'
 
         # Separate bus definitions for CQRS

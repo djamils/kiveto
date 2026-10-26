@@ -1012,6 +1012,22 @@ services:
             $segmentsPerVeterinarian: '%notification.sms.segments_per_veterinarian%'
             $overageUnitPrice: '%notification.sms.overage_unit_price%'
 
+    App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalUnmatchedDeliveryEventRepository
+
+    App\System\Notification\Application\Port\EmailSenderInterface:
+        class: App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender
+
+    App\System\Notification\Application\Port\SmsSenderInterface:
+        class: App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender
+
+    # Retry policy of async_external_notification (Retry-After honoured, bounded).
+    App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy:
+        arguments:
+            $maxRetries: 5
+            $delayMilliseconds: 30000
+            $multiplier: 3
+
 when@dev: &services_dev
     services:
         App\Fixtures\:

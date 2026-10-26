@@ -92,6 +92,10 @@ services:
         alias: App\System\Notification\Application\Port\MessageRendererInterface
         public: true
 
+    test.App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface:
+        alias: App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface
+        public: true
+
     # ElectronicInvoicing services read by the integration tests.
     test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
         alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface

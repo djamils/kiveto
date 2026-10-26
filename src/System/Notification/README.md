@@ -73,7 +73,8 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | Command / Query | Bus | What it does |
 |---|---|---|
 | `RequestNotification` | command | Resolves the sender, renders and freezes the content, applies the SMS cap (non-critical SMS, under the profile lock) with the optional e-mail fallback, saves the message and queues `DispatchOutboundMessage`. Returns the message id. |
-| `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Hands the message to the e-mail or SMS transport and records the outcome. |
+| `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Hands a QUEUED message to the e-mail or SMS transport (attachments and inline logo read from the file storage, idempotency key sent as Brevo tag) and records the outcome. A 4xx other than 408 / 429 is FAILED at once; 408, 429, 5xx and network errors are retried (`DispatchRetryStrategy`: 5 retries, 30 s × 3, never shorter than Retry-After); retries exhausted → `DispatchFailureListener` records FAILED « Échec après plusieurs tentatives ». Delivery is at-least-once. |
+| `RecordDispatchOutcome` | command | Marks the message SENT with the provider id (or FAILED with the reason), then replays the provider events that arrived before that id (`notification__unmatched_delivery_events`). |
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
