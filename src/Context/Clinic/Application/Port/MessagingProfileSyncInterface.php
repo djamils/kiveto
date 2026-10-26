@@ -10,6 +10,8 @@ namespace App\Context\Clinic\Application\Port;
  */
 interface MessagingProfileSyncInterface
 {
+    public function pushProfile(ClinicMessagingProfileData $profile): void;
+
     /**
      * @param string $day Y-m-d (Europe/Paris)
      */
