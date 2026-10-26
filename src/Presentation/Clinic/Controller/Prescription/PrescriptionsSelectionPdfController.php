@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Prescription;
 
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
+use App\Context\Prescription\Application\Port\PrescriptionPdfRendererInterface;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetails;
 use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,6 +30,7 @@ final class PrescriptionsSelectionPdfController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
+        private readonly PrescriptionPdfRendererInterface $prescriptions,
         private readonly DocumentPdfFactory $documents,
     ) {
     }
@@ -40,28 +41,16 @@ final class PrescriptionsSelectionPdfController extends AbstractController
         \assert(null !== $currentClinicId);
 
         $clinicId = $currentClinicId->toString();
-        $clinic   = $this->queryBus->ask(new GetClinic($clinicId));
-        $clinic   = $clinic instanceof ClinicDto ? $clinic : null;
         $parts    = [];
 
-        foreach (\array_slice($this->ids($request), 0, self::MAX_DOCUMENTS) as $id) {
-            try {
-                $prescription = $this->queryBus->ask(new GetPrescriptionDetails($clinicId, $id));
-            } catch (\DomainException) {
-                continue;
+        try {
+            foreach (\array_slice($this->ids($request), 0, self::MAX_DOCUMENTS) as $id) {
+                if ($this->isIssued($clinicId, $id)) {
+                    $parts[] = $this->prescriptions->prescription($clinicId, $id)->content;
+                }
             }
-
-            if (!$prescription instanceof PrescriptionDetails || 'ISSUED' !== $prescription->status) {
-                continue;
-            }
-
-            $parts[] = $this->documents->render(
-                'clinic/document/prescription.html.twig',
-                ['prescription' => $prescription],
-                $clinic,
-                \sprintf('Ordonnance · %s', $prescription->number ?? 'brouillon'),
-                \sprintf('%s / %s', $prescription->patientName, $prescription->ownerName),
-            );
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
         if ([] === $parts) {
@@ -72,6 +61,17 @@ final class PrescriptionsSelectionPdfController extends AbstractController
             1 === \count($parts) ? $parts[0] : $this->documents->merge($parts),
             \sprintf('ordonnances-%d', \count($parts)),
         );
+    }
+
+    private function isIssued(string $clinicId, string $prescriptionId): bool
+    {
+        try {
+            $prescription = $this->queryBus->ask(new GetPrescriptionDetails($clinicId, $prescriptionId));
+        } catch (\DomainException) {
+            return false;
+        }
+
+        return $prescription instanceof PrescriptionDetails && 'ISSUED' === $prescription->status;
     }
 
     /**

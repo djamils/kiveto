@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Document;
 
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
-use App\Presentation\Clinic\ViewModel\Document\ConsultationReportContext;
+use App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
-use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -22,9 +20,8 @@ use Symfony\Component\Routing\Attribute\Route;
 final class ConsultationReportPdfController extends AbstractController
 {
     public function __construct(
-        private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ConsultationReportContext $reportContext,
+        private readonly ConsultationReportPdfRendererInterface $reports,
         private readonly DocumentPdfFactory $documents,
     ) {
     }
@@ -35,22 +32,13 @@ final class ConsultationReportPdfController extends AbstractController
         \assert(null !== $currentClinicId);
 
         try {
-            $report = $this->reportContext->build($consultationId, $currentClinicId->toString());
+            $document = $this->reports->report($currentClinicId->toString(), $consultationId);
         } catch (\DomainException $exception) {
             throw $this->createNotFoundException('Consultation introuvable.', $exception);
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
-        $clinic = $this->queryBus->ask(new GetClinic($currentClinicId->toString()));
-        $clinic = $clinic instanceof ClinicDto ? $clinic : null;
-
-        $pdf = $this->documents->render(
-            'clinic/document/report.html.twig',
-            $report['context'],
-            $clinic,
-            'Compte rendu de consultation',
-            $report['subject'],
-        );
-
-        return $this->documents->response($pdf, $report['filename']);
+        return $this->documents->response($document->content, $document->filename);
     }
 }

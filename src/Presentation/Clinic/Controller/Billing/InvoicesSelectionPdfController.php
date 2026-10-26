@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Billing;
 
-use App\Context\Billing\Application\Query\GetCreditNoteDetails\CreditNoteDetails;
-use App\Context\Billing\Application\Query\GetCreditNoteDetails\GetCreditNoteDetails;
+use App\Context\Billing\Application\Port\InvoicePdfRendererInterface;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,7 +20,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * The register's bulk bar: the selected invoices (`ids[]`) and credit notes
  * (`av[]`) in one PDF, for the printer. Drafts are left out — they are not
- * invoices yet.
+ * invoices yet. Each invoice carries the clinic's payment details, as when
+ * printed alone.
  */
 #[Route(path: '/invoices/selection.pdf', name: 'clinic_invoices_selection_pdf', methods: ['GET'])]
 final class InvoicesSelectionPdfController extends AbstractController
@@ -32,6 +31,7 @@ final class InvoicesSelectionPdfController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
+        private readonly InvoicePdfRendererInterface $invoices,
         private readonly DocumentPdfFactory $documents,
     ) {
     }
@@ -42,24 +42,26 @@ final class InvoicesSelectionPdfController extends AbstractController
         \assert(null !== $currentClinicId);
 
         $clinicId = $currentClinicId->toString();
-        $clinic   = $this->queryBus->ask(new GetClinic($clinicId));
-        $clinic   = $clinic instanceof ClinicDto ? $clinic : null;
         $parts    = [];
 
-        foreach (\array_slice(self::ids($request, 'ids'), 0, self::MAX_DOCUMENTS) as $id) {
-            $invoice = $this->ask(new GetInvoiceDetails($clinicId, $id));
+        try {
+            foreach (\array_slice(self::ids($request, 'ids'), 0, self::MAX_DOCUMENTS) as $id) {
+                $invoice = $this->ask(new GetInvoiceDetails($clinicId, $id));
 
-            if ($invoice instanceof InvoiceDetails && null !== $invoice->number) {
-                $parts[] = $this->documents->render('clinic/document/invoice.html.twig', ['invoice' => $invoice], $clinic, \sprintf('Facture · %s', $invoice->number), $invoice->payerName);
+                if ($invoice instanceof InvoiceDetails && null !== $invoice->number) {
+                    $parts[] = $this->invoices->invoice($clinicId, $id)->content;
+                }
             }
-        }
 
-        foreach (\array_slice(self::ids($request, 'av'), 0, self::MAX_DOCUMENTS) as $id) {
-            $note = $this->ask(new GetCreditNoteDetails($clinicId, $id));
-
-            if ($note instanceof CreditNoteDetails) {
-                $parts[] = $this->documents->render('clinic/document/credit_note.html.twig', ['note' => $note], $clinic, \sprintf('Avoir · %s', $note->number), $note->payerName);
+            foreach (\array_slice(self::ids($request, 'av'), 0, self::MAX_DOCUMENTS) as $id) {
+                try {
+                    $parts[] = $this->invoices->creditNote($clinicId, $id)->content;
+                } catch (\DomainException) {
+                    continue;
+                }
             }
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
         if ([] === $parts) {

@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Document;
 
+use App\Context\Billing\Application\Port\InvoicePdfRendererInterface;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceForAdmission;
-use App\Context\Billing\Application\Query\GetInvoiceDetails\GetInvoiceDetails;
-use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
-use App\Context\Prescription\Application\Query\GetPrescriptionDetails\GetPrescriptionDetails;
-use App\Context\Prescription\Application\Query\GetPrescriptionDetails\PrescriptionDetails;
+use App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface;
+use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
+use App\Context\Prescription\Application\Port\PrescriptionPdfRendererInterface;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ListPrescriptionsForConsultation;
-use App\Presentation\Clinic\ViewModel\Document\ConsultationReportContext;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Everything the client leaves with, in one file: the report, then the
- * ordonnances signed during the visit, then the invoice.
+ * ordonnances signed during the visit, then the invoice — each exactly as
+ * printed on its own.
  */
 #[Route(
     path: '/consultations/{consultationId}/documents.pdf',
@@ -36,7 +36,9 @@ final class ConsultationBundlePdfController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ConsultationReportContext $reportContext,
+        private readonly ConsultationReportPdfRendererInterface $reports,
+        private readonly PrescriptionPdfRendererInterface $prescriptions,
+        private readonly InvoicePdfRendererInterface $invoices,
         private readonly DocumentPdfFactory $documents,
     ) {
     }
@@ -49,54 +51,40 @@ final class ConsultationBundlePdfController extends AbstractController
         $clinicId = $currentClinicId->toString();
 
         try {
-            $report = $this->reportContext->build($consultationId, $clinicId);
+            $consultation = $this->queryBus->ask(new GetConsultationDetails($consultationId, $clinicId));
+            \assert($consultation instanceof ConsultationDetailsDTO);
+            $report = $this->reports->report($clinicId, $consultationId);
         } catch (\DomainException $exception) {
             throw $this->createNotFoundException('Consultation introuvable.', $exception);
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
-        $clinic = $this->queryBus->ask(new GetClinic($clinicId));
-        $clinic = $clinic instanceof ClinicDto ? $clinic : null;
+        try {
+            $parts = [$report->content];
 
-        $parts = [$this->documents->render(
-            'clinic/document/report.html.twig',
-            $report['context'],
-            $clinic,
-            'Compte rendu de consultation',
-            $report['subject'],
-        )];
+            foreach ($this->prescriptionIds($clinicId, $consultationId) as $prescriptionId) {
+                $parts[] = $this->prescriptions->prescription($clinicId, $prescriptionId)->content;
+            }
 
-        foreach ($this->prescriptions($clinicId, $consultationId) as $prescription) {
-            $parts[] = $this->documents->render(
-                'clinic/document/prescription.html.twig',
-                ['prescription' => $prescription],
-                $clinic,
-                \sprintf('Ordonnance · %s', $prescription->number ?? 'brouillon'),
-                $report['subject'],
-            );
+            $invoiceId = $this->invoiceId($clinicId, $consultation->admissionId);
+
+            if (null !== $invoiceId) {
+                $parts[] = $this->invoices->invoice($clinicId, $invoiceId)->content;
+            }
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
-        $invoice = $this->invoice($clinicId, $report['consultation']->admissionId);
-
-        if (null !== $invoice) {
-            $parts[] = $this->documents->render(
-                'clinic/document/invoice.html.twig',
-                ['invoice' => $invoice],
-                $clinic,
-                \sprintf('Facture · %s', $invoice->number ?? 'brouillon'),
-                $invoice->payerName,
-            );
-        }
-
-        return $this->documents->response(
-            $this->documents->merge($parts),
-            \sprintf('dossier-%s', $report['filename']),
-        );
+        return $this->documents->response($this->documents->merge($parts), 'dossier-' . $report->filename);
     }
 
     /**
-     * @return list<PrescriptionDetails>
+     * The printable ordonnances of the visit.
+     *
+     * @return list<string>
      */
-    private function prescriptions(string $clinicId, string $consultationId): array
+    private function prescriptionIds(string $clinicId, string $consultationId): array
     {
         $rows = $this->queryBus->ask(new ListPrescriptionsForConsultation(
             clinicId: $clinicId,
@@ -107,42 +95,24 @@ final class ConsultationBundlePdfController extends AbstractController
             return [];
         }
 
-        $prescriptions = [];
+        $ids = [];
 
         foreach ($rows as $row) {
-            if (!$row instanceof ConsultationPrescriptionRow || !$row->isPrintable()) {
-                continue;
-            }
-
-            $details = $this->queryBus->ask(new GetPrescriptionDetails(
-                clinicId: $clinicId,
-                prescriptionId: $row->id,
-            ));
-
-            if ($details instanceof PrescriptionDetails) {
-                $prescriptions[] = $details;
+            if ($row instanceof ConsultationPrescriptionRow && $row->isPrintable()) {
+                $ids[] = $row->id;
             }
         }
 
-        return $prescriptions;
+        return $ids;
     }
 
-    private function invoice(string $clinicId, string $admissionId): ?InvoiceDetails
+    private function invoiceId(string $clinicId, string $admissionId): ?string
     {
         $row = $this->queryBus->ask(new FindInvoiceForAdmission(
             clinicId: $clinicId,
             admissionId: $admissionId,
         ));
 
-        if (!$row instanceof AdmissionInvoiceRow || !$row->isPrintable()) {
-            return null;
-        }
-
-        $details = $this->queryBus->ask(new GetInvoiceDetails(
-            clinicId: $clinicId,
-            invoiceId: $row->id,
-        ));
-
-        return $details instanceof InvoiceDetails ? $details : null;
+        return $row instanceof AdmissionInvoiceRow && $row->isPrintable() ? $row->id : null;
     }
 }
