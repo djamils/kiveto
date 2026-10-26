@@ -325,6 +325,37 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
         ));
     }
 
+    public function testFindEffectiveUserIdsFiltersByWindowRoleAndHat(): void
+    {
+        $clinicId = '01912345-6789-7abc-8def-0000000000a1';
+        $now      = new \DateTimeImmutable('2026-06-01 10:00:00');
+
+        $admin = $this->administrator($clinicId, 'n1');
+        $this->administrator($clinicId, 'n2', status: ClinicMembershipStatus::DISABLED);
+        $this->administrator($clinicId, 'n3', validUntil: new \DateTimeImmutable('2026-03-01'));
+        $this->administrator('01912345-6789-7abc-8def-0000000000a2', 'n4');
+        ClinicMembershipEntityFactory::new()
+            ->withClinicId($clinicId)
+            ->withUserId('01912345-6789-7abc-8def-0000000000a9')
+            ->asVeterinaryAssistant()
+            ->asEmployee()
+            ->create(['validFrom' => new \DateTimeImmutable('2026-01-01')])
+        ;
+
+        $adminUser = $this->repo()->findById(ClinicMembershipId::fromString($admin))?->userId()->toString();
+        $clinic    = ClinicId::fromString($clinicId);
+
+        $all = $this->repo()->findEffectiveUserIds($clinic, $now);
+        sort($all);
+        $expected = [(string) $adminUser, '01912345-6789-7abc-8def-0000000000a9'];
+        sort($expected);
+
+        self::assertSame($expected, $all);
+        self::assertSame(['01912345-6789-7abc-8def-0000000000a9'], $this->repo()->findEffectiveUserIds($clinic, $now, ClinicMemberRole::VETERINARY_ASSISTANT));
+        self::assertSame([(string) $adminUser], $this->repo()->findEffectiveUserIds($clinic, $now, administratorsOnly: true));
+        self::assertSame([], $this->repo()->findEffectiveUserIds($clinic, $now, ClinicMemberRole::VETERINARY));
+    }
+
     private function administrator(
         string $clinicId,
         string $userSeed,
