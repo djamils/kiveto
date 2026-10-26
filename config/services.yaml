@@ -634,6 +634,22 @@ services:
     App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface:
         class: App\Context\Consultation\Infrastructure\Document\ConsultationReportPdfRenderer
 
+    # Consultation documents e-mail (Task 9.1): owner contact, Prescription / Billing files, Notification, async job
+    App\Context\Consultation\Application\Port\ClientContactInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Consultation\Application\Port\PrescriptionDocumentsInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Prescription\CommandBusPrescriptionDocuments
+
+    App\Context\Consultation\Application\Port\InvoiceDocumentInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Billing\CommandBusInvoiceDocument
+
+    App\Context\Consultation\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Consultation\Application\Port\DocumentJobsInterface:
+        class: App\Context\Consultation\Infrastructure\Messaging\MessengerDocumentJobs
+
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~

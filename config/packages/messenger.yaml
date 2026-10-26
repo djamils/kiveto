@@ -131,3 +131,5 @@ framework:
             # Invoice e-mails and unpaid reminders: « Envoyer » / « Relancer » only log and queue them; a worker renders the PDF (AC 25)
             App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail: async
             App\Context\Billing\Application\Command\SendUnpaidReminder\SendUnpaidReminder: async
+            # Consultation documents e-mail: « Envoyer par e-mail » only checks and queues it; a worker renders the PDFs
+            App\Context\Consultation\Application\Command\EmailConsultationDocuments\EmailConsultationDocuments: async
