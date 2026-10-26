@@ -41,6 +41,8 @@ parameters:
     notification.sms.segments_per_veterinarian: 400
     notification.sms.overage_unit_price: '0.079'
     notification.sms.default_overage_cap: 500
+    # Notification: delay (ms) before the local simulator fakes a delivery webhook.
+    notification.simulator.delivery_delay: 5000
 
 services:
     # default configuration for services in *this* file
@@ -1015,11 +1017,37 @@ services:
     App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface:
         class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalUnmatchedDeliveryEventRepository
 
+    # Delivery adapters, picked by NOTIFICATION_DELIVERY when first used
+    # (disabled | simulator | brevo); the simulator is refused in production then.
+    notification.delivery.candidates:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            - disabled.email: '@App\System\Notification\Infrastructure\Delivery\DisabledDelivery'
+              disabled.sms: '@App\System\Notification\Infrastructure\Delivery\DisabledDelivery'
+              simulator.email: '@App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedEmailSender'
+              simulator.sms: '@App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedSmsSender'
+              brevo.email: '@App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender'
+              brevo.sms: '@App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender'
+
+    App\System\Notification\Infrastructure\Delivery\DeliverySelector:
+        arguments:
+            $candidates: '@notification.delivery.candidates'
+            $delivery: '%env(NOTIFICATION_DELIVERY)%'
+            $environment: '%kernel.environment%'
+
     App\System\Notification\Application\Port\EmailSenderInterface:
-        class: App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender
+        class: App\System\Notification\Application\Port\EmailSenderInterface
+        factory: ['@App\System\Notification\Infrastructure\Delivery\DeliverySelector', 'emailSender']
 
     App\System\Notification\Application\Port\SmsSenderInterface:
-        class: App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender
+        class: App\System\Notification\Application\Port\SmsSenderInterface
+        factory: ['@App\System\Notification\Infrastructure\Delivery\DeliverySelector', 'smsSender']
+
+    App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedDeliveryScheduler:
+        arguments:
+            $commandBus: '@messenger.bus.command'
+            $delay: '%notification.simulator.delivery_delay%'
 
     # Retry policy of async_external_notification (Retry-After honoured, bounded).
     App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy:
@@ -1038,6 +1066,7 @@ when@dev: &services_dev
 when@test:
     parameters:
         electronic_invoicing.simulator.step_delay: 0
+        notification.simulator.delivery_delay: 0
 
     services:
         App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:

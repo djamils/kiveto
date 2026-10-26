@@ -23,6 +23,7 @@ use Symfony\Component\Mailer\Transport\NullTransport;
 use Symfony\Component\Mailer\Transport\TransportInterface as MailerTransport;
 use Symfony\Component\Notifier\Bridge\Brevo\BrevoTransport;
 use Symfony\Component\Notifier\Exception\TransportException as NotifierTransportException;
+use Symfony\Component\Notifier\Exception\TransportExceptionInterface as NotifierTransportExceptionInterface;
 use Symfony\Component\Notifier\Message\SentMessage;
 use Symfony\Component\Notifier\Message\SmsMessage;
 use Symfony\Component\Notifier\Transport\TransportInterface as TexterTransport;
@@ -131,6 +132,21 @@ final class SymfonyTransportSendersTest extends TestCase
         $transport->method('send')->willThrowException(new NotifierTransportException('Unable to send the SMS', $response));
 
         $this->expectExceptionObject(ExternalServiceUnavailable::failed('Brevo', 503));
+
+        new SymfonyTexterSmsSender($transport, $this->failures)->send(self::sms());
+    }
+
+    public function testAnSmsTransportFailureWithoutResponseIsRetried(): void
+    {
+        $transport = $this->createStub(TexterTransport::class);
+        $transport->method('send')->willThrowException(new class('down') extends \RuntimeException implements NotifierTransportExceptionInterface {
+            public function getDebug(): string
+            {
+                return '';
+            }
+        });
+
+        $this->expectException(ExternalServiceUnavailable::class);
 
         new SymfonyTexterSmsSender($transport, $this->failures)->send(self::sms());
     }

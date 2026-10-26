@@ -121,3 +121,5 @@ framework:
             App\Shared\Application\Bus\ExternalApiCommandInterface: async_external
             # Steps of the local e-invoicing platform simulator (dev / test / demo), delayed
             App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
+            # Faked delivery webhooks of the local notification simulator (dev / test), delayed
+            App\System\Notification\Infrastructure\Delivery\Simulator\AdvanceSimulatedDelivery: async

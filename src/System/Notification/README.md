@@ -75,6 +75,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `RequestNotification` | command | Resolves the sender, renders and freezes the content, applies the SMS cap (non-critical SMS, under the profile lock) with the optional e-mail fallback, saves the message and queues `DispatchOutboundMessage`. Returns the message id. |
 | `DispatchOutboundMessage` | external (`async_external_notification`, chosen by `DispatchOutboundMessage::stamps()`: a YAML route would also match the generic `ExternalApiCommandInterface` route) | Hands a QUEUED message to the e-mail or SMS transport (attachments and inline logo read from the file storage, idempotency key sent as Brevo tag) and records the outcome. A 4xx other than 408 / 429 is FAILED at once; 408, 429, 5xx and network errors are retried (`DispatchRetryStrategy`: 5 retries, 30 s × 3, never shorter than Retry-After); retries exhausted → `DispatchFailureListener` records FAILED « Échec après plusieurs tentatives ». Delivery is at-least-once. |
 | `RecordDispatchOutcome` | command | Marks the message SENT with the provider id (or FAILED with the reason), then replays the provider events that arrived before that id (`notification__unmatched_delivery_events`). |
+| `RecordDeliveryEvent` | command | A provider event (`kind` = a status name or `COMPLAINT`) for a provider message id: applied with the status precedence, or kept as unmatched when no message carries that id yet. Sent by the webhook consumers and the local simulator. |
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
@@ -85,6 +86,12 @@ leaves, the dispatch records `FAILED` « Envoi désactivé »), `simulator` (dev
 tests: e-mail really goes through `MAILER_DSN` — Mailpit in dev — and the
 delivery webhook is faked; SMS never leaves the machine; refused in
 production) or `brevo` (real transports and webhooks).
+`DeliverySelector` resolves the e-mail and SMS senders when a message is
+first dispatched, so the production guard (`LogicException`) holds even if
+the variable changes after the build. The simulator schedules
+`AdvanceSimulatedDelivery` (`async`, `%notification.simulator.delivery_delay%`
+ms, 0 in tests): an address containing `bounce@` bounces, an SMS number
+ending in `0000` is rejected, anything else is delivered.
 
 Production:
 

@@ -90,6 +90,36 @@ final class RequestNotificationPipelineTest extends KernelTestCase
         self::assertNotNull($message->externalMessageId());
     }
 
+    /**
+     * NOTIFICATION_DELIVERY=simulator: e-mail through MAILER_DSN, SMS kept
+     * local, and the delivery webhook faked on the `async` transport.
+     */
+    public function testTheSimulatorPlaysTheDeliveryWebhooks(): void
+    {
+        $bus     = $this->commandBus();
+        $request = static fn (string $channel, string $to, string $key): RequestNotification => new RequestNotification('TEST', $channel, $to, '', self::CLINIC, null, 'clinic', self::CLINIC, $key, ['sentAtLabel' => '26/10/2026 à 10:42']);
+        $ids     = [
+            'DELIVERED' => $bus->dispatch($request('EMAIL', 'claire@kiveto.fr', 'test:sim:1')),
+            'BOUNCED'   => $bus->dispatch($request('EMAIL', 'bounce@kiveto.fr', 'test:sim:2')),
+            'REJECTED'  => $bus->dispatch($request('SMS', '+33612340000', 'test:sim:3')),
+            'SMS'       => $bus->dispatch($request('SMS', '+33612345678', 'test:sim:4')),
+        ];
+
+        MessengerDrain::drain(self::getContainer(), ['async_external_notification', 'async']);
+
+        $messages = self::getContainer()->get('test.' . OutboundMessageRepositoryInterface::class);
+        \assert($messages instanceof OutboundMessageRepositoryInterface);
+        $statuses = array_map(static function (mixed $id) use ($messages): string {
+            \assert(\is_string($id));
+
+            return $messages->get(OutboundMessageId::fromString($id))->status()->value;
+        }, $ids);
+
+        self::assertSame(['DELIVERED' => 'DELIVERED', 'BOUNCED' => 'BOUNCED', 'REJECTED' => 'REJECTED', 'SMS' => 'DELIVERED'], $statuses);
+        \assert(\is_string($ids['SMS']));
+        self::assertStringStartsWith('sim-sms-', (string) $messages->get(OutboundMessageId::fromString($ids['SMS']))->externalMessageId());
+    }
+
     private function commandBus(): CommandBusInterface
     {
         $bus = self::getContainer()->get(CommandBusInterface::class);
