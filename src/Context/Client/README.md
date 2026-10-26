@@ -373,6 +373,16 @@ Notes internes et échanges consignés d'un client, du plus récent au plus anci
 
 `ClientView` (GetClientById) expose en plus `authorizedPerson`, `preferredChannel` et `consents` (consentements actifs uniquement).
 
+#### GetClientNotificationContact / GetClientsNotificationContacts
+
+Comment joindre un client par un envoi automatique (Scheduling, Billing, Consultation y accèdent par leur propre port + adapter QueryBus). `GetClientNotificationContact(clinicId, clientId)` → `?ClientNotificationContact` (null si le client n'est pas de la clinique) ; `GetClientsNotificationContacts(clinicId, clientIds[])` → `clientId => ClientNotificationContact`, en **une seule requête SQL** (écrans de liste).
+
+`ClientNotificationContact` (scalaires et tableaux uniquement) : `clientId`, `displayName` (raison sociale ou prénom + nom), `civility` (« Mme », « M. » ou vide), `firstName`, `lastName`, `email` (primaire, sinon le premier), `mobile` (E.164 : le téléphone primaire s'il reçoit les SMS, sinon le premier qui les reçoit), `preferredChannel`, `consents` (canaux par type de consentement), `archived`. Un téléphone reçoit les SMS s'il est libellé « mobile » ou si son préfixe est mobile (`MobileNumberPolicy` : +336, +337, +262 69, +262 639, +590 690, +594 694, +596 696, +508 55, +687 7/8/9).
+
+Règles de consentement :
+- `channelsFor(kind)` : canaux consentis pour ce type d'envoi **et** dont l'adresse existe (le rappel SMS de RDV n'est envoyé que si `appointment_reminders` contient `sms`) ;
+- `transactionalChannel()` : confirmation / modification / annulation de RDV, jamais bloquées par un consentement — canal préféré si son adresse existe, sinon e-mail, sinon SMS, sinon aucun.
+
 #### SearchCompanyRegistry
 
 `(query, limit = 8)` → `CompanySearchResult{available, reason, hits}` : moins de 3 caractères (hors SIREN / SIRET) → aucun appel ; panne → `available: false`, `reason` `throttled` (budget épuisé ou 429 : réessayer) ou `down` (saisie manuelle).

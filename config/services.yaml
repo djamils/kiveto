@@ -447,6 +447,9 @@ services:
     App\Context\Client\Application\Verification\TaxProfileVerificationScheduleInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DbalTaxProfileVerificationSchedule
 
+    App\Context\Client\Application\Port\ClientNotificationContactReaderInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DbalClientNotificationContactReader
+
     App\Context\Client\Domain\Repository\ClientNoteRepositoryInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteRepository
 
