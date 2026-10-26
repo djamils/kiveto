@@ -363,6 +363,16 @@ Consigne un échange au journal du client. N'envoie rien.
 
 ---
 
+#### RecordAutomatedCommunication
+
+Journalise un message envoyé automatiquement au client, puis suit son statut. Envoyé par le consumer `Infrastructure/Messaging/Consumer/OutboundMessageStatusChangedConsumer` pour **chaque** `OutboundMessageStatusChangedIntegrationEvent` du contexte Notification portant un `clientId` (y compris l'état de création : En cours, Bloqué (plafond), Échec « profil absent »).
+
+**Input:** `notificationMessageId`, `clinicId`, `clientId`, `channel` (`EMAIL` | `SMS`), `subject` (objet de l'e-mail ou libellé de l'envoi pour un SMS), `recipientLabel`, `status`, `occurredAt` (ATOM), `sequence`
+
+**Comportement:** client inconnu de la clinique → rien (journalisé en avertissement) ; sinon insertion de l'entrée si absente (`INSERT … ON DUPLICATE KEY` sur `notification_message_id` unique : deux consumers concurrents ne se heurtent jamais), auteur « Envoi automatique », sens émis ; sinon lecture verrouillante (`SELECT … FOR UPDATE`) et mise à jour du statut seulement si la séquence est plus récente. Doublons et désordre sans effet.
+
+---
+
 ### Queries (Read Model)
 
 #### ListClientNotes / ListClientCommunications
