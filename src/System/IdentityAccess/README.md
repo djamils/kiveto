@@ -66,6 +66,10 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 
 Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.fr> »).
 
+## Public pages (clinic host)
+
+`/mot-de-passe-oublie`, `/reinitialiser/{token}` and `/invitation/{token}` are PUBLIC_ACCESS on the clinic host only (the « Mot de passe oublié ? » link is hidden on the portal and back-office logins). A link stores its secret in the session and redirects to the token-less address; the pages send `Referrer-Policy: no-referrer` and every form carries a CSRF token. The forgot-password form always answers « Si un compte existe pour cette adresse, un e-mail vient d’être envoyé. » and is rate limited with sliding windows (`forgot_password_ip` 5 / 15 min, `forgot_password_email` 3 / h); beyond, nothing is sent.
+
 ## Sessions
 
 `SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.

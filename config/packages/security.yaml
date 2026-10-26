@@ -75,6 +75,9 @@ security:
     access_control:
         # Allow unauthenticated access to the login endpoint to avoid redirect loops
         - { host: '^clinic\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
+        # Forgot password, reset link and invitation link (the token-less
+        # addresses are where the links redirect once the secret is in the session)
+        - { host: '^clinic\.kiveto\.local$', path: '^/(mot-de-passe-oublie|reinitialiser(/[^/]+)?|invitation(/[^/]+)?)$', roles: PUBLIC_ACCESS }
         - { host: '^portal\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
         - { host: '^backoffice\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
 

@@ -1,0 +1,17 @@
+{#
+ # Kiveto -- templates/security/_account_macros.html.twig
+ # Pieces shared by the public account pages (forgot password, reset,
+ # invitation): message boxes and the « choose a password » fields.
+ #}
+{% macro info(text, ambre = false) %}
+  <div class="info{{ ambre ? ' ambre' : '' }}" role="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>{{ text }}</span></div>
+{% endmacro %}
+
+{% macro new_password(error) %}
+  <div class="champ"><label class="lbl" for="mdp">Mot de passe</label>
+    <div class="inp" id="iMdp"><input id="mdp" name="password" class="avec-oeil" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="oeil" id="oeil" aria-label="Afficher le mot de passe" aria-pressed="false"></button></div>
+    <span class="aide">Au moins 8 caractères.</span></div>
+  <div class="champ"><label class="lbl" for="mdp2">Confirmation</label>
+    <div class="inp" id="iMdp2"><input id="mdp2" name="confirmation" type="password" autocomplete="new-password" minlength="8" required></div>
+    <span class="aide{{ error ? ' ko' : '' }}" id="mdpAide" aria-live="polite">{{ error }}</span></div>
+{% endmacro %}

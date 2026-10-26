@@ -42,6 +42,9 @@ const PAGE_MODULES = {
   clinic_lock:                   'pages/auth',
   clinic_select_clinic:          'pages/auth',
   clinic_no_access:              'pages/auth',
+  clinic_forgot_password:        'pages/auth',
+  clinic_reset_password:         'pages/auth',
+  clinic_invitation:             'pages/auth',
 };
 
 let currentCleanup = null;
