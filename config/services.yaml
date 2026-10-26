@@ -35,6 +35,13 @@ parameters:
         - '1.179.112.0/20'
         - '172.246.240.0/20'
 
+    # Notification: SMS quota = segments per veterinarian × the month's highest
+    # number of active veterinarians; overage counted at the unit price (€ HT
+    # per segment); default overage cap of a clinic (segments beyond the quota).
+    notification.sms.segments_per_veterinarian: 400
+    notification.sms.overage_unit_price: '0.079'
+    notification.sms.default_overage_cap: 500
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -990,6 +997,17 @@ services:
 
     App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
         class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DoctrineOutboundMessageRepository
+
+    App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalClinicMessagingProfileRepository
+
+    App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalVeterinarianCountRepository
+
+    App\System\Notification\Domain\Quota\SmsQuotaPolicy:
+        arguments:
+            $segmentsPerVeterinarian: '%notification.sms.segments_per_veterinarian%'
+            $overageUnitPrice: '%notification.sms.overage_unit_price%'
 
 when@dev: &services_dev
     services:

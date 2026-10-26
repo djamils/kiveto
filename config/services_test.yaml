@@ -80,6 +80,14 @@ services:
         alias: App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface
         public: true
 
+    test.App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface:
+        alias: App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface:
+        alias: App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface
+        public: true
+
     # ElectronicInvoicing services read by the integration tests.
     test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
         alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface
