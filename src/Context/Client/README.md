@@ -25,7 +25,7 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **ConsentKind** : `APPOINTMENT_REMINDERS` | `VACCINATION_REMINDERS` | `CLINICAL_DOCUMENTS` | `BILLING` | `MARKETING`
 - **CommunicationPreferences** : Canal préféré pour les échanges ponctuels + liste des consentements actifs
 - **ClientNote** : Note interne sur un client (`INFORMATION` ou `ATTENTION`), jamais visible du client, jamais modifiée
-- **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe — une entrée de journal, pas un envoi
+- **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe, ou message envoyé automatiquement par Kiveto — une entrée de journal, pas un envoi
 - **ClientTaxProfile** (profil fiscal) : statut fiscal (`ClientTaxStatus`), raison sociale facultative, SIREN et n° de TVA
 - **ClientTaxStatus** : `INDIVIDUAL` (« Particulier ou structure non assujettie ») | `FRENCH_BUSINESS` (« Professionnel assujetti à la TVA »). **Assujetti** = soumis à la TVA en France ; avoir un SIREN ne suffit pas (une association non assujettie reste `INDIVIDUAL`)
 - **Raison sociale** (`legalName`) : nom de la structure. Quand elle existe, l'identité du client (civilité, nom, prénom) devient la **personne de contact**, et la facture est adressée à la raison sociale « à l'attention de » ce contact
@@ -165,11 +165,12 @@ src/Client/
 4. Réviser les préférences **conserve la date de recueil** d'un consentement tant qu'il ne couvre aucun canal nouveau ; accepter un canal supplémentaire est un nouveau consentement, daté du jour
 
 ### ClientNote et ClientCommunication
-1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression)
-2. Rattachés à un client **de la clinique** : le handler charge le client avant d'écrire
-3. Contenu d'une note : non vide, 2 000 caractères max ; objet d'un échange : non vide, 160 caractères max ; corps : 4 000 caractères max
-4. L'auteur est un **nom figé à l'écriture** (pas une référence utilisateur)
-5. Restent possibles sur un client archivé (ils ne modifient pas la fiche)
+1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression) — **les échanges manuels restent en ajout seul ; les envois automatiques ne changent que de statut**
+2. Un échange porte son origine (`CommunicationOrigin`) : `MANUAL` (consigné par l'équipe) ou `AUTOMATED` (message envoyé par Kiveto, auteur « Envoi automatique », sens émis). Seule une entrée `AUTOMATED` porte un statut d'acheminement (`DeliveryStatus` : En cours, Envoyé, Différé, Délivré, Non délivré, Rejeté, Échec, Bloqué (plafond)), l'id du message Notification (`notificationMessageId`, unique — pas l'id Brevo), le numéro de séquence du dernier statut reçu et sa date ; `recordDeliveryStatus()` refuse une entrée `MANUAL` et ignore un statut de séquence inférieure ou égale (un statut arrivé en retard peut seulement dater l'entrée plus tôt)
+3. Rattachés à un client **de la clinique** : le handler charge le client avant d'écrire
+4. Contenu d'une note : non vide, 2 000 caractères max ; objet d'un échange : non vide, 160 caractères max ; corps : 4 000 caractères max
+5. L'auteur est un **nom figé à l'écriture** (pas une référence utilisateur)
+6. Restent possibles sur un client archivé (ils ne modifient pas la fiche)
 
 ### Scoping
 - Toutes les opérations sont scopées par `ClinicId`

@@ -25,6 +25,11 @@ final readonly class ClientCommunicationMapper
             body: $entity->body,
             authorName: $entity->authorName,
             occurredAt: $entity->occurredAt,
+            origin: $entity->origin,
+            deliveryStatus: $entity->deliveryStatus,
+            notificationMessageId: $entity->notificationMessageId?->toString(),
+            deliveryStatusSequence: $entity->deliveryStatusSequence,
+            statusChangedAt: $entity->statusChangedAt,
         );
     }
 
@@ -40,6 +45,20 @@ final readonly class ClientCommunicationMapper
             body: $communication->body(),
             authorName: $communication->authorName(),
             occurredAt: $communication->occurredAt(),
+            origin: $communication->origin(),
+            deliveryStatus: $communication->deliveryStatus(),
+            notificationMessageId: null === $communication->notificationMessageId() ? null : Uuid::fromString($communication->notificationMessageId()),
+            deliveryStatusSequence: $communication->deliveryStatusSequence(),
+            statusChangedAt: $communication->statusChangedAt(),
         );
+    }
+
+    /** Copies what an automated entry may change onto its row. */
+    public function updateEntity(ClientCommunicationEntity $entity, ClientCommunication $communication): void
+    {
+        $entity->occurredAt             = $communication->occurredAt();
+        $entity->deliveryStatus         = $communication->deliveryStatus();
+        $entity->deliveryStatusSequence = $communication->deliveryStatusSequence();
+        $entity->statusChangedAt        = $communication->statusChangedAt();
     }
 }
