@@ -128,6 +128,10 @@ framework:
             # Client messages of an appointment: the debounced sync (DelayStamp, D2) and the reminder of each due appointment
             App\Context\Scheduling\Application\Command\SyncAppointmentNotification\SyncAppointmentNotification: async
             App\Context\Scheduling\Application\Command\RequestAppointmentReminder\RequestAppointmentReminder: async
+            # Bell entries (D13): « Nouveau RDV » to the veterinarian and its withdrawal, « Stock critique » to the assistants
+            App\Context\Scheduling\Application\Command\PostNewAppointmentNotice\PostNewAppointmentNotice: async
+            App\Context\Scheduling\Application\Command\WithdrawNewAppointmentNotice\WithdrawNewAppointmentNotice: async
+            App\Context\Inventory\Application\Command\NotifyCriticalStock\NotifyCriticalStock: async
             # Invoice e-mails and unpaid reminders: « Envoyer » / « Relancer » only log and queue them; a worker renders the PDF (AC 25)
             App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail: async
             App\Context\Billing\Application\Command\SendUnpaidReminder\SendUnpaidReminder: async

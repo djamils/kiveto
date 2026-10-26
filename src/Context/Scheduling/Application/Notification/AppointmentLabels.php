@@ -64,6 +64,29 @@ final class AppointmentLabels
         };
     }
 
+    /**
+     * A member as the bell names them: « Julie M. » from « Julie Martin »,
+     * « Claire L. » from « Dr Claire Lambert »; a single name (« Dr Rousseau »)
+     * is kept whole.
+     */
+    public static function shortName(string $printedName): string
+    {
+        $words = preg_split('/\s+/u', $printedName, -1, \PREG_SPLIT_NO_EMPTY);
+        $words = \is_array($words) ? $words : [];
+
+        $titled = [] !== $words && \in_array($words[0], ['Dr', 'Pr'], true);
+
+        if (\count($words) < ($titled ? 3 : 2)) {
+            return implode(' ', $words);
+        }
+
+        if ($titled) {
+            array_shift($words);
+        }
+
+        return $words[0] . ' ' . mb_substr((string) end($words), 0, 1) . '.';
+    }
+
     private static function day(\DateTimeImmutable $at): string
     {
         return self::DAYS[(int) $at->format('N')];

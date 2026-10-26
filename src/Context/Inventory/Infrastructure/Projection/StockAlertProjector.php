@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Inventory\Infrastructure\Projection;
 
 use App\Context\Inventory\Application\Port\StockAlertReadRepositoryInterface;
+use App\Context\Inventory\Application\Port\StockNoticeJobsInterface;
 use App\Context\Inventory\Domain\Shared\ValueObject\ArticleId;
 use App\Context\Inventory\Domain\Shared\ValueObject\ClinicId;
 use App\Context\Inventory\Domain\StockAlert\ReadModel\StockAlertView;
@@ -24,6 +25,13 @@ use Doctrine\DBAL\Connection;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
 
+/**
+ * Live projection of the stock alerts, run with the stock change that caused
+ * them. A newly inserted critical stock alert (OUT_OF_STOCK, or LOW_STOCK
+ * when CRITICAL) is announced in the bell (D13) by a job queued in the same
+ * transaction. The full re-projection (app:inventory:detect-alerts) writes
+ * the alerts without this projector, so it never announces anything.
+ */
 final class StockAlertProjector
 {
     private const int CRITICAL_DAYS = 7;
@@ -33,6 +41,7 @@ final class StockAlertProjector
     public function __construct(
         private readonly Connection $connection,
         private readonly StockAlertReadRepositoryInterface $alertRepository,
+        private readonly StockNoticeJobsInterface $noticeJobs,
     ) {
     }
 
@@ -283,7 +292,7 @@ final class StockAlertProjector
         $articleName  = $this->fetchArticleName($articleIdStr);
 
         if (null === $existingAlert) {
-            $this->alertRepository->save(new StockAlertView(
+            $this->insertAlert(new StockAlertView(
                 alertId: Uuid::v7()->toRfc4122(),
                 clinicId: ClinicId::fromString($clinicIdStr),
                 stockItemId: $stockItemId,
@@ -323,7 +332,7 @@ final class StockAlertProjector
         }
 
         // Resolved alert + condition true again — insert a new alert
-        $this->alertRepository->save(new StockAlertView(
+        $this->insertAlert(new StockAlertView(
             alertId: Uuid::v7()->toRfc4122(),
             clinicId: ClinicId::fromString($clinicIdStr),
             stockItemId: $stockItemId,
@@ -337,6 +346,18 @@ final class StockAlertProjector
             detectedAt: $now,
             resolvedAt: null,
         ));
+    }
+
+    private function insertAlert(StockAlertView $alert): void
+    {
+        $this->alertRepository->save($alert);
+
+        $critical = StockAlertType::OUT_OF_STOCK === $alert->type
+            || (StockAlertType::LOW_STOCK === $alert->type && StockAlertSeverity::CRITICAL === $alert->severity);
+
+        if ($critical) {
+            $this->noticeJobs->notifyCriticalStock($alert->clinicId->toString(), $alert->alertId);
+        }
     }
 
     private function fetchArticleName(string $articleIdStr): string

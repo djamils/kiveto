@@ -19,6 +19,8 @@ interface StockAlertReadRepositoryInterface
 
     public function findByStockItemAndType(StockItemId $stockItemId, StockAlertType $type): ?StockAlertView;
 
+    public function findById(string $alertId): ?StockAlertView;
+
     public function save(StockAlertView $alert): void;
 
     public function resolve(string $alertId, \DateTimeImmutable $resolvedAt): void;

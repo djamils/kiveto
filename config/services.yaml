@@ -567,6 +567,10 @@ services:
     App\Context\Scheduling\Application\Port\NotificationJobsInterface:
         class: App\Context\Scheduling\Infrastructure\Messaging\MessengerNotificationJobs
 
+    # « Nouveau RDV » in the veterinarian's bell (D13)
+    App\Context\Scheduling\Application\Port\PractitionerBellInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\CommandBusPractitionerBell
+
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT
     # ============================================================================
@@ -950,6 +954,19 @@ services:
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockItemMapper: ~
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\LotMapper: ~
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockMovementMapper: ~
+
+    # Bell entries « Stock critique » and « Péremption proche » (notifications spec, D13)
+    App\Context\Inventory\Application\Port\StockNoticeJobsInterface:
+        class: App\Context\Inventory\Infrastructure\Messaging\MessengerStockNoticeJobs
+
+    App\Context\Inventory\Application\Port\ExpiryNoticeRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DbalExpiryNoticeRepository
+
+    App\Context\Inventory\Application\Port\ClinicStaffInterface:
+        class: App\Context\Inventory\Infrastructure\Adapter\Clinic\QueryBusClinicStaff
+
+    App\Context\Inventory\Application\Port\StaffBellInterface:
+        class: App\Context\Inventory\Infrastructure\Adapter\Notification\CommandBusStaffBell
 
     # ============================================================================
     # BOUNDED CONTEXT: PROCUREMENT

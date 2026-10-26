@@ -15,4 +15,10 @@ interface NotificationJobsInterface
 
     /** RequestAppointmentReminder, run by a worker as soon as possible. */
     public function requestReminder(string $appointmentId): void;
+
+    /** PostNewAppointmentNotice, run by a worker as soon as possible. */
+    public function postNewAppointmentNotice(string $appointmentId, ?string $actorUserId): void;
+
+    /** WithdrawNewAppointmentNotice, run by a worker as soon as possible. */
+    public function withdrawNewAppointmentNotice(string $appointmentId): void;
 }

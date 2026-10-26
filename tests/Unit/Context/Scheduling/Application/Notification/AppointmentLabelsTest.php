@@ -32,4 +32,14 @@ final class AppointmentLabelsTest extends TestCase
         self::assertSame('demain à 9h30', AppointmentLabels::when($at, new \DateTimeImmutable('2026-10-21 09:30', $paris)));
         self::assertSame('jeudi 22/10 à 9h30', AppointmentLabels::when($at, new \DateTimeImmutable('2026-10-20 09:30', $paris)));
     }
+
+    public function testAMemberIsShortenedForTheBell(): void
+    {
+        self::assertSame('Julie M.', AppointmentLabels::shortName('Julie Martin'));
+        self::assertSame('Claire L.', AppointmentLabels::shortName('Dr Claire Lambert'));
+        self::assertSame('Anne-Marie V.', AppointmentLabels::shortName('Anne-Marie de  Vries'));
+        self::assertSame('Dr Rousseau', AppointmentLabels::shortName('Dr Rousseau'));
+        self::assertSame('Julie', AppointmentLabels::shortName(' Julie '));
+        self::assertSame('', AppointmentLabels::shortName(''));
+    }
 }
