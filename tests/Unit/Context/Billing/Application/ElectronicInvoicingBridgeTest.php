@@ -213,7 +213,7 @@ final class ElectronicInvoicingBridgeTest extends TestCase
         $message = $messages[0];
         $trigger = $message->getTrigger();
         self::assertInstanceOf(TriggerInterface::class, $trigger);
-        $next = $trigger->getNextRunDate(new \DateTimeImmutable('2026-10-21 10:40:00', new \DateTimeZone('Europe/Paris')));
+        $next = $trigger->getNextRunDate(new \DateTimeImmutable('today 10:40', new \DateTimeZone('Europe/Paris')));
         self::assertSame('11:23', $next?->setTimezone(new \DateTimeZone('Europe/Paris'))->format('H:i'));
 
         $context = new MessageContext('billing', $message->getId(), $trigger, new \DateTimeImmutable());
