@@ -31,6 +31,7 @@ use App\Fixtures\System\AccessControl\Story\RolePermissionSeedStory;
 use App\Fixtures\System\ElectronicInvoicing\Story\ElectronicInvoicingDemoStory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Story\ClinicVetStory;
+use App\Fixtures\System\Notification\Story\NotificationDemoStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\ControlledSubstancesStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\CoreMedicationsStory;
 use App\Fixtures\System\PharmaceuticalRegistry\Story\LivestockMedicationsStory;
@@ -137,5 +138,10 @@ final class ClinicDataset extends Story
         // switched off) and the sign-ins it reads: last, so that no story
         // above picks one of these members for its visits or its stock.
         TeamDemoStory::load();
+
+        // The notifications: messaging profiles, the confirmations the
+        // bookings above queued, SMS quotas, every delivery status, the bell,
+        // invitations, invoices sent and reminded. Last: it drains the queues.
+        NotificationDemoStory::load();
     }
 }
