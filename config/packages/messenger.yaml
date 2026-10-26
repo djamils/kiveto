@@ -128,3 +128,5 @@ framework:
             # Client messages of an appointment: the debounced sync (DelayStamp, D2) and the reminder of each due appointment
             App\Context\Scheduling\Application\Command\SyncAppointmentNotification\SyncAppointmentNotification: async
             App\Context\Scheduling\Application\Command\RequestAppointmentReminder\RequestAppointmentReminder: async
+            # Invoice e-mails: « Envoyer » only logs and queues them; a worker renders the PDF (AC 25)
+            App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail: async

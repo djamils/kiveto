@@ -740,6 +740,18 @@ services:
     App\Context\Billing\Application\Port\SentDocumentFileStoreInterface:
         class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalSentDocumentFileStore
 
+    App\Context\Billing\Application\Port\ClientContactInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Billing\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Billing\Application\Port\VisitDirectoryInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Admission\DbalVisitDirectory
+
+    App\Context\Billing\Application\Port\DispatchJobsInterface:
+        class: App\Context\Billing\Infrastructure\Messaging\MessengerDispatchJobs
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================
