@@ -34,6 +34,7 @@ const PAGE_MODULES = {
   clinic_stock_alerts:           'pages/stock',
   clinic_settings:               'pages/settings',
   clinic_settings_hours:         'pages/settings',
+  clinic_settings_notifications: 'pages/settings',
   clinic_settings_billing:       'pages/settings',
   clinic_settings_preferences:   'pages/settings',
   clinic_settings_team:          'pages/team',

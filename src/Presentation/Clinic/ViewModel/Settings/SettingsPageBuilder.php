@@ -16,14 +16,16 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Shared\Presentation\Twig\PhoneFormatRuntime;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
+use App\System\Notification\Application\Query\GetSmsUsage\GetSmsUsage;
+use App\System\Notification\Application\Query\GetSmsUsage\SmsUsageView;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
- * Everything the settings page draws, in one payload: the four sections the
- * clinic can set today (identity, hours, billing, the member's own
- * preferences) with their current values, which of them the member may open,
+ * Everything the settings page draws, in one payload: the five sections the
+ * clinic can set today (identity, hours, notifications, billing, the
+ * member's own preferences) with their current values, which of them the member may open,
  * and where each one is saved. The page module renders the sections from it
  * and posts a whole section back on every change.
  */
@@ -33,10 +35,11 @@ final readonly class SettingsPageBuilder
 
     /** Section of the page → the route that opens it. */
     public const array ROUTES = [
-        'identite'    => 'clinic_settings',
-        'horaires'    => 'clinic_settings_hours',
-        'facturation' => 'clinic_settings_billing',
-        'moi'         => 'clinic_settings_preferences',
+        'identite'      => 'clinic_settings',
+        'horaires'      => 'clinic_settings_hours',
+        'notifications' => 'clinic_settings_notifications',
+        'facturation'   => 'clinic_settings_billing',
+        'moi'           => 'clinic_settings_preferences',
     ];
 
     private const array LOCALES = [
@@ -62,6 +65,8 @@ final readonly class SettingsPageBuilder
         'UTC'                => 'UTC',
     ];
 
+    private const array MONTHS = [1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
     private const array DAYS = [1 => 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
     public function __construct(
@@ -84,23 +89,25 @@ final readonly class SettingsPageBuilder
         \assert($settings instanceof ClinicSettingsView);
 
         $can = [
-            'identite'    => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
-            'horaires'    => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
-            'facturation' => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
-            'moi'         => true,
+            'identite'      => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'horaires'      => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'notifications' => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'facturation'   => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
+            'moi'           => true,
         ];
 
         return [
-            'section'     => $section,
-            'clinicName'  => $settings->name,
-            'token'       => $this->csrf->getToken(self::CSRF_ID)->getValue(),
-            'can'         => $can,
-            'urls'        => $this->urls($settings),
-            'identite'    => $can['identite'] ? $this->identity($settings) : null,
-            'horaires'    => $can['horaires'] ? $this->hours($settings) : null,
-            'facturation' => $can['facturation'] ? $this->billing($settings) : null,
-            'moi'         => $this->preferences(),
-            'options'     => [
+            'section'       => $section,
+            'clinicName'    => $settings->name,
+            'token'         => $this->csrf->getToken(self::CSRF_ID)->getValue(),
+            'can'           => $can,
+            'urls'          => $this->urls($settings),
+            'identite'      => $can['identite'] ? $this->identity($settings) : null,
+            'horaires'      => $can['horaires'] ? $this->hours($settings) : null,
+            'notifications' => $can['notifications'] ? $this->notifications($settings) : null,
+            'facturation'   => $can['facturation'] ? $this->billing($settings) : null,
+            'moi'           => $this->preferences(),
+            'options'       => [
                 'councils' => array_map(static fn (OrdinalCouncil $council): array => [$council->value, $council->label()], OrdinalCouncil::cases()),
                 'locales'  => self::pairs(self::LOCALES, $settings->locale),
                 'zones'    => self::pairs(self::ZONES, $settings->timeZone),
@@ -193,6 +200,37 @@ final readonly class SettingsPageBuilder
     }
 
     /**
+     * The SMS sender and overage cap as the fields show them, and the month's
+     * usage card: billed segments against the quota (Notification's count),
+     * the overage and what it comes to.
+     *
+     * @return array<string, mixed>
+     */
+    public function notifications(ClinicSettingsView $settings): array
+    {
+        $usage = $this->queryBus->ask(new GetSmsUsage($settings->id));
+        \assert($usage instanceof SmsUsageView);
+
+        [$year, $month] = array_map(\intval(...), explode('-', $usage->month));
+
+        return [
+            'no.exp' => $settings->smsSender,
+            'no.cap' => $settings->overageCapSegments,
+            'usage'  => [
+                'month'         => (self::MONTHS[$month] ?? '') . ' ' . $year,
+                'used'          => $usage->used,
+                'quota'         => $usage->quota,
+                'queued'        => $usage->queued,
+                'percent'       => $usage->percent,
+                'overage'       => $usage->overage,
+                'overageAmount' => number_format($usage->overageAmountCents / 100, 2, ',', "\u{202F}") . "\u{00A0}€ HT",
+                'cap'           => $usage->cap,
+                'capReached'    => $usage->capReached,
+            ],
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function billing(ClinicSettingsView $settings): array
@@ -272,10 +310,11 @@ final readonly class SettingsPageBuilder
         return [
             'sections' => array_map($go, self::ROUTES),
             'save'     => [
-                'identite'    => $go('clinic_settings_identity_save'),
-                'horaires'    => $go('clinic_settings_hours_save'),
-                'facturation' => $go('clinic_settings_billing_save'),
-                'moi'         => $go('clinic_settings_preferences_save'),
+                'identite'      => $go('clinic_settings_identity_save'),
+                'horaires'      => $go('clinic_settings_hours_save'),
+                'notifications' => $go('clinic_settings_notifications_save'),
+                'facturation'   => $go('clinic_settings_billing_save'),
+                'moi'           => $go('clinic_settings_preferences_save'),
             ],
             'logoUpload' => $go('clinic_settings_logo_upload'),
             'logoRemove' => $go('clinic_settings_logo_remove'),
