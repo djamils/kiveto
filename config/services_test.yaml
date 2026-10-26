@@ -88,6 +88,10 @@ services:
         alias: App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface
         public: true
 
+    test.App\System\Notification\Application\Port\MessageRendererInterface:
+        alias: App\System\Notification\Application\Port\MessageRendererInterface
+        public: true
+
     # ElectronicInvoicing services read by the integration tests.
     test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
         alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface

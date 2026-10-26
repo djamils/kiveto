@@ -1,0 +1,17 @@
+Bonjour {{ addressee }},
+
+Le rendez-vous de {{ animalName }} a été déplacé.
+
+Ancien créneau : {{ previousSlotLabel }}
+Nouveau créneau : {{ newSlotLabel }}
+Motif : {{ reason }}
+{% if practitionerName %}Vétérinaire : {{ practitionerName }}
+{% endif %}{% if clinic.addressLine %}Adresse : {{ clinic.addressLine }}
+{% endif %}
+
+L'invitation jointe à ce message met à jour votre agenda.
+Ce créneau ne vous convient pas ? Appelez-nous au {{ clinic.phone }}.
+
+--
+{{ clinic.footerLine }}
+Vous recevez ce message suite à la modification de votre rendez-vous.

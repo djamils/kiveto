@@ -1,0 +1,37 @@
+{# Building blocks of the notification e-mails. #}
+
+{# rows: list of {label, value, strong?, struck?} #}
+{% macro details(rows) %}
+<table role="presentation" class="details" cellpadding="0" cellspacing="0">
+{% for row in rows %}
+  <tr>
+    <td class="label{{ row.strong ?? false ? ' strong' : '' }}">{{ row.label }}</td>
+    <td class="value{{ row.strong ?? false ? ' strong' : '' }}{{ row.struck ?? false ? ' struck' : '' }}">{{ row.value }}</td>
+  </tr>
+{% endfor %}
+</table>
+{% endmacro %}
+
+{% macro button(label, url, color) %}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 0 16px 0;">
+  <tr><td class="button-cell" style="background-color: {{ color }};"><a class="button" href="{{ url }}" style="background-color: {{ color }};">{{ label }}</a></td></tr>
+</table>
+{% endmacro %}
+
+{% macro brand(initial, logoCid, name, city, color = '#1e1b4b') %}
+<table role="presentation" cellpadding="0" cellspacing="0">
+  <tr>
+    <td class="brand-cell">
+      {%- if logoCid -%}
+        <img class="logo" src="cid:{{ logoCid }}" alt="{{ name }}" width="36" height="36">
+      {%- else -%}
+        <span class="initial" style="background-color: {{ color }};">{{ initial }}</span>
+      {%- endif -%}
+    </td>
+    <td>
+      <div class="clinic-name">{{ name }}</div>
+      {%- if city %}<div class="clinic-city">{{ city }}</div>{% endif -%}
+    </td>
+  </tr>
+</table>
+{% endmacro %}

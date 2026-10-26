@@ -1,0 +1,20 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Rendez-vous annulé — {{ animalName }}, {{ subjectDateLabel }}{% endblock %}
+
+{% block body %}
+<p>Bonjour {{ addressee }},</p>
+<p>Le rendez-vous de <strong>{{ animalName }}</strong> est annulé.</p>
+<span class="badge">Annulé</span>
+{{ ui.details([
+    {label: 'Date', value: dateLabel, struck: true},
+    {label: 'Heure', value: timeLabel, struck: true},
+    {label: 'Motif', value: reason, struck: true},
+]|merge(practitionerName ? [{label: 'Vétérinaire', value: practitionerName, struck: true}] : [])) }}
+<table role="presentation" class="callout" cellpadding="0" cellspacing="0">
+  <tr><td>Pour fixer un nouveau rendez-vous</td><td class="callout-phone">{{ clinic.phone }}</td></tr>
+</table>
+{% endblock %}
+
+{% block footer_note %}Vous recevez ce message suite à l'annulation de votre rendez-vous.{% endblock %}

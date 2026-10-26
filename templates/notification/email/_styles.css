@@ -1,0 +1,35 @@
+/* Inlined into every notification e-mail (inline_css): e-mail clients drop <style> blocks. */
+body { margin: 0; padding: 0; background-color: #eef1f6; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; font-size: 15px; line-height: 1.55; }
+.wrapper { background-color: #eef1f6; padding: 32px 12px; }
+.card { width: 100%; max-width: 600px; background-color: #ffffff; border: 1px solid #e3e8f0; border-radius: 10px; }
+.card-header { padding: 20px 28px; border-bottom: 1px solid #e3e8f0; }
+.brand-cell { padding-right: 12px; vertical-align: middle; }
+.initial { display: inline-block; width: 36px; height: 36px; line-height: 36px; border-radius: 6px; background-color: #1e1b4b; color: #ffffff; font-weight: bold; font-size: 17px; text-align: center; }
+.logo { display: block; width: 36px; height: 36px; border-radius: 6px; }
+.clinic-name { font-weight: bold; font-size: 16px; color: #111827; }
+.clinic-city { font-size: 13px; color: #6b7280; }
+.card-body { padding: 24px 28px 8px 28px; }
+.card-body p { margin: 0 0 16px 0; }
+.details { width: 100%; border: 1px solid #e3e8f0; border-radius: 8px; border-collapse: separate; margin: 0 0 18px 0; }
+.details td { padding: 11px 16px; border-bottom: 1px solid #eef1f6; font-size: 15px; }
+.details .label { color: #6b7280; text-align: left; }
+.details .value { color: #111827; text-align: right; }
+.details .strong { font-weight: bold; color: #111827; }
+.details .struck { color: #9ca3af; text-decoration: line-through; }
+.slots { width: 100%; margin: 0 0 14px 0; }
+.slot { border: 1px solid #e3e8f0; border-radius: 8px; padding: 12px 16px; width: 50%; }
+.slot-new { background-color: #eef2ff; border-color: #a5b4fc; }
+.slot-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #6b7280; }
+.slot-old { font-weight: bold; color: #9ca3af; text-decoration: line-through; }
+.slot-value { font-weight: bold; color: #111827; }
+.badge { display: inline-block; padding: 3px 9px; border-radius: 5px; background-color: #eef1f6; color: #374151; font-size: 12px; font-weight: bold; margin: 0 0 14px 0; }
+.badge-role { background-color: #e0e7ff; color: #4b5563; }
+.callout { width: 100%; border: 1px solid #e3e8f0; border-radius: 8px; margin: 0 0 18px 0; }
+.callout td { padding: 14px 16px; }
+.callout-phone { text-align: right; font-weight: bold; font-family: Menlo, Consolas, monospace; font-size: 16px; color: #111827; }
+.note { background-color: #f6f8fb; border: 1px solid #e3e8f0; border-radius: 8px; padding: 12px 16px; margin: 0 0 18px 0; }
+.button-cell { border-radius: 6px; padding: 0; }
+.button { display: inline-block; padding: 12px 22px; border-radius: 6px; color: #ffffff; font-weight: bold; text-decoration: none; font-size: 15px; }
+.muted { color: #6b7280; font-size: 13px; }
+.card-footer { padding: 16px 28px; background-color: #f6f8fb; border-top: 1px solid #e3e8f0; border-radius: 0 0 10px 10px; }
+.card-footer p { margin: 0; color: #6b7280; font-size: 12px; line-height: 1.6; }

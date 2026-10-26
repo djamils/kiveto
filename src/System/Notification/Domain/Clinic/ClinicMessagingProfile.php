@@ -85,9 +85,14 @@ final readonly class ClinicMessagingProfile
         );
     }
 
-    /** The letter shown in the clinic card when there is no logo. */
+    /**
+     * The letter shown in the clinic card when there is no logo: the first
+     * letter of the last word, so that « Clinique Montmartre » shows « M ».
+     */
     public function initial(): string
     {
-        return mb_strtoupper(mb_substr($this->name, 0, 1));
+        $words = preg_split("/[\\s'’]+/u", $this->name, -1, \PREG_SPLIT_NO_EMPTY) ?: [$this->name];
+
+        return mb_strtoupper(mb_substr($words[array_key_last($words)], 0, 1));
     }
 }

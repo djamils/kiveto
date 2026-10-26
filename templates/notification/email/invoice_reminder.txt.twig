@@ -1,0 +1,13 @@
+Bonjour {{ addressee }},
+
+Sauf erreur de notre part, la facture {{ careLabel }} n'est pas encore réglée.
+
+Facture : {{ invoiceNumber }} du {{ invoiceDate }}
+Montant : {{ total }}
+Déjà réglé : {{ paid }}
+Reste à payer : {{ balanceDue }}
+
+Vous pouvez régler à l'accueil de la clinique. Si vous avez réglé entre-temps, ne tenez pas compte de ce message. Une question ? {{ clinic.phone }}.
+
+--
+{{ clinic.footerLine }}

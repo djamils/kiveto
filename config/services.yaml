@@ -1004,6 +1004,9 @@ services:
     App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface:
         class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalVeterinarianCountRepository
 
+    App\System\Notification\Application\Port\MessageRendererInterface:
+        class: App\System\Notification\Infrastructure\Rendering\TwigMessageRenderer
+
     App\System\Notification\Domain\Quota\SmsQuotaPolicy:
         arguments:
             $segmentsPerVeterinarian: '%notification.sms.segments_per_veterinarian%'

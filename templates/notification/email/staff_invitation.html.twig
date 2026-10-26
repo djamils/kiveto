@@ -1,0 +1,19 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}{{ inviterName }} vous invite à rejoindre {{ clinicName }} sur Kiveto{% endblock %}
+
+{% block body %}
+<p>Bonjour{{ firstName ? ' ' ~ firstName : '' }},</p>
+<p><strong>{{ inviterName }}</strong> vous invite à rejoindre l'équipe de la clinique sur Kiveto.</p>
+<table role="presentation" class="callout" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>{{ ui.brand(clinicName|replace({'’': ' ', "'": ' '})|split(' ')|filter(word => word)|last|slice(0, 1)|upper, null, clinicName, clinicCity) }}</td>
+    <td style="text-align: right;"><span class="badge badge-role">{{ roleLabel }}</span></td>
+  </tr>
+</table>
+{{ ui.button('Activer mon compte', activationUrl, '#4338CA') }}
+<p class="muted">Vous choisirez votre mot de passe. Ce lien est personnel et expire dans 72 heures.</p>
+{% endblock %}
+
+{% block footer_note %}Vous ne vous attendiez pas à cette invitation ? Ignorez ce message : aucun compte ne sera créé.{% endblock %}

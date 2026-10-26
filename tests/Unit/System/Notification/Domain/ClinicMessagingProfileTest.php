@@ -18,7 +18,8 @@ final class ClinicMessagingProfileTest extends TestCase
 
         self::assertSame(['Côte d’Opale', 'cote-opale', null, 'Opale Vet', 0], [$profile->name, $profile->emailLocalPart, $profile->replyTo, $profile->smsSender, $profile->overageCapSegments]);
         self::assertSame(['1 quai', 'Calais', '03 21 00 00 00', null, null], [$profile->addressLine, $profile->city, $profile->phoneDisplay, $profile->brandColor, $profile->logoStorageKey]);
-        self::assertSame('C', $profile->initial());
+        self::assertSame('O', $profile->initial());
+        self::assertSame('M', InMemoryProfiles::montmartre()->initial());
         self::assertSame('clinic/logo.png', InMemoryProfiles::montmartre(logo: 'clinic/logo.png')->logoStorageKey);
         self::assertSame('#4338CA', InMemoryProfiles::montmartre()->brandColor);
     }

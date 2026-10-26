@@ -1,0 +1,17 @@
+Bonjour {{ addressee }},
+
+Le rendez-vous de {{ animalName }} est confirmé.
+
+Date : {{ dateLabel }}
+Heure : {{ timeLabel }}
+Motif : {{ reason }}
+{% if practitionerName %}Vétérinaire : {{ practitionerName }}
+{% endif %}{% if clinic.addressLine %}Adresse : {{ clinic.addressLine }}
+{% endif %}
+
+L'invitation jointe à ce message ajoute le rendez-vous à votre agenda.
+Pour modifier ou annuler, appelez-nous au {{ clinic.phone }}.
+
+--
+{{ clinic.footerLine }}
+Vous recevez ce message suite à la prise de votre rendez-vous.
