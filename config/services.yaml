@@ -984,6 +984,10 @@ services:
     App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\PlatformConnectionMapper: ~
     App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\OutboundTransmissionMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: NOTIFICATION (System)
+    # ============================================================================
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
