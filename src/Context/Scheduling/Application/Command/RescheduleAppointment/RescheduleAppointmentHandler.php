@@ -12,6 +12,7 @@ use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -23,6 +24,7 @@ final readonly class RescheduleAppointmentHandler
         private AppointmentConflictCheckerInterface $conflictChecker,
         private MembershipEligibilityCheckerInterface $membershipEligibilityChecker,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -79,5 +81,7 @@ final readonly class RescheduleAppointmentHandler
         }
 
         $this->appointmentRepository->save($appointment);
+
+        $this->domainEventPublisher->publish($appointment);
     }
 }

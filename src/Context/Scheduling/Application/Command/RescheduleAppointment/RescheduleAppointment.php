@@ -20,6 +20,7 @@ final readonly class RescheduleAppointment implements CommandInterface
         public bool $changeDetails = false,
         public ?string $reason = null,
         public ?string $notes = null,
+        public ?string $actorUserId = null,
     ) {
     }
 }

@@ -13,14 +13,15 @@ use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\ListAppoi
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * « Déclarer le décès »: the date, the circumstances and what became of the
- * body. The appointments still to come are cancelled; the file then turns
- * read-only, nothing is deleted.
+ * body. The appointments still to come are cancelled, without a message to
+ * the owner; the file then turns read-only, nothing is deleted.
  */
 #[Route('/animals/{id}/death', name: 'clinic_animals_death_declare', methods: ['POST'])]
 final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
@@ -94,11 +95,18 @@ final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
             $upcoming = 'PLANNED' === $appointment->status
                 && new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC')) >= $now;
 
-            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId)))) {
+            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, $this->actorUserId(), notifyClient: false)))) {
                 ++$cancelled;
             }
         }
 
         return $cancelled;
+    }
+
+    private function actorUserId(): ?string
+    {
+        $user = $this->getUser();
+
+        return $user instanceof SecurityUser ? $user->id() : null;
     }
 }

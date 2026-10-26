@@ -9,6 +9,7 @@ use App\Context\Scheduling\Application\Query\GetAppointmentClinicId\GetAppointme
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,6 +56,7 @@ final class CancelAppointmentController extends AbstractController
             $this->commandBus->dispatch(new CancelAppointment(
                 appointmentId: $appointmentId,
                 clinicId: $currentClinicId->toString(),
+                actorUserId: $this->actorUserId(),
             ));
 
             return new JsonResponse([
@@ -74,5 +76,12 @@ final class CancelAppointmentController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
+    }
+
+    private function actorUserId(): ?string
+    {
+        $user = $this->getUser();
+
+        return $user instanceof SecurityUser ? $user->id() : null;
     }
 }

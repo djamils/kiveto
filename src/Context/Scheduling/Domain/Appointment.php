@@ -48,6 +48,7 @@ final class Appointment extends AggregateRoot
         ?string $linkedAdmissionId = null,
         ?string $ownerId = null,
         ?string $animalId = null,
+        ?string $actorUserId = null,
     ): self {
         $appointment                       = new self();
         $appointment->id                   = $id;
@@ -72,6 +73,9 @@ final class Appointment extends AggregateRoot
             durationMinutes: $timeSlot->durationMinutes(),
             reason: $reason,
             notes: $notes,
+            ownerId: $ownerId,
+            animalId: $animalId,
+            actorUserId: $actorUserId,
         ));
 
         return $appointment;
@@ -177,7 +181,10 @@ final class Appointment extends AggregateRoot
         ));
     }
 
-    public function cancel(): void
+    /**
+     * @param bool $notifyClient false when the client must not be told (death of the animal)
+     */
+    public function cancel(bool $notifyClient = true): void
     {
         if (AppointmentStatus::CANCELLED === $this->status) {
             return;
@@ -192,6 +199,7 @@ final class Appointment extends AggregateRoot
         $this->recordDomainEvent(new AppointmentCancelled(
             appointmentId: $this->id->toString(),
             clinicId: $this->clinicId->toString(),
+            notifyClient: $notifyClient,
         ));
     }
 

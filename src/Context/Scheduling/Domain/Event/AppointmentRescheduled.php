@@ -26,6 +26,11 @@ readonly class AppointmentRescheduled extends AbstractDomainEvent
         return $this->appointmentId;
     }
 
+    public function appointmentId(): string
+    {
+        return $this->appointmentId;
+    }
+
     public function payload(): array
     {
         return [

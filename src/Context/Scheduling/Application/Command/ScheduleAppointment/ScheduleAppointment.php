@@ -18,6 +18,8 @@ final readonly class ScheduleAppointment implements CommandInterface
         public ?string $linkedAdmissionId = null,
         public ?string $ownerId = null,
         public ?string $animalId = null,
+        // The member booking it, told apart from the practitioner (bell, D1)
+        public ?string $actorUserId = null,
     ) {
     }
 }

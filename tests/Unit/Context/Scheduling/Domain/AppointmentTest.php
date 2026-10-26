@@ -40,6 +40,9 @@ final class AppointmentTest extends TestCase
             notes: 'First visit',
             createdAt: $createdAt,
             linkedAdmissionId: $linkedAdmissionId,
+            ownerId: 'owner-1',
+            animalId: 'animal-1',
+            actorUserId: 'actor-1',
         );
 
         self::assertTrue($appointment->id()->equals($appointmentId));
@@ -52,6 +55,7 @@ final class AppointmentTest extends TestCase
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(AppointmentScheduled::class, $events[0]);
+        self::assertSame(['owner-1', 'animal-1', 'actor-1'], [$events[0]->ownerId(), $events[0]->animalId(), $events[0]->actorUserId()]);
     }
 
     public function testScheduleAppointmentWithoutLinkedAdmission(): void
@@ -154,6 +158,19 @@ final class AppointmentTest extends TestCase
         $events = $appointment->recordedDomainEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(AppointmentCancelled::class, $events[0]);
+        self::assertTrue($events[0]->notifyClient());
+    }
+
+    public function testACancellationMayKeepTheClientUninformed(): void
+    {
+        $appointment = $this->createSampleAppointment();
+        self::assertCount(1, $appointment->pullDomainEvents());
+
+        $appointment->cancel(notifyClient: false);
+
+        $events = $appointment->recordedDomainEvents();
+        self::assertInstanceOf(AppointmentCancelled::class, $events[0]);
+        self::assertFalse($events[0]->notifyClient());
     }
 
     public function testMarkNoShow(): void

@@ -15,7 +15,9 @@ use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +34,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
     private MembershipEligibilityCheckerInterface&MockObject $eligibilityChecker;
     private ClockInterface&MockObject $clock;
     private RescheduleAppointmentHandler $handler;
+    private CapturingEventBus $events;
 
     protected function setUp(): void
     {
@@ -45,6 +48,7 @@ final class RescheduleAppointmentHandlerTest extends TestCase
             conflictChecker: $this->conflictChecker,
             membershipEligibilityChecker: $this->eligibilityChecker,
             clock: $this->clock,
+            domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
         );
     }
 
@@ -67,9 +71,9 @@ final class RescheduleAppointmentHandlerTest extends TestCase
             practitionerUserId: self::OTHER_PRACT,
         ));
 
-        $events = $appointment->recordedDomainEvents();
-        // AppointmentScheduled (from create) + AppointmentRescheduled + AppointmentPractitionerAssigneeChanged
-        self::assertCount(3, $events);
+        // Published after the save: AppointmentScheduled (from create) + AppointmentRescheduled + AppointmentPractitionerAssigneeChanged
+        self::assertCount(3, $this->events->events);
+        self::assertSame([], $appointment->recordedDomainEvents());
     }
 
     #[AllowMockObjectsWithoutExpectations]
