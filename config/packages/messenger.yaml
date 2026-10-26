@@ -125,3 +125,6 @@ framework:
             App\System\Notification\Infrastructure\Delivery\Simulator\AdvanceSimulatedDelivery: async
             # « Mot de passe oublié »: same answer and same response time whether the account exists or not
             App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPasswordReset: async
+            # Client messages of an appointment: the debounced sync (DelayStamp, D2) and the reminder of each due appointment
+            App\Context\Scheduling\Application\Command\SyncAppointmentNotification\SyncAppointmentNotification: async
+            App\Context\Scheduling\Application\Command\RequestAppointmentReminder\RequestAppointmentReminder: async

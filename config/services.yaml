@@ -29,6 +29,10 @@ parameters:
     # ElectronicInvoicing: delay between two statuses of the local platform simulator (ms)
     electronic_invoicing.simulator.step_delay: 30000
 
+    # Scheduling: debounce of the client messages of an appointment (ms, D2) —
+    # every appointment event syncs the client 2 minutes later, once.
+    scheduling.notification.sync_delay: 120000
+
     # Notification: Brevo's published webhook source ranges (checked against the
     # client IP as seen through the trusted proxies).
     notification.brevo.webhook_ips:
@@ -544,6 +548,24 @@ services:
 
     App\Context\Scheduling\Application\Port\ClinicDirectoryInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\QueryBusClinicDirectory
+
+    App\Context\Scheduling\Application\Port\ClientContactInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Scheduling\Application\Port\AnimalDirectoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Animal\QueryBusAnimalDirectory
+
+    App\Context\Scheduling\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Scheduling\Application\Port\AttachmentStoreInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\FileStorageAttachmentStore
+
+    App\Context\Scheduling\Application\Port\CalendarInvitationWriterInterface:
+        class: App\Context\Scheduling\Infrastructure\Calendar\IcsWriter
+
+    App\Context\Scheduling\Application\Port\NotificationJobsInterface:
+        class: App\Context\Scheduling\Infrastructure\Messaging\MessengerNotificationJobs
 
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT
