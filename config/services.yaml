@@ -29,6 +29,12 @@ parameters:
     # ElectronicInvoicing: delay between two statuses of the local platform simulator (ms)
     electronic_invoicing.simulator.step_delay: 30000
 
+    # Notification: Brevo's published webhook source ranges (checked against the
+    # client IP as seen through the trusted proxies).
+    notification.brevo.webhook_ips:
+        - '1.179.112.0/20'
+        - '172.246.240.0/20'
+
 services:
     # default configuration for services in *this* file
     _defaults:

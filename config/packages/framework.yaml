@@ -8,6 +8,11 @@ framework:
     #esi: true
     #fragments: true
 
+    # Reverse proxies whose X-Forwarded-* headers are believed (client IP of the
+    # Brevo webhooks); none by default.
+    trusted_proxies: '%env(SYMFONY_TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
+
     trusted_hosts:
         - '^localhost(:\d+)?$'
         - '^clinic\.kiveto\.local(:\d+)?$'

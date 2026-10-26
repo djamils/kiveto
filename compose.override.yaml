@@ -1,4 +1,4 @@
-#services:
+services:
 ###> doctrine/doctrine-bundle ###
   #database:
     #ports:
@@ -6,12 +6,16 @@
 ###< doctrine/doctrine-bundle ###
 
 ###> symfony/mailer ###
-  #mailer:
-    #image: axllent/mailpit
-    #ports:
-      #- "1025"
-      #- "8025"
-    #environment:
-      #MP_SMTP_AUTH_ACCEPT_ANY: 1
-      #MP_SMTP_AUTH_ALLOW_INSECURE: 1
+  # Mailpit: catches every e-mail sent in dev (MAILER_DSN=smtp://mailer:1025 in
+  # .env.dev); inbox at http://localhost:8025.
+  mailer:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - kiveto-network
 ###< symfony/mailer ###

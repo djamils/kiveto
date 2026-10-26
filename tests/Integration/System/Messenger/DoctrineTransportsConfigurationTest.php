@@ -59,9 +59,10 @@ final class DoctrineTransportsConfigurationTest extends KernelTestCase
         }
 
         sort($checked);
-        self::assertSame(['async', 'async_external', 'async_external_batch', 'failed'], $checked);
+        self::assertSame(['async', 'async_external', 'async_external_batch', 'async_external_notification', 'failed'], $checked);
         self::assertSame('external', $queues['async_external']);
         self::assertSame('external_batch', $queues['async_external_batch']);
+        self::assertSame('external_notification', $queues['async_external_notification']);
         self::assertSame('failed', $queues['failed']);
     }
 

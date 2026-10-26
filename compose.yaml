@@ -74,7 +74,8 @@ services:
   # Consumes the commands that call external services (company registry, VIES,
   # later e-invoicing), so that slow or failing third parties never delay mails
   # and integration events, and vice versa. Messenger drains the first receiver
-  # before the second: interactive verifications pass ahead of the nightly batch.
+  # before the second: interactive verifications pass ahead of the outbound
+  # notifications (Brevo), and both ahead of the nightly batch.
   external-worker:
     build:
       context: .
@@ -84,7 +85,7 @@ services:
         GID: ${HOST_GID:-1000}
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     profiles: ["workers"]
-    command: php -d memory_limit=512M bin/console messenger:consume async_external async_external_batch --time-limit=3600 --memory-limit=256M -vv
+    command: php -d memory_limit=512M bin/console messenger:consume async_external async_external_notification async_external_batch --time-limit=3600 --memory-limit=256M -vv
     restart: unless-stopped
     volumes:
       - ./:/var/www/html:cached
