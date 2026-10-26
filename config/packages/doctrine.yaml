@@ -39,6 +39,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/System/ElectronicInvoicing/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Entity'
                 alias: ElectronicInvoicing
+            Notification:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/System/Notification/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\System\Notification\Infrastructure\Persistence\Doctrine\Entity'
+                alias: Notification
             Taxation:
                 type: attribute
                 is_bundle: false

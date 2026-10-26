@@ -75,6 +75,11 @@ services:
         public: true
         arguments: [!tagged_locator { tag: 'scheduler.schedule_provider', index_by: 'name' }]
 
+    # Notification services read by the integration tests.
+    test.App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
+        alias: App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface
+        public: true
+
     # ElectronicInvoicing services read by the integration tests.
     test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
         alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface

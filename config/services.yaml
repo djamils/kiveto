@@ -988,6 +988,9 @@ services:
     # BOUNDED CONTEXT: NOTIFICATION (System)
     # ============================================================================
 
+    App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DoctrineOutboundMessageRepository
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
