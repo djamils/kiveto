@@ -124,3 +124,8 @@ services:
     test.App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface:
         alias: App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface
         public: true
+
+    # IdentityAccess services read by the integration tests.
+    test.App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
+        alias: App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface
+        public: true

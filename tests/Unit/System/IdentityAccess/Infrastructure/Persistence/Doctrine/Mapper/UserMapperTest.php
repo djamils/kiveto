@@ -58,4 +58,15 @@ final class UserMapperTest extends TestCase
         );
         self::assertSame($domain->type()->value, $roundTrip->type()->value);
     }
+
+    public function testApplyToCopiesWhatTheLifecycleChanges(): void
+    {
+        $mapper = new UserMapper(new DoctrineUserFactory());
+        $entity = $mapper->toEntity(User::invite(UserId::fromString('11111111-1111-1111-1111-111111111111'), 'hugo@example.com', new \DateTimeImmutable('2026-10-26'), UserType::CLINIC));
+
+        $active = User::reconstitute(UserId::fromString('11111111-1111-1111-1111-111111111111'), 'hugo@example.com', '$chosen', new \DateTimeImmutable('2026-10-26'), UserStatus::ACTIVE, new \DateTimeImmutable('2026-10-27'), UserType::CLINIC);
+        $mapper->applyTo($entity, $active);
+
+        self::assertSame(['hugo@example.com', '$chosen', UserStatus::ACTIVE, '2026-10-27'], [$entity->getEmail(), $entity->getPasswordHash(), $entity->getStatus(), $entity->getEmailVerifiedAt()?->format('Y-m-d')]);
+    }
 }

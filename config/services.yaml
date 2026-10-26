@@ -199,6 +199,9 @@ services:
 
     App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~
 
+    App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalAccountTokenRepository
+
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
     # ============================================================================

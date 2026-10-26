@@ -51,6 +51,7 @@ final readonly class AuthenticateUserHandler
             email: $user->email(),
             type: $user->type(),
             roles: ['ROLE_USER'],
+            passwordFingerprint: $user->passwordFingerprint(),
         );
     }
 }

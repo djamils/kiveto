@@ -36,6 +36,7 @@ final class ContextUserProviderTest extends TestCase
         self::assertInstanceOf(SecurityUser::class, $securityUser);
         self::assertSame('clinic@example.com', $securityUser->getUserIdentifier());
         self::assertSame(UserType::CLINIC, $securityUser->type());
+        self::assertTrue($securityUser->isEqualTo(new SecurityUser($user->id()->toString(), 'clinic@example.com', UserType::CLINIC, ['ROLE_USER'], substr(hash('sha256', '$hash'), 0, 16))), 'the fingerprint of the current hash');
     }
 
     public function testLoadUserByIdentifierThrowsWhenNotFound(): void

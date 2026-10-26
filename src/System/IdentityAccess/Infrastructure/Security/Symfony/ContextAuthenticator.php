@@ -88,7 +88,7 @@ final class ContextAuthenticator extends AbstractAuthenticator implements Authen
         return new SelfValidatingPassport(
             new UserBadge(
                 $identity->id,
-                fn () => new SecurityUser($identity->id, $identity->email, $identity->type, $identity->roles),
+                fn () => new SecurityUser($identity->id, $identity->email, $identity->type, $identity->roles, $identity->passwordFingerprint),
             ),
         );
     }

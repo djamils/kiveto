@@ -26,8 +26,15 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
 
     public function save(User $user): void
     {
-        $entity = $this->mapper->toEntity($user);
-        $this->em->persist($entity);
+        $existing = $this->em->getRepository(UserEntity::class)->find(Uuid::fromString($user->id()->toString()));
+
+        if ($existing instanceof UserEntity) {
+            // A known account (activation, password change): the version column guards concurrent writes.
+            $this->mapper->applyTo($existing, $user);
+        } else {
+            $this->em->persist($this->mapper->toEntity($user));
+        }
+
         $this->em->flush();
     }
 

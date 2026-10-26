@@ -43,6 +43,7 @@ final class AuthenticateUserHandlerTest extends TestCase
         self::assertSame('11111111-1111-1111-1111-111111111111', $identity->id);
         self::assertSame(UserType::CLINIC, $identity->type);
         self::assertSame(['ROLE_USER'], $identity->roles);
+        self::assertSame(substr(hash('sha256', 'hashed-secret'), 0, 16), $identity->passwordFingerprint);
     }
 
     public function testDeniesWrongPassword(): void

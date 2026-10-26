@@ -23,7 +23,9 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  *
  * Business authentication rules (credentials verification, account policies, email verification, etc.)
  * must remain in the Application use case (AuthenticateUserHandler). This provider only reloads the
- * authenticated user for Symfony's session management.
+ * authenticated user for Symfony's session management. The reloaded user
+ * carries the current password fingerprint, so a password changed elsewhere
+ * (reset) closes this session (SecurityUser::isEqualTo()).
  *
  * @implements UserProviderInterface<SecurityUser>
  */
@@ -48,6 +50,7 @@ final readonly class ContextUserProvider implements UserProviderInterface
             email: $user->email(),
             type: $user->type(),
             roles: ['ROLE_USER'],
+            passwordFingerprint: $user->passwordFingerprint(),
         );
     }
 

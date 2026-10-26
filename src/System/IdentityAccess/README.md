@@ -32,9 +32,37 @@ The **IdentityAccess** system context manages user identities, authentication, a
 
 Every successful sign-in (`LoginSuccessEvent`, any firewall) dispatches `RecordUserLogin`, which stamps the account's `last_login_at` through `UserRepositoryInterface::recordLogin()`. It is a trace of use kept out of the aggregate; the clinic team page reads it to tell who has started using their access and when they were last seen.
 
+## Account lifecycle
+
+| Status | How an account gets there |
+|--------|---------------------------|
+| `PENDING` | `User::invite()` — a clinic invited the person; the hash matches no password (it starts with `!`), login is refused. |
+| `ACTIVE` | `User::register()` (fixtures, back office) or `User::activate(passwordHash, at)` — the invited person chose a password from the link; `emailVerifiedAt` is set (the link reached the mailbox). |
+| `DISABLED` | Account switched off; it can neither log in nor be invited again. |
+
+`User::changePassword(passwordHash, at)` (ACTIVE only) replaces the password after a reset.
+
+## Account tokens
+
+Single-use links sent by e-mail, table `identity_access__account_tokens` (`AccountToken`, `TokenPurpose`):
+
+- The secret is 32 random bytes in base64url; **only its sha256 is stored** (`token_hash`, unique).
+- `INVITATION` — 72 h, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
+- `PASSWORD_RESET` — 30 min; a new one, and a successful reset, invalidate the user's other reset tokens.
+- A token is used once (`used_at`); invalidated tokens are marked used too.
+
+Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDING_EXPIRED` or `ACTIVE` per user (the clinic team page, through a Clinic port).
+
+## Sessions
+
+`SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.
+
 ## Domain Events
 
 - `UserRegistered` — emitted when a new user account is created via `RegisterUser` command.
+- `UserInvited` — a PENDING account was created for an invitation.
+- `UserActivated` — the invited user chose a password; bridged to `UserActivatedIntegrationEvent` (outbox), consumed by Clinic to recount its active veterinarians (SMS quota).
+- `UserPasswordChanged` — the password was replaced (reset).
 
 ## Known Security Debt
 
@@ -42,4 +70,3 @@ The following security features are intentionally out of scope for the current p
 
 - **2FA** — no second factor authentication is implemented. Planned for Phase 3.
 - **Account lockout** — no brute-force protection (failed attempt counter, temporary lock). Planned for Phase 3.
-- **Password reset flow** — token-based reset exists but has not been security-audited.
