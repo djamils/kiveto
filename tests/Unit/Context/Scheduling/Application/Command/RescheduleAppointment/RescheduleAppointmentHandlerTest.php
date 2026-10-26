@@ -231,6 +231,23 @@ final class RescheduleAppointmentHandlerTest extends TestCase
         ));
     }
 
+    #[AllowMockObjectsWithoutExpectations]
+    public function testRejectsUnknownAppointment(): void
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Rendez-vous introuvable.');
+
+        $this->repository->method('findById')->willReturn(null);
+
+        ($this->handler)(new RescheduleAppointment(
+            clinicId: self::CLINIC_ID,
+            appointmentId: self::APPOINTMENT_ID,
+            startsAtUtc: new \DateTimeImmutable('2026-04-12 14:00:00'),
+            durationMinutes: 30,
+            practitionerUserId: self::PRACTITIONER,
+        ));
+    }
+
     private function createFutureAppointment(): Appointment
     {
         return Appointment::schedule(

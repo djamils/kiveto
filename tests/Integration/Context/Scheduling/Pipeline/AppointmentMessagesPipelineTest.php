@@ -61,6 +61,16 @@ final class AppointmentMessagesPipelineTest extends KernelTestCase
         $appointments->save(Appointments::planned('2030-03-05 08:30', animalId: null));
     }
 
+    protected function tearDown(): void
+    {
+        // The calendar files are written to the real storage (outside the test transaction).
+        foreach (['confirmation:1', 'cancellation:2'] as $message) {
+            $this->files()->delete('notification/attachments/' . hash('sha256', 'appointment:' . Appointments::ID . ':' . $message) . '/rendez-vous.ics');
+        }
+
+        parent::tearDown();
+    }
+
     public function testTheClientIsToldOfTheBookingThenOfItsCancellation(): void
     {
         $this->syncNow();
