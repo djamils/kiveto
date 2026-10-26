@@ -245,6 +245,8 @@
 .dossier .etat.na i{background:var(--trait)}
 .dossier .etat.pin{color:var(--pin-fonce)}
 .dossier .etat.pin i{background:var(--pin)}
+.dossier .etat.envoi svg{flex:none}
+.dossier .vig.auto{height:18px;padding:0 7px;margin-left:4px;font-size:.66rem;vertical-align:1px}
 .dossier .vide{font-size:.8rem;color:var(--encre-35);padding:2px 0}
 .dossier .vide-g{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:30px 20px;color:var(--encre-60);font-size:.84rem;min-height:100%}
 .dossier .vide-g b{color:var(--encre);font-size:.92rem}

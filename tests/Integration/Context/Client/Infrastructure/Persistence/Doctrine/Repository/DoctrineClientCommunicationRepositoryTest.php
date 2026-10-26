@@ -49,6 +49,10 @@ final class DoctrineClientCommunicationRepositoryTest extends KernelTestCase
         self::assertSame('Appel entrant', $communications[1]->subject);
         self::assertSame('Prise de rendez-vous.', $communications[1]->body);
         self::assertSame('Camille', $communications[1]->authorName);
+        self::assertFalse($communications[1]->automated);
+        self::assertNull($communications[1]->deliveryStatus);
+        self::assertNull($communications[1]->deliveryStatusLabel);
+        self::assertNull($communications[1]->statusChangedAt);
         self::assertSame('2026-03-02 09:12:00', $communications[1]->occurredAt->format('Y-m-d H:i:s'));
     }
 
@@ -94,6 +98,14 @@ final class DoctrineClientCommunicationRepositoryTest extends KernelTestCase
         self::assertSame(3, $reloaded->deliveryStatusSequence());
         self::assertSame('2026-10-26 09:42:30', $reloaded->statusChangedAt()?->format('Y-m-d H:i:s'));
         self::assertTrue($reloaded->isAutomated());
+
+        $views = $this->readRepository()->listForClient(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CLIENT_ID));
+        self::assertCount(1, $views);
+        self::assertTrue($views[0]->automated);
+        self::assertSame('DELIVERED', $views[0]->deliveryStatus);
+        self::assertSame('Délivré', $views[0]->deliveryStatusLabel);
+        self::assertSame('2026-10-26 09:42:30', $views[0]->statusChangedAt?->format('Y-m-d H:i:s'));
+        self::assertSame('Envoi automatique', $views[0]->authorName);
     }
 
     private function repository(): ClientCommunicationRepositoryInterface

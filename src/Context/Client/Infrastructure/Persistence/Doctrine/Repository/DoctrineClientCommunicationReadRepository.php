@@ -8,6 +8,7 @@ use App\Context\Client\Application\Port\ClientCommunicationReadRepositoryInterfa
 use App\Context\Client\Application\Query\ListClientCommunications\ClientCommunicationView;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClinicId;
+use App\Context\Client\Domain\ValueObject\CommunicationOrigin;
 use App\Context\Client\Infrastructure\Persistence\Doctrine\Entity\ClientCommunicationEntity;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -38,6 +39,10 @@ final readonly class DoctrineClientCommunicationReadRepository implements Client
                 body: $entity->body,
                 authorName: $entity->authorName,
                 occurredAt: $entity->occurredAt,
+                automated: CommunicationOrigin::AUTOMATED === $entity->origin,
+                deliveryStatus: $entity->deliveryStatus?->value,
+                deliveryStatusLabel: $entity->deliveryStatus?->label(),
+                statusChangedAt: $entity->statusChangedAt,
             ),
             $entities,
         );

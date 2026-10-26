@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Context\Client\Pipeline;
 
+use App\Context\Client\Application\Query\ListClientCommunications\ClientCommunicationView;
+use App\Context\Client\Application\Query\ListClientCommunications\ListClientCommunications;
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\ClientCommunication;
 use App\Context\Client\Domain\Repository\ClientCommunicationRepositoryInterface;
@@ -15,6 +17,7 @@ use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\ContactLabel;
 use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use App\Shared\Domain\Storage\FileStorageInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -109,6 +112,15 @@ final class AutomatedMessageJournalPipelineTest extends WebTestCase
         $entry = $this->entry($id);
         self::assertSame('Délivré', $entry->deliveryStatus()?->label());
         self::assertSame(1, $this->entriesOfTheClient());
+
+        $journal = self::getContainer()->get(QueryBusInterface::class);
+        \assert($journal instanceof QueryBusInterface);
+        $views = $journal->ask(new ListClientCommunications(self::CLINIC, self::CLIENT));
+        self::assertIsArray($views);
+        self::assertCount(1, $views);
+        self::assertInstanceOf(ClientCommunicationView::class, $views[0]);
+        self::assertTrue($views[0]->automated);
+        self::assertSame('Délivré', $views[0]->deliveryStatusLabel);
     }
 
     /**
