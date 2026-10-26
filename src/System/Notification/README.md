@@ -82,6 +82,13 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
+## Events
+
+- `OutboundMessageStatusChangedIntegrationEvent` — every status a message takes.
+- `SmsUsageThresholdCrossedIntegrationEvent` (clinicId, month, threshold `80` | `100` | `CAP`, used, quota, cap) —
+  published by `OnSmsSent` when an SMS handed over makes the billed usage reach a threshold for the first time
+  in the quota month (`notification__sms_thresholds_crossed`, INSERT IGNORE: announced once).
+
 ## Transports
 
 `NOTIFICATION_DELIVERY` picks the delivery adapters: `disabled` (nothing
