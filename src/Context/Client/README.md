@@ -393,6 +393,7 @@ Comment joindre un client par un envoi automatique (Scheduling, Billing, Consult
 Règles de consentement :
 - `channelsFor(kind)` : canaux consentis pour ce type d'envoi **et** dont l'adresse existe (le rappel SMS de RDV n'est envoyé que si `appointment_reminders` contient `sms`) ;
 - `transactionalChannel()` : confirmation / modification / annulation de RDV, jamais bloquées par un consentement — canal préféré si son adresse existe, sinon e-mail, sinon SMS, sinon aucun.
+- rappel SMS de RDV (D9) : le formulaire de création coche « Rappels SMS de rendez-vous » par défaut quand un mobile est saisi (`appointment_reminders` contient `sms`) ; la fiche client permet de le couper (« Rappels de rendez-vous par SMS », `UpdateClientCommunicationPreferences`). Pas de reprise des clients existants.
 
 #### SearchCompanyRegistry
 

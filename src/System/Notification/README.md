@@ -86,6 +86,59 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | `UpsertClinicMessagingProfile` | command | Clinic pushes the profile of one of its clinics. |
 | `RecordVeterinarianCount` | command | Clinic pushes the day's number of active veterinarians (read-only copy used by the quota). |
 
+## Consent table
+
+Consents are applied by the **requesting context**, never here: it reads
+Client's `GetClientNotificationContact` through its own port + QueryBus
+adapter and passes a resolved recipient (and, for a non-critical SMS, the
+optional e-mail fallback). `ClientNotificationContact::channelsFor(kind)`
+returns the channels a consent kind allows **and** for which an address
+exists; `transactionalChannel()` returns the preferred channel when its
+address exists, else e-mail, else SMS, else none. An archived client gets
+nothing automated.
+
+| Purpose | Requester | Channel(s) | Consent used |
+|---|---|---|---|
+| `APPOINTMENT_CONFIRMATION` / `_CHANGE` / `_CANCELLATION` | Scheduling (`SyncAppointmentNotification`) | one: `transactionalChannel()` | none — never blocked by a consent |
+| `APPOINTMENT_REMINDER` | Scheduling (`RequestAppointmentReminder`) | SMS only, when `appointment_reminders` contains `sms` and a mobile exists; e-mail fallback (cap reached) only when the same consent also contains `email` and an e-mail exists | `appointment_reminders` (« Rappels de rendez-vous ») |
+| `INVOICE_SENT` | Billing (`SendInvoiceEmail`) | e-mail on file, whatever the consents (explicit staff action) | none |
+| `INVOICE_REMINDER` | Billing (`SendUnpaidReminder`) | the `billing` consent's reachable channels (SMS and / or e-mail), else `transactionalChannel()`; SMS e-mail fallback only when e-mail is not already a channel | `billing` (« Factures et relances de règlement ») |
+| `CONSULTATION_DOCUMENTS` | Consultation (`EmailConsultationDocuments`) | e-mail on file, whatever the consents (explicit staff action) | none |
+| `STAFF_INVITATION`, `PASSWORD_RESET` | IdentityAccess | e-mail | none (staff accounts) |
+
+## SMS quota
+
+- **Quota** = `notification.sms.segments_per_veterinarian` (400) × the highest
+  number of active veterinarians over the quota month, pooled per clinic.
+  « Active » = an effective VETERINARY membership whose user account is
+  ACTIVE (an invited, never-activated vet does not count). The counts are
+  Clinic's (`clinic__veterinarian_daily_counts`), pushed by
+  `RecordVeterinarianCount` into the read-only copy
+  `notification__veterinarian_counts`; a month without a row uses the last
+  known count; the count is never below 1, so the quota never below 400.
+- **Month** = Kiveto billing month, always Europe/Paris, whatever the clinic
+  time zone (`SmsQuotaPolicy::TIME_ZONE`).
+- **Usage** = billed segments of the SMS handed to the provider in the month
+  (`sent_at` set), read from the journal — no separate counter.
+- **Overage** = segments beyond the quota, counted at
+  `notification.sms.overage_unit_price` (`'0.079'` € HT per segment). Alpha:
+  counted and shown, never invoiced automatically.
+- **Overage cap** = per clinic, default `notification.sms.default_overage_cap`
+  (500), set in Paramètres › Notifications (Clinic `MessagingSettings`). A
+  non-critical SMS (appointment reminder, unpaid reminder) that would take
+  used + queued + its segments beyond quota + cap falls back to e-mail when
+  the requester passed a fallback, else is recorded `BLOCKED_CAP`
+  (« Bloqué (plafond) »). Critical SMS (appointment confirmation, change,
+  cancellation) always go out.
+- **Thresholds** `80`, `100` (percent of the quota) and `CAP` (used ≥ quota +
+  cap) are announced once per clinic and month
+  (`SmsUsageThresholdCrossedIntegrationEvent`); Clinic's
+  `SmsUsageThresholdCrossedConsumer` posts a `SMS_QUOTA` bell entry to the
+  clinic administrators (« Quota SMS à 80 % », « Quota SMS atteint »,
+  « Plafond de dépassement atteint — rappels basculés sur l’e-mail »).
+  Paramètres › Notifications shows the usage (`GetSmsUsage`) with the 80 % /
+  100 % banners.
+
 ## Retention (schedule `notification`, DB-locked, Europe/Paris)
 
 | When | Command | What |
@@ -127,8 +180,51 @@ NOTIFICATION_ACCOUNT_SENDER=no-reply@kiveto.fr
 BREVO_WEBHOOK_TOKEN=<secret>
 ```
 
-A developer may put the same values in `.env.local` to test the real Brevo
-account. Mailpit (dev): http://localhost:8025 (`docker compose up -d mailer`).
+### Brevo setup (production)
+
+1. **Sending domains** — authenticate in Brevo the sending sub-domain
+   `mail.kiveto.fr` (clinic e-mails, `<clinic-slug>@mail.kiveto.fr`) and
+   `kiveto.fr` (`no-reply@kiveto.fr`, account e-mails): SPF, DKIM and DMARC
+   records in DNS, until Brevo shows both domains authenticated.
+2. **API key** — create a Brevo API key and put it in `MAILER_DSN` and
+   `NOTIFIER_SMS_DSN` (values above); set `NOTIFICATION_DELIVERY=brevo`.
+3. **SMS senders** — register the alphanumeric senders with Brevo: « Kiveto »
+   and each clinic's sender (Paramètres › Notifications, derived from the
+   clinic name by default). Until a clinic's sender is registered, set it to
+   « Kiveto ».
+4. **Webhooks** — in Brevo, transactional e-mail events →
+   `https://hooks.kiveto.fr/webhook/brevo_mailer`, SMS events →
+   `https://hooks.kiveto.fr/webhook/brevo_sms`, with the secret
+   `BREVO_WEBHOOK_TOKEN` sent as `Authorization: Bearer <secret>` when Brevo
+   allows a header, else appended to the URL as `?token=<secret>`.
+   `hooks.kiveto.fr` points to the application (`NOTIFICATION_WEBHOOK_HOST`).
+5. **IP ranges** — check that Brevo's published webhook ranges still match
+   `notification.brevo.webhook_ips` (`config/services.yaml`) and that
+   `SYMFONY_TRUSTED_PROXIES` lists the reverse proxies, so the client IP is
+   Brevo's.
+6. **After deployment** — run `bin/console app:clinic:sync-messaging-profiles`
+   (every clinic's messaging profile and today's veterinarian count pushed to
+   Notification); the `external-worker` must consume
+   `async_external_notification`.
+
+### Development
+
+Default: `NOTIFICATION_DELIVERY=simulator`. E-mails land in Mailpit,
+http://localhost:8025 (`docker compose up -d mailer`); SMS stay local and the
+delivery events are faked. The workers must run (`make worker-start`):
+`messenger-worker` (`async`: debounced appointment syncs, reminders, invoice
+and documents e-mails, webhook events, simulator), `external-worker`
+(`async_external_notification`: the dispatch) and `scheduler-worker`
+(schedules `notification`, `clinic`, `scheduling`, `inventory`). The dev
+fixtures (`make reset-db`, `NotificationDemoStory`) seed messages in every
+status, a clinic near and one over its SMS quota, bell entries and
+invitations.
+
+Real Brevo from a workstation: put in `.env.local`
+`MAILER_DSN=brevo+api://KEY@default`,
+`NOTIFIER_SMS_DSN=brevo://KEY@default?sender=Kiveto`,
+`NOTIFICATION_DELIVERY=brevo` and `BREVO_WEBHOOK_TOKEN=<secret>`, then open
+the tunnel below so the delivery statuses come back.
 
 ### Brevo webhooks
 
@@ -192,4 +288,5 @@ Console: `app:notification:send-test <clinicId> <email|+33…>` requests a
 
 Business contexts request messages (`RequestNotification`) and Client projects
 `OutboundMessageStatusChangedIntegrationEvent` into the client communication
-journal.
+journal; Clinic turns `SmsUsageThresholdCrossedIntegrationEvent` into a `SMS_QUOTA`
+bell entry for the clinic administrators.

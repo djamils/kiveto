@@ -133,6 +133,32 @@ Every command that changes stock produces a `StockMovement` record. The movement
   weekly outflows over 12 weeks, its latest movements and the date of the last
   count; `ListMovements` pages the trail with the balance after each movement.
 
+### Bell entries (« Stock critique », « Péremption proche »)
+
+Inventory posts two kinds of in-app notifications (D13) through Notification's
+`PostInAppNotification`:
+
+- **« Stock critique · <article> »** — the live `StockAlertProjector`, when it
+  **inserts** a new `OUT_OF_STOCK` alert row (or `LOW_STOCK` with severity
+  `CRITICAL`), queues `NotifyCriticalStock(clinicId, alertId)` on `async` in
+  the same transaction. The worker posts the entry once per alert row (key
+  `stock-alert:<alertId>`), unless the alert was resolved meanwhile. The full
+  re-projection (`app:inventory:detect-alerts`) bypasses the projector and
+  announces nothing.
+- **« Péremption proche · N lots »** — `NotifyExpiringLots`, daily at 07:13
+  Paris (schedule `inventory`, DB-locked): the lots expiring within 30 days
+  never announced, one entry per clinic (key `expiring:<clinicId>:<day>`);
+  each lot is recorded in `inventory__expiry_notifications` so it is announced
+  once. A clinic with nobody to tell keeps its lots for a later scan.
+
+Recipients (`StockNoticeRecipients`): the clinic's veterinary assistants, or
+its administrators when it has none, read through `ClinicStaffInterface`
+(`Infrastructure/Adapter/Clinic/QueryBusClinicStaff` → Clinic
+`ListClinicMembersForNotification`). Other ports: `StaffBellInterface`
+(`Adapter/Notification/CommandBusStaffBell`), `StockNoticeJobsInterface`
+(`Messaging/MessengerStockNoticeJobs`), `ExpiryNoticeRepositoryInterface`
+(`DbalExpiryNoticeRepository`).
+
 ## Console Commands
 
 | Command | Description |
