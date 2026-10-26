@@ -686,6 +686,12 @@ services:
     App\Context\Prescription\Application\Port\DrugRegistryInterface:
         class: App\Context\Prescription\Infrastructure\Adapter\Catalog\QueryBusDrugRegistry
 
+    App\Context\Prescription\Application\Port\ClinicDocumentIdentityInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentIdentity
+
+    App\Context\Prescription\Application\Port\PrescriptionPdfRendererInterface:
+        class: App\Context\Prescription\Infrastructure\Document\PrescriptionPdfRenderer
+
     App\Context\Prescription\Infrastructure\Persistence\Doctrine\PrescriptionMapper: ~
 
     # ============================================================================
