@@ -21,15 +21,18 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
+use App\System\Notification\Application\Query\CountUnreadInAppNotifications\CountUnreadInAppNotifications;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Builds what the application shell shows on every clinic page: the member's
  * clinics for the switcher, the member themselves for the topbar, and the few
  * live figures the shell surfaces (practitioners, today's appointments, critical
- * stock alerts). Every figure comes from a query; nothing is made up.
+ * stock alerts, unread bell entries). Every figure comes from a query; nothing
+ * is made up.
  */
-final class ShellViewBuilder
+final class ShellViewBuilder implements ResetInterface
 {
     /** Square colours of the clinic switcher, handed out in the member's clinic order to clinics that chose none. */
     private const array CLINIC_COLORS = [
@@ -57,6 +60,12 @@ final class ShellViewBuilder
     public function build(): ShellView
     {
         return $this->view ??= $this->doBuild();
+    }
+
+    /** A kernel serving several requests (worker, test client) rebuilds the shell for each. */
+    public function reset(): void
+    {
+        $this->view = null;
     }
 
     private function doBuild(): ShellView
@@ -133,7 +142,15 @@ final class ShellViewBuilder
             isOpenNow: null === $settings ? null : $this->isOpenNow($settings, $now->setTimezone($timeZone)),
             address: null === $settings ? null : $this->address($settings),
             stockAlertCount: $critical,
+            unreadNotifications: $this->unreadNotifications($user->id(), $currentClinicId),
         );
+    }
+
+    private function unreadNotifications(string $userId, string $clinicId): int
+    {
+        $count = $this->queryBus->ask(new CountUnreadInAppNotifications($userId, $clinicId));
+
+        return \is_int($count) ? $count : 0;
     }
 
     /**

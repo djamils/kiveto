@@ -23,6 +23,8 @@ final readonly class ShellView
         public ?bool $isOpenNow,
         public ?string $address,
         public int $stockAlertCount,
+        // Unread bell entries of the member in the current clinic
+        public int $unreadNotifications = 0,
     ) {
     }
 

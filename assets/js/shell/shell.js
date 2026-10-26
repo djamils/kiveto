@@ -4,7 +4,7 @@
  * Behaviour of the v-topbar application shell, ported from the shell portion
  * of docs/frontend-theme/kiveto-theme/*-v-topbar*.html: sidebar collapse,
  * clinic switcher, footer drop-ups (« Quoi de neuf », « Aide »), topbar
- * drop-downs (notifications, profile, language), search palette (⌘K),
+ * drop-downs (notifications bell, profile, language), search palette (⌘K),
  * shortcuts modal (?), quick-action keys, toast and dark tooltips.
  *
  * Every listener is delegated at document level and bound once by
@@ -318,6 +318,90 @@ function onMouseOut(e) {
   }
 }
 
+// ═════════ Bell (in-app notifications) ═════════
+
+// The id placeholder of the « mark read » URL rendered in the topbar.
+const NF_ID = '00000000-0000-7000-8000-000000000000';
+const BELL_POLL_MS = 60000;
+
+function bellPop() {
+  return $('#popNotif');
+}
+
+function setBellDot(unread) {
+  const dot = $('#btnNotif .tb-dot');
+  if (dot) dot.style.display = unread > 0 ? '' : 'none';
+}
+
+async function bellFetch(url, post = false) {
+  const init = { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' };
+  if (post) {
+    const body = new FormData();
+    body.append('_token', bellPop()?.dataset.token || '');
+    Object.assign(init, { method: 'POST', body });
+  }
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function applyBellFilter() {
+  const f = $('.nf-filtre button.on')?.dataset.f || 'tout';
+  $$('#nfListe .nf').forEach((n) => { n.hidden = !(f === 'tout' || n.dataset.k === f); });
+}
+
+/** Loads the 20 latest entries when the dropdown opens. */
+async function loadBell() {
+  const pop = bellPop();
+  const list = $('#nfListe');
+  if (!pop?.dataset.listUrl || !list) return;
+  try {
+    const data = await bellFetch(pop.dataset.listUrl);
+    setBellDot(data.unread);
+    list.innerHTML = data.html;
+    applyBellFilter();
+  } catch (_) {
+    list.innerHTML = '<div class="nf-vide">Notifications indisponibles pour le moment.</div>';
+  }
+}
+
+/** The unread dot follows new entries (polled every minute, no push). */
+async function refreshBellCount() {
+  const pop = bellPop();
+  if (!pop?.dataset.listUrl || document.hidden) return;
+  try {
+    const data = await bellFetch(pop.dataset.listUrl + '?count=1');
+    setBellDot(data.unread);
+  } catch (_) { /* retried at the next tick */ }
+}
+
+async function openEntry(entry) {
+  const pop = bellPop();
+  if (!entry.classList.contains('lu') && pop?.dataset.readUrl) {
+    entry.classList.add('lu');
+    try {
+      const data = await bellFetch(pop.dataset.readUrl.replace(NF_ID, entry.dataset.nf), true);
+      setBellDot(data.unread);
+    } catch (_) { /* stays unread on the server; the screen opens anyway */ }
+  }
+  closeTbPops();
+  if (entry.dataset.href) visit(entry.dataset.href);
+}
+
+async function markAllRead() {
+  const pop = bellPop();
+  if (!pop?.dataset.readAllUrl) return;
+  try {
+    await bellFetch(pop.dataset.readAllUrl, true);
+    $$('.nf[data-nf]').forEach((n) => n.classList.add('lu'));
+    $$('[data-nf-unread]').forEach((n) => n.remove());
+    setBellDot(0);
+    showToast('Toutes les notifications marquées lues');
+  } catch (_) {
+    showToast('Impossible de marquer les notifications lues', 'danger');
+  }
+}
+
 // ═════════ Delegated handlers ═════════
 
 function onClick(e) {
@@ -350,23 +434,27 @@ function onClick(e) {
   if (!t.closest('.sb-clinique')) closeClinic();
 
   // ── Topbar drop-downs
-  if (t.closest('#btnNotif')) { toggleTbPop($('#popNotif')); return; }
+  if (t.closest('#btnNotif')) {
+    const pop = $('#popNotif');
+    const opening = !pop.classList.contains('open');
+    toggleTbPop(pop);
+    if (opening) loadBell();
+    return;
+  }
   if (t.closest('#btnProfil')) { toggleTbPop($('#popProfil')); return; }
 
   const filtre = t.closest('.nf-filtre button');
   if (filtre) {
     $$('.nf-filtre button').forEach((x) => x.classList.remove('on'));
     filtre.classList.add('on');
-    const f = filtre.dataset.f;
-    $$('#nfListe .nf').forEach((n) => { n.hidden = !(f === 'tout' || (f === 'tache' ? n.dataset.k === 'tache' : n.dataset.k !== 'tache')); });
+    applyBellFilter();
     return;
   }
-  if (t.closest('#nfToutLu')) {
-    $$('#nfListe .nf').forEach((n) => n.classList.add('lu'));
-    $('#btnNotif .tb-dot')?.style.setProperty('display', 'none');
-    showToast('Toutes les notifications marquées lues');
-    return;
-  }
+  // « Tout marquer lu » (dropdown and history page)
+  if (t.closest('[data-nf-all]')) { markAllRead(); return; }
+  // A bell entry: marked read, then its screen opens
+  const entry = t.closest('.nf[data-nf]');
+  if (entry) { e.preventDefault(); openEntry(entry); return; }
 
   const langRow = t.closest('#langRow');
   if (langRow) {
@@ -499,6 +587,7 @@ export function initShell() {
   document.addEventListener('input', onInput);
   document.addEventListener('mouseover', onMouseOver);
   document.addEventListener('mouseout', onMouseOut);
+  setInterval(refreshBellCount, BELL_POLL_MS);
   // Never let Turbo snapshot an open popover, palette or toast.
   document.addEventListener('turbo:before-cache', () => {
     closePal();

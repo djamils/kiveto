@@ -328,6 +328,7 @@ function majUrl() {
   u.searchParams.set('view', vue);
   u.searchParams.set('date', iso(cur));
   u.searchParams.delete('new');
+  u.searchParams.delete('rdv');
   if (u.href !== window.location.href) window.history.replaceState(window.history.state, '', u.href);
 }
 
@@ -820,6 +821,8 @@ export function init() {
   if (!root || !raw) return;
 
   D = JSON.parse(raw.textContent);
+  // A bell entry « Nouveau RDV » opens the agenda on its appointment (?rdv=).
+  const rdvCible = new URLSearchParams(location.search).get('rdv');
   t0 = Date.now();
   AUJ = parse(D.today);
   VETS = D.vets;
@@ -890,6 +893,8 @@ export function init() {
   rendre();
   const voitAuj = vue === 'week' ? AUJ >= lundiDe(cur) && AUJ < addD(lundiDe(cur), 7) : memeJour(cur, AUJ);
   calBody.scrollTop = voitAuj ? Math.max(0, (nowMin() - START - 90) * PX) : 0;
+  const cible = rdvCible && calInner.querySelector(`.ev[data-id="${CSS.escape(rdvCible)}"]`);
+  if (cible) { cible.scrollIntoView({ block: 'center' }); ouvrirPop(rdvCible, cible); }
 
   // The now-line and the past / to-come states follow the clock
   ticker = setInterval(() => { if (!rdvVeilEl.classList.contains('open') && !pop.classList.contains('open')) rendre(); }, 60000);

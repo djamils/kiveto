@@ -26,10 +26,10 @@
   <div class="right">
     {{ extra|default('')|raw }}
   </div>
-    <button type="button" class="tb-ic" id="btnNotif" aria-label="Notifications" aria-haspopup="true">
+    <button type="button" class="tb-ic" id="btnNotif" aria-label="Notifications{{ shell.unreadNotifications > 0 ? ' — ' ~ shell.unreadNotifications ~ ' non lue' ~ (shell.unreadNotifications > 1 ? 's') }}" aria-haspopup="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-      {# The dot only shows unread notifications; there are none to read yet. #}
-      <span class="tb-dot" style="display:none"></span>
+      {# Shown while an entry is unread; refreshed every minute by shell.js. #}
+      <span class="tb-dot"{% if shell.unreadNotifications == 0 %} style="display:none"{% endif %}></span>
     </button>
     <div class="tb-sep"></div>
     <a class="tb-ic" id="btnLock" href="{{ path('clinic_lock') }}" data-turbo="false" aria-label="Verrouiller la session" title="Verrouiller la session">
@@ -39,21 +39,30 @@
 </header>
 
 {# ── Drop-downs ── #}
-<div class="tb-pop" id="popNotif" style="width:350px">
+{# Bell (D13): entries loaded when it opens; only the filters that can hold
+   entries (no « Tâches » until tasks exist). #}
+<div class="tb-pop" id="popNotif" style="width:350px"
+  {% if _current %}
+  data-list-url="{{ path('clinic_notifications_list') }}"
+  data-read-url="{{ path('clinic_notifications_read', { id: '00000000-0000-7000-8000-000000000000' }) }}"
+  data-read-all-url="{{ path('clinic_notifications_read_all') }}"
+  data-token="{{ csrf_token('clinic_notifications') }}"
+  {% endif %}>
   <div class="nf-head">
     <div class="r1">
       <b>Notifications</b>
-      <button type="button" class="tout" id="nfToutLu">Tout marquer lu</button>
+      <button type="button" class="tout" id="nfToutLu" data-nf-all>Tout marquer lu</button>
     </div>
     <span class="nf-filtre" role="tablist">
       <button type="button" class="on" data-f="tout">Tout</button>
-      <button type="button" data-f="tache">Tâches</button>
       <button type="button" data-f="activite">Activité</button>
     </span>
   </div>
-  <div id="nfListe"><div class="nf-vide">Rien ici — tout est lu.</div></div>
+  <div id="nfListe"><div class="nf-vide">Chargement…</div></div>
   <div class="fp-sep"></div>
-  <button type="button" class="nf-histo" data-toast="Historique des notifications — 30 derniers jours (écran à venir)">Voir tout l'historique</button>
+  {% if _current %}
+    <a class="nf-histo" href="{{ path('clinic_notifications_history') }}" style="display:block">Voir tout l'historique</a>
+  {% endif %}
 </div>
 
 <div class="tb-pop" id="popProfil" style="width:250px">
