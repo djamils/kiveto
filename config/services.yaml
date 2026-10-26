@@ -561,6 +561,18 @@ services:
     App\Context\Consultation\Application\Port\ActCategoryProviderInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusActCategoryProvider
 
+    App\Context\Consultation\Application\Port\ClinicDocumentIdentityInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentIdentity
+
+    App\Context\Consultation\Application\Port\PractitionerDirectoryInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Clinic\QueryBusPractitionerDirectory
+
+    App\Context\Consultation\Application\Port\PatientSnapshotProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Patient\QueryBusPatientSnapshotProvider
+
+    App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface:
+        class: App\Context\Consultation\Infrastructure\Document\ConsultationReportPdfRenderer
+
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\PerformedActMapper: ~
