@@ -11,6 +11,7 @@ use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\GetClinicSetti
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\AccessibleClinic;
 use App\Context\Clinic\Application\Query\Clinic\ListClinicsForUser\ListClinicsForUser;
 use App\Context\Clinic\Domain\ValueObject\OrdinalCouncil;
+use App\Context\Scheduling\Application\Query\GetReminderDelay\GetReminderDelay;
 use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
@@ -23,8 +24,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
- * Everything the settings page draws, in one payload: the five sections the
- * clinic can set today (identity, hours, notifications, billing, the
+ * Everything the settings page draws, in one payload: the six sections the
+ * clinic can set today (identity, hours, notifications, agenda, billing, the
  * member's own preferences) with their current values, which of them the member may open,
  * and where each one is saved. The page module renders the sections from it
  * and posts a whole section back on every change.
@@ -38,6 +39,7 @@ final readonly class SettingsPageBuilder
         'identite'      => 'clinic_settings',
         'horaires'      => 'clinic_settings_hours',
         'notifications' => 'clinic_settings_notifications',
+        'agenda'        => 'clinic_settings_agenda',
         'facturation'   => 'clinic_settings_billing',
         'moi'           => 'clinic_settings_preferences',
     ];
@@ -92,6 +94,7 @@ final readonly class SettingsPageBuilder
             'identite'      => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'horaires'      => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'notifications' => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
+            'agenda'        => $this->guard->has(ClinicPermissionGuard::MANAGE_STAFF),
             'facturation'   => $this->guard->has(ClinicPermissionGuard::MANAGE_BILLING),
             'moi'           => true,
         ];
@@ -105,6 +108,7 @@ final readonly class SettingsPageBuilder
             'identite'      => $can['identite'] ? $this->identity($settings) : null,
             'horaires'      => $can['horaires'] ? $this->hours($settings) : null,
             'notifications' => $can['notifications'] ? $this->notifications($settings) : null,
+            'agenda'        => $can['agenda'] ? $this->agenda($settings) : null,
             'facturation'   => $can['facturation'] ? $this->billing($settings) : null,
             'moi'           => $this->preferences(),
             'options'       => [
@@ -231,6 +235,19 @@ final readonly class SettingsPageBuilder
     }
 
     /**
+     * When the SMS reminder of an appointment is sent (Scheduling's setting).
+     *
+     * @return array{'ag.rappel': string}
+     */
+    public function agenda(ClinicSettingsView $settings): array
+    {
+        $delay = $this->queryBus->ask(new GetReminderDelay($settings->id));
+        \assert(\is_string($delay));
+
+        return ['ag.rappel' => $delay];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function billing(ClinicSettingsView $settings): array
@@ -313,6 +330,7 @@ final readonly class SettingsPageBuilder
                 'identite'      => $go('clinic_settings_identity_save'),
                 'horaires'      => $go('clinic_settings_hours_save'),
                 'notifications' => $go('clinic_settings_notifications_save'),
+                'agenda'        => $go('clinic_settings_agenda_save'),
                 'facturation'   => $go('clinic_settings_billing_save'),
                 'moi'           => $go('clinic_settings_preferences_save'),
             ],

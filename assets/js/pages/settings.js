@@ -1,8 +1,8 @@
 /**
  * Page module — Paramètres (parametres-v-topbar_5 mock-up). Loaded by the
  * app.js dispatcher on clinic_settings, clinic_settings_hours,
- * clinic_settings_notifications, clinic_settings_billing and
- * clinic_settings_preferences.
+ * clinic_settings_notifications, clinic_settings_agenda,
+ * clinic_settings_billing and clinic_settings_preferences.
  *
  * The mock-up renders its sections from a schema and a table of values; this
  * module does the same with the values of the `data-payload` of
@@ -16,7 +16,7 @@
  * is rolled back on the page and its reason shown next to the field.
  *
  * The sections and settings Kiveto does not handle yet are drawn disabled,
- * never with made-up values: Agenda, Planning, Alertes de soins,
+ * never with made-up values: Planning, Alertes de soins,
  * Ordonnances, Stocks, Laboratoires, Reprise des données and Sécurité in the
  * navigation; the approved e-invoicing platform, instalments and the cash
  * desk settings in Facturation; the home page and notifications in Mes
@@ -76,6 +76,7 @@ export function init() {
   /* ── Values (state of the settings) ── */
   const V = { ...(P.identite || {}), ...(P.facturation || {}), 'moi.clin': P.moi['moi.clin'] };
   if (P.notifications) { V['no.exp'] = P.notifications['no.exp']; V['no.cap'] = P.notifications['no.cap']; }
+  if (P.agenda) V['ag.rappel'] = P.agenda['ag.rappel'];
   const USAGE = P.notifications ? P.notifications.usage : null;
   let HORAIRES = P.horaires ? P.horaires.week : [];
   let FERMETURES = P.horaires ? P.horaires.closures : [];
@@ -127,7 +128,9 @@ export function init() {
       { t: 'Expéditeur', rows: [R('no.exp', 'Nom d\'expéditeur des SMS', 'Affiché à la place d\'un numéro sur le téléphone du client. 11 caractères au plus : lettres sans accents, chiffres et espaces.', 'text', { m: 'exp', req: true, w: 200, cnt: 11 })] },
       { t: 'Dépassement', rows: [R('no.cap', 'Plafond de dépassement', 'Segments envoyés au-delà du quota inclus, chaque mois. Une fois le plafond atteint, les rappels passent par l\'e-mail ; les confirmations, modifications et annulations de rendez-vous partent toujours.', 'num', { u: 'segments', max: 100000 })] },
     ] },
-    { id: 'agenda', g: 'Activité', l: 'Agenda', ico: IC.cal, off: true },
+    { id: 'agenda', g: 'Activité', l: 'Agenda', ico: IC.cal, d: 'Les rappels envoyés aux clients avant leurs rendez-vous.', blocks: [
+      { t: 'Rappel de rendez-vous', d: 'Un seul rappel par RDV, par SMS, si le client l\'accepte.', rows: [R('ag.rappel', 'Envoi du rappel', 'Les rappels pas encore partis des rendez-vous à venir suivent aussitôt le nouveau réglage. Un rendez-vous pris trop tard pour ce délai n\'a pas de rappel : la confirmation suffit.', 'seg', { o: [['H24', '24 h avant'], ['H48', '48 h avant'], ['SAME_DAY_8', 'Le matin même à 8 h']], aff: ['agenda'] })] },
+    ] },
     { id: 'planning', g: 'Activité', l: 'Planning', ico: IC.plan, off: true },
     { id: 'alertes', g: 'Activité', l: 'Alertes de soins', ico: IC.steth, off: true },
     { id: 'ordonnances', g: 'Soins', l: 'Ordonnances', ico: IC.rx, off: true },
@@ -151,7 +154,7 @@ export function init() {
   const ouverte = s => !s.off && !!CAN[s.id];
   const ROWS = SECTIONS.filter(ouverte).flatMap(s => s.blocks.flatMap(b => (b.rows || []).map(r => ({ ...r, s }))));
   const secDe = k => ROWS.find(r => r.k === k || (r.type === 'adresse' && k.startsWith(r.pre + '.')))?.s.id
-    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : 'facturation');
+    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : 'facturation');
   const txt = d => typeof d === 'function' ? d() : (d || '');
 
   /* ═════════ State ═════════ */
@@ -164,7 +167,7 @@ export function init() {
   function valeurs(sec) {
     if (sec === 'horaires') return { week: HORAIRES.map(d => d[1]), closures: FERMETURES };
     if (sec === 'moi') return { 'moi.clin': V['moi.clin'] };
-    const pre = sec === 'identite' ? ['id.'] : sec === 'notifications' ? ['no.'] : ['fa.', 'fe.'];
+    const pre = sec === 'identite' ? ['id.'] : sec === 'notifications' ? ['no.'] : sec === 'agenda' ? ['ag.'] : ['fa.', 'fe.'];
     return Object.fromEntries(Object.entries(V).filter(([k]) => pre.some(p => k.startsWith(p))));
   }
   function poster(sec) {
