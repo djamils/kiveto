@@ -53,6 +53,19 @@ Single-use links sent by e-mail, table `identity_access__account_tokens` (`Accou
 
 Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDING_EXPIRED` or `ACTIVE` per user (the clinic team page, through a Clinic port).
 
+## Use cases
+
+| Use case | What it does |
+|----------|--------------|
+| `RegisterInvitedUser(email)` | Creates the PENDING clinic account if absent and returns `InvitedUserRegistration{userId, alreadyActive}`; sends nothing. A portal / back-office address (`EmailUsedByAnotherAccountException`) or a disabled account (`AccountDisabledException`) is refused. |
+| `SendInvitation(userId, clinicId, inviterPrintedName, clinicName, clinicCity, inviteeFirstName, roleLabel)` | PENDING accounts only: invalidates the clinic's previous invitation, issues a new one and requests `STAFF_INVITATION` (key `invitation:<tokenId>`, link `KIVETO_PUBLIC_BASE_URL/invitation/<secret>`). Display values are resolved by the caller through Clinic queries — IdentityAccess never reads a clinic. « Renvoyer » dispatches it again. |
+| `ActivateInvitedUser(token, plainPassword)` | Usable invitation, password of 8 characters or more → `activate()`, token used, `ActivationResult::ACTIVATED`. An account already ACTIVE (link of another clinic) → token used, `ALREADY_ACTIVE`. |
+| `RequestPasswordReset(email)` | **Asynchronous** (`async` transport, raw `messenger.bus.command`). For an ACTIVE clinic account only: invalidates its reset tokens, issues a 30-minute one and requests `PASSWORD_RESET` (key `password-reset:<tokenId>`, « Demande reçue le … à … » Europe/Paris). Otherwise does nothing. |
+| `ResetPassword(token, plainPassword)` | Usable reset token of an ACTIVE account → `changePassword()`, token and every other reset token of the user used. |
+| `CheckAccountToken(token, purpose)` | `AccountTokenCheck{VALID (with the e-mail) | INVALID | ALREADY_ACTIVE}` for the public pages. |
+
+Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.fr> »).
+
 ## Sessions
 
 `SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.

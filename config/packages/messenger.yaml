@@ -123,3 +123,5 @@ framework:
             App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
             # Faked delivery webhooks of the local notification simulator (dev / test), delayed
             App\System\Notification\Infrastructure\Delivery\Simulator\AdvanceSimulatedDelivery: async
+            # « Mot de passe oublié »: same answer and same response time whether the account exists or not
+            App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPasswordReset: async
