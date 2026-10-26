@@ -734,6 +734,12 @@ services:
     App\Context\Billing\Application\Port\CounterClientRegistryInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry
 
+    App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceDispatchRepository
+
+    App\Context\Billing\Application\Port\SentDocumentFileStoreInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalSentDocumentFileStore
+
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
     # ============================================================================

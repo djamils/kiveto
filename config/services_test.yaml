@@ -75,6 +75,15 @@ services:
         public: true
         arguments: [!tagged_locator { tag: 'scheduler.schedule_provider', index_by: 'name' }]
 
+    # Billing services read by the integration tests.
+    test.App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface:
+        alias: App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface
+        public: true
+
+    test.App\Context\Billing\Application\Port\SentDocumentFileStoreInterface:
+        alias: App\Context\Billing\Application\Port\SentDocumentFileStoreInterface
+        public: true
+
     # Notification services read by the integration tests.
     test.App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
         alias: App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface
