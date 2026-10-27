@@ -332,7 +332,7 @@ export function init() {
     const pct = u.percent;
     const lvl = u.capReached || pct >= 100 ? 'crit' : pct >= 80 ? 'warn' : '';
     const banner = u.capReached
-      ? ['crit', 'Plafond de dépassement atteint', 'Les rappels SMS basculent sur l\'e-mail jusqu\'à la fin du mois ; les confirmations, modifications et annulations de rendez-vous partent toujours.']
+      ? ['crit', 'Plafond de dépassement atteint', 'Jusqu\'à la fin du mois, les rappels SMS (rendez-vous, impayés) passent par l\'e-mail quand c\'est possible, sinon ils ne partent pas ; les confirmations, modifications et annulations de rendez-vous partent toujours.']
       : pct >= 100
         ? ['crit', 'Quota SMS atteint', 'Les SMS continuent de partir : chaque segment supplémentaire est compté en dépassement.']
         : pct >= 80 ? ['warn', 'Quota SMS à 80 %', `Il reste ${n(u.quota - u.used)} segments inclus ce mois-ci.`] : null;
