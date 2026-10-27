@@ -35,7 +35,9 @@ final readonly class RequestPasswordResetHandler
 
     public function __invoke(RequestPasswordReset $command): void
     {
-        $user = $this->users->findByEmailAndType(mb_strtolower(mb_trim($command->email)), UserType::CLINIC);
+        $found = $this->users->findByEmailAndType(mb_strtolower(mb_trim($command->email)), UserType::CLINIC);
+        // Locked: two requests at once leave one live link, not two.
+        $user = null !== $found ? $this->users->findByIdForUpdate($found->id()) : null;
 
         if (null === $user || UserStatus::ACTIVE !== $user->status()) {
             return;

@@ -13,6 +13,8 @@ use App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPa
 use App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPasswordResetHandler;
 use App\System\IdentityAccess\Application\Command\ResetPassword\ResetPassword;
 use App\System\IdentityAccess\Application\Command\ResetPassword\ResetPasswordHandler;
+use App\System\IdentityAccess\Application\Command\RevokeInvitation\RevokeInvitation;
+use App\System\IdentityAccess\Application\Command\RevokeInvitation\RevokeInvitationHandler;
 use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation;
 use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitationHandler;
 use App\System\IdentityAccess\Application\Exception\InvalidAccountTokenException;
@@ -64,6 +66,53 @@ final class AccountUseCasesTest extends TestCase
 
         $again = $this->register('hugo.martin@example.com');
         self::assertSame([$registration->userId, false], [$again->userId, $again->alreadyActive], 'a pending account is reused');
+    }
+
+    /**
+     * Two administrators invite the same address at once: the other request
+     * created the account after this one looked — this one joins it.
+     */
+    public function testAConcurrentInvitationOfTheSameAddressJoinsItsAccount(): void
+    {
+        $other                           = User::invite(UserId::fromString('01960000-0000-7000-8000-0000000000e1'), 'hugo@example.com', $this->clock->now(), UserType::CLINIC);
+        $this->users->committedMeanwhile = $other;
+
+        $registration = $this->register('hugo@example.com');
+
+        self::assertSame([$other->id()->toString(), false], [$registration->userId, $registration->alreadyActive]);
+        self::assertCount(1, $this->users->users);
+        self::assertSame([$other->id()->toString()], $this->users->locked, 'the account is read again with a locking read');
+        self::assertSame([], $this->fakes->eventNames(), 'no second « invited » event');
+    }
+
+    /**
+     * Issuing a link locks the user row first: two « Renvoyer » or two reset
+     * requests at once are serialised and leave one live link.
+     */
+    public function testIssuingALinkLocksTheUserFirst(): void
+    {
+        $hugo   = $this->register('hugo@example.com')->userId;
+        $claire = $this->existing('claire@example.com', UserStatus::ACTIVE, UserType::CLINIC);
+
+        $this->invite($hugo, self::CLINIC_A);
+        $this->requestReset('claire@example.com');
+
+        self::assertSame([$hugo, $claire->id()->toString()], $this->users->locked);
+    }
+
+    /**
+     * A3: a disabled or ended membership revokes the clinic's links, only that clinic's.
+     */
+    public function testRevokingTheInvitationOfAClinic(): void
+    {
+        $userId = $this->register('hugo@example.com')->userId;
+        $this->invite($userId, self::CLINIC_A);
+        $this->invite($userId, self::CLINIC_B);
+
+        self::assertSame(1, new RevokeInvitationHandler($this->tokens, $this->clock)(new RevokeInvitation($userId, self::CLINIC_A)));
+        self::assertSame(0, new RevokeInvitationHandler($this->tokens, $this->clock)(new RevokeInvitation($userId, self::CLINIC_A)));
+
+        self::assertSame([false, true], array_map(fn (AccountToken $t): bool => $t->isUsable($this->clock->now()), $this->tokens->of($userId, TokenPurpose::INVITATION)));
     }
 
     public function testAnActiveClinicAccountJoinsAndOtherAccountsAreRefused(): void

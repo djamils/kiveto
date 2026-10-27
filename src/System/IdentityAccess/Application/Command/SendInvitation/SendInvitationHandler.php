@@ -33,7 +33,8 @@ final readonly class SendInvitationHandler
 
     public function __invoke(SendInvitation $command): ?string
     {
-        $user = $this->users->findById(UserId::fromString($command->userId))
+        // Locked: a double click issues one live link, not two.
+        $user = $this->users->findByIdForUpdate(UserId::fromString($command->userId))
             ?? throw new \DomainException(\sprintf('Unknown user "%s".', $command->userId));
 
         if (UserStatus::PENDING !== $user->status()) {

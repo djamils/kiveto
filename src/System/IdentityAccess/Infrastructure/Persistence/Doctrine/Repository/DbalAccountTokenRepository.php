@@ -29,7 +29,7 @@ final readonly class DbalAccountTokenRepository implements AccountTokenRepositor
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (id, user_id, purpose, clinic_id, token_hash, expires_at, used_at, created_at)'
             . ' VALUES (:id, :user, :purpose, :clinic, :hash, :expires, :used, :created)'
-            . ' ON DUPLICATE KEY UPDATE used_at = VALUES(used_at)',
+            . ' AS new ON DUPLICATE KEY UPDATE used_at = new.used_at',
             [
                 'id'      => self::binary($token->id()->toString()),
                 'user'    => self::binary($token->userId()),

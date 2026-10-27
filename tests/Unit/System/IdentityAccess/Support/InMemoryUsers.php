@@ -17,14 +17,54 @@ final class InMemoryUsers implements UserRepositoryInterface
     /** @var array<string, \DateTimeImmutable> */
     public array $logins = [];
 
+    /** @var list<string> ids read with a lock, in order */
+    public array $locked = [];
+
+    /** An address taken by a concurrent invitation, committed after this request first looked. */
+    public ?User $committedMeanwhile = null;
+
     public function save(User $user): void
     {
         $this->users[$user->id()->toString()] = $user;
     }
 
+    public function addIfEmailFree(User $user): bool
+    {
+        if (null !== $this->committedMeanwhile) {
+            $this->save($this->committedMeanwhile);
+            $this->committedMeanwhile = null;
+        }
+
+        if (null !== $this->findByEmail($user->email())) {
+            return false;
+        }
+
+        $this->save($user);
+
+        return true;
+    }
+
     public function findById(UserId $id): ?User
     {
         return $this->users[$id->toString()] ?? null;
+    }
+
+    public function findByIdForUpdate(UserId $id): ?User
+    {
+        $this->locked[] = $id->toString();
+
+        return $this->findById($id);
+    }
+
+    public function findByEmailForUpdate(string $email): ?User
+    {
+        $user = $this->findByEmail($email);
+
+        if (null !== $user) {
+            $this->locked[] = $user->id()->toString();
+        }
+
+        return $user;
     }
 
     public function findByEmail(string $email): ?User
