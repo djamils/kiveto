@@ -139,17 +139,23 @@ Inventory posts two kinds of in-app notifications (D13) through Notification's
 `PostInAppNotification`:
 
 - **« Stock critique · <article> »** — the live `StockAlertProjector`, when it
-  **inserts** a new `OUT_OF_STOCK` alert row (or `LOW_STOCK` with severity
-  `CRITICAL`), queues `NotifyCriticalStock(clinicId, alertId)` on `async` in
+  **inserts** a new `OUT_OF_STOCK` alert row (the only critical stock level;
+  `LOW_STOCK` is a warning and is not announced), queues `NotifyCriticalStock(clinicId, alertId)` on `async` in
   the same transaction. The worker posts the entry once per alert row (key
   `stock-alert:<alertId>`), unless the alert was resolved meanwhile. The full
   re-projection (`app:inventory:detect-alerts`) bypasses the projector and
   announces nothing.
 - **« Péremption proche · N lots »** — `NotifyExpiringLots`, daily at 07:13
-  Paris (schedule `inventory`, DB-locked): the lots expiring within 30 days
-  never announced, one entry per clinic (key `expiring:<clinicId>:<day>`);
-  each lot is recorded in `inventory__expiry_notifications` so it is announced
-  once. A clinic with nobody to tell keeps its lots for a later scan.
+  Paris (schedule `inventory`, DB-locked), only queues one
+  `NotifyExpiringLots(clinicId)` per clinic with candidate lots on `async`
+  (by `TransportNamesStamp`, no YAML route; one clinic never blocks another).
+  Each clinic's scan counts days in the clinic's time zone
+  (`ClinicTimeZoneInterface` → Clinic `GetClinic`): the lots expiring within
+  30 days never announced, one entry (key
+  `expiring:<clinicId>:<day>:<hash of the lot ids>`, so a second scan the same
+  day still announces lots that arrived since); each lot is recorded in
+  `inventory__expiry_notifications` so it is announced once. A clinic with
+  nobody to tell keeps its lots for a later scan.
 
 Recipients (`StockNoticeRecipients`): the clinic's veterinary assistants, or
 its administrators when it has none, read through `ClinicStaffInterface`

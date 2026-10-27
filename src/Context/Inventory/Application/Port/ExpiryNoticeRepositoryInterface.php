@@ -10,12 +10,20 @@ namespace App\Context\Inventory\Application\Port;
 interface ExpiryNoticeRepositoryInterface
 {
     /**
-     * Active lots of tracked, active stock items that expire between $from
-     * and $until (inclusive days) and were never announced, by clinic.
+     * The clinics with lots to announce expiring between $from and $until
+     * (inclusive days).
      *
-     * @return array<string, list<string>> clinic id => lot ids
+     * @return list<string> clinic ids
      */
-    public function unannouncedLotsExpiringBetween(\DateTimeImmutable $from, \DateTimeImmutable $until): array;
+    public function clinicsWithUnannouncedLotsExpiringBetween(\DateTimeImmutable $from, \DateTimeImmutable $until): array;
+
+    /**
+     * A clinic's active lots of tracked, active stock items that expire
+     * between $from and $until (inclusive days) and were never announced.
+     *
+     * @return list<string> lot ids
+     */
+    public function unannouncedLotsExpiringBetween(string $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $until): array;
 
     /**
      * @param list<string> $lotIds

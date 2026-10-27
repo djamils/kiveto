@@ -25,18 +25,23 @@ final class InMemoryExpiryNotices implements ExpiryNoticeRepositoryInterface
         $this->lots[$lotId] = ['clinicId' => $clinicId, 'expiresOn' => $expiresOn];
     }
 
-    public function unannouncedLotsExpiringBetween(\DateTimeImmutable $from, \DateTimeImmutable $until): array
+    public function clinicsWithUnannouncedLotsExpiringBetween(\DateTimeImmutable $from, \DateTimeImmutable $until): array
     {
         $this->windows[] = [$from->format('Y-m-d H:i e'), $until->format('Y-m-d')];
-        $lots            = [];
+        $clinics         = [];
 
-        foreach ($this->lots as $lotId => $lot) {
-            if (!isset($this->announced[$lotId]) && $lot['expiresOn'] >= $from->format('Y-m-d') && $lot['expiresOn'] <= $until->format('Y-m-d')) {
-                $lots[$lot['clinicId']][] = $lotId;
-            }
+        foreach ($this->candidates($from, $until) as $lot) {
+            $clinics[$lot['clinicId']] = true;
         }
 
-        return $lots;
+        return array_keys($clinics);
+    }
+
+    public function unannouncedLotsExpiringBetween(string $clinicId, \DateTimeImmutable $from, \DateTimeImmutable $until): array
+    {
+        $this->windows[] = [$from->format('Y-m-d H:i e'), $until->format('Y-m-d')];
+
+        return array_keys(array_filter($this->candidates($from, $until), static fn (array $lot): bool => $lot['clinicId'] === $clinicId));
     }
 
     public function markAnnounced(array $lotIds, \DateTimeImmutable $at): void
@@ -44,5 +49,17 @@ final class InMemoryExpiryNotices implements ExpiryNoticeRepositoryInterface
         foreach ($lotIds as $lotId) {
             $this->announced[$lotId] = $at->format(\DateTimeInterface::ATOM);
         }
+    }
+
+    /**
+     * @return array<string, array{clinicId: string, expiresOn: string}>
+     */
+    private function candidates(\DateTimeImmutable $from, \DateTimeImmutable $until): array
+    {
+        return array_filter(
+            $this->lots,
+            fn (array $lot, string $lotId): bool => !isset($this->announced[$lotId]) && $lot['expiresOn'] >= $from->format('Y-m-d') && $lot['expiresOn'] <= $until->format('Y-m-d'),
+            \ARRAY_FILTER_USE_BOTH,
+        );
     }
 }

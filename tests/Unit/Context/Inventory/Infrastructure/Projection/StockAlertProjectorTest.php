@@ -336,6 +336,11 @@ final class StockAlertProjectorTest extends TestCase
             {
                 $this->test->notice($clinicId, $alertId);
             }
+
+            public function notifyExpiringLots(string $clinicId): void
+            {
+                throw new \LogicException('Not used.');
+            }
         };
     }
 }

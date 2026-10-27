@@ -84,17 +84,19 @@ final class StockNoticePersistenceTest extends KernelTestCase
 
         $from  = new \DateTimeImmutable('today');
         $until = $from->modify('+30 days');
-        $lots  = $notices->unannouncedLotsExpiringBetween($from, $until);
 
-        self::assertSame([$soon, $later], $lots[$otherClinic] ?? null);
-        self::assertSame([$elsewhere], $lots[$this->clinicId] ?? null);
+        self::assertSame([$soon, $later], $notices->unannouncedLotsExpiringBetween($otherClinic, $from, $until));
+        self::assertSame([$elsewhere], $notices->unannouncedLotsExpiringBetween($this->clinicId, $from, $until));
+        $clinics = $notices->clinicsWithUnannouncedLotsExpiringBetween($from, $until);
+        self::assertContains($otherClinic, $clinics);
+        self::assertContains($this->clinicId, $clinics);
 
         $notices->markAnnounced([$soon, $later], new \DateTimeImmutable('2026-10-27 07:13', new \DateTimeZone('Europe/Paris')));
         $notices->markAnnounced([$soon], new \DateTimeImmutable());
 
-        $lots = $notices->unannouncedLotsExpiringBetween($from, $until);
-        self::assertArrayNotHasKey($otherClinic, $lots);
-        self::assertSame([$elsewhere], $lots[$this->clinicId] ?? null);
+        self::assertSame([], $notices->unannouncedLotsExpiringBetween($otherClinic, $from, $until));
+        self::assertNotContains($otherClinic, $notices->clinicsWithUnannouncedLotsExpiringBetween($from, $until));
+        self::assertSame([$elsewhere], $notices->unannouncedLotsExpiringBetween($this->clinicId, $from, $until));
 
         $entity = new ExpiryNotificationEntity(Uuid::fromString($soon), new \DateTimeImmutable('2026-10-27 06:13'));
         self::assertSame($soon, $entity->columns()['lot_id']->toRfc4122());

@@ -27,9 +27,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Live projection of the stock alerts, run with the stock change that caused
- * them. A newly inserted critical stock alert (OUT_OF_STOCK, or LOW_STOCK
- * when CRITICAL) is announced in the bell (D13) by a job queued in the same
- * transaction. The full re-projection (app:inventory:detect-alerts) writes
+ * them. A newly inserted stock-out alert (OUT_OF_STOCK, the only critical
+ * stock level: LOW_STOCK is a warning) is announced in the bell (D13) by a
+ * job queued in the same transaction. The full re-projection (app:inventory:detect-alerts) writes
  * the alerts without this projector, so it never announces anything.
  */
 final class StockAlertProjector
@@ -352,10 +352,7 @@ final class StockAlertProjector
     {
         $this->alertRepository->save($alert);
 
-        $critical = StockAlertType::OUT_OF_STOCK === $alert->type
-            || (StockAlertType::LOW_STOCK === $alert->type && StockAlertSeverity::CRITICAL === $alert->severity);
-
-        if ($critical) {
+        if (StockAlertType::OUT_OF_STOCK === $alert->type) {
             $this->noticeJobs->notifyCriticalStock($alert->clinicId->toString(), $alert->alertId);
         }
     }

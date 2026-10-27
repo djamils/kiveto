@@ -11,9 +11,10 @@ use App\Context\Inventory\Domain\StockAlert\ValueObject\StockAlertType;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * « Stock critique · <article> » to the clinic's assistants (or its
- * administrators), once per alert row (idempotency key). An alert already
- * resolved when the worker runs (restocked meanwhile) is not announced.
+ * « Stock critique · <article> — Rupture de stock » to the clinic's
+ * assistants (or its administrators), once per stock-out alert row
+ * (idempotency key). An alert already resolved when the worker runs
+ * (restocked meanwhile) is not announced, nor any other kind of alert.
  */
 #[AsMessageHandler]
 final readonly class NotifyCriticalStockHandler
@@ -29,7 +30,7 @@ final readonly class NotifyCriticalStockHandler
     {
         $alert = $this->alerts->findById($command->alertId);
 
-        if (null === $alert || null !== $alert->resolvedAt || $alert->clinicId->toString() !== $command->clinicId) {
+        if (null === $alert || StockAlertType::OUT_OF_STOCK !== $alert->type || null !== $alert->resolvedAt || $alert->clinicId->toString() !== $command->clinicId) {
             return;
         }
 
@@ -44,7 +45,7 @@ final readonly class NotifyCriticalStockHandler
             userIds: $userIds,
             articleId: $alert->articleId->toString(),
             title: 'Stock critique · ' . ('' !== $alert->articleName ? $alert->articleName : 'article sans nom'),
-            detail: StockAlertType::OUT_OF_STOCK === $alert->type ? 'Rupture de stock' : 'Sous le seuil d’alerte',
+            detail: 'Rupture de stock',
             idempotencyKey: 'stock-alert:' . $command->alertId,
         );
     }

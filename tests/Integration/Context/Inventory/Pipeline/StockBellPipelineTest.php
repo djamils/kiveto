@@ -91,8 +91,11 @@ final class StockBellPipelineTest extends KernelTestCase
         LotEntityFactory::new()->expiringIn(10)->create(['stockItem' => $item]);
         LotEntityFactory::new()->expiringIn(20)->create(['stockItem' => $item]);
 
+        // The daily run queues the clinic's scan; run twice, it announces the lots once.
         $this->commandBus()->dispatch(new NotifyExpiringLots());
+        MessengerDrain::drain(self::getContainer(), ['async']);
         $this->commandBus()->dispatch(new NotifyExpiringLots());
+        MessengerDrain::drain(self::getContainer(), ['async']);
 
         $entries = $this->bell($this->administrator);
         self::assertCount(1, $entries);

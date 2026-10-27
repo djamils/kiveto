@@ -45,10 +45,10 @@ final class NotifyCriticalStockHandlerTest extends TestCase
 
     public function testAClinicWithoutAssistantTellsItsAdministrators(): void
     {
-        $this->handle(StockNotices::alert(StockAlertType::LOW_STOCK, articleName: ''), StockNotices::staff(assistants: []));
+        $this->handle(StockNotices::alert(articleName: ''), StockNotices::staff(assistants: []));
 
         self::assertSame([StockNotices::ADMIN], $this->bell->posted[0]['userIds']);
-        self::assertSame(['Stock critique · article sans nom', 'Sous le seuil d’alerte'], [$this->bell->posted[0]['title'], $this->bell->posted[0]['detail']]);
+        self::assertSame(['Stock critique · article sans nom', 'Rupture de stock'], [$this->bell->posted[0]['title'], $this->bell->posted[0]['detail']]);
     }
 
     public function testNothingIsPostedWithoutAnActiveAlertOrAnyoneToTell(): void
@@ -57,6 +57,8 @@ final class NotifyCriticalStockHandlerTest extends TestCase
         $this->handle(StockNotices::alert(resolvedAt: new \DateTimeImmutable('2026-10-26 09:05')));
         $this->handle(StockNotices::alert(), clinicId: StockNotices::OTHER);
         $this->handle(StockNotices::alert(StockAlertType::OUT_OF_STOCK, StockAlertSeverity::CRITICAL), StockNotices::staff([], []));
+        // Only a stock-out is critical: a low stock (a warning) is never announced.
+        $this->handle(StockNotices::alert(StockAlertType::LOW_STOCK, StockAlertSeverity::CRITICAL));
 
         self::assertSame([], $this->bell->posted);
     }
