@@ -23,12 +23,14 @@ final class DocumentLogoRuntimeTest extends TestCase
         $storage    = new LocalFileSystemStorage($this->root, '');
         $storage->storeAt('logos/clinic.svg', '<svg/>');
         $storage->storeAt('logos/clinic.gif', 'GIF');
+        $storage->storeAt('logos/clinic.JPEG', 'JPEG');
+        $storage->storeAt('logos/clinic.bmp', 'BMP');
         $this->runtime = new DocumentLogoRuntime($storage);
     }
 
     protected function tearDown(): void
     {
-        foreach (['logos/clinic.svg', 'logos/clinic.gif'] as $file) {
+        foreach (['logos/clinic.svg', 'logos/clinic.gif', 'logos/clinic.JPEG', 'logos/clinic.bmp'] as $file) {
             @unlink($this->root . '/' . $file);
         }
 
@@ -41,9 +43,18 @@ final class DocumentLogoRuntimeTest extends TestCase
         self::assertSame('data:image/svg+xml;base64,' . base64_encode('<svg/>'), $this->runtime->dataUri('logos/clinic.svg'));
     }
 
+    /**
+     * N13: GIF and JPEG logos keep their type, whatever the extension's case.
+     */
+    public function testGifAndJpegLogosOfAnyCaseKeepTheirType(): void
+    {
+        self::assertSame('data:image/gif;base64,' . base64_encode('GIF'), $this->runtime->dataUri('logos/clinic.gif'));
+        self::assertSame('data:image/jpeg;base64,' . base64_encode('JPEG'), $this->runtime->dataUri('logos/clinic.JPEG'));
+    }
+
     public function testAnUnknownExtensionIsSentAsPng(): void
     {
-        self::assertSame('data:image/png;base64,' . base64_encode('GIF'), $this->runtime->dataUri('logos/clinic.gif'));
+        self::assertSame('data:image/png;base64,' . base64_encode('BMP'), $this->runtime->dataUri('logos/clinic.bmp'));
     }
 
     public function testNoLogoOrAMissingFilePrintsNoLogo(): void

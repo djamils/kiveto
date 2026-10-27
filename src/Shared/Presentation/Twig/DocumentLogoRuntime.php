@@ -13,11 +13,13 @@ use App\Shared\Domain\Storage\FileStorageInterface;
  */
 final readonly class DocumentLogoRuntime
 {
-    /** Content type of a logo, by the extension of its stored file. */
+    /** Content type of a logo, by the extension of its stored file (any case). */
     public const array CONTENT_TYPES = [
         'png'  => 'image/png',
         'svg'  => 'image/svg+xml',
         'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif'  => 'image/gif',
         'webp' => 'image/webp',
     ];
 
@@ -39,7 +41,7 @@ final readonly class DocumentLogoRuntime
             return null;
         }
 
-        $type = self::CONTENT_TYPES[pathinfo($logoKey, \PATHINFO_EXTENSION)] ?? 'image/png';
+        $type = self::CONTENT_TYPES[mb_strtolower(pathinfo($logoKey, \PATHINFO_EXTENSION))] ?? 'image/png';
 
         return 'data:' . $type . ';base64,' . base64_encode($content);
     }

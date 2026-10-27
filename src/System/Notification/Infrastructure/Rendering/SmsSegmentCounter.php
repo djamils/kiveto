@@ -11,6 +11,11 @@ use App\System\Notification\Domain\Message\SmsEncoding;
  * every character is in the GSM alphabet (160 septets, 153 per part once
  * split, extension characters such as € counting two), else UCS-2 (70 UTF-16
  * units, 67 per part).
+ *
+ * A character is never split across two parts: an extension character (two
+ * septets) or a surrogate pair (two UTF-16 units, e.g. an emoji) that does
+ * not fit the end of a part starts the next one, as the handsets and the
+ * provider cut the message.
  */
 final class SmsSegmentCounter
 {
@@ -19,13 +24,29 @@ final class SmsSegmentCounter
      */
     public static function count(string $text): array
     {
-        $septets  = Gsm7::length($text);
-        $encoding = null !== $septets ? SmsEncoding::GSM_7 : SmsEncoding::UCS_2;
-        $length   = $septets ?? intdiv(\strlen(mb_convert_encoding($text, 'UTF-16BE', 'UTF-8')), 2);
+        $encoding = Gsm7::isGsm7($text) ? SmsEncoding::GSM_7 : SmsEncoding::UCS_2;
+        $units    = array_map(
+            static fn (string $char): int => SmsEncoding::GSM_7 === $encoding
+                ? Gsm7::charLength($char) ?? 1
+                : intdiv(\strlen(mb_convert_encoding($char, 'UTF-16BE', 'UTF-8')), 2),
+            mb_str_split($text),
+        );
 
-        $segments = $length <= $encoding->singleSegmentLength()
-            ? 1
-            : (int) ceil($length / $encoding->multipartSegmentLength());
+        if (array_sum($units) <= $encoding->singleSegmentLength()) {
+            return [$encoding, 1];
+        }
+
+        $segments = 1;
+        $used     = 0;
+
+        foreach ($units as $length) {
+            if ($used + $length > $encoding->multipartSegmentLength()) {
+                ++$segments;
+                $used = 0;
+            }
+
+            $used += $length;
+        }
 
         return [$encoding, $segments];
     }

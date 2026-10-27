@@ -44,6 +44,18 @@ final class Gsm7Test extends TestCase
         self::assertSame([SmsEncoding::GSM_7, 1], SmsSegmentCounter::count(''));
         self::assertSame([SmsEncoding::UCS_2, 1], SmsSegmentCounter::count(str_repeat('ô', 70)));
         self::assertSame([SmsEncoding::UCS_2, 2], SmsSegmentCounter::count(str_repeat('ô', 71)));
+    }
+
+    /**
+     * N14: a two-septet € or a two-unit emoji never straddles two parts.
+     */
+    public function testACharacterIsNeverSplitAcrossSegments(): void
+    {
+        self::assertSame([SmsEncoding::GSM_7, 1], SmsSegmentCounter::count(str_repeat('a', 152) . '€a'));
+        self::assertSame([SmsEncoding::GSM_7, 3], SmsSegmentCounter::count(str_repeat('a', 152) . '€' . str_repeat('a', 152)));
+        self::assertSame([SmsEncoding::GSM_7, 2], SmsSegmentCounter::count(str_repeat('a', 151) . '€' . str_repeat('a', 153)));
+        self::assertSame([SmsEncoding::UCS_2, 3], SmsSegmentCounter::count(str_repeat('ô', 66) . '😀' . str_repeat('ô', 66)));
+        self::assertSame([SmsEncoding::UCS_2, 1], SmsSegmentCounter::count(str_repeat('ô', 68) . '😀'));
         self::assertSame([SmsEncoding::UCS_2, 3], SmsSegmentCounter::count(str_repeat('ô', 135)));
         self::assertSame([SmsEncoding::UCS_2, 1], SmsSegmentCounter::count('🐶'), 'a surrogate pair takes two units');
     }

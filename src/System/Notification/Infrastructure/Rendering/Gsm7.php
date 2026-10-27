@@ -58,6 +58,12 @@ final class Gsm7
         return $length;
     }
 
+    /** Septets one character takes (2 for an extension one); null outside the alphabet. */
+    public static function charLength(string $char): ?int
+    {
+        return self::septets()[$char] ?? null;
+    }
+
     public static function transliterate(string $text): string
     {
         $out = '';
