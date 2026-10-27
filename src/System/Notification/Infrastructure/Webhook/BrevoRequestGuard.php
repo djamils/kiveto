@@ -16,10 +16,15 @@ use Symfony\Component\Webhook\Exception\RejectWebhookException;
  * header when present, else as the `token` query parameter.
  *
  * NOTIFICATION_WEBHOOK_SKIP_IP_CHECK=1 (dev tunnel, which hides Brevo's IP)
- * disables the IP check only, and is refused in production.
+ * disables the IP check only, and is refused in production. So is the
+ * placeholder secret of `.env` (or none): Brevo's ranges are shared by every
+ * Brevo customer, so the secret is what tells our account's calls apart.
  */
 final readonly class BrevoRequestGuard
 {
+    /** The placeholder committed in `.env`, never a real secret. */
+    public const string PLACEHOLDER_SECRET = 'change-me';
+
     private IpsRequestMatcher $brevoIps;
 
     /**
@@ -38,6 +43,10 @@ final readonly class BrevoRequestGuard
     ) {
         if ($skipIpCheck && 'prod' === $environment) {
             throw new \LogicException('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must not be set in production.');
+        }
+
+        if ('prod' === $environment && \in_array($secret, ['', self::PLACEHOLDER_SECRET], true)) {
+            throw new \LogicException('BREVO_WEBHOOK_TOKEN must be set to a real secret in production.');
         }
 
         $this->brevoIps = new IpsRequestMatcher($allowedIps);

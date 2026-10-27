@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\System\Notification\Infrastructure\Transport;
 
+use App\System\Notification\Application\Exception\DeliveryRefusedException;
 use App\System\Notification\Application\Port\OutgoingSms;
 use App\System\Notification\Application\Port\SmsSenderInterface;
+use App\System\Notification\Infrastructure\Delivery\UnconfiguredTransport;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Notifier\Bridge\Brevo\BrevoOptions;
 use Symfony\Component\Notifier\Exception\TransportException;
@@ -22,6 +24,8 @@ use Symfony\Contracts\HttpClient\Exception\ExceptionInterface as HttpClientExcep
  */
 final readonly class SymfonyTexterSmsSender implements SmsSenderInterface
 {
+    public const string NO_PROVIDER_ID = UnconfiguredTransport::SMS_REASON;
+
     public function __construct(
         #[Autowire(service: 'texter.transports')]
         private TransportInterface $transport,
@@ -44,7 +48,8 @@ final readonly class SymfonyTexterSmsSender implements SmsSenderInterface
             throw $this->failures->classify($e, null);
         }
 
-        // A transport that returns no id (null://) is traced under the tag.
-        return $sent?->getMessageId() ?? $sms->tag;
+        // Brevo always answers with an id: none means a transport that sends
+        // nothing (null://), never recorded SENT nor billed.
+        return $sent?->getMessageId() ?? throw new DeliveryRefusedException(self::NO_PROVIDER_ID);
     }
 }

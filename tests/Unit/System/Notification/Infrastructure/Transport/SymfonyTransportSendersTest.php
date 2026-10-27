@@ -117,12 +117,21 @@ final class SymfonyTransportSendersTest extends TestCase
         $sender->send(self::sms());
     }
 
-    public function testAnSmsFromATransportWithoutIdIsTracedUnderItsTag(): void
+    /**
+     * N4: a transport that answers without a provider id (null://) sent
+     * nothing: the SMS is refused, never recorded SENT nor billed.
+     */
+    public function testAnSmsFromATransportWithoutIdIsRefused(): void
     {
         $transport = $this->createStub(TexterTransport::class);
         $transport->method('send')->willReturnCallback(static fn (SmsMessage $message): SentMessage => new SentMessage($message, 'null'));
 
-        self::assertSame('appointment:1:reminder', new SymfonyTexterSmsSender($transport, $this->failures)->send(self::sms()));
+        try {
+            new SymfonyTexterSmsSender($transport, $this->failures)->send(self::sms());
+            self::fail('Refused.');
+        } catch (DeliveryRefusedException $e) {
+            self::assertSame('Transport SMS non configuré', $e->reason);
+        }
     }
 
     public function testAnSmsTransportFailureWithAResponseIsClassified(): void

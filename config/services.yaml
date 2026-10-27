@@ -1153,6 +1153,9 @@ services:
             $candidates: '@notification.delivery.candidates'
             $delivery: '%env(NOTIFICATION_DELIVERY)%'
             $environment: '%kernel.environment%'
+            $mailerDsn: '%env(MAILER_DSN)%'
+            $smsDsn: '%env(NOTIFIER_SMS_DSN)%'
+            $logger: '@monolog.logger.external_api'
 
     App\System\Notification\Application\Port\EmailSenderInterface:
         class: App\System\Notification\Application\Port\EmailSenderInterface

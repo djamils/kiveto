@@ -36,10 +36,40 @@ final class DeliveryAdaptersTest extends TestCase
         $email = new FakeSenders();
         $sms   = new FakeSenders();
 
-        $selector = new DeliverySelector(self::candidates(['brevo.email' => $email, 'brevo.sms' => $sms]), 'brevo', 'prod');
+        $selector = self::selector(['brevo.email' => $email, 'brevo.sms' => $sms], 'brevo', 'prod');
 
         self::assertSame($email, $selector->emailSender());
         self::assertSame($sms, $selector->smsSender());
+    }
+
+    /**
+     * N4: Brevo delivery on a null:// transport sends nothing; every message
+     * of that channel is refused with a French reason and an error log.
+     */
+    public function testBrevoDeliveryOnANullTransportRefusesEveryMessage(): void
+    {
+        $logger   = new BufferingLogger();
+        $selector = new DeliverySelector(self::candidates(['brevo.email' => new FakeSenders(), 'brevo.sms' => new FakeSenders()]), 'brevo', 'prod', 'null://null', ' NULL://null', $logger);
+
+        foreach ([[$selector->emailSender(), self::email(), 'Transport e-mail non configuré', 'MAILER_DSN'], [$selector->smsSender(), new OutgoingSms('Kiveto', '+33612345678', 'x', 'k'), 'Transport SMS non configuré', 'NOTIFIER_SMS_DSN']] as [$sender, $message, $reason, $variable]) {
+            try {
+                $sender->send($message);
+                self::fail('Refused.');
+            } catch (DeliveryRefusedException $e) {
+                self::assertSame($reason, $e->reason);
+            }
+
+            $logs = $logger->cleanLogs();
+            self::assertIsArray($logs[0]);
+            self::assertSame(['error', 'Notification refused: the Brevo delivery has no real transport.', ['variable' => $variable, 'tag' => 'k']], [$logs[0][0], $logs[0][1], $logs[0][2]]);
+        }
+    }
+
+    public function testTheSimulatorMayRunOnANullMailer(): void
+    {
+        $email = new FakeSenders();
+
+        self::assertSame($email, new DeliverySelector(self::candidates(['simulator.email' => $email]), 'simulator', 'test', 'null://null', 'null://null', new BufferingLogger())->emailSender());
     }
 
     /**
@@ -47,7 +77,7 @@ final class DeliveryAdaptersTest extends TestCase
      */
     public function testTheSimulatorIsRefusedInProduction(): void
     {
-        $selector = new DeliverySelector(self::candidates(['simulator.email' => new FakeSenders()]), 'simulator', 'prod');
+        $selector = self::selector(['simulator.email' => new FakeSenders()], 'simulator', 'prod');
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('simulator cannot run in production');
@@ -60,7 +90,7 @@ final class DeliveryAdaptersTest extends TestCase
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Unknown notification delivery "smtp"');
 
-        new DeliverySelector(self::candidates([]), 'smtp', 'dev')->smsSender();
+        self::selector([], 'smtp', 'dev')->smsSender();
     }
 
     public function testDisabledDeliveryRefusesEverything(): void
@@ -142,6 +172,21 @@ final class DeliveryAdaptersTest extends TestCase
     private static function candidates(array $services): ServiceLocator
     {
         return new ServiceLocator(array_map(static fn (object $service): \Closure => static fn (): object => $service, $services));
+    }
+
+    /**
+     * Real transports configured (DSNs other than null://).
+     *
+     * @param array<string, object> $services
+     */
+    private static function selector(array $services, string $delivery, string $environment): DeliverySelector
+    {
+        return new DeliverySelector(self::candidates($services), $delivery, $environment, 'brevo+api://KEY@default', 'brevo://KEY@default', new BufferingLogger());
+    }
+
+    private static function email(): OutgoingEmail
+    {
+        return new OutgoingEmail('Kiveto', 'no-reply@kiveto.fr', null, 'claire@kiveto.fr', '', 'Sujet', '<p>x</p>', 'x', 'k');
     }
 
     private static function bus(): CapturingMessageBus

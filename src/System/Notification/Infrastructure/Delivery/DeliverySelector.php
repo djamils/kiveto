@@ -7,6 +7,7 @@ namespace App\System\Notification\Infrastructure\Delivery;
 use App\System\Notification\Application\Port\EmailSenderInterface;
 use App\System\Notification\Application\Port\SmsSenderInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Picks the delivery adapters named by NOTIFICATION_DELIVERY when a sender
@@ -16,7 +17,9 @@ use Psr\Container\ContainerInterface;
  * - disabled: nothing leaves, every message is recorded FAILED « Envoi désactivé »;
  * - simulator: e-mail through MAILER_DSN (Mailpit in dev), SMS kept local,
  *   delivery webhooks faked (AdvanceSimulatedDelivery);
- * - brevo: the real Brevo transports, real webhooks.
+ * - brevo: the real Brevo transports, real webhooks. A channel whose DSN
+ *   (MAILER_DSN, NOTIFIER_SMS_DSN) is still `null://` refuses every message
+ *   (UnconfiguredTransport): the null transports accept and drop.
  */
 final readonly class DeliverySelector
 {
@@ -28,11 +31,18 @@ final readonly class DeliverySelector
         private ContainerInterface $candidates,
         private string $delivery,
         private string $environment,
+        private string $mailerDsn,
+        private string $smsDsn,
+        private LoggerInterface $logger,
     ) {
     }
 
     public function emailSender(): EmailSenderInterface
     {
+        if ($this->unconfigured($this->mailerDsn)) {
+            return new UnconfiguredTransport(UnconfiguredTransport::EMAIL_REASON, 'MAILER_DSN', $this->logger);
+        }
+
         $adapter = $this->adapter('email');
         \assert($adapter instanceof EmailSenderInterface);
 
@@ -41,10 +51,19 @@ final readonly class DeliverySelector
 
     public function smsSender(): SmsSenderInterface
     {
+        if ($this->unconfigured($this->smsDsn)) {
+            return new UnconfiguredTransport(UnconfiguredTransport::SMS_REASON, 'NOTIFIER_SMS_DSN', $this->logger);
+        }
+
         $adapter = $this->adapter('sms');
         \assert($adapter instanceof SmsSenderInterface);
 
         return $adapter;
+    }
+
+    private function unconfigured(string $dsn): bool
+    {
+        return self::BREVO === $this->delivery && str_starts_with(mb_strtolower(mb_trim($dsn)), 'null://');
     }
 
     private function adapter(string $channel): object

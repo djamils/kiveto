@@ -180,6 +180,12 @@ NOTIFICATION_ACCOUNT_SENDER=no-reply@kiveto.fr
 BREVO_WEBHOOK_TOKEN=<secret>
 ```
 
+Production refuses the `.env` placeholder `BREVO_WEBHOOK_TOKEN=change-me`
+(or an empty one): the webhooks answer 500 until a real secret is set.
+With `NOTIFICATION_DELIVERY=brevo`, a channel whose DSN is still `null://`
+refuses every message (FAILED « Transport e-mail non configuré » /
+« Transport SMS non configuré », error log) instead of recording it SENT.
+
 ### Brevo setup (production)
 
 1. **Sending domains** — authenticate in Brevo the sending sub-domain

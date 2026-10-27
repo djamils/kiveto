@@ -6,6 +6,7 @@ namespace App\Tests\Unit\System\Notification\Infrastructure\Webhook;
 
 use App\System\Notification\Infrastructure\Webhook\BrevoRequestGuard;
 use App\Tests\Unit\System\Notification\Support\BrevoPayloads;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Webhook\Exception\RejectWebhookException;
@@ -65,6 +66,28 @@ final class BrevoRequestGuardTest extends TestCase
         $this->expectExceptionMessage('NOTIFICATION_WEBHOOK_SKIP_IP_CHECK must not be set in production.');
 
         new BrevoRequestGuard(self::IPS, BrevoPayloads::SECRET, true, 'prod');
+    }
+
+    /**
+     * N2: Brevo's ranges are shared by all its customers — production
+     * refuses to run on the placeholder secret of `.env`, or on none.
+     */
+    #[DataProvider('provideAPlaceholderSecretIsRefusedInProductionCases')]
+    public function testAPlaceholderSecretIsRefusedInProduction(string $secret): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('BREVO_WEBHOOK_TOKEN must be set to a real secret in production.');
+
+        new BrevoRequestGuard(self::IPS, $secret, false, 'prod');
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideAPlaceholderSecretIsRefusedInProductionCases(): iterable
+    {
+        yield 'placeholder' => ['change-me'];
+        yield 'empty' => [''];
     }
 
     public function testProductionRunsWithTheIpCheck(): void
