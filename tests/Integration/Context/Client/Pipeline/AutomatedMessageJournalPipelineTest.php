@@ -189,7 +189,7 @@ final class AutomatedMessageJournalPipelineTest extends WebTestCase
         \assert($messages instanceof OutboundMessageRepositoryInterface);
         $storage = $container->get(FileStorageInterface::class);
         \assert($storage instanceof FileStorageInterface);
-        $failures = new ProviderFailureClassifier($clock);
+        $failures = new ProviderFailureClassifier($clock, new NullLogger());
 
         return new DispatchOutboundMessageHandler(
             $messages,

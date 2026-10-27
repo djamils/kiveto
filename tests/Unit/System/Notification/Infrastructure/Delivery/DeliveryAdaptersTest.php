@@ -24,6 +24,7 @@ use App\Tests\Unit\System\Notification\Support\FakeSenders;
 use App\Tests\Unit\System\Notification\Support\SequentialUuids;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\ErrorHandler\BufferingLogger;
 use Symfony\Component\Mailer\Transport\NullTransport;
@@ -109,7 +110,7 @@ final class DeliveryAdaptersTest extends TestCase
     {
         $bus    = self::bus();
         $sender = new SimulatedEmailSender(
-            new SymfonyMailerEmailSender(new NullTransport(), new ProviderFailureClassifier(new FrozenClock(new \DateTimeImmutable()))),
+            new SymfonyMailerEmailSender(new NullTransport(), new ProviderFailureClassifier(new FrozenClock(new \DateTimeImmutable()), new NullLogger())),
             new SimulatedDeliveryScheduler($bus, 5000),
         );
 

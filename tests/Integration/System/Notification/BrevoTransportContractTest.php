@@ -163,7 +163,7 @@ final class BrevoTransportContractTest extends KernelTestCase
         });
         $clock = self::getContainer()->get(ClockInterface::class);
         \assert($clock instanceof ClockInterface);
-        $failures = new ProviderFailureClassifier($clock);
+        $failures = new ProviderFailureClassifier($clock, new NullLogger());
 
         return new DispatchOutboundMessageHandler(
             $this->messages(),

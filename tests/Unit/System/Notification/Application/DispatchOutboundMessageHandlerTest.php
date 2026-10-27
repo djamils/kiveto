@@ -133,12 +133,12 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
     public function testARefusalIsRecordedAsAFailure(): void
     {
         $this->messages->save(Messages::sms());
-        $this->senders->failure = new DeliveryRefusedException('Refusé par le fournisseur (HTTP 400) : invalid sender');
+        $this->senders->failure = new DeliveryRefusedException('Refusé par le fournisseur (HTTP 400)');
 
         ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
 
         $outcome = $this->buses->commandsOf(RecordDispatchOutcome::class)[0];
-        self::assertSame([null, 'Refusé par le fournisseur (HTTP 400) : invalid sender'], [$outcome->externalId, $outcome->error]);
+        self::assertSame([null, 'Refusé par le fournisseur (HTTP 400)'], [$outcome->externalId, $outcome->error]);
     }
 
     /**

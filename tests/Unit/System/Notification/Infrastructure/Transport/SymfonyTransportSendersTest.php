@@ -12,7 +12,9 @@ use App\System\Notification\Infrastructure\Transport\ProviderFailureClassifier;
 use App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender;
 use App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender;
 use App\Tests\Shared\Time\FrozenClock;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -38,7 +40,7 @@ final class SymfonyTransportSendersTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->failures = new ProviderFailureClassifier(new FrozenClock(new \DateTimeImmutable('2026-10-21T09:30:00+00:00')));
+        $this->failures = new ProviderFailureClassifier(new FrozenClock(new \DateTimeImmutable('2026-10-21T09:30:00+00:00')), new NullLogger());
     }
 
     public function testAnEmailRefusedByBrevoIsRefusedForGood(): void
@@ -49,8 +51,30 @@ final class SymfonyTransportSendersTest extends TestCase
             $sender->send(self::email());
             self::fail('Refused.');
         } catch (DeliveryRefusedException $e) {
-            self::assertStringContainsString('HTTP 400', $e->reason);
-            self::assertStringContainsString('sender not valid', $e->reason);
+            self::assertSame('Refusé par le fournisseur (HTTP 400)', $e->reason);
+        }
+    }
+
+    /**
+     * N12: an address the MIME layer refuses is a refusal for good, never
+     * an unclassified error retried five times.
+     *
+     * @return iterable<string, array{string, ?string}>
+     */
+    public static function provideAnAddressTheMimeLayerRefusesIsRefusedForGoodCases(): iterable
+    {
+        yield 'recipient' => ['a..b@example.com', null];
+        yield 'reply-to' => ['claire@kiveto.fr', 'accueil@@clinique.fr'];
+    }
+
+    #[DataProvider('provideAnAddressTheMimeLayerRefusesIsRefusedForGoodCases')]
+    public function testAnAddressTheMimeLayerRefusesIsRefusedForGood(string $to, ?string $replyTo): void
+    {
+        try {
+            new SymfonyMailerEmailSender(new NullTransport(), $this->failures)->send(new OutgoingEmail('Kiveto', 'no-reply@kiveto.fr', $replyTo, $to, '', 'Sujet', '<p>x</p>', 'x', 'k'));
+            self::fail('Refused.');
+        } catch (DeliveryRefusedException $e) {
+            self::assertSame('Adresse e-mail invalide', $e->reason);
         }
     }
 

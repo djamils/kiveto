@@ -50,7 +50,8 @@ final readonly class ClinicMessagingProfile
             throw new \InvalidArgumentException('A clinic messaging profile needs the clinic name.');
         }
 
-        if (1 !== preg_match('/^[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$/', $emailLocalPart)) {
+        // A dot-atom: no leading, trailing or doubled dot.
+        if (1 !== preg_match('/^(?!.*\.\.)[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$/', $emailLocalPart)) {
             throw new \InvalidArgumentException(\sprintf('Invalid e-mail local part "%s".', $emailLocalPart));
         }
 
@@ -58,8 +59,10 @@ final readonly class ClinicMessagingProfile
             throw new \InvalidArgumentException(\sprintf('Invalid reply-to address "%s".', $replyTo));
         }
 
-        if (1 !== preg_match('/^[A-Za-z0-9 ]{0,11}$/', $smsSender)) {
-            throw new \InvalidArgumentException(\sprintf('Invalid SMS sender "%s" (11 letters, digits or spaces at most).', $smsSender));
+        // Clinic's rule (MessagingSettings): an alphanumeric sender has a
+        // letter — operators refuse an all-digit one. Empty: Kiveto's sender.
+        if (1 !== preg_match('/^(?:(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11})?$/', $smsSender)) {
+            throw new \InvalidArgumentException(\sprintf('Invalid SMS sender "%s" (11 letters, digits or spaces at most, at least one letter).', $smsSender));
         }
 
         if ($overageCapSegments < 0) {

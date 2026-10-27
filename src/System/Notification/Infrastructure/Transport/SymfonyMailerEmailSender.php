@@ -14,6 +14,7 @@ use Symfony\Component\Mailer\Header\TagHeader;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Exception\RfcComplianceException;
 
 /**
  * Sends through the mailer transport of MAILER_DSN directly (not through the
@@ -22,10 +23,13 @@ use Symfony\Component\Mime\Email;
  *
  * The idempotency key goes as a tag (Brevo `tags`, `X-Tag` over SMTP); the
  * clinic logo is embedded inline under its file name, which the HTML
- * references as its content id.
+ * references as its content id. An address the MIME layer refuses (sender,
+ * reply-to or recipient) is a refusal for good: retrying cannot fix it.
  */
 final readonly class SymfonyMailerEmailSender implements EmailSenderInterface
 {
+    public const string INVALID_ADDRESS = 'Adresse e-mail invalide';
+
     public function __construct(
         #[Autowire(service: 'mailer.transports')]
         private TransportInterface $transport,
@@ -35,16 +39,20 @@ final readonly class SymfonyMailerEmailSender implements EmailSenderInterface
 
     public function send(OutgoingEmail $email): string
     {
-        $message = new Email()
-            ->from(new Address($email->fromAddress, $email->fromName))
-            ->to(new Address($email->toAddress, $email->toName))
-            ->subject($email->subject)
-            ->html($email->html)
-            ->text($email->text)
-        ;
+        try {
+            $message = new Email()
+                ->from(new Address($email->fromAddress, $email->fromName))
+                ->to(new Address($email->toAddress, $email->toName))
+                ->subject($email->subject)
+                ->html($email->html)
+                ->text($email->text)
+            ;
 
-        if (null !== $email->replyTo) {
-            $message->replyTo($email->replyTo);
+            if (null !== $email->replyTo) {
+                $message->replyTo(new Address($email->replyTo));
+            }
+        } catch (RfcComplianceException $e) {
+            throw new DeliveryRefusedException(self::INVALID_ADDRESS, $e);
         }
 
         $message->getHeaders()->add(new TagHeader($email->tag));

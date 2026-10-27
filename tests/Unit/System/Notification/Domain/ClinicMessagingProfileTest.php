@@ -34,8 +34,21 @@ final class ClinicMessagingProfileTest extends TestCase
         yield 'reply-to' => ['Montmartre', 'montmartre', 'nope', 'Montmartre', 500, null];
         yield 'sms sender too long' => ['Montmartre', 'montmartre', null, 'Clinique des Lilas', 500, null];
         yield 'sms sender accents' => ['Montmartre', 'montmartre', null, 'Côte', 500, null];
+        yield 'sms sender digits only' => ['Montmartre', 'montmartre', null, '0142641800', 500, null];
+        yield 'local part with a doubled dot' => ['Montmartre', 'mont..martre', null, 'Montmartre', 500, null];
         yield 'negative cap' => ['Montmartre', 'montmartre', null, 'Montmartre', -1, null];
         yield 'colour' => ['Montmartre', 'montmartre', null, 'Montmartre', 500, 'blue'];
+    }
+
+    /**
+     * N12: the SMS sender follows Clinic's rule (a letter, 1 to 11
+     * characters; empty means Kiveto's), the local part is a dot-atom.
+     */
+    public function testShortSendersWithALetterAndDottedLocalPartsAreAccepted(): void
+    {
+        foreach (['V', 'Vet 24', ''] as $sender) {
+            self::assertSame($sender, ClinicMessagingProfile::of(Messages::CLINIC, 'Montmartre', 'clinique.montmartre', null, $sender, 500, '', '', '', null, null)->smsSender);
+        }
     }
 
     #[DataProvider('provideInvalidProfilesCases')]
