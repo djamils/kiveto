@@ -69,7 +69,7 @@ final readonly class RequestNotificationHandler
 
     public function __invoke(RequestNotification $command): string
     {
-        $key      = IdempotencyKey::fromString($command->idempotencyKey);
+        $key      = IdempotencyKey::requested($command->idempotencyKey);
         $existing = $this->messages->findByIdempotencyKey($key);
 
         if (null !== $existing) {

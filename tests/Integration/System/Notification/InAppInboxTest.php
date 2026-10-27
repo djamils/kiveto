@@ -34,6 +34,23 @@ final class InAppInboxTest extends KernelTestCase
     private const string ASSIST   = '01960000-0000-7000-8000-0000000000f2';
 
     /**
+     * N11: only a replay (same key, same user) is ignored; any other error
+     * surfaces instead of being hidden or truncated by INSERT IGNORE.
+     */
+    public function testOnlyAReplayIsIgnored(): void
+    {
+        $repository = self::getContainer()->get('test.' . InAppNotificationRepositoryInterface::class);
+        \assert($repository instanceof InAppNotificationRepositoryInterface);
+        $entry = static fn (string $id, string $route): InAppNotification => InAppNotification::reconstitute(InAppNotificationId::fromString($id), self::CLINIC_A, self::VET, InAppKind::CRITICAL_STOCK, 'Stock critique', '', $route, [], null, 'critical-stock:s-9', new \DateTimeImmutable('-1 hour'), null);
+
+        self::assertTrue($repository->add($entry('01960000-0000-7000-8000-0000000000b7', 'clinic_stock')));
+        self::assertFalse($repository->add($entry('01960000-0000-7000-8000-0000000000b8', 'clinic_stock')), 'replayed');
+
+        $this->expectException(\Doctrine\DBAL\Exception\DriverException::class);
+        $repository->add(InAppNotification::reconstitute(InAppNotificationId::fromString('01960000-0000-7000-8000-0000000000b9'), self::CLINIC_A, self::VET, InAppKind::CRITICAL_STOCK, 'Stock critique', '', str_repeat('r', 121), [], null, 'critical-stock:s-10', new \DateTimeImmutable('-1 hour'), null));
+    }
+
+    /**
      * AC 40: per user and clinic, read one, « Tout marquer lu », withdraw while unread.
      */
     public function testTheBellOfAUserInTheCurrentClinic(): void

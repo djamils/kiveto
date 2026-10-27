@@ -19,7 +19,8 @@ use App\Shared\Application\Bus\CommandInterface;
  *   for staff invitation, password reset and test); clientId: the client it
  *   is journaled for, if any.
  * - subjectType / subjectId: the business object (appointment, invoice, consultation, user…).
- * - idempotencyKey: an opaque key built by the requester, unique per message.
+ * - idempotencyKey: an opaque key built by the requester, unique per message,
+ *   181 characters at most (its fallback key adds « :fallback »).
  * - parameters: exactly what the template of the purpose and channel declares
  *   (see TemplateCatalog), ready to print.
  * - attachments: e-mail only.

@@ -134,6 +134,20 @@ final class MessageValueObjectsTest extends TestCase
         IdempotencyKey::fromString(str_repeat('k', 191));
     }
 
+    /**
+     * N9: a requested key leaves room for « :fallback », so that the
+     * fallback key of the longest one still fits the column.
+     */
+    public function testARequestedKeyLeavesRoomForItsFallback(): void
+    {
+        $longest = IdempotencyKey::requested(str_repeat('k', 181));
+
+        self::assertSame(190, mb_strlen($longest->fallback()->toString()));
+
+        $this->expectException(\InvalidArgumentException::class);
+        IdempotencyKey::requested(str_repeat('k', 182));
+    }
+
     public function testAnEmptyIdempotencyKeyIsRefused(): void
     {
         $this->expectException(\InvalidArgumentException::class);

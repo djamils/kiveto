@@ -12,6 +12,9 @@ final readonly class IdempotencyKey
 {
     public const int MAX_LENGTH = 190;
 
+    /** A requester's key leaves room for the suffix of its e-mail fallback. */
+    public const int REQUESTED_MAX_LENGTH = self::MAX_LENGTH - 9;
+
     private const string FALLBACK_SUFFIX = ':fallback';
 
     private function __construct(private string $value)
@@ -27,6 +30,21 @@ final readonly class IdempotencyKey
         }
 
         return new self($value);
+    }
+
+    /**
+     * A key as a requester gives it: short enough for its fallback key to
+     * fit too, so that a capped SMS never fails its whole request.
+     */
+    public static function requested(string $value): self
+    {
+        $key = self::fromString($value);
+
+        if (mb_strlen($key->value) > self::REQUESTED_MAX_LENGTH) {
+            throw new \InvalidArgumentException(\sprintf('Idempotency key "%s" longer than %d characters.', $key->value, self::REQUESTED_MAX_LENGTH));
+        }
+
+        return $key;
     }
 
     /** The key of the e-mail sent instead of a capped SMS. */

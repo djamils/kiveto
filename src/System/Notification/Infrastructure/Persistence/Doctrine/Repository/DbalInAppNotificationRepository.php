@@ -10,11 +10,13 @@ use App\System\Notification\Domain\Inbox\InAppNotification;
 use App\System\Notification\Domain\Inbox\InAppNotificationId;
 use App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Dates are written in UTC. An entry is added with INSERT IGNORE on the
- * (idempotency key, user) unique index: a replayed post writes nothing.
+ * Dates are written in UTC. A replayed post collides on the (idempotency
+ * key, user) unique index and writes nothing; any other error surfaces (no
+ * INSERT IGNORE, which would also hide or truncate bad data).
  */
 final readonly class DbalInAppNotificationRepository implements InAppNotificationRepositoryInterface
 {
@@ -26,23 +28,11 @@ final readonly class DbalInAppNotificationRepository implements InAppNotificatio
 
     public function add(InAppNotification $notification): bool
     {
-        return 1 === (int) $this->connection->executeStatement(
-            'INSERT IGNORE INTO ' . self::TABLE . ' (id, clinic_id, user_id, kind, title, detail, route, route_params, actor_initials, idempotency_key, created_at, read_at)'
-            . ' VALUES (:id, :clinic, :user, :kind, :title, :detail, :route, :params, :initials, :key, :created, NULL)',
-            [
-                'id'       => Uuid::fromString($notification->id()->toString())->toBinary(),
-                'clinic'   => Uuid::fromString($notification->clinicId())->toBinary(),
-                'user'     => Uuid::fromString($notification->userId())->toBinary(),
-                'kind'     => $notification->kind()->value,
-                'title'    => $notification->title(),
-                'detail'   => $notification->detail(),
-                'route'    => $notification->route(),
-                'params'   => json_encode((object) $notification->routeParams(), \JSON_THROW_ON_ERROR),
-                'initials' => $notification->actorInitials(),
-                'key'      => $notification->idempotencyKey(),
-                'created'  => self::utc($notification->createdAt()),
-            ],
-        );
+        try {
+            return $this->insert($notification);
+        } catch (UniqueConstraintViolationException) {
+            return false;
+        }
     }
 
     public function markRead(InAppNotificationId $id, string $userId, \DateTimeImmutable $at): bool
@@ -93,6 +83,27 @@ final readonly class DbalInAppNotificationRepository implements InAppNotificatio
     public function purgeCreatedBefore(\DateTimeImmutable $before): int
     {
         return (int) $this->connection->executeStatement('DELETE FROM ' . self::TABLE . ' WHERE created_at < :before', ['before' => self::utc($before)]);
+    }
+
+    private function insert(InAppNotification $notification): bool
+    {
+        return 1 === (int) $this->connection->executeStatement(
+            'INSERT INTO ' . self::TABLE . ' (id, clinic_id, user_id, kind, title, detail, route, route_params, actor_initials, idempotency_key, created_at, read_at)'
+            . ' VALUES (:id, :clinic, :user, :kind, :title, :detail, :route, :params, :initials, :key, :created, NULL)',
+            [
+                'id'       => Uuid::fromString($notification->id()->toString())->toBinary(),
+                'clinic'   => Uuid::fromString($notification->clinicId())->toBinary(),
+                'user'     => Uuid::fromString($notification->userId())->toBinary(),
+                'kind'     => $notification->kind()->value,
+                'title'    => $notification->title(),
+                'detail'   => $notification->detail(),
+                'route'    => $notification->route(),
+                'params'   => json_encode((object) $notification->routeParams(), \JSON_THROW_ON_ERROR),
+                'initials' => $notification->actorInitials(),
+                'key'      => $notification->idempotencyKey(),
+                'created'  => self::utc($notification->createdAt()),
+            ],
+        );
     }
 
     /**

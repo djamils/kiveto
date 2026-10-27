@@ -240,6 +240,13 @@ final class RequestNotificationHandlerTest extends TestCase
         self::assertCount(15, $this->buses->external, '10 SMS and 5 fallback e-mails');
     }
 
+    public function testAKeyWithoutRoomForItsFallbackIsRefused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        ($this->handler)(new RequestNotification('TEST', 'EMAIL', 'a@b.fr', '', null, null, 'x', 'y', str_repeat('k', 182), ['sentAtLabel' => 'x']));
+    }
+
     public function testAnUnknownPurposeIsRefused(): void
     {
         $this->expectException(InvalidNotificationRequestException::class);

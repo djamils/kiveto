@@ -14,6 +14,11 @@ final class InAppNotification
 {
     public const int TITLE_MAX  = 255;
     public const int DETAIL_MAX = 500;
+    public const int ROUTE_MAX  = 120;
+    public const int KEY_MAX    = 190;
+
+    /** The route parameters, JSON-encoded, at most. */
+    public const int ROUTE_PARAMS_MAX = 1000;
 
     /** Entries older than this are purged and never listed. */
     public const int RETENTION_DAYS = 30;
@@ -58,8 +63,12 @@ final class InAppNotification
         $idempotencyKey = mb_trim($idempotencyKey);
         $actorInitials  = null !== $actorInitials && '' !== mb_trim($actorInitials) ? mb_substr(mb_trim($actorInitials), 0, 4) : null;
 
-        if ('' === $title || '' === $route || '' === $idempotencyKey || mb_strlen($idempotencyKey) > 190) {
-            throw new \InvalidArgumentException('A bell entry needs a title, a route and an idempotency key (190 characters at most).');
+        if ('' === $title || '' === $route || '' === $idempotencyKey || mb_strlen($idempotencyKey) > self::KEY_MAX || mb_strlen($route) > self::ROUTE_MAX) {
+            throw new \InvalidArgumentException(\sprintf('A bell entry needs a title, a route (%d characters at most) and an idempotency key (%d at most).', self::ROUTE_MAX, self::KEY_MAX));
+        }
+
+        if (\in_array('', array_map(strval(...), array_keys($routeParams)), true) || mb_strlen(json_encode($routeParams, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE)) > self::ROUTE_PARAMS_MAX) {
+            throw new \InvalidArgumentException(\sprintf('The route parameters of a bell entry need names and take %d characters at most.', self::ROUTE_PARAMS_MAX));
         }
 
         return new self($id, $clinicId, $userId, $kind, mb_substr($title, 0, self::TITLE_MAX), mb_substr(mb_trim($detail), 0, self::DETAIL_MAX), $route, $routeParams, $actorInitials, $idempotencyKey, $now, null);
