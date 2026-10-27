@@ -105,7 +105,7 @@ final class ConsultationDetailsController extends AbstractController
      *     report: string,
      *     bundle: string,
      *     prescriptions: list<array{id: string, number: string, lineCount: int, url: string}>,
-     *     invoice: array{id: string, number: string, url: string}|null,
+     *     invoice: array{id: string, number: string, url: string, sendable: bool}|null,
      *     send: array{url: string, recipient: array{name: string, email: string}|null}
      * }
      */
@@ -142,6 +142,8 @@ final class ConsultationDetailsController extends AbstractController
                 'id'     => $invoiceRow->id,
                 'number' => $invoiceRow->number,
                 'url'    => $this->generateUrl('clinic_invoice_pdf', ['invoiceId' => $invoiceRow->id]),
+                // A credited invoice is printed but not e-mailed.
+                'sendable' => $invoiceRow->isSendable(),
             ]
             : null;
 

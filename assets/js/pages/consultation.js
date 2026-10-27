@@ -1221,14 +1221,17 @@ export function init() {
   const docsOf = (keys) => keys.flatMap((k) => {
     if (k === 'cr') return ['report'];
     if (k === 'ordo') return (DOCS.prescriptions || []).map((x) => `prescription:${x.id}`);
-    if (k === 'facture') return DOCS.invoice ? ['invoice'] : [];
+    if (k === 'facture') return DOCS.invoice?.sendable ? ['invoice'] : [];
     return [];
   });
   /** Why the ticked documents cannot be e-mailed, or '' when they can. */
   function envoiBloque(keys) {
     if (!closed()) return 'Clôturez la consultation pour envoyer ses documents';
     if (!DEST) return 'Aucune adresse e-mail pour ce client';
-    if (!docsOf(keys).length) return keys.some((k) => SENDABLE.includes(k)) ? 'Document pas encore signé ou émis' : 'Cochez le compte rendu, l\'ordonnance ou la facture';
+    if (!docsOf(keys).length) {
+      if (keys.length === 1 && keys[0] === 'facture' && DOCS.invoice && !DOCS.invoice.sendable) return 'Facture avoirée ou annulée : elle ne part pas par e-mail';
+      return keys.some((k) => SENDABLE.includes(k)) ? 'Document pas encore signé ou émis' : 'Cochez le compte rendu, l\'ordonnance ou la facture';
+    }
     return '';
   }
   async function envoyerDocs(keys, btn) {

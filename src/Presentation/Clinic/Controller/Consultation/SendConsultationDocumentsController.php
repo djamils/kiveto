@@ -59,7 +59,8 @@ final class SendConsultationDocumentsController extends AbstractController
 
         return new JsonResponse([
             'success' => true,
-            'message' => \sprintf('%d document%s envoyé%s par e-mail à %s (%s)', $queued->documentCount, $plural, $plural, $queued->recipientName, $queued->recipientEmail),
+            // Queued, not sent yet: the worker renders the PDFs and may still find nothing to send.
+            'message' => \sprintf('%d document%s en cours d\'envoi par e-mail à %s (%s)', $queued->documentCount, $plural, $queued->recipientName, $queued->recipientEmail),
         ]);
     }
 }
