@@ -34,6 +34,7 @@ use App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender;
 use App\Tests\Integration\System\Notification\MessageRenderingTest;
 use App\Tests\Support\MessengerDrain;
 use App\Tests\Unit\System\Notification\Support\BrevoPayloads;
+use App\Tests\Unit\System\Notification\Support\CapturingMessageBus;
 use Doctrine\DBAL\Connection;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -196,6 +197,7 @@ final class AutomatedMessageJournalPipelineTest extends WebTestCase
             new SymfonyTexterSmsSender(new BrevoTransport('KEY', 'Kiveto', $http), $failures),
             $storage,
             $this->bus(),
+            new CapturingMessageBus(),
             $clock,
             new NullLogger(),
         );

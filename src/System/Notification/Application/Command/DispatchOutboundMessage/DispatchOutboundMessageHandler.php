@@ -29,6 +29,8 @@ use App\System\Notification\Domain\Message\SenderIdentity;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 /**
  * Hands one queued message to the e-mail or SMS transport, outside any
@@ -42,6 +44,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  *   FAILED with the reason; anything temporary (408, 429, 5xx, no answer) is
  *   rethrown so that Messenger retries with a growing delay, honouring the
  *   provider's Retry-After. Retries exhausted: DispatchFailureListener.
+ * - Once the provider has answered, the send is never repeated: when the
+ *   outcome cannot be recorded right away (database unavailable, lock
+ *   conflict), it is handed to the `async` worker as its own retried
+ *   RecordDispatchOutcome, and the dispatch itself succeeds. Were it rethrown,
+ *   Messenger would retry the dispatch and the message — still QUEUED — would
+ *   go out again.
  * - The idempotency key travels as provider tag: delivery is at-least-once
  *   (a worker dying after the provider accepted the message sends it again),
  *   and a duplicate can be traced.
@@ -50,6 +58,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class DispatchOutboundMessageHandler
 {
     public const string ATTACHMENT_MISSING = 'Pièce jointe introuvable : %s';
+
+    /** Where an outcome that could not be recorded right away waits for its retries. */
+    public const string OUTCOME_TRANSPORT = 'async';
 
     /** Logo formats every mail client shows inline. */
     public const array LOGO_TYPES = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif'];
@@ -60,6 +71,8 @@ final readonly class DispatchOutboundMessageHandler
         private SmsSenderInterface $smsSender,
         private FileStorageInterface $storage,
         private CommandBusInterface $commandBus,
+        #[Autowire(service: 'messenger.bus.command')]
+        private MessageBusInterface $deferredCommandBus,
         private ClockInterface $clock,
         #[Autowire(service: 'monolog.logger.external_api')]
         private LoggerInterface $logger,
@@ -186,8 +199,28 @@ final readonly class DispatchOutboundMessageHandler
         return [$content, $recipient, $sender];
     }
 
+    /**
+     * Records the provider's answer; never throws, so that an answered
+     * dispatch is never retried (see the class comment).
+     */
     private function record(string $messageId, ?string $externalId, ?string $error): void
     {
-        $this->commandBus->dispatch(new RecordDispatchOutcome($messageId, $externalId, $error, $this->clock->now()->format(\DateTimeInterface::ATOM)));
+        $outcome = new RecordDispatchOutcome($messageId, $externalId, $error, $this->clock->now()->format(\DateTimeInterface::ATOM));
+
+        try {
+            $this->commandBus->dispatch($outcome);
+
+            return;
+        } catch (\Throwable $e) {
+            $this->logger->error('Dispatch outcome not recorded, handed to the worker.', ['messageId' => $messageId, 'externalId' => $externalId, 'error' => $e->getMessage()]);
+        }
+
+        try {
+            $this->deferredCommandBus->dispatch($outcome, [new TransportNamesStamp([self::OUTCOME_TRANSPORT])]);
+        } catch (\Throwable $e) {
+            // Nothing left to write to: the message stays « En cours », its
+            // provider id is in this log line for a manual repair.
+            $this->logger->critical('Dispatch outcome lost: the message stays queued.', ['messageId' => $messageId, 'externalId' => $externalId, 'error' => $e->getMessage()]);
+        }
     }
 }

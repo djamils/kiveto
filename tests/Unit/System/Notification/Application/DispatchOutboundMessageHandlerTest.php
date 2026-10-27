@@ -8,8 +8,10 @@ use App\Shared\Application\ExternalApi\ExternalServiceUnavailable;
 use App\System\Notification\Application\Command\DispatchOutboundMessage\DispatchOutboundMessage;
 use App\System\Notification\Application\Command\DispatchOutboundMessage\DispatchOutboundMessageHandler;
 use App\System\Notification\Application\Command\RecordDispatchOutcome\RecordDispatchOutcome;
+use App\System\Notification\Application\Command\RecordDispatchOutcome\RecordDispatchOutcomeHandler;
 use App\System\Notification\Application\Exception\DeliveryRefusedException;
 use App\System\Notification\Application\Service\AttachmentFilename;
+use App\System\Notification\Application\Service\DeliveryEventReplayer;
 use App\System\Notification\Domain\Message\Attachment;
 use App\System\Notification\Domain\Message\AttachmentOwner;
 use App\System\Notification\Domain\Message\Channel;
@@ -24,13 +26,18 @@ use App\System\Notification\Domain\Message\SenderIdentity;
 use App\System\Notification\Domain\Message\SubjectReference;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\System\Notification\Support\CapturingBuses;
+use App\Tests\Unit\System\Notification\Support\CapturingMessageBus;
 use App\Tests\Unit\System\Notification\Support\FakeSenders;
 use App\Tests\Unit\System\Notification\Support\InMemoryFiles;
 use App\Tests\Unit\System\Notification\Support\InMemoryMessages;
+use App\Tests\Unit\System\Notification\Support\InMemoryUnmatchedEvents;
 use App\Tests\Unit\System\Notification\Support\Messages;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\ErrorHandler\BufferingLogger;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 
 final class DispatchOutboundMessageHandlerTest extends TestCase
 {
@@ -39,6 +46,7 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
     private FakeSenders $senders;
     private InMemoryFiles $files;
     private CapturingBuses $buses;
+    private CapturingMessageBus $deferred;
     private BufferingLogger $logger;
     private DispatchOutboundMessageHandler $handler;
 
@@ -48,16 +56,9 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         $this->senders  = new FakeSenders();
         $this->files    = new InMemoryFiles();
         $this->buses    = new CapturingBuses();
+        $this->deferred = new CapturingMessageBus();
         $this->logger   = new BufferingLogger();
-        $this->handler  = new DispatchOutboundMessageHandler(
-            $this->messages,
-            $this->senders,
-            $this->senders,
-            $this->files,
-            $this->buses,
-            new FrozenClock(new \DateTimeImmutable('2026-10-16T10:00:00+00:00')),
-            $this->logger,
-        );
+        $this->handler  = $this->handler($this->deferred);
     }
 
     protected function tearDown(): void
@@ -156,6 +157,59 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         }
 
         self::assertSame([], $this->buses->commands);
+    }
+
+    /**
+     * N1: the provider accepted the SMS but its outcome cannot be recorded:
+     * the dispatch succeeds (no Messenger retry, so no second send) and the
+     * outcome waits on `async`, where it is recorded with the provider id.
+     */
+    public function testAnAcceptedMessageIsNeverSentAgainWhenItsOutcomeCannotBeRecorded(): void
+    {
+        $this->messages->save(Messages::sms());
+        $this->buses->onDispatch = static fn (): never => throw new \RuntimeException('Deadlock found when trying to get lock');
+
+        ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
+
+        self::assertCount(1, $this->senders->sms);
+        self::assertCount(1, $this->deferred->dispatched);
+        [$outcome, $stamps] = $this->deferred->dispatched[0];
+        self::assertInstanceOf(RecordDispatchOutcome::class, $outcome);
+        self::assertSame(['brevo-sms-1', null], [$outcome->externalId, $outcome->error]);
+        self::assertCount(1, $stamps);
+        self::assertInstanceOf(TransportNamesStamp::class, $stamps[0]);
+        self::assertSame(['async'], $stamps[0]->getTransportNames());
+        $logs = $this->logger->cleanLogs();
+        self::assertIsArray($logs[1]);
+        self::assertSame(['error', 'Dispatch outcome not recorded, handed to the worker.'], [$logs[1][0], $logs[1][1]]);
+
+        $unmatched = new InMemoryUnmatchedEvents($this->messages);
+        $publisher = new CapturingBuses()->publisher();
+        new RecordDispatchOutcomeHandler($this->messages, $unmatched, new DeliveryEventReplayer($this->messages, $unmatched, $publisher), $publisher)($outcome);
+
+        $message = $this->messages->get(OutboundMessageId::fromString('01960000-0000-7000-8000-000000000501'));
+        self::assertSame([DeliveryStatus::SENT, 'brevo-sms-1'], [$message->status(), $message->externalMessageId()]);
+    }
+
+    public function testAnOutcomeThatCannotBeQueuedEitherIsLoggedAndTheDispatchStillSucceeds(): void
+    {
+        $this->messages->save(Messages::sms());
+        $this->buses->onDispatch = static fn (): never => throw new \RuntimeException('MySQL server has gone away');
+        $handler                 = $this->handler(new class implements MessageBusInterface {
+            public function dispatch(object $message, array $stamps = []): Envelope
+            {
+                throw new \RuntimeException('MySQL server has gone away');
+            }
+        });
+
+        $handler(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
+
+        self::assertCount(1, $this->senders->sms);
+        $logs = $this->logger->cleanLogs();
+        self::assertIsArray($logs[2]);
+        self::assertSame(['critical', 'Dispatch outcome lost: the message stays queued.'], [$logs[2][0], $logs[2][1]]);
+        self::assertIsArray($logs[2][2]);
+        self::assertSame('brevo-sms-1', $logs[2][2]['externalId'] ?? null);
     }
 
     public function testAnAttachmentThatCannotBeReadFailsTheMessage(): void
@@ -260,6 +314,20 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
     public function testAttachmentNamesAreSanitized(string $raw, string $safe): void
     {
         self::assertSame($safe, AttachmentFilename::safe($raw));
+    }
+
+    private function handler(MessageBusInterface $deferred): DispatchOutboundMessageHandler
+    {
+        return new DispatchOutboundMessageHandler(
+            $this->messages,
+            $this->senders,
+            $this->senders,
+            $this->files,
+            $this->buses,
+            $deferred,
+            new FrozenClock(new \DateTimeImmutable('2026-10-16T10:00:00+00:00')),
+            $this->logger,
+        );
     }
 
     private function firstLog(): string

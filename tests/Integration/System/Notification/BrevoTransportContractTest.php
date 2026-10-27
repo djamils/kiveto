@@ -20,6 +20,7 @@ use App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy;
 use App\System\Notification\Infrastructure\Transport\ProviderFailureClassifier;
 use App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender;
 use App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender;
+use App\Tests\Unit\System\Notification\Support\CapturingMessageBus;
 use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -170,6 +171,7 @@ final class BrevoTransportContractTest extends KernelTestCase
             new SymfonyTexterSmsSender(new BrevoTransport('KEY', 'Kiveto', $http), $failures),
             $this->storage(),
             $this->bus(),
+            new CapturingMessageBus(),
             $clock,
             new NullLogger(),
         );
