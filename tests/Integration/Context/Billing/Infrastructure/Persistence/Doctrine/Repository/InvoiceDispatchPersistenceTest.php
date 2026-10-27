@@ -57,6 +57,52 @@ final class InvoiceDispatchPersistenceTest extends KernelTestCase
 
         self::assertSame([self::INVOICE], $repository->remindedSince(ClinicId::fromString(self::CLINIC), new \DateTimeImmutable('2026-10-25 23:00:00')));
         self::assertSame([], $repository->remindedSince(ClinicId::fromString(self::CLINIC), new \DateTimeImmutable('2026-10-26 09:00:00')));
+
+        // Nothing to lock: no query (an empty IN () is no SQL).
+        $repository->lockInvoices(ClinicId::fromString(self::CLINIC), []);
+    }
+
+    public function testASkippedReminderIsKeptButNeitherCountsNorHoldsBack(): void
+    {
+        $repository = $this->dispatches();
+        $skipped    = $this->dispatch('01960000-0000-7000-8000-00000000d221', DispatchKind::REMINDER, ['SMS'], '2026-10-26 08:00:00');
+        $repository->save($skipped);
+        $skipped->skip('rien à relancer');
+        $repository->save($skipped);
+
+        self::assertSame('rien à relancer', $repository->find($skipped->id())?->skippedReason());
+        self::assertSame(0, $repository->countReminders(ClinicId::fromString(self::CLINIC), InvoiceId::fromString(self::INVOICE)));
+        self::assertNull($repository->lastReminderAt(ClinicId::fromString(self::CLINIC), InvoiceId::fromString(self::INVOICE)));
+        self::assertSame([], $repository->remindedSince(ClinicId::fromString(self::CLINIC), new \DateTimeImmutable('2026-10-25 23:00:00')));
+    }
+
+    public function testARedeliveredSendNeverOverwritesTheRecordedOutcome(): void
+    {
+        $repository = $this->dispatches();
+        $repository->save($this->dispatch('01960000-0000-7000-8000-00000000d231', DispatchKind::SEND, ['EMAIL'], '2026-10-26 08:00:00'));
+
+        // Two workers loaded the dispatch before either recorded anything.
+        $first  = $repository->find(InvoiceDispatchId::fromString('01960000-0000-7000-8000-00000000d231'));
+        $second = $repository->find(InvoiceDispatchId::fromString('01960000-0000-7000-8000-00000000d231'));
+        self::assertNotNull($first);
+        self::assertNotNull($second);
+
+        $first->recordNotifications(['01960000-0000-7000-8000-00000000d298']);
+        $repository->save($first);
+        $second->recordNotifications(['01960000-0000-7000-8000-00000000d297']);
+        $repository->save($second);
+
+        $stale = $repository->find($first->id());
+        self::assertSame(['01960000-0000-7000-8000-00000000d298'], $stale?->notificationIds());
+
+        $late = $repository->find(InvoiceDispatchId::fromString('01960000-0000-7000-8000-00000000d231'));
+        self::assertNotNull($late);
+        $late = InvoiceDispatch::reconstitute($late->id(), $late->clinicId(), $late->invoiceId(), $late->kind(), $late->channels(), [], null, $late->createdAt());
+        $late->skip('sans adresse e-mail');
+        $repository->save($late);
+
+        $found = $repository->find($first->id());
+        self::assertSame([['01960000-0000-7000-8000-00000000d298'], null], [$found?->notificationIds(), $found?->skippedReason()]);
     }
 
     public function testASentFileIsRecordedOnceAndPerClinic(): void
@@ -85,7 +131,7 @@ final class InvoiceDispatchPersistenceTest extends KernelTestCase
         $at = new \DateTimeImmutable();
 
         self::assertSame(
-            ['id' => $id, 'clinic_id' => $id, 'invoice_id' => $id, 'kind' => 'SEND', 'channels' => ['EMAIL'], 'notification_ids' => [], 'created_at' => $at, 'author_user_id' => null],
+            ['id' => $id, 'clinic_id' => $id, 'invoice_id' => $id, 'kind' => 'SEND', 'channels' => ['EMAIL'], 'notification_ids' => [], 'created_at' => $at, 'author_user_id' => null, 'skipped_reason' => null],
             new InvoiceDispatchEntity($id, $id, $id, 'SEND', ['EMAIL'], [], $at)->columns(),
         );
         self::assertSame(

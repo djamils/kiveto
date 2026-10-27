@@ -11,6 +11,7 @@ use App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Shared\Infrastructure\Persistence\RowAccessor;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
 
@@ -23,7 +24,10 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
     private const string FORMAT = 'Y-m-d H:i:s';
 
     private const string COLUMNS = 'BIN_TO_UUID(id) AS id, BIN_TO_UUID(clinic_id) AS clinic_id, BIN_TO_UUID(invoice_id) AS invoice_id,'
-        . ' kind, channels, notification_ids, BIN_TO_UUID(author_user_id) AS author_user_id, created_at';
+        . ' kind, channels, notification_ids, skipped_reason, BIN_TO_UUID(author_user_id) AS author_user_id, created_at';
+
+    // A dispatch the worker skipped is no reminder: it neither counts nor holds back the next one.
+    private const string SENT_OR_QUEUED = 'skipped_reason IS NULL';
 
     public function __construct(private Connection $connection)
     {
@@ -34,9 +38,12 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
         $author = $dispatch->authorUserId();
 
         $this->connection->executeStatement(
-            'INSERT INTO ' . self::TABLE . ' (id, clinic_id, invoice_id, kind, channels, notification_ids, author_user_id, created_at)'
-            . ' VALUES (:id, :clinic, :invoice, :kind, :channels, :notifications, :author, :at)'
-            . ' AS new ON DUPLICATE KEY UPDATE notification_ids = new.notification_ids',
+            'INSERT INTO ' . self::TABLE . ' (id, clinic_id, invoice_id, kind, channels, notification_ids, skipped_reason, author_user_id, created_at)'
+            . ' VALUES (:id, :clinic, :invoice, :kind, :channels, :notifications, :skipped, :author, :at)'
+            // The outcome is written once: a redelivered send never overwrites the ids or the reason already recorded.
+            . ' AS new ON DUPLICATE KEY UPDATE'
+            . ' notification_ids = IF(JSON_LENGTH(' . self::TABLE . '.notification_ids) = 0 AND ' . self::TABLE . '.skipped_reason IS NULL, new.notification_ids, ' . self::TABLE . '.notification_ids),'
+            . ' skipped_reason = IF(JSON_LENGTH(' . self::TABLE . '.notification_ids) = 0 AND ' . self::TABLE . '.skipped_reason IS NULL, new.skipped_reason, ' . self::TABLE . '.skipped_reason)',
             [
                 'id'            => self::binary($dispatch->id()->toString()),
                 'clinic'        => self::binary($dispatch->clinicId()->toString()),
@@ -44,6 +51,7 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
                 'kind'          => $dispatch->kind()->value,
                 'channels'      => json_encode($dispatch->channels(), \JSON_THROW_ON_ERROR),
                 'notifications' => json_encode($dispatch->notificationIds(), \JSON_THROW_ON_ERROR),
+                'skipped'       => $dispatch->skippedReason(),
                 'author'        => null !== $author ? self::binary($author) : null,
                 'at'            => self::utc($dispatch->createdAt()),
             ],
@@ -74,7 +82,7 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
     public function countReminders(ClinicId $clinicId, InvoiceId $invoiceId): int
     {
         $count = $this->connection->fetchOne(
-            'SELECT COUNT(*) FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND invoice_id = :invoice AND kind = :kind',
+            'SELECT COUNT(*) FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND invoice_id = :invoice AND kind = :kind AND ' . self::SENT_OR_QUEUED,
             ['clinic' => self::binary($clinicId->toString()), 'invoice' => self::binary($invoiceId->toString()), 'kind' => DispatchKind::REMINDER->value],
         );
 
@@ -84,7 +92,7 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
     public function lastReminderAt(ClinicId $clinicId, InvoiceId $invoiceId): ?\DateTimeImmutable
     {
         $at = $this->connection->fetchOne(
-            'SELECT MAX(created_at) FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND invoice_id = :invoice AND kind = :kind',
+            'SELECT MAX(created_at) FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND invoice_id = :invoice AND kind = :kind AND ' . self::SENT_OR_QUEUED,
             ['clinic' => self::binary($clinicId->toString()), 'invoice' => self::binary($invoiceId->toString()), 'kind' => DispatchKind::REMINDER->value],
         );
 
@@ -94,11 +102,28 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
     public function remindedSince(ClinicId $clinicId, \DateTimeImmutable $since): array
     {
         $ids = $this->connection->fetchFirstColumn(
-            'SELECT DISTINCT BIN_TO_UUID(invoice_id) FROM ' . self::TABLE . ' WHERE clinic_id = :clinic AND kind = :kind AND created_at >= :since',
+            'SELECT DISTINCT BIN_TO_UUID(invoice_id) FROM ' . self::TABLE
+            . ' WHERE clinic_id = :clinic AND kind = :kind AND created_at >= :since AND ' . self::SENT_OR_QUEUED,
             ['clinic' => self::binary($clinicId->toString()), 'kind' => DispatchKind::REMINDER->value, 'since' => self::utc($since)],
         );
 
         return array_values(array_filter($ids, \is_string(...)));
+    }
+
+    public function lockInvoices(ClinicId $clinicId, array $invoiceIds): void
+    {
+        if ([] === $invoiceIds) {
+            return;
+        }
+
+        $this->connection->executeQuery(
+            'SELECT id FROM billing__invoices WHERE clinic_id = :clinic AND id IN (:ids) ORDER BY id FOR UPDATE',
+            [
+                'clinic' => self::binary($clinicId->toString()),
+                'ids'    => array_map(static fn (InvoiceId $id): string => self::binary($id->toString()), $invoiceIds),
+            ],
+            ['ids' => ArrayParameterType::BINARY],
+        )->free();
     }
 
     /**
@@ -113,6 +138,7 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
             kind: DispatchKind::from(RowAccessor::string($row, 'kind')),
             channels: self::strings(RowAccessor::string($row, 'channels')),
             notificationIds: self::strings(RowAccessor::string($row, 'notification_ids')),
+            skippedReason: RowAccessor::nullableString($row, 'skipped_reason'),
             authorUserId: RowAccessor::nullableString($row, 'author_user_id'),
             createdAt: new \DateTimeImmutable(RowAccessor::string($row, 'created_at'), new \DateTimeZone('UTC')),
         );

@@ -50,7 +50,7 @@ final readonly class UnpaidReminderSelection
                 if (Uuid::isValid($id)) {
                     $only[$id] = InvoiceId::fromString($id);
                 } else {
-                    $skipped[$id] = InvoiceDispatchOutcome::SKIP_NOTHING_DUE;
+                    $skipped[$id] = InvoiceDispatchOutcome::SKIP_UNKNOWN;
                 }
             }
         }

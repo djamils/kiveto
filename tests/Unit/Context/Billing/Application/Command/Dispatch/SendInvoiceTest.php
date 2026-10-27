@@ -154,6 +154,10 @@ final class SendInvoiceTest extends TestCase
 
         self::assertSame([], $this->notifications->messages);
         self::assertSame([], $this->renderer->rendered);
+        self::assertSame(
+            [InvoiceDispatchOutcome::SKIP_NOT_ISSUED, InvoiceDispatchOutcome::SKIP_NO_EMAIL, InvoiceDispatchOutcome::SKIP_NO_EMAIL],
+            array_values(array_map(static fn (InvoiceDispatch $d): ?string => $d->skippedReason(), $this->dispatches->dispatches)),
+        );
     }
 
     /**

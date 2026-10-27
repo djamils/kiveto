@@ -16,7 +16,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * The dispatch log of an invoice, its messages' statuses read from
  * Notification in one query (AC 25c: a bounced e-mail reads « Non délivré »,
- * not a plain « Envoyée »).
+ * not a plain « Envoyée »). A reminder the worker skipped is listed with its
+ * reason but neither counts nor holds back « Relancer ».
  */
 #[AsMessageHandler]
 final readonly class ListInvoiceDispatchesHandler
@@ -36,7 +37,7 @@ final readonly class ListInvoiceDispatchesHandler
         $ids        = array_merge(...array_map(static fn (InvoiceDispatch $d): array => $d->notificationIds(), $dispatches));
         $statuses   = [] !== $ids ? $this->statuses->statuses($ids) : [];
         $today      = $this->clock->now()->setTimezone(new \DateTimeZone(self::ZONE))->setTime(0, 0);
-        $reminders  = array_values(array_filter($dispatches, static fn (InvoiceDispatch $d): bool => DispatchKind::REMINDER === $d->kind()));
+        $reminders  = array_values(array_filter($dispatches, static fn (InvoiceDispatch $d): bool => DispatchKind::REMINDER === $d->kind() && !$d->wasSkipped()));
 
         return new InvoiceDispatchHistory(
             dispatches: array_map(static fn (InvoiceDispatch $d): InvoiceDispatchView => new InvoiceDispatchView(
@@ -45,6 +46,7 @@ final readonly class ListInvoiceDispatchesHandler
                 authorUserId: $d->authorUserId(),
                 channels: $d->channels(),
                 deliveries: array_values(array_filter(array_map(static fn (string $id) => $statuses[$id] ?? null, $d->notificationIds()))),
+                skippedReason: $d->skippedReason(),
             ), $dispatches),
             reminderCount: \count($reminders),
             remindedToday: [] !== array_filter($reminders, static fn (InvoiceDispatch $d): bool => $d->createdAt() >= $today),

@@ -39,11 +39,13 @@ class InvoiceDispatchEntity
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'author_user_id', type: UuidType::NAME, nullable: true)]
         private ?Uuid $authorUserId = null,
+        #[ORM\Column(name: 'skipped_reason', type: 'string', length: 64, nullable: true)]
+        private ?string $skippedReason = null,
     ) {
     }
 
     /**
-     * @return array{id: Uuid, clinic_id: Uuid, invoice_id: Uuid, kind: string, channels: list<string>, notification_ids: list<string>, created_at: \DateTimeImmutable, author_user_id: ?Uuid}
+     * @return array{id: Uuid, clinic_id: Uuid, invoice_id: Uuid, kind: string, channels: list<string>, notification_ids: list<string>, created_at: \DateTimeImmutable, author_user_id: ?Uuid, skipped_reason: ?string}
      */
     public function columns(): array
     {
@@ -56,6 +58,7 @@ class InvoiceDispatchEntity
             'notification_ids' => $this->notificationIds,
             'created_at'       => $this->createdAt,
             'author_user_id'   => $this->authorUserId,
+            'skipped_reason'   => $this->skippedReason,
         ];
     }
 }

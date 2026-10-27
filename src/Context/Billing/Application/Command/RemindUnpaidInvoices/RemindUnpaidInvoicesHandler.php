@@ -16,11 +16,17 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * Re-checks the eligibility (the confirmation may be stale), logs one
- * REMINDER dispatch per invoice with its channels and queues
- * SendUnpaidReminder, in one transaction.
+ * Locks the invoices first — the transaction's first statement, so that its
+ * reads see what a concurrent reminder committed while it waited: a double
+ * click or two desks reminding the same invoice end with one reminder (no
+ * gap-locking read here: two reminders of different invoices of the clinic
+ * would deadlock on their inserts). Then re-checks the
+ * eligibility (the confirmation may be stale), logs one REMINDER dispatch per
+ * invoice with its channels and queues SendUnpaidReminder, in one
+ * transaction.
  */
 #[AsMessageHandler]
 final readonly class RemindUnpaidInvoicesHandler
@@ -36,11 +42,15 @@ final readonly class RemindUnpaidInvoicesHandler
 
     public function __invoke(RemindUnpaidInvoices $command): InvoiceDispatchOutcome
     {
-        [$candidates, $skipped] = $this->selection->select($command->clinicId, $command->invoiceIds);
-
         $clinicId = ClinicId::fromString($command->clinicId);
-        $now      = $this->clock->now();
-        $queued   = [];
+        $this->dispatches->lockInvoices($clinicId, array_values(array_map(
+            InvoiceId::fromString(...),
+            array_unique(array_filter($command->invoiceIds, Uuid::isValid(...))),
+        )));
+
+        [$candidates, $skipped] = $this->selection->select($command->clinicId, $command->invoiceIds);
+        $now                    = $this->clock->now();
+        $queued                 = [];
 
         foreach ($candidates as $candidate) {
             $dispatch = InvoiceDispatch::log(

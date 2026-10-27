@@ -397,11 +397,18 @@ final readonly class BillingSheetBuilder
 
     /**
      * « Envoi par e-mail le 26/10/2026 · Délivré », « Relance le 26/10/2026 ·
-     * E-mail Délivré · SMS En cours »: what was sent and where it stands now.
+     * E-mail Délivré · SMS En cours », « Relance le 27/10/2026 · non envoyée
+     * (rien à relancer) »: what was sent and where it stands now.
      */
     private static function dispatchLine(InvoiceDispatchView $dispatch, \DateTimeZone $tz): string
     {
         $day = $dispatch->at->setTimezone($tz)->format('d/m/Y');
+
+        if (null !== $dispatch->skippedReason) {
+            return InvoiceDispatchView::SEND === $dispatch->kind
+                ? \sprintf('Envoi par e-mail le %s · non envoyé (%s)', $day, $dispatch->skippedReason)
+                : \sprintf('Relance le %s · non envoyée (%s)', $day, $dispatch->skippedReason);
+        }
 
         if (InvoiceDispatchView::SEND === $dispatch->kind) {
             return \sprintf('Envoi par e-mail le %s · %s', $day, $dispatch->deliveries[0]->label ?? 'En cours');

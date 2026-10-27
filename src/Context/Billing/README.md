@@ -142,10 +142,10 @@ queue; a worker renders the PDF and asks Notification for the messages.
 | Command / Query | What it does |
 |---|---|
 | `SendInvoiceToClient` (invoice ids, actor) | Per invoice: issued, partly paid or paid, payer not archived with an e-mail (« Envoyer » is e-mail only, whatever the consents) → logs a `SEND` dispatch and queues `SendInvoiceEmail` (`async`) in one transaction. Returns `InvoiceDispatchOutcome` (queued, skipped with reason). |
-| `SendInvoiceEmail` | Re-checks, ensures the stored PDF, requests `INVOICE_SENT` (variant « Reste dû » with the amount, or « Réglée ») under `invoice:<id>:send:<dispatchId>` and records the message id on the dispatch. |
-| `PrepareUnpaidReminder` | Before confirmation: number of invoices, clients, SMS and SMS segments (estimated by Notification's `PreviewSmsSegments`), skipped count. |
-| `RemindUnpaidInvoices` (invoice ids, actor) | Re-selects the eligible invoices, logs one `REMINDER` dispatch per invoice with its channels and queues `SendUnpaidReminder` (`async`). |
-| `SendUnpaidReminder` | Nothing if settled meanwhile; e-mail with the PDF and / or SMS (`INVOICE_REMINDER`, keys `invoice:<id>:reminder:<dispatchId>:<channel>`). The SMS is non-critical: its e-mail fallback is passed only when e-mail is not already a channel. |
+| `SendInvoiceEmail` | Re-checks, ensures the stored PDF, requests `INVOICE_SENT` (variant « Reste dû » with the amount, or « Réglée ») under `invoice:<id>:send:<dispatchId>` and records the message id on the dispatch — or records it skipped with the reason (cancelled, no e-mail any more). |
+| `PrepareUnpaidReminder` | Before confirmation: the invoice ids (the oldest 500 at most, `RemindUnpaidInvoices::MAX_INVOICES`; the others counted as remaining), clients, SMS and SMS segments (estimated by Notification's `PreviewSmsSegments`), skipped count. |
+| `RemindUnpaidInvoices` (invoice ids — at most 500 —, actor) | « Relancer tous les impayés » posts the ids its confirmation listed. Locks the invoice rows first (a double click ends with one reminder), re-selects the eligible invoices, logs one `REMINDER` dispatch per invoice with its channels and queues `SendUnpaidReminder` (`async`). |
+| `SendUnpaidReminder` | Nothing if settled meanwhile, on a channel whose address or « Facturation » consent is gone, or for an archived payer — the dispatch is then recorded skipped with the reason; e-mail with the PDF and / or SMS (`INVOICE_REMINDER`, keys `invoice:<id>:reminder:<dispatchId>:<channel>`). The SMS is non-critical: its e-mail fallback is passed only when e-mail is not already a channel. |
 | `EnsureSentInvoiceFile` | Public: the PDF of an issued invoice as sent to the client (rendered and stored at its first send, the same file afterwards). Used by Consultation's documents e-mail; the file stays Billing's (`owner = REQUESTER`). |
 | `ListInvoiceDispatches` | The invoice's sends and reminders with their messages' delivery status (one `GetMessageStatuses` query): « Envoyée le… », « relancé 2 fois », a bounced e-mail reads « Non délivré ». |
 
@@ -157,8 +157,11 @@ Rules:
   the « Facturation » (`billing`) consent's channels, else on the transactional
   channel (preferred channel when reachable, else e-mail, else SMS).
 - **Dispatch log** (D10): `billing__invoice_dispatches` (invoice, kind `SEND` |
-  `REMINDER`, channels, Notification message ids, author, date) feeds the
-  history and the same-day guard; a dispatch already sent is never sent again.
+  `REMINDER`, channels, Notification message ids or skipped reason, author,
+  date) feeds the history and the same-day guard; a dispatch already sent or
+  skipped is never sent again, and its recorded outcome is never overwritten
+  (guard in the upsert). A skipped reminder shows « non envoyée (motif) » and
+  neither counts as a reminder nor holds back the next one.
 - **Stored PDF**: `billing__sent_document_files` records the file written at
   `billing/sent/invoice/<id>.pdf` (deterministic key, network first, writes
   last; two concurrent first sends write the same file). Every later send and

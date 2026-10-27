@@ -10,9 +10,11 @@ use App\Context\Billing\Domain\ValueObject\InvoiceId;
 /**
  * One « Envoyer » or « Relancer » of an invoice (D10): logged when the staff
  * asks for it, on the channels chosen then; the Notification messages it
- * produced are recorded once the asynchronous send has requested them. The
- * log feeds the invoice history (« Envoi par e-mail le … », « relancée 2
- * fois ») and the same-day reminder guard.
+ * produced are recorded once the asynchronous send has requested them — or,
+ * when the send found nothing to send by then, why it was skipped. The log
+ * feeds the invoice history (« Envoi par e-mail le … », « relancée 2 fois »,
+ * « non envoyée (motif) ») and the same-day reminder guard, which a skipped
+ * reminder does not hold back.
  */
 final class InvoiceDispatch
 {
@@ -32,6 +34,7 @@ final class InvoiceDispatch
         private array $notificationIds,
         private readonly ?string $authorUserId,
         private readonly \DateTimeImmutable $createdAt,
+        private ?string $skippedReason = null,
     ) {
     }
 
@@ -67,8 +70,9 @@ final class InvoiceDispatch
         array $notificationIds,
         ?string $authorUserId,
         \DateTimeImmutable $createdAt,
+        ?string $skippedReason = null,
     ): self {
-        return new self($id, $clinicId, $invoiceId, $kind, $channels, $notificationIds, $authorUserId, $createdAt);
+        return new self($id, $clinicId, $invoiceId, $kind, $channels, $notificationIds, $authorUserId, $createdAt, $skippedReason);
     }
 
     /**
@@ -79,16 +83,49 @@ final class InvoiceDispatch
      */
     public function recordNotifications(array $notificationIds): void
     {
-        if ($this->wasSent()) {
-            throw new \LogicException('The messages of this dispatch are already recorded.');
+        if ($this->isSettled()) {
+            throw new \LogicException('The outcome of this dispatch is already recorded.');
+        }
+
+        if ([] === $notificationIds) {
+            throw new \InvalidArgumentException('A send records at least one message; skip it otherwise.');
         }
 
         $this->notificationIds = $notificationIds;
     }
 
+    /**
+     * The send found nothing to send any more (invoice settled or cancelled,
+     * address or consent withdrawn): the reason the history shows.
+     */
+    public function skip(string $reason): void
+    {
+        if ($this->isSettled()) {
+            throw new \LogicException('The outcome of this dispatch is already recorded.');
+        }
+
+        $this->skippedReason = $reason;
+    }
+
     public function wasSent(): bool
     {
         return [] !== $this->notificationIds;
+    }
+
+    public function wasSkipped(): bool
+    {
+        return null !== $this->skippedReason;
+    }
+
+    /** Sent or skipped: the asynchronous send has nothing left to do. */
+    public function isSettled(): bool
+    {
+        return $this->wasSent() || $this->wasSkipped();
+    }
+
+    public function skippedReason(): ?string
+    {
+        return $this->skippedReason;
     }
 
     public function id(): InvoiceDispatchId

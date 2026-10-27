@@ -129,7 +129,7 @@ final class RemindUnpaidTest extends TestCase
 
         self::assertSame([self::I_BOTH], $outcome->queued);
         self::assertSame([
-            'nope'           => InvoiceDispatchOutcome::SKIP_NOTHING_DUE,
+            'nope'           => InvoiceDispatchOutcome::SKIP_UNKNOWN,
             self::I_PAID     => InvoiceDispatchOutcome::SKIP_NOTHING_DUE,
             self::I_ZERO     => InvoiceDispatchOutcome::SKIP_NOTHING_DUE,
             self::I_DRAFT    => InvoiceDispatchOutcome::SKIP_NOTHING_DUE,
@@ -139,6 +139,12 @@ final class RemindUnpaidTest extends TestCase
             self::I_UNREACH  => InvoiceDispatchOutcome::SKIP_NO_CONTACT,
             self::I_ARCHIVED => InvoiceDispatchOutcome::SKIP_NO_CONTACT,
         ], $outcome->skipped);
+
+        self::assertSame(
+            [[self::I_BOTH, self::I_TODAY, self::I_PAID, self::I_ZERO, self::I_DRAFT, self::I_NO_PAYER, self::I_UNREACH, self::I_ARCHIVED, self::I_UNKNOWN]],
+            $this->dispatches->locked,
+            'The invoices are locked before the same-day check; malformed ids are not.',
+        );
 
         $dispatch = $this->dispatches->dispatches[$this->jobs->reminders[0]];
         self::assertSame([DispatchKind::REMINDER, ['EMAIL', 'SMS'], 'actor'], [$dispatch->kind(), $dispatch->channels(), $dispatch->authorUserId()]);
@@ -184,7 +190,7 @@ final class RemindUnpaidTest extends TestCase
         self::assertSame('de vos achats du 16/10/2026', $this->notifications->messages[0]->parameters['careLabel']);
     }
 
-    public function testNothingIsSentWhenThingsChangedInTheMeantime(): void
+    public function testNothingIsSentWhenThingsChangedInTheMeantimeAndTheDispatchSaysWhy(): void
     {
         $this->worker()(new SendUnpaidReminder('01960000-0000-7000-8000-00000000e599'));
 
@@ -199,6 +205,68 @@ final class RemindUnpaidTest extends TestCase
         }
 
         self::assertSame([], $this->notifications->messages);
+        self::assertSame(
+            [InvoiceDispatchOutcome::SKIP_NOTHING_DUE, InvoiceDispatchOutcome::SKIP_NO_CONTACT, InvoiceDispatchOutcome::SKIP_NO_CONTACT, InvoiceDispatchOutcome::SKIP_NO_CONTACT],
+            array_map(fn (string $id): ?string => $this->dispatches->dispatches[$id]->skippedReason(), [$paid, $gone, $arch, $mobile]),
+        );
+
+        // A replay of a skipped dispatch does nothing more.
+        $this->contacts->contacts[self::MAIL] = FakeClientContacts::contact(clientId: self::MAIL);
+        $this->worker()(new SendUnpaidReminder($mobile));
+        self::assertSame([], $this->notifications->messages);
+    }
+
+    public function testAWithdrawnConsentIsHonouredByTheWorker(): void
+    {
+        $this->remind([self::I_BOTH]);
+        // The payer withdrew the SMS from their « Facturation » consent after « Relancer ».
+        $this->contacts->contacts[self::BOTH] = FakeClientContacts::contact(clientId: self::BOTH, billing: ['EMAIL']);
+        $this->worker()(new SendUnpaidReminder($this->jobs->reminders[0]));
+
+        self::assertSame(['EMAIL'], array_map(static fn ($m): string => $m->channel, $this->notifications->messages));
+
+        // Withdrawn from SMS only, reminded by SMS only: nothing left to send.
+        $this->remind([self::I_SMS]);
+        $this->contacts->contacts[self::SMS_ONLY] = FakeClientContacts::contact(clientId: self::SMS_ONLY, billing: ['EMAIL']);
+        $this->worker()(new SendUnpaidReminder($this->jobs->reminders[1]));
+
+        self::assertCount(1, $this->notifications->messages);
+        self::assertSame(InvoiceDispatchOutcome::SKIP_NO_CONTACT, $this->dispatches->dispatches[$this->jobs->reminders[1]]->skippedReason());
+    }
+
+    public function testASkippedReminderNeitherCountsNorHoldsBackTheNextOne(): void
+    {
+        $this->remind([self::I_SMS]);
+        $this->invoices->invoices[self::I_SMS] = Invoices::issued(id: self::I_SMS, client: self::SMS_ONLY, status: 'PAID', due: 0);
+        $this->worker()(new SendUnpaidReminder($this->jobs->reminders[0]));
+        $this->invoices->invoices[self::I_SMS] = Invoices::issued(id: self::I_SMS, client: self::SMS_ONLY, status: 'PARTIALLY_PAID', due: 2450);
+
+        self::assertSame(0, $this->dispatches->countReminders(ClinicId::fromString(Invoices::CLINIC), InvoiceId::fromString(self::I_SMS)));
+        self::assertNull($this->dispatches->lastReminderAt(ClinicId::fromString(Invoices::CLINIC), InvoiceId::fromString(self::I_SMS)));
+        self::assertSame([self::I_SMS], $this->remind([self::I_SMS])->queued);
+    }
+
+    public function testABulkReminderTakesTheOldestInvoicesUpToTheLimit(): void
+    {
+        $rows = [];
+
+        for ($i = 0; $i <= RemindUnpaidInvoices::MAX_INVOICES; ++$i) {
+            $rows[] = Invoices::issued(id: \sprintf('01960000-0000-7000-8000-0000000f%04d', $i), client: self::MAIL);
+        }
+
+        $this->invoices = new FakeInvoiceReads(...$rows);
+        $preview        = $this->prepare(null);
+
+        self::assertCount(RemindUnpaidInvoices::MAX_INVOICES, $preview->invoiceIds);
+        self::assertSame(1, $preview->remainingCount);
+        self::assertSame('01960000-0000-7000-8000-0000000f0000', $preview->invoiceIds[0]);
+    }
+
+    public function testOneRequestRemindsAtMostTheLimit(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new RemindUnpaidInvoices(Invoices::CLINIC, array_fill(0, RemindUnpaidInvoices::MAX_INVOICES + 1, self::I_BOTH));
     }
 
     /**
@@ -210,9 +278,9 @@ final class RemindUnpaidTest extends TestCase
     }
 
     /**
-     * @param list<string>|null $ids
+     * @param list<string> $ids
      */
-    private function remind(?array $ids): InvoiceDispatchOutcome
+    private function remind(array $ids): InvoiceDispatchOutcome
     {
         return new RemindUnpaidInvoicesHandler($this->selection(), $this->dispatches, $this->jobs, $this->uuids(), $this->clock())(new RemindUnpaidInvoices(Invoices::CLINIC, $ids, 'actor'));
     }

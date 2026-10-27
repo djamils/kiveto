@@ -16,7 +16,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * The confirmation of a bulk reminder (« N clients · environ S SMS »): what
  * « Relancer » would do for a selection (`ids[]`) or every unpaid invoice
- * (`all=1`), nothing sent.
+ * (`all=1`), nothing sent. `ids` are the invoices the confirmation then
+ * posts; `more` the eligible ones beyond the batch limit.
  */
 #[Route(path: '/billing/reminders/preview', name: 'clinic_invoices_reminder_preview', methods: ['GET'])]
 final class PrepareUnpaidReminderController extends AbstractController
@@ -42,6 +43,8 @@ final class PrepareUnpaidReminderController extends AbstractController
 
         return new JsonResponse([
             'invoices' => \count($preview->invoiceIds),
+            'ids'      => $preview->invoiceIds,
+            'more'     => $preview->remainingCount,
             'clients'  => $preview->clientCount,
             'sms'      => $preview->smsCount,
             'segments' => $preview->smsSegments,

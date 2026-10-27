@@ -65,6 +65,33 @@ final class InvoiceDispatchTest extends TestCase
         $dispatch->recordNotifications(['m2']);
     }
 
+    public function testADispatchWithNothingLeftToSendIsSkippedOnce(): void
+    {
+        $dispatch = InvoiceDispatch::log(InvoiceDispatchId::fromString(self::ID), ClinicId::fromString(self::CLINIC), InvoiceId::fromString(self::INVOICE), DispatchKind::REMINDER, ['SMS'], null, new \DateTimeImmutable());
+
+        self::assertFalse($dispatch->isSettled());
+        $dispatch->skip('rien à relancer');
+
+        self::assertSame([true, false, true, 'rien à relancer'], [$dispatch->wasSkipped(), $dispatch->wasSent(), $dispatch->isSettled(), $dispatch->skippedReason()]);
+
+        try {
+            $dispatch->recordNotifications(['m1']);
+            self::fail('A skipped dispatch records no message.');
+        } catch (\LogicException) {
+        }
+
+        $this->expectException(\LogicException::class);
+        $dispatch->skip('again');
+    }
+
+    public function testASendRecordsAtLeastOneMessage(): void
+    {
+        $dispatch = InvoiceDispatch::log(InvoiceDispatchId::fromString(self::ID), ClinicId::fromString(self::CLINIC), InvoiceId::fromString(self::INVOICE), DispatchKind::SEND, ['EMAIL'], null, new \DateTimeImmutable());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $dispatch->recordNotifications([]);
+    }
+
     public function testAnInvoiceGoesByEmailOrSmsOnly(): void
     {
         $this->expectException(\InvalidArgumentException::class);

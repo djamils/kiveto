@@ -18,9 +18,9 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
- * « Relancer » one invoice (sheet), a selection, or every unpaid invoice of
- * the clinic (`all=1`, after the confirmation): the reminders are queued and
- * the answer comes back at once with the toast.
+ * « Relancer » one invoice (sheet) or a selection — « Relancer tous les
+ * impayés » posts the ids its confirmation listed, never « all »: the
+ * reminders are queued and the answer comes back at once with the toast.
  */
 #[Route(path: '/billing/reminders', name: 'clinic_invoices_remind', methods: ['POST'])]
 final class RemindUnpaidInvoicesController extends AbstractController
@@ -38,11 +38,17 @@ final class RemindUnpaidInvoicesController extends AbstractController
             return new JsonResponse(['error' => 'Token de sécurité invalide. Veuillez réessayer.'], JsonResponse::HTTP_FORBIDDEN);
         }
 
-        $all = $request->request->getBoolean('all');
         $ids = array_values(array_filter($request->request->all('ids'), \is_string(...)));
 
-        if (!$all && [] === $ids) {
+        if ([] === $ids) {
             return new JsonResponse(['error' => 'Aucune facture sélectionnée.'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (\count($ids) > RemindUnpaidInvoices::MAX_INVOICES) {
+            return new JsonResponse(
+                ['error' => \sprintf('Au plus %d factures par relance : relancez le reste ensuite.', RemindUnpaidInvoices::MAX_INVOICES)],
+                JsonResponse::HTTP_UNPROCESSABLE_ENTITY,
+            );
         }
 
         $currentClinicId = $this->currentClinicContext->getCurrentClinicId();
@@ -51,7 +57,7 @@ final class RemindUnpaidInvoicesController extends AbstractController
 
         $outcome = $this->commandBus->dispatch(new RemindUnpaidInvoices(
             clinicId: $currentClinicId->toString(),
-            invoiceIds: $all ? null : $ids,
+            invoiceIds: $ids,
             actorUserId: $user instanceof SecurityUser ? $user->id() : null,
         ));
         \assert($outcome instanceof InvoiceDispatchOutcome);

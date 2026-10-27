@@ -124,7 +124,7 @@ final class InvoiceDispatchPipelineTest extends KernelTestCase
         \assert($preview instanceof UnpaidReminderPreview);
         self::assertSame([[self::INVOICE], 1, 0, 0], [$preview->invoiceIds, $preview->clientCount, $preview->smsCount, $preview->smsSegments]);
 
-        $outcome = $this->commandBus()->dispatch(new RemindUnpaidInvoices(self::CLINIC, null, null));
+        $outcome = $this->commandBus()->dispatch(new RemindUnpaidInvoices(self::CLINIC, $preview->invoiceIds, null));
         \assert($outcome instanceof InvoiceDispatchOutcome);
         self::assertSame([self::INVOICE], $outcome->queued);
         MessengerDrain::drain(self::getContainer(), ['async']);

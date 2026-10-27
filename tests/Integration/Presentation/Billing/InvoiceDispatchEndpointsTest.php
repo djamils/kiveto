@@ -85,9 +85,10 @@ final class InvoiceDispatchEndpointsTest extends WebTestCase
         self::assertSame("Facture en cours d'envoi par e-mail · 1 non envoyée : introuvable", $sent['message']);
 
         $preview = $this->json('GET', '/billing/reminders/preview?all=1');
-        self::assertSame(['invoices' => 1, 'clients' => 1, 'sms' => 0, 'segments' => 0, 'skipped' => 0], $preview);
+        self::assertSame(['invoices' => 1, 'ids' => [self::INVOICE], 'more' => 0, 'clients' => 1, 'sms' => 0, 'segments' => 0, 'skipped' => 0], $preview);
 
-        $reminded = $this->json('POST', '/billing/reminders', ['_token' => $this->tokens['remind'], 'all' => '1']);
+        // « Relancer tous les impayés » posts the ids its confirmation counted.
+        $reminded = $this->json('POST', '/billing/reminders', ['_token' => $this->tokens['remind'], 'ids' => $preview['ids']]);
         self::assertSame("Relance en cours d'envoi", $reminded['message']);
 
         $sheet = $this->json('GET', '/invoices/' . self::INVOICE . '/sheet');
@@ -105,13 +106,20 @@ final class InvoiceDispatchEndpointsTest extends WebTestCase
     {
         $this->browser->request('POST', self::HOST . '/billing/invoice-sends', ['_token' => 'nope', 'ids' => [self::INVOICE]], server: ['HTTP_ACCEPT' => 'application/json']);
         self::assertResponseStatusCodeSame(403);
-        $this->browser->request('POST', self::HOST . '/billing/reminders', ['_token' => 'nope', 'all' => '1'], server: ['HTTP_ACCEPT' => 'application/json']);
+        $this->browser->request('POST', self::HOST . '/billing/reminders', ['_token' => 'nope', 'ids' => [self::INVOICE]], server: ['HTTP_ACCEPT' => 'application/json']);
         self::assertResponseStatusCodeSame(403);
 
         $this->browser->request('POST', self::HOST . '/billing/invoice-sends', ['_token' => $this->tokens['send']], server: ['HTTP_ACCEPT' => 'application/json']);
         self::assertResponseStatusCodeSame(422);
         $this->browser->request('POST', self::HOST . '/billing/reminders', ['_token' => $this->tokens['remind']], server: ['HTTP_ACCEPT' => 'application/json']);
         self::assertResponseStatusCodeSame(422);
+        // « all » is no longer a reminder: only the ids the confirmation showed are.
+        $this->browser->request('POST', self::HOST . '/billing/reminders', ['_token' => $this->tokens['remind'], 'all' => '1'], server: ['HTTP_ACCEPT' => 'application/json']);
+        self::assertResponseStatusCodeSame(422);
+
+        $this->browser->request('POST', self::HOST . '/billing/reminders', ['_token' => $this->tokens['remind'], 'ids' => array_fill(0, 501, self::INVOICE)], server: ['HTTP_ACCEPT' => 'application/json']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Au plus 500 factures par relance', (string) $this->browser->getResponse()->getContent());
     }
 
     /**

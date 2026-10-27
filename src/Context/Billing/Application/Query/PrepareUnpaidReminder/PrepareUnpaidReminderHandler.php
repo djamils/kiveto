@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Billing\Application\Query\PrepareUnpaidReminder;
 
+use App\Context\Billing\Application\Command\RemindUnpaidInvoices\RemindUnpaidInvoices;
 use App\Context\Billing\Application\Dispatch\InvoiceMessages;
 use App\Context\Billing\Application\Dispatch\ReminderCandidate;
 use App\Context\Billing\Application\Dispatch\UnpaidReminderSelection;
@@ -15,7 +16,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * Counts the clients and the SMS segments of a reminder. Every SMS of the
  * template differs only by its number, date and amount, all GSM-7: SMS of
  * the same length take the same segments, so one estimate per length is
- * asked to Notification.
+ * asked to Notification. At most RemindUnpaidInvoices::MAX_INVOICES
+ * invoices, the oldest, make one reminder; the others are counted for the
+ * next one.
  */
 #[AsMessageHandler]
 final readonly class PrepareUnpaidReminderHandler
@@ -28,7 +31,8 @@ final readonly class PrepareUnpaidReminderHandler
 
     public function __invoke(PrepareUnpaidReminder $query): UnpaidReminderPreview
     {
-        [$candidates, $skipped] = $this->selection->select($query->clinicId, $query->invoiceIds);
+        [$eligible, $skipped] = $this->selection->select($query->clinicId, $query->invoiceIds);
+        $candidates           = \array_slice($eligible, 0, RemindUnpaidInvoices::MAX_INVOICES);
 
         $bySms    = array_values(array_filter($candidates, static fn (ReminderCandidate $c): bool => $c->sendsOn(ClientContact::SMS)));
         $byLength = [];
@@ -46,6 +50,7 @@ final readonly class PrepareUnpaidReminderHandler
             smsCount: \count($bySms),
             smsSegments: $segments,
             skippedCount: \count($skipped),
+            remainingCount: \count($eligible) - \count($candidates),
         );
     }
 }

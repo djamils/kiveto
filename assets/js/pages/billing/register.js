@@ -443,27 +443,45 @@ export function init() {
     if (!r.ok) throw new Error(d.error || 'L\'opération n\'a pas pu être enregistrée');
     return d;
   }
-  async function envoyer(ids) {
+  // One send or reminder at a time: the button that asked stays off until the server answered.
+  let ENVOI = false;
+  async function occupe(btn, travail) {
+    if (ENVOI) return;
+    ENVOI = true;
+    if (btn) btn.disabled = true;
     try {
-      const d = await posterIds(P.urls.send, P.tokens.send, ids);
-      showToast(d.message, d.queued.length ? '' : 'warning');
-      if (ST.fiche && ids.includes(ST.fiche.id)) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
-    } catch (e) {
-      if (e.name !== 'AbortError') showToast(e.message, 'danger');
+      await travail();
+    } finally {
+      ENVOI = false;
+      if (btn && btn.isConnected) btn.disabled = false;
     }
   }
-  async function relancer(ids, all = false) {
-    try {
-      const d = await posterIds(P.urls.remind, P.tokens.remind, ids, all ? { all: '1' } : {});
-      fermerModales();
-      showToast(d.message, d.queued.length ? '' : 'warning');
-      if (ST.fiche && (all || ids.includes(ST.fiche.id))) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
-    } catch (e) {
-      if (e.name !== 'AbortError') showToast(e.message, 'danger');
-    }
+  function envoyer(ids, btn) {
+    return occupe(btn, async () => {
+      try {
+        const d = await posterIds(P.urls.send, P.tokens.send, ids);
+        showToast(d.message, d.queued.length ? '' : 'warning');
+        if (ST.fiche && ids.includes(ST.fiche.id)) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
+      } catch (e) {
+        if (e.name !== 'AbortError') showToast(e.message, 'danger');
+      }
+    });
+  }
+  function relancer(ids, btn) {
+    return occupe(btn, async () => {
+      try {
+        const d = await posterIds(P.urls.remind, P.tokens.remind, ids);
+        fermerModales();
+        showToast(d.message, d.queued.length ? '' : 'warning');
+        if (ST.fiche && ids.includes(ST.fiche.id)) ouvrirFiche(ST.fiche.id, ST.fiche.kind);
+      } catch (e) {
+        if (e.name !== 'AbortError') showToast(e.message, 'danger');
+      }
+    });
   }
 
-  /* The confirmation of a bulk reminder: « N clients · environ S SMS ». */
+  /* The confirmation of a bulk reminder: « N clients · environ S SMS ». It
+     posts exactly the invoices it counted (`ids`), never « all ». */
   let REL = null;
   async function confirmerRelance(ids, all = false) {
     const q = new URLSearchParams();
@@ -473,11 +491,13 @@ export function init() {
       if (!r.ok) throw new Error(String(r.status));
       const d = await r.json();
       if (!d.invoices) { showToast(all ? 'Aucune facture impayée à relancer aujourd\'hui' : 'Aucune facture de la sélection à relancer aujourd\'hui', 'warning'); return; }
-      REL = { ids, all };
+      REL = { ids: d.ids };
       $('relT').textContent = all ? 'Relancer tous les impayés' : 'Relancer la sélection';
       $('relS').textContent = `${plur(d.invoices, 'facture')} impayée${d.invoices > 1 ? 's' : ''}`;
       $('relN').textContent = `${plur(d.clients, 'client')} · ${d.segments ? `environ ${d.segments} SMS` : 'aucun SMS'}`;
-      $('relX').textContent = d.skipped ? `${plur(d.skipped, 'facture')} laissée${d.skipped > 1 ? 's' : ''} de côté : déjà relancée aujourd'hui, réglée ou client sans coordonnées.` : '';
+      const reste = d.more ? `${d.more > 1 ? `Les ${d.more} autres factures pourront être relancées` : 'La facture restante pourra être relancée'} ensuite (${d.invoices} au plus par relance).` : '';
+      const cote = d.skipped ? `${plur(d.skipped, 'facture')} laissée${d.skipped > 1 ? 's' : ''} de côté : déjà relancée aujourd'hui, réglée ou client sans coordonnées.` : '';
+      $('relX').textContent = [reste, cote].filter(Boolean).join(' ');
       $('relOk').textContent = `Relancer ${plur(d.invoices, 'facture')}`;
       $('relOk').disabled = false;
       ouvrirModale('mRel');
@@ -955,7 +975,7 @@ export function init() {
     if (e.target.closest('#fiThumb') && ST.fiche) ouvrirApercu(ST.fiche);
     if (e.target.closest('[data-tx-avoir]') && ST.fiche) ouvrirAvoir(ST.fiche);
     const rel = e.target.closest('#fiRel');
-    if (rel && !rel.disabled && ST.fiche) relancer([ST.fiche.id]);
+    if (rel && !rel.disabled && ST.fiche) relancer([ST.fiche.id], rel);
   }, { signal });
   $('fiHead').addEventListener('click', e => { if (e.target.closest('#fiX')) fermerFiche(); }, { signal });
   $('fiFoot').addEventListener('click', e => {
@@ -966,7 +986,7 @@ export function init() {
     if (b.id === 'fiPay2') ouvrirPay(o);
     if (b.id === 'fiPrint') ouvrirApercu(o);
     if (b.id === 'fiAv') ouvrirAvoir(o);
-    if (b.id === 'fiSend') envoyer([o.id]);
+    if (b.id === 'fiSend') envoyer([o.id], b);
   }, { signal });
 
   $('pvPrint').addEventListener('click', () => {
@@ -1174,13 +1194,12 @@ export function init() {
   }, { signal });
 
   $('bkX').addEventListener('click', () => { ST.sel.clear(); rendre(); }, { signal });
-  $('bkSend').addEventListener('click', () => { if (!$('bkSend').disabled) envoyer([...ST.sel]); }, { signal });
+  $('bkSend').addEventListener('click', () => { if (!$('bkSend').disabled) envoyer([...ST.sel], $('bkSend')); }, { signal });
   $('bkRel').addEventListener('click', () => { if (!$('bkRel').disabled) confirmerRelance([...ST.sel]); }, { signal });
   $('btnRelTous').addEventListener('click', () => confirmerRelance([], true), { signal });
   $('relOk').addEventListener('click', () => {
     if (!REL || $('relOk').disabled) return;
-    $('relOk').disabled = true;
-    relancer(REL.ids, REL.all);
+    relancer(REL.ids, $('relOk'));
   }, { signal });
   $('bkPrint').addEventListener('click', () => {
     const s = selDocs();

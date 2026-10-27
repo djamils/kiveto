@@ -16,6 +16,9 @@ final class InMemoryDispatches implements InvoiceDispatchRepositoryInterface
     /** @var array<string, InvoiceDispatch> */
     public array $dispatches = [];
 
+    /** @var list<list<string>> the invoice ids of each lockInvoices() call */
+    public array $locked = [];
+
     public function save(InvoiceDispatch $dispatch): void
     {
         $this->dispatches[$dispatch->id()->toString()] = $dispatch;
@@ -50,12 +53,17 @@ final class InMemoryDispatches implements InvoiceDispatchRepositoryInterface
         return $last;
     }
 
+    public function lockInvoices(ClinicId $clinicId, array $invoiceIds): void
+    {
+        $this->locked[] = array_map(static fn (InvoiceId $id): string => $id->toString(), $invoiceIds);
+    }
+
     public function remindedSince(ClinicId $clinicId, \DateTimeImmutable $since): array
     {
         $ids = [];
 
         foreach ($this->dispatches as $dispatch) {
-            if ($dispatch->clinicId()->equals($clinicId) && DispatchKind::REMINDER === $dispatch->kind() && $dispatch->createdAt() >= $since) {
+            if ($dispatch->clinicId()->equals($clinicId) && DispatchKind::REMINDER === $dispatch->kind() && !$dispatch->wasSkipped() && $dispatch->createdAt() >= $since) {
                 $ids[] = $dispatch->invoiceId()->toString();
             }
         }
@@ -70,7 +78,7 @@ final class InMemoryDispatches implements InvoiceDispatchRepositoryInterface
     {
         return array_values(array_filter(
             $this->listForInvoice($clinicId, $invoiceId),
-            static fn (InvoiceDispatch $d): bool => DispatchKind::REMINDER === $d->kind(),
+            static fn (InvoiceDispatch $d): bool => DispatchKind::REMINDER === $d->kind() && !$d->wasSkipped(),
         ));
     }
 }

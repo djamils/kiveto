@@ -8,7 +8,8 @@ use App\Shared\Application\Bus\QueryInterface;
 
 /**
  * What « Relancer » would do, for the confirmation shown before it
- * (« N clients · environ S SMS »). Returns an UnpaidReminderPreview.
+ * (« N clients · environ S SMS »), with the ids « Relancer » then posts.
+ * Returns an UnpaidReminderPreview.
  */
 final readonly class PrepareUnpaidReminder implements QueryInterface
 {

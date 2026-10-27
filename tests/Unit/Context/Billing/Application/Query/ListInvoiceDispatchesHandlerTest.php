@@ -55,6 +55,22 @@ final class ListInvoiceDispatchesHandlerTest extends TestCase
         self::assertSame('2026-10-25 23:30', $second->at->format('Y-m-d H:i'));
     }
 
+    public function testASkippedReminderIsListedButNeitherCountsNorHoldsBack(): void
+    {
+        $dispatches = new InMemoryDispatches();
+        $this->log($dispatches, '01960000-0000-7000-8000-00000000e604', DispatchKind::REMINDER, ['SMS'], '2026-10-26 08:00:00', [], 'rien à relancer');
+
+        $history = $this->handler($dispatches, new class implements DeliveryStatusReaderInterface {
+            public function statuses(array $messageIds): array
+            {
+                throw new \LogicException('Nothing to ask.');
+            }
+        })(new ListInvoiceDispatches(Invoices::CLINIC, Invoices::INVOICE));
+
+        self::assertSame([0, false], [$history->reminderCount, $history->remindedToday]);
+        self::assertSame('rien à relancer', $history->dispatches[0]->skippedReason);
+    }
+
     public function testAnInvoiceNeverSent(): void
     {
         $reader = new class implements DeliveryStatusReaderInterface {
@@ -78,12 +94,16 @@ final class ListInvoiceDispatchesHandlerTest extends TestCase
      * @param list<string> $channels
      * @param list<string> $messages
      */
-    private function log(InMemoryDispatches $dispatches, string $id, DispatchKind $kind, array $channels, string $at, array $messages): void
+    private function log(InMemoryDispatches $dispatches, string $id, DispatchKind $kind, array $channels, string $at, array $messages, ?string $skipped = null): void
     {
         $dispatch = InvoiceDispatch::log(InvoiceDispatchId::fromString($id), ClinicId::fromString(Invoices::CLINIC), InvoiceId::fromString(Invoices::INVOICE), $kind, $channels, 'author', new \DateTimeImmutable($at, new \DateTimeZone('UTC')));
 
         if ([] !== $messages) {
             $dispatch->recordNotifications($messages);
+        }
+
+        if (null !== $skipped) {
+            $dispatch->skip($skipped);
         }
 
         $dispatches->save($dispatch);
