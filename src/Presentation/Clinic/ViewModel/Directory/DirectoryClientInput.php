@@ -108,8 +108,9 @@ final readonly class DirectoryClientInput
             city: $city,
             // A channel the client cannot be reached on is no reminder at all.
             reminders: true === ($available[$reminders] ?? false) ? $reminders : self::REMINDERS_NONE,
-            // Without a mobile there is no SMS to send.
-            smsReminders: $mobileOk && true === ($raw['rsms'] ?? false),
+            // Without a mobile there is no SMS to send; with one, the reminders
+            // are on unless the window says otherwise (D9).
+            smsReminders: $mobileOk && true === ($raw['rsms'] ?? true),
             news: true === ($raw['news'] ?? false),
             household: true === ($raw['autre'] ?? false),
             taxProfile: $tax,

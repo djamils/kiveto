@@ -61,7 +61,7 @@ final class DirectoryClientInputTest extends TestCase
 
     public function testEmailReminders(): void
     {
-        $client = DirectoryClientInput::parse(self::OK + ['mail' => 'a@b.fr', 'rap' => 'mail']);
+        $client = DirectoryClientInput::parse(self::OK + ['mail' => 'a@b.fr', 'rap' => 'mail', 'rsms' => false]);
 
         self::assertInstanceOf(DirectoryClientInput::class, $client);
         self::assertSame('email', $client->preferredChannel());
@@ -85,6 +85,14 @@ final class DirectoryClientInputTest extends TestCase
         self::assertTrue($ticked->smsReminders);
         self::assertNull($ticked->preferredChannel());
         self::assertSame(['appointment_reminders' => ['sms']], $ticked->consents());
+
+        $unsaid = DirectoryClientInput::parse(self::OK + ['rap' => 'aucun']);
+        self::assertInstanceOf(DirectoryClientInput::class, $unsaid);
+        self::assertTrue($unsaid->smsReminders, 'on by default when the payload does not say otherwise');
+
+        $landline = DirectoryClientInput::parse(['civ' => 'M.', 'nom' => 'MARTIN', 'pre' => 'paul', 'fixe' => '0142000000']);
+        self::assertInstanceOf(DirectoryClientInput::class, $landline);
+        self::assertFalse($landline->smsReminders, 'no mobile, no SMS');
     }
 
     /**

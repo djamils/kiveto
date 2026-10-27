@@ -8,6 +8,7 @@ use App\Context\Animal\Application\Command\CreateAnimal\CreateAnimal;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
 use App\Context\Client\Application\Command\UpdateClientIdentity\UpdateClientIdentity;
+use App\Context\Client\Domain\ValueObject\MobileNumberPolicy;
 use App\Shared\Application\Bus\CommandBusInterface;
 
 /**
@@ -42,13 +43,19 @@ final readonly class DeskRegistration
             throw new \InvalidArgumentException('Le téléphone du propriétaire est obligatoire.');
         }
 
+        $number = self::e164($phone);
+        $mobile = MobileNumberPolicy::isMobile($number);
+
         $clientId = $this->commandBus->dispatch(new CreateClient(
             clinicId: $clinicId,
             firstName: $firstName,
             lastName: $lastName,
             contactMethods: [
-                new ContactMethodDto(type: 'phone', label: 'mobile', value: self::e164($phone), isPrimary: true),
+                // Labelled by its prefix: a landline is never taken for a mobile.
+                new ContactMethodDto(type: 'phone', label: $mobile ? 'mobile' : 'home', value: $number, isPrimary: true),
             ],
+            // SMS appointment reminders are on by default with a mobile (D9).
+            channelsByConsentKind: $mobile ? ['appointment_reminders' => ['sms']] : [],
         ));
         \assert(\is_string($clientId));
 

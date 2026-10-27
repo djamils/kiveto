@@ -369,7 +369,7 @@ Journalise un message envoyé automatiquement au client, puis suit son statut. E
 
 **Input:** `notificationMessageId`, `clinicId`, `clientId`, `channel` (`EMAIL` | `SMS`), `subject` (objet de l'e-mail ou libellé de l'envoi pour un SMS), `recipientLabel`, `status`, `occurredAt` (ATOM), `sequence`
 
-**Comportement:** client inconnu de la clinique → rien (journalisé en avertissement) ; sinon insertion de l'entrée si absente (`INSERT … ON DUPLICATE KEY` sur `notification_message_id` unique : deux consumers concurrents ne se heurtent jamais), auteur « Envoi automatique », sens émis ; sinon lecture verrouillante (`SELECT … FOR UPDATE`) et mise à jour du statut seulement si la séquence est plus récente. Doublons et désordre sans effet.
+**Comportement:** client inconnu de la clinique, ou statut / canal que ce miroir ne connaît pas encore → rien (journalisé en avertissement, sans nouvel essai) ; sinon insertion de l'entrée si absente (`INSERT … ON DUPLICATE KEY` sur `notification_message_id` unique : deux consumers concurrents ne se heurtent jamais), auteur « Envoi automatique », sens émis ; sinon lecture verrouillante (`SELECT … FOR UPDATE`) et mise à jour du statut seulement si la séquence est plus récente. Doublons et désordre sans effet.
 
 ---
 
@@ -388,12 +388,12 @@ Notes internes et échanges consignés d'un client, du plus récent au plus anci
 
 Comment joindre un client par un envoi automatique (Scheduling, Billing, Consultation y accèdent par leur propre port + adapter QueryBus). `GetClientNotificationContact(clinicId, clientId)` → `?ClientNotificationContact` (null si le client n'est pas de la clinique) ; `GetClientsNotificationContacts(clinicId, clientIds[])` → `clientId => ClientNotificationContact`, en **une seule requête SQL** (écrans de liste).
 
-`ClientNotificationContact` (scalaires et tableaux uniquement) : `clientId`, `displayName` (raison sociale ou prénom + nom), `civility` (« Mme », « M. » ou vide), `firstName`, `lastName`, `email` (primaire, sinon le premier), `mobile` (E.164 : le téléphone primaire s'il reçoit les SMS, sinon le premier qui les reçoit), `preferredChannel`, `consents` (canaux par type de consentement), `archived`. Un téléphone reçoit les SMS s'il est libellé « mobile » ou si son préfixe est mobile (`MobileNumberPolicy` : +336, +337, +262 69, +262 639, +590 690, +594 694, +596 696, +508 55, +687 7/8/9).
+`ClientNotificationContact` (scalaires et tableaux uniquement) : `clientId`, `displayName` (raison sociale ou prénom + nom), `civility` (« Mme », « M. » ou vide), `firstName`, `lastName`, `email` (primaire, sinon le premier), `mobile` (E.164 : le téléphone primaire s'il reçoit les SMS, sinon le premier qui les reçoit), `preferredChannel`, `consents` (canaux par type de consentement), `archived`. Un téléphone reçoit les SMS si son préfixe est mobile (`MobileNumberPolicy` : +336, +337, +262 69, +262 639, +590 690/691, +594 694, +596 696/697, +508 55, +687 7/8/9, +689 87/88/89, +681), ou s'il est libellé « mobile » et que son préfixe n'est pas celui d'un fixe connu (+331 à +335, +339).
 
 Règles de consentement :
 - `channelsFor(kind)` : canaux consentis pour ce type d'envoi **et** dont l'adresse existe (le rappel SMS de RDV n'est envoyé que si `appointment_reminders` contient `sms`) ;
 - `transactionalChannel()` : confirmation / modification / annulation de RDV, jamais bloquées par un consentement — canal préféré si son adresse existe, sinon e-mail, sinon SMS, sinon aucun.
-- rappel SMS de RDV (D9) : le formulaire de création coche « Rappels SMS de rendez-vous » par défaut quand un mobile est saisi (`appointment_reminders` contient `sms`) ; la fiche client permet de le couper (« Rappels de rendez-vous par SMS », `UpdateClientCommunicationPreferences`). Pas de reprise des clients existants.
+- rappel SMS de RDV (D9) : le formulaire de création coche « Rappels SMS de rendez-vous » par défaut quand un mobile est saisi (`appointment_reminders` contient `sms`), et le serveur fait de même quand la requête ne dit rien (`rsms` absent) ; l'enregistrement rapide de l'accueil (`DeskRegistration`) et le nouveau client du comptoir (Billing) donnent ce consentement quand le téléphone est un mobile ; la fiche client permet de le couper (« Rappels de rendez-vous par SMS », `UpdateClientCommunicationPreferences`). Pas de reprise des clients existants.
 
 #### SearchCompanyRegistry
 
