@@ -333,7 +333,7 @@ export function init() {
   }, { signal });
 
   /* ── Rail cards ── */
-  const PREFS = [['sms', 'Rappels de rendez-vous par SMS', 'Rappels SMS de rendez-vous, au délai choisi dans Paramètres › Agenda.'], ['mailFac', 'Factures et ordonnances par e-mail', 'Envoyées à la clôture de chaque consultation.'], ['relance', 'Relances de paiement', 'Par SMS et e-mail, avec lien de paiement.']];
+  const PREFS = [['sms', 'Rappels de rendez-vous par SMS', 'Envoyés au délai choisi dans Paramètres › Agenda.'], ['mailFac', 'Factures et ordonnances par e-mail', 'Quand l\'équipe les envoie depuis la consultation ou la facture.'], ['relance', 'Relances de paiement', 'Rappels des factures impayées, par SMS et e-mail.']];
   let PF = null;
   carte($('cPref'), {
     titre: 'Préférences', lecture: ARCH,

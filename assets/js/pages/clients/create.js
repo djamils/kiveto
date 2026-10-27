@@ -450,13 +450,15 @@ function majRap() {
     b.style.opacity = dispo[b.dataset.v] ? '' : '.4';
   });
   // SMS appointment reminders are on by default (D9) as soon as a mobile is entered.
+  // c.rsms keeps the user's choice: a mobile briefly invalid while it is being
+  // typed greys the box out without unticking it for good.
   const rsms = $('ncRsms');
   if (rsms) {
-    if (!c.rsmsTouche) c.rsms = dispo.sms;
-    if (!dispo.sms) c.rsms = false;
+    if (!c.rsmsTouche) c.rsms = true;
+    const on = dispo.sms && c.rsms;
     rsms.disabled = !dispo.sms;
-    rsms.classList.toggle('on', c.rsms);
-    rsms.setAttribute('aria-checked', String(c.rsms));
+    rsms.classList.toggle('on', on);
+    rsms.setAttribute('aria-checked', String(on));
   }
   // The news go by SMS or e-mail: without either there is nothing to agree to.
   const news = $('ncNews');
@@ -649,7 +651,7 @@ function bindClient(signal) {
     envoyer(CFG.urls.client, {
       ...fiscPayload(c.fisc),
       civ: c.civ, nom: c.nom, pre: c.pre, mob: c.mob, fixe: c.fixe, mail: c.mail,
-      rue: c.rue, cpl: c.cpl, cp: c.cp, ville: c.ville, rap: c.rap, rsms: c.rsms, news: c.news, autre: c.autre,
+      rue: c.rue, cpl: c.cpl, cp: c.cp, ville: c.ville, rap: c.rap, rsms: c.rsms && mobOk(c.mob), news: c.news, autre: c.autre,
       anis: c.anis.filter((a) => !aniVierge(a)).map(aniPayload),
     });
   }, { signal });
