@@ -42,6 +42,20 @@ enum MessagePurpose: string
         return \in_array($this, [self::STAFF_INVITATION, self::PASSWORD_RESET, self::TEST], true);
     }
 
+    /**
+     * How long the one-time link the message carries can be used (the
+     * IdentityAccess token lifetimes), from when the message is requested;
+     * null when it carries none.
+     */
+    public function linkValidity(): ?\DateInterval
+    {
+        return match ($this) {
+            self::STAFF_INVITATION => new \DateInterval('PT72H'),
+            self::PASSWORD_RESET   => new \DateInterval('PT30M'),
+            default                => null,
+        };
+    }
+
     /** French label, used as the subject line of an SMS in the journals. */
     public function label(): string
     {

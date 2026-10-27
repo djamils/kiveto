@@ -37,6 +37,8 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
  * database transaction, and records the outcome through a short command.
  *
  * - Only a QUEUED message is sent: a replayed dispatch does nothing.
+ * - An invitation or a password reset whose link has expired while it waited
+ *   (retries, outage) is not sent: FAILED « Lien expiré avant l'envoi ».
  * - Attachments and the inline clinic logo are read from the file storage
  *   (binaries never travel in messages); an attachment that cannot be read
  *   fails the message.
@@ -58,6 +60,7 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 final readonly class DispatchOutboundMessageHandler
 {
     public const string ATTACHMENT_MISSING = 'Pièce jointe introuvable : %s';
+    public const string LINK_EXPIRED       = "Lien expiré avant l'envoi";
 
     /** Where an outcome that could not be recorded right away waits for its retries. */
     public const string OUTCOME_TRANSPORT = 'async';
@@ -90,6 +93,13 @@ final readonly class DispatchOutboundMessageHandler
         }
 
         if (DeliveryStatus::QUEUED !== $message->status()) {
+            return;
+        }
+
+        if ($message->linkExpired($this->clock->now())) {
+            $this->logger->warning('Notification not sent: its one-time link expired while it waited.', ['messageId' => $command->messageId, 'purpose' => $message->purpose()->value]);
+            $this->record($command->messageId, null, self::LINK_EXPIRED);
+
             return;
         }
 

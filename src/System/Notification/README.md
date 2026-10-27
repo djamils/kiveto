@@ -35,7 +35,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 
 | Term | Definition |
 |------|------------|
-| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. |
+| **OutboundMessage** | One e-mail or one SMS to one recipient, with its content frozen at request time, its attachments, the provider message id and its status history. The bodies of `STAFF_INVITATION` and `PASSWORD_RESET` (one-time link) are erased once the message is handed over or fails (subject and metadata stay); such a message whose link expired while it waited (30 min / 72 h after the request) is not sent: FAILED « Lien expiré avant l'envoi ». |
 | **MessagePurpose** | Why the message is sent: `APPOINTMENT_CONFIRMATION`, `APPOINTMENT_CHANGE`, `APPOINTMENT_CANCELLATION`, `APPOINTMENT_REMINDER`, `INVOICE_SENT`, `INVOICE_REMINDER`, `CONSULTATION_DOCUMENTS`, `STAFF_INVITATION`, `PASSWORD_RESET`, `TEST`. |
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
 | **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |

@@ -24,6 +24,10 @@ use App\System\Notification\Domain\Event\OutboundMessageStatusChanged;
  *
  * The SMS segments are computed at render time and stored; they are billed
  * once the SMS is handed to the provider (`sentAt`).
+ *
+ * A message carrying a one-time link (invitation, password reset) keeps its
+ * bodies only until it is handed over or fails: the link is a credential,
+ * never stored longer than needed. Subject and metadata stay.
  */
 final class OutboundMessage extends AggregateRoot
 {
@@ -178,6 +182,7 @@ final class OutboundMessage extends AggregateRoot
 
         $this->externalMessageId = $externalMessageId;
         $this->sentAt            = $at;
+        $this->redactOneTimeLink();
         $this->apply(new StatusChange(DeliveryStatus::SENT, $at, self::SOURCE_DISPATCH));
 
         return true;
@@ -193,9 +198,21 @@ final class OutboundMessage extends AggregateRoot
             return false;
         }
 
+        $this->redactOneTimeLink();
         $this->apply(new StatusChange(DeliveryStatus::FAILED, $at, self::SOURCE_DISPATCH, $reason));
 
         return true;
+    }
+
+    /**
+     * Whether the one-time link of the message (invitation, password reset)
+     * has expired by $now: sending it would only deliver a dead link.
+     */
+    public function linkExpired(\DateTimeImmutable $now): bool
+    {
+        $validity = $this->purpose->linkValidity();
+
+        return null !== $validity && $this->createdAt->add($validity) <= $now;
     }
 
     /**
@@ -410,6 +427,17 @@ final class OutboundMessage extends AggregateRoot
         }
 
         return new self($id, $clinicId, $clientId, $purpose, $channel, $recipient, $sender, $subject, $idempotencyKey, $content, $attachments, DeliveryStatus::QUEUED, null, [], null, $now, null, $now, null);
+    }
+
+    private function redactOneTimeLink(): void
+    {
+        if (null === $this->purpose->linkValidity() || null === $this->content) {
+            return;
+        }
+
+        $this->content = $this->content->isSms()
+            ? RenderedContent::sms('', $this->content->encoding ?? SmsEncoding::GSM_7, $this->content->segments)
+            : RenderedContent::email($this->content->subject ?? '', '', '', $this->content->inlineLogoKey);
     }
 
     private function accepts(DeliveryStatus $status, \DateTimeImmutable $occurredAt): bool

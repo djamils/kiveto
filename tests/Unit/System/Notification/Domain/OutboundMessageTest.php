@@ -353,6 +353,45 @@ final class OutboundMessageTest extends TestCase
         self::assertSame(2, $copy->sequence());
     }
 
+    /**
+     * N6: the one-time link of an invitation or a password reset is not kept
+     * once the message is handed over or failed; the subject stays.
+     */
+    public function testAOneTimeLinkIsRedactedOnceHandedOverOrFailed(): void
+    {
+        $sent = Messages::email(key: 'password-reset:t-1', clinicId: null, purpose: MessagePurpose::PASSWORD_RESET);
+        $sent->markSent('b-1', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $failed = Messages::email(key: 'invitation:t-2', clinicId: null, purpose: MessagePurpose::STAFF_INVITATION);
+        $failed->markFailed('Refusé par le fournisseur (HTTP 400)', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        $sms = Messages::sms(purpose: MessagePurpose::PASSWORD_RESET);
+        $sms->markSent('b-2', new \DateTimeImmutable('2026-10-21 09:31:00'));
+
+        foreach ([$sent, $failed] as $message) {
+            self::assertSame(['Votre facture FA-2026-0814 — Clinique Montmartre', '', ''], [$message->content()?->subject, $message->content()?->html, $message->content()?->text]);
+            self::assertSame('t.lefebvre@orange.fr', $message->recipient()?->address);
+        }
+        self::assertSame(['', 1], [$sms->content()?->smsText, $sms->segments()]);
+
+        $invoice = Messages::email();
+        $invoice->markSent('b-3', new \DateTimeImmutable('2026-10-16 08:01:00'));
+        self::assertSame('<p>Bonjour</p>', $invoice->content()?->html, 'other purposes keep their content');
+    }
+
+    /**
+     * N10: a reset link lives 30 min, an invitation link 72 h, from the request.
+     */
+    public function testAOneTimeLinkExpiresWithItsToken(): void
+    {
+        $reset      = Messages::email(purpose: MessagePurpose::PASSWORD_RESET, at: new \DateTimeImmutable('2026-10-16 08:00:00'));
+        $invitation = Messages::email(purpose: MessagePurpose::STAFF_INVITATION, at: new \DateTimeImmutable('2026-10-16 08:00:00'));
+
+        self::assertFalse($reset->linkExpired(new \DateTimeImmutable('2026-10-16 08:29:59')));
+        self::assertTrue($reset->linkExpired(new \DateTimeImmutable('2026-10-16 08:30:00')));
+        self::assertFalse($invitation->linkExpired(new \DateTimeImmutable('2026-10-19 07:59:59')));
+        self::assertTrue($invitation->linkExpired(new \DateTimeImmutable('2026-10-19 08:00:00')));
+        self::assertFalse(Messages::email()->linkExpired(new \DateTimeImmutable('2030-01-01')), 'no link, never expired');
+    }
+
     private function sent(): OutboundMessage
     {
         $message = Messages::email();

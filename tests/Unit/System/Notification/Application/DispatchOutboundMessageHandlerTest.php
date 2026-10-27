@@ -212,6 +212,25 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         self::assertSame('brevo-sms-1', $logs[2][2]['externalId'] ?? null);
     }
 
+    /**
+     * N10: a reset link (30 min) that expired while the message waited for
+     * its retries is not sent; an invitation (72 h) still in time is.
+     */
+    public function testAOneTimeLinkThatExpiredWhileWaitingIsNotSent(): void
+    {
+        $this->messages->save(Messages::sms(key: 'password-reset:t-1', purpose: MessagePurpose::PASSWORD_RESET, at: new \DateTimeImmutable('2026-10-16T09:30:00+00:00')));
+        $this->messages->save(Messages::sms(id: '01960000-0000-7000-8000-000000000502', key: 'invitation:t-2', purpose: MessagePurpose::STAFF_INVITATION, at: new \DateTimeImmutable('2026-10-14T10:00:01+00:00')));
+
+        ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000501'));
+        ($this->handler)(new DispatchOutboundMessage('01960000-0000-7000-8000-000000000502'));
+
+        self::assertCount(1, $this->senders->sms);
+        self::assertSame('invitation:t-2', $this->senders->sms[0]->tag);
+        $outcomes = $this->buses->commandsOf(RecordDispatchOutcome::class);
+        self::assertSame([null, "Lien expiré avant l'envoi"], [$outcomes[0]->externalId, $outcomes[0]->error]);
+        self::assertSame('brevo-sms-1', $outcomes[1]->externalId);
+    }
+
     public function testAnAttachmentThatCannotBeReadFailsTheMessage(): void
     {
         $this->messages->save(Messages::email());
