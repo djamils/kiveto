@@ -123,6 +123,10 @@ framework:
             App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
             # Faked delivery webhooks of the local notification simulator (dev / test), delayed
             App\System\Notification\Infrastructure\Delivery\Simulator\AdvanceSimulatedDelivery: async
+            # Retention and re-matching jobs: one transaction per batch / per provider id
+            App\System\Notification\Application\Command\PurgeMessageContentBatch\PurgeMessageContentBatch: async
+            App\System\Notification\Application\Command\DeleteMessageFiles\DeleteMessageFiles: async
+            App\System\Notification\Application\Command\ReplayDeliveryEvents\ReplayDeliveryEvents: async
             # « Mot de passe oublié »: same answer and same response time whether the account exists or not
             App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPasswordReset: async
             # Client messages of an appointment: the debounced sync (DelayStamp, D2) and the reminder of each due appointment

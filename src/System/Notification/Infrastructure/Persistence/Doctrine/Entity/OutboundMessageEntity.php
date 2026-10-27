@@ -17,6 +17,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(name: 'idx_notif_external', columns: ['channel', 'external_message_id'])]
 #[ORM\Index(name: 'idx_notif_clinic_sent', columns: ['clinic_id', 'channel', 'sent_at'])]
 #[ORM\Index(name: 'idx_notif_clinic_status', columns: ['clinic_id', 'channel', 'status'])]
+#[ORM\Index(name: 'idx_notif_purge', columns: ['content_purged_at', 'created_at'])]
 class OutboundMessageEntity
 {
     #[ORM\Id]

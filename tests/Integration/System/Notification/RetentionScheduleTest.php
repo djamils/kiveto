@@ -14,6 +14,7 @@ use App\System\Notification\Domain\Inbox\InAppNotification;
 use App\System\Notification\Domain\Inbox\InAppNotificationId;
 use App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface;
 use App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface;
+use App\Tests\Support\MessengerDrain;
 use App\Tests\Support\ScheduleProviders;
 use App\Tests\Unit\System\Notification\Support\Messages;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -56,6 +57,8 @@ final class RetentionScheduleTest extends KernelTestCase
 
         self::assertSame(1, $bus->dispatch(new PurgeInAppNotifications()));
         self::assertSame(1, $bus->dispatch(new PurgeMessageContents()));
+        self::assertNotNull($messages->get($old->id())->recipient(), 'purged by its own batch job');
+        MessengerDrain::drain(self::getContainer(), ['async']);
         self::assertNull($messages->get($old->id())->recipient());
         self::assertSame(0, $bus->dispatch(new RematchDeliveryEvents()));
         self::assertSame(0, $bus->dispatch(new PurgeUnmatchedDeliveryEvents()));

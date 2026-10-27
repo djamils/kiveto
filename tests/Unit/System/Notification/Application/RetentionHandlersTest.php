@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\Notification\Application;
 
+use App\System\Notification\Application\Command\DeleteMessageFiles\DeleteMessageFiles;
+use App\System\Notification\Application\Command\DeleteMessageFiles\DeleteMessageFilesHandler;
+use App\System\Notification\Application\Command\PurgeMessageContentBatch\PurgeMessageContentBatch;
+use App\System\Notification\Application\Command\PurgeMessageContentBatch\PurgeMessageContentBatchHandler;
 use App\System\Notification\Application\Command\PurgeMessageContents\PurgeMessageContents;
 use App\System\Notification\Application\Command\PurgeMessageContents\PurgeMessageContentsHandler;
 use App\System\Notification\Application\Command\PurgeUnmatchedDeliveryEvents\PurgeUnmatchedDeliveryEvents;
 use App\System\Notification\Application\Command\PurgeUnmatchedDeliveryEvents\PurgeUnmatchedDeliveryEventsHandler;
 use App\System\Notification\Application\Command\RematchDeliveryEvents\RematchDeliveryEvents;
 use App\System\Notification\Application\Command\RematchDeliveryEvents\RematchDeliveryEventsHandler;
+use App\System\Notification\Application\Command\ReplayDeliveryEvents\ReplayDeliveryEvents;
+use App\System\Notification\Application\Command\ReplayDeliveryEvents\ReplayDeliveryEventsHandler;
 use App\System\Notification\Application\Service\DeliveryEventReplayer;
 use App\System\Notification\Domain\Delivery\DeliveryEvent;
 use App\System\Notification\Domain\Delivery\UnmatchedDeliveryEvent;
@@ -27,6 +33,7 @@ use App\System\Notification\Domain\Message\SenderIdentity;
 use App\System\Notification\Domain\Message\SubjectReference;
 use App\Tests\Shared\Time\FrozenClock;
 use App\Tests\Unit\System\Notification\Support\CapturingBuses;
+use App\Tests\Unit\System\Notification\Support\CapturingMessageBus;
 use App\Tests\Unit\System\Notification\Support\InMemoryFiles;
 use App\Tests\Unit\System\Notification\Support\InMemoryMessages;
 use App\Tests\Unit\System\Notification\Support\InMemoryUnmatchedEvents;
@@ -59,9 +66,24 @@ final class RetentionHandlersTest extends TestCase
         $failed->markFailed('refused', new \DateTimeImmutable('2026-09-01 08:00:01'));
         $messages->save($failed);
 
-        $handler = new PurgeMessageContentsHandler($messages, $files, new FrozenClock(new \DateTimeImmutable(self::NOW)), new NullLogger());
+        $clock   = new FrozenClock(new \DateTimeImmutable(self::NOW));
+        $jobs    = new CapturingMessageBus();
+        $handler = new PurgeMessageContentsHandler($messages, $jobs, $clock, new NullLogger());
         self::assertSame(2, $handler(new PurgeMessageContents()));
-        self::assertSame(0, $handler(new PurgeMessageContents()), 'nothing twice');
+        [$batch] = $jobs->dispatched[0];
+        self::assertInstanceOf(PurgeMessageContentBatch::class, $batch);
+        self::assertSame(['01960000-0000-7000-8000-000000000e01', '01960000-0000-7000-8000-000000000503'], $batch->messageIds);
+
+        $batchHandler = new PurgeMessageContentBatchHandler($messages, $jobs, $clock);
+        self::assertSame(2, $batchHandler($batch));
+        self::assertSame(0, $batchHandler($batch), 'nothing twice');
+        self::assertSame(0, $batchHandler(new PurgeMessageContentBatch(['01960000-0000-7000-8000-00000000dead'])), 'gone meanwhile');
+        self::assertSame([], $files->deleted, 'no file deleted before the purge is committed');
+
+        [$delete] = $jobs->dispatched[1];
+        self::assertInstanceOf(DeleteMessageFiles::class, $delete);
+        self::assertCount(2, $jobs->dispatched, 'no file job for a batch without files');
+        new DeleteMessageFilesHandler($files)($delete);
 
         $purged = $messages->get(OutboundMessageId::fromString('01960000-0000-7000-8000-000000000e01'));
         self::assertNull($purged->recipient());
@@ -75,6 +97,22 @@ final class RetentionHandlersTest extends TestCase
         self::assertNotNull($messages->get(OutboundMessageId::fromString('01960000-0000-7000-8000-000000000e02'))->recipient());
     }
 
+    /**
+     * N7: the purge is split in batches of 200, each its own job.
+     */
+    public function testThePurgeIsQueuedInBatches(): void
+    {
+        $messages = new InMemoryMessages();
+        for ($i = 1; $i <= 450; ++$i) {
+            $messages->save(Messages::sms(id: \sprintf('01960000-0000-7000-8000-%012d', $i), key: 'k-' . $i, at: new \DateTimeImmutable('2026-01-01 08:00:00')));
+        }
+        $jobs = new CapturingMessageBus();
+
+        self::assertSame(450, new PurgeMessageContentsHandler($messages, $jobs, new FrozenClock(new \DateTimeImmutable(self::NOW)), new NullLogger())(new PurgeMessageContents()));
+
+        self::assertSame([200, 200, 50], array_map(static fn (array $job): int => $job[0] instanceof PurgeMessageContentBatch ? \count($job[0]->messageIds) : 0, $jobs->dispatched));
+    }
+
     public function testEarlyWebhooksAreRematched(): void
     {
         $messages  = new InMemoryMessages();
@@ -86,9 +124,17 @@ final class RetentionHandlersTest extends TestCase
         $unmatched->keep(self::kept('u-1', 'brevo-1', '2026-10-21T09:31:01+00:00'));
         $unmatched->keep(self::kept('u-2', 'brevo-2', '2026-10-21T09:31:01+00:00'));
 
-        $handler = new RematchDeliveryEventsHandler($unmatched, new DeliveryEventReplayer($messages, $unmatched, $buses->publisher()));
+        $unmatched->keep(self::kept('u-3', 'brevo-1', '2026-10-21T09:31:02+00:00'));
+        $jobs = new CapturingMessageBus();
 
-        self::assertSame(1, $handler(new RematchDeliveryEvents()));
+        self::assertSame(1, new RematchDeliveryEventsHandler($unmatched, $jobs)(new RematchDeliveryEvents()), 'one job per provider id');
+        [$replay] = $jobs->dispatched[0];
+        self::assertInstanceOf(ReplayDeliveryEvents::class, $replay);
+        self::assertSame(['SMS', 'brevo-1'], [$replay->channel, $replay->externalId]);
+
+        $replayer = new ReplayDeliveryEventsHandler($unmatched, new DeliveryEventReplayer($messages, $unmatched, $buses->publisher()));
+        self::assertSame(2, $replayer($replay));
+        self::assertSame(0, $replayer($replay), 'a job queued twice finds nothing left');
         self::assertSame(DeliveryStatus::DELIVERED, $messages->get($sms->id())->status());
         self::assertSame(['u-2'], array_keys($unmatched->events));
     }

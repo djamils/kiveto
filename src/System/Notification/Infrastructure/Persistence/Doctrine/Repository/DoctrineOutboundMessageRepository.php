@@ -95,9 +95,13 @@ final readonly class DoctrineOutboundMessageRepository implements OutboundMessag
 
     public function findContentToPurge(\DateTimeImmutable $before, int $limit): array
     {
+        // A message is handed over after it is created: `created_at < :before`
+        // is implied, and lets idx_notif_purge narrow the scan to the old,
+        // unpurged rows.
         $ids = $this->em->getConnection()->fetchFirstColumn(
-            'SELECT id FROM notification__outbound_messages WHERE content_purged_at IS NULL AND COALESCE(sent_at, created_at) < :before'
-            . ' ORDER BY COALESCE(sent_at, created_at), id LIMIT ' . max(1, $limit),
+            'SELECT id FROM notification__outbound_messages'
+            . ' WHERE content_purged_at IS NULL AND created_at < :before AND COALESCE(sent_at, created_at) < :before'
+            . ' ORDER BY created_at, id LIMIT ' . max(1, $limit),
             ['before' => OutboundMessageMapper::utc($before)->format('Y-m-d H:i:s')],
         );
 
