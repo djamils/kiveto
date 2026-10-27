@@ -12,6 +12,8 @@ use App\Shared\Application\Document\DocumentClinic;
 
 final readonly class QueryBusClinicDocumentIdentity implements ClinicDocumentIdentityInterface
 {
+    private const string FALLBACK_TIME_ZONE = 'Europe/Paris';
+
     public function __construct(private QueryBusInterface $queryBus)
     {
     }
@@ -21,5 +23,12 @@ final readonly class QueryBusClinicDocumentIdentity implements ClinicDocumentIde
         $clinic = $this->queryBus->ask(new GetClinic($clinicId));
 
         return $clinic instanceof ClinicDto ? $clinic->toDocumentClinic() : null;
+    }
+
+    public function timeZone(string $clinicId): \DateTimeZone
+    {
+        $clinic = $this->queryBus->ask(new GetClinic($clinicId));
+
+        return new \DateTimeZone($clinic instanceof ClinicDto ? $clinic->timeZone : self::FALLBACK_TIME_ZONE);
     }
 }

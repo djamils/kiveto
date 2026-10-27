@@ -79,6 +79,15 @@ final class ConsultationReportPdfRendererTest extends TestCase
         self::assertSame('Milo', $last['footer']->subject);
     }
 
+    public function testTheFileNameIsPlainAsciiAndDatedOnTheClinicDay(): void
+    {
+        $bus = new AnsweringQueryBus([GetConsultationDetails::class => self::consultation(null)]);
+
+        // 22/10 08:30 UTC is still 22/10 in Paris, but 21/10 22:30 in Tahiti.
+        self::assertSame('compte-rendu-Eclair-de-Lune-chat-2026-10-21.pdf', $this->renderer($bus, new CapturingDocumentPdfRenderer(), null, 'Éclair de Lune / chat', 'Pacific/Tahiti')->report(self::CLINIC_ID, self::CONSULTATION_ID)->filename);
+        self::assertSame('compte-rendu-patient-2026-10-22.pdf', $this->renderer($bus, new CapturingDocumentPdfRenderer(), null, '???')->report(self::CLINIC_ID, self::CONSULTATION_ID)->filename);
+    }
+
     public function testAnUnknownConsultationIsRefusedBeforeAnythingIsRendered(): void
     {
         $documents = new CapturingDocumentPdfRenderer();
@@ -89,16 +98,16 @@ final class ConsultationReportPdfRendererTest extends TestCase
         $this->renderer($bus, $documents, null)->report(self::CLINIC_ID, self::CONSULTATION_ID);
     }
 
-    private function renderer(AnsweringQueryBus $bus, CapturingDocumentPdfRenderer $documents, ?ReportOwner $owner): ConsultationReportPdfRenderer
+    private function renderer(AnsweringQueryBus $bus, CapturingDocumentPdfRenderer $documents, ?ReportOwner $owner, string $patient = 'Milo', string $zone = 'Europe/Paris'): ConsultationReportPdfRenderer
     {
-        $patients = new class($owner) implements PatientSnapshotProviderInterface {
-            public function __construct(private readonly ?ReportOwner $owner)
+        $patients = new class($owner, $patient) implements PatientSnapshotProviderInterface {
+            public function __construct(private readonly ?ReportOwner $owner, private readonly string $patient)
             {
             }
 
             public function snapshot(string $clinicId, string $patientId): ReportPatientSnapshot
             {
-                return new ReportPatientSnapshot(new ReportPatient('Milo', 'Chien', 'Labrador', '♂', true, '2020-05-01', '6 ans', '250269812345678'), $this->owner);
+                return new ReportPatientSnapshot(new ReportPatient($this->patient, 'Chien', 'Labrador', '♂', true, '2020-05-01', '6 ans', '250269812345678'), $this->owner);
             }
         };
 
@@ -109,10 +118,19 @@ final class ConsultationReportPdfRendererTest extends TestCase
             }
         };
 
-        $clinics = new class implements ClinicDocumentIdentityInterface {
+        $clinics = new class($zone) implements ClinicDocumentIdentityInterface {
+            public function __construct(private readonly string $zone)
+            {
+            }
+
             public function forClinic(string $clinicId): DocumentClinic
             {
                 return new DocumentClinic('Clinique Montmartre');
+            }
+
+            public function timeZone(string $clinicId): \DateTimeZone
+            {
+                return new \DateTimeZone($this->zone);
             }
         };
 

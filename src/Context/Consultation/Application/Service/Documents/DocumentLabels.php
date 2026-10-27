@@ -8,7 +8,7 @@ use App\Context\Consultation\Application\Port\ReportPractitioner;
 
 /**
  * Dates, amounts and names of the documents e-mail, in French. Dates are
- * read in Europe/Paris, like the printed documents.
+ * read in the clinic's time zone when given, else in Europe/Paris.
  */
 final class DocumentLabels
 {
@@ -25,15 +25,15 @@ final class DocumentLabels
     }
 
     /** « 16/10/2026 ». */
-    public static function date(\DateTimeImmutable $at): string
+    public static function date(\DateTimeImmutable $at, ?\DateTimeZone $zone = null): string
     {
-        return self::local($at)->format('d/m/Y');
+        return self::local($at, $zone)->format('d/m/Y');
     }
 
     /** « 16 octobre 2026 ». */
-    public static function longDate(\DateTimeImmutable $at): string
+    public static function longDate(\DateTimeImmutable $at, ?\DateTimeZone $zone = null): string
     {
-        $local = self::local($at);
+        $local = self::local($at, $zone);
 
         return $local->format('j') . ' ' . self::MONTHS[(int) $local->format('n')] . ' ' . $local->format('Y');
     }
@@ -50,8 +50,8 @@ final class DocumentLabels
         return (self::TITLES[$practitioner->professionalTitle ?? ''] ?? '') . $name;
     }
 
-    private static function local(\DateTimeImmutable $at): \DateTimeImmutable
+    private static function local(\DateTimeImmutable $at, ?\DateTimeZone $zone): \DateTimeImmutable
     {
-        return $at->setTimezone(new \DateTimeZone(self::ZONE));
+        return $at->setTimezone($zone ?? new \DateTimeZone(self::ZONE));
     }
 }

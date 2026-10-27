@@ -133,6 +133,8 @@ final class DocumentsAdaptersTest extends TestCase
 
         $queries->answer(FindInvoiceForAdmission::class, new AdmissionInvoiceRow('i-2', null, 'DRAFT', 100, 'EUR'));
         self::assertNull($invoices->invoiceOf('clinic-1', 'admission-1'));
+        $queries->answer(FindInvoiceForAdmission::class, new AdmissionInvoiceRow('i-3', 'FA-3', 'CREDITED', 100, 'EUR'));
+        self::assertNull($invoices->invoiceOf('clinic-1', 'admission-1'), 'A credited invoice is not e-mailed.');
         $queries->answer(FindInvoiceForAdmission::class, null);
         self::assertNull($invoices->invoiceOf('clinic-1', 'admission-1'));
     }

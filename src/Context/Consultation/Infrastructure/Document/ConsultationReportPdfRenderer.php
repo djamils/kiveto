@@ -14,6 +14,7 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Document\DocumentFooter;
 use App\Shared\Application\Document\DocumentPdfRendererInterface;
 use App\Shared\Application\Document\RenderedDocument;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /**
  * The consultation report through the shared document templates: the record
@@ -59,6 +60,18 @@ final readonly class ConsultationReportPdfRenderer implements ConsultationReport
             ),
         );
 
-        return new RenderedDocument(\sprintf('compte-rendu-%s-%s.pdf', $patient, $startedAt->format('Y-m-d')), $pdf);
+        return new RenderedDocument(self::filename($patient, $startedAt->setTimezone($this->clinics->timeZone($clinicId))), $pdf);
+    }
+
+    /**
+     * « compte-rendu-Milo-2026-10-22.pdf »: plain ASCII, like the invoices'
+     * and ordonnances' numbers, so that it survives a mail client and a
+     * download folder; dated on the clinic's day.
+     */
+    private static function filename(string $patient, \DateTimeImmutable $startedAt): string
+    {
+        $slug = new AsciiSlugger('fr')->slug($patient)->toString();
+
+        return \sprintf('compte-rendu-%s-%s.pdf', '' !== $slug ? $slug : 'patient', $startedAt->format('Y-m-d'));
     }
 }

@@ -11,6 +11,7 @@ use App\Context\Consultation\Application\Command\SendConsultationDocuments\SendC
 use App\Context\Consultation\Application\Command\SendConsultationDocuments\SendConsultationDocumentsHandler;
 use App\Context\Consultation\Application\Port\ClientContact;
 use App\Context\Consultation\Application\Port\ClientContactInterface;
+use App\Context\Consultation\Application\Port\ClinicDocumentIdentityInterface;
 use App\Context\Consultation\Application\Port\ConsultationInvoice;
 use App\Context\Consultation\Application\Port\ConsultationReadRepositoryInterface;
 use App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface;
@@ -30,10 +31,13 @@ use App\Context\Consultation\Application\Query\GetConsultationDetails\Consultati
 use App\Context\Consultation\Application\Service\Documents\ConsultationDocuments;
 use App\Context\Consultation\Application\Service\Documents\ConsultationDocumentsNotSendable;
 use App\Context\Consultation\Application\Service\Documents\DocumentLabels;
+use App\Shared\Application\Document\DocumentClinic;
 use App\Shared\Application\Document\RenderedDocument;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Tests\Unit\Context\Consultation\Support\DocumentsRecorder;
 use App\Tests\Unit\System\Notification\Support\InMemoryFiles;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -60,6 +64,10 @@ final class SendConsultationDocumentsTest extends TestCase
 
     private DocumentsRecorder $log;
 
+    private string $zone = 'Europe/Paris';
+
+    private TestHandler $logs;
+
     private InMemoryFiles $storage;
 
     protected function setUp(): void
@@ -70,6 +78,7 @@ final class SendConsultationDocumentsTest extends TestCase
         $this->practitioner = new ReportPractitioner('Claire Lambert', 'DR');
         $this->storage      = new InMemoryFiles();
         $this->log          = new DocumentsRecorder();
+        $this->logs         = new TestHandler();
     }
 
     public function testTheClickQueuesTheEmailWithTheTickedDocuments(): void
@@ -203,7 +212,7 @@ final class SendConsultationDocumentsTest extends TestCase
         $this->request(['invoice']);
     }
 
-    public function testTheWorkerSendsNothingWhenTheOwnerLostTheirEmail(): void
+    public function testTheWorkerSendsNothingWhenTheOwnerLostTheirEmailAndSaysSoInTheLog(): void
     {
         $this->request(['report']);
         $this->contact = null;
@@ -211,6 +220,24 @@ final class SendConsultationDocumentsTest extends TestCase
 
         self::assertSame([], $this->log->messages);
         self::assertSame([], $this->log->rendered);
+        self::assertTrue($this->logs->hasWarningThatContains('Consultation documents e-mail dropped'));
+        self::assertSame(
+            ['clinicId' => self::CLINIC, 'consultationId' => self::CONSULTATION, 'requestId' => 'request-1', 'reason' => 'Aucune adresse e-mail pour ce client.'],
+            $this->logs->getRecords()[0]->context,
+        );
+    }
+
+    public function testTheDatesAreTheClinics(): void
+    {
+        // Started 16/10 07:30 UTC: still 15/10 in Honolulu.
+        $this->zone = 'Pacific/Honolulu';
+        $this->request(['report']);
+        $this->work();
+
+        self::assertSame(['15 octobre 2026', '15/10/2026 · Dr Claire Lambert'], [
+            $this->log->messages[0]->parameters['consultationDateLabel'],
+            $this->log->messages[0]->parameters['consultationLabel'],
+        ]);
     }
 
     public function testLabels(): void
@@ -296,6 +323,22 @@ final class SendConsultationDocumentsTest extends TestCase
             }
         };
 
+        $clinics = new class($this->zone) implements ClinicDocumentIdentityInterface {
+            public function __construct(private string $zone)
+            {
+            }
+
+            public function forClinic(string $clinicId): ?DocumentClinic
+            {
+                return null;
+            }
+
+            public function timeZone(string $clinicId): \DateTimeZone
+            {
+                return new \DateTimeZone($this->zone);
+            }
+        };
+
         return new EmailConsultationDocumentsHandler(
             $this->documents(),
             $reports,
@@ -304,6 +347,8 @@ final class SendConsultationDocumentsTest extends TestCase
             $practitioners,
             $this->storage,
             $notifications,
+            $clinics,
+            new Logger('test', [$this->logs]),
         );
     }
 

@@ -15,8 +15,8 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 
 /**
- * Billing's public query (the invoice of a visit) and command (the PDF it
- * stores at the first send and keeps).
+ * Billing's public query (the invoice of a visit, when it may be e-mailed)
+ * and command (the PDF it stores at the first send and keeps).
  */
 final readonly class CommandBusInvoiceDocument implements InvoiceDocumentInterface
 {
@@ -30,7 +30,8 @@ final readonly class CommandBusInvoiceDocument implements InvoiceDocumentInterfa
     {
         $row = $this->queryBus->ask(new FindInvoiceForAdmission(clinicId: $clinicId, admissionId: $admissionId));
 
-        return $row instanceof AdmissionInvoiceRow && $row->isPrintable() && null !== $row->number
+        // A credited (or cancelled) invoice is printed for the trail but never e-mailed.
+        return $row instanceof AdmissionInvoiceRow && $row->isSendable() && null !== $row->number
             ? new ConsultationInvoice($row->id, $row->number, $row->totalGrossMinorUnits)
             : null;
     }

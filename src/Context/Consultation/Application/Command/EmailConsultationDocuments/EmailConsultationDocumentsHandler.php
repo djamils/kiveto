@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Context\Consultation\Application\Command\EmailConsultationDocuments;
 
+use App\Context\Consultation\Application\Port\ClinicDocumentIdentityInterface;
 use App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface;
 use App\Context\Consultation\Application\Port\DocumentsMessage;
 use App\Context\Consultation\Application\Port\InvoiceDocumentInterface;
@@ -16,6 +17,7 @@ use App\Context\Consultation\Application\Service\Documents\ConsultationDocuments
 use App\Context\Consultation\Application\Service\Documents\DocumentLabels;
 use App\Context\Consultation\Application\Service\Documents\DocumentSelection;
 use App\Shared\Domain\Storage\FileStorageInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
@@ -26,7 +28,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * the ticked PDFs (AC 27). Send-only files live under
  * `notification/attachments/<sha256 of the key>/` and a retry overwrites
  * them; the idempotency key makes a replay send nothing more. A request no
- * longer valid (consultation reopened, e-mail removed) sends nothing.
+ * longer valid (consultation reopened, e-mail removed) sends nothing, with a
+ * warning in the log — the user was told « en cours d'envoi ». Dates are the
+ * clinic's.
  */
 #[AsMessageHandler]
 final readonly class EmailConsultationDocumentsHandler
@@ -39,6 +43,8 @@ final readonly class EmailConsultationDocumentsHandler
         private PractitionerDirectoryInterface $practitioners,
         private FileStorageInterface $storage,
         private NotificationRequesterInterface $notifications,
+        private ClinicDocumentIdentityInterface $clinics,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -46,7 +52,14 @@ final readonly class EmailConsultationDocumentsHandler
     {
         try {
             $selection = $this->documents->select($command->clinicId, $command->consultationId, $command->documents);
-        } catch (ConsultationDocumentsNotSendable) {
+        } catch (ConsultationDocumentsNotSendable $refusal) {
+            $this->logger->warning('Consultation documents e-mail dropped: the request is no longer valid.', [
+                'clinicId'       => $command->clinicId,
+                'consultationId' => $command->consultationId,
+                'requestId'      => $command->requestId,
+                'reason'         => $refusal->getMessage(),
+            ]);
+
             return;
         }
 
@@ -100,13 +113,14 @@ final readonly class EmailConsultationDocumentsHandler
     private function parameters(string $clinicId, DocumentSelection $selection, array $labels, array $values): array
     {
         $startedAt    = new \DateTimeImmutable($selection->consultation->startedAtUtc, new \DateTimeZone('UTC'));
+        $zone         = $this->clinics->timeZone($clinicId);
         $practitioner = DocumentLabels::practitioner($this->practitioners->find($clinicId, $selection->consultation->practitionerUserId));
 
         return [
             'addressee'             => $selection->owner->addressee,
             'animalName'            => $selection->animalName,
-            'consultationDateLabel' => DocumentLabels::longDate($startedAt),
-            'consultationLabel'     => DocumentLabels::date($startedAt) . (null !== $practitioner ? ' · ' . $practitioner : ''),
+            'consultationDateLabel' => DocumentLabels::longDate($startedAt, $zone),
+            'consultationLabel'     => DocumentLabels::date($startedAt, $zone) . (null !== $practitioner ? ' · ' . $practitioner : ''),
             'documentLabels'        => $labels,
             'documentValues'        => $values,
         ];

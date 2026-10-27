@@ -28,7 +28,7 @@ final class QueryBusReportClinicAdaptersTest extends TestCase
             id: self::CLINIC_ID,
             name: 'Clinique Montmartre',
             slug: 'clinique-montmartre',
-            timeZone: 'Europe/Paris',
+            timeZone: 'America/Cayenne',
             locale: 'fr-FR',
             countryCode: 'FR',
             jurisdictionCode: null,
@@ -40,7 +40,9 @@ final class QueryBusReportClinicAdaptersTest extends TestCase
         )]);
 
         self::assertSame('Clinique Montmartre', new QueryBusClinicDocumentIdentity($bus)->forClinic(self::CLINIC_ID)?->name);
+        self::assertSame('America/Cayenne', new QueryBusClinicDocumentIdentity($bus)->timeZone(self::CLINIC_ID)->getName());
         self::assertNull(new QueryBusClinicDocumentIdentity(new AnsweringQueryBus())->forClinic(self::CLINIC_ID));
+        self::assertSame('Europe/Paris', new QueryBusClinicDocumentIdentity(new AnsweringQueryBus())->timeZone(self::CLINIC_ID)->getName(), 'An unknown clinic dates in Paris.');
     }
 
     public function testThePractitionerIsFoundAmongTheClinicVeterinarians(): void

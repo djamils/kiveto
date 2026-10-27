@@ -13,4 +13,7 @@ use App\Shared\Application\Document\DocumentClinic;
 interface ClinicDocumentIdentityInterface
 {
     public function forClinic(string $clinicId): ?DocumentClinic;
+
+    /** The time zone documents and their e-mail date a consultation in; Europe/Paris for an unknown clinic. */
+    public function timeZone(string $clinicId): \DateTimeZone;
 }
