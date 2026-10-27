@@ -35,7 +35,7 @@ final readonly class DbalReminderSettingsRepository implements ReminderSettingsR
     {
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (clinic_id, reminder_delay) VALUES (:clinic, :delay)'
-            . ' ON DUPLICATE KEY UPDATE reminder_delay = VALUES(reminder_delay)',
+            . ' AS new ON DUPLICATE KEY UPDATE reminder_delay = new.reminder_delay',
             ['clinic' => Uuid::fromString($clinicId->toString())->toBinary(), 'delay' => $delay->value],
         );
     }

@@ -32,10 +32,10 @@ final readonly class DbalClinicMessagingProfileRepository implements ClinicMessa
             'INSERT INTO ' . self::TABLE . ' (clinic_id, name, email_local_part, reply_to, sms_sender, overage_cap_segments,'
             . ' address_line, city, phone_display, brand_color, logo_storage_key, updated_at)'
             . ' VALUES (:clinic, :name, :local, :replyTo, :sms, :cap, :address, :city, :phone, :color, :logo, :at)'
-            . ' ON DUPLICATE KEY UPDATE name = VALUES(name), email_local_part = VALUES(email_local_part),'
-            . ' reply_to = VALUES(reply_to), sms_sender = VALUES(sms_sender), overage_cap_segments = VALUES(overage_cap_segments),'
-            . ' address_line = VALUES(address_line), city = VALUES(city), phone_display = VALUES(phone_display),'
-            . ' brand_color = VALUES(brand_color), logo_storage_key = VALUES(logo_storage_key), updated_at = VALUES(updated_at)',
+            . ' AS new ON DUPLICATE KEY UPDATE name = new.name, email_local_part = new.email_local_part,'
+            . ' reply_to = new.reply_to, sms_sender = new.sms_sender, overage_cap_segments = new.overage_cap_segments,'
+            . ' address_line = new.address_line, city = new.city, phone_display = new.phone_display,'
+            . ' brand_color = new.brand_color, logo_storage_key = new.logo_storage_key, updated_at = new.updated_at',
             [
                 'clinic'  => Uuid::fromString($profile->clinicId)->toBinary(),
                 'name'    => $profile->name,

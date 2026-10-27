@@ -20,7 +20,7 @@ final readonly class DbalVeterinarianCountRepository implements VeterinarianCoun
     {
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (clinic_id, day, count) VALUES (:clinic, :day, :count)'
-            . ' ON DUPLICATE KEY UPDATE count = VALUES(count)',
+            . ' AS new ON DUPLICATE KEY UPDATE count = new.count',
             ['clinic' => Uuid::fromString($clinicId)->toBinary(), 'day' => $day->format('Y-m-d'), 'count' => max(0, $count)],
         );
     }

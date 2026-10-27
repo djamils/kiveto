@@ -36,7 +36,7 @@ final readonly class DbalInvoiceDispatchRepository implements InvoiceDispatchRep
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (id, clinic_id, invoice_id, kind, channels, notification_ids, author_user_id, created_at)'
             . ' VALUES (:id, :clinic, :invoice, :kind, :channels, :notifications, :author, :at)'
-            . ' ON DUPLICATE KEY UPDATE notification_ids = VALUES(notification_ids)',
+            . ' AS new ON DUPLICATE KEY UPDATE notification_ids = new.notification_ids',
             [
                 'id'            => self::binary($dispatch->id()->toString()),
                 'clinic'        => self::binary($dispatch->clinicId()->toString()),

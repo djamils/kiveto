@@ -61,10 +61,10 @@ final readonly class DbalAppointmentNotificationStateRepository implements Appoi
             'INSERT INTO ' . self::TABLE . ' (appointment_id, clinic_id, confirmed_at, cancellation_notified_at, silenced,'
             . ' notified_starts_at_utc, notified_duration, notified_practitioner_user_id, notification_counter, reminder_due_at_utc, reminder_requested_at)'
             . ' VALUES (:id, :clinic, :confirmed, :cancelled, :silenced, :start, :duration, :practitioner, :counter, :due, :requested)'
-            . ' ON DUPLICATE KEY UPDATE confirmed_at = VALUES(confirmed_at), cancellation_notified_at = VALUES(cancellation_notified_at),'
-            . ' silenced = VALUES(silenced), notified_starts_at_utc = VALUES(notified_starts_at_utc), notified_duration = VALUES(notified_duration),'
-            . ' notified_practitioner_user_id = VALUES(notified_practitioner_user_id), notification_counter = VALUES(notification_counter),'
-            . ' reminder_due_at_utc = VALUES(reminder_due_at_utc), reminder_requested_at = VALUES(reminder_requested_at)',
+            . ' AS new ON DUPLICATE KEY UPDATE confirmed_at = new.confirmed_at, cancellation_notified_at = new.cancellation_notified_at,'
+            . ' silenced = new.silenced, notified_starts_at_utc = new.notified_starts_at_utc, notified_duration = new.notified_duration,'
+            . ' notified_practitioner_user_id = new.notified_practitioner_user_id, notification_counter = new.notification_counter,'
+            . ' reminder_due_at_utc = new.reminder_due_at_utc, reminder_requested_at = new.reminder_requested_at',
             [
                 'id'           => self::binary($state->appointmentId()->toString()),
                 'clinic'       => self::binary($state->clinicId()->toString()),
