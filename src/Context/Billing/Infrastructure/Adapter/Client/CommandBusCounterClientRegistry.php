@@ -15,7 +15,8 @@ use App\Shared\Application\Bus\CommandBusInterface;
 /**
  * Asks the Client context to open the record, in a single command: the
  * civility, the phone and the e-mail given at the desk (each the primary
- * one of its kind) and, for a professional, its tax profile.
+ * one of its kind), the SMS appointment reminders when the phone is a
+ * mobile and, for a professional, its tax profile.
  */
 final readonly class CommandBusCounterClientRegistry implements CounterClientRegistryInterface
 {
@@ -28,8 +29,12 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
         $contacts = [];
 
         if ('' !== $client->phone) {
-            // A professional may leave its landline; a person gives a mobile.
-            $label      = $client->isProfessional() && !$client->hasMobile() ? 'work' : 'mobile';
+            // Labelled by its prefix: a landline is never taken for a mobile.
+            $label = match (true) {
+                $client->hasMobile()      => 'mobile',
+                $client->isProfessional() => 'work',
+                default                   => 'home',
+            };
             $contacts[] = new ContactMethodDto(type: 'phone', label: $label, value: $client->internationalPhone(), isPrimary: true);
         }
 
@@ -43,6 +48,8 @@ final readonly class CommandBusCounterClientRegistry implements CounterClientReg
             lastName: $client->lastName,
             contactMethods: $contacts,
             civility: $client->civility,
+            // SMS appointment reminders are on by default with a mobile (D9).
+            channelsByConsentKind: $client->hasMobile() ? ['appointment_reminders' => ['sms']] : [],
             postalAddress: $client->hasAddress() ? new PostalAddressDto(
                 streetLine1: mb_trim($client->street),
                 city: mb_trim($client->city),
