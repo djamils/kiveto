@@ -202,6 +202,27 @@ final class DoctrineClinicMembershipRepositoryTest extends KernelTestCase
         self::assertTrue($reloaded->isClinicAdministrator());
     }
 
+    public function testSaveAllInsertsANewMembership(): void
+    {
+        $membership = ClinicMembership::create(
+            id: ClinicMembershipId::fromString('01912345-6789-7abc-8def-000000000097'),
+            clinicId: ClinicId::fromString(self::CLINIC_ID),
+            userId: UserId::fromString(self::USER_ID),
+            role: ClinicMemberRole::VETERINARY_ASSISTANT,
+            engagement: ClinicMembershipEngagement::EMPLOYEE,
+            validFrom: new \DateTimeImmutable('2026-01-01 00:00:00'),
+            validUntil: null,
+            createdAt: new \DateTimeImmutable('2026-01-01 00:00:00'),
+            isClinicAdministrator: true,
+        );
+
+        $this->repo()->saveAll($membership);
+
+        $found = $this->repo()->findById(ClinicMembershipId::fromString('01912345-6789-7abc-8def-000000000097'));
+        self::assertNotNull($found);
+        self::assertSame([ClinicMemberRole::VETERINARY_ASSISTANT, true], [$found->role(), $found->isClinicAdministrator()]);
+    }
+
     public function testSavePersistsTheAdministrationHatOnInsert(): void
     {
         $membership = ClinicMembership::create(

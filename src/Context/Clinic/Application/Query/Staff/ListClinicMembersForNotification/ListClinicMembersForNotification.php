@@ -8,7 +8,8 @@ use App\Shared\Application\Bus\QueryInterface;
 
 /**
  * Who in a clinic should be told (bell): the user ids of the memberships in
- * force now, optionally of one role, optionally only the administrators.
+ * force now whose account is ACTIVE (not merely invited), optionally of one
+ * role, optionally only the administrators.
  */
 final readonly class ListClinicMembersForNotification implements QueryInterface
 {

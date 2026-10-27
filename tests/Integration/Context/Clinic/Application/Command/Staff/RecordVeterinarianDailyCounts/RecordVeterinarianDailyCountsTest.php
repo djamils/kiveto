@@ -13,6 +13,7 @@ use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
+use App\Tests\Support\MessengerDrain;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -54,6 +55,37 @@ final class RecordVeterinarianDailyCountsTest extends KernelTestCase
 
         self::assertSame(2, $this->storedCount('clinic__veterinarian_daily_counts', $day));
         self::assertSame(2, $this->storedCount('notification__veterinarian_counts', $day));
+    }
+
+    /**
+     * The nightly run (no clinic id) only queues one `async` job per clinic
+     * that is not CLOSED; the worker counts each in its own transaction.
+     */
+    public function testTheNightlyRunQueuesOneJobPerOpenClinic(): void
+    {
+        $closed = '018f1b1e-dddd-7890-abcd-0123456789ac';
+        ClinicEntityFactory::createOne(['id' => Uuid::fromString(self::CLINIC_ID), 'slug' => 'vet-count-open']);
+        ClinicEntityFactory::new()->closed()->create(['id' => Uuid::fromString($closed), 'slug' => 'vet-count-closed']);
+
+        $bus = static::getContainer()->get(CommandBusInterface::class);
+        \assert($bus instanceof CommandBusInterface);
+        $bus->dispatch(new RecordVeterinarianDailyCounts());
+
+        $connection = static::getContainer()->get(Connection::class);
+        \assert($connection instanceof Connection);
+        $queued = $connection->fetchFirstColumn("SELECT body FROM shared__messenger_messages WHERE queue_name = 'default' AND body LIKE '%RecordVeterinarianDailyCounts%'");
+        $bodies = implode("\n", array_map(static fn (mixed $body): string => \is_string($body) ? $body : '', $queued));
+        self::assertStringContainsString(self::CLINIC_ID, $bodies);
+        self::assertStringNotContainsString($closed, $bodies, 'a CLOSED clinic is not counted');
+
+        $clock = static::getContainer()->get(ClockInterface::class);
+        \assert($clock instanceof ClockInterface);
+        $day = $clock->now()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d');
+        self::assertNull($this->storedCount('clinic__veterinarian_daily_counts', $day), 'nothing is counted by the run itself');
+
+        MessengerDrain::drain(static::getContainer(), ['async']);
+
+        self::assertSame(0, $this->storedCount('clinic__veterinarian_daily_counts', $day));
     }
 
     public function testTheDayKeepsItsHighestCount(): void

@@ -13,8 +13,10 @@ use App\Fixtures\Context\Catalog\Factory\ArticleEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\Context\Inventory\Factory\LotEntityFactory;
 use App\Fixtures\Context\Inventory\Factory\StockItemEntityFactory;
+use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
+use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\Notification\Application\Query\ListInAppNotifications\InAppNotificationView;
 use App\System\Notification\Application\Query\ListInAppNotifications\ListInAppNotifications;
 use App\Tests\Support\MessengerDrain;
@@ -51,6 +53,8 @@ final class StockBellPipelineTest extends KernelTestCase
     public function testAStockOutIsAnnouncedToTheAssistants(): void
     {
         $this->member($this->assistant, ClinicMemberRole::VETERINARY_ASSISTANT);
+        $invited = Uuid::v7()->toRfc4122();
+        $this->member($invited, ClinicMemberRole::VETERINARY_ASSISTANT, account: UserStatus::PENDING);
         $articleId = Uuid::v7();
         ArticleEntityFactory::new()->forClinic($this->clinicId)->create(['id' => $articleId, 'code' => 'VERM', 'name' => 'Vermifuge Milbemax', 'trackStock' => true]);
 
@@ -66,6 +70,7 @@ final class StockBellPipelineTest extends KernelTestCase
         self::assertSame(['CRITICAL_STOCK', 'Stock critique · Vermifuge Milbemax', 'Rupture de stock', false], [$entries[0]->kind, $entries[0]->title, $entries[0]->detail, $entries[0]->read]);
         self::assertStringEndsWith('/stock?article=' . $articleId->toRfc4122(), $this->url($entries[0]));
         self::assertSame([], $this->bell($this->administrator));
+        self::assertSame([], $this->bell($invited), 'an invited assistant who never activated is not told');
     }
 
     public function testTheFullReprojectionAnnouncesNothing(): void
@@ -95,8 +100,9 @@ final class StockBellPipelineTest extends KernelTestCase
         self::assertStringEndsWith('/stock?onglet=alertes', $this->url($entries[0]));
     }
 
-    private function member(string $userId, ClinicMemberRole $role, bool $administrator = false): void
+    private function member(string $userId, ClinicMemberRole $role, bool $administrator = false, UserStatus $account = UserStatus::ACTIVE): void
     {
+        ClinicUserFactory::createOne(['id' => Uuid::fromString($userId), 'status' => $account]);
         $factory = ClinicMembershipEntityFactory::new()->withClinicId($this->clinicId)->withUserId($userId)->withRole($role)->asEmployee();
         ($administrator ? $factory->asClinicAdministrator() : $factory)->create();
     }

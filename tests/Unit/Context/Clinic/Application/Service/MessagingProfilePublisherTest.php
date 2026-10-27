@@ -116,7 +116,8 @@ final class MessagingProfilePublisherTest extends TestCase
         ], 2));
 
         $bus = $this->createMock(CommandBusInterface::class);
-        $bus->expects(self::once())->method('dispatch')->with(new RecordVeterinarianDailyCounts());
+        // Counted synchronously, clinic by clinic: the fixtures read the quotas on return.
+        $bus->expects(self::exactly(2))->method('dispatch')->with(new RecordVeterinarianDailyCounts(self::CLINIC_ID));
 
         $handler = new SyncAllClinicMessagingProfilesHandler($read, $this->publisher(self::clinic()), $bus);
 

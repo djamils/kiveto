@@ -22,7 +22,7 @@ final readonly class DbalVeterinarianDailyCountStore implements VeterinarianDail
 
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (clinic_id, day, count) VALUES (:clinic, :day, :count)'
-            . ' ON DUPLICATE KEY UPDATE count = GREATEST(count, VALUES(count))',
+            . ' AS new ON DUPLICATE KEY UPDATE count = GREATEST(' . self::TABLE . '.count, new.count)',
             $params + ['count' => max(0, $count)],
         );
 

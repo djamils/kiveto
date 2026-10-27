@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Context\Clinic\Application\Query\Staff\Notification;
 
 use App\Context\Clinic\Application\Port\StaffProfileReadItem;
 use App\Context\Clinic\Application\Port\StaffProfileReadRepositoryInterface;
+use App\Context\Clinic\Application\Port\UserAccountStatusInterface;
 use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrintedName;
 use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrintedNameHandler;
 use App\Context\Clinic\Application\Query\Staff\ListClinicMembersForNotification\ListClinicMembersForNotification;
@@ -43,10 +44,28 @@ final class StaffNotificationQueriesTest extends TestCase
             })
         ;
 
-        $handler = new ListClinicMembersForNotificationHandler($memberships, $clock);
+        $handler = new ListClinicMembersForNotificationHandler($memberships, $this->allActive(), $clock);
 
         self::assertSame(['VETERINARY_ASSISTANT'], $handler(new ListClinicMembersForNotification(self::CLINIC_ID, 'VETERINARY_ASSISTANT')));
         self::assertSame(['admin:y'], $handler(new ListClinicMembersForNotification(self::CLINIC_ID, administratorsOnly: true)));
+    }
+
+    /**
+     * An invited member who never activated their account is not told:
+     * they could not open the bell anyway.
+     */
+    public function testInvitedMembersAreNotListed(): void
+    {
+        $memberships = $this->createStub(ClinicMembershipRepositoryInterface::class);
+        $memberships->method('findEffectiveUserIds')->willReturnOnConsecutiveCalls(['active-1', 'invited', 'active-2'], []);
+
+        $accounts = $this->createMock(UserAccountStatusInterface::class);
+        $accounts->expects(self::once())->method('activeUserIds')->with(['active-1', 'invited', 'active-2'])->willReturn(['active-1', 'active-2']);
+
+        $handler = new ListClinicMembersForNotificationHandler($memberships, $accounts, $this->createStub(ClockInterface::class));
+
+        self::assertSame(['active-1', 'active-2'], $handler(new ListClinicMembersForNotification(self::CLINIC_ID)));
+        self::assertSame([], $handler(new ListClinicMembersForNotification(self::CLINIC_ID)), 'nobody to ask about');
     }
 
     /**
@@ -95,6 +114,14 @@ final class StaffNotificationQueriesTest extends TestCase
 
         self::assertNull(new GetStaffPrintedNameHandler($this->membershipsFinding(null), $profiles)($query));
         self::assertNull(new GetStaffPrintedNameHandler($this->membershipsFinding(self::membership()), $profiles)($query));
+    }
+
+    private function allActive(): UserAccountStatusInterface
+    {
+        $accounts = $this->createStub(UserAccountStatusInterface::class);
+        $accounts->method('activeUserIds')->willReturnArgument(0);
+
+        return $accounts;
     }
 
     private function membershipsFinding(?ClinicMembership $membership): ClinicMembershipRepositoryInterface

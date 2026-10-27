@@ -15,7 +15,8 @@ use Symfony\Component\Scheduler\ScheduleProviderInterface;
  * The `clinic` schedule, consumed by the `scheduler-worker` service and
  * locked in the database. Every day at 00:07 Paris time, the day's count of
  * active veterinarians of every clinic (D6) — so that a day without any
- * membership change still has its row. A DST change shifts the run by an
+ * membership change still has its row. The run only queues one job per
+ * clinic that is not CLOSED; the `async` worker counts them. A DST change shifts the run by an
  * hour; the changes of the day count anyway.
  */
 #[AsSchedule('clinic')]

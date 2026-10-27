@@ -29,9 +29,9 @@ final readonly class SyncAllClinicMessagingProfilesHandler
 
         foreach ($clinics as $clinic) {
             $this->profiles->publish($clinic->id);
+            // Counted right away: the fixtures and the console expect the quotas set on return.
+            $this->commandBus->dispatch(new RecordVeterinarianDailyCounts($clinic->id));
         }
-
-        $this->commandBus->dispatch(new RecordVeterinarianDailyCounts());
 
         return \count($clinics);
     }
