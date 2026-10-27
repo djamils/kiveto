@@ -10,6 +10,7 @@ use App\System\IdentityAccess\Application\Command\ActivateInvitedUser\ActivateIn
 use App\System\IdentityAccess\Application\Command\ActivateInvitedUser\ActivationResult;
 use App\System\IdentityAccess\Application\Exception\InvalidAccountTokenException;
 use App\System\IdentityAccess\Application\Exception\UnacceptablePasswordException;
+use App\System\IdentityAccess\Application\Query\CheckAccountToken\CheckAccountToken;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
@@ -30,10 +31,11 @@ final readonly class SubmitInvitationController
 
     public function __invoke(Request $request): Response
     {
-        $secret = PublicAccountPage::secret($request, PublicAccountPage::INVITATION_SESSION_KEY);
+        $secret = $this->page->secret($request, PublicAccountPage::INVITATION_SESSION_KEY);
+        $email  = $this->page->accountEmail($secret, CheckAccountToken::INVITATION);
 
         if (!$this->csrf->isTokenValid(new CsrfToken(ShowInvitationController::CSRF_ID, $request->request->getString('_csrf_token')))) {
-            return $this->page->render('security/invitation.html.twig', ['state' => null !== $secret ? 'form' : 'invalid', 'error' => PublicAccountPage::SESSION_EXPIRED], Response::HTTP_FORBIDDEN);
+            return $this->page->render('security/invitation.html.twig', ['state' => null !== $secret ? 'form' : 'invalid', 'email' => $email, 'error' => PublicAccountPage::SESSION_EXPIRED], Response::HTTP_FORBIDDEN);
         }
 
         if (null === $secret) {
@@ -43,13 +45,13 @@ final readonly class SubmitInvitationController
         $password = $request->request->getString('password');
 
         if ($password !== $request->request->getString('confirmation')) {
-            return $this->page->render('security/invitation.html.twig', ['state' => 'form', 'error' => PublicAccountPage::PASSWORDS_DIFFER], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->page->render('security/invitation.html.twig', ['state' => 'form', 'email' => $email, 'error' => PublicAccountPage::PASSWORDS_DIFFER], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
             $result = $this->commandBus->dispatch(new ActivateInvitedUser($secret, $password));
         } catch (UnacceptablePasswordException $exception) {
-            return $this->page->render('security/invitation.html.twig', ['state' => 'form', 'error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->page->render('security/invitation.html.twig', ['state' => 'form', 'email' => $email, 'error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (InvalidAccountTokenException) {
             $request->getSession()->remove(PublicAccountPage::INVITATION_SESSION_KEY);
 

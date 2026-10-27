@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Presentation\Auth;
 
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Shared\Application\Bus\CommandBusInterface;
+use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\InvitedUserRegistration;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\RegisterInvitedUser;
 use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation;
@@ -208,6 +209,94 @@ final class PublicAccountPagesTest extends WebTestCase
         $this->browser->request('GET', $linkA);
         $this->browser->followRedirect();
         self::assertSelectorTextContains('h1', 'Ce lien n’est plus valide');
+    }
+
+    /**
+     * A1: the secret kept by a link page lives 30 minutes at most in the
+     * session, even when the link itself (an invitation, 72 h) is still good.
+     */
+    public function testTheSecretKeptInTheSessionExpires(): void
+    {
+        $clock = new class implements ClockInterface {
+            public \DateTimeImmutable $now;
+
+            public function now(): \DateTimeImmutable
+            {
+                return $this->now;
+            }
+        };
+        $clock->now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        self::getContainer()->set(ClockInterface::class, $clock);
+
+        $link = $this->invitationLink('ines.' . $this->run . '@example.com');
+        $this->browser->request('GET', $link);
+        $this->browser->followRedirect();
+        self::assertSelectorTextContains('h1', 'Activer mon compte');
+
+        $clock->now = $clock->now->modify('+29 minutes');
+        $this->browser->request('GET', self::HOST . '/invitation');
+        self::assertSelectorTextContains('h1', 'Activer mon compte');
+
+        $clock->now = $clock->now->modify('+2 minutes');
+        $this->browser->request('GET', self::HOST . '/invitation');
+        self::assertSelectorTextContains('h1', 'Ce lien n’est plus valide');
+
+        $clock->now = $clock->now->modify('-10 minutes');
+        $this->browser->request('GET', self::HOST . '/invitation');
+        self::assertSelectorTextContains('h1', 'Ce lien n’est plus valide', 'an expired secret is forgotten, not kept');
+    }
+
+    /**
+     * A1, shared workstation: someone opens their link and walks away; the
+     * next person signs in on the same browser — the link is gone.
+     */
+    public function testASignInForgetsTheLinksOfTheSession(): void
+    {
+        ClinicUserFactory::new()->withEmail('suivant.' . $this->run . '@example.com')->withPlainPassword('son-mot-de-passe')->create();
+        $this->browser->request('GET', $this->invitationLink('ines.' . $this->run . '@example.com'));
+        $this->browser->request('GET', self::HOST . '/reinitialiser/un-autre-secret');
+
+        self::assertSame(200, $this->login('suivant.' . $this->run . '@example.com', 'son-mot-de-passe'));
+        $session = $this->browser->getRequest()->getSession();
+        self::assertFalse($session->has('account.invitation_token'));
+        self::assertFalse($session->has('account.reset_token'));
+
+        $this->browser->request('GET', self::HOST . '/invitation');
+        self::assertSelectorTextContains('h1', 'Ce lien n’est plus valide');
+    }
+
+    /**
+     * A7: a refused form comes back with the page's script and the account line.
+     */
+    public function testARefusedFormKeepsItsScriptAndTheAccountLine(): void
+    {
+        $email = 'ines.' . $this->run . '@example.com';
+        $this->browser->request('GET', $this->invitationLink($email));
+        $this->browser->followRedirect();
+
+        $this->submitNewPassword('un-mot-de-passe', 'un-autre-mot', '/invitation');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('main[data-page="clinic_invitation_submit"]');
+        self::assertSelectorTextContains('.sous', $email);
+        self::assertSelectorTextContains('#mdpAide', 'Les deux mots de passe ne correspondent pas.');
+
+        $this->browser->request('POST', self::HOST . '/invitation', ['password' => 'x', 'confirmation' => 'x', '_csrf_token' => 'forged']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSelectorTextContains('.sous', $email);
+
+        $appJs = (string) file_get_contents(\dirname(__DIR__, 4) . '/assets/app.js');
+        foreach (['clinic_forgot_password_submit', 'clinic_reset_password_submit', 'clinic_invitation_submit'] as $route) {
+            self::assertMatchesRegularExpression('/' . $route . ":\\s+'pages\\/auth'/", $appJs);
+        }
+    }
+
+    private function invitationLink(string $email): string
+    {
+        $registration = $this->command(new RegisterInvitedUser($email));
+        \assert($registration instanceof InvitedUserRegistration);
+        $this->command(new SendInvitation($registration->userId, self::CLINIC_A, 'Dr Claire Lambert', 'Clinique A', 'Paris', 'Inès', 'Vétérinaire'));
+
+        return $this->linkIn('STAFF_INVITATION', '/invitation/');
     }
 
     private function forgot(string $email, string $ip): void

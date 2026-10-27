@@ -72,6 +72,8 @@ Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus val
 
 `/mot-de-passe-oublie`, `/reinitialiser/{token}` and `/invitation/{token}` are PUBLIC_ACCESS on the clinic host only (the « Mot de passe oublié ? » link is hidden on the portal and back-office logins). A link stores its secret in the session and redirects to the token-less address; the pages send `Referrer-Policy: no-referrer` and every form carries a CSRF token. The forgot-password form always answers « Si un compte existe pour cette adresse, un e-mail vient d’être envoyé. » and is rate limited with sliding windows (`forgot_password_ip` 5 / 15 min, `forgot_password_email` 3 / h); beyond, nothing is sent. **Production must set `SYMFONY_TRUSTED_PROXIES`** (the load balancer / reverse proxy): otherwise every request comes from the proxy's IP and the per-IP limiter becomes one global 5 / 15 min limit.
 
+The secret kept in the session is bound to its page (one key per page) and lives 30 minutes at most (`issuedAt` stored with it); any successful sign-in and the logout drop it (`AccountSecretsCleaner`) — a shared workstation keeps no usable link. A refused form is re-rendered with the page script (`pages/auth`) and the « Pour le compte … » line.
+
 ## Sessions
 
 `SecurityUser` carries a **password fingerprint** (first 16 hex characters of the sha256 of the password hash) and implements `EquatableInterface`. `ContextUserProvider::refreshUser()` reloads the account at every request: when the password changed elsewhere (reset), the fingerprints differ and Symfony closes the session — every other open session of the user is logged out.

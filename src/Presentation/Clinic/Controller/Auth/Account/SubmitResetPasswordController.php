@@ -9,6 +9,7 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Application\Command\ResetPassword\ResetPassword;
 use App\System\IdentityAccess\Application\Exception\InvalidAccountTokenException;
 use App\System\IdentityAccess\Application\Exception\UnacceptablePasswordException;
+use App\System\IdentityAccess\Application\Query\CheckAccountToken\CheckAccountToken;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
@@ -32,10 +33,11 @@ final readonly class SubmitResetPasswordController
 
     public function __invoke(Request $request): Response
     {
-        $secret = PublicAccountPage::secret($request, PublicAccountPage::RESET_SESSION_KEY);
+        $secret = $this->page->secret($request, PublicAccountPage::RESET_SESSION_KEY);
+        $email  = $this->page->accountEmail($secret, CheckAccountToken::PASSWORD_RESET);
 
         if (!$this->csrf->isTokenValid(new CsrfToken(ShowResetPasswordController::CSRF_ID, $request->request->getString('_csrf_token')))) {
-            return $this->page->render('security/reset_password.html.twig', ['state' => null !== $secret ? 'form' : 'invalid', 'error' => PublicAccountPage::SESSION_EXPIRED], Response::HTTP_FORBIDDEN);
+            return $this->page->render('security/reset_password.html.twig', ['state' => null !== $secret ? 'form' : 'invalid', 'email' => $email, 'error' => PublicAccountPage::SESSION_EXPIRED], Response::HTTP_FORBIDDEN);
         }
 
         if (null === $secret) {
@@ -45,13 +47,13 @@ final readonly class SubmitResetPasswordController
         $password = $request->request->getString('password');
 
         if ($password !== $request->request->getString('confirmation')) {
-            return $this->page->render('security/reset_password.html.twig', ['state' => 'form', 'error' => PublicAccountPage::PASSWORDS_DIFFER], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->page->render('security/reset_password.html.twig', ['state' => 'form', 'email' => $email, 'error' => PublicAccountPage::PASSWORDS_DIFFER], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
             $this->commandBus->dispatch(new ResetPassword($secret, $password));
         } catch (UnacceptablePasswordException $exception) {
-            return $this->page->render('security/reset_password.html.twig', ['state' => 'form', 'error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->page->render('security/reset_password.html.twig', ['state' => 'form', 'email' => $email, 'error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (InvalidAccountTokenException) {
             $request->getSession()->remove(PublicAccountPage::RESET_SESSION_KEY);
 

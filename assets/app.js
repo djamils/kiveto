@@ -46,6 +46,10 @@ const PAGE_MODULES = {
   clinic_forgot_password:        'pages/auth',
   clinic_reset_password:         'pages/auth',
   clinic_invitation:             'pages/auth',
+  // The re-render of a refused form (CSRF, mismatch, weak password).
+  clinic_forgot_password_submit: 'pages/auth',
+  clinic_reset_password_submit:  'pages/auth',
+  clinic_invitation_submit:      'pages/auth',
 };
 
 let currentCleanup = null;

@@ -18,6 +18,7 @@ use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\InvitedUse
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\RegisterInvitedUser;
 use App\System\IdentityAccess\Domain\Exception\AccountDisabledException;
 use App\System\IdentityAccess\Domain\Exception\EmailUsedByAnotherAccountException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -35,11 +36,14 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route(path: '/settings/team/members', name: 'clinic_settings_team_add', methods: ['POST'])]
 final readonly class AddTeamMemberController
 {
+    public const string INVITATION_NOT_SENT = 'Le membre a été ajouté, mais l’e-mail d’invitation n’a pas pu partir. Ouvrez sa fiche et utilisez « Renvoyer l’invitation ».';
+
     public function __construct(
         private CommandBusInterface $commandBus,
         private QueryBusInterface $queryBus,
         private TeamEndpoint $endpoint,
         private TeamInvitationSender $invitations,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -105,7 +109,14 @@ final readonly class AddTeamMemberController
         }
 
         // Only once the membership exists: a refused onboarding never sends a link.
-        $invited = !$registration->alreadyActive && $this->invitations->send($clinicId, $userId, $firstName, $role);
+        try {
+            $invited = !$registration->alreadyActive && $this->invitations->send($clinicId, $userId, $firstName, $role);
+        } catch (\Throwable $exception) {
+            // The member exists now (its own transaction); only the e-mail is missing.
+            $this->logger->error('The invitation of a new team member could not be sent.', ['clinicId' => $clinicId, 'userId' => $userId, 'exception' => $exception]);
+
+            return $this->endpoint->refuse(self::INVITATION_NOT_SENT);
+        }
 
         $membership = $this->queryBus->ask(new GetUserMembershipInClinic($userId, $clinicId));
         \assert($membership instanceof MembershipDetails);

@@ -35,7 +35,7 @@ final readonly class ShowInvitationController
             return $this->page->keepSecret($request, PublicAccountPage::INVITATION_SESSION_KEY, $token, 'clinic_invitation');
         }
 
-        $secret = PublicAccountPage::secret($request, PublicAccountPage::INVITATION_SESSION_KEY);
+        $secret = $this->page->secret($request, PublicAccountPage::INVITATION_SESSION_KEY);
         $check  = null !== $secret ? $this->queryBus->ask(new CheckAccountToken($secret, CheckAccountToken::INVITATION)) : null;
 
         if (!$check instanceof AccountTokenCheck) {

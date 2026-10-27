@@ -9,6 +9,9 @@ use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\StaffProfileEntityFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
+use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
+use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -100,6 +103,91 @@ final class TeamInvitationTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame(['error' => 'Ce membre a déjà activé son compte.'], json_decode((string) $this->browser->getResponse()->getContent(), true));
+    }
+
+    /**
+     * A3: disabling the access spends the clinic's link; « Renvoyer » is then
+     * refused, as for an ended access, until the access is reopened.
+     */
+    public function testADisabledOrEndedAccessHasNoLiveLinkAndCannotBeSentOne(): void
+    {
+        $id = self::id($this->invite('hugo.martin@example.com'));
+        self::assertSame(['0'], $this->column("SELECT IF(used_at IS NULL, '0', '1') FROM identity_access__account_tokens"));
+
+        $this->post('/settings/team/members/' . $id . '/disable', []);
+        self::assertResponseIsSuccessful();
+        self::assertSame(['1'], $this->column("SELECT IF(used_at IS NULL, '0', '1') FROM identity_access__account_tokens"), 'the link no longer works');
+
+        $this->post('/settings/team/members/' . $id . '/invitation', []);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => 'L’accès de ce membre est désactivé ou terminé : rouvrez-le avant de renvoyer l’invitation.'], $this->json());
+
+        $this->post('/settings/team/members/' . $id . '/enable', []);
+        self::assertResponseIsSuccessful();
+        $this->connection()->executeStatement('UPDATE clinic__clinic_memberships SET valid_until_utc = NOW() - INTERVAL 1 DAY WHERE user_id = (SELECT id FROM identity_access__users WHERE email = ?)', ['hugo.martin@example.com']);
+        $this->post('/settings/team/members/' . $id . '/invitation', []);
+        self::assertResponseStatusCodeSame(422);
+
+        self::assertCount(1, $this->column('SELECT id FROM identity_access__account_tokens'), 'no new link was issued');
+    }
+
+    public function testAMemberOfAnotherClinicIsNotFound(): void
+    {
+        $other      = ClinicEntityFactory::new()->withName('Clinique Voisine')->create();
+        $stranger   = ClinicUserFactory::new()->withEmail('voisin@example.com')->create();
+        $membership = ClinicMembershipEntityFactory::new()->withClinicId($other->getId()->toRfc4122())->withUserId($stranger->getId()->toRfc4122())->asReceptionist()->asEmployee()->create();
+
+        $this->post('/settings/team/members/' . $membership->getId()->toRfc4122() . '/invitation', []);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(['error' => 'Ce membre ne fait pas partie de cette clinique.'], $this->json());
+    }
+
+    /**
+     * A5: the membership is committed before the e-mail; when the e-mail
+     * cannot be prepared the admin is told to use « Renvoyer l'invitation ».
+     */
+    public function testAnInvitationThatCannotBeSentSaysHowToResendIt(): void
+    {
+        self::getContainer()->set(NotificationRequesterInterface::class, new class implements NotificationRequesterInterface {
+            public function requestStaffInvitation(StaffInvitationRequest $request): void
+            {
+                throw new \RuntimeException('Notification is down.');
+            }
+
+            public function requestPasswordReset(PasswordResetRequest $request): void
+            {
+            }
+        });
+
+        $answer = $this->invite('hugo.martin@example.com');
+
+        self::assertSame([422, 'Le membre a été ajouté, mais l’e-mail d’invitation n’a pas pu partir. Ouvrez sa fiche et utilisez « Renvoyer l’invitation ».'], $this->refusal($answer));
+        self::assertSame(['Invitation expirée', 'expire'], $this->memberStatus('hugo.martin@example.com'), 'the member is there, without a live link');
+        self::assertSame([], $this->column('SELECT id FROM identity_access__account_tokens'));
+    }
+
+    /**
+     * A5: two invitations of the same address create one account.
+     */
+    public function testTheSameAddressInvitedTwiceKeepsOneAccount(): void
+    {
+        $first = $this->invite('hugo.martin@example.com');
+        self::assertSame(200, $first['status']);
+
+        self::assertSame(422, $this->invite('Hugo.Martin@example.com')['status'], 'already a member of this clinic');
+        self::assertCount(1, $this->column("SELECT id FROM identity_access__users WHERE email = 'hugo.martin@example.com'"));
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    private function json(): array
+    {
+        $body = json_decode((string) $this->browser->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        \assert(\is_array($body));
+
+        return $body;
     }
 
     /**

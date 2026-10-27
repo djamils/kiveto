@@ -34,7 +34,7 @@ final readonly class ShowResetPasswordController
             return $this->page->keepSecret($request, PublicAccountPage::RESET_SESSION_KEY, $token, 'clinic_reset_password');
         }
 
-        $secret = PublicAccountPage::secret($request, PublicAccountPage::RESET_SESSION_KEY);
+        $secret = $this->page->secret($request, PublicAccountPage::RESET_SESSION_KEY);
         $check  = null !== $secret ? $this->queryBus->ask(new CheckAccountToken($secret, CheckAccountToken::PASSWORD_RESET)) : null;
 
         if (!$check instanceof AccountTokenCheck || !$check->isValid()) {
