@@ -13,7 +13,6 @@ use App\Context\Scheduling\Application\Query\ListAppointmentsForAnimal\ListAppoi
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Domain\Time\ClockInterface;
-use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -95,18 +94,11 @@ final class DeclareAnimalDeathController extends AbstractAnimalSheetAction
             $upcoming = 'PLANNED' === $appointment->status
                 && new \DateTimeImmutable($appointment->startsAtUtc, new \DateTimeZone('UTC')) >= $now;
 
-            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, $this->actorUserId(), notifyClient: false)))) {
+            if ($upcoming && $this->attempt(fn () => $this->commandBus->dispatch(new CancelAppointment($appointment->id, $clinicId, notifyClient: false)))) {
                 ++$cancelled;
             }
         }
 
         return $cancelled;
-    }
-
-    private function actorUserId(): ?string
-    {
-        $user = $this->getUser();
-
-        return $user instanceof SecurityUser ? $user->id() : null;
     }
 }

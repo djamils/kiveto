@@ -11,7 +11,6 @@ final readonly class CancelAppointment implements CommandInterface
     public function __construct(
         public string $appointmentId,
         public string $clinicId,
-        public ?string $actorUserId = null,
         // false: the client is not told (death of the animal, D3)
         public bool $notifyClient = true,
     ) {

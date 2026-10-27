@@ -73,7 +73,7 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->appointmentRepository->method('findById')->willReturn($this->makeAppointment($appointmentId));
         $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
 
-        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC, 'actor-1', notifyClient: false));
+        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC, notifyClient: false));
 
         $cancelled = array_values(array_filter($this->events->events, static fn (object $e): bool => $e instanceof AppointmentCancelled));
         self::assertCount(1, $cancelled);

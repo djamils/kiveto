@@ -82,9 +82,10 @@ final class AppointmentMessagesPipelineTest extends KernelTestCase
 
         $attachments = $confirmation->attachments();
         self::assertCount(1, $attachments);
-        self::assertSame(['rendez-vous.ics', 'text/calendar', 'NOTIFICATION'], [$attachments[0]->filename, $attachments[0]->mime, $attachments[0]->owner->value]);
+        self::assertSame(['rendez-vous.ics', 'text/calendar; method=REQUEST', 'NOTIFICATION'], [$attachments[0]->filename, $attachments[0]->mime, $attachments[0]->owner->value]);
         $ics = $this->files()->read($attachments[0]->storageKey);
         self::assertStringContainsString("METHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:" . Appointments::ID . "@kiveto.fr\r\nSEQUENCE:0\r\n", $ics);
+        self::assertMatchesRegularExpression('/\r\nORGANIZER;CN="[^"]+":mailto:[^@\s]+@[^\s]+\r\n/', $ics);
 
         // A duplicate sync finds nothing left to say.
         $this->syncNow();

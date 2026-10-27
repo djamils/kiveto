@@ -47,16 +47,17 @@ final class IcsWriterTest extends TestCase
 
     public function testACancellationKeepsTheUidWithAHigherSequence(): void
     {
-        $ics = new IcsWriter()->write($this->invitation(cancelled: true, sequence: 2, location: null, organizerEmail: null));
+        $ics = new IcsWriter()->write($this->invitation(cancelled: true, sequence: 2, location: null));
 
         self::assertStringContainsString("METHOD:CANCEL\r\n", $ics);
         self::assertStringContainsString("UID:a-1@kiveto.fr\r\nSEQUENCE:2\r\n", $ics);
         self::assertStringContainsString("STATUS:CANCELLED\r\n", $ics);
         self::assertStringNotContainsString('LOCATION', $ics);
-        self::assertStringNotContainsString('ORGANIZER', $ics);
+        // iTIP: a CANCEL names its organizer.
+        self::assertStringContainsString('ORGANIZER;CN="Clinique \'Montmartre\'":mailto:accueil@clinique-montmartre.fr', $ics);
     }
 
-    private function invitation(bool $cancelled, int $sequence, ?string $location = '18 rue Lepic, 75018 Paris', ?string $organizerEmail = 'accueil@clinique-montmartre.fr'): CalendarInvitation
+    private function invitation(bool $cancelled, int $sequence, ?string $location = '18 rue Lepic, 75018 Paris'): CalendarInvitation
     {
         return new CalendarInvitation(
             uid: 'a-1@kiveto.fr',
@@ -68,7 +69,7 @@ final class IcsWriterTest extends TestCase
             description: "Motif : Vaccination, rappel; vermifuge\nVétérinaire : Dr Rousseau",
             location: $location,
             organizerName: 'Clinique "Montmartre"',
-            organizerEmail: $organizerEmail,
+            organizerEmail: 'accueil@clinique-montmartre.fr',
             attendeeName: 'Sophie Dubois',
             attendeeEmail: 's.dubois@email.fr',
             stampedAt: new \DateTimeImmutable('2026-10-13 08:44', new \DateTimeZone('UTC')),

@@ -10,15 +10,21 @@ use App\Context\Clinic\Application\Query\Staff\GetStaffPrintedName\GetStaffPrint
 use App\Context\Scheduling\Application\Port\ClinicCard;
 use App\Context\Scheduling\Application\Port\ClinicDirectoryInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Clinic's public queries: GetClinic (time zone, name, letterhead e-mail and
- * address) and GetStaffPrintedName.
+ * address) and GetStaffPrintedName. Without a letterhead e-mail, the
+ * organizer of the calendar invitations is the clinic's sending address —
+ * its slug at the notification domain, as Clinic's messaging profile has it.
  */
 final readonly class QueryBusClinicDirectory implements ClinicDirectoryInterface
 {
-    public function __construct(private QueryBusInterface $queryBus)
-    {
+    public function __construct(
+        private QueryBusInterface $queryBus,
+        #[Autowire(env: 'NOTIFICATION_EMAIL_DOMAIN')]
+        private string $emailDomain,
+    ) {
     }
 
     public function clinic(string $clinicId): ClinicCard
@@ -34,7 +40,7 @@ final readonly class QueryBusClinicDirectory implements ClinicDirectoryInterface
         return new ClinicCard(
             name: $clinic->name,
             timeZone: new \DateTimeZone($clinic->timeZone),
-            email: $clinic->letterhead?->email,
+            email: $clinic->letterhead->email ?? $clinic->slug . '@' . $this->emailDomain,
             address: '' !== $address ? $address : null,
         );
     }

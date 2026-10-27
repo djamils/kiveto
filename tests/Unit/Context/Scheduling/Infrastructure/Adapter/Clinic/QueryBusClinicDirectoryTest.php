@@ -21,7 +21,7 @@ final class QueryBusClinicDirectoryTest extends TestCase
             GetClinic::class           => self::clinic(new LetterheadDto(null, null, null, null, null, null, null, null, null, ['18 rue Lepic', '75018 Paris'], 'Paris', '+33142641800', 'accueil@clinique-montmartre.fr', null)),
             GetStaffPrintedName::class => static fn (GetStaffPrintedName $q): ?string => 'user-1' === $q->userId ? 'Dr Claire Rousseau' : null,
         ]);
-        $directory = new QueryBusClinicDirectory($bus);
+        $directory = new QueryBusClinicDirectory($bus, 'mail.kiveto.fr');
 
         $card = $directory->clinic('clinic-1');
         self::assertSame(['Clinique Montmartre', 'America/Cayenne', 'accueil@clinique-montmartre.fr', '18 rue Lepic, 75018 Paris'], [$card->name, $card->timeZone->getName(), $card->email, $card->address]);
@@ -29,11 +29,12 @@ final class QueryBusClinicDirectoryTest extends TestCase
         self::assertNull($directory->printedName('clinic-1', 'user-2'));
     }
 
-    public function testAClinicWithoutLetterheadAddressHasNone(): void
+    public function testAClinicWithoutLetterheadIsTheOrganizerFromItsSendingAddress(): void
     {
-        $card = new QueryBusClinicDirectory(new AnsweringQueryBus([GetClinic::class => self::clinic(null)]))->clinic('clinic-1');
+        $card = new QueryBusClinicDirectory(new AnsweringQueryBus([GetClinic::class => self::clinic(null)]), 'mail.kiveto.fr')->clinic('clinic-1');
 
-        self::assertNull($card->email);
+        // Its messages come from <slug>@<notification domain>: the calendar invitations name it as organizer.
+        self::assertSame('clinique-montmartre@mail.kiveto.fr', $card->email);
         self::assertNull($card->address);
     }
 
@@ -41,7 +42,7 @@ final class QueryBusClinicDirectoryTest extends TestCase
     {
         $this->expectException(\DomainException::class);
 
-        new QueryBusClinicDirectory(new AnsweringQueryBus())->clinic('clinic-1');
+        new QueryBusClinicDirectory(new AnsweringQueryBus(), 'mail.kiveto.fr')->clinic('clinic-1');
     }
 
     private static function clinic(?LetterheadDto $letterhead): ClinicDto

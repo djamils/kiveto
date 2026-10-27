@@ -20,7 +20,7 @@ final readonly class CalendarInvitation
         public string $description,
         public ?string $location,
         public string $organizerName,
-        public ?string $organizerEmail,
+        public string $organizerEmail,
         public string $attendeeName,
         public string $attendeeEmail,
         public \DateTimeImmutable $stampedAt,

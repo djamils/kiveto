@@ -11,9 +11,10 @@ use App\Context\Scheduling\Application\Port\CalendarInvitationWriterInterface;
  * A minimal RFC 5545 / RFC 5546 (iTIP) writer for appointment e-mails (D4):
  * `METHOD:REQUEST` for an invitation or its update — same UID, growing
  * SEQUENCE, so calendars replace the event — and `METHOD:CANCEL` for a
- * cancellation. Times in UTC (no VTIMEZONE needed); CRLF line breaks; lines
- * folded at 75 octets without splitting a UTF-8 character; TEXT values
- * escaped.
+ * cancellation, always with the ORGANIZER iTIP requires (RFC 5546; the
+ * attachment's content type repeats the method). Times in UTC (no VTIMEZONE
+ * needed); CRLF line breaks; lines folded at 75 octets without splitting a
+ * UTF-8 character; TEXT values escaped.
  */
 final class IcsWriter implements CalendarInvitationWriterInterface
 {
@@ -44,10 +45,7 @@ final class IcsWriter implements CalendarInvitationWriterInterface
             $lines[] = 'LOCATION:' . self::text($invitation->location);
         }
 
-        if (null !== $invitation->organizerEmail) {
-            $lines[] = 'ORGANIZER;CN=' . self::name($invitation->organizerName) . ':mailto:' . $invitation->organizerEmail;
-        }
-
+        $lines[] = 'ORGANIZER;CN=' . self::name($invitation->organizerName) . ':mailto:' . $invitation->organizerEmail;
         $lines[] = 'ATTENDEE;CN=' . self::name($invitation->attendeeName) . ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:' . $invitation->attendeeEmail;
         $lines[] = 'STATUS:' . ($invitation->cancelled ? 'CANCELLED' : 'CONFIRMED');
         $lines[] = 'TRANSP:OPAQUE';

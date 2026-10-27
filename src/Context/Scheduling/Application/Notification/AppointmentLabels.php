@@ -10,8 +10,10 @@ namespace App\Context\Scheduling\Application\Notification;
  */
 final class AppointmentLabels
 {
-    private const array DAYS        = [1 => 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-    private const array SHORT_DAYS  = [1 => 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
+    private const array DAYS       = [1 => 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    private const array SHORT_DAYS = [1 => 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
+    /** Titles a printed name may start with (lowercase, without the dot). */
+    private const array TITLES      = ['dr', 'docteur', 'pr', 'professeur'];
     private const array MONTHS      = [1 => 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
     private const array SHORT_MONTH = [1 => 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
@@ -66,15 +68,15 @@ final class AppointmentLabels
 
     /**
      * A member as the bell names them: « Julie M. » from « Julie Martin »,
-     * « Claire L. » from « Dr Claire Lambert »; a single name (« Dr Rousseau »)
-     * is kept whole.
+     * « Claire L. » from « Dr Claire Lambert » (or « Dr. », « Docteur »,
+     * « Pr », « Professeur »); a single name (« Dr Rousseau ») is kept whole.
      */
     public static function shortName(string $printedName): string
     {
         $words = preg_split('/\s+/u', $printedName, -1, \PREG_SPLIT_NO_EMPTY);
         $words = \is_array($words) ? $words : [];
 
-        $titled = [] !== $words && \in_array($words[0], ['Dr', 'Pr'], true);
+        $titled = [] !== $words && \in_array(mb_strtolower(rtrim($words[0], '.')), self::TITLES, true);
 
         if (\count($words) < ($titled ? 3 : 2)) {
             return implode(' ', $words);

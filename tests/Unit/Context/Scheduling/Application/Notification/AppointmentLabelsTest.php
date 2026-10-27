@@ -39,6 +39,10 @@ final class AppointmentLabelsTest extends TestCase
         self::assertSame('Claire L.', AppointmentLabels::shortName('Dr Claire Lambert'));
         self::assertSame('Anne-Marie V.', AppointmentLabels::shortName('Anne-Marie de  Vries'));
         self::assertSame('Dr Rousseau', AppointmentLabels::shortName('Dr Rousseau'));
+        self::assertSame('Claire L.', AppointmentLabels::shortName('Dr. Claire Lambert'));
+        self::assertSame('Claire L.', AppointmentLabels::shortName('Docteur Claire Lambert'));
+        self::assertSame('Paul R.', AppointmentLabels::shortName('Pr. Paul Roux'));
+        self::assertSame('Docteur Rousseau', AppointmentLabels::shortName('Docteur Rousseau'));
         self::assertSame('Julie', AppointmentLabels::shortName(' Julie '));
         self::assertSame('', AppointmentLabels::shortName(''));
     }

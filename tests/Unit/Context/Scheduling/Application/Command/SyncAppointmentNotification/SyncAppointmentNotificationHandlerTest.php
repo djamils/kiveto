@@ -82,7 +82,7 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
         self::assertStringContainsString('UID:' . Appointments::ID . "@kiveto.fr\r\n", $ics);
         self::assertStringContainsString("DTSTART:20261022T073000Z\r\n", $ics);
         self::assertNotNull($message->attachment);
-        self::assertSame(['rendez-vous.ics', 'text/calendar'], [$message->attachment->filename, $message->attachment->mime]);
+        self::assertSame(['rendez-vous.ics', 'text/calendar; method=REQUEST'], [$message->attachment->filename, $message->attachment->mime]);
         self::assertNull($message->fallbackAddress);
 
         // The reminder is planned (24 h before by default), the state recorded.
@@ -213,6 +213,7 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
         self::assertStringContainsString("METHOD:CANCEL\r\n", $ics);
         self::assertStringContainsString("STATUS:CANCELLED\r\n", $ics);
         self::assertStringContainsString("SEQUENCE:1\r\n", $ics);
+        self::assertSame('text/calendar; method=CANCEL', $cancellation->attachment?->mime);
         self::assertNull($this->states->of(Appointments::ID)->reminderDueAt());
 
         // Told once.

@@ -28,7 +28,8 @@ use App\Context\Scheduling\Domain\Notification\NotifiedSlot;
 final readonly class AppointmentMessageComposer
 {
     public const string ICS_FILENAME = 'rendez-vous.ics';
-    public const string ICS_MIME     = 'text/calendar';
+    /** The iTIP method is repeated in the content type, as calendar clients expect. */
+    public const string ICS_MIME = 'text/calendar; method=%s';
 
     private const string DEFAULT_REASON = 'Consultation';
     private const string UNKNOWN_ANIMAL = 'votre animal';
@@ -171,7 +172,7 @@ final readonly class AppointmentMessageComposer
             stampedAt: $now,
         ));
 
-        return $this->attachments->store($key, self::ICS_FILENAME, self::ICS_MIME, $ics);
+        return $this->attachments->store($key, self::ICS_FILENAME, \sprintf(self::ICS_MIME, $cancelled ? 'CANCEL' : 'REQUEST'), $ics);
     }
 
     private function animalName(Appointment $appointment): string
