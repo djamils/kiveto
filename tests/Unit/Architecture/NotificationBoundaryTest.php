@@ -10,7 +10,10 @@ use Symfony\Component\Finder\Finder;
 /**
  * Notification is reached only through its Application commands and
  * queries and its integration events; it knows nothing of the contexts that
- * use it, nor of the presentation.
+ * use it, of the other system contexts, nor of the presentation. A name
+ * counts wherever it is written: a `use` import, a fully-qualified name in
+ * the code (`\App\…\Foo::class`, `new \App\…`) or a class / service id in
+ * a string (`#[Autowire(service: 'App\…')]`). Fixtures are out of scope.
  */
 final class NotificationBoundaryTest extends TestCase
 {
@@ -21,8 +24,8 @@ final class NotificationBoundaryTest extends TestCase
     /** What code outside the context may import from it. */
     private const string PUBLIC_API = '/^App\\\System\\\Notification\\\(Application\\\(Command|Query)\\\.+|Domain\\\Event\\\[A-Za-z]+IntegrationEvent)$/';
 
-    /** What the context itself may not import. */
-    private const array FORBIDDEN_INSIDE = ['App\Context\\', 'App\Presentation\\'];
+    /** What the context itself may not reference (its own namespace aside). */
+    private const array FORBIDDEN_INSIDE = ['App\Context\\', 'App\Presentation\\', 'App\System\\'];
 
     public function testTheSourceRespectsTheBoundary(): void
     {
@@ -84,6 +87,71 @@ final class NotificationBoundaryTest extends TestCase
         ], $violations);
     }
 
+    public function testInlineNamesAndServiceIdsOutsideThePublicApiAreReported(): void
+    {
+        $violations = self::violations([
+            'Context/Billing/Inline.php' => <<<'PHP'
+                <?php
+                namespace App\Context\Billing;
+                use App\System\Notification\Application\Command\RequestNotification\RequestNotification;
+                use Symfony\Component\DependencyInjection\Attribute\Autowire;
+                final class Inline
+                {
+                    public function __construct(
+                        #[Autowire(service: 'App\System\Notification\Infrastructure\Delivery\DeliverySelector')]
+                        private object $selector,
+                        #[Autowire(service: "App\\System\\Notification\\Domain\\Repository\\OutboundMessageRepositoryInterface")]
+                        private object $messages,
+                    ) {
+                    }
+
+                    public function __invoke(): void
+                    {
+                        $message = new \App\System\Notification\Domain\Message\OutboundMessage();
+                        $class   = \App\System\Notification\Infrastructure\Rendering\TwigMessageRenderer::class;
+                        $ok      = \App\System\Notification\Application\Query\GetSmsUsage\GetSmsUsage::class;
+                        $event   = 'App\System\Notification\Domain\Event\OutboundMessageStatusChangedIntegrationEvent';
+                        new RequestNotification();
+                    }
+                }
+                PHP,
+        ]);
+
+        self::assertSame([
+            'Context/Billing/Inline.php references App\System\Notification\Domain\Message\OutboundMessage',
+            'Context/Billing/Inline.php references App\System\Notification\Domain\Repository\OutboundMessageRepositoryInterface',
+            'Context/Billing/Inline.php references App\System\Notification\Infrastructure\Delivery\DeliverySelector',
+            'Context/Billing/Inline.php references App\System\Notification\Infrastructure\Rendering\TwigMessageRenderer',
+        ], $violations);
+    }
+
+    public function testTheContextReachingAnotherSystemContextIsReported(): void
+    {
+        $violations = self::violations([
+            self::BC_FOLDER . 'Infrastructure/Leak.php' => <<<'PHP'
+                <?php
+                namespace App\System\Notification\Infrastructure;
+                use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation;
+                use App\System\Notification\Domain\Message\OutboundMessage;
+                final class Leak
+                {
+                    public function __invoke(): string
+                    {
+                        new \App\Context\Scheduling\Domain\Appointment();
+
+                        return \App\System\ElectronicInvoicing\Application\Port\PlatformInterface::class;
+                    }
+                }
+                PHP,
+        ]);
+
+        self::assertSame([
+            self::BC_FOLDER . 'Infrastructure/Leak.php imports App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation',
+            self::BC_FOLDER . 'Infrastructure/Leak.php references App\Context\Scheduling\Domain\Appointment',
+            self::BC_FOLDER . 'Infrastructure/Leak.php references App\System\ElectronicInvoicing\Application\Port\PlatformInterface',
+        ], $violations);
+    }
+
     /**
      * @param array<string, string> $files source by path relative to src/
      *
@@ -96,21 +164,51 @@ final class NotificationBoundaryTest extends TestCase
         foreach ($files as $path => $code) {
             $path   = str_replace('\\', '/', $path);
             $inside = str_starts_with($path, self::BC_FOLDER);
+            $named  = ['imports' => self::imports($code), 'references' => self::inlineNames($code)];
 
-            foreach (self::imports($code) as $import) {
-                $denied = $inside
-                    ? array_any(self::FORBIDDEN_INSIDE, static fn (string $prefix): bool => str_starts_with($import, $prefix))
-                    : str_starts_with($import, self::BC) && 1 !== preg_match(self::PUBLIC_API, $import);
+            foreach ($named as $verb => $names) {
+                foreach ($names as $name) {
+                    $denied = $inside
+                        ? !str_starts_with($name, self::BC) && array_any(self::FORBIDDEN_INSIDE, static fn (string $prefix): bool => str_starts_with($name, $prefix))
+                        : str_starts_with($name, self::BC) && 1 !== preg_match(self::PUBLIC_API, $name);
 
-                if ($denied) {
-                    $violations[] = $path . ' imports ' . $import;
+                    if ($denied) {
+                        $violations[] = $path . ' ' . $verb . ' ' . $name;
+                    }
                 }
             }
         }
 
+        $violations = array_values(array_unique($violations));
         sort($violations);
 
         return $violations;
+    }
+
+    /**
+     * The `App\…` names a file writes in full outside its `use` statements:
+     * fully-qualified names in the code (`\App\…\Foo::class`, `new \App\…`)
+     * and class or service ids in string literals.
+     *
+     * @return list<string>
+     */
+    private static function inlineNames(string $code): array
+    {
+        $names = [];
+
+        foreach (\PhpToken::tokenize($code) as $token) {
+            if ($token->is(\T_NAME_FULLY_QUALIFIED)) {
+                $names[] = mb_ltrim($token->text, '\\');
+            } elseif ($token->is([\T_CONSTANT_ENCAPSED_STRING, \T_ENCAPSED_AND_WHITESPACE])) {
+                preg_match_all('/App(?:\\\\{1,2}[A-Za-z_][A-Za-z0-9_]*)+/', $token->text, $matches);
+
+                foreach ($matches[0] as $match) {
+                    $names[] = str_replace('\\\\', '\\', $match);
+                }
+            }
+        }
+
+        return array_values(array_filter($names, static fn (string $name): bool => str_starts_with($name, 'App\\')));
     }
 
     /**
