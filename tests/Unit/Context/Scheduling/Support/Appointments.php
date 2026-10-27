@@ -22,6 +22,7 @@ final class Appointments
     public const string ROUSSEAU = '01960000-0000-7000-8000-0000000d0001';
     public const string LAMBERT  = '01960000-0000-7000-8000-0000000d0002';
     public const string OWNER    = '01960000-0000-7000-8000-0000000e0001';
+    public const string LEFEVRE  = '01960000-0000-7000-8000-0000000e0002';
     public const string ANIMAL   = '01960000-0000-7000-8000-0000000f0001';
 
     /**

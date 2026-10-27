@@ -31,13 +31,14 @@ final class AppointmentNotificationPersistenceTest extends KernelTestCase
         self::assertNotNull($state);
         self::assertSame([Appointments::CLINIC, 0, false, null], [$state->clinicId()->toString(), $state->notificationCounter(), $state->isSilenced(), $state->notified()]);
 
-        $state->recordNotified(AppointmentMessageKind::CONFIRMATION, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-13 08:44'));
+        $state->recordNotified(AppointmentMessageKind::CONFIRMATION, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-13 08:44'), Appointments::OWNER);
         $state->planReminder(ReminderDelay::H24, Appointments::utc('2026-10-22 07:30'), new \DateTimeZone('Europe/Paris'), Appointments::utc('2026-10-13 08:44'));
         $states->save($state);
 
         $again = $states->lock(AppointmentId::fromString(Appointments::ID));
         self::assertNotNull($again);
         self::assertSame(1, $again->notificationCounter());
+        self::assertSame(Appointments::OWNER, $again->notifiedOwnerId());
         self::assertSame('2026-10-13 08:44', $again->confirmedAt()?->format('Y-m-d H:i'));
         $notified = $again->notified();
         self::assertNotNull($notified);
@@ -113,6 +114,7 @@ final class AppointmentNotificationPersistenceTest extends KernelTestCase
         $id = Uuid::fromString(Appointments::ID);
 
         self::assertSame($id, new AppointmentNotificationEntity($id, $id)->columns()['appointment_id']);
+        self::assertNull(new AppointmentNotificationEntity($id, $id)->columns()['notified_owner_id']);
         self::assertSame(['clinic_id' => $id, 'reminder_delay' => 'H24'], new ClinicSchedulingSettingsEntity($id)->columns());
     }
 

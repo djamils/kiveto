@@ -31,6 +31,11 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * on the owner's transactional channel and records it, and replans the
  * reminder from the current slot. An owner who cannot be reached gets
  * nothing (logged); the message is then derived again at the next sync.
+ *
+ * Owner change: the client who was told about the appointment hears of its
+ * cancellation, then the new owner gets a confirmation (if reachable) —
+ * one message per client. A cancellation always goes to the client who was
+ * told, not to an owner set meanwhile.
  */
 #[AsMessageHandler]
 final readonly class SyncAppointmentNotificationHandler
@@ -69,6 +74,13 @@ final readonly class SyncAppointmentNotificationHandler
             $state->dropReminder();
         }
 
+        $formerOwnerId = $state->replacedOwner($appointment->status(), $appointment->ownerId(), $now);
+
+        if (null !== $formerOwnerId) {
+            $this->notify(AppointmentMessageKind::CANCELLATION, $formerOwnerId, $appointment, $state, $clinic, $now);
+            $state->releaseOwner();
+        }
+
         $kind = $state->nextMessage(
             $appointment->status(),
             $appointment->timeSlot(),
@@ -77,15 +89,16 @@ final readonly class SyncAppointmentNotificationHandler
         );
 
         if (null !== $kind) {
-            $this->notify($kind, $appointment, $state, $clinic, $now);
+            $recipient = AppointmentMessageKind::CANCELLATION === $kind ? $state->notifiedOwnerId() ?? $appointment->ownerId() : $appointment->ownerId();
+            $this->notify($kind, $recipient, $appointment, $state, $clinic, $now);
         }
 
         $this->states->save($state);
     }
 
-    private function notify(AppointmentMessageKind $kind, Appointment $appointment, AppointmentNotificationState $state, ClinicCard $clinic, \DateTimeImmutable $now): void
+    private function notify(AppointmentMessageKind $kind, ?string $clientId, Appointment $appointment, AppointmentNotificationState $state, ClinicCard $clinic, \DateTimeImmutable $now): void
     {
-        $contact = $this->ownerOf($appointment);
+        $contact = $this->reachable($appointment, $clientId);
         $channel = $contact?->transactionalChannel;
 
         if (null === $contact || null === $channel) {
@@ -103,6 +116,7 @@ final readonly class SyncAppointmentNotificationHandler
             $appointment->timeSlot(),
             $appointment->practitionerAssignee()->userId()->toString(),
             $now,
+            $clientId,
         );
 
         $this->notifications->request(
@@ -110,11 +124,10 @@ final readonly class SyncAppointmentNotificationHandler
         );
     }
 
-    /** The owner, unless there is none or they were archived. */
-    private function ownerOf(Appointment $appointment): ?ClientContact
+    /** The client, unless there is none or they were archived. */
+    private function reachable(Appointment $appointment, ?string $clientId): ?ClientContact
     {
-        $ownerId = $appointment->ownerId();
-        $contact = null !== $ownerId ? $this->contacts->contactOf($appointment->clinicId()->toString(), $ownerId) : null;
+        $contact = null !== $clientId ? $this->contacts->contactOf($appointment->clinicId()->toString(), $clientId) : null;
 
         return null !== $contact && !$contact->archived ? $contact : null;
     }

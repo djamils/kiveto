@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Scheduling\Domain\Event;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
+use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
@@ -152,6 +153,20 @@ final class SchedulingEventsTest extends TestCase
         );
 
         self::assertNull($event->payload()['oldPractitionerUserId']);
+    }
+
+    public function testAppointmentOwnerChanged(): void
+    {
+        $event = new AppointmentOwnerChanged(self::APPOINTMENT_ID, self::CLINIC_ID, null, 'owner-2');
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame(self::APPOINTMENT_ID, $event->appointmentId());
+        self::assertSame([
+            'appointmentId' => self::APPOINTMENT_ID,
+            'clinicId'      => self::CLINIC_ID,
+            'oldOwnerId'    => null,
+            'newOwnerId'    => 'owner-2',
+        ], $event->payload());
     }
 
     public function testAppointmentRescheduled(): void

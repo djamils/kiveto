@@ -7,6 +7,7 @@ namespace App\Context\Scheduling\Domain;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
+use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
@@ -112,10 +113,25 @@ final class Appointment extends AggregateRoot
         return $appointment;
     }
 
+    /**
+     * A new owner (set later, corrected or removed) is announced: their
+     * client messages are synced again. The animal alone changes nothing the
+     * client is told.
+     */
     public function changeOwnerAndAnimal(?string $ownerId, ?string $animalId): void
     {
+        $oldOwnerId     = $this->ownerId;
         $this->ownerId  = $ownerId;
         $this->animalId = $animalId;
+
+        if ($oldOwnerId !== $ownerId) {
+            $this->recordDomainEvent(new AppointmentOwnerChanged(
+                appointmentId: $this->id->toString(),
+                clinicId: $this->clinicId->toString(),
+                oldOwnerId: $oldOwnerId,
+                newOwnerId: $ownerId,
+            ));
+        }
     }
 
     /**

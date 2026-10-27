@@ -82,6 +82,33 @@ final class AppointmentNotificationStateTest extends TestCase
         self::assertNull(self::confirmed()->nextMessage(AppointmentStatus::COMPLETED, $slot, Appointments::ROUSSEAU, self::now()));
     }
 
+    public function testAnOwnerTakingTheBookingOverReleasesTheOneWhoWasTold(): void
+    {
+        $slot  = Appointments::slot('2026-10-22 07:30');
+        $other = '01960000-0000-7000-8000-0000000e0002';
+        $state = self::fresh();
+        $state->recordNotified(AppointmentMessageKind::CONFIRMATION, $slot, Appointments::ROUSSEAU, self::now(), Appointments::OWNER);
+        self::assertSame(Appointments::OWNER, $state->notifiedOwnerId());
+
+        // Same owner, past appointment, not planned any more: nobody to release.
+        self::assertNull($state->replacedOwner(AppointmentStatus::PLANNED, Appointments::OWNER, self::now()));
+        self::assertNull($state->replacedOwner(AppointmentStatus::PLANNED, $other, Appointments::utc('2026-10-22 07:30')));
+        self::assertNull($state->replacedOwner(AppointmentStatus::CANCELLED, $other, self::now()));
+        // Unknown owner told (state recorded before owners were): nothing either.
+        self::assertNull(self::confirmed()->replacedOwner(AppointmentStatus::PLANNED, $other, self::now()));
+
+        // Another owner, or none: the one told is released, and the next message is a confirmation.
+        self::assertSame(Appointments::OWNER, $state->replacedOwner(AppointmentStatus::PLANNED, null, self::now()));
+        self::assertSame(Appointments::OWNER, $state->replacedOwner(AppointmentStatus::PLANNED, $other, self::now()));
+        self::assertSame(2, $state->recordNotified(AppointmentMessageKind::CANCELLATION, $slot, Appointments::ROUSSEAU, self::now()));
+        $state->releaseOwner();
+
+        self::assertSame([null, null, null, null], [$state->confirmedAt(), $state->cancellationNotifiedAt(), $state->notified(), $state->notifiedOwnerId()]);
+        self::assertSame(AppointmentMessageKind::CONFIRMATION, $state->nextMessage(AppointmentStatus::PLANNED, $slot, Appointments::ROUSSEAU, self::now()));
+        self::assertSame(3, $state->recordNotified(AppointmentMessageKind::CONFIRMATION, $slot, Appointments::ROUSSEAU, self::now(), $other));
+        self::assertSame($other, $state->notifiedOwnerId());
+    }
+
     public function testTheReminderIsPlannedFromTheCurrentSlot(): void
     {
         $state = self::fresh();
@@ -175,9 +202,10 @@ final class AppointmentNotificationStateTest extends TestCase
             3,
             Appointments::utc('2026-10-21 07:30'),
             null,
+            Appointments::OWNER,
         );
 
-        self::assertSame([Appointments::ID, Appointments::CLINIC, 3, false], [$state->appointmentId()->toString(), $state->clinicId()->toString(), $state->notificationCounter(), $state->isSilenced()]);
+        self::assertSame([Appointments::ID, Appointments::CLINIC, 3, false, Appointments::OWNER], [$state->appointmentId()->toString(), $state->clinicId()->toString(), $state->notificationCounter(), $state->isSilenced(), $state->notifiedOwnerId()]);
         self::assertSame($notified, $state->notified());
         self::assertNull($state->cancellationNotifiedAt());
         self::assertNull($state->reminderRequestedAt());

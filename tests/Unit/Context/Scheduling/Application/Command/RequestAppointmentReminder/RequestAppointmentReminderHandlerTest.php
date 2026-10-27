@@ -12,6 +12,7 @@ use App\Context\Scheduling\Application\Notification\AppointmentMessageComposer;
 use App\Context\Scheduling\Application\Port\AppointmentMessage;
 use App\Context\Scheduling\Application\Port\ClientContact;
 use App\Context\Scheduling\Domain\Appointment;
+use App\Context\Scheduling\Domain\Notification\AppointmentMessageKind;
 use App\Context\Scheduling\Domain\Notification\ReminderDelay;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
@@ -207,6 +208,33 @@ final class RequestAppointmentReminderHandlerTest extends TestCase
 
         self::assertSame([], $this->notifications->messages);
         self::assertNull($this->states->of(Appointments::ID)->reminderDueAt());
+    }
+
+    public function testANewOwnerIsRemindedOnlyOnceTheSyncConfirmedTheAppointmentToThem(): void
+    {
+        $this->contacts->contacts[Appointments::LEFEVRE] = new ClientContact(Appointments::LEFEVRE, 'Marc Lefèvre', 'Monsieur Lefèvre', null, '+33698765432', ClientContact::SMS, [ClientContact::SMS], false);
+        $this->plan(Appointments::planned());
+        $state = $this->states->of(Appointments::ID);
+        $state->recordNotified(AppointmentMessageKind::CONFIRMATION, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-13 08:44'), Appointments::OWNER);
+        $this->states->save($state);
+
+        // Given to Marc a minute before the scan: his confirmation is still in the debounce window.
+        $this->appointments->save(Appointments::planned(ownerId: Appointments::LEFEVRE));
+        $this->clock->at('2026-10-21 07:30');
+        $this->remind();
+
+        self::assertSame([], $this->notifications->messages);
+        self::assertSame([Appointments::ID], $this->states->dueReminders($this->clock->now()));
+
+        // Once confirmed to him, the next scan reminds him.
+        $state = $this->states->of(Appointments::ID);
+        $state->releaseOwner();
+        $state->recordNotified(AppointmentMessageKind::CONFIRMATION, Appointments::slot('2026-10-22 07:30'), Appointments::ROUSSEAU, Appointments::utc('2026-10-21 07:32'), Appointments::LEFEVRE);
+        $this->states->save($state);
+        $this->clock->at('2026-10-21 07:45');
+        $this->remind();
+
+        self::assertSame(['+33698765432'], array_map(static fn (AppointmentMessage $m): string => $m->recipientAddress, $this->notifications->messages));
     }
 
     private function plan(Appointment $appointment, ReminderDelay $delay = ReminderDelay::H24, string $now = '2026-10-13 08:44'): void

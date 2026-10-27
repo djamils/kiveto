@@ -46,7 +46,8 @@ final readonly class AppointmentMessageComposer
      * The confirmation, change or cancellation numbered $number on the
      * contact's transactional channel. A confirmation or a change shows the
      * appointment as it is; a change also shows $notified, the slot the client
-     * knew; a cancellation shows that notified slot (the one the client knows).
+     * knew; a cancellation shows that notified slot (the one the client knows),
+     * also to a former owner of the booking.
      */
     public function transactional(
         AppointmentMessageKind $kind,
@@ -68,8 +69,9 @@ final readonly class AppointmentMessageComposer
         );
         $shown = AppointmentMessageKind::CANCELLATION === $kind && null !== $notified ? $notified : $current;
 
-        $local        = $shown->startsAtUtc->setTimezone($clinic->timeZone);
-        $animal       = $this->animalName($appointment);
+        $local = $shown->startsAtUtc->setTimezone($clinic->timeZone);
+        // A former owner (the booking was given to another client) is not told the new animal's name.
+        $animal       = $contact->clientId === $appointment->ownerId() ? $this->animalName($appointment) : self::UNKNOWN_ANIMAL;
         $reason       = $this->reason($appointment);
         $practitioner = $this->clinics->printedName($clinicId, $shown->practitionerUserId) ?? '';
         $email        = ClientContact::EMAIL === $channel;

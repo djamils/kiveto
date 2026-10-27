@@ -59,12 +59,12 @@ final readonly class DbalAppointmentNotificationStateRepository implements Appoi
 
         $this->connection->executeStatement(
             'INSERT INTO ' . self::TABLE . ' (appointment_id, clinic_id, confirmed_at, cancellation_notified_at, silenced,'
-            . ' notified_starts_at_utc, notified_duration, notified_practitioner_user_id, notification_counter, reminder_due_at_utc, reminder_requested_at)'
-            . ' VALUES (:id, :clinic, :confirmed, :cancelled, :silenced, :start, :duration, :practitioner, :counter, :due, :requested)'
+            . ' notified_starts_at_utc, notified_duration, notified_practitioner_user_id, notification_counter, reminder_due_at_utc, reminder_requested_at,'
+            . ' notified_owner_id) VALUES (:id, :clinic, :confirmed, :cancelled, :silenced, :start, :duration, :practitioner, :counter, :due, :requested, :owner)'
             . ' AS new ON DUPLICATE KEY UPDATE confirmed_at = new.confirmed_at, cancellation_notified_at = new.cancellation_notified_at,'
             . ' silenced = new.silenced, notified_starts_at_utc = new.notified_starts_at_utc, notified_duration = new.notified_duration,'
             . ' notified_practitioner_user_id = new.notified_practitioner_user_id, notification_counter = new.notification_counter,'
-            . ' reminder_due_at_utc = new.reminder_due_at_utc, reminder_requested_at = new.reminder_requested_at',
+            . ' reminder_due_at_utc = new.reminder_due_at_utc, reminder_requested_at = new.reminder_requested_at, notified_owner_id = new.notified_owner_id',
             [
                 'id'           => self::binary($state->appointmentId()->toString()),
                 'clinic'       => self::binary($state->clinicId()->toString()),
@@ -77,6 +77,7 @@ final readonly class DbalAppointmentNotificationStateRepository implements Appoi
                 'counter'      => $state->notificationCounter(),
                 'due'          => self::time($state->reminderDueAt()),
                 'requested'    => self::time($state->reminderRequestedAt()),
+                'owner'        => null !== $state->notifiedOwnerId() ? self::binary($state->notifiedOwnerId()) : null,
             ],
         );
     }
@@ -137,6 +138,7 @@ final readonly class DbalAppointmentNotificationStateRepository implements Appoi
             notificationCounter: RowAccessor::int($row, 'notification_counter'),
             reminderDueAt: self::nullableUtc(RowAccessor::nullableString($row, 'reminder_due_at_utc')),
             reminderRequestedAt: self::nullableUtc(RowAccessor::nullableString($row, 'reminder_requested_at')),
+            notifiedOwnerId: RowAccessor::nullableUuid($row, 'notified_owner_id'),
         );
     }
 

@@ -8,7 +8,8 @@ use App\Context\Scheduling\Application\Port\ClientContact;
 use App\Context\Scheduling\Application\Port\ClientContactInterface;
 
 /**
- * Sophie Dubois, Milo's owner: e-mail only by default.
+ * Sophie Dubois, Milo's owner: e-mail only by default; Marc Lefèvre, another
+ * client of the clinic, by SMS.
  */
 final class FakeClientContacts implements ClientContactInterface
 {
@@ -17,7 +18,8 @@ final class FakeClientContacts implements ClientContactInterface
 
     public function __construct()
     {
-        $this->contacts[Appointments::OWNER] = self::sophie();
+        $this->contacts[Appointments::OWNER]   = self::sophie();
+        $this->contacts[Appointments::LEFEVRE] = new ClientContact(Appointments::LEFEVRE, 'Marc Lefèvre', 'Monsieur Lefèvre', null, '+33698765432', ClientContact::SMS, [], false);
     }
 
     /**

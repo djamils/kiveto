@@ -6,6 +6,7 @@ namespace App\Context\Scheduling\Application\EventSubscriber;
 
 use App\Context\Scheduling\Application\Port\NotificationJobsInterface;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
+use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
@@ -45,6 +46,12 @@ final readonly class ScheduleAppointmentNotificationSync
 
     #[AsMessageHandler(bus: 'messenger.bus.event')]
     public function onPractitionerChanged(AppointmentPractitionerAssigneeChanged $event): void
+    {
+        $this->jobs->syncLater($event->appointmentId());
+    }
+
+    #[AsMessageHandler(bus: 'messenger.bus.event')]
+    public function onOwnerChanged(AppointmentOwnerChanged $event): void
     {
         $this->jobs->syncLater($event->appointmentId());
     }

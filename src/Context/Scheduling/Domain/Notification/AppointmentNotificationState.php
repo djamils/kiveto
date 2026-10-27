@@ -16,6 +16,12 @@ use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
  * actually notified — a booking moved within the debounce window gets one
  * confirmation with its final slot, an agenda undo gets nothing, duplicate
  * or concurrent syncs find nothing left to do.
+ *
+ * The owner told is recorded too. When another client takes the booking
+ * over (or none), the one who was told hears of its cancellation and the
+ * state starts again for the new one, who then gets a confirmation: two
+ * messages, to two clients, from one sync — still derived once, under the
+ * lock, each with its own number.
  */
 final class AppointmentNotificationState
 {
@@ -29,12 +35,13 @@ final class AppointmentNotificationState
         private int $notificationCounter,
         private ?\DateTimeImmutable $reminderDueAt,
         private ?\DateTimeImmutable $reminderRequestedAt,
+        private ?string $notifiedOwnerId,
     ) {
     }
 
     public static function start(AppointmentId $appointmentId, ClinicId $clinicId): self
     {
-        return new self($appointmentId, $clinicId, null, null, false, null, 0, null, null);
+        return new self($appointmentId, $clinicId, null, null, false, null, 0, null, null, null);
     }
 
     public static function reconstitute(
@@ -47,8 +54,41 @@ final class AppointmentNotificationState
         int $notificationCounter,
         ?\DateTimeImmutable $reminderDueAt,
         ?\DateTimeImmutable $reminderRequestedAt,
+        ?string $notifiedOwnerId = null,
     ): self {
-        return new self($appointmentId, $clinicId, $confirmedAt, $cancellationNotifiedAt, $silenced, $notified, $notificationCounter, $reminderDueAt, $reminderRequestedAt);
+        return new self($appointmentId, $clinicId, $confirmedAt, $cancellationNotifiedAt, $silenced, $notified, $notificationCounter, $reminderDueAt, $reminderRequestedAt, $notifiedOwnerId);
+    }
+
+    /**
+     * The client told about the appointment when another one (or none) has
+     * taken it over since, while it is still planned and to come — that
+     * client is to hear of its cancellation (then releaseOwner()). Null when
+     * nothing was confirmed, the owner is unchanged, or unknown (states
+     * recorded before owners were).
+     */
+    public function replacedOwner(AppointmentStatus $status, ?string $ownerId, \DateTimeImmutable $now): ?string
+    {
+        $replaced = AppointmentStatus::PLANNED === $status
+            && null !== $this->confirmedAt
+            && null !== $this->notified
+            && null !== $this->notifiedOwnerId
+            && $this->notifiedOwnerId !== $ownerId
+            && $this->notified->startsAtUtc > $now;
+
+        return $replaced ? $this->notifiedOwnerId : null;
+    }
+
+    /**
+     * The former client was told (or could not be): nothing was confirmed
+     * to the current one yet — the next message is their confirmation. The
+     * counter is kept, so numbers keep growing.
+     */
+    public function releaseOwner(): void
+    {
+        $this->confirmedAt            = null;
+        $this->cancellationNotifiedAt = null;
+        $this->notified               = null;
+        $this->notifiedOwnerId        = null;
     }
 
     /**
@@ -91,9 +131,10 @@ final class AppointmentNotificationState
     /**
      * Records a message requested for the appointment and returns its number
      * (the counter, part of the idempotency key: three moves in the window
-     * give one message, a new move the next day gives a new one).
+     * give one message, a new move the next day gives a new one). A
+     * confirmation or a change records the client told.
      */
-    public function recordNotified(AppointmentMessageKind $kind, TimeSlot $slot, string $practitionerUserId, \DateTimeImmutable $at): int
+    public function recordNotified(AppointmentMessageKind $kind, TimeSlot $slot, string $practitionerUserId, \DateTimeImmutable $at, ?string $ownerId = null): int
     {
         ++$this->notificationCounter;
 
@@ -104,7 +145,8 @@ final class AppointmentNotificationState
         }
 
         $this->confirmedAt ??= $at;
-        $this->notified = new NotifiedSlot($slot->startsAtUtc(), $slot->durationMinutes(), $practitionerUserId);
+        $this->notifiedOwnerId = $ownerId;
+        $this->notified        = new NotifiedSlot($slot->startsAtUtc(), $slot->durationMinutes(), $practitionerUserId);
 
         return $this->notificationCounter;
     }
@@ -229,5 +271,11 @@ final class AppointmentNotificationState
     public function reminderRequestedAt(): ?\DateTimeImmutable
     {
         return $this->reminderRequestedAt;
+    }
+
+    /** The client the last confirmation or change went to. */
+    public function notifiedOwnerId(): ?string
+    {
+        return $this->notifiedOwnerId;
     }
 }

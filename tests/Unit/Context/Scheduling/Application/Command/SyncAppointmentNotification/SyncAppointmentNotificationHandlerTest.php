@@ -248,6 +248,89 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
         self::assertSame([AppointmentMessage::CONFIRMATION, AppointmentMessage::CONFIRMATION], array_map(static fn (AppointmentMessage $m): string => $m->purpose, $this->notifications->messages));
     }
 
+    public function testAnOwnerSetAfterTheBookingIsConfirmed(): void
+    {
+        $this->sync(Appointments::planned(ownerId: null, animalId: null));
+        self::assertSame([], $this->notifications->messages);
+
+        $this->clock->at('2026-10-14 10:00');
+        $this->sync(Appointments::planned());
+
+        self::assertSame([AppointmentMessage::CONFIRMATION, Appointments::OWNER, 'appointment:' . Appointments::ID . ':confirmation:1'], [$this->onlyMessage()->purpose, $this->onlyMessage()->clientId, $this->onlyMessage()->idempotencyKey]);
+    }
+
+    public function testAnotherOwnerIsConfirmedAndTheFormerOneToldOfTheCancellation(): void
+    {
+        $this->sync(Appointments::planned());
+
+        // The booking was Marc Lefèvre's, moved to Friday at the same time.
+        $this->clock->at('2026-10-14 10:00');
+        $this->sync(Appointments::planned('2026-10-23 09:00', ownerId: Appointments::LEFEVRE, animalId: '01960000-0000-7000-8000-0000000f0002'));
+
+        self::assertCount(3, $this->notifications->messages);
+        [, $cancellation, $confirmation] = $this->notifications->messages;
+
+        // Sophie hears the slot she knew is cancelled (her calendar drops it), without the new animal's name.
+        self::assertSame([AppointmentMessage::CANCELLATION, Appointments::OWNER, 's.dubois@email.fr', 'appointment:' . Appointments::ID . ':cancellation:2'], [$cancellation->purpose, $cancellation->clientId, $cancellation->recipientAddress, $cancellation->idempotencyKey]);
+        self::assertSame(['votre animal', 'jeudi 22 octobre à 9h30'], [$cancellation->parameters['animalName'], $cancellation->parameters['subjectDateLabel']]);
+        self::assertStringContainsString("METHOD:CANCEL\r\n", $this->ics($cancellation));
+
+        // Marc gets the confirmation of the current slot, on his channel.
+        self::assertSame([AppointmentMessage::CONFIRMATION, Appointments::LEFEVRE, ClientContact::SMS, 'appointment:' . Appointments::ID . ':confirmation:3'], [$confirmation->purpose, $confirmation->clientId, $confirmation->channel, $confirmation->idempotencyKey]);
+        self::assertSame('vendredi 23/10 à 11h00', $confirmation->parameters['slotLabel']);
+        self::assertSame(Appointments::LEFEVRE, $this->states->of(Appointments::ID)->notifiedOwnerId());
+
+        // Told once; a later cancellation goes to Marc only.
+        $this->sync(Appointments::planned('2026-10-23 09:00', ownerId: Appointments::LEFEVRE));
+        $this->sync(Appointments::planned('2026-10-23 09:00', ownerId: Appointments::LEFEVRE, status: AppointmentStatus::CANCELLED));
+        self::assertCount(4, $this->notifications->messages);
+        self::assertSame([AppointmentMessage::CANCELLATION, Appointments::LEFEVRE, 'appointment:' . Appointments::ID . ':cancellation:4'], [$this->notifications->last()->purpose, $this->notifications->last()->clientId, $this->notifications->last()->idempotencyKey]);
+    }
+
+    public function testAnOwnerChangeUndoneWithinTheWindowSaysNothing(): void
+    {
+        $this->sync(Appointments::planned());
+
+        // Another client picked by mistake then put back before the sync: the sync sees Sophie again.
+        $this->appointments->save(Appointments::planned(ownerId: Appointments::LEFEVRE));
+        $this->sync(Appointments::planned());
+
+        self::assertCount(1, $this->notifications->messages);
+    }
+
+    public function testAnOwnerRemovedIsToldOfTheCancellation(): void
+    {
+        $this->sync(Appointments::planned());
+
+        $this->sync(Appointments::planned(ownerId: null, animalId: null));
+
+        self::assertCount(2, $this->notifications->messages);
+        self::assertSame([AppointmentMessage::CANCELLATION, Appointments::OWNER], [$this->notifications->last()->purpose, $this->notifications->last()->clientId]);
+        self::assertNull($this->states->of(Appointments::ID)->confirmedAt());
+    }
+
+    public function testACancellationAfterAnOwnerChangeGoesToTheClientWhoWasTold(): void
+    {
+        $this->sync(Appointments::planned());
+
+        // Given to Marc and cancelled within the window: Marc never knew, Sophie did.
+        $this->sync(Appointments::planned(ownerId: Appointments::LEFEVRE, status: AppointmentStatus::CANCELLED));
+
+        self::assertCount(2, $this->notifications->messages);
+        self::assertSame([AppointmentMessage::CANCELLATION, Appointments::OWNER, 'votre animal'], [$this->notifications->last()->purpose, $this->notifications->last()->clientId, $this->notifications->last()->parameters['animalName']]);
+    }
+
+    public function testAFormerOwnerWhoCannotBeReachedIsSkipped(): void
+    {
+        $this->sync(Appointments::planned());
+        $this->contacts->contacts[Appointments::OWNER] = FakeClientContacts::sophie(archived: true);
+
+        $this->sync(Appointments::planned(ownerId: Appointments::LEFEVRE));
+
+        self::assertCount(2, $this->notifications->messages);
+        self::assertSame([AppointmentMessage::CONFIRMATION, Appointments::LEFEVRE, 'appointment:' . Appointments::ID . ':confirmation:2'], [$this->notifications->last()->purpose, $this->notifications->last()->clientId, $this->notifications->last()->idempotencyKey]);
+    }
+
     public function testAnUnknownAppointmentIsIgnored(): void
     {
         $this->handler()(new SyncAppointmentNotification(Appointments::ID));

@@ -24,7 +24,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * planned and to come, the owner's « Rappels de rendez-vous » consent allows
  * SMS and a mobile exists. The due time is first recomputed from the
  * appointment's current start and the clinic's delay — a move not synced
- * yet (debounce window) may have pushed it back: it is then only replanned.
+ * yet (debounce window) may have pushed it back: it is then only replanned;
+ * a new owner is reminded only once the sync has confirmed the appointment
+ * to them.
  * Then requests the SMS (non-critical: the e-mail fallback is passed only
  * when the same consent allows e-mail) and marks it requested — one reminder
  * per appointment, ever. A reminder that cannot go any more is dropped (not
@@ -68,8 +70,11 @@ final readonly class RequestAppointmentReminderHandler
         $clinic = $this->clinics->clinic($appointment->clinicId()->toString());
         $state->replanReminder($this->settings->reminderDelay($appointment->clinicId()), $appointment->timeSlot()->startsAtUtc(), $clinic->timeZone, $now);
 
-        // Moved later meanwhile (replanned), or too close to its start now (dropped).
-        if (!$state->isReminderDue($now)) {
+        // Moved later meanwhile (replanned), too close to its start now (dropped), or given to
+        // another client whom the pending sync has not told yet (the next scan sends it).
+        $toldOwner = $state->notifiedOwnerId();
+
+        if (!$state->isReminderDue($now) || (null !== $toldOwner && $toldOwner !== $appointment->ownerId())) {
             $this->states->save($state);
 
             return;
