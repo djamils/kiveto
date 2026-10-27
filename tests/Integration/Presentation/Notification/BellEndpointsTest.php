@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Presentation\Notification;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Fixtures\Context\Clinic\Factory\ClinicMembershipEntityFactory;
 use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
+use App\Presentation\Clinic\Controller\Notification\ShowNotificationHistoryController;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\Notification\Application\Command\PostInAppNotification\PostInAppNotification;
 use Doctrine\DBAL\Connection;
@@ -104,6 +105,34 @@ final class BellEndpointsTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         self::assertSame(['unread' => 2], $this->json('GET', '/notifications?count=1'));
+    }
+
+    public function testTheHistoryShowsThe200MostRecentEntries(): void
+    {
+        self::assertStringNotContainsString('nfh-note', $this->page('/notifications/history'));
+
+        $this->switchTo(self::LILAS);
+        for ($i = 1; $i <= ShowNotificationHistoryController::LIMIT; ++$i) {
+            $this->post(self::LILAS, 'EXPIRING_LOTS', 'Péremption proche · lot ' . $i, 'clinic_stock', ['onglet' => 'alertes'], 'expiring:lilas:' . $i);
+        }
+
+        $page = $this->page('/notifications/history');
+        self::assertSame(ShowNotificationHistoryController::LIMIT, substr_count($page, 'data-nf="'));
+        self::assertStringContainsString('Seules les 200 notifications les plus récentes sont affichées.', $page);
+        // Every unread entry counts, shown or not.
+        self::assertStringContainsString('data-nf-all data-nf-unread', $page);
+    }
+
+    public function testAnEmptyHistorySaysSo(): void
+    {
+        $connection = self::getContainer()->get(Connection::class);
+        \assert($connection instanceof Connection);
+        $connection->executeStatement('DELETE FROM notification__in_app_notifications WHERE clinic_id = ?', [Uuid::fromString(self::MONTMARTRE)->toBinary()]);
+
+        $page = $this->page('/notifications/history');
+
+        self::assertStringContainsString('Aucune notification ces 30 derniers jours.', $page);
+        self::assertStringNotContainsString('data-nf-all data-nf-unread', $page);
     }
 
     /**

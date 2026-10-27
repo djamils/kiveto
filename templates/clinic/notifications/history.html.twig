@@ -7,8 +7,9 @@
  # « Tout marquer lu »).
  #
  # Variables:
- #   days    array<string, list<NotificationItem>>  day label => entries, newest first
- #   unread  int
+ #   days       array<string, list<NotificationItem>>  day label => entries, newest first
+ #   truncated  int|null  the number of entries shown when older ones are left out
+ #   unread     int
  #}
 {% extends 'clinic/base.html.twig' %}
 
@@ -37,8 +38,11 @@
         </div>
       </section>
     {% else %}
-      <div class="nfh-vide"><b>Aucune notification</b>Les 30 derniers jours n'ont rien apporté dans la cloche.</div>
+      <div class="nfh-vide"><b>Aucune notification ces 30 derniers jours.</b></div>
     {% endfor %}
+    {% if truncated %}
+      <p class="nfh-note">Seules les {{ truncated }} notifications les plus récentes sont affichées.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

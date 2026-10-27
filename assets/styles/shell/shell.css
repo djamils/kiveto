@@ -571,6 +571,7 @@ a.nf-histo{display:block}
 .nfh-liste{background:var(--carte);border:1px solid var(--trait);border-radius:12px;padding:4px;display:flex;flex-direction:column}
 .nfh-vide{margin-top:40px;text-align:center;font-size:.8rem;color:var(--encre-60)}
 .nfh-vide b{display:block;font-size:.9rem;color:var(--encre);margin-bottom:4px}
+.nfh-note{margin:0;text-align:center;font-size:.75rem;color:var(--encre-60)}
 
 
 

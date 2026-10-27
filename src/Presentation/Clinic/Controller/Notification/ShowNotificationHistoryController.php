@@ -6,17 +6,19 @@ namespace App\Presentation\Clinic\Controller\Notification;
 
 use App\Presentation\Clinic\ViewModel\Notification\BellReader;
 use App\Presentation\Clinic\ViewModel\Notification\NotificationFeedBuilder;
-use App\Presentation\Clinic\ViewModel\Notification\NotificationItem;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * « Voir tout l'historique »: every bell entry of the last 30 days, by day.
+ * « Voir tout l'historique »: the bell entries of the last 30 days, by day —
+ * the 200 most recent, with a note when there are more.
  */
 #[Route(path: '/notifications/history', name: 'clinic_notifications_history', methods: ['GET'])]
 final class ShowNotificationHistoryController extends AbstractController
 {
+    public const int LIMIT = 200;
+
     public function __construct(
         private readonly BellReader $bell,
         private readonly NotificationFeedBuilder $feed,
@@ -27,15 +29,19 @@ final class ShowNotificationHistoryController extends AbstractController
     {
         [$userId, $clinicId] = $this->bell->owner();
 
-        $days = [];
+        // One more than shown, to know whether older entries are left out.
+        $items     = $this->feed->items($userId, $clinicId, self::LIMIT + 1);
+        $truncated = \count($items) > self::LIMIT;
+        $days      = [];
 
-        foreach ($this->feed->items($userId, $clinicId, null) as $item) {
+        foreach (\array_slice($items, 0, self::LIMIT) as $item) {
             $days[$item->day][] = $item;
         }
 
         return $this->render('clinic/notifications/history.html.twig', [
-            'days'   => $days,
-            'unread' => \count(array_filter(array_merge([], ...array_values($days)), static fn (NotificationItem $i): bool => !$i->read)),
+            'days'      => $days,
+            'truncated' => $truncated ? self::LIMIT : null,
+            'unread'    => $this->feed->unread($userId, $clinicId),
         ]);
     }
 }
