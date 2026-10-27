@@ -120,6 +120,39 @@ final class AppointmentNotificationStateTest extends TestCase
         self::assertFalse($state->isReminderDue(Appointments::utc('2026-10-23 07:30')));
     }
 
+    public function testAPendingReminderIsReplannedRatherThanLost(): void
+    {
+        $paris = new \DateTimeZone('Europe/Paris');
+        $state = self::fresh();
+        $state->planReminder(ReminderDelay::SAME_DAY_8, Appointments::utc('2026-10-22 07:30'), $paris, self::now());
+
+        // Still to come: the new delay's due time.
+        $state->replanReminder(ReminderDelay::H24, Appointments::utc('2026-10-22 07:30'), $paris, self::now());
+        self::assertSame('2026-10-21 07:30', $state->reminderDueAt()?->format('Y-m-d H:i'));
+
+        // Already past: due now, the next scan sends it.
+        $state->replanReminder(ReminderDelay::H48, Appointments::utc('2026-10-22 07:30'), $paris, Appointments::utc('2026-10-21 12:00'));
+        self::assertSame('2026-10-21 12:00', $state->reminderDueAt()?->format('Y-m-d H:i'));
+
+        // Past, but the appointment starts within 30 minutes: dropped.
+        $state->replanReminder(ReminderDelay::H24, Appointments::utc('2026-10-21 12:20'), $paris, Appointments::utc('2026-10-21 12:00'));
+        self::assertNull($state->reminderDueAt());
+
+        // None was planned (booked too late): none planned for a past due time either.
+        $state->replanReminder(ReminderDelay::H24, Appointments::utc('2026-10-22 07:30'), $paris, Appointments::utc('2026-10-21 12:00'));
+        self::assertNull($state->reminderDueAt());
+
+        // Too close to the start for the delay itself (« le matin même » for 08:15): none.
+        $state->replanReminder(ReminderDelay::SAME_DAY_8, Appointments::utc('2026-10-22 06:15'), $paris, self::now());
+        self::assertNull($state->reminderDueAt());
+
+        // Requested: never replanned.
+        $state->replanReminder(ReminderDelay::H24, Appointments::utc('2026-10-22 07:30'), $paris, self::now());
+        $state->markReminderRequested(Appointments::utc('2026-10-21 07:30'));
+        $state->replanReminder(ReminderDelay::H48, Appointments::utc('2026-10-24 07:30'), $paris, self::now());
+        self::assertSame('2026-10-21 07:30', $state->reminderDueAt()?->format('Y-m-d H:i'));
+    }
+
     public function testADroppedReminderIsNoLongerDue(): void
     {
         $state = self::fresh();

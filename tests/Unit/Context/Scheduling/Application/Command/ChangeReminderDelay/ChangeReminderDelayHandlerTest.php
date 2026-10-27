@@ -79,13 +79,30 @@ final class ChangeReminderDelayHandlerTest extends TestCase
         self::assertSame(ReminderDelay::H24->value, new GetReminderDelayHandler($this->settings)(new GetReminderDelay(Appointments::CLINIC)));
     }
 
-    private function plan(string $id, string $startsAtUtc, \DateTimeImmutable $now, ?string $requestedAt = null, AppointmentStatus $status = AppointmentStatus::PLANNED): void
+    public function testAPendingReminderWhoseNewDueTimeIsPastIsSentAtTheNextScan(): void
+    {
+        // Thursday 22/10 09:30 Paris, reminded « le matin même » (Thursday 08:00); on Wednesday at 14:00
+        // the clinic switches to « 48 h avant » (Tuesday 09:30, past): the client still gets one.
+        $this->plan(Appointments::ID, '2026-10-22 07:30', Appointments::utc('2026-10-13 08:42'), ReminderDelay::SAME_DAY_8);
+        // Thursday 07:45 had no « matin même » reminder (08:00 is after its start), and gets none now.
+        $this->plan(self::LATER, '2026-10-22 05:45', Appointments::utc('2026-10-13 08:42'), ReminderDelay::SAME_DAY_8);
+        $this->settings->delays[Appointments::CLINIC] = ReminderDelay::SAME_DAY_8;
+
+        $now = Appointments::utc('2026-10-21 12:00');
+        $this->handler($now)(new ChangeReminderDelay(Appointments::CLINIC, 'H48'));
+
+        self::assertSame('2026-10-21 12:00', $this->states->of(Appointments::ID)->reminderDueAt()?->format('Y-m-d H:i'));
+        self::assertSame([Appointments::ID], $this->states->dueReminders($now));
+        self::assertNull($this->states->of(self::LATER)->reminderDueAt());
+    }
+
+    private function plan(string $id, string $startsAtUtc, \DateTimeImmutable $now, ReminderDelay $delay = ReminderDelay::H24, ?string $requestedAt = null, AppointmentStatus $status = AppointmentStatus::PLANNED): void
     {
         $this->appointments->save(Appointments::planned($startsAtUtc, id: $id, status: $status));
 
         $state = $this->states->lock(AppointmentId::fromString($id));
         \assert(null !== $state);
-        $state->planReminder(ReminderDelay::H24, Appointments::utc($startsAtUtc), new \DateTimeZone('Europe/Paris'), $now);
+        $state->planReminder($delay, Appointments::utc($startsAtUtc), new \DateTimeZone('Europe/Paris'), $now);
 
         if (null !== $requestedAt) {
             $state->markReminderRequested(Appointments::utc($requestedAt));

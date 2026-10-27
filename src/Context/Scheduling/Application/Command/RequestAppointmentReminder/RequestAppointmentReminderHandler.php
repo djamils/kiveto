@@ -11,6 +11,7 @@ use App\Context\Scheduling\Application\Port\ClinicDirectoryInterface;
 use App\Context\Scheduling\Application\Port\NotificationRequesterInterface;
 use App\Context\Scheduling\Domain\Appointment;
 use App\Context\Scheduling\Domain\Notification\AppointmentNotificationStateRepositoryInterface;
+use App\Context\Scheduling\Domain\Notification\ReminderSettingsRepositoryInterface;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
@@ -21,10 +22,13 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * Under the appointment's state lock, re-checks everything at send time:
  * the reminder is still due and not requested, the appointment is still
  * planned and to come, the owner's « Rappels de rendez-vous » consent allows
- * SMS and a mobile exists. Then requests the SMS (non-critical: the e-mail
- * fallback is passed only when the same consent allows e-mail) and marks it
- * requested — one reminder per appointment, ever. A reminder that cannot go
- * any more is dropped (not scanned again).
+ * SMS and a mobile exists. The due time is first recomputed from the
+ * appointment's current start and the clinic's delay — a move not synced
+ * yet (debounce window) may have pushed it back: it is then only replanned.
+ * Then requests the SMS (non-critical: the e-mail fallback is passed only
+ * when the same consent allows e-mail) and marks it requested — one reminder
+ * per appointment, ever. A reminder that cannot go any more is dropped (not
+ * scanned again).
  */
 #[AsMessageHandler]
 final readonly class RequestAppointmentReminderHandler
@@ -32,6 +36,7 @@ final readonly class RequestAppointmentReminderHandler
     public function __construct(
         private AppointmentNotificationStateRepositoryInterface $states,
         private AppointmentRepositoryInterface $appointments,
+        private ReminderSettingsRepositoryInterface $settings,
         private ClinicDirectoryInterface $clinics,
         private ClientContactInterface $contacts,
         private AppointmentMessageComposer $composer,
@@ -52,9 +57,8 @@ final readonly class RequestAppointmentReminderHandler
         }
 
         $appointment = $this->appointments->findById($appointmentId);
-        $contact     = null !== $appointment ? $this->reachableOwnerOf($appointment, $now) : null;
 
-        if (null === $appointment || null === $contact) {
+        if (null === $appointment || !self::isToCome($appointment, $now)) {
             $state->dropReminder();
             $this->states->save($state);
 
@@ -62,18 +66,41 @@ final readonly class RequestAppointmentReminderHandler
         }
 
         $clinic = $this->clinics->clinic($appointment->clinicId()->toString());
+        $state->replanReminder($this->settings->reminderDelay($appointment->clinicId()), $appointment->timeSlot()->startsAtUtc(), $clinic->timeZone, $now);
+
+        // Moved later meanwhile (replanned), or too close to its start now (dropped).
+        if (!$state->isReminderDue($now)) {
+            $this->states->save($state);
+
+            return;
+        }
+
+        $contact = $this->reachableOwnerOf($appointment);
+
+        if (null === $contact) {
+            $state->dropReminder();
+            $this->states->save($state);
+
+            return;
+        }
+
         $this->notifications->request($this->composer->reminder($appointment, $contact, $clinic, $now));
 
         $state->markReminderRequested($now);
         $this->states->save($state);
     }
 
-    /** The owner to remind by SMS, if the appointment still calls for it. */
-    private function reachableOwnerOf(Appointment $appointment, \DateTimeImmutable $now): ?ClientContact
+    private static function isToCome(Appointment $appointment, \DateTimeImmutable $now): bool
+    {
+        return AppointmentStatus::PLANNED === $appointment->status() && $appointment->timeSlot()->startsAtUtc() > $now;
+    }
+
+    /** The owner to remind by SMS, if they accept it. */
+    private function reachableOwnerOf(Appointment $appointment): ?ClientContact
     {
         $ownerId = $appointment->ownerId();
 
-        if (AppointmentStatus::PLANNED !== $appointment->status() || $appointment->timeSlot()->startsAtUtc() <= $now || null === $ownerId) {
+        if (null === $ownerId) {
             return null;
         }
 

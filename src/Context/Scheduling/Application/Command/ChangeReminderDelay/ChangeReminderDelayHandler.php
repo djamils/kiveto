@@ -15,7 +15,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 /**
  * Saves the clinic's reminder delay and replans the reminders not requested
  * yet of its appointments to come; reminders already requested stay as they
- * were (one reminder per appointment, ever).
+ * were (one reminder per appointment, ever). A pending reminder whose new
+ * due time is already past is sent at the next scan rather than dropped.
  */
 #[AsMessageHandler]
 final readonly class ChangeReminderDelayHandler
@@ -45,7 +46,7 @@ final readonly class ChangeReminderDelayHandler
         $timeZone = $this->clinics->clinic($command->clinicId)->timeZone;
 
         foreach ($this->states->lockPendingReminders($clinicId, $now) as $pending) {
-            $pending->state->planReminder($delay, $pending->startsAtUtc, $timeZone, $now);
+            $pending->state->replanReminder($delay, $pending->startsAtUtc, $timeZone, $now);
             $this->states->save($pending->state);
         }
     }

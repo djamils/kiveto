@@ -18,7 +18,7 @@ enum ReminderDelay: string
     case SAME_DAY_8 = 'SAME_DAY_8';
 
     /** A reminder later than this before the start is pointless: none is planned. */
-    private const string LATEST_BEFORE_START = '-30 minutes';
+    public const string LATEST_BEFORE_START = '-30 minutes';
 
     public static function default(): self
     {

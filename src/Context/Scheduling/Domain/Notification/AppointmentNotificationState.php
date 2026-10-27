@@ -140,6 +140,34 @@ final class AppointmentNotificationState
         $this->reminderDueAt = $delay->dueAt($startsAtUtc, $clinicTimeZone, $now);
     }
 
+    /**
+     * Replans a reminder not requested yet when the delay changed or right
+     * before it is sent (the appointment may have moved since its last sync):
+     * the due time of the current start and delay when still to come. When
+     * it is already past, a reminder the client was still waiting for (one
+     * was planned) is due now — sent at the next scan — unless the
+     * appointment starts within 30 minutes; with none planned, the
+     * appointment was booked too late for the delay and gets none.
+     */
+    public function replanReminder(ReminderDelay $delay, \DateTimeImmutable $startsAtUtc, \DateTimeZone $clinicTimeZone, \DateTimeImmutable $now): void
+    {
+        if (null !== $this->reminderRequestedAt) {
+            return;
+        }
+
+        $planned = $delay->plannedFor($startsAtUtc, $clinicTimeZone);
+
+        if (null === $planned || $planned >= $now) {
+            $this->reminderDueAt = $planned;
+
+            return;
+        }
+
+        $stillUseful = $now <= $startsAtUtc->modify(ReminderDelay::LATEST_BEFORE_START);
+
+        $this->reminderDueAt = null !== $this->reminderDueAt && $stillUseful ? $now : null;
+    }
+
     /** No reminder for this appointment (cancelled, past, no SMS consent at send time). */
     public function dropReminder(): void
     {
