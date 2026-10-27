@@ -59,6 +59,51 @@ final class OutboundMessageEntityFactory extends PersistentObjectFactory
         ]);
     }
 
+    /**
+     * A message to a client, at whatever stage its history ends: the client
+     * journal mirrors it (the story records each status there).
+     *
+     * @param non-empty-list<array{status: string, at: \DateTimeImmutable, source: string, reason: ?string}> $history oldest first
+     */
+    public function clientMessage(string $clinicId, string $clientId, string $channel, string $purpose, string $address, string $name, string $subject, array $history): self
+    {
+        $id   = Uuid::v7();
+        $utc  = new \DateTimeZone('UTC');
+        $sent = array_values(array_filter($history, static fn (array $change): bool => 'SENT' === $change['status']))[0]['at'] ?? null;
+        $last = $history[\count($history) - 1];
+        $sms  = 'SMS' === $channel;
+
+        return $this->with([
+            'id'               => $id,
+            'clinicId'         => Uuid::fromString($clinicId),
+            'clientId'         => Uuid::fromString($clientId),
+            'channel'          => $channel,
+            'purpose'          => $purpose,
+            'criticality'      => 'APPOINTMENT_REMINDER' === $purpose ? 'NON_CRITICAL' : 'CRITICAL',
+            'recipientAddress' => $address,
+            'recipientName'    => $name,
+            'sender'           => ['name' => 'Clinique', 'email' => '', 'replyTo' => null, 'sms' => 'Kiveto'],
+            'subjectType'      => 'fixture',
+            'subjectId'        => $id->toRfc4122(),
+            'idempotencyKey'   => 'fixture:journal:' . $id->toRfc4122(),
+            'content'          => $sms
+                ? ['subject' => null, 'html' => null, 'text' => null, 'inlineLogoKey' => null, 'smsText' => $subject, 'encoding' => 'GSM-7', 'segments' => 1]
+                : ['subject' => $subject, 'html' => '<p>' . htmlspecialchars($subject) . '</p>', 'text' => $subject, 'inlineLogoKey' => null, 'smsText' => null, 'encoding' => null, 'segments' => 0],
+            'segments'          => $sms ? 1 : 0,
+            'status'            => $last['status'],
+            'externalMessageId' => null === $sent ? null : (string) self::faker()->numberBetween(100000000, 999999999),
+            'statusHistory'     => array_map(static fn (array $change): array => [
+                'status'     => $change['status'],
+                'occurredAt' => $change['at']->setTimezone($utc)->format(\DATE_ATOM),
+                'source'     => $change['source'],
+                'reason'     => $change['reason'],
+            ], $history),
+            'createdAt'       => $history[0]['at']->setTimezone($utc),
+            'sentAt'          => $sent?->setTimezone($utc),
+            'statusChangedAt' => $last['at']->setTimezone($utc),
+        ]);
+    }
+
     protected function defaults(): array|callable
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));

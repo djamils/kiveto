@@ -12,6 +12,7 @@ use App\Context\Billing\Application\Command\RemindUnpaidInvoices\RemindUnpaidInv
 use App\Context\Billing\Application\Command\SendInvoiceToClient\SendInvoiceToClient;
 use App\Context\Client\Application\Command\CreateClient\ContactMethodDto;
 use App\Context\Client\Application\Command\CreateClient\CreateClient;
+use App\Context\Client\Application\Command\RecordAutomatedCommunication\RecordAutomatedCommunication;
 use App\Context\Client\Application\Command\ReplaceClientContactMethods\ContactMethodDto as ReplacementContactMethod;
 use App\Context\Client\Application\Command\ReplaceClientContactMethods\ReplaceClientContactMethods;
 use App\Context\Client\Application\Command\UpdateClientCommunicationPreferences\UpdateClientCommunicationPreferences;
@@ -40,10 +41,12 @@ use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitation;
 use App\System\Notification\Application\Command\MarkInAppNotificationRead\MarkInAppNotificationRead;
 use App\System\Notification\Application\Query\GetSmsUsage\GetSmsUsage;
 use App\System\Notification\Application\Query\GetSmsUsage\SmsUsageView;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpKernel\DependencyInjection\ServicesResetterInterface;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerRunningEvent;
 use Symfony\Component\Messenger\EventListener\ResetServicesListener;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -63,8 +66,10 @@ use Zenstruck\Foundry\Story;
  *   (« plafond atteint »): their volume is seeded straight into the journal;
  * - client journals show every status: delivered, bounced (an address with
  *   « bounce@ »), rejected (a mobile ending in 0000), blocked by the cap (an
- *   SMS reminder in the Calanques), and a Lyon client whose SMS reminder was
- *   switched off gets none;
+ *   SMS reminder in the Calanques), and a Lyon client who switched her SMS
+ *   reminder off (her e-mail consents kept) gets none; Nathalie Perrin's
+ *   journal runs over a year and ends on the states a message can still be
+ *   in (« En cours », « Envoyé », « Différé ») and an « Échec »;
  * - the bell holds read and unread entries of every kind;
  * - Lyon's team shows « Invité » and « Invitation expirée », invited by
  *   Claire Lambert (admin.clinic@kiveto.local);
@@ -72,10 +77,12 @@ use Zenstruck\Foundry\Story;
  *   one sent once; Lyon keeps an unpaid invoice with an e-mail and a draft for
  *   the hands-on demo.
  *
- * Nothing is left on the queues for a dev worker: delayed messages (the
- * 2-minute appointment syncs, the simulator's delivery webhooks) are made due
- * and consumed in-process, and the « Nouveau RDV » notices of the bulk
- * fixture bookings — they were never booked by a colleague — are dropped.
+ * Nothing of the notification pipeline is left on the queues for a dev
+ * worker: its delayed messages (the 2-minute appointment syncs, the
+ * simulator's delivery webhooks) are made due and consumed in-process, and
+ * the « Nouveau RDV » notices of the bulk fixture bookings — they were never
+ * booked by a colleague — are dropped. The e-invoicing simulator's steps keep
+ * their own pace. A message that fails while draining fails the load.
  */
 final class NotificationDemoStory extends Story
 {
@@ -83,8 +90,26 @@ final class NotificationDemoStory extends Story
     private const string LYON      = ClinicDataStory::GROUP_CLINIC_ID;
     private const string CALANQUES = ClinicDataStory::CALM_CLINIC_ID;
 
+    /** Léa Bonnet's consents besides the appointment reminders. */
+    private const array LEA_EMAIL_CONSENTS = ['billing' => ['email'], 'clinical_documents' => ['email']];
+
     /** The Calanques overage cap, small enough for the seeded volume to reach it. */
     private const int CALANQUES_CAP = 50;
+
+    /**
+     * The messages drain() makes due at once, by namespace: the notification
+     * pipeline and the commands that request or follow its messages. Never
+     * the e-invoicing simulator's delayed steps.
+     */
+    private const array FAST_FORWARDED = [
+        'App\System\Notification\\',
+        'App\System\IdentityAccess\Application\Command\\',
+        'App\Context\Scheduling\Application\Command\\',
+        'App\Context\Billing\Application\Command\\',
+    ];
+
+    /** The e-invoicing simulator's steps, left on the queue at their own pace. */
+    private const string EINVOICING_STEP = 'App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow';
 
     private \DateTimeZone $paris;
 
@@ -111,6 +136,10 @@ final class NotificationDemoStory extends Story
 
     public function build(): void
     {
+        // Same journal, same phone numbers and names on every load.
+        \Zenstruck\Foundry\faker()->seed(20261027);
+        $failedBefore = $this->failedCount();
+
         // The bulk fixture bookings were not made by a colleague: no bell for them.
         $this->connection->executeStatement(
             "DELETE FROM shared__messenger_messages WHERE delivered_at IS NULL AND (body LIKE '%PostNewAppointmentNotice%' OR body LIKE '%WithdrawNewAppointmentNotice%')",
@@ -140,8 +169,17 @@ final class NotificationDemoStory extends Story
         $this->makeRemindersDue($reminded);
         $this->commandBus->dispatch(new RequestDueReminders());
         $this->drain();
+        $this->connection->executeStatement(
+            'DELETE FROM scheduling__clinic_settings WHERE clinic_id IN (:clinics)',
+            ['clinics' => array_map(static fn (string $id): string => Uuid::fromString($id)->toBinary(), [self::PARIS, self::LYON, self::CALANQUES])],
+            ['clinics' => ArrayParameterType::BINARY],
+        );
 
         $this->readSomeBellEntries();
+
+        if ($this->failedCount() !== $failedBefore) {
+            throw new \RuntimeException('The notifications demo sent messages to the `failed` queue.');
+        }
     }
 
     /**
@@ -160,22 +198,25 @@ final class NotificationDemoStory extends Story
         $julien = $this->client(self::LYON, 'mister', 'Julien', 'Marchal', email: null, mobile: '+33612340000', reminderChannels: ['sms'], animal: ['Rex', 'dog', 'Berger Allemand'], preferred: 'sms');
         $this->book(self::LYON, $eric, $julien, 4, 'Boiterie postérieur gauche', $admin);
 
-        // Confirmed by e-mail; she then asked for no SMS reminder.
-        $lea      = $this->client(self::LYON, 'madam', 'Léa', 'Bonnet', email: 'lea.bonnet@exemple.fr', mobile: '+33678451290', reminderChannels: ['sms'], animal: ['Caramel', 'nac', null]);
+        // Confirmed by e-mail; she then asked for no SMS reminder, her e-mail
+        // consents kept.
+        $lea      = $this->client(self::LYON, 'madam', 'Léa', 'Bonnet', email: 'lea.bonnet@exemple.fr', mobile: '+33678451290', reminderChannels: ['sms', 'email'], animal: ['Caramel', 'nac', null], otherConsents: self::LEA_EMAIL_CONSENTS);
         $leaVisit = $this->book(self::LYON, $eric, $lea, 2, 'Contrôle dentaire', $admin);
 
         // Confirmed by e-mail, reminded by SMS: both delivered.
         $nathalie      = $this->client(self::PARIS, 'madam', 'Nathalie', 'Perrin', email: 'nathalie.perrin@exemple.fr', mobile: '+33645127788', reminderChannels: ['sms'], animal: ['Gribouille', 'cat', 'Maine Coon']);
-        $nathalieVisit = $this->book(self::PARIS, $eric, $nathalie, 3, 'Rappel de vaccin', null);
+        $nathalieVisit = $this->book(self::PARIS, $eric, $nathalie, 1, 'Rappel de vaccin', null);
 
         // Calanques over its cap: the confirmation (critical) still goes out,
         // the reminder (non-critical, no e-mail to fall back on) is blocked.
         $marius      = $this->client(self::CALANQUES, 'mister', 'Marius', 'Fabre', email: null, mobile: '+33698123456', reminderChannels: ['sms'], animal: ['Pastis', 'dog', 'Épagneul Breton'], preferred: 'sms');
-        $mariusVisit = $this->book(self::CALANQUES, $eric, $marius, 3, 'Vaccination', null);
+        $mariusVisit = $this->book(self::CALANQUES, $eric, $marius, 1, 'Vaccination', null);
 
         $this->drain();
 
-        $this->commandBus->dispatch(new UpdateClientCommunicationPreferences(self::LYON, $lea, null, []));
+        $this->commandBus->dispatch(new UpdateClientCommunicationPreferences(self::LYON, $lea, null, ['appointment_reminders' => ['email']] + self::LEA_EMAIL_CONSENTS));
+
+        $this->longJournal($nathalie);
 
         return [$leaVisit, $nathalieVisit, $mariusVisit];
     }
@@ -420,9 +461,11 @@ final class NotificationDemoStory extends Story
         $sender = $this->connection->fetchOne('SELECT sms_sender FROM notification__clinic_messaging_profiles WHERE clinic_id = :clinic', ['clinic' => Uuid::fromString($clinicId)->toBinary()]);
         $sender = \is_string($sender) && '' !== $sender ? $sender : 'Kiveto';
 
-        $now        = new \DateTimeImmutable('now', $this->paris);
-        $monthStart = $now->modify('first day of this month')->setTime(8, 0);
-        $span       = max(60, $now->getTimestamp() - 3600 - $monthStart->getTimestamp());
+        $now = new \DateTimeImmutable('now', $this->paris);
+        // From midnight on the 1st up to an hour ago: never in the future, even
+        // early on the 1st (all at midnight then).
+        $monthStart = $now->modify('first day of this month')->setTime(0, 0);
+        $span       = max(0, $now->getTimestamp() - 3600 - $monthStart->getTimestamp());
         $parts      = [];
 
         // One message in five is a long one (two segments).
@@ -442,13 +485,25 @@ final class NotificationDemoStory extends Story
     }
 
     /**
+     * The send-time check replans each reminder from the appointment's start
+     * and the clinic's delay: for tomorrow's appointments to be reminded now,
+     * whatever the hour, the delay reads « 48 h » for the scan (the default
+     * « 24 h » is back right after it) and their reminder is marked due.
+     *
      * @param list<string> $appointmentIds
      */
     private function makeRemindersDue(array $appointmentIds): void
     {
+        foreach ([self::PARIS, self::LYON, self::CALANQUES] as $clinicId) {
+            $this->connection->executeStatement(
+                "INSERT INTO scheduling__clinic_settings (clinic_id, reminder_delay) VALUES (:clinic, 'H48')",
+                ['clinic' => Uuid::fromString($clinicId)->toBinary()],
+            );
+        }
+
         foreach ($appointmentIds as $appointmentId) {
             $this->connection->executeStatement(
-                'UPDATE scheduling__appointment_notifications SET reminder_due_at_utc = :due WHERE appointment_id = :id AND reminder_due_at_utc IS NOT NULL',
+                'UPDATE scheduling__appointment_notifications SET reminder_due_at_utc = :due WHERE appointment_id = :id',
                 ['due' => $this->utc('-1 minute'), 'id' => Uuid::fromString($appointmentId)->toBinary()],
             );
         }
@@ -489,8 +544,9 @@ final class NotificationDemoStory extends Story
     /**
      * @param list<string>                            $reminderChannels channels of the « Rappels de rendez-vous » consent
      * @param array{0: string, 1: string, 2: ?string} $animal           name, species, breed
+     * @param array<string, list<string>>             $otherConsents    the other consents, by kind
      */
-    private function client(string $clinicId, string $civility, string $firstName, string $lastName, ?string $email, ?string $mobile, array $reminderChannels, array $animal, ?string $preferred = null): string
+    private function client(string $clinicId, string $civility, string $firstName, string $lastName, ?string $email, ?string $mobile, array $reminderChannels, array $animal, ?string $preferred = null, array $otherConsents = []): string
     {
         $contacts = [];
 
@@ -509,7 +565,7 @@ final class NotificationDemoStory extends Story
             contactMethods: $contacts,
             civility: $civility,
             preferredChannel: $preferred,
-            channelsByConsentKind: [] !== $reminderChannels ? ['appointment_reminders' => $reminderChannels] : [],
+            channelsByConsentKind: ([] !== $reminderChannels ? ['appointment_reminders' => $reminderChannels] : []) + $otherConsents,
         ));
         \assert(\is_string($clientId));
 
@@ -582,31 +638,108 @@ final class NotificationDemoStory extends Story
     }
 
     /**
-     * Consumes everything the notification pipeline queued, delayed messages
-     * included (the 2-minute appointment syncs, the simulator's webhooks),
-     * until both queues are empty.
+     * Nathalie Perrin's journal at full length (directive 7): a year of
+     * delivered messages, then the states a message can still be in — « En
+     * cours », « Envoyé », « Différé » — and one « Échec ». Seeded straight
+     * into the Notification journal and mirrored into the client's.
+     */
+    private function longJournal(string $clientId): void
+    {
+        $email = 'nathalie.perrin@exemple.fr';
+        $sms   = '+33645127788';
+        $name  = 'Nathalie Perrin';
+        $at    = fn (string $when): \DateTimeImmutable => new \DateTimeImmutable($when, $this->paris);
+        $step  = static fn (\DateTimeImmutable $at, string $status, string $source = 'provider', ?string $reason = null): array => ['status' => $status, 'at' => $at, 'source' => $source, 'reason' => $reason];
+        $done  = static fn (\DateTimeImmutable $at): array => [$step($at, 'QUEUED', 'request'), $step($at->modify('+2 seconds'), 'SENT', 'dispatch'), $step($at->modify('+9 seconds'), 'DELIVERED')];
+
+        $messages = [];
+
+        // A year of appointments: confirmed by e-mail, reminded by SMS (earlier months only, outside this month's quota).
+        for ($month = 12; $month >= 2; --$month) {
+            $day        = $at(\sprintf('-%d months 10:15', $month));
+            $messages[] = ['EMAIL', 'APPOINTMENT_CONFIRMATION', $email, 'Rendez-vous confirmé — Gribouille, ' . $day->modify('+3 days')->format('d/m/Y'), $done($day)];
+            $messages[] = ['SMS', 'APPOINTMENT_REMINDER', $sms, 'Rappel de rendez-vous', $done($day->modify('+2 days 08:00'))];
+        }
+
+        $failed     = $at('-5 days 16:20');
+        $deferred   = $at('-1 day 18:05');
+        $sent       = $at('-20 minutes');
+        $queued     = $at('-3 minutes');
+        $messages[] = ['EMAIL', 'CONSULTATION_DOCUMENTS', $email, 'Documents de la consultation de Gribouille', [$step($failed, 'QUEUED', 'request'), $step($failed->modify('+3 seconds'), 'FAILED', 'dispatch', 'Refusé par le fournisseur (HTTP 400)')]];
+        $messages[] = ['EMAIL', 'INVOICE_SENT', $email, 'Votre facture — Clinique', [$step($deferred, 'QUEUED', 'request'), $step($deferred->modify('+2 seconds'), 'SENT', 'dispatch'), $step($deferred->modify('+40 seconds'), 'DEFERRED', 'provider', 'Boîte de réception pleine, nouvel essai en cours')]];
+        $messages[] = ['SMS', 'APPOINTMENT_REMINDER', $sms, 'Rappel de rendez-vous', [$step($sent, 'QUEUED', 'request'), $step($sent->modify('+2 seconds'), 'SENT', 'dispatch')]];
+        $messages[] = ['EMAIL', 'INVOICE_REMINDER', $email, 'Rappel : facture en attente de règlement', [$step($queued, 'QUEUED', 'request')]];
+
+        foreach ($messages as [$channel, $purpose, $address, $subject, $history]) {
+            $message = OutboundMessageEntityFactory::new()->clientMessage(self::PARIS, $clientId, $channel, $purpose, $address, $name, $subject, $history)->create();
+
+            foreach ($history as $i => $change) {
+                $this->commandBus->dispatch(new RecordAutomatedCommunication(
+                    notificationMessageId: $message->getId()->toRfc4122(),
+                    clinicId: self::PARIS,
+                    clientId: $clientId,
+                    channel: $channel,
+                    subject: $subject,
+                    recipientLabel: $name,
+                    status: $change['status'],
+                    occurredAt: $change['at']->format(\DATE_ATOM),
+                    sequence: $i + 1,
+                ));
+            }
+        }
+    }
+
+    /**
+     * Consumes what the notification pipeline queued, its delayed messages
+     * made due (the 2-minute appointment syncs, the simulator's webhooks),
+     * until nothing but the e-invoicing simulator's steps is left; fails when
+     * a message fails or the queues do not empty.
      */
     private function drain(): void
     {
-        for ($round = 0; $round < 10; ++$round) {
-            $pending = $this->connection->fetchOne("SELECT COUNT(*) FROM shared__messenger_messages WHERE delivered_at IS NULL AND queue_name IN ('default', 'external_notification')");
+        $fastForwarded = implode(' OR ', array_map(static fn (int $i): string => \sprintf('LOCATE(:p%d, body) > 0', $i), array_keys(self::FAST_FORWARDED)));
+        // The transport stores addslashes(serialize($envelope)).
+        $prefixes = [];
+        foreach (self::FAST_FORWARDED as $i => $prefix) {
+            $prefixes['p' . $i] = addslashes($prefix);
+        }
 
-            if (0 === RowAccessor::int(['n' => $pending], 'n')) {
+        for ($round = 0; $round < 20; ++$round) {
+            if (0 === $this->pendingCount()) {
                 return;
             }
 
             $this->connection->executeStatement(
-                "UPDATE shared__messenger_messages SET available_at = :now WHERE delivered_at IS NULL AND queue_name IN ('default', 'external_notification')",
-                ['now' => $this->utc('now')],
+                "UPDATE shared__messenger_messages SET available_at = :now WHERE delivered_at IS NULL AND queue_name IN ('default', 'external_notification') AND (" . $fastForwarded . ')',
+                ['now' => $this->utc('now'), ...$prefixes],
             );
 
             $this->consume($this->external);
             $this->consume($this->async);
         }
+
+        throw new \RuntimeException(\sprintf('%d messages are still queued after draining the notifications demo.', $this->pendingCount()));
+    }
+
+    /** Undelivered messages of the drained queues, the e-invoicing simulator's steps aside. */
+    private function pendingCount(): int
+    {
+        $count = $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM shared__messenger_messages WHERE delivered_at IS NULL AND queue_name IN ('default', 'external_notification') AND LOCATE(:step, body) = 0",
+            ['step' => addslashes(self::EINVOICING_STEP)],
+        );
+
+        return RowAccessor::int(['n' => $count], 'n');
+    }
+
+    private function failedCount(): int
+    {
+        return RowAccessor::int(['n' => $this->connection->fetchOne("SELECT COUNT(*) FROM shared__messenger_messages WHERE queue_name = 'failed'")], 'n');
     }
 
     private function consume(ReceiverInterface $receiver): void
     {
+        $failures   = [];
         $dispatcher = new EventDispatcher();
         $dispatcher->addSubscriber(new ResetServicesListener($this->servicesResetter));
         $dispatcher->addListener(WorkerRunningEvent::class, static function (WorkerRunningEvent $event): void {
@@ -614,8 +747,16 @@ final class NotificationDemoStory extends Story
                 $event->getWorker()->stop();
             }
         });
+        // No retry here: a failure is a broken demo, reported at once.
+        $dispatcher->addListener(WorkerMessageFailedEvent::class, static function (WorkerMessageFailedEvent $event) use (&$failures): void {
+            $failures[] = $event->getEnvelope()->getMessage()::class . ': ' . $event->getThrowable()->getMessage();
+        });
 
         new Worker([$receiver], $this->routableBus, $dispatcher)->run(['sleep' => 0]);
+
+        if ([] !== $failures) {
+            throw new \RuntimeException("Messages failed while draining the notifications demo:\n" . implode("\n", $failures));
+        }
     }
 
     private function userId(string $email): string
