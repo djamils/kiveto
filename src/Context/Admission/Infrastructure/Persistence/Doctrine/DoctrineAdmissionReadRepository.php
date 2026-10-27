@@ -8,6 +8,7 @@ use App\Context\Admission\Application\Port\AdmissionContextDto;
 use App\Context\Admission\Application\Port\AdmissionReadRepositoryInterface;
 use App\Context\Admission\Application\Port\ArrivalCheckInView;
 use App\Context\Admission\Application\Port\WaitingRoomItemDto;
+use App\Context\Admission\Application\Query\GetAdmissionVisit\AdmissionVisitView;
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
 use App\Context\Admission\Domain\ValueObject\ArrivalCheckIn;
 use App\Context\Admission\Domain\ValueObject\LocationStatusValue;
@@ -155,6 +156,26 @@ final readonly class DoctrineAdmissionReadRepository implements AdmissionReadRep
             patientId: $entity->getPatientId()->toString(),
             clinicId: $entity->getClinicId()->toString(),
         );
+    }
+
+    public function findVisit(string $clinicId, string $admissionId): ?AdmissionVisitView
+    {
+        if (!Uuid::isValid($clinicId) || !Uuid::isValid($admissionId)) {
+            return null;
+        }
+
+        $entity = $this->entityManager->getRepository(AdmissionEntity::class)->findOneBy([
+            'id'       => Uuid::fromString($admissionId),
+            'clinicId' => Uuid::fromString($clinicId),
+        ]);
+
+        return null !== $entity
+            ? new AdmissionVisitView(
+                admissionId: $entity->getId()->toString(),
+                patientId: $entity->getPatientId()->toString(),
+                openedAt: $entity->getOpenedAt()->setTimezone(new \DateTimeZone('UTC')),
+            )
+            : null;
     }
 
     /**

@@ -748,6 +748,9 @@ services:
     App\Context\Billing\Application\Port\ClinicDocumentContextInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentContext
 
+    App\Context\Billing\Application\Port\ClinicTimeZoneInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusClinicTimeZone
+
     App\Context\Billing\Application\Port\InvoicePdfRendererInterface:
         class: App\Context\Billing\Infrastructure\Document\InvoicePdfRenderer
 
@@ -767,7 +770,7 @@ services:
         class: App\Context\Billing\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
 
     App\Context\Billing\Application\Port\VisitDirectoryInterface:
-        class: App\Context\Billing\Infrastructure\Adapter\Admission\DbalVisitDirectory
+        class: App\Context\Billing\Infrastructure\Adapter\Admission\QueryBusVisitDirectory
 
     App\Context\Billing\Application\Port\DispatchJobsInterface:
         class: App\Context\Billing\Infrastructure\Messaging\MessengerDispatchJobs

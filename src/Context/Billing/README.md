@@ -172,7 +172,10 @@ Ports: `ClientContactInterface` (Client `GetClientNotificationContact` /
 `NotificationRequesterInterface`, `SmsSegmentEstimatorInterface`,
 `DeliveryStatusReaderInterface` (Notification, under
 `Infrastructure/Adapter/{Client,Notification}/`), `VisitDirectoryInterface`
-(visit label), `InvoicePdfRendererInterface` (D5: invoice and credit-note
+(visit label: Admission `GetAdmissionVisit` → Patient `GetPatientAnimalLink` →
+Animal `GetAnimalById`, `Infrastructure/Adapter/Admission/QueryBusVisitDirectory`),
+`ClinicTimeZoneInterface` (Clinic `GetClinic`: the day of a visit in the clinic's
+time zone; invoice dates stay the fiscal Europe/Paris ones the invoice prints), `InvoicePdfRendererInterface` (D5: invoice and credit-note
 PDFs, `Infrastructure/Document/InvoicePdfRenderer`), `ClinicDocumentContextInterface`,
 `SentDocumentFileStoreInterface`, `DispatchJobsInterface` (Messenger).
 

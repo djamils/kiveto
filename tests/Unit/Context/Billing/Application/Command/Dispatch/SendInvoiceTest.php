@@ -24,6 +24,7 @@ use App\Tests\Unit\Context\Billing\Support\FakeClientContacts;
 use App\Tests\Unit\Context\Billing\Support\FakeInvoicePdfRenderer;
 use App\Tests\Unit\Context\Billing\Support\FakeInvoiceReads;
 use App\Tests\Unit\Context\Billing\Support\FakeVisits;
+use App\Tests\Unit\Context\Billing\Support\FixedClinicTimeZone;
 use App\Tests\Unit\Context\Billing\Support\InMemoryDispatches;
 use App\Tests\Unit\Context\Billing\Support\InMemorySentFiles;
 use App\Tests\Unit\Context\Billing\Support\Invoices;
@@ -178,7 +179,7 @@ final class SendInvoiceTest extends TestCase
             $this->contacts,
             new FakeVisits(),
             new SentInvoiceFiles($this->sentFiles, $this->renderer, $this->storage, $this->clock()),
-            new InvoiceMessages(),
+            new InvoiceMessages(new FixedClinicTimeZone()),
             $this->notifications,
         );
     }

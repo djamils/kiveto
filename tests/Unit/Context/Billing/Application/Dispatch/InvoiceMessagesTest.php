@@ -14,6 +14,7 @@ use App\Context\Billing\Domain\Dispatch\InvoiceDispatchId;
 use App\Context\Billing\Domain\ValueObject\ClinicId;
 use App\Context\Billing\Domain\ValueObject\InvoiceId;
 use App\Tests\Unit\Context\Billing\Support\FakeClientContacts;
+use App\Tests\Unit\Context\Billing\Support\FixedClinicTimeZone;
 use App\Tests\Unit\Context\Billing\Support\Invoices;
 use PHPUnit\Framework\TestCase;
 
@@ -24,7 +25,7 @@ final class InvoiceMessagesTest extends TestCase
     public function testTheInvoiceEmailWithABalanceDue(): void
     {
         $file    = new SentDocumentFile('billing/sent/invoice/x.pdf', 'FAC-2026-000814.pdf');
-        $message = new InvoiceMessages()->sent($this->dispatch(['EMAIL']), Invoices::issued(due: 4000), FakeClientContacts::contact(), $this->visit('Minou'), $file);
+        $message = new InvoiceMessages(new FixedClinicTimeZone())->sent($this->dispatch(['EMAIL']), Invoices::issued(due: 4000), FakeClientContacts::contact(), $this->visit('Minou'), $file);
 
         self::assertSame(['INVOICE_SENT', 'EMAIL', 's.dubois@email.fr', 'Sophie Dubois'], [$message->purpose, $message->channel, $message->recipientAddress, $message->recipientName]);
         self::assertSame([Invoices::CLINIC, Invoices::CLIENT, Invoices::INVOICE], [$message->clinicId, $message->clientId, $message->invoiceId]);
@@ -44,15 +45,27 @@ final class InvoiceMessagesTest extends TestCase
 
     public function testASettledInvoiceAndAVisitWithoutAnimal(): void
     {
-        $message = new InvoiceMessages()->sent($this->dispatch(['EMAIL']), Invoices::issued(status: 'PAID', due: 0), FakeClientContacts::contact(), $this->visit(null), new SentDocumentFile('k', 'f.pdf'));
+        $message = new InvoiceMessages(new FixedClinicTimeZone())->sent($this->dispatch(['EMAIL']), Invoices::issued(status: 'PAID', due: 0), FakeClientContacts::contact(), $this->visit(null), new SentDocumentFile('k', 'f.pdf'));
 
         self::assertSame('', $message->parameters['balanceDue']);
         self::assertSame('la consultation du 16 octobre 2026', $message->parameters['purchaseLabel']);
     }
 
+    public function testTheVisitIsDatedInTheClinicTimeZoneTheInvoiceInItsFiscalOne(): void
+    {
+        // Opened 16/10 02:30 UTC: still 15/10 in Cayenne; the invoice keeps the date it prints (Paris).
+        $visit    = new VisitSummary(null, new \DateTimeImmutable('2026-10-16 02:30:00', new \DateTimeZone('UTC')));
+        $messages = new InvoiceMessages(new FixedClinicTimeZone('America/Cayenne'));
+        $sent     = $messages->sent($this->dispatch(['EMAIL']), Invoices::issued(), FakeClientContacts::contact(), $visit, new SentDocumentFile('k', 'f.pdf'));
+        $reminder = $messages->reminderEmail($this->dispatch(['EMAIL']), Invoices::issued(), FakeClientContacts::contact(), $visit, new SentDocumentFile('k', 'f.pdf'));
+
+        self::assertSame(['la consultation du 15 octobre 2026', '16/10/2026'], [$sent->parameters['purchaseLabel'], $sent->parameters['invoiceDate']]);
+        self::assertSame('des soins du 15/10/2026', $reminder->parameters['careLabel']);
+    }
+
     public function testACounterSaleIsAPurchase(): void
     {
-        $message = new InvoiceMessages()->sent($this->dispatch(['EMAIL']), Invoices::issued(admission: null, issuedAt: null), FakeClientContacts::contact(), null, new SentDocumentFile('k', 'f.pdf'));
+        $message = new InvoiceMessages(new FixedClinicTimeZone())->sent($this->dispatch(['EMAIL']), Invoices::issued(admission: null, issuedAt: null), FakeClientContacts::contact(), null, new SentDocumentFile('k', 'f.pdf'));
 
         // Created 15/10 22:30 UTC: 16/10 in Paris.
         self::assertSame('vos achats du 16/10/2026', $message->parameters['purchaseLabel']);
@@ -62,13 +75,13 @@ final class InvoiceMessagesTest extends TestCase
     public function testADraftIsNeverSent(): void
     {
         $this->expectException(\LogicException::class);
-        new InvoiceMessages()->sent($this->dispatch(['EMAIL']), Invoices::issued(number: null), FakeClientContacts::contact(), null, new SentDocumentFile('k', 'f.pdf'));
+        new InvoiceMessages(new FixedClinicTimeZone())->sent($this->dispatch(['EMAIL']), Invoices::issued(number: null), FakeClientContacts::contact(), null, new SentDocumentFile('k', 'f.pdf'));
     }
 
     public function testTheReminderEmailCarriesThePdf(): void
     {
         $file    = new SentDocumentFile('k', 'f.pdf');
-        $message = new InvoiceMessages()->reminderEmail($this->dispatch(['EMAIL', 'SMS']), Invoices::issued(total: 6450, due: 2450), FakeClientContacts::contact(), $this->visit('Cookie'), $file);
+        $message = new InvoiceMessages(new FixedClinicTimeZone())->reminderEmail($this->dispatch(['EMAIL', 'SMS']), Invoices::issued(total: 6450, due: 2450), FakeClientContacts::contact(), $this->visit('Cookie'), $file);
 
         self::assertSame(['INVOICE_REMINDER', 'EMAIL', 'invoice:' . Invoices::INVOICE . ':reminder:' . self::DISPATCH . ':email'], [$message->purpose, $message->channel, $message->idempotencyKey]);
         self::assertSame($file, $message->attachment);
@@ -85,7 +98,7 @@ final class InvoiceMessagesTest extends TestCase
 
     public function testCareLabelsWithoutAnimalOrVisit(): void
     {
-        $messages = new InvoiceMessages();
+        $messages = new InvoiceMessages(new FixedClinicTimeZone());
 
         self::assertSame('des soins du 16/10/2026', $messages->reminderEmail($this->dispatch(['EMAIL']), Invoices::issued(), FakeClientContacts::contact(), $this->visit(null), new SentDocumentFile('k', 'f.pdf'))->parameters['careLabel']);
         self::assertSame('de vos achats du 16/10/2026', $messages->reminderEmail($this->dispatch(['EMAIL']), Invoices::issued(admission: null), FakeClientContacts::contact(), null, new SentDocumentFile('k', 'f.pdf'))->parameters['careLabel']);
@@ -93,7 +106,7 @@ final class InvoiceMessagesTest extends TestCase
 
     public function testTheReminderSmsFallsBackOnEmailOnlyWhenEmailIsNotAlreadyAChannel(): void
     {
-        $messages = new InvoiceMessages();
+        $messages = new InvoiceMessages(new FixedClinicTimeZone());
         $alone    = $messages->reminderSms($this->dispatch(['SMS']), Invoices::issued(due: 6450), FakeClientContacts::contact(), $this->visit('Cookie'));
 
         self::assertSame(['INVOICE_REMINDER', 'SMS', '+33612345678', 'invoice:' . Invoices::INVOICE . ':reminder:' . self::DISPATCH . ':sms'], [$alone->purpose, $alone->channel, $alone->recipientAddress, $alone->idempotencyKey]);

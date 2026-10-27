@@ -6,7 +6,8 @@ namespace App\Context\Billing\Application\Dispatch;
 
 /**
  * Amounts, rates and dates of invoice messages, in French. Dates are read in
- * Europe/Paris, like the invoice's own dates.
+ * Europe/Paris, like the invoice's own (fiscal) dates, unless a time zone is
+ * given — the clinic's, for the day of a visit.
  */
 final class InvoiceLabels
 {
@@ -29,27 +30,27 @@ final class InvoiceLabels
     }
 
     /** « 16/10/2026 ». */
-    public static function date(\DateTimeImmutable $at): string
+    public static function date(\DateTimeImmutable $at, ?\DateTimeZone $zone = null): string
     {
-        return self::local($at)->format('d/m/Y');
+        return self::local($at, $zone)->format('d/m/Y');
     }
 
     /** « 16/10 » (SMS). */
-    public static function shortDate(\DateTimeImmutable $at): string
+    public static function shortDate(\DateTimeImmutable $at, ?\DateTimeZone $zone = null): string
     {
-        return self::local($at)->format('d/m');
+        return self::local($at, $zone)->format('d/m');
     }
 
     /** « 16 octobre 2026 ». */
-    public static function longDate(\DateTimeImmutable $at): string
+    public static function longDate(\DateTimeImmutable $at, ?\DateTimeZone $zone = null): string
     {
-        $local = self::local($at);
+        $local = self::local($at, $zone);
 
         return $local->format('j') . ' ' . self::MONTHS[(int) $local->format('n')] . ' ' . $local->format('Y');
     }
 
-    private static function local(\DateTimeImmutable $at): \DateTimeImmutable
+    private static function local(\DateTimeImmutable $at, ?\DateTimeZone $zone): \DateTimeImmutable
     {
-        return $at->setTimezone(new \DateTimeZone(self::ZONE));
+        return $at->setTimezone($zone ?? new \DateTimeZone(self::ZONE));
     }
 }

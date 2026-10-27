@@ -6,6 +6,7 @@ namespace App\Context\Billing\Application\Dispatch;
 
 use App\Context\Billing\Application\Command\EnsureSentInvoiceFile\SentDocumentFile;
 use App\Context\Billing\Application\Port\ClientContact;
+use App\Context\Billing\Application\Port\ClinicTimeZoneInterface;
 use App\Context\Billing\Application\Port\InvoiceMessage;
 use App\Context\Billing\Application\Port\VisitSummary;
 use App\Context\Billing\Application\Query\GetInvoiceDetails\InvoiceDetails;
@@ -15,10 +16,16 @@ use App\Context\Billing\Domain\Dispatch\InvoiceDispatch;
  * Composes the invoice messages with exactly the parameters Notification's
  * templates declare (INVOICE_SENT e-mail, INVOICE_REMINDER e-mail and SMS).
  * Amounts are the invoice's current ones: the stored PDF is the invoice as
- * first sent, the message always tells what is left to pay now.
+ * first sent, the message always tells what is left to pay now. Invoice
+ * dates are the fiscal ones the invoice prints (Europe/Paris); the day of a
+ * visit is the clinic's.
  */
-final class InvoiceMessages
+final readonly class InvoiceMessages
 {
+    public function __construct(private ClinicTimeZoneInterface $timeZones)
+    {
+    }
+
     public function sent(InvoiceDispatch $dispatch, InvoiceDetails $invoice, ClientContact $contact, ?VisitSummary $visit, SentDocumentFile $file): InvoiceMessage
     {
         \assert(null !== $contact->email);
@@ -48,7 +55,7 @@ final class InvoiceMessages
                 'addressee'     => $contact->addressee,
                 'invoiceNumber' => self::number($invoice),
                 'invoiceDate'   => InvoiceLabels::date(self::issuedAt($invoice)),
-                'purchaseLabel' => self::purchase($invoice, $visit),
+                'purchaseLabel' => $this->purchase($invoice, $visit),
                 'vatLabels'     => $vatLabels,
                 'vatAmounts'    => $vatAmounts,
                 'total'         => InvoiceLabels::euros($invoice->totalGrossMinorUnits),
@@ -72,7 +79,7 @@ final class InvoiceMessages
             clientId: $contact->clientId,
             invoiceId: $invoice->id,
             idempotencyKey: self::reminderKey($dispatch, $invoice, 'email'),
-            parameters: self::reminderEmailParameters($invoice, $contact, $visit),
+            parameters: $this->reminderEmailParameters($invoice, $contact, $visit),
             attachment: $file,
         );
     }
@@ -99,7 +106,7 @@ final class InvoiceMessages
             idempotencyKey: self::reminderKey($dispatch, $invoice, 'sms'),
             parameters: self::reminderSmsParameters(self::number($invoice), self::issuedAt($invoice), $invoice->balanceDueMinorUnits),
             fallbackAddress: $fallback ? $contact->email : null,
-            fallbackParameters: $fallback ? self::reminderEmailParameters($invoice, $contact, $visit) : null,
+            fallbackParameters: $fallback ? $this->reminderEmailParameters($invoice, $contact, $visit) : null,
         );
     }
 
@@ -121,7 +128,7 @@ final class InvoiceMessages
     /**
      * @return array<string, string>
      */
-    private static function reminderEmailParameters(InvoiceDetails $invoice, ClientContact $contact, ?VisitSummary $visit): array
+    private function reminderEmailParameters(InvoiceDetails $invoice, ClientContact $contact, ?VisitSummary $visit): array
     {
         $due = max(0, $invoice->balanceDueMinorUnits);
 
@@ -129,7 +136,7 @@ final class InvoiceMessages
             'addressee'     => $contact->addressee,
             'invoiceNumber' => self::number($invoice),
             'invoiceDate'   => InvoiceLabels::date(self::issuedAt($invoice)),
-            'careLabel'     => self::care($invoice, $visit),
+            'careLabel'     => $this->care($invoice, $visit),
             'total'         => InvoiceLabels::euros($invoice->totalGrossMinorUnits),
             'paid'          => InvoiceLabels::euros(max(0, $invoice->totalGrossMinorUnits - $due)),
             'balanceDue'    => InvoiceLabels::euros($due),
@@ -142,19 +149,21 @@ final class InvoiceMessages
     }
 
     /** « la consultation de Minou du 16 octobre 2026 », « vos achats du 16/10/2026 ». */
-    private static function purchase(InvoiceDetails $invoice, ?VisitSummary $visit): string
+    private function purchase(InvoiceDetails $invoice, ?VisitSummary $visit): string
     {
         if (null === $visit) {
             return 'vos achats du ' . InvoiceLabels::date(self::issuedAt($invoice));
         }
 
+        $day = InvoiceLabels::longDate($visit->openedAt, $this->timeZones->of($invoice->clinicId));
+
         return null !== $visit->animalName
-            ? \sprintf('la consultation de %s du %s', $visit->animalName, InvoiceLabels::longDate($visit->openedAt))
-            : 'la consultation du ' . InvoiceLabels::longDate($visit->openedAt);
+            ? \sprintf('la consultation de %s du %s', $visit->animalName, $day)
+            : 'la consultation du ' . $day;
     }
 
     /** « la facture des soins de Cookie », « la facture de vos achats du 04/09/2026 ». */
-    private static function care(InvoiceDetails $invoice, ?VisitSummary $visit): string
+    private function care(InvoiceDetails $invoice, ?VisitSummary $visit): string
     {
         if (null === $visit) {
             return 'de vos achats du ' . InvoiceLabels::date(self::issuedAt($invoice));
@@ -162,7 +171,7 @@ final class InvoiceMessages
 
         return null !== $visit->animalName
             ? 'des soins de ' . $visit->animalName
-            : 'des soins du ' . InvoiceLabels::date($visit->openedAt);
+            : 'des soins du ' . InvoiceLabels::date($visit->openedAt, $this->timeZones->of($invoice->clinicId));
     }
 
     private static function number(InvoiceDetails $invoice): string

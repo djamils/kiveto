@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Context\Billing\Infrastructure\Adapter\Admission;
 
 use App\Context\Admission\Domain\ValueObject\AdmissionStatus;
-use App\Context\Billing\Infrastructure\Adapter\Admission\DbalVisitDirectory;
+use App\Context\Billing\Infrastructure\Adapter\Admission\QueryBusVisitDirectory;
 use App\Fixtures\Context\Admission\Factory\AdmissionEntityFactory;
 use App\Fixtures\Context\Animal\Factory\AnimalEntityFactory;
 use App\Fixtures\Context\Patient\Factory\PatientEntityFactory;
-use Doctrine\DBAL\Connection;
+use App\Shared\Application\Bus\QueryBusInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
-final class DbalVisitDirectoryTest extends KernelTestCase
+/**
+ * The visit chain admission → patient → animal through the public queries
+ * of Admission, Patient and Animal, on the real query bus.
+ */
+final class QueryBusVisitDirectoryTest extends KernelTestCase
 {
     use Factories;
 
@@ -32,8 +36,10 @@ final class DbalVisitDirectoryTest extends KernelTestCase
 
         self::assertNotNull($visit);
         self::assertSame('Minou', $visit->animalName);
-        self::assertSame('2026-10-16 07:45:00', $visit->openedAt->format('Y-m-d H:i:s'));
-        self::assertNull($this->directory()->visitOf(self::OTHER, self::ADMISSION));
+        self::assertSame('2026-10-16 07:45:00 UTC', $visit->openedAt->format('Y-m-d H:i:s T'));
+        self::assertNull($this->directory()->visitOf(self::OTHER, self::ADMISSION), 'An admission of another clinic is unknown.');
+        self::assertNull($this->directory()->visitOf(self::CLINIC, 'not-a-uuid'));
+        self::assertNull($this->directory()->visitOf(self::CLINIC, self::PATIENT));
     }
 
     public function testAnUnidentifiedAnimalHasNoName(): void
@@ -41,6 +47,17 @@ final class DbalVisitDirectoryTest extends KernelTestCase
         $this->admission(null);
 
         self::assertNull($this->directory()->visitOf(self::CLINIC, self::ADMISSION)?->animalName);
+    }
+
+    public function testAnAnimalOfAnotherClinicHasNoName(): void
+    {
+        AnimalEntityFactory::new()->withId(self::ANIMAL)->withClinicId(self::OTHER)->withName('Minou')->create();
+        $this->admission(self::ANIMAL);
+
+        $visit = $this->directory()->visitOf(self::CLINIC, self::ADMISSION);
+
+        self::assertNotNull($visit);
+        self::assertNull($visit->animalName);
     }
 
     private function admission(?string $animal): void
@@ -56,11 +73,11 @@ final class DbalVisitDirectoryTest extends KernelTestCase
         ;
     }
 
-    private function directory(): DbalVisitDirectory
+    private function directory(): QueryBusVisitDirectory
     {
-        $connection = self::getContainer()->get(Connection::class);
-        \assert($connection instanceof Connection);
+        $queryBus = self::getContainer()->get(QueryBusInterface::class);
+        \assert($queryBus instanceof QueryBusInterface);
 
-        return new DbalVisitDirectory($connection);
+        return new QueryBusVisitDirectory($queryBus);
     }
 }

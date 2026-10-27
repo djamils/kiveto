@@ -58,6 +58,7 @@ The **Admission BC** manages the intake episode of a patient at the clinic. It r
 - **Admission publishes** `AdmissionClosed` domain event → bridge converts to `AdmissionClosedIntegrationEvent` → **Regulatory BC** closes StrayCustody on `HandedToMunicipality`
 - **Admission consumes** `PatientReconciledIntoIntegrationEvent` from Patient BC → re-points `patient_id` on affected admissions
 - **Consultation BC** references `admissionId` (non-nullable, cross-BC raw UUID)
+- **Query `GetAdmissionVisit(clinicId, admissionId)`** → `AdmissionVisitView{admissionId, patientId, openedAt (UTC)}` or null (unknown to the clinic, malformed id): how Billing names the visit an invoice charges
 
 ## Architecture
 

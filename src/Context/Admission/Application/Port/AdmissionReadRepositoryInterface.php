@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Context\Admission\Application\Port;
 
+use App\Context\Admission\Application\Query\GetAdmissionVisit\AdmissionVisitView;
+
 interface AdmissionReadRepositoryInterface
 {
     /**
@@ -30,4 +32,7 @@ interface AdmissionReadRepositoryInterface
     public function findClosedForClinicSince(string $clinicId, \DateTimeImmutable $since): array;
 
     public function getAdmissionContext(string $admissionId): AdmissionContextDto;
+
+    /** The admission of this clinic, or null when unknown to it (or a malformed id). */
+    public function findVisit(string $clinicId, string $admissionId): ?AdmissionVisitView;
 }
