@@ -6,6 +6,7 @@ namespace App\Context\Client\Application\Query\GetClientsNotificationContacts;
 
 use App\Context\Client\Application\Port\ClientNotificationContactReaderInterface;
 use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
+use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContactHandler;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -19,13 +20,15 @@ final readonly class GetClientsNotificationContactsHandler
     }
 
     /**
+     * Malformed ids are absent from the result, like unknown ones.
+     *
      * @return array<string, ClientNotificationContact>
      */
     public function __invoke(GetClientsNotificationContacts $query): array
     {
         $clientIds = array_values(array_unique(array_map(
             static fn (string $id): string => ClientId::fromString($id)->toString(),
-            $query->clientIds,
+            array_filter($query->clientIds, GetClientNotificationContactHandler::isUuid(...)),
         )));
 
         if ([] === $clientIds) {

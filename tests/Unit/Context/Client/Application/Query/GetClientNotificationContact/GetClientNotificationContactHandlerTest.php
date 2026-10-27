@@ -40,6 +40,19 @@ final class GetClientNotificationContactHandlerTest extends TestCase
         self::assertCount(1, $reader->calls, 'no query for an empty list');
     }
 
+    public function testAMalformedIdIsAnUnknownClient(): void
+    {
+        $reader = $this->reader();
+
+        self::assertNull(new GetClientNotificationContactHandler($reader)(new GetClientNotificationContact(self::CLINIC_ID, 'not-a-uuid')));
+        self::assertSame(
+            [self::CLIENT_A],
+            array_keys(new GetClientsNotificationContactsHandler($reader)(new GetClientsNotificationContacts(self::CLINIC_ID, ['not-a-uuid', self::CLIENT_A]))),
+        );
+        self::assertSame([], new GetClientsNotificationContactsHandler($reader)(new GetClientsNotificationContacts(self::CLINIC_ID, ['12'])));
+        self::assertSame([[self::CLINIC_ID, [self::CLIENT_A]]], $reader->calls, 'malformed ids never reach the query');
+    }
+
     private function reader(): RecordingContactReader
     {
         return new RecordingContactReader([self::CLIENT_A, self::CLIENT_B]);

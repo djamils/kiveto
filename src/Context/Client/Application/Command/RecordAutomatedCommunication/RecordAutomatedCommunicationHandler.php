@@ -49,14 +49,32 @@ final readonly class RecordAutomatedCommunicationHandler
             return;
         }
 
-        $status = DeliveryStatus::from($command->status);
-        $at     = new \DateTimeImmutable($command->occurredAt)->setTimezone(new \DateTimeZone('UTC'));
+        // A status or channel this mirror does not know yet (Notification
+        // grew one) is skipped, not retried until the message fails.
+        $status  = DeliveryStatus::tryFrom($command->status);
+        $channel = match ($command->channel) {
+            'SMS'   => ContactChannel::SMS,
+            'EMAIL' => ContactChannel::EMAIL,
+            default => null,
+        };
+
+        if (null === $status || null === $channel) {
+            $this->logger->warning('Automated message {message} reported an unknown status {status} or channel {channel}: not journaled.', [
+                'message' => $command->notificationMessageId,
+                'status'  => $command->status,
+                'channel' => $command->channel,
+            ]);
+
+            return;
+        }
+
+        $at = new \DateTimeImmutable($command->occurredAt)->setTimezone(new \DateTimeZone('UTC'));
 
         $entry = ClientCommunication::recordAutomated(
             id: ClientCommunicationId::fromString($this->uuidGenerator->generate()),
             clinicId: $clinicId,
             clientId: $clientId,
-            channel: 'SMS' === $command->channel ? ContactChannel::SMS : ContactChannel::EMAIL,
+            channel: $channel,
             subject: $command->subject,
             body: '' === trim($command->recipientLabel) ? null : 'Destinataire : ' . trim($command->recipientLabel),
             notificationMessageId: $command->notificationMessageId,
@@ -70,7 +88,12 @@ final readonly class RecordAutomatedCommunicationHandler
         }
 
         $existing = $this->communicationRepository->findByNotificationMessageIdForUpdate($command->notificationMessageId);
-        \assert(null !== $existing, 'the entry exists: the insert above found its unique key taken');
+
+        if (null === $existing) {
+            // The insert found the unique key taken, yet nothing carries it: the
+            // message is retried rather than its status lost.
+            throw new \LogicException(\sprintf('The journal entry of automated message %s could not be read back.', $command->notificationMessageId));
+        }
 
         if ($existing->recordDeliveryStatus($status, $command->sequence, $at)) {
             $this->communicationRepository->save($existing);

@@ -9,6 +9,7 @@ use App\Context\Client\Application\Command\RecordAutomatedCommunication\RecordAu
 use App\Context\Client\Domain\Client;
 use App\Context\Client\Domain\ClientCommunication;
 use App\Context\Client\Domain\Exception\ClientNotFoundException;
+use App\Context\Client\Domain\Repository\ClientCommunicationRepositoryInterface;
 use App\Context\Client\Domain\Repository\ClientRepositoryInterface;
 use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClientIdentity;
@@ -21,6 +22,7 @@ use App\Context\Client\Domain\ValueObject\ContactMethod;
 use App\Context\Client\Domain\ValueObject\DeliveryStatus;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\ValueObject\EmailAddress;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -95,7 +97,39 @@ final class RecordAutomatedCommunicationHandlerTest extends TestCase
         self::assertSame([], $this->journal->entries);
     }
 
-    private function handler(?ClientRepositoryInterface $clients = null, ?LoggerInterface $logger = null): RecordAutomatedCommunicationHandler
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideAnUnknownStatusOrChannelIsSkippedWithAWarningCases(): iterable
+    {
+        yield 'a status the mirror does not know' => ['EMAIL', 'OPENED'];
+        yield 'a channel the mirror does not know' => ['PUSH', 'SENT'];
+    }
+
+    #[DataProvider('provideAnUnknownStatusOrChannelIsSkippedWithAWarningCases')]
+    public function testAnUnknownStatusOrChannelIsSkippedWithAWarning(string $channel, string $status): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(self::stringContains('unknown status'));
+
+        $this->handler(logger: $logger)(new RecordAutomatedCommunication(self::MESSAGE_ID, self::CLINIC_ID, self::CLIENT_ID, $channel, 'Rappel', 'Hélène Lambert', $status, '2026-10-26T09:42:00+00:00', 1));
+
+        self::assertSame([], $this->journal->entries);
+    }
+
+    public function testAnEntryThatCannotBeReadBackAfterATakenKeyFailsLoudly(): void
+    {
+        $journal = $this->createStub(ClientCommunicationRepositoryInterface::class);
+        $journal->method('addIfAbsent')->willReturn(false);
+        $journal->method('findByNotificationMessageIdForUpdate')->willReturn(null);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('could not be read back');
+
+        $this->handler(journal: $journal)($this->command('SENT', 2, '2026-10-26T09:42:05+00:00'));
+    }
+
+    private function handler(?ClientRepositoryInterface $clients = null, ?LoggerInterface $logger = null, ?ClientCommunicationRepositoryInterface $journal = null): RecordAutomatedCommunicationHandler
     {
         if (null === $clients) {
             $clients = $this->createStub(ClientRepositoryInterface::class);
@@ -105,7 +139,7 @@ final class RecordAutomatedCommunicationHandlerTest extends TestCase
         $uuids = $this->createStub(UuidGeneratorInterface::class);
         $uuids->method('generate')->willReturn('0192a000-0000-7000-8000-000000000101');
 
-        return new RecordAutomatedCommunicationHandler($clients, $this->journal, $uuids, $logger ?? new NullLogger());
+        return new RecordAutomatedCommunicationHandler($clients, $journal ?? $this->journal, $uuids, $logger ?? new NullLogger());
     }
 
     private function command(string $status, int $sequence, string $at): RecordAutomatedCommunication
