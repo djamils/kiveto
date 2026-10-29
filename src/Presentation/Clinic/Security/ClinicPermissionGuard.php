@@ -19,6 +19,7 @@ final readonly class ClinicPermissionGuard
 {
     public const string MANAGE_STAFF   = 'manage_staff';
     public const string MANAGE_BILLING = 'manage_billing';
+    public const string MANAGE_CLIENTS = 'manage_clients';
 
     public function __construct(
         private QueryBusInterface $queryBus,
@@ -47,10 +48,16 @@ final readonly class ClinicPermissionGuard
      */
     public function permissions(): array
     {
-        $user     = $this->security->getUser();
+        $user = $this->security->getUser();
+
+        // Without a signed-in member there is no clinic session to read either.
+        if (!$user instanceof SecurityUser) {
+            return [];
+        }
+
         $clinicId = $this->currentClinicContext->getCurrentClinicId();
 
-        if (!$user instanceof SecurityUser || null === $clinicId) {
+        if (null === $clinicId) {
             return [];
         }
 

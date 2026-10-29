@@ -8,7 +8,9 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Presentation\Api\Portal\Problem\PortalProblemMap;
 use App\Presentation\Api\Portal\Resource\OtpVerification;
+use App\Presentation\Api\Portal\Support\ApiDate;
 use App\Presentation\Api\Portal\View\OtpVerificationView;
+use App\Presentation\Api\Portal\View\PendingInvitationView;
 use App\Presentation\Api\Portal\View\SessionTokensView;
 use App\Shared\Application\Bus\CommandBusInterface;
 use App\System\IdentityAccess\Application\Command\IssuePortalSession\IssuePortalSession;
@@ -35,7 +37,13 @@ final readonly class VerifyOtpProcessor implements ProcessorInterface
         \assert($outcome instanceof LoginOtpOutcome);
 
         return match ($outcome->result) {
-            LoginOtpResult::AUTHENTICATED         => $this->authenticated($outcome),
+            LoginOtpResult::AUTHENTICATED      => $this->authenticated($outcome),
+            LoginOtpResult::INVITATION_PENDING => new OtpVerificationView(
+                status: 'invitation_pending',
+                onboardingToken: $outcome->onboardingToken,
+                onboardingTokenExpiresAt: ApiDate::formatNullable($outcome->onboardingExpiresAt),
+                invitations: PendingInvitationView::list($outcome->pendingInvitations),
+            ),
             LoginOtpResult::REGISTRATION_REQUIRED => new OtpVerificationView(status: 'registration_required'),
             LoginOtpResult::ACCOUNT_DISABLED      => throw PortalProblemMap::problem(PortalProblemMap::ACCOUNT_DISABLED),
             LoginOtpResult::OTP_INVALID           => throw PortalProblemMap::problem(PortalProblemMap::OTP_INVALID),
@@ -57,6 +65,9 @@ final readonly class VerifyOtpProcessor implements ProcessorInterface
             accessTokenExpiresAt: $pair->accessTokenExpiresAt,
             refreshToken: $pair->refreshToken,
             refreshTokenExpiresAt: $pair->refreshTokenExpiresAt,
+            pendingInvitations: PendingInvitationView::list($outcome->pendingInvitations),
+            onboardingToken: $outcome->onboardingToken,
+            onboardingTokenExpiresAt: ApiDate::formatNullable($outcome->onboardingExpiresAt),
         );
     }
 }

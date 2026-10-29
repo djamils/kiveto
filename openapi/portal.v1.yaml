@@ -101,7 +101,7 @@ paths:
         - Authentification
       responses:
         '200':
-          description: '`status` = `authenticated` (paire de jetons) ou `registration_required`.'
+          description: "`status` = `authenticated` (paire de jetons, invitations en attente), `invitation_pending` (jeton d'onboarding, invitations) ou `registration_required`."
           content:
             application/json:
               schema:
@@ -266,8 +266,310 @@ paths:
       summary: "Version courante des conditions d'utilisation du Portal."
       description: "Publique. `version` est la valeur attendue par les routes d'acceptation (`termsVersion`)."
       parameters: []
+  /api/portal/v1/me:
+    get:
+      operationId: api_me_get
+      tags:
+        - Compte
+      responses:
+        '200':
+          description: 'Compte et cliniques.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: '`unauthorized` ou `token_expired`.'
+        '404':
+          description: 'Not found'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Le compte et ses cliniques rattachées.'
+      description: 'Ne liste pas les invitations en attente : elles apparaissent à la prochaine connexion par code.'
+      parameters: []
+  /api/portal/v1/invitations/accept:
+    post:
+      operationId: api_invitationsaccept_post
+      tags:
+        - Invitation
+      responses:
+        '200':
+          description: 'Paire de jetons et compte.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationAcceptance.AcceptedInvitationView'
+          links: {  }
+        '403':
+          description: '`account_disabled`.'
+        '404':
+          description: '`invitation_invalid`.'
+        '410':
+          description: '`invitation_expired` ou `invitation_already_used`.'
+        '422':
+          description: '`otp_invalid`, `otp_expired`, `otp_attempts_exceeded`, `terms_outdated` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: 'Accepte une invitation par le lien : jeton + code reçu par SMS.'
+      description: 'Rejouable : la même requête (même code, avant son expiration) après une réponse perdue renvoie une paire neuve.'
+      parameters: []
+      requestBody:
+        description: 'The new InvitationAcceptance resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationAcceptance'
+        required: true
+  /api/portal/v1/invitations/lookup:
+    post:
+      operationId: api_invitationslookup_post
+      tags:
+        - Invitation
+      responses:
+        '200':
+          description: 'Clinique, e-mail, téléphone masqué, animaux.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationLookup.InvitationLookupView'
+          links: {  }
+        '404':
+          description: '`invitation_invalid` (inconnue, ou jeton remplacé par un renvoi).'
+        '410':
+          description: '`invitation_expired` ou `invitation_already_used`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: 'Affiche une invitation à partir du jeton de son lien (`#t=`).'
+      description: "Le jeton voyage dans le corps, jamais dans l'URL."
+      parameters: []
+      requestBody:
+        description: 'The new InvitationLookup resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationLookup'
+        required: true
+  /api/portal/v1/invitations/otp:
+    post:
+      operationId: api_invitationsotp_post
+      tags:
+        - Invitation
+      responses:
+        '202':
+          description: 'Code envoyé.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationOtpRequest.OtpChallengeView'
+          links: {  }
+        '404':
+          description: '`invitation_invalid`.'
+        '410':
+          description: '`invitation_expired` ou `invitation_already_used`.'
+        '429':
+          description: '`otp_rate_limited`, avec `Retry-After`.'
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+        '422':
+          description: 'An error occurred'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+      summary: "Envoie un code au mobile de l'invitation."
+      description: 'Quotas : 3/h par invitation, 3/h et 10/24 h par numéro, 30/h par IP.'
+      parameters: []
+      requestBody:
+        description: 'The new InvitationOtpRequest resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationOtpRequest'
+        required: true
+  '/api/portal/v1/invitations/{invitationId}/accept':
+    post:
+      operationId: api_invitations_invitationIdaccept_post
+      tags:
+        - Invitation
+      responses:
+        '200':
+          description: 'Paire de jetons et compte.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationGrantAcceptance.AcceptedInvitationView'
+          links: {  }
+        '401':
+          description: '`onboarding_invalid`.'
+        '403':
+          description: '`account_disabled`.'
+        '404':
+          description: '`invitation_invalid`.'
+        '422':
+          description: '`terms_outdated` ou `validation_failed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstraintViolation'
+          links: {  }
+        '400':
+          description: 'Invalid input'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          links: {  }
+      summary: "Accepte une invitation après connexion par numéro, avec le jeton d'onboarding."
+      description: "Le jeton d'onboarding vient de `/auth/otp/verify` et n'est accepté que par cette route. Après l'acceptation de la dernière invitation du numéro, il est révoqué : en cas de `401 onboarding_invalid` après une réponse perdue, refaire la connexion par numéro."
+      parameters:
+        -
+          name: invitationId
+          in: path
+          description: 'InvitationGrantAcceptance identifier'
+          required: true
+          deprecated: false
+          schema:
+            type: string
+          style: simple
+          explode: false
+      requestBody:
+        description: 'The new InvitationGrantAcceptance resource'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationGrantAcceptance'
+        required: true
 components:
   schemas:
+    AccountView:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type:
+            - string
+            - 'null'
+        lastName:
+          type:
+            - string
+            - 'null'
+        email:
+          description: 'Unverified, possibly null.'
+          type:
+            - string
+            - 'null'
+        maskedPhone:
+          type: string
+        address:
+          anyOf:
+            -
+              $ref: '#/components/schemas/AddressView'
+            -
+              type: 'null'
+    AddressView:
+      type: object
+      properties:
+        line1:
+          type: string
+        line2:
+          type:
+            - string
+            - 'null'
+        postalCode:
+          type:
+            - string
+            - 'null'
+        city:
+          type: string
+        country:
+          type: string
+    ClinicLinkView:
+      type: object
+      properties:
+        clinicId:
+          type: string
+        name:
+          type: string
+        city:
+          type:
+            - string
+            - 'null'
+        linkStatus:
+          type: string
+          enum:
+            - confirmed
+        linkedAt:
+          type: string
+          format: date-time
+        petNames:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        unreadDocuments:
+          type: integer
     ConstraintViolation:
       type: object
       description: 'Unprocessable entity'
@@ -355,6 +657,133 @@ components:
           readOnly: true
           description: 'A URI reference that identifies the problem type'
           type: string
+    InvitationAcceptance:
+      type: object
+      required:
+        - token
+        - challengeId
+        - code
+        - termsVersion
+      properties:
+        token:
+          type: string
+        challengeId:
+          format: uuid
+          externalDocs:
+            url: 'https://schema.org/identifier'
+          type: string
+        code:
+          pattern: '^(\d{6})$'
+          type: string
+        termsVersion:
+          description: 'The `version` of /legal/terms/current.'
+          type: string
+    InvitationAcceptance.AcceptedInvitationView:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/AccountView'
+    InvitationClinicView:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        city:
+          type:
+            - string
+            - 'null'
+    InvitationGrantAcceptance:
+      type: object
+      required:
+        - onboardingToken
+        - termsVersion
+      properties:
+        onboardingToken:
+          type: string
+        termsVersion:
+          description: 'The `version` of /legal/terms/current.'
+          type: string
+    InvitationGrantAcceptance.AcceptedInvitationView:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+        account:
+          $ref: '#/components/schemas/AccountView'
+    InvitationLookup:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+    InvitationLookup.InvitationLookupView:
+      type: object
+      properties:
+        invitationId:
+          type: string
+        clinic:
+          $ref: '#/components/schemas/InvitationClinicView'
+        email:
+          type:
+            - string
+            - 'null'
+        maskedPhone:
+          type: string
+        petNames:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+    InvitationOtpRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+    InvitationOtpRequest.OtpChallengeView:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        resendAvailableAt:
+          type: string
+          format: date-time
+    Me:
+      type: object
+      properties:
+        account:
+          $ref: '#/components/schemas/AccountView'
+        clinics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicLinkView'
     OtpRequest:
       type: object
       required:
@@ -416,6 +845,7 @@ components:
           type: string
           enum:
             - authenticated
+            - invitation_pending
             - registration_required
         accessToken:
           type:
@@ -512,6 +942,12 @@ tags:
   -
     name: CGU
     description: "Resource 'CGU' operations."
+  -
+    name: Invitation
+    description: "Resource 'Invitation' operations."
+  -
+    name: Compte
+    description: "Resource 'Compte' operations."
   -
     name: Authentification
     description: "Resource 'Authentification' operations."

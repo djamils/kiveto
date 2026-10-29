@@ -8,7 +8,12 @@ enum LoginOtpResult: string
 {
     /** The code is right and the phone belongs to an active owner account. */
     case AUTHENTICATED = 'authenticated';
-    /** The code is right but the phone has no account (sign-up comes later). */
+    /**
+     * The code is right, the phone has no account but pending invitations:
+     * an onboarding grant accepts them.
+     */
+    case INVITATION_PENDING = 'invitation_pending';
+    /** The code is right but the phone has no account nor invitation (sign-up comes later). */
     case REGISTRATION_REQUIRED = 'registration_required';
     /** The code is right but the owner account is disabled: no session. */
     case ACCOUNT_DISABLED = 'account_disabled';

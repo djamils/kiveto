@@ -11,6 +11,9 @@ use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoicesCriteria;
 use App\Context\Client\Application\Query\GetClientById\ClientView;
+use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
+use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
+use App\Context\Client\Application\Query\IsPortalMobileNumber\IsPortalMobileNumber;
 use App\Context\Client\Application\Query\ListClientCommunications\ClientCommunicationView;
 use App\Context\Client\Application\Query\ListClientCommunications\ListClientCommunications;
 use App\Context\Client\Application\Query\ListClientNotes\ClientNoteView;
@@ -22,8 +25,11 @@ use App\Context\Client\Domain\ValueObject\Civility;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ConsentKind;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
+use App\Context\ClientPortal\Application\Query\GetClientPortalStatus\ClientPortalStatus;
+use App\Context\ClientPortal\Application\Query\GetClientPortalStatus\GetClientPortalStatus;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\ListAppointmentsForOwner;
 use App\Context\Scheduling\Application\Query\ListAppointmentsForOwner\OwnerAppointmentItem;
+use App\Presentation\Clinic\Security\ClinicPermissionGuard;
 use App\Presentation\Clinic\ViewModel\Shared\DossierVisitReader;
 use App\Presentation\Clinic\ViewModel\Shared\SheetText;
 use App\Shared\Application\Bus\QueryBusInterface;
@@ -58,6 +64,7 @@ final readonly class ClientSheetBuilder
         private Connection $connection,
         private UrlGeneratorInterface $urls,
         private DossierVisitReader $visits,
+        private ClinicPermissionGuard $permissions,
     ) {
     }
 
@@ -105,6 +112,7 @@ final readonly class ClientSheetBuilder
             'pers'    => $this->personsView($client, $tz, $today),
             'fisc'    => $this->taxProfileView($client, $tz),
             'note'    => $this->noteView($notes, $tz, $today),
+            'portal'  => $this->portalView($client, $tz, $today),
             'choices' => $this->choices(),
         ];
     }
@@ -962,6 +970,92 @@ final readonly class ClientSheetBuilder
             'text' => $latest->content,
             'meta' => $this->when($latest->createdAt->setTimezone($tz), $today) . ' · ' . $latest->authorName,
         ];
+    }
+
+    /**
+     * The client's place on the Portal (D16): the state and its badge, the
+     * « ⋯ » menu action (`action`: « Inviter au Portal », « Renvoyer
+     * l'invitation » or « Réinviter », null once linked), and what the
+     * confirmation window needs. The invitation goes to the SMS-capable
+     * mobile the notifications use, which must also be one the Portal
+     * supports (`notInvitableReason`, with its French `notInvitableText`).
+     * The addresses are shown masked: the window only confirms them.
+     *
+     * @return array{state: string, badge: string, sentAt: ?string, expiresAt: ?string, linkedAt: ?string, revokedAt: ?string, action: ?string, resend: bool, invitable: bool, notInvitableReason: ?string, notInvitableText: ?string, hasEmail: bool, mobileMasked: ?string, emailMasked: ?string, canManage: bool}
+     */
+    private function portalView(ClientView $client, \DateTimeZone $tz, \DateTimeImmutable $today): array
+    {
+        $status = $this->queryBus->ask(new GetClientPortalStatus($client->clinicId, $client->id));
+        $reach  = $this->queryBus->ask(new GetClientNotificationContact($client->clinicId, $client->id));
+        \assert($status instanceof ClientPortalStatus && $reach instanceof ClientNotificationContact);
+
+        $mobile = $reach->mobile;
+        $reason = match (true) {
+            'archived' === $client->status                                   => 'archived',
+            null === $mobile                                                 => 'no_mobile',
+            true !== $this->queryBus->ask(new IsPortalMobileNumber($mobile)) => 'mobile_not_supported',
+            default                                                          => null,
+        };
+
+        $day = fn (?\DateTimeImmutable $at): ?string => null === $at ? null : $this->when($at->setTimezone($tz), $today);
+
+        $sentAt    = $day($status->sentAt);
+        $linkedAt  = $day($status->linkedAt);
+        $revokedAt = $day($status->revokedAt);
+
+        return [
+            'state' => $status->state,
+            'badge' => match ($status->state) {
+                ClientPortalStatus::INVITED => 'Portal : invité le ' . $sentAt,
+                ClientPortalStatus::EXPIRED => 'Portal : invitation expirée',
+                ClientPortalStatus::ACTIVE  => 'Portal : actif depuis le ' . $linkedAt,
+                ClientPortalStatus::REVOKED => 'Portal : accès retiré',
+                default                     => 'Portal : non invité',
+            },
+            'sentAt'    => $sentAt,
+            'expiresAt' => $day($status->expiresAt),
+            'linkedAt'  => $linkedAt,
+            'revokedAt' => $revokedAt,
+            'action'    => match ($status->state) {
+                ClientPortalStatus::INVITED, ClientPortalStatus::EXPIRED => 'Renvoyer l’invitation',
+                ClientPortalStatus::REVOKED => 'Réinviter',
+                ClientPortalStatus::ACTIVE  => null,
+                default                     => 'Inviter au Portal',
+            },
+            'resend'             => \in_array($status->state, [ClientPortalStatus::INVITED, ClientPortalStatus::EXPIRED], true),
+            'invitable'          => null === $reason,
+            'notInvitableReason' => $reason,
+            'notInvitableText'   => match ($reason) {
+                'archived'             => 'Fiche archivée : désarchivez-la pour inviter ce client au Portal',
+                'no_mobile'            => 'Ajoutez un numéro de mobile pour inviter ce client',
+                'mobile_not_supported' => 'Ce numéro de mobile n’est pas encore pris en charge par le Portal',
+                default                => null,
+            },
+            'hasEmail'     => null !== $reach->email,
+            'mobileMasked' => null === $mobile ? null : $this->maskedPhone($mobile),
+            'emailMasked'  => null === $reach->email ? null : $this->maskedEmail($reach->email),
+            'canManage'    => $this->permissions->has(ClinicPermissionGuard::MANAGE_CLIENTS),
+        ];
+    }
+
+    /** « +33612345678 » → « 06 •• •• •• 78 »; a foreign number keeps its prefix and last two digits. */
+    private function maskedPhone(string $e164): string
+    {
+        $national = $this->nationalPhone($e164);
+
+        if ($national !== $e164) {
+            return substr($national, 0, 2) . ' •• •• •• ' . substr($national, -2);
+        }
+
+        return substr($e164, 0, 3) . ' ••• ' . substr($e164, -2);
+    }
+
+    /** « sophie.garnier@orange.fr » → « s•••@orange.fr ». */
+    private function maskedEmail(string $email): string
+    {
+        $at = strrpos($email, '@');
+
+        return false === $at || 0 === $at ? '•••' : mb_substr($email, 0, 1) . '•••' . substr($email, $at);
     }
 
     /**

@@ -12,6 +12,7 @@ use App\System\IdentityAccess\Application\Port\MobilePhonePolicyInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
 use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
@@ -25,7 +26,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * A sign-in code goes to a phone of the Portal's coverage only. To a phone
- * without an active owner account, it spends the global budget of unknown
+ * with neither an active owner account nor a pending invitation (a phone a
+ * clinic chose counts as known), it spends the global budget of unknown
  * numbers: once exhausted, the challenge exists (same answer) but no SMS
  * leaves, now or on a resend. An invitation code goes to the phone a clinic
  * chose and never spends that budget.
@@ -40,6 +42,7 @@ final readonly class RequestPortalOtpHandler
         private UserRepositoryInterface $users,
         private MobilePhonePolicyInterface $mobilePolicy,
         private UnknownNumberSmsBudgetInterface $unknownNumberBudget,
+        private PendingPortalInvitationsInterface $pendingInvitations,
         private OtpCodeGeneratorInterface $codes,
         private OtpCodeHasherInterface $codeHasher,
         private NotificationRequesterInterface $notifications,
@@ -90,6 +93,7 @@ final readonly class RequestPortalOtpHandler
 
     private function isKnown(PhoneNumber $phone): bool
     {
-        return UserStatus::ACTIVE === $this->users->findByPhoneAndType($phone, UserType::PORTAL)?->status();
+        return UserStatus::ACTIVE === $this->users->findByPhoneAndType($phone, UserType::PORTAL)?->status()
+            || [] !== $this->pendingInvitations->listForPhone($phone);
     }
 }

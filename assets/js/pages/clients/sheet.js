@@ -54,13 +54,18 @@ export function init() {
 
   bindModales(root, signal);
 
+  /* ── Portal (D16): badge of the header, « ⋯ » menu action, confirmation window ── */
+  const P = S.portal;
+  const PORTAL_ETAT = { not_invited: 'na', invited: 'pin', expired: 'bt', active: 'ok', revoked: 'ko' };
+  $('portalOk')?.addEventListener('click', () => { $('portalOk').disabled = true; $('portalForm').requestSubmit(); }, { signal });
+
   /* ── Identity header ── */
   function rendreTete() {
     $('phAv').textContent = (C.prenom[0] + C.nom[0]).toUpperCase();
     $('phNom').innerHTML = `${C.rs ? `<span class="ph-rs">${esc(C.rs)}</span>` : ''}${esc(nomC())}${ARCH ? '' : `<button type="button" class="ph-edit" id="btnCo" title="Modifier les coordonnées" aria-label="Modifier les coordonnées">${IC.crayon}</button>`}${C.isNew ? ' <span class="vig b">Nouveau client</span>' : ''}`;
     const adr = C.adr1 ? `${esc(C.adr1)}${C.adr2 ? ', ' + esc(C.adr2) : ''}, ${esc(C.cp)} ${esc(C.ville)}` : '<span style="color:var(--encre-35)">Pas d\'adresse</span>';
     const tels = [C.mob, C.fixe].filter(Boolean).map(t => `<a href="tel:${chiffres(t)}">${esc(t)}</a>`).join(' · ') || '<span style="color:var(--encre-35)">Pas de téléphone</span>';
-    $('phFacts').innerHTML = `<span>${IC.pin}${adr}</span><span>${IC.tel}${tels}</span><span>${IC.mail}${C.mail ? `<a href="mailto:${esc(C.mail)}">${esc(C.mail)}</a>` : '<span style="color:var(--encre-35)">Pas d\'e-mail</span>'}</span><span>${C.createdToday ? 'Créé aujourd\'hui' : `Client depuis ${MOIS[+C.depuis.slice(5, 7) - 1]} ${C.depuis.slice(0, 4)}`}</span>`;
+    $('phFacts').innerHTML = `<span>${IC.pin}${adr}</span><span>${IC.tel}${tels}</span><span>${IC.mail}${C.mail ? `<a href="mailto:${esc(C.mail)}">${esc(C.mail)}</a>` : '<span style="color:var(--encre-35)">Pas d\'e-mail</span>'}</span><span>${C.createdToday ? 'Créé aujourd\'hui' : `Client depuis ${MOIS[+C.depuis.slice(5, 7) - 1]} ${C.depuis.slice(0, 4)}`}</span><span><span class="etat ${PORTAL_ETAT[P.state] ?? 'na'}" id="phPortal"><i></i>${esc(P.badge)}</span></span>`;
   }
   $('phNom').addEventListener('click', e => { if (e.target.closest('#btnCo')) ouvrirCoord(); }, { signal });
 
@@ -811,6 +816,13 @@ export function init() {
   /* ── « ⋯ » menu ── */
   menu($('btnMenu'), [
     { l: 'Consigner un échange', s: 'Appel, SMS, e-mail ou courrier · ajouté à l\'historique', f: () => { ouvrirModale('mMsg'); setTimeout(() => $('f_msub').focus(), 60); } },
+    ...(P.canManage && P.action ? [{
+      l: P.action,
+      s: P.state === 'revoked' ? 'Accès retiré · un nouveau lien vers l\'app' : P.resend ? 'Nouveau lien, valable 7 jours · l\'ancien ne marche plus' : 'Lien d\'accès à l\'app, par SMS ou e-mail',
+      disabled: !P.invitable,
+      tip: P.notInvitableText,
+      f: () => ouvrirModale('mPortal'),
+    }] : []),
     '-',
     { l: 'Fusionner avec un doublon', s: 'Regroupe animaux, factures et historique', disabled: true, tip: 'Fusion des fiches : bientôt disponible', f: () => {} },
     { l: 'Exporter ses données', s: 'Droit d\'accès (RGPD) · archive PDF et CSV', disabled: true, tip: 'Export des données : bientôt disponible', f: () => {} },

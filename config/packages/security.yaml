@@ -95,6 +95,8 @@ security:
         # `_test/` routes only exist in the test env.
         - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1/(auth/otp|auth/refresh|invitations|legal|docs|_test/)', roles: PUBLIC_ACCESS }
         - { host: '^portal\.kiveto\.local$', path: '^/api/portal/v1', roles: IS_AUTHENTICATED_FULLY }
+        # Invitation landing page and app-link files of the owner app.
+        - { host: '^portal\.kiveto\.local$', path: '^/(invitation$|\.well-known/)', roles: PUBLIC_ACCESS }
         - { host: '^backoffice\.kiveto\.local$', path: '^/login', roles: PUBLIC_ACCESS }
 
         # Protect everything else

@@ -21,6 +21,9 @@
  #   today              string  Y-m-d in clinic time
  #   currentClinicName  string
  #
+ # « Inviter au Portal » (#mPortal) is rendered for members holding
+ # manage_clients when the client can be invited; the « ⋯ » menu opens it.
+ #
  # Styles: assets/styles/pages/dossier.css (shared with the animal sheet).
  #}
 {% extends 'clinic/base.html.twig' %}
@@ -146,6 +149,25 @@
     </form>
     <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="msgOk">Consigner</button></div>
   </div></div>
+
+  {# ══ Inviter au Portal (also « Renvoyer l'invitation » and « Réinviter ») ══ #}
+  {% set portal = sheet.portal %}
+  {% if portal.canManage and portal.action and portal.invitable %}
+  <div class="mveil" id="mPortal"><div class="mbox" style="width:min(480px,94vw)" role="dialog" aria-modal="true" aria-labelledby="portalT">
+    <div class="mhead"><div class="mt"><b id="portalT">{{ portal.action }}</b><span>{{ portal.resend ? 'Un nouveau lien remplace le précédent · valable 7 jours' : 'Lien d\'accès à l\'app Kiveto · valable 7 jours' }}</span></div>{{ xb|raw }}</div>
+    <form class="mbody fg" id="portalForm" method="post" action="{{ path('clinic_clients_portal_invitation_send', {id: client.id}) }}" novalidate>
+      <input type="hidden" name="_token" value="{{ token }}">{{ rt|raw }}
+      <input type="hidden" name="channel" value="sms">
+      <div><label class="flbl">Envoyer le lien par</label><div class="seg" data-seg="channel"><button type="button" data-v="sms" class="on">SMS</button><button type="button" data-v="email"{% if not portal.hasEmail %} disabled data-tip="Ajoutez une adresse e-mail pour inviter ce client par e-mail"{% endif %}>E-mail</button></div></div>
+      <div class="f2">
+        <div><label class="flbl" for="f_pmob">Mobile</label><input class="finput" id="f_pmob" value="{{ portal.mobileMasked }}" readonly tabindex="-1"></div>
+        <div><label class="flbl" for="f_pmail">E-mail</label><input class="finput" id="f_pmail" value="{{ portal.emailMasked ?? 'Pas d\'e-mail' }}" readonly tabindex="-1"></div>
+      </div>
+      <p style="font-size:.76rem;color:var(--encre-60);line-height:1.5">Le client se connecte à l'app avec ce numéro de mobile : il y reçoit un code à chaque connexion, quel que soit le canal choisi pour le lien.</p>
+    </form>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="portalOk">{{ portal.resend ? 'Renvoyer' : 'Envoyer l\'invitation' }}</button></div>
+  </div></div>
+  {% endif %}
 
   {# ══ Forms the rail cards and the menu post ══ #}
   <form id="prefForm" method="post" action="{{ path('clinic_clients_communication_preferences_update', {id: client.id}) }}" hidden>

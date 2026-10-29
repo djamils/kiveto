@@ -221,12 +221,13 @@ services:
     # `framework.lock` is disabled, so these limiters are built by hand. Their
     # state lives in the database (shared__rate_limiter_cache, created by
     # migrations/Shared) and their lock in shared__lock_keys: every container
-    # counts against the same quotas. Not stubbed in the test env — tests use
+    # counts against the same quotas. Both go through the `rate_limiter`
+    # connection, in autocommit, never inside a command's transaction. Not stubbed in the test env — tests use
     # a distinct phone and client IP each.
     portal.rate_limiter.cache:
         class: Symfony\Component\Cache\Adapter\DoctrineDbalAdapter
         arguments:
-            - '@doctrine.dbal.default_connection'
+            - '@doctrine.dbal.rate_limiter_connection'
             - 'portal'
             - 0
             - { db_table: 'shared__rate_limiter_cache' }
@@ -235,47 +236,55 @@ services:
         class: Symfony\Component\RateLimiter\Storage\CacheStorage
         arguments: ['@portal.rate_limiter.cache']
 
+    # The limiters' lock lives on their own connection too (same table).
+    portal.rate_limiter.lock_factory:
+        class: Symfony\Component\Lock\LockFactory
+        arguments:
+            - !service
+                class: Symfony\Component\Lock\Store\DoctrineDbalStore
+                arguments: ['@doctrine.dbal.rate_limiter_connection', { db_table: 'shared__lock_keys' }]
+
     limiter.portal_otp_phone:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_otp_phone', policy: 'fixed_window', limit: 3, interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     limiter.portal_otp_phone_daily:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_otp_phone_daily', policy: 'sliding_window', limit: 10, interval: '24 hours' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     limiter.portal_otp_ip:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_otp_ip', policy: 'fixed_window', limit: 30, interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     limiter.portal_invitation_otp:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_invitation_otp', policy: 'fixed_window', limit: 3, interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     limiter.portal_otp_resend:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_otp_resend', policy: 'fixed_window', limit: 3, interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     limiter.portal_otp_unknown_global:
         class: Symfony\Component\RateLimiter\RateLimiterFactory
         arguments:
             - { id: 'portal_otp_unknown_global', policy: 'fixed_window', limit: '%env(int:PORTAL_OTP_UNKNOWN_HOURLY_CAP)%', interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
 
     # lexik's JWT authenticator, skipped on public routes (see
     # PublicRouteAwareJwtAuthenticator); the firewall instantiates it as a
@@ -293,7 +302,44 @@ services:
         arguments:
             - { id: 'portal_otp_unknown_alert', policy: 'fixed_window', limit: 1, interval: '1 hour' }
             - '@portal.rate_limiter.storage'
-            - '@shared.lock.factory'
+            - '@portal.rate_limiter.lock_factory'
+
+    # ============================================================================
+    # BOUNDED CONTEXT: CLIENT PORTAL
+    # ============================================================================
+    # Portal invitations, owner account ↔ clinic client links, owner profiles.
+    # Other contexts are read through ports whose adapters dispatch their
+    # Application queries / commands.
+
+    App\Context\ClientPortal\Domain\Invitation\PortalInvitationRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalPortalInvitationRepository
+
+    App\Context\ClientPortal\Domain\Link\ClientLinkRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalClientLinkRepository
+
+    App\Context\ClientPortal\Domain\Profile\OwnerProfileRepositoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Repository\DbalOwnerProfileRepository
+
+    App\Context\ClientPortal\Application\Port\ClientDirectoryInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusClientDirectory
+
+    App\Context\ClientPortal\Application\Port\MobilePhonePolicyInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Client\QueryBusMobilePhonePolicy
+
+    App\Context\ClientPortal\Application\Port\ClinicNamesInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Clinic\QueryBusClinicNames
+
+    App\Context\ClientPortal\Application\Port\PetNamesInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Animal\QueryBusPetNames
+
+    App\Context\ClientPortal\Application\Port\PortalIdentityInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\IdentityAccess\CommandBusPortalIdentity
+
+    App\Context\ClientPortal\Application\Port\NotificationRequesterInterface:
+        class: App\Context\ClientPortal\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\ClientPortal\Application\Port\InvitationLinkBuilderInterface:
+        class: App\Context\ClientPortal\Infrastructure\Link\PortalInvitationLinkBuilder
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION

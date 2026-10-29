@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Context\ClientPortal\Domain;
+
+use App\Context\ClientPortal\Domain\Profile\OwnerProfile;
+use App\Shared\Domain\ValueObject\PostalAddress;
+use PHPUnit\Framework\TestCase;
+
+final class OwnerProfileTest extends TestCase
+{
+    public function testAProfileIsCopiedFromTheClientAndOnlyItsTermsMove(): void
+    {
+        $address = PostalAddress::create('12 rue des Lilas', 'Lyon', 'FR', null, '69003');
+        $profile = OwnerProfile::createFromClient('user-1', 'Sophie', 'Martin', $address, 'v1', new \DateTimeImmutable('2026-10-29'));
+
+        self::assertSame(['user-1', 'Sophie', 'Martin', $address, 'v1', '2026-10-29', '2026-10-29'], [
+            $profile->userId(), $profile->firstName(), $profile->lastName(), $profile->address(), $profile->termsVersion(), $profile->termsAcceptedAt()->format('Y-m-d'), $profile->createdAt()->format('Y-m-d'),
+        ]);
+
+        $profile->acceptTerms('v2', new \DateTimeImmutable('2026-12-01'));
+        self::assertSame(['v2', '2026-12-01', '2026-10-29', 'Sophie'], [$profile->termsVersion(), $profile->termsAcceptedAt()->format('Y-m-d'), $profile->createdAt()->format('Y-m-d'), $profile->firstName()]);
+
+        $restored = OwnerProfile::reconstitute('user-2', 'Paul', 'Durand', null, 'v1', new \DateTimeImmutable('2026-10-01'), new \DateTimeImmutable('2026-09-01'));
+        self::assertSame(['user-2', null, '2026-10-01', '2026-09-01'], [$restored->userId(), $restored->address(), $restored->termsAcceptedAt()->format('Y-m-d'), $restored->createdAt()->format('Y-m-d')]);
+    }
+}

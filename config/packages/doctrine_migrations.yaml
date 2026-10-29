@@ -21,6 +21,7 @@ doctrine_migrations:
         'DoctrineMigrations\Prescription': '%kernel.project_dir%/migrations/Prescription'
         'DoctrineMigrations\ElectronicInvoicing': '%kernel.project_dir%/migrations/ElectronicInvoicing'
         'DoctrineMigrations\Notification': '%kernel.project_dir%/migrations/Notification'
+        'DoctrineMigrations\ClientPortal': '%kernel.project_dir%/migrations/ClientPortal'
     enable_profiler: '%kernel.debug%'
     transactional: true
     check_database_platform: true

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\System\IdentityAccess\Application\Command;
 
 use App\Shared\Domain\ValueObject\PhoneNumber;
+use App\Shared\Infrastructure\Security\OpaqueTokenHasher;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\OtpChallengeIssued;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\RequestPortalOtp;
 use App\System\IdentityAccess\Application\Command\RequestPortalOtp\RequestPortalOtpHandler;
@@ -15,6 +16,7 @@ use App\System\IdentityAccess\Application\Command\VerifyPortalLoginOtp\LoginOtpR
 use App\System\IdentityAccess\Application\Command\VerifyPortalLoginOtp\VerifyPortalLoginOtp;
 use App\System\IdentityAccess\Application\Command\VerifyPortalLoginOtp\VerifyPortalLoginOtpHandler;
 use App\System\IdentityAccess\Application\Exception\PhoneNotSupportedException;
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitation;
 use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhone;
 use App\System\IdentityAccess\Application\Query\GetOtpChallengePhone\GetOtpChallengePhoneHandler;
@@ -253,6 +255,62 @@ final class PortalOtpUseCasesTest extends TestCase
         self::assertSame(1, $this->challenges->single()->attempts());
     }
 
+    /** F-G: a phone a clinic invited counts as known — no budget spent. */
+    public function testAnInvitedPhoneDoesNotSpendTheBudget(): void
+    {
+        $this->portal->pending[self::PHONE] = [new PendingPortalInvitation(self::INVITATION, 'Clinique du Parc', 'Lyon')];
+        $this->portal->budget               = 0;
+
+        $this->request(self::PHONE);
+
+        self::assertSame(0, $this->portal->budgetConsumptions);
+        self::assertFalse($this->challenges->single()->isSmsSuppressed());
+        self::assertCount(1, $this->fakes->portalOtps);
+    }
+
+    /** D29: a phone without account but with invitations gets a grant, minted once. */
+    public function testAnInvitedPhoneWithoutAccountGetsAnOnboardingGrant(): void
+    {
+        $this->portal->pending[self::PHONE] = [new PendingPortalInvitation(self::INVITATION, 'Clinique du Parc', 'Lyon')];
+        $issued                             = $this->request(self::PHONE);
+
+        $outcome = $this->verify($issued->challengeId, '123456');
+
+        self::assertSame([LoginOtpResult::INVITATION_PENDING, null], $this->pair($outcome));
+        self::assertNotNull($outcome->onboardingToken);
+        self::assertSame('07:30:00', $outcome->onboardingExpiresAt?->format('H:i:s'), '15 minutes after the verification');
+        self::assertSame(self::INVITATION, $outcome->pendingInvitations[0]->invitationId ?? null);
+        $challenge = $this->challenges->single();
+        self::assertSame(hash('sha256', $outcome->onboardingToken), $challenge->onboardingTokenHash(), 'only the digest is kept');
+        self::assertSame(LoginOtpResult::OTP_INVALID, $this->verify($issued->challengeId, '123456', '+2 minutes')->result, 'no second grant');
+    }
+
+    public function testAnActiveOwnerWithInvitationsIsAuthenticatedWithAGrant(): void
+    {
+        $this->users->save($this->owner(UserStatus::ACTIVE));
+        $this->portal->pending[self::PHONE] = [new PendingPortalInvitation(self::INVITATION, 'Clinique du Parc', null)];
+        $issued                             = $this->request(self::PHONE);
+
+        $outcome = $this->verify($issued->challengeId, '123456');
+
+        self::assertSame([LoginOtpResult::AUTHENTICATED, self::OWNER], $this->pair($outcome));
+        self::assertNotNull($outcome->onboardingToken);
+        self::assertCount(1, $outcome->pendingInvitations);
+    }
+
+    /** AC 76: a disabled owner gets neither session nor grant. */
+    public function testADisabledOwnerGetsNoGrant(): void
+    {
+        $this->users->save($this->owner(UserStatus::DISABLED));
+        $this->portal->pending[self::PHONE] = [new PendingPortalInvitation(self::INVITATION, 'Clinique du Parc', null)];
+        $issued                             = $this->request(self::PHONE);
+
+        $outcome = $this->verify($issued->challengeId, '123456');
+
+        self::assertSame([LoginOtpResult::ACCOUNT_DISABLED, null, null], [$outcome->result, $outcome->userId, $outcome->onboardingToken]);
+        self::assertNull($this->challenges->single()->onboardingTokenHash());
+    }
+
     public function testThePhoneOfAChallengeIsReadWithoutLock(): void
     {
         $issued  = $this->request(self::PHONE);
@@ -266,7 +324,7 @@ final class PortalOtpUseCasesTest extends TestCase
 
     private function request(string $phone, OtpPurpose $purpose = OtpPurpose::LOGIN, ?string $invitationRef = null): OtpChallengeIssued
     {
-        $handler = new RequestPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock($this->now));
+        $handler = new RequestPortalOtpHandler($this->challenges, $this->users, $this->portal, $this->portal, $this->portal, $this->portal, $this->portal, $this->fakes, $this->fakes, new FrozenClock($this->now));
 
         return $handler(new RequestPortalOtp($phone, $purpose->value, $invitationRef));
     }
@@ -278,7 +336,7 @@ final class PortalOtpUseCasesTest extends TestCase
 
     private function verify(string $challengeId, string $code, string $after = '+1 minute'): LoginOtpOutcome
     {
-        return (new VerifyPortalLoginOtpHandler($this->challenges, $this->users, $this->portal, new FrozenClock($this->now->modify($after))))(new VerifyPortalLoginOtp($challengeId, $code));
+        return (new VerifyPortalLoginOtpHandler($this->challenges, $this->users, $this->portal, new OpaqueTokenHasher(), $this->portal, new FrozenClock($this->now->modify($after))))(new VerifyPortalLoginOtp($challengeId, $code));
     }
 
     /**

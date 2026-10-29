@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Presentation\Api\Portal;
 
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
+use Doctrine\DBAL\Connection;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
@@ -88,12 +90,12 @@ final class OtpQuotaTest extends PortalApiTestCase
     public function testAnUnknownChallengeSpendsNoPhoneQuota(): void
     {
         $this->clientIp = '203.0.113.26';
-        $before         = $this->number('SELECT COUNT(*) FROM shared__rate_limiter_cache');
+        $before         = $this->limiterRows();
 
         self::assertSame('otp_challenge_not_found', self::problemType($this->post('/auth/otp/01960000-0000-7000-8000-00000000ffff/resend', ['channel' => 'sms']), 404));
         self::assertSame('otp_challenge_not_found', self::problemType($this->post('/auth/otp/not-a-uuid/resend', ['channel' => 'sms']), 404));
 
-        self::assertSame($before + 1, $this->number('SELECT COUNT(*) FROM shared__rate_limiter_cache'), 'only the IP quota row');
+        self::assertSame($before + 1, $this->limiterRows(), 'only the IP quota row');
     }
 
     /** AC 44, AC 82: beyond the budget of unknown numbers, no SMS leaves — not even on a resend. */
@@ -136,6 +138,19 @@ final class OtpQuotaTest extends PortalApiTestCase
         self::assertSame(29, $perIp->create('198.51.100.1')->consume(0)->getRemainingTokens());
         self::assertSame(29, $perIp->create('198.51.100.2')->consume(0)->getRemainingTokens());
         self::assertSame(30, $perIp->create('10.0.0.1')->consume(0)->getRemainingTokens(), 'the proxy itself spends nothing');
+    }
+
+    /** The limiters write through their own connection. */
+    private function limiterRows(): int
+    {
+        $doctrine = $this->browser->getContainer()->get('doctrine');
+        \assert($doctrine instanceof ManagerRegistry);
+        $connection = $doctrine->getConnection('rate_limiter');
+        \assert($connection instanceof Connection);
+        $rows = $connection->fetchOne('SELECT COUNT(*) FROM shared__rate_limiter_cache');
+        self::assertIsNumeric($rows);
+
+        return (int) $rows;
     }
 
     private function limiter(string $id): RateLimiterFactoryInterface

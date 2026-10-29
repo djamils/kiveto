@@ -20,4 +20,10 @@ enum OtpVerificationResult: string
     case INVALID           = 'invalid';
     case EXPIRED           = 'expired';
     case ATTEMPTS_EXCEEDED = 'attempts_exceeded';
+
+    /** The code proves the phone (now, or again within its validity). */
+    public function isProof(): bool
+    {
+        return self::VERIFIED === $this || self::ALREADY_VERIFIED === $this;
+    }
 }
