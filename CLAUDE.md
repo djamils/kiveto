@@ -77,6 +77,13 @@ that drops a BC's coverage below 100% is rejected.
 - **Single-action controllers only.** Every controller has exactly one
   public method (`__invoke()`) handling exactly one route. No multi-action
   controllers — split them into separate classes instead.
+- **API Platform operations comply with that rule.** Under
+  `src/Presentation/Api/`, one operation = one State Provider or one State
+  Processor. It only translates HTTP ⇄ queries/commands, with no business
+  logic; a processor may chain a command and then the session issuance
+  (e.g. verify the code, then `IssuePortalSession`). The Portal file and
+  `.ics` routes (`…/documents/{id}/file`,
+  `…/vaccination-booklet`, `…/calendar.ics`) stay `__invoke` controllers.
 
 ### 6. Bounded Context boundaries
 
@@ -141,3 +148,4 @@ dev-story`. Skip steps for small changes — use `/bmad-quick-spec` then
 - Don't create new documentation files (`*.md`) unless explicitly asked.
 - Don't put multiple routes/actions in a single controller — one
   `__invoke()` per controller, no exceptions.
+- Don't expose Doctrine entities as API Platform resources — DTOs only.
