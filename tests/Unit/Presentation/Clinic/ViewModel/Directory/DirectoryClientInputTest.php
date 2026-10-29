@@ -17,7 +17,7 @@ final class DirectoryClientInputTest extends TestCase
         $client = DirectoryClientInput::parse(self::OK + [
             'fixe' => '01 42 00 00 00', 'mail' => ' Anne.LG@Exemple.FR ',
             'rue'  => '12 Rue de Rome', 'cpl' => 'Bât. B', 'cp' => '75008', 'ville' => 'Paris',
-            'rap'  => 'sms', 'news' => true, 'autre' => true,
+            'rap'  => 'sms', 'rsms' => true, 'news' => true, 'autre' => true,
         ]);
 
         self::assertInstanceOf(DirectoryClientInput::class, $client);
@@ -48,23 +48,51 @@ final class DirectoryClientInputTest extends TestCase
 
     public function testALandlineAloneIsTheMainNumberAndRemindsNobody(): void
     {
-        $client = DirectoryClientInput::parse(['civ' => 'M.', 'nom' => 'MARTIN', 'pre' => 'paul', 'fixe' => '0142000000', 'rap' => 'sms', 'news' => true]);
+        $client = DirectoryClientInput::parse(['civ' => 'M.', 'nom' => 'MARTIN', 'pre' => 'paul', 'fixe' => '0142000000', 'rap' => 'sms', 'rsms' => true, 'news' => true]);
 
         self::assertInstanceOf(DirectoryClientInput::class, $client);
         self::assertSame('M. Paul Martin', $client->title());
         self::assertTrue($client->contactMethods()[0]->isPrimary);
         self::assertNull($client->postalAddress());
         self::assertNull($client->preferredChannel());
+        self::assertFalse($client->smsReminders, 'no SMS reminder without a mobile');
         self::assertSame([], $client->consents());
     }
 
     public function testEmailReminders(): void
     {
-        $client = DirectoryClientInput::parse(self::OK + ['mail' => 'a@b.fr', 'rap' => 'mail']);
+        $client = DirectoryClientInput::parse(self::OK + ['mail' => 'a@b.fr', 'rap' => 'mail', 'rsms' => false]);
 
         self::assertInstanceOf(DirectoryClientInput::class, $client);
         self::assertSame('email', $client->preferredChannel());
         self::assertSame(['appointment_reminders' => ['email'], 'vaccination_reminders' => ['email']], $client->consents());
+
+        $both = DirectoryClientInput::parse(self::OK + ['mail' => 'a@b.fr', 'rap' => 'mail', 'rsms' => true]);
+        self::assertInstanceOf(DirectoryClientInput::class, $both);
+        self::assertSame(['appointment_reminders' => ['sms', 'email'], 'vaccination_reminders' => ['email']], $both->consents());
+    }
+
+    /** D9: the SMS appointment reminder follows its own box, ticked by default with a mobile. */
+    public function testSmsAppointmentRemindersFollowTheirOwnBox(): void
+    {
+        $unticked = DirectoryClientInput::parse(self::OK + ['rap' => 'sms', 'rsms' => false]);
+        self::assertInstanceOf(DirectoryClientInput::class, $unticked);
+        self::assertFalse($unticked->smsReminders);
+        self::assertSame(['vaccination_reminders' => ['sms']], $unticked->consents());
+
+        $ticked = DirectoryClientInput::parse(self::OK + ['rap' => 'aucun', 'rsms' => true]);
+        self::assertInstanceOf(DirectoryClientInput::class, $ticked);
+        self::assertTrue($ticked->smsReminders);
+        self::assertNull($ticked->preferredChannel());
+        self::assertSame(['appointment_reminders' => ['sms']], $ticked->consents());
+
+        $unsaid = DirectoryClientInput::parse(self::OK + ['rap' => 'aucun']);
+        self::assertInstanceOf(DirectoryClientInput::class, $unsaid);
+        self::assertTrue($unsaid->smsReminders, 'on by default when the payload does not say otherwise');
+
+        $landline = DirectoryClientInput::parse(['civ' => 'M.', 'nom' => 'MARTIN', 'pre' => 'paul', 'fixe' => '0142000000']);
+        self::assertInstanceOf(DirectoryClientInput::class, $landline);
+        self::assertFalse($landline->smsReminders, 'no mobile, no SMS');
     }
 
     /**

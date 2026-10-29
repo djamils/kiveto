@@ -29,6 +29,15 @@ final readonly class UserMapper
         return $entity;
     }
 
+    /** Copies what the lifecycle may change onto the loaded entity. */
+    public function applyTo(UserEntity $entity, DomainUser $domainUser): void
+    {
+        $entity->setEmail($domainUser->email());
+        $entity->setPasswordHash($domainUser->passwordHash());
+        $entity->setStatus($domainUser->status());
+        $entity->setEmailVerifiedAt($domainUser->emailVerifiedAt());
+    }
+
     public function toDomain(UserEntity $entity): DomainUser
     {
         return DomainUser::reconstitute(

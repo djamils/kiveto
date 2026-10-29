@@ -7,6 +7,7 @@ namespace App\Context\Scheduling\Application\Command\CancelAppointment;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -16,6 +17,7 @@ final readonly class CancelAppointmentHandler
     public function __construct(
         private AppointmentRepositoryInterface $appointmentRepository,
         private ClockInterface $clock,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -39,7 +41,9 @@ final readonly class CancelAppointmentHandler
             throw new \DomainException('Impossible d\'annuler un rendez-vous passé.');
         }
 
-        $appointment->cancel();
+        $appointment->cancel($command->notifyClient);
         $this->appointmentRepository->save($appointment);
+
+        $this->domainEventPublisher->publish($appointment);
     }
 }

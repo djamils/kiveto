@@ -137,3 +137,19 @@
 
 .prm .btn:disabled{opacity:.45;cursor:not-allowed}
 .prm .btn.primaire:disabled:hover{background:var(--pin)}
+
+/* Notifications: live counter of the SMS sender, SMS usage card */
+.prm .fcnt{font-family:var(--font-data);font-size:.68rem;color:var(--encre-35);text-align:right}
+.prm .fcnt.ko{color:#b91c1c;font-weight:600}
+.prm .smsu{display:flex;flex-direction:column;gap:8px;padding:8px 0 4px}
+.prm .smsu-h{display:flex;align-items:baseline;gap:8px}
+.prm .smsu-h b{font-family:var(--font-data);font-size:1.15rem;font-weight:700}
+.prm .smsu-h span{font-size:.8rem;color:var(--encre-60)}
+.prm .smsu-h em{margin-left:auto;font-style:normal;font-family:var(--font-data);font-size:.8rem;font-weight:600;color:var(--encre-60)}
+.prm .smsu-bar{height:8px;border-radius:4px;background:var(--brume);overflow:hidden}
+.prm .smsu-bar i{display:block;height:100%;border-radius:4px;background:var(--pin);transition:width .3s}
+.prm .smsu-bar.warn i{background:var(--ambre)}
+.prm .smsu-bar.crit i{background:var(--garance)}
+.prm .smsu-n{font-size:.74rem;color:var(--encre-60)}
+.prm .smsu-o{font-size:.82rem;font-weight:600}
+.prm .smsu .bandeau{margin-top:4px}

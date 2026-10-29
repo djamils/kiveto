@@ -16,6 +16,7 @@ final readonly class AuthenticatedUser
         public string $email,
         public UserType $type,
         public array $roles = ['ROLE_USER'],
+        public string $passwordFingerprint = '',
     ) {
     }
 }

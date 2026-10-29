@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Billing\Application\Port\InvoiceReadRepositoryInterface;
+use App\Context\Billing\Application\Port\OutstandingInvoiceRow;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
 use App\Context\Billing\Application\Query\GetBillingStats\BillingStats;
 use App\Context\Billing\Application\Query\GetCreditNoteDetails\CreditNoteDetails;
@@ -383,6 +384,44 @@ final readonly class DbalInvoiceReadRepository implements InvoiceReadRepositoryI
         }
 
         return $balances;
+    }
+
+    public function outstandingInvoices(ClinicId $clinicId, ?array $only = null): array
+    {
+        if ([] === $only) {
+            return [];
+        }
+
+        $params = ['clinicId' => Uuid::fromString($clinicId->toString())->toBinary(), 'statuses' => self::OUTSTANDING];
+        $types  = ['statuses' => ArrayParameterType::STRING];
+
+        if (null !== $only) {
+            $params['ids'] = array_map(static fn (InvoiceId $id): string => Uuid::fromString($id->toString())->toBinary(), $only);
+            $types['ids']  = ArrayParameterType::BINARY;
+        }
+
+        $rows = $this->connection->fetchAllAssociative(
+            \sprintf(
+                'SELECT BIN_TO_UUID(i.id) AS id, i.number, i.payer_client_id, i.issued_at, i.created_at,
+                        i.total_gross AS stored_gross, i.credited_minor_units AS credited,
+                        i.refunded_minor_units AS refunded, %s AS total_paid
+                 FROM billing__invoices i
+                 WHERE i.clinic_id = :clinicId AND i.status IN (:statuses) AND i.number IS NOT NULL%s
+                 ORDER BY i.issued_at ASC, i.id ASC',
+                $this->paidExpression(),
+                null !== $only ? ' AND i.id IN (:ids)' : '',
+            ),
+            $params,
+            $types,
+        );
+
+        return array_map(fn (array $row): OutstandingInvoiceRow => new OutstandingInvoiceRow(
+            id: RowAccessor::string($row, 'id'),
+            number: RowAccessor::string($row, 'number'),
+            payerClientId: RowAccessor::nullableUuid($row, 'payer_client_id'),
+            issuedAt: new \DateTimeImmutable(RowAccessor::nullableString($row, 'issued_at') ?? RowAccessor::string($row, 'created_at')),
+            balanceDueMinorUnits: $this->balanceOf($row),
+        ), $rows);
     }
 
     /**

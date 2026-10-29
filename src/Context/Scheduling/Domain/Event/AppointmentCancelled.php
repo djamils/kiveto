@@ -14,6 +14,8 @@ readonly class AppointmentCancelled extends AbstractDomainEvent
     public function __construct(
         private string $appointmentId,
         private string $clinicId,
+        // false when the client must not be told (death of the animal, D3)
+        private bool $notifyClient = true,
     ) {
     }
 
@@ -22,11 +24,27 @@ readonly class AppointmentCancelled extends AbstractDomainEvent
         return $this->appointmentId;
     }
 
+    public function appointmentId(): string
+    {
+        return $this->appointmentId;
+    }
+
+    public function clinicId(): string
+    {
+        return $this->clinicId;
+    }
+
+    public function notifyClient(): bool
+    {
+        return $this->notifyClient;
+    }
+
     public function payload(): array
     {
         return [
             'appointmentId' => $this->appointmentId,
             'clinicId'      => $this->clinicId,
+            'notifyClient'  => $this->notifyClient,
         ];
     }
 }

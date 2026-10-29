@@ -15,6 +15,7 @@ use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -30,6 +31,7 @@ final readonly class ScheduleAppointmentHandler
         private ClockInterface $clock,
         private PlanningBlockFinderInterface $planningBlockFinder,
         private ClinicTimezoneResolverInterface $timezoneResolver,
+        private DomainEventPublisher $domainEventPublisher,
     ) {
     }
 
@@ -111,9 +113,12 @@ final readonly class ScheduleAppointmentHandler
             linkedAdmissionId: $command->linkedAdmissionId,
             ownerId: $command->ownerId,
             animalId: $command->animalId,
+            actorUserId: $command->actorUserId,
         );
 
         $this->appointmentRepository->save($appointment);
+
+        $this->domainEventPublisher->publish($appointment);
 
         return $appointmentId->toString();
     }

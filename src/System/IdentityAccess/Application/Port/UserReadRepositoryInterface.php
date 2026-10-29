@@ -13,4 +13,13 @@ interface UserReadRepositoryInterface
         ?string $type = null,
         ?string $status = null,
     ): UserCollection;
+
+    /**
+     * The status of each known user among these ids.
+     *
+     * @param list<string> $userIds
+     *
+     * @return array<string, string> userId → status
+     */
+    public function statuses(array $userIds): array;
 }

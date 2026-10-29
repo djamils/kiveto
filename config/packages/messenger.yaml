@@ -40,6 +40,18 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            # Outbound notifications handed to Brevo (e-mail, SMS), consumed by the
+            # external worker after `async_external`. Own queue and retry policy so
+            # that ElectronicInvoicing's `async_external` strategy stays unchanged.
+            # DispatchRetryStrategy: 5 retries, 30 s × 3, never shorter than the
+            # provider's Retry-After (429); exhausted → DispatchFailureListener.
+            async_external_notification:
+                dsn: 'doctrine://default?queue_name=external_notification'
+                options:
+                    table_name: 'shared__messenger_messages'
+                    auto_setup: false
+                retry_strategy:
+                    service: App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy
             sync: 'sync://'
 
         # Separate bus definitions for CQRS
@@ -99,6 +111,8 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
+            # Brevo webhook events, parsed by the webhook controller, consumed by the worker
+            Symfony\Component\RemoteEvent\Messenger\ConsumeRemoteEventMessage: async
             # Domain Events (sync within bounded context)
             App\Shared\Domain\Event\DomainEventInterface: sync
             # Integration Events (async cross-bounded contexts)
@@ -107,3 +121,23 @@ framework:
             App\Shared\Application\Bus\ExternalApiCommandInterface: async_external
             # Steps of the local e-invoicing platform simulator (dev / test / demo), delayed
             App\System\ElectronicInvoicing\Infrastructure\Platform\Simulator\AdvanceSimulatedFlow: async
+            # Faked delivery webhooks of the local notification simulator (dev / test), delayed
+            App\System\Notification\Infrastructure\Delivery\Simulator\AdvanceSimulatedDelivery: async
+            # Retention and re-matching jobs: one transaction per batch / per provider id
+            App\System\Notification\Application\Command\PurgeMessageContentBatch\PurgeMessageContentBatch: async
+            App\System\Notification\Application\Command\DeleteMessageFiles\DeleteMessageFiles: async
+            App\System\Notification\Application\Command\ReplayDeliveryEvents\ReplayDeliveryEvents: async
+            # « Mot de passe oublié »: same answer and same response time whether the account exists or not
+            App\System\IdentityAccess\Application\Command\RequestPasswordReset\RequestPasswordReset: async
+            # Client messages of an appointment: the debounced sync (DelayStamp, D2) and the reminder of each due appointment
+            App\Context\Scheduling\Application\Command\SyncAppointmentNotification\SyncAppointmentNotification: async
+            App\Context\Scheduling\Application\Command\RequestAppointmentReminder\RequestAppointmentReminder: async
+            # Bell entries (D13): « Nouveau RDV » to the veterinarian and its withdrawal, « Stock critique » to the assistants
+            App\Context\Scheduling\Application\Command\PostNewAppointmentNotice\PostNewAppointmentNotice: async
+            App\Context\Scheduling\Application\Command\WithdrawNewAppointmentNotice\WithdrawNewAppointmentNotice: async
+            App\Context\Inventory\Application\Command\NotifyCriticalStock\NotifyCriticalStock: async
+            # Invoice e-mails and unpaid reminders: « Envoyer » / « Relancer » only log and queue them; a worker renders the PDF (AC 25)
+            App\Context\Billing\Application\Command\SendInvoiceEmail\SendInvoiceEmail: async
+            App\Context\Billing\Application\Command\SendUnpaidReminder\SendUnpaidReminder: async
+            # Consultation documents e-mail: « Envoyer par e-mail » only checks and queues it; a worker renders the PDFs
+            App\Context\Consultation\Application\Command\EmailConsultationDocuments\EmailConsultationDocuments: async

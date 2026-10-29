@@ -1,0 +1,15 @@
+Bonjour {{ addressee }},
+
+Le rendez-vous de {{ animalName }} est annulé.
+
+Date : {{ dateLabel }}
+Heure : {{ timeLabel }}
+Motif : {{ reason }}
+{% if practitionerName %}Vétérinaire : {{ practitionerName }}
+{% endif %}
+
+Pour fixer un nouveau rendez-vous : {{ clinic.phone }}
+
+--
+{{ clinic.footerLine }}
+Vous recevez ce message suite à l'annulation de votre rendez-vous.

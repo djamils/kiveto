@@ -1,7 +1,9 @@
 /**
  * Page module -- sign-in stage (connexion_3.html)
  * Loaded by the app.js dispatcher on clinic_login, clinic_lock,
- * clinic_select_clinic and clinic_no_access.
+ * clinic_select_clinic, clinic_no_access and the public account pages
+ * (clinic_forgot_password, clinic_reset_password, clinic_invitation — plain
+ * form posts, checked here before they leave).
  *
  * Ports the mock-up behaviour that has a backend:
  *   - screen transitions (slide in from the right, or from the left going back)
@@ -80,7 +82,7 @@ function bindPassword() {
 
   ['mail', 'mdp'].forEach((id) => $(id)?.addEventListener('input', () => {
     $('iMail')?.classList.remove('ko');
-    $('iMdp').classList.remove('ko');
+    $('iMdp')?.classList.remove('ko');
     if (a.classList.contains('ko')) { a.className = 'aide'; a.textContent = ''; }
   }));
 }
@@ -106,9 +108,6 @@ function charge(b, on) {
 function bindLogin() {
   const form = $('fMdp');
   if (!form) return;
-
-  const oubli = $('lOubli');
-  oubli.addEventListener('keydown', (e) => { if (e.key === 'Enter') oubli.click(); });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -151,6 +150,27 @@ function bindLogin() {
       location.href = url;
     }
   });
+}
+
+/* ═════════ Forgot password / new password ═════════ */
+function bindAccountForms() {
+  const oubli = $('fOubli');
+  if (oubli) {
+    oubli.addEventListener('submit', (e) => {
+      if (!EMAIL.test($('mail').value.trim())) { e.preventDefault(); refuser('iMail', 'mail', 'Saisissez votre adresse e-mail.'); return; }
+      charge($('bOubli'), true);
+    });
+  }
+
+  const nouveau = $('fNouveau');
+  if (nouveau) {
+    nouveau.addEventListener('submit', (e) => {
+      const p = $('mdp').value, c = $('mdp2').value;
+      if (p.length < 8) { e.preventDefault(); refuser('iMdp', 'mdp', 'Choisissez un mot de passe d’au moins 8 caractères.'); return; }
+      if (p !== c) { e.preventDefault(); refuser('iMdp2', 'mdp2', 'Les deux mots de passe ne correspondent pas.'); return; }
+      charge($('bNouveau'), true);
+    });
+  }
 }
 
 /* ═════════ Lock ═════════ */
@@ -212,6 +232,7 @@ export function init() {
 
   bindPassword();
   bindLogin();
+  bindAccountForms();
   bindLock();
   bindClinics();
 }

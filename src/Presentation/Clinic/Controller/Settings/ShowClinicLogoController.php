@@ -6,6 +6,7 @@ namespace App\Presentation\Clinic\Controller\Settings;
 
 use App\Presentation\Clinic\ViewModel\Settings\SettingsEndpoint;
 use App\Shared\Domain\Storage\FileStorageInterface;
+use App\Shared\Presentation\Twig\DocumentLogoRuntime;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -17,8 +18,6 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route(path: '/settings/logo', name: 'clinic_settings_logo', methods: ['GET'])]
 final readonly class ShowClinicLogoController
 {
-    public const array CONTENT_TYPES = ['png' => 'image/png', 'svg' => 'image/svg+xml', 'jpg' => 'image/jpeg', 'webp' => 'image/webp'];
-
     public function __construct(
         private SettingsEndpoint $endpoint,
         private FileStorageInterface $storage,
@@ -40,7 +39,7 @@ final readonly class ShowClinicLogoController
         }
 
         return new Response($content, Response::HTTP_OK, [
-            'Content-Type'  => self::CONTENT_TYPES[pathinfo($key, \PATHINFO_EXTENSION)] ?? 'application/octet-stream',
+            'Content-Type'  => DocumentLogoRuntime::CONTENT_TYPES[pathinfo($key, \PATHINFO_EXTENSION)] ?? 'application/octet-stream',
             'Cache-Control' => 'private, max-age=86400',
             // An SVG opened on its own must not run anything.
             'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'",

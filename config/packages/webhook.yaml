@@ -1,0 +1,13 @@
+# Brevo delivery webhooks (Notification, D12): POST /webhook/brevo_mailer and
+# /webhook/brevo_sms on any host, outside every authenticated firewall. Both
+# parsers are Kiveto's (Brevo IP ranges + shared secret); the parsed events
+# go through the command bus, whose routing sends ConsumeRemoteEventMessage
+# to `async`: the worker records them, the HTTP response does not wait.
+framework:
+    webhook:
+        message_bus: messenger.bus.command
+        routing:
+            brevo_mailer:
+                service: App\System\Notification\Infrastructure\Webhook\BrevoMailerRequestParser
+            brevo_sms:
+                service: App\System\Notification\Infrastructure\Webhook\BrevoSmsRequestParser

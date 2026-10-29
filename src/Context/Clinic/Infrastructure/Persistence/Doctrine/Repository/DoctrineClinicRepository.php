@@ -44,6 +44,7 @@ final readonly class DoctrineClinicRepository implements ClinicRepositoryInterfa
             $existing->setLetterhead($entity->getLetterhead());
             $existing->setOpeningHours($entity->getOpeningHours());
             $existing->setBillingSettings($entity->getBillingSettings());
+            $existing->setMessagingSettings($entity->getMessagingSettings());
             $existing->setBrandColor($entity->getBrandColor());
             $existing->setLogoKey($entity->getLogoKey());
             $existing->setUpdatedAt($entity->getUpdatedAt());

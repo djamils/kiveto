@@ -5,23 +5,26 @@ declare(strict_types=1);
 namespace App\Presentation\Clinic\ViewModel\Document;
 
 use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
+use App\Shared\Application\Document\DocumentFooter;
+use App\Shared\Application\Document\DocumentPdfRendererInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use App\Shared\Application\Pdf\PdfRendererInterface;
 use App\Shared\Application\Pdf\PdfRenderingFailedException;
-use App\Shared\Application\Pdf\PdfRenderRequest;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Twig\Environment;
 
 /**
- * Turns a document template into a PDF, and a PDF into a response.
+ * Merges document PDFs and turns a PDF into a response.
  *
- * The three documents share the same shell, the same footer and the same
- * headers, so the assembly lives here rather than in each controller.
+ * The documents owned by a bounded context (invoice, credit note, ordonnance,
+ * consultation report) come from that context's renderer; `render()` is left
+ * for the documents that have none yet (cheque deposit slip, narcotics
+ * register), through the same shared renderer.
  */
 final readonly class DocumentPdfFactory
 {
     public function __construct(
-        private Environment $twig,
+        private DocumentPdfRendererInterface $documents,
         private PdfRendererInterface $renderer,
     ) {
     }
@@ -38,18 +41,9 @@ final readonly class DocumentPdfFactory
         string $reference,
         ?string $subject = null,
     ): string {
-        $request = new PdfRenderRequest(
-            html: $this->twig->render($template, $context + ['clinic' => $clinic]),
-            footerHtml: $this->twig->render('clinic/document/_footer.html.twig', [
-                'clinic'    => $clinic,
-                'reference' => $reference,
-                'subject'   => $subject,
-            ]),
-        );
-
         try {
-            return $this->renderer->render($request);
-        } catch (PdfRenderingFailedException $exception) {
+            return $this->documents->render($template, $context, new DocumentFooter($clinic?->toDocumentClinic(), $reference, $subject));
+        } catch (DocumentRenderingFailed $exception) {
             throw self::unavailable($exception);
         }
     }
@@ -68,13 +62,16 @@ final readonly class DocumentPdfFactory
 
     /**
      * Inline rather than attachment: the viewer shows it, and saving it is one
-     * click away. The name is what the browser suggests when saving.
+     * click away. The name is what the browser suggests when saving; a ".pdf"
+     * it already ends with is not doubled.
      */
     public function response(string $pdf, string $filename): Response
     {
+        $name = preg_replace('/\.pdf$/i', '', $filename) ?? $filename;
+
         return new Response($pdf, Response::HTTP_OK, [
             'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => \sprintf('inline; filename="%s.pdf"', self::sanitize($filename)),
+            'Content-Disposition' => \sprintf('inline; filename="%s.pdf"', self::sanitize($name)),
             'Cache-Control'       => 'private, no-store',
         ]);
     }
@@ -83,7 +80,7 @@ final readonly class DocumentPdfFactory
      * The renderer is another service: when it is down or refuses a document,
      * this is a gateway failure, not a bug in the request.
      */
-    private static function unavailable(PdfRenderingFailedException $exception): HttpException
+    public static function unavailable(DocumentRenderingFailed|PdfRenderingFailedException $exception): HttpException
     {
         return new HttpException(
             Response::HTTP_BAD_GATEWAY,

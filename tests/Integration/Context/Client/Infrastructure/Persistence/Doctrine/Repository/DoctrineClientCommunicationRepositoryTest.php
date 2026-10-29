@@ -12,6 +12,8 @@ use App\Context\Client\Domain\ValueObject\ClientId;
 use App\Context\Client\Domain\ValueObject\ClinicId;
 use App\Context\Client\Domain\ValueObject\CommunicationDirection;
 use App\Context\Client\Domain\ValueObject\ContactChannel;
+use App\Context\Client\Domain\ValueObject\DeliveryStatus;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
@@ -47,6 +49,10 @@ final class DoctrineClientCommunicationRepositoryTest extends KernelTestCase
         self::assertSame('Appel entrant', $communications[1]->subject);
         self::assertSame('Prise de rendez-vous.', $communications[1]->body);
         self::assertSame('Camille', $communications[1]->authorName);
+        self::assertFalse($communications[1]->automated);
+        self::assertNull($communications[1]->deliveryStatus);
+        self::assertNull($communications[1]->deliveryStatusLabel);
+        self::assertNull($communications[1]->statusChangedAt);
         self::assertSame('2026-03-02 09:12:00', $communications[1]->occurredAt->format('Y-m-d H:i:s'));
     }
 
@@ -56,6 +62,66 @@ final class DoctrineClientCommunicationRepositoryTest extends KernelTestCase
             ClinicId::fromString(self::CLINIC_ID),
             ClientId::fromString(self::CLIENT_ID),
         ));
+    }
+
+    public function testAnAutomatedEntryIsFoundByItsMessageAndUpdatesItsStatus(): void
+    {
+        $repository = $this->repository();
+        $messageId  = '0192a000-0000-7000-8000-0000000000e1';
+
+        $repository->save(ClientCommunication::recordAutomated(
+            ClientCommunicationId::fromString('0192a000-0000-7000-8000-000000000005'),
+            ClinicId::fromString(self::CLINIC_ID),
+            ClientId::fromString(self::CLIENT_ID),
+            ContactChannel::EMAIL,
+            'Rendez-vous confirmé — Milo',
+            'À h.lambert@example.com',
+            $messageId,
+            DeliveryStatus::SENT,
+            2,
+            new \DateTimeImmutable('2026-10-26 09:42:05'),
+        ));
+        $this->entityManager()->clear();
+
+        self::assertNull($repository->findByNotificationMessageId('0192a000-0000-7000-8000-0000000000e2'));
+
+        $entry = $repository->findByNotificationMessageId($messageId);
+        self::assertInstanceOf(ClientCommunication::class, $entry);
+        self::assertSame(DeliveryStatus::SENT, $entry->deliveryStatus());
+
+        $entry->recordDeliveryStatus(DeliveryStatus::DELIVERED, 3, new \DateTimeImmutable('2026-10-26 09:42:30'));
+        $repository->save($entry);
+        $this->entityManager()->clear();
+
+        $reloaded = $repository->findByNotificationMessageId($messageId);
+        self::assertSame(DeliveryStatus::DELIVERED, $reloaded?->deliveryStatus());
+        self::assertSame(3, $reloaded->deliveryStatusSequence());
+        self::assertSame('2026-10-26 09:42:30', $reloaded->statusChangedAt()?->format('Y-m-d H:i:s'));
+        self::assertTrue($reloaded->isAutomated());
+
+        $views = $this->readRepository()->listForClient(ClinicId::fromString(self::CLINIC_ID), ClientId::fromString(self::CLIENT_ID));
+        self::assertCount(1, $views);
+        self::assertTrue($views[0]->automated);
+        self::assertSame('DELIVERED', $views[0]->deliveryStatus);
+        self::assertSame('Délivré', $views[0]->deliveryStatusLabel);
+        self::assertSame('2026-10-26 09:42:30', $views[0]->statusChangedAt?->format('Y-m-d H:i:s'));
+        self::assertSame('Envoi automatique', $views[0]->authorName);
+    }
+
+    private function repository(): ClientCommunicationRepositoryInterface
+    {
+        $repository = static::getContainer()->get(ClientCommunicationRepositoryInterface::class);
+        \assert($repository instanceof ClientCommunicationRepositoryInterface);
+
+        return $repository;
+    }
+
+    private function entityManager(): EntityManagerInterface
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+
+        return $em;
     }
 
     private function save(

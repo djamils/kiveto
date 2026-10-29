@@ -10,14 +10,14 @@ use Symfony\Component\Yaml\Yaml;
 /**
  * External-service calls have their own worker: mails and integration events
  * (`async`) never queue behind them, and the interactive queue is drained
- * before the batch one.
+ * before the outbound notifications, both before the batch one.
  */
 final class ComposeWorkersTest extends TestCase
 {
-    public function testTheExternalWorkerConsumesTheInteractiveQueueBeforeTheBatchOne(): void
+    public function testTheExternalWorkerConsumesTheInteractiveQueueThenTheNotificationsThenTheBatch(): void
     {
         self::assertMatchesRegularExpression(
-            '/messenger:consume async_external async_external_batch(\s|$)/',
+            '/messenger:consume async_external async_external_notification async_external_batch(\s|$)/',
             $this->command('external-worker'),
         );
     }

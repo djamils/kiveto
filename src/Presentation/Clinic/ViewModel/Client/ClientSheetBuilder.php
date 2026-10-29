@@ -347,7 +347,8 @@ final readonly class ClientSheetBuilder
     }
 
     /**
-     * Calls, messages and letters logged by the team.
+     * Calls, messages and letters logged by the team, and the messages
+     * Kiveto sent on its own with their delivery status.
      *
      * @param array<mixed> $exchanges
      *
@@ -363,17 +364,23 @@ final readonly class ClientSheetBuilder
             $at = $exchange->occurredAt->setTimezone($tz);
 
             $visits[] = [
-                'id'     => 'm-' . $exchange->id,
-                'd'      => $at->format('Y-m-d'),
-                'h'      => $at->format('H:i'),
-                'a'      => null,
-                'k'      => 'comm',
-                't'      => $exchange->subject,
-                'v'      => $exchange->authorName,
-                'st'     => 'venu',
-                'note'   => $exchange->body,
-                'canal'  => ContactChannel::from($exchange->channel)->label(),
-                'sens'   => CommunicationDirection::from($exchange->direction)->label(),
+                'id'    => 'm-' . $exchange->id,
+                'd'     => $at->format('Y-m-d'),
+                'h'     => $at->format('H:i'),
+                'a'     => null,
+                'k'     => 'comm',
+                't'     => $exchange->subject,
+                'v'     => $exchange->authorName,
+                'st'    => 'venu',
+                'note'  => $exchange->body,
+                'canal' => ContactChannel::from($exchange->channel)->label(),
+                'sens'  => CommunicationDirection::from($exchange->direction)->label(),
+                // A message Kiveto sent: « Automatique » tag and its delivery status.
+                'auto' => $exchange->automated ? [
+                    'st' => $exchange->deliveryStatus,
+                    'l'  => $exchange->deliveryStatusLabel,
+                    'at' => $exchange->statusChangedAt?->setTimezone($tz)->format('d/m/Y à H:i'),
+                ] : null,
                 'syn'    => null,
                 'mes'    => [],
                 'lignes' => null,

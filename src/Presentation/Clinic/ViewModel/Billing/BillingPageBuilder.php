@@ -118,6 +118,8 @@ final readonly class BillingPageBuilder
                 'deposit' => $this->csrf->getToken('billing_cheque_deposit')->getValue(),
                 'close'   => $this->csrf->getToken('billing_cash_closing')->getValue(),
                 'counter' => $this->csrf->getToken('billing_counter_sale')->getValue(),
+                'send'    => $this->csrf->getToken('billing_invoices_send')->getValue(),
+                'remind'  => $this->csrf->getToken('billing_invoices_remind')->getValue(),
             ],
             'urls' => [
                 'list'        => $this->urls->generate('clinic_invoices'),
@@ -136,6 +138,9 @@ final readonly class BillingPageBuilder
                 'counter'     => $this->urls->generate('clinic_counter_sale'),
                 'deposit'     => $this->urls->generate('clinic_cheques_deposit'),
                 'close'       => $this->urls->generate('clinic_cash_closing'),
+                'send'        => $this->urls->generate('clinic_invoices_send'),
+                'remind'      => $this->urls->generate('clinic_invoices_remind'),
+                'remindPrev'  => $this->urls->generate('clinic_invoices_reminder_preview'),
             ],
         ];
     }

@@ -1,0 +1,9 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+
+{% block subject %}Message de test Kiveto{% endblock %}
+
+{% block body %}
+<p>Bonjour,</p>
+<p>Ceci est un message de test envoyé par Kiveto le {{ sentAtLabel }} pour vérifier l'envoi des e-mails.</p>
+<p class="muted">Aucune action n'est nécessaire.</p>
+{% endblock %}

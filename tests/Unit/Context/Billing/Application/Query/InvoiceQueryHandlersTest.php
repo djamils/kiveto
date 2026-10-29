@@ -94,6 +94,17 @@ final class InvoiceQueryHandlersTest extends TestCase
 
         self::assertFalse($draft->isPrintable());
         self::assertFalse($cancelled->isPrintable());
+        self::assertFalse($draft->isSendable());
+        self::assertFalse($cancelled->isSendable());
+    }
+
+    public function testACreditedInvoiceIsPrintedButNeverEmailed(): void
+    {
+        $credited = new AdmissionInvoiceRow(self::INVOICE_ID, 'FAC-2026-000003', 'CREDITED', 4200, 'EUR');
+
+        self::assertTrue($credited->isPrintable());
+        self::assertFalse($credited->isSendable());
+        self::assertTrue(new AdmissionInvoiceRow(self::INVOICE_ID, 'FAC-2026-000004', 'PARTIALLY_PAID', 4200, 'EUR')->isSendable());
     }
 
     public function testSearchingWrapsTheRowsWithTheirPager(): void

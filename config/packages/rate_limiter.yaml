@@ -9,3 +9,15 @@ framework:
             policy: 'fixed_window'
             limit: 60
             interval: '1 minute'
+
+        # « Mot de passe oublié »: beyond either limit the page answers the
+        # same message and nothing is sent.
+        forgot_password_ip:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+
+        forgot_password_email:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'

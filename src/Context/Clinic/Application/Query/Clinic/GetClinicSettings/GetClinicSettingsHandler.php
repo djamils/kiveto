@@ -82,6 +82,8 @@ final readonly class GetClinicSettingsHandler
             ],
             brandColor: $clinic->brandColor()?->toString(),
             logoKey: $clinic->logoKey(),
+            smsSender: $clinic->messagingSettings()->smsSender,
+            overageCapSegments: $clinic->messagingSettings()->overageCapSegments,
         );
     }
 }

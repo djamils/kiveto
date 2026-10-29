@@ -11,6 +11,7 @@ use App\Context\Clinic\Domain\ValueObject\ClinicGroupId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
 use App\Context\Clinic\Domain\ValueObject\Letterhead;
+use App\Context\Clinic\Domain\ValueObject\MessagingSettings;
 use App\Context\Clinic\Domain\ValueObject\OpeningHours;
 use App\Context\Clinic\Domain\ValueObject\VatRegime;
 use App\Context\Clinic\Infrastructure\Persistence\Doctrine\Embeddable\LetterheadEmbeddable;
@@ -46,6 +47,7 @@ final readonly class ClinicMapper
             billingSettings: self::billingSettingsToDomain($entity->getBillingSettings()),
             brandColor: null !== $entity->getBrandColor() ? HexColor::fromString($entity->getBrandColor()) : null,
             logoKey: $entity->getLogoKey(),
+            messagingSettings: self::messagingSettingsToDomain($entity->getMessagingSettings()),
         );
     }
 
@@ -66,6 +68,11 @@ final readonly class ClinicMapper
         $entity->setBillingSettings(self::billingSettingsToArray($clinic->billingSettings()));
         $entity->setBrandColor($clinic->brandColor()?->toString());
         $entity->setLogoKey($clinic->logoKey());
+        $chosen = $clinic->chosenMessagingSettings();
+        $entity->setMessagingSettings(null === $chosen ? [] : [
+            'smsSender'          => $chosen->smsSender,
+            'overageCapSegments' => $chosen->overageCapSegments,
+        ]);
         $entity->setCreatedAt($clinic->createdAt());
         $entity->setUpdatedAt($clinic->updatedAt());
 
@@ -90,6 +97,23 @@ final readonly class ClinicMapper
 
         /* @var array{week?: array<int|string, list<array{opensAt?: string, closesAt?: string}>>, closures?: list<array{date?: string, reason?: string|null}>} $stored */
         return OpeningHours::fromArray($stored);
+    }
+
+    /**
+     * An empty object means the clinic has chosen nothing: its defaults follow its name.
+     *
+     * @param array<string, mixed> $stored
+     */
+    private static function messagingSettingsToDomain(array $stored): ?MessagingSettings
+    {
+        $sender = $stored['smsSender'] ?? null;
+        $cap    = $stored['overageCapSegments'] ?? null;
+
+        if (!\is_string($sender) || !\is_int($cap)) {
+            return null;
+        }
+
+        return MessagingSettings::create($sender, $cap);
     }
 
     /**

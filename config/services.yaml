@@ -29,6 +29,25 @@ parameters:
     # ElectronicInvoicing: delay between two statuses of the local platform simulator (ms)
     electronic_invoicing.simulator.step_delay: 30000
 
+    # Scheduling: debounce of the client messages of an appointment (ms, D2) —
+    # every appointment event syncs the client 2 minutes later, once.
+    scheduling.notification.sync_delay: 120000
+
+    # Notification: Brevo's published webhook source ranges (checked against the
+    # client IP as seen through the trusted proxies).
+    notification.brevo.webhook_ips:
+        - '1.179.112.0/20'
+        - '172.246.240.0/20'
+
+    # Notification: SMS quota = segments per veterinarian × the month's highest
+    # number of active veterinarians; overage counted at the unit price (€ HT
+    # per segment); default overage cap of a clinic (segments beyond the quota).
+    notification.sms.segments_per_veterinarian: 400
+    notification.sms.overage_unit_price: '0.079'
+    notification.sms.default_overage_cap: 500
+    # Notification: delay (ms) before the local simulator fakes a delivery webhook.
+    notification.simulator.delivery_delay: 5000
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -91,6 +110,10 @@ services:
     # PDF rendering - Gotenberg (Chromium) by default
     App\Shared\Application\Pdf\PdfRendererInterface:
         class: App\Shared\Infrastructure\Pdf\GotenbergPdfRenderer
+
+    # Document templates (Twig) turned into PDF by the renderer above
+    App\Shared\Application\Document\DocumentPdfRendererInterface:
+        class: App\Shared\Infrastructure\Document\TwigGotenbergDocumentPdfRenderer
 
     # Message Context and Actor Context (singletons)
     App\Shared\Application\Messaging\MessageContext: ~
@@ -180,6 +203,9 @@ services:
 
     App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper\UserMapper: ~
 
+    App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalAccountTokenRepository
+
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
     # ============================================================================
@@ -263,6 +289,9 @@ services:
     App\Context\Clinic\Application\Port\UserSearchForOnboardingInterface:
         class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\IdentityAccessUserSearchAdapter
 
+    App\Context\Clinic\Application\Port\InvitationStatusReaderInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\QueryBusInvitationStatusReader
+
     App\Context\Clinic\Domain\Staff\Repository\StaffProfileRepositoryInterface:
         class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DoctrineStaffProfileRepository
 
@@ -272,6 +301,16 @@ services:
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\ClinicMembershipMapper: ~
 
     App\Context\Clinic\Infrastructure\Persistence\Doctrine\Mapper\StaffProfileMapper: ~
+
+    # Veterinarian daily counts (SMS quota, D6) and what Clinic pushes to Notification
+    App\Context\Clinic\Application\Port\UserAccountStatusInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\IdentityAccess\QueryBusUserAccountStatus
+
+    App\Context\Clinic\Application\Port\VeterinarianDailyCountStoreInterface:
+        class: App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository\DbalVeterinarianDailyCountStore
+
+    App\Context\Clinic\Application\Port\MessagingProfileSyncInterface:
+        class: App\Context\Clinic\Infrastructure\Adapter\Notification\NotificationMessagingProfileSync
 
     # ============================================================================
     # BOUNDED CONTEXT: ACCESS CONTROL (RBAC)
@@ -418,6 +457,9 @@ services:
     App\Context\Client\Application\Verification\TaxProfileVerificationScheduleInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DbalTaxProfileVerificationSchedule
 
+    App\Context\Client\Application\Port\ClientNotificationContactReaderInterface:
+        class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DbalClientNotificationContactReader
+
     App\Context\Client\Domain\Repository\ClientNoteRepositoryInterface:
         class: App\Context\Client\Infrastructure\Persistence\Doctrine\Repository\DoctrineClientNoteRepository
 
@@ -496,6 +538,39 @@ services:
     App\Context\Scheduling\Application\Port\PlanningBlockAppointmentCounterInterface:
         class: App\Context\Scheduling\Infrastructure\Adapter\DbalPlanningBlockAppointmentCounter
 
+    # Client messages of appointments (notifications spec, D2): what each
+    # client was told, the reminders, and the clinic's reminder delay.
+    App\Context\Scheduling\Domain\Notification\AppointmentNotificationStateRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DbalAppointmentNotificationStateRepository
+
+    App\Context\Scheduling\Domain\Notification\ReminderSettingsRepositoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Persistence\Doctrine\Repository\DbalReminderSettingsRepository
+
+    App\Context\Scheduling\Application\Port\ClinicDirectoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Clinic\QueryBusClinicDirectory
+
+    App\Context\Scheduling\Application\Port\ClientContactInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Scheduling\Application\Port\AnimalDirectoryInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Animal\QueryBusAnimalDirectory
+
+    App\Context\Scheduling\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Scheduling\Application\Port\AttachmentStoreInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\FileStorageAttachmentStore
+
+    App\Context\Scheduling\Application\Port\CalendarInvitationWriterInterface:
+        class: App\Context\Scheduling\Infrastructure\Calendar\IcsWriter
+
+    App\Context\Scheduling\Application\Port\NotificationJobsInterface:
+        class: App\Context\Scheduling\Infrastructure\Messaging\MessengerNotificationJobs
+
+    # « Nouveau RDV » in the veterinarian's bell (D13)
+    App\Context\Scheduling\Application\Port\PractitionerBellInterface:
+        class: App\Context\Scheduling\Infrastructure\Adapter\Notification\CommandBusPractitionerBell
+
     # ============================================================================
     # BOUNDED CONTEXT: PATIENT
     # ============================================================================
@@ -550,6 +625,34 @@ services:
 
     App\Context\Consultation\Application\Port\ActCategoryProviderInterface:
         class: App\Context\Consultation\Infrastructure\Adapter\Catalog\QueryBusActCategoryProvider
+
+    App\Context\Consultation\Application\Port\ClinicDocumentIdentityInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentIdentity
+
+    App\Context\Consultation\Application\Port\PractitionerDirectoryInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Clinic\QueryBusPractitionerDirectory
+
+    App\Context\Consultation\Application\Port\PatientSnapshotProviderInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Patient\QueryBusPatientSnapshotProvider
+
+    App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface:
+        class: App\Context\Consultation\Infrastructure\Document\ConsultationReportPdfRenderer
+
+    # Consultation documents e-mail (Task 9.1): owner contact, Prescription / Billing files, Notification, async job
+    App\Context\Consultation\Application\Port\ClientContactInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Consultation\Application\Port\PrescriptionDocumentsInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Prescription\CommandBusPrescriptionDocuments
+
+    App\Context\Consultation\Application\Port\InvoiceDocumentInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Billing\CommandBusInvoiceDocument
+
+    App\Context\Consultation\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Consultation\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Consultation\Application\Port\DocumentJobsInterface:
+        class: App\Context\Consultation\Infrastructure\Messaging\MessengerDocumentJobs
 
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ConsultationMapper: ~
     App\Context\Consultation\Infrastructure\Persistence\Doctrine\Mapper\ClinicalNoteMapper: ~
@@ -642,8 +745,41 @@ services:
     App\Context\Billing\Application\Port\SellerIdentityProviderInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusSellerIdentityProvider
 
+    App\Context\Billing\Application\Port\ClinicDocumentContextInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentContext
+
+    App\Context\Billing\Application\Port\ClinicTimeZoneInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Clinic\QueryBusClinicTimeZone
+
+    App\Context\Billing\Application\Port\InvoicePdfRendererInterface:
+        class: App\Context\Billing\Infrastructure\Document\InvoicePdfRenderer
+
     App\Context\Billing\Application\Port\CounterClientRegistryInterface:
         class: App\Context\Billing\Infrastructure\Adapter\Client\CommandBusCounterClientRegistry
+
+    App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalInvoiceDispatchRepository
+
+    App\Context\Billing\Application\Port\SentDocumentFileStoreInterface:
+        class: App\Context\Billing\Infrastructure\Persistence\Doctrine\Repository\DbalSentDocumentFileStore
+
+    App\Context\Billing\Application\Port\ClientContactInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Client\QueryBusClientContact
+
+    App\Context\Billing\Application\Port\NotificationRequesterInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\CommandBusNotificationRequester
+
+    App\Context\Billing\Application\Port\VisitDirectoryInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Admission\QueryBusVisitDirectory
+
+    App\Context\Billing\Application\Port\DispatchJobsInterface:
+        class: App\Context\Billing\Infrastructure\Messaging\MessengerDispatchJobs
+
+    App\Context\Billing\Application\Port\SmsSegmentEstimatorInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\QueryBusSmsSegmentEstimator
+
+    App\Context\Billing\Application\Port\DeliveryStatusReaderInterface:
+        class: App\Context\Billing\Infrastructure\Adapter\Notification\QueryBusDeliveryStatusReader
 
     # ============================================================================
     # BOUNDED CONTEXT: PRESCRIPTION
@@ -669,6 +805,12 @@ services:
 
     App\Context\Prescription\Application\Port\DrugRegistryInterface:
         class: App\Context\Prescription\Infrastructure\Adapter\Catalog\QueryBusDrugRegistry
+
+    App\Context\Prescription\Application\Port\ClinicDocumentIdentityInterface:
+        class: App\Context\Prescription\Infrastructure\Adapter\Clinic\QueryBusClinicDocumentIdentity
+
+    App\Context\Prescription\Application\Port\PrescriptionPdfRendererInterface:
+        class: App\Context\Prescription\Infrastructure\Document\PrescriptionPdfRenderer
 
     App\Context\Prescription\Infrastructure\Persistence\Doctrine\PrescriptionMapper: ~
 
@@ -816,6 +958,19 @@ services:
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\LotMapper: ~
     App\Context\Inventory\Infrastructure\Persistence\Doctrine\Mapper\StockMovementMapper: ~
 
+    # Bell entries « Stock critique » and « Péremption proche » (notifications spec, D13)
+    App\Context\Inventory\Application\Port\StockNoticeJobsInterface:
+        class: App\Context\Inventory\Infrastructure\Messaging\MessengerStockNoticeJobs
+
+    App\Context\Inventory\Application\Port\ExpiryNoticeRepositoryInterface:
+        class: App\Context\Inventory\Infrastructure\Persistence\Doctrine\Repository\DbalExpiryNoticeRepository
+
+    App\Context\Inventory\Application\Port\ClinicStaffInterface:
+        class: App\Context\Inventory\Infrastructure\Adapter\Clinic\QueryBusClinicStaff
+
+    App\Context\Inventory\Application\Port\StaffBellInterface:
+        class: App\Context\Inventory\Infrastructure\Adapter\Notification\CommandBusStaffBell
+
     # ============================================================================
     # BOUNDED CONTEXT: PROCUREMENT
     # ============================================================================
@@ -950,6 +1105,81 @@ services:
     App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\PlatformConnectionMapper: ~
     App\System\ElectronicInvoicing\Infrastructure\Persistence\Doctrine\Mapper\OutboundTransmissionMapper: ~
 
+    # ============================================================================
+    # BOUNDED CONTEXT: NOTIFICATION (System)
+    # ============================================================================
+
+    App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DoctrineOutboundMessageRepository
+
+    App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalClinicMessagingProfileRepository
+
+    App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalVeterinarianCountRepository
+
+    App\System\Notification\Application\Port\MessageRendererInterface:
+        class: App\System\Notification\Infrastructure\Rendering\TwigMessageRenderer
+
+    App\System\Notification\Domain\Quota\SmsQuotaPolicy:
+        arguments:
+            $segmentsPerVeterinarian: '%notification.sms.segments_per_veterinarian%'
+            $overageUnitPrice: '%notification.sms.overage_unit_price%'
+
+    App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalInAppNotificationRepository
+
+    App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalSmsThresholdRepository
+
+    App\System\Notification\Application\Port\MessageStatusReaderInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalMessageStatusReader
+
+    App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface:
+        class: App\System\Notification\Infrastructure\Persistence\Doctrine\Repository\DbalUnmatchedDeliveryEventRepository
+
+    # Delivery adapters, picked by NOTIFICATION_DELIVERY when first used
+    # (disabled | simulator | brevo); the simulator is refused in production then.
+    notification.delivery.candidates:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            - disabled.email: '@App\System\Notification\Infrastructure\Delivery\DisabledDelivery'
+              disabled.sms: '@App\System\Notification\Infrastructure\Delivery\DisabledDelivery'
+              simulator.email: '@App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedEmailSender'
+              simulator.sms: '@App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedSmsSender'
+              brevo.email: '@App\System\Notification\Infrastructure\Transport\SymfonyMailerEmailSender'
+              brevo.sms: '@App\System\Notification\Infrastructure\Transport\SymfonyTexterSmsSender'
+
+    App\System\Notification\Infrastructure\Delivery\DeliverySelector:
+        arguments:
+            $candidates: '@notification.delivery.candidates'
+            $delivery: '%env(NOTIFICATION_DELIVERY)%'
+            $environment: '%kernel.environment%'
+            $mailerDsn: '%env(MAILER_DSN)%'
+            $smsDsn: '%env(NOTIFIER_SMS_DSN)%'
+            $logger: '@monolog.logger.external_api'
+
+    App\System\Notification\Application\Port\EmailSenderInterface:
+        class: App\System\Notification\Application\Port\EmailSenderInterface
+        factory: ['@App\System\Notification\Infrastructure\Delivery\DeliverySelector', 'emailSender']
+
+    App\System\Notification\Application\Port\SmsSenderInterface:
+        class: App\System\Notification\Application\Port\SmsSenderInterface
+        factory: ['@App\System\Notification\Infrastructure\Delivery\DeliverySelector', 'smsSender']
+
+    App\System\Notification\Infrastructure\Delivery\Simulator\SimulatedDeliveryScheduler:
+        arguments:
+            $commandBus: '@messenger.bus.command'
+            $delay: '%notification.simulator.delivery_delay%'
+
+    # Retry policy of async_external_notification (Retry-After honoured, bounded).
+    App\System\Notification\Infrastructure\Messaging\DispatchRetryStrategy:
+        arguments:
+            $maxRetries: 5
+            $delayMilliseconds: 30000
+            $multiplier: 3
+
 when@dev: &services_dev
     services:
         App\Fixtures\:
@@ -960,6 +1190,7 @@ when@dev: &services_dev
 when@test:
     parameters:
         electronic_invoicing.simulator.step_delay: 0
+        notification.simulator.delivery_delay: 0
 
     services:
         App\Context\Animal\Application\Search\AnimalSearchRepositoryInterface:

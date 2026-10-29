@@ -1,0 +1,18 @@
+Bonjour {{ addressee }},
+
+Veuillez trouver ci-joint la facture de {{ purchaseLabel }}.
+
+Facture : {{ invoiceNumber }}
+Date : {{ invoiceDate }}
+{% for rate in vatLabels %}Dont TVA {{ rate }} : {{ vatAmounts[loop.index0] ?? '' }}
+{% endfor %}Total TTC : {{ total }}
+{% if balanceDue %}Reste dû : {{ balanceDue }}
+
+Vous pouvez régler le montant restant à l'accueil de la clinique. Une question ? {{ clinic.phone }}.
+{% else %}Statut : Réglée
+
+Cette facture est acquittée : aucun règlement n'est attendu.
+{% endif %}
+
+--
+{{ clinic.footerLine }}

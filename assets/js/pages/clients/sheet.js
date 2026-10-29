@@ -92,7 +92,24 @@ export function init() {
 
   /* ── History rows ── */
   const ORDRE_SYN = ['Diagnostic', 'Conclusion', 'Actes', 'Examen', 'Imagerie', 'Motif'];
+  /* Delivery status of an automated message: an icon and a label, readable without colour. */
+  const SV = (p) => `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const STATUT_ENVOI = {
+    QUEUED: ['na', SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')],
+    SENT: ['na', SV('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>')],
+    DEFERRED: ['bt', SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5M12 16h.01"/>')],
+    DELIVERED: ['ok', SV('<path d="M20 6 9 17l-5-5"/>')],
+    BOUNCED: ['ko', SV('<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>')],
+    REJECTED: ['ko', SV('<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>')],
+    FAILED: ['ko', SV('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>')],
+    BLOCKED_CAP: ['ko', SV('<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>')],
+  };
+  const statutEnvoi = a => {
+    const [cl, ic] = STATUT_ENVOI[a.st] || ['na', ''];
+    return `<span class="etat envoi ${cl}">${ic}${esc(a.l || '')}</span>`;
+  };
   const sousTitre = v => {
+    if (v.k === 'comm' && v.auto) return `${esc(v.sens)} · ${esc(v.canal)} <span class="vig g auto">Automatique</span>`;
     if (v.k === 'comm') return `${esc(v.sens)} · ${esc(v.canal)} · ${esc(v.v)}`;
     if (v.k === 'vente') return esc((v.lignes || []).map(l => l[0]).slice(0, 2).join(', '));
     return `${esc(v.v || '—')}${v.syn && v.syn.Diagnostic ? ' · ' + esc(v.syn.Diagnostic) : v.note ? ' · ' + esc(v.note) : ''}`;
@@ -102,6 +119,7 @@ export function init() {
     let mo;
     if (v.st === 'avenir') mo = statutV(v);
     else if (v.st === 'absent') mo = '<span class="etat ko"><i></i>Non venu</span>';
+    else if (v.k === 'comm' && v.auto) mo = statutEnvoi(v.auto);
     else if (v.k === 'comm') mo = `<span class="etat na"><i></i>${esc(v.canal)}</span>`;
     else if (!v.fac) mo = nd ? `<small>${nd} doc${nd > 1 ? 's' : ''}</small>` : '';
     else mo = `<b>${fmtE(tot)}</b><small>${v.fac.st === 'cours' ? '<span style="color:#b45309">à encaisser</span>' : v.fac.st === 'du' ? '<span style="color:#b91c1c;font-weight:600">impayée</span>' : `réglée${nd ? ` · ${nd} doc${nd > 1 ? 's' : ''}` : ''}`}</small>`;
@@ -111,6 +129,7 @@ export function init() {
 
   function htmlDeplie(v) {
     if (v.st === 'absent') return `<p>${esc(v.note || 'Non venu.')}</p><div class="dep-act"><span class="sp"></span>${ARCH ? '' : `<a class="btn primaire" href="${esc(v.appt.book)}">Reprogrammer</a>`}</div>`;
+    if (v.k === 'comm' && v.auto) return `<p style="white-space:pre-wrap">${esc(v.note || 'Message envoyé par Kiveto.')}</p><div class="dep-act"><small>${esc(v.v)} · ${esc(v.sens.toLowerCase())} · ${esc(v.canal)}</small><span class="sp"></span>${statutEnvoi(v.auto)}${v.auto.at ? `<small>depuis le ${esc(v.auto.at)}</small>` : ''}</div>`;
     if (v.k === 'comm') return `<p style="white-space:pre-wrap">${esc(v.note || 'Pas de détail consigné.')}</p><div class="dep-act"><small>Consigné par ${esc(v.v)} · ${esc(v.sens.toLowerCase())} · ${esc(v.canal)}</small></div>`;
     const syn = v.syn ? ORDRE_SYN.filter(k => v.syn[k]).slice(0, 3) : [];
     const colSyn = `<div><h4>${v.k === 'vente' ? 'Vente' : 'Synthèse'}</h4>${syn.length ? `<dl>${syn.map(k => `<dt>${k}</dt><dd>${esc(v.syn[k])}</dd>`).join('')}</dl>` : `<p>${v.k === 'vente' ? 'Vente au comptoir' : esc(v.note || '—')}</p>`}${v.mes && v.mes.length ? `<div class="mesc">${v.mes.map(([l, x]) => `<span>${esc(l)} <b>${esc(x)}</b></span>`).join('')}</div>` : ''}</div>`;
@@ -314,7 +333,7 @@ export function init() {
   }, { signal });
 
   /* ── Rail cards ── */
-  const PREFS = [['sms', 'Rappels de rendez-vous par SMS', 'La veille à 18:00.'], ['mailFac', 'Factures et ordonnances par e-mail', 'Envoyées à la clôture de chaque consultation.'], ['relance', 'Relances de paiement', 'Par SMS et e-mail, avec lien de paiement.']];
+  const PREFS = [['sms', 'Rappels de rendez-vous par SMS', 'Envoyés au délai choisi dans Paramètres › Agenda.'], ['mailFac', 'Factures et ordonnances par e-mail', 'Quand l\'équipe les envoie depuis la consultation ou la facture.'], ['relance', 'Relances de paiement', 'Rappels des factures impayées, par SMS et e-mail.']];
   let PF = null;
   carte($('cPref'), {
     titre: 'Préférences', lecture: ARCH,

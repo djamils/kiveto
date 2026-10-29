@@ -4,11 +4,14 @@
  # The form is posted as JSON {email, password} to clinic_login, where the
  # ContextAuthenticator answers with the next URL or a 401.
  #
- # Not ported, no backend yet: the workstation accounts and PIN code, the
- # two-factor step, the password reset and the invitation screens.
+ # Not ported, no backend yet: the workstation accounts and PIN code and the
+ # two-factor step. « Mot de passe oublié ? » leads to the reset pages of
+ # the clinic host only (portal and back office: separate spec).
  #
  # Variables from controller:
- #   loggedOut  bool  the member has just signed out (shows the banner)
+ #   context    string  clinic | portal | backoffice
+ #   loggedOut  bool    the member has just signed out (shows the banner)
+ # Flash `auth_notice`: password changed, account activated.
  #}
 {% extends 'security/_auth_layout.html.twig' %}
 
@@ -19,12 +22,15 @@
     {% if loggedOut|default(false) %}
       <div class="info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>Vous êtes déconnecté. À bientôt !</span></div>
     {% endif %}
+    {% for notice in app.flashes('auth_notice') %}
+      <div class="info" role="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m5 12 5 5 9-10"/></svg><span>{{ notice }}</span></div>
+    {% endfor %}
     <h1 class="titre" id="t-mdp">Connexion</h1>
     <p class="sous">Accédez à votre clinique.</p>
     <form id="fMdp" action="{{ path('clinic_login') }}" method="post" data-dashboard="{{ path('clinic_dashboard') }}" data-turbo="false" novalidate>
       <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
       <div class="champ"><label class="lbl" for="mail">E-mail</label><div class="inp" id="iMail"><input id="mail" name="_username" type="email" autocomplete="username" placeholder="prenom@clinique.fr" spellcheck="false"></div></div>
-      <div class="champ"><div class="lbl"><label for="mdp">Mot de passe</label><a id="lOubli" tabindex="0" data-toast="Réinitialisation bientôt disponible : contactez l'administrateur de votre clinique">Mot de passe oublié ?</a></div>
+      <div class="champ"><div class="lbl"><label for="mdp">Mot de passe</label>{% if context|default('') == 'clinic' %}<a id="lOubli" href="{{ path('clinic_forgot_password') }}">Mot de passe oublié ?</a>{% endif %}</div>
         <div class="inp" id="iMdp"><input id="mdp" name="_password" class="avec-oeil" type="password" autocomplete="current-password"><button type="button" class="oeil" id="oeil" aria-label="Afficher le mot de passe" aria-pressed="false"></button></div>
         <span class="aide" id="mdpAide" aria-live="polite"></span></div>
       <label class="coche" aria-disabled="true" data-toast="Comptes du poste et code PIN bientôt disponibles"><input type="checkbox" id="memo" disabled><span class="bx"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span><span>Ajouter mon compte à ce poste<small>Ensuite, votre code PIN suffit pour vous reconnecter ici.</small></span></label>

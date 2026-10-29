@@ -1,0 +1,35 @@
+{#
+ # Kiveto -- templates/security/invitation.html.twig
+ # The invitation link of the e-mail (public); the secret is in the session.
+ #
+ # Variables from controller:
+ #   state  'form' | 'active' | 'invalid'
+ #   email  string|null  the account (form)
+ #   error  string|null  why the form was refused
+ #}
+{% extends 'security/_auth_layout.html.twig' %}
+{% import 'security/_account_macros.html.twig' as account %}
+
+{% block title %}Activer mon compte — Kiveto{% endblock %}
+
+{% block screens %}
+  <section class="ecran on" id="e-invit" aria-labelledby="t-invit">
+    {% if state == 'active' %}
+      <h1 class="titre" id="t-invit">Votre compte est déjà actif — connectez-vous</h1>
+      <p class="sous">Utilisez le mot de passe que vous avez choisi : vous retrouverez toutes vos cliniques.</p>
+      <a class="btn p" href="{{ path('clinic_login') }}"><span class="lb">Se connecter</span></a>
+    {% elseif state == 'invalid' %}
+      <h1 class="titre" id="t-invit">Ce lien n’est plus valide</h1>
+      <p class="sous">Il a déjà servi, a été remplacé par un plus récent ou a expiré (72 heures). Demandez à la personne qui vous a invité de vous renvoyer une invitation depuis l’équipe de la clinique.</p>
+      <a class="btn s" href="{{ path('clinic_login') }}"><span class="lb">Retour à la connexion</span></a>
+    {% else %}
+      <h1 class="titre" id="t-invit">Activer mon compte</h1>
+      <p class="sous">{% if email|default(null) %}Votre identifiant : <b>{{ email }}</b>. {% endif %}Choisissez votre mot de passe.</p>
+      <form id="fNouveau" action="{{ path('clinic_invitation_submit') }}" method="post" data-turbo="false" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('invitation') }}">
+        {{ account.new_password(error|default(null)) }}
+        <button class="btn p" id="bNouveau" type="submit"><span class="lb">Activer mon compte</span><span class="spin"></span></button>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

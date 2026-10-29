@@ -53,6 +53,22 @@ Opens from a scheduled appointment (`startFromAppointment()`) or directly from a
 | `PatientIdsProviderInterface` | All patient records of a clinic linked to one animal, so the history survives reconciliation (Patient BC) |
 | `ConsultationReadRepositoryInterface` | Read model: consultation details and the patient's consultation history |
 
+## Documents by e-mail
+
+« Envoyer par e-mail » in the documents panel of a closed consultation sends exactly the ticked PDFs to the owner.
+
+- `SendConsultationDocuments(clinicId, consultationId, documents, actorUserId)` (documents: `report`, `prescription:<id>`, `invoice`) only checks (`ConsultationDocuments`): something ticked, consultation `CLOSED`, owner not archived with an e-mail (explicit staff action: the e-mail on file, whatever the consents), every document belongs to the consultation — its report, one of its signed ordonnances, the invoice of its visit when it may be e-mailed (issued, partly paid or paid: never a credited or cancelled one, like « Envoyer » in Billing). A refusal throws `ConsultationDocumentsNotSendable`; otherwise it queues `EmailConsultationDocuments` on `async` with a request id and returns `ConsultationDocumentsQueued` (recipient, PDF count) for the toast.
+- `EmailConsultationDocuments` re-checks, then network first, writes last: the report (`ConsultationReportPdfRendererInterface`) and the ordonnances (Prescription `RenderPrescriptionFile`) are rendered and stored for this send only under `notification/attachments/<sha256 of the key>/` (owner `NOTIFICATION`); the invoice PDF is Billing's stored file (`EnsureSentInvoiceFile`, owner `REQUESTER`). Only then is `CONSULTATION_DOCUMENTS` requested, key `consultation:<id>:documents:<requestId>` (one e-mail per click, a replay sends nothing more). A request no longer valid by then sends nothing and logs a warning (the toast said « en cours d'envoi »). Dates are the clinic's (`ClinicDocumentIdentityInterface::timeZone`); the report attachment is named `compte-rendu-<ascii patient>-<clinic day>.pdf`.
+
+| Port | Adapter (`Infrastructure/…`) | Counterpart |
+|------|------------------------------|-------------|
+| `ClientContactInterface` | `Adapter/Client/QueryBusClientContact` | Client `GetClientNotificationContact` |
+| `PrescriptionDocumentsInterface` | `Adapter/Prescription/CommandBusPrescriptionDocuments` | Prescription `RenderPrescriptionFile` |
+| `InvoiceDocumentInterface` | `Adapter/Billing/CommandBusInvoiceDocument` | Billing `EnsureSentInvoiceFile` |
+| `NotificationRequesterInterface` | `Adapter/Notification/CommandBusNotificationRequester` | Notification `RequestNotification` |
+| `DocumentJobsInterface` | `Messaging/MessengerDocumentJobs` | Messenger `async` |
+| `ConsultationReportPdfRendererInterface` | `Document/ConsultationReportPdfRenderer` | Shared `DocumentPdfRendererInterface` (D5), fed by `ClinicDocumentIdentityInterface`, `PractitionerDirectoryInterface` and `PatientSnapshotProviderInterface` |
+
 ## Read Side
 
 `GetConsultationDetails` returns the whole cockpit state. The DBAL read repository stays bus-free and returns zeroed totals; the **handler** owns the money maths: it collects the distinct tax categories of the billing lines, asks the Taxation port once per category, and sums HT / TVA / TTC.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\Team;
 
+use App\Context\Clinic\Application\Port\InvitationStatusReaderInterface;
 use App\Context\Clinic\Application\Port\StaffProfileReadItem;
 use App\Context\Clinic\Application\Port\StaffProfileReadRepositoryInterface;
 use App\Context\Clinic\Application\Query\Clinic\GetClinicSettings\ClinicSettingsView;
@@ -30,7 +31,9 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
  *
  * Statuses are read off the membership and the account, never stored:
  *  - `off` — access switched off, or its window closed;
- *  - `inv` — not started yet (window opens later) or never signed in;
+ *  - `inv` — invited and not activated yet (« Invité », « Invitation
+ *    expirée » once no link of this clinic is usable), not started yet
+ *    (window opens later) or never signed in;
  *  - `tmp` — in force, with an end date;
  *  - `act` — in force, open-ended.
  */
@@ -92,6 +95,7 @@ final readonly class TeamPageBuilder
         private UrlGeneratorInterface $urls,
         private CsrfTokenManagerInterface $csrf,
         private PhoneFormatRuntime $phones,
+        private InvitationStatusReaderInterface $invitations,
     ) {
     }
 
@@ -133,6 +137,10 @@ final readonly class TeamPageBuilder
         $clinicsOf = $this->clinicsOfUsers($clinicId, $clinics);
         $viewer    = $this->security->getUser();
         $viewerId  = $viewer instanceof SecurityUser ? $viewer->id() : null;
+        $invited   = $this->invitations->statuses($clinicId, array_values(array_unique(array_map(
+            static fn (MembershipListItem $membership): string => $membership->userId,
+            $memberships,
+        ))));
 
         $members = [];
 
@@ -144,6 +152,7 @@ final readonly class TeamPageBuilder
                 $membership->userId === $viewerId,
                 $now,
                 $today,
+                $invited[$membership->userId] ?? null,
             );
         }
 
@@ -252,6 +261,7 @@ final readonly class TeamPageBuilder
         bool $isViewer,
         \DateTimeImmutable $now,
         \DateTimeImmutable $today,
+        ?string $invitation,
     ): array {
         $timeZone = $today->getTimezone();
         $from     = $membership->validFrom->setTimezone($timeZone);
@@ -263,7 +273,7 @@ final readonly class TeamPageBuilder
             ? [$profile->firstName, $profile->lastName]
             : $this->namesFromEmail($email);
 
-        [$status, $label, $state] = $this->status($membership, $now, $from, $until);
+        [$status, $label, $state] = $this->status($membership, $now, $from, $until, $invitation);
 
         return [
             'id'      => $membership->membershipId,
@@ -313,6 +323,7 @@ final readonly class TeamPageBuilder
         \DateTimeImmutable $now,
         \DateTimeImmutable $from,
         ?\DateTimeImmutable $until,
+        ?string $invitation,
     ): array {
         if (ClinicMembershipStatus::DISABLED === $membership->status) {
             return ['off', 'Accès désactivé', 'desactive'];
@@ -322,6 +333,14 @@ final readonly class TeamPageBuilder
             \assert(null !== $until);
 
             return ['off', 'Accès terminé le ' . $until->format('d/m/Y'), 'termine'];
+        }
+
+        if (InvitationStatusReaderInterface::INVITED === $invitation) {
+            return ['inv', 'Invité', 'invite'];
+        }
+
+        if (InvitationStatusReaderInterface::EXPIRED === $invitation) {
+            return ['inv', 'Invitation expirée', 'expire'];
         }
 
         if ($membership->validFrom > $now) {
@@ -469,6 +488,7 @@ final readonly class TeamPageBuilder
             'validity'    => $this->urls->generate('clinic_settings_team_validity', $member),
             'disable'     => $this->urls->generate('clinic_settings_team_disable', $member),
             'enable'      => $this->urls->generate('clinic_settings_team_enable', $member),
+            'resend'      => $this->urls->generate('clinic_settings_team_resend', $member),
         ];
     }
 }

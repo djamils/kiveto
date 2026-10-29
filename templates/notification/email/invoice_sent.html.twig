@@ -1,0 +1,20 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Votre facture {{ invoiceNumber }} — {{ clinic.name }}{% endblock %}
+
+{% block body %}
+{% set vatRows = [] %}
+{% for rate in vatLabels %}{% set vatRows = vatRows|merge([{label: 'Dont TVA ' ~ rate, value: vatAmounts[loop.index0] ?? ''}]) %}{% endfor %}
+<p>Bonjour {{ addressee }},</p>
+<p>Veuillez trouver ci-joint la facture de {{ purchaseLabel }}.</p>
+{{ ui.details([
+    {label: 'Facture', value: invoiceNumber},
+    {label: 'Date', value: invoiceDate},
+]|merge(vatRows)|merge([{label: 'Total TTC', value: total, strong: true}])|merge(balanceDue ? [{label: 'Reste dû', value: balanceDue, strong: true}] : [{label: 'Statut', value: 'Réglée'}])) }}
+{% if balanceDue %}
+<p>Vous pouvez régler le montant restant à l'accueil de la clinique. Une question ? {{ clinic.phone }}.</p>
+{% else %}
+<p>Cette facture est acquittée : aucun règlement n'est attendu.</p>
+{% endif %}
+{% endblock %}

@@ -45,6 +45,7 @@ final class UserEntityTest extends TestCase
         self::assertSame('$hash', $user->getPassword());
         self::assertSame(UserType::CLINIC, $user->getType());
         self::assertSame('clinic@example.com', $user->getUserIdentifier());
+        self::assertSame(1, $user->getVersion());
     }
 
     public function testGetUserIdentifierThrowsWhenEmpty(): void

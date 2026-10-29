@@ -15,6 +15,7 @@ use App\Shared\Application\Bus\CommandBusInterface;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
 use App\Shared\Domain\Localization\TimeZone;
+use App\System\IdentityAccess\Infrastructure\Security\Symfony\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -110,6 +111,7 @@ final class CreateAppointmentController extends AbstractController
                 notes: $notes,
                 ownerId: $ownerId,
                 animalId: $animalId,
+                actorUserId: $this->actorUserId(),
             ));
 
             \assert(\is_string($appointmentId));
@@ -163,5 +165,12 @@ final class CreateAppointmentController extends AbstractController
         }
 
         return $animal instanceof AnimalView ? $animal->primaryOwnerClientId() : null;
+    }
+
+    private function actorUserId(): ?string
+    {
+        $user = $this->getUser();
+
+        return $user instanceof SecurityUser ? $user->id() : null;
     }
 }

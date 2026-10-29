@@ -6,8 +6,8 @@
  # page header (figures of the day, registry menu, « Clôturer la caisse »,
  # « Vente au comptoir »), filter bar, the table and its pager, the bulk bar,
  # the side sheet of one document, the paper preview, and the « Encaisser »,
- # « Établir un avoir », « Vente au comptoir » and « Clôturer la caisse »
- # windows.
+ # « Établir un avoir », « Vente au comptoir », « Clôturer la caisse » and
+ # « Relancer » (bulk reminder confirmation) windows.
  #
  # The table, the sheet and the windows are drawn by the page module from the
  # payload; filters and pages are asked from clinic_invoices_search, a sheet
@@ -44,6 +44,7 @@
           <button type="button" class="dd-it" id="btnClos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Clôtures de caisse<small>Journal des clôtures journalières, mensuelles et annuelles</small></span></button>
         </div>
       </div>
+      <button type="button" class="btn" id="btnRelTous" data-tip="Relancer par e-mail et SMS chaque facture impayée, après confirmation"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Relancer tous les impayés</button>
       <button type="button" class="btn" id="btnClo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Clôturer la caisse</button>
       <button type="button" class="btn primaire" id="btnVente"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Vente au comptoir</button>
     </div>
@@ -76,8 +77,8 @@
   <div class="bulk" id="bulk" role="toolbar" aria-label="Actions groupées">
     <span class="bn" id="bulkN">0</span><span id="bulkL">sélectionnées</span>
     <span class="bdiv"></span>
-    <button type="button" id="bkRel" disabled data-tip="Les relances par SMS et e-mail ne sont pas encore disponibles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Relancer</button>
-    <button type="button" id="bkSend" disabled data-tip="L'envoi par e-mail n'est pas encore disponible"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Envoyer</button>
+    <button type="button" id="bkRel" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Relancer</button>
+    <button type="button" id="bkSend" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Envoyer</button>
     <button type="button" id="bkPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimer</button>
     <button type="button" id="bkExp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>Exporter</button>
     <span class="bdiv"></span>
@@ -89,6 +90,17 @@
     <div class="mhead"><div class="mt"><b id="pvT">Facture</b><span id="pvS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
     <div class="mbody scr"><div class="paper" id="pvPaper"></div></div>
     <div class="mfoot"><button type="button" class="btn" id="pvPdf">Télécharger le PDF</button><button type="button" class="btn primaire" id="pvPrint">Imprimer</button></div>
+  </div></div>
+
+  {# Relancer : confirmation of a bulk reminder #}
+  <div class="mveil" id="mRel"><div class="mbox" style="width:min(480px,94vw)">
+    <div class="mhead"><div class="mt"><b id="relT">Relancer les impayés</b><span id="relS">—</span></div><button type="button" class="mclose" data-close aria-label="Fermer">{{ _x|raw }}</button></div>
+    <div class="mbody">
+      <p style="margin:0 0 8px;font-size:16px"><b id="relN">—</b></p>
+      <p class="hint" style="margin:0 0 6px">Chaque client est relancé sur les canaux qu'il a acceptés pour la facturation : e-mail avec la facture jointe, SMS. Une facture déjà relancée aujourd'hui n'est pas relancée une seconde fois.</p>
+      <p class="hint" id="relX" style="margin:0"></p>
+    </div>
+    <div class="mfoot"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn primaire" id="relOk">Relancer</button></div>
   </div></div>
 
   {# Encaisser #}

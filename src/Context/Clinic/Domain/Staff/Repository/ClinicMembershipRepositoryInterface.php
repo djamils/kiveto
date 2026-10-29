@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Context\Clinic\Domain\Staff\Repository;
 
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
@@ -21,6 +22,20 @@ interface ClinicMembershipRepositoryInterface
         \DateTimeImmutable $now,
         ?ClinicMembershipId $excluding = null,
     ): int;
+
+    /**
+     * The users whose membership in this clinic is in force at $now (status
+     * and validity window), optionally of one role, optionally only those
+     * wearing the administration hat.
+     *
+     * @return list<string> user ids
+     */
+    public function findEffectiveUserIds(
+        ClinicId $clinicId,
+        \DateTimeImmutable $now,
+        ?ClinicMemberRole $role = null,
+        bool $administratorsOnly = false,
+    ): array;
 
     public function save(ClinicMembership $membership): void;
 

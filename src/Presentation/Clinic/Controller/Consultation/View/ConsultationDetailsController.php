@@ -6,6 +6,8 @@ namespace App\Presentation\Clinic\Controller\Consultation\View;
 
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\AdmissionInvoiceRow;
 use App\Context\Billing\Application\Query\FindInvoiceForAdmission\FindInvoiceForAdmission;
+use App\Context\Client\Application\Query\GetClientNotificationContact\ClientNotificationContact;
+use App\Context\Client\Application\Query\GetClientNotificationContact\GetClientNotificationContact;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
 use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
 use App\Context\Prescription\Application\Query\ListPrescriptionsForConsultation\ConsultationPrescriptionRow;
@@ -70,7 +72,7 @@ final class ConsultationDetailsController extends AbstractController
                 'reference'    => $this->referenceData->toArray(),
                 'serverNowUtc' => $this->clock->now()->format('Y-m-d H:i:s'),
                 'endpoints'    => $this->endpoints($id),
-                'documents'    => $this->documents($id, $clinicId, $consultation->admissionId),
+                'documents'    => $this->documents($id, $clinicId, $consultation->admissionId, $clientId),
                 'context'      => [
                     'origin'       => $this->contextBuilder->origin($consultation, $letterhead['timeZone']),
                     'letterhead'   => $letterhead,
@@ -96,15 +98,18 @@ final class ConsultationDetailsController extends AbstractController
     /**
      * What the "Imprimer / Télécharger" panel can offer: the report is always
      * there, the ordonnances and the invoice only once they have been signed.
+     * The ids let « Envoyer par e-mail » name the ticked documents; the
+     * recipient is the owner's e-mail on file (null: the button stays off).
      *
      * @return array{
      *     report: string,
      *     bundle: string,
-     *     prescriptions: list<array{number: string, lineCount: int, url: string}>,
-     *     invoice: array{number: string, url: string}|null
+     *     prescriptions: list<array{id: string, number: string, lineCount: int, url: string}>,
+     *     invoice: array{id: string, number: string, url: string, sendable: bool}|null,
+     *     send: array{url: string, recipient: array{name: string, email: string}|null}
      * }
      */
-    private function documents(string $consultationId, string $clinicId, string $admissionId): array
+    private function documents(string $consultationId, string $clinicId, string $admissionId, ?string $clientId): array
     {
         $prescriptions = [];
         $rows          = $this->queryBus->ask(new ListPrescriptionsForConsultation(
@@ -119,6 +124,7 @@ final class ConsultationDetailsController extends AbstractController
                 }
 
                 $prescriptions[] = [
+                    'id'        => $row->id,
                     'number'    => $row->number,
                     'lineCount' => $row->lineCount,
                     'url'       => $this->generateUrl('clinic_prescription_pdf', ['prescriptionId' => $row->id]),
@@ -133,8 +139,11 @@ final class ConsultationDetailsController extends AbstractController
 
         $invoice = $invoiceRow instanceof AdmissionInvoiceRow && $invoiceRow->isPrintable() && null !== $invoiceRow->number
             ? [
+                'id'     => $invoiceRow->id,
                 'number' => $invoiceRow->number,
                 'url'    => $this->generateUrl('clinic_invoice_pdf', ['invoiceId' => $invoiceRow->id]),
+                // A credited invoice is printed but not e-mailed.
+                'sendable' => $invoiceRow->isSendable(),
             ]
             : null;
 
@@ -143,7 +152,26 @@ final class ConsultationDetailsController extends AbstractController
             'bundle'        => $this->generateUrl('clinic_consultation_bundle_pdf', ['consultationId' => $consultationId]),
             'prescriptions' => $prescriptions,
             'invoice'       => $invoice,
+            'send'          => [
+                'url'       => $this->generateUrl('clinic_consultation_send_documents', ['id' => $consultationId]),
+                'recipient' => null !== $clientId ? $this->recipient($clinicId, $clientId) : null,
+            ],
         ];
+    }
+
+    /**
+     * The owner as the documents e-mail reaches them, or null when they have
+     * no e-mail or are archived.
+     *
+     * @return array{name: string, email: string}|null
+     */
+    private function recipient(string $clinicId, string $clientId): ?array
+    {
+        $contact = $this->queryBus->ask(new GetClientNotificationContact($clinicId, $clientId));
+
+        return $contact instanceof ClientNotificationContact && !$contact->archived && null !== $contact->email
+            ? ['name' => $contact->displayName, 'email' => $contact->email]
+            : null;
     }
 
     /**

@@ -1,0 +1,18 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Rendez-vous confirmé — {{ animalName }}, {{ subjectDateLabel }}{% endblock %}
+
+{% block body %}
+<p>Bonjour {{ addressee }},</p>
+<p>Le rendez-vous de <strong>{{ animalName }}</strong> est confirmé.</p>
+{{ ui.details([
+    {label: 'Date', value: dateLabel},
+    {label: 'Heure', value: timeLabel},
+    {label: 'Motif', value: reason},
+]|merge(practitionerName ? [{label: 'Vétérinaire', value: practitionerName}] : [])|merge(clinic.addressLine ? [{label: 'Adresse', value: clinic.addressLine}] : [])) }}
+<p class="muted">L'invitation jointe à ce message ajoute le rendez-vous à votre agenda.</p>
+<p>Pour modifier ou annuler, appelez-nous au {{ clinic.phone }}.</p>
+{% endblock %}
+
+{% block footer_note %}Vous recevez ce message suite à la prise de votre rendez-vous.{% endblock %}

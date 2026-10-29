@@ -8,6 +8,7 @@ use App\Context\Clinic\Domain\Clinic;
 use App\Context\Clinic\Domain\Repository\ClinicRepositoryInterface;
 use App\Context\Clinic\Domain\ValueObject\ClinicId;
 use App\Context\Clinic\Domain\ValueObject\ClinicSlug;
+use App\Context\Clinic\Domain\ValueObject\MessagingSettings;
 use App\Fixtures\Context\Clinic\Factory\ClinicEntityFactory;
 use App\Shared\Domain\Localization\Locale;
 use App\Shared\Domain\Localization\TimeZone;
@@ -158,5 +159,34 @@ final class DoctrineClinicRepositoryTest extends KernelTestCase
 
         self::assertNotNull($updated);
         self::assertSame('Updated Name', $updated->name());
+    }
+
+    public function testTheChosenMessagingSettingsAreKeptAndAbsentOnesReadAsDefaults(): void
+    {
+        ClinicEntityFactory::createOne([
+            'id'   => Uuid::fromString('018f1b1e-cccc-7890-abcd-0123456789ab'),
+            'name' => 'Clinique des Lilas',
+            'slug' => 'clinique-des-lilas',
+        ]);
+
+        /** @var ClinicRepositoryInterface $repo */
+        $repo = static::getContainer()->get(ClinicRepositoryInterface::class);
+        $id   = ClinicId::fromString('018f1b1e-cccc-7890-abcd-0123456789ab');
+
+        $clinic = $repo->findById($id);
+        self::assertNotNull($clinic);
+        self::assertNull($clinic->chosenMessagingSettings());
+
+        $clinic->changeMessagingSettings(MessagingSettings::create('Lilas Vet', 250), new \DateTimeImmutable('2026-10-01T10:00:00Z'));
+        $repo->save($clinic);
+
+        /** @var Registry $doctrine */
+        $doctrine = static::getContainer()->get('doctrine');
+        $doctrine->getManager()->clear();
+
+        $reloaded = $repo->findById($id);
+        self::assertNotNull($reloaded);
+        self::assertSame('Lilas Vet', $reloaded->chosenMessagingSettings()?->smsSender);
+        self::assertSame(250, $reloaded->messagingSettings()->overageCapSegments);
     }
 }

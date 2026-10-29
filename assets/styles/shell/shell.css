@@ -561,6 +561,17 @@ body.sb-mini .sb-foot-sep{display:none}
 }
 .nf-histo:hover{background:var(--pin-pale)}
 .nf-vide{padding:22px 10px;text-align:center;font-size:.74rem;color:var(--encre-35)}
+a.nf-histo{display:block}
+#nfListe{max-height:min(460px,60vh);overflow-y:auto}
+
+/* Historique de la cloche (30 derniers jours) */
+.nfh{display:flex;flex-direction:column;min-height:0}
+.nfh-body{width:100%;max-width:720px;margin:0 auto;padding:6px 16px 32px;display:flex;flex-direction:column;gap:18px}
+.nfh-jour h2{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--encre-35);margin:0 0 6px 4px}
+.nfh-liste{background:var(--carte);border:1px solid var(--trait);border-radius:12px;padding:4px;display:flex;flex-direction:column}
+.nfh-vide{margin-top:40px;text-align:center;font-size:.8rem;color:var(--encre-60)}
+.nfh-vide b{display:block;font-size:.9rem;color:var(--encre);margin-bottom:4px}
+.nfh-note{margin:0;text-align:center;font-size:.75rem;color:var(--encre-60)}
 
 
 

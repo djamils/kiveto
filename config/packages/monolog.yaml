@@ -7,6 +7,8 @@ monolog:
 # Symfony's own `http_client` channel logs full URLs, query strings included
 # (names, SIRENs): it is excluded from every handler and gets none of its own.
 # External calls are traced on `external_api` instead, without payloads.
+# Every record goes through App\Shared\Infrastructure\Logging\WebhookTokenMaskingProcessor
+# (#[AsMonologProcessor]): `token=` and reset / invitation link tokens become `***`.
 
 when@dev:
     monolog:

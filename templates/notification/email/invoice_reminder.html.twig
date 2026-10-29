@@ -1,0 +1,16 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Rappel : facture {{ invoiceNumber }} en attente de règlement{% endblock %}
+
+{% block body %}
+<p>Bonjour {{ addressee }},</p>
+<p>Sauf erreur de notre part, la facture {{ careLabel }} n'est pas encore réglée.</p>
+{{ ui.details([
+    {label: 'Facture', value: invoiceNumber ~ ' du ' ~ invoiceDate},
+    {label: 'Montant', value: total},
+    {label: 'Déjà réglé', value: paid},
+    {label: 'Reste à payer', value: balanceDue, strong: true},
+]) }}
+<p>Vous pouvez régler à l'accueil de la clinique. Si vous avez réglé entre-temps, ne tenez pas compte de ce message. Une question ? {{ clinic.phone }}.</p>
+{% endblock %}

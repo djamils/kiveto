@@ -1,0 +1,15 @@
+{% extends 'notification/email/_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}Consultation de {{ animalName }} du {{ consultationDateLabel }} — vos documents{% endblock %}
+
+{% block body %}
+{% set rows = [{label: 'Consultation', value: consultationLabel}] %}
+{% for label in documentLabels %}{% set rows = rows|merge([{label: label, value: documentValues[loop.index0] ?? ''}]) %}{% endfor %}
+<p>Bonjour {{ addressee }},</p>
+<p>Vous trouverez en pièces jointes les documents de la consultation de <strong>{{ animalName }}</strong>.</p>
+{{ ui.details(rows) }}
+<p>{% if 'Ordonnance' in documentLabels %}Conservez l'ordonnance : elle vous sera demandée pour la délivrance des médicaments. Une question sur le traitement ? {% else %}Une question ? {% endif %}{{ clinic.phone }}.</p>
+{% endblock %}
+
+{% block footer_note %}Ce message contient des informations de santé de votre animal. Ne le transférez qu'à des personnes de confiance.{% endblock %}

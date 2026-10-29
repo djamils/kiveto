@@ -1,0 +1,48 @@
+{#
+ # Kiveto — templates/clinic/notifications/history.html.twig
+ # ─────────────────────────────────────────────────────────
+ # « Voir tout l'historique » of the bell: every entry of the member in the
+ # current clinic over the last 30 days, grouped by day. The entries behave
+ # as in the dropdown (shell.js: click marks read and opens the screen,
+ # « Tout marquer lu »).
+ #
+ # Variables:
+ #   days       array<string, list<NotificationItem>>  day label => entries, newest first
+ #   truncated  int|null  the number of entries shown when older ones are left out
+ #   unread     int
+ #}
+{% extends 'clinic/base.html.twig' %}
+
+{% block page_body_class %}vt page-scroll{% endblock %}
+{% block title %}Notifications{% endblock %}
+
+{% block main %}
+<div class="nfh">
+  <div class="pagehead">
+    <h1>Notifications<small>Historique des 30 derniers jours</small></h1>
+    <div class="right">
+      {% if unread > 0 %}
+        <button type="button" class="btn" data-nf-all data-nf-unread>Tout marquer lu</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="nfh-body">
+    {% for day, items in days %}
+      <section class="nfh-jour">
+        <h2>{{ day }}</h2>
+        <div class="nfh-liste">
+          {% for item in items %}
+            {{ include('components/layout/_notification_item.html.twig', { item: item, when: item.time }) }}
+          {% endfor %}
+        </div>
+      </section>
+    {% else %}
+      <div class="nfh-vide"><b>Aucune notification ces 30 derniers jours.</b></div>
+    {% endfor %}
+    {% if truncated %}
+      <p class="nfh-note">Seules les {{ truncated }} notifications les plus récentes sont affichées.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

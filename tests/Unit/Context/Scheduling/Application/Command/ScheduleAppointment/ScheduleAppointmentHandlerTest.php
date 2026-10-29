@@ -12,13 +12,16 @@ use App\Context\Scheduling\Application\Port\MembershipEligibilityCheckerInterfac
 use App\Context\Scheduling\Application\Port\PlanningBlockFinderInterface;
 use App\Context\Scheduling\Application\Port\PlanningBlockReadModel;
 use App\Context\Scheduling\Domain\Appointment;
+use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PlanningBlockType;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Identifier\UuidGeneratorInterface;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +36,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
     private PlanningBlockFinderInterface&MockObject $planningBlockFinder;
     private ClinicTimezoneResolverInterface&MockObject $timezoneResolver;
     private ScheduleAppointmentHandler $handler;
+    private CapturingEventBus $events;
 
     protected function setUp(): void
     {
@@ -52,6 +56,7 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             clock: $this->clock,
             planningBlockFinder: $this->planningBlockFinder,
             timezoneResolver: $this->timezoneResolver,
+            domainEventPublisher: new DomainEventPublisher($this->events = new CapturingEventBus()),
         );
     }
 
@@ -64,6 +69,9 @@ final class ScheduleAppointmentHandlerTest extends TestCase
             durationMinutes: 30,
             reason: 'Consultation',
             notes: null,
+            ownerId: 'owner-1',
+            animalId: 'animal-1',
+            actorUserId: 'actor-1',
         );
 
         $this->clock->expects(self::once())
@@ -116,6 +124,9 @@ final class ScheduleAppointmentHandlerTest extends TestCase
         $appointmentId = ($this->handler)($command);
 
         self::assertSame('01234567-89ab-cdef-0123-456789abcdef', $appointmentId);
+        self::assertCount(1, $this->events->events);
+        self::assertInstanceOf(AppointmentScheduled::class, $this->events->events[0]);
+        self::assertSame(['owner-1', 'animal-1', 'actor-1'], [$this->events->events[0]->ownerId(), $this->events->events[0]->animalId(), $this->events->events[0]->actorUserId()]);
     }
 
     #[AllowMockObjectsWithoutExpectations]

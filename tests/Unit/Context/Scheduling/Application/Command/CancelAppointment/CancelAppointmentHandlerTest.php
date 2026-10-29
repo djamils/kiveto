@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Scheduling\Application\Command\CancelAppointmen
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointment;
 use App\Context\Scheduling\Application\Command\CancelAppointment\CancelAppointmentHandler;
 use App\Context\Scheduling\Domain\Appointment;
+use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Repository\AppointmentRepositoryInterface;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentId;
 use App\Context\Scheduling\Domain\ValueObject\AppointmentStatus;
@@ -14,7 +15,9 @@ use App\Context\Scheduling\Domain\ValueObject\ClinicId;
 use App\Context\Scheduling\Domain\ValueObject\PractitionerAssignee;
 use App\Context\Scheduling\Domain\ValueObject\TimeSlot;
 use App\Context\Scheduling\Domain\ValueObject\UserId;
+use App\Shared\Application\Event\DomainEventPublisher;
 use App\Shared\Domain\Time\ClockInterface;
+use App\Tests\Unit\Context\Scheduling\Support\CapturingEventBus;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -26,15 +29,18 @@ final class CancelAppointmentHandlerTest extends TestCase
     private AppointmentRepositoryInterface&MockObject $appointmentRepository;
     private ClockInterface&MockObject $clock;
     private CancelAppointmentHandler $handler;
+    private CapturingEventBus $events;
 
     protected function setUp(): void
     {
         $this->appointmentRepository = $this->createMock(AppointmentRepositoryInterface::class);
         $this->clock                 = $this->createMock(ClockInterface::class);
 
+        $this->events  = new CapturingEventBus();
         $this->handler = new CancelAppointmentHandler(
             $this->appointmentRepository,
             $this->clock,
+            new DomainEventPublisher($this->events),
         );
     }
 
@@ -52,6 +58,26 @@ final class CancelAppointmentHandlerTest extends TestCase
         $this->clock->expects(self::once())->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
 
         ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC));
+
+        // Published after the save: the scheduling subscribers react to it.
+        $cancelled = array_values(array_filter($this->events->events, static fn (object $e): bool => $e instanceof AppointmentCancelled));
+        self::assertCount(1, $cancelled);
+        self::assertTrue($cancelled[0]->notifyClient());
+    }
+
+    #[AllowMockObjectsWithoutExpectations]
+    public function testTheDeathOfTheAnimalCancelsWithoutTellingTheClient(): void
+    {
+        $appointmentId = AppointmentId::fromString('11111111-1111-1111-1111-111111111111');
+
+        $this->appointmentRepository->method('findById')->willReturn($this->makeAppointment($appointmentId));
+        $this->clock->method('now')->willReturn(new \DateTimeImmutable('2026-04-10 08:55:00'));
+
+        ($this->handler)(new CancelAppointment($appointmentId->toString(), self::CLINIC, notifyClient: false));
+
+        $cancelled = array_values(array_filter($this->events->events, static fn (object $e): bool => $e instanceof AppointmentCancelled));
+        self::assertCount(1, $cancelled);
+        self::assertFalse($cancelled[0]->notifyClient());
     }
 
     #[AllowMockObjectsWithoutExpectations]

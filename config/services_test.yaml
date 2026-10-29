@@ -75,6 +75,44 @@ services:
         public: true
         arguments: [!tagged_locator { tag: 'scheduler.schedule_provider', index_by: 'name' }]
 
+    # Billing services read by the integration tests.
+    test.App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface:
+        alias: App\Context\Billing\Domain\Dispatch\InvoiceDispatchRepositoryInterface
+        public: true
+
+    test.App\Context\Billing\Application\Port\SentDocumentFileStoreInterface:
+        alias: App\Context\Billing\Application\Port\SentDocumentFileStoreInterface
+        public: true
+
+    # Notification services read by the integration tests.
+    test.App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface:
+        alias: App\System\Notification\Domain\Message\OutboundMessageRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface:
+        alias: App\System\Notification\Domain\Clinic\ClinicMessagingProfileRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface:
+        alias: App\System\Notification\Domain\Quota\VeterinarianCountRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Application\Port\MessageRendererInterface:
+        alias: App\System\Notification\Application\Port\MessageRendererInterface
+        public: true
+
+    test.App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface:
+        alias: App\System\Notification\Domain\Inbox\InAppNotificationRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface:
+        alias: App\System\Notification\Domain\Quota\SmsThresholdRepositoryInterface
+        public: true
+
+    test.App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface:
+        alias: App\System\Notification\Domain\Delivery\UnmatchedDeliveryEventRepositoryInterface
+        public: true
+
     # ElectronicInvoicing services read by the integration tests.
     test.App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface:
         alias: App\System\ElectronicInvoicing\Domain\Connection\PlatformConnectionRepositoryInterface
@@ -94,4 +132,9 @@ services:
 
     test.App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface:
         alias: App\System\ElectronicInvoicing\Application\Port\DocumentStoreInterface
+        public: true
+
+    # IdentityAccess services read by the integration tests.
+    test.App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
+        alias: App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface
         public: true

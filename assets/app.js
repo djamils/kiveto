@@ -34,6 +34,8 @@ const PAGE_MODULES = {
   clinic_stock_alerts:           'pages/stock',
   clinic_settings:               'pages/settings',
   clinic_settings_hours:         'pages/settings',
+  clinic_settings_notifications: 'pages/settings',
+  clinic_settings_agenda:        'pages/settings',
   clinic_settings_billing:       'pages/settings',
   clinic_settings_preferences:   'pages/settings',
   clinic_settings_team:          'pages/team',
@@ -41,6 +43,13 @@ const PAGE_MODULES = {
   clinic_lock:                   'pages/auth',
   clinic_select_clinic:          'pages/auth',
   clinic_no_access:              'pages/auth',
+  clinic_forgot_password:        'pages/auth',
+  clinic_reset_password:         'pages/auth',
+  clinic_invitation:             'pages/auth',
+  // The re-render of a refused form (CSRF, mismatch, weak password).
+  clinic_forgot_password_submit: 'pages/auth',
+  clinic_reset_password_submit:  'pages/auth',
+  clinic_invitation_submit:      'pages/auth',
 };
 
 let currentCleanup = null;

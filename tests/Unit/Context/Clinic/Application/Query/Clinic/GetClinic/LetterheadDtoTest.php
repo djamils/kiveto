@@ -96,4 +96,31 @@ final class LetterheadDtoTest extends TestCase
         self::assertSame('contact@vet-paris.fr', $dto->email);
         self::assertSame('www.vet-paris.fr', $dto->website);
     }
+
+    public function testTheDocumentLetterheadCarriesThePrintedValues(): void
+    {
+        $document = LetterheadDto::fromDomain(Letterhead::create(
+            legalName: 'Clinique Vétérinaire de Paris',
+            legalForm: 'SELARL',
+            siret: '81245690300028',
+            vatNumber: 'FR20812456903',
+            ordinalNumber: '21284',
+            address: PostalAddress::create('18 rue des Abbesses', 'Paris', 'FR', postalCode: '75018'),
+            website: 'www.vet-paris.fr',
+            liabilityInsurer: 'MACSF',
+        ))->toDocumentLetterhead();
+
+        self::assertSame('Clinique Vétérinaire de Paris', $document->legalName);
+        self::assertSame(['18 rue des Abbesses', '75018 Paris'], $document->addressLines);
+        self::assertSame('Paris', $document->city);
+        self::assertSame('www.vet-paris.fr', $document->website);
+        self::assertSame('812 456 903 00028', $document->formattedSiret);
+        self::assertSame('FR20812456903', $document->vatNumber);
+        self::assertSame('21284', $document->ordinalNumber);
+        self::assertSame('SELARL', $document->legalSentence);
+        self::assertSame('Assurance responsabilité civile professionnelle : MACSF', $document->liabilitySentence);
+        self::assertNull($document->phone);
+        self::assertNull($document->email);
+        self::assertNull($document->ordinalCouncil);
+    }
 }

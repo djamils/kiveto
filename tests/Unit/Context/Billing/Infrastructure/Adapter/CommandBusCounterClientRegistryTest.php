@@ -36,6 +36,19 @@ final class CommandBusCounterClientRegistryTest extends TestCase
         self::assertSame(['+33618427731', 'nadia@example.fr'], array_map(static fn ($c): string => $c->value, $sent[0]->contactMethods));
         self::assertSame([true, true], array_map(static fn ($c): bool => $c->isPrimary, $sent[0]->contactMethods));
         self::assertSame('madam', $sent[0]->civility);
+        self::assertSame(['mobile', 'home'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
+        self::assertSame(['appointment_reminders' => ['sms']], $sent[0]->channelsByConsentKind, 'SMS reminders on by default with a mobile (D9)');
+    }
+
+    public function testAPersonsLandlineIsNoMobileAndGetsNoSmsReminder(): void
+    {
+        $sent = [];
+
+        new CommandBusCounterClientRegistry($this->bus($sent))->register(self::CLINIC_ID, new CounterSaleNewClient('mister', 'Petit', 'Lucas', '0142641800'));
+
+        self::assertInstanceOf(CreateClient::class, $sent[0]);
+        self::assertSame(['home'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
+        self::assertSame([], $sent[0]->channelsByConsentKind);
     }
 
     public function testAnEmailAloneIsEnough(): void
@@ -67,6 +80,7 @@ final class CommandBusCounterClientRegistryTest extends TestCase
         self::assertCount(1, $sent);
         self::assertInstanceOf(CreateClient::class, $sent[0]);
         self::assertSame(['work', 'work'], array_map(static fn ($c): string => $c->label, $sent[0]->contactMethods));
+        self::assertSame([], $sent[0]->channelsByConsentKind);
         self::assertNotNull($sent[0]->taxProfile);
         self::assertSame('french_business', $sent[0]->taxProfile->status);
         self::assertSame('Élevage des Calanques', $sent[0]->taxProfile->legalName);

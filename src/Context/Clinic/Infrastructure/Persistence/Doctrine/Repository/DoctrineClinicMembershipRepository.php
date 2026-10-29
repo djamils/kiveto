@@ -6,6 +6,7 @@ namespace App\Context\Clinic\Infrastructure\Persistence\Doctrine\Repository;
 
 use App\Context\Clinic\Domain\Staff\ClinicMembership;
 use App\Context\Clinic\Domain\Staff\Repository\ClinicMembershipRepositoryInterface;
+use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMemberRole;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipId;
 use App\Context\Clinic\Domain\Staff\ValueObject\ClinicMembershipStatus;
 use App\Context\Clinic\Domain\Staff\ValueObject\UserId;
@@ -133,6 +134,44 @@ final readonly class DoctrineClinicMembershipRepository implements ClinicMembers
         \assert(\is_int($count) || \is_string($count));
 
         return (int) $count;
+    }
+
+    public function findEffectiveUserIds(
+        ClinicId $clinicId,
+        \DateTimeImmutable $now,
+        ?ClinicMemberRole $role = null,
+        bool $administratorsOnly = false,
+    ): array {
+        // Same "effective" predicate as countEffectiveAdministrators().
+        $qb = $this->entityManager->createQueryBuilder()
+            ->select('m.userId')
+            ->from(ClinicMembershipEntity::class, 'm')
+            ->where('m.clinicId = :clinicId')
+            ->andWhere('m.status = :active')
+            ->andWhere('m.validFrom <= :now')
+            ->andWhere('(m.validUntil IS NULL OR m.validUntil >= :now)')
+            ->orderBy('m.createdAt', 'ASC')
+            ->setParameter('clinicId', Uuid::fromString($clinicId->toString()), UuidType::NAME)
+            ->setParameter('active', ClinicMembershipStatus::ACTIVE)
+            ->setParameter('now', $now)
+        ;
+
+        if (null !== $role) {
+            $qb->andWhere('m.role = :role')->setParameter('role', $role);
+        }
+
+        if ($administratorsOnly) {
+            $qb->andWhere('m.isClinicAdministrator = true');
+        }
+
+        $ids = [];
+
+        foreach ($qb->getQuery()->getArrayResult() as $row) {
+            \assert(\is_array($row) && $row['userId'] instanceof Uuid);
+            $ids[] = $row['userId']->toRfc4122();
+        }
+
+        return array_values(array_unique($ids));
     }
 
     public function saveAll(ClinicMembership ...$memberships): void

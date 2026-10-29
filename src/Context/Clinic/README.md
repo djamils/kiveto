@@ -59,10 +59,25 @@ Manages who works at which clinic and in which capacity.
   backoffice can always grant it on any existing membership, running outside
   `ClinicPermissionGuard`.
 
+## Notifications
+
+Clinic is the source of truth of what Notification needs about a clinic and pushes it there (Notification never reads Clinic).
+
+- **Messaging settings** (`MessagingSettings`, JSON column `clinic__clinics.messaging_settings`) — the SMS sender name (alphanumeric, at most 11 letters, digits or spaces, at least one letter; by default the clinic name reduced to those characters, « Kiveto » when nothing usable remains) and the SMS overage cap in segments (default 500). `UpdateClinicMessagingSettings` replaces both and raises `ClinicMessagingSettingsChanged`; Paramètres › Notifications (`/settings/notifications`, clinic administrators) edits them and shows the month's SMS usage read from Notification's `GetSmsUsage`.
+- **Messaging profile** — `ClinicMessagingProfileBridge` pushes every change of name, slug, letterhead, branding or messaging settings to Notification (`UpsertClinicMessagingProfile`) in the same transaction, through `MessagingProfileSyncInterface` (`NotificationMessagingProfileSync`). `SyncAllClinicMessagingProfiles` / `app:clinic:sync-messaging-profiles` pushes every clinic's profile and today's veterinarian count: run it once after deployment (the fixtures run it too).
+- **Active veterinarians (D6)** — `clinic__veterinarian_daily_counts(clinic_id, day, count)`: effective VETERINARY memberships whose user account is ACTIVE (`UserAccountStatusInterface` → IdentityAccess), Europe/Paris day, the day's highest count kept. `RecordVeterinarianDailyCounts(clinicId)` counts one clinic; without an id (daily at 00:07, schedule `clinic`) it only queues one `async` job per clinic that is not CLOSED (`VeterinarianCountJobsInterface`, `TransportNamesStamp` — the class has no route), so one clinic failing never holds back the others. A clinic is also counted on membership changes (`RecountVeterinariansOnMembershipChange`) and when an invited user activates their account (`UserActivatedConsumer`); each value is pushed to Notification (`RecordVeterinarianCount`) for the SMS quota.
+- **SMS quota in the bell** — `SmsUsageThresholdCrossedConsumer` turns `SmsUsageThresholdCrossedIntegrationEvent` (80 %, 100 %, overage cap) into a `SMS_QUOTA` bell entry for the clinic's administrators (`ListClinicMembersForNotification`), opening Paramètres › Notifications, through `BellNotifierInterface` (`CommandBusBellNotifier` → Notification's `PostInAppNotification`).
+- **Queries for notifications** — `ListClinicMembersForNotification(clinicId, role?, administratorsOnly)`: user ids of the memberships in force now whose account is ACTIVE — an invited member who never activated is left out (bell recipients of Inventory: assistants, else administrators). `GetStaffPrintedName(clinicId, userId)` (D15): « Dr Claire Lambert » (title without a dot), « Hugo Martin », null without a staff profile.
+- **Invitations** — « Inviter un membre » no longer takes a provisional password: the address gets a PENDING account (IdentityAccess `RegisterInvitedUser`), the membership is created, then the invitation e-mail is sent. The team page shows « Invité », « Invitation expirée » and « Renvoyer », read through `InvitationStatusReaderInterface` (IdentityAccess `GetInvitationStatuses`). The onboarding search also finds PENDING clinic accounts. Disabling a membership, or ending it (end date past), revokes that clinic's invitation links (`RevokeInvitationOnMembershipEnd` → `InvitationRevokerInterface` → IdentityAccess `RevokeInvitation`); a membership that only starts later keeps them.
+
 ## Cross-BC Dependencies
 
 | Direction | Counterpart | Mechanism |
 |-----------|-------------|-----------|
+| Produces | Notification | `UpsertClinicMessagingProfile` and `RecordVeterinarianCount` commands (messaging profile, daily active veterinarians) |
+| Consumes | Notification | `SmsUsageThresholdCrossedIntegrationEvent` → `SMS_QUOTA` bell entry to the administrators |
+| Consumes | IdentityAccess | `UserActivatedIntegrationEvent` → recount of active veterinarians; `GetInvitationStatuses`, user statuses and `RevokeInvitation` through Clinic ports |
+| Consumed by | Inventory, Scheduling, Presentation | `ListClinicMembersForNotification` (Inventory bell recipients), `GetStaffPrintedName` (appointment messages, invitation e-mail) |
 | Produces | AccessControl BC | `ClinicMembershipCreated/Disabled/Enabled/RoleChanged` domain events → AccessControl syncs its RBAC projection |
 | Consumed by | Billing BC | `GetClinicSellerIdentity` query — the seller identity of an invoice and its numbering uniqueness, through Billing's own port |
 | Reads | IdentityAccess BC | `UserExistenceCheckerInterface` port (implemented by `IdentityAccessUserExistenceAdapter`) — verifies a user UUID exists before creating a membership |

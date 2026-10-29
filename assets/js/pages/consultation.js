@@ -1214,6 +1214,39 @@ export function init() {
       cons.length ? { k: 'conseils', n: 'Fiche conseils propriétaire', s: `${cons.length} conseil${cons.length > 1 ? 's' : ''} · rappel du suivi` } : null,
     ].filter(Boolean);
   }
+  // « Envoyer par e-mail »: the report, the signed ordonnances and the issued invoice only (labels and advice are print-only).
+  const SENDABLE = ['cr', 'ordo', 'facture'];
+  const SEND = DOCS.send || { url: null, recipient: null };
+  const DEST = SEND.recipient;
+  const docsOf = (keys) => keys.flatMap((k) => {
+    if (k === 'cr') return ['report'];
+    if (k === 'ordo') return (DOCS.prescriptions || []).map((x) => `prescription:${x.id}`);
+    if (k === 'facture') return DOCS.invoice?.sendable ? ['invoice'] : [];
+    return [];
+  });
+  /** Why the ticked documents cannot be e-mailed, or '' when they can. */
+  function envoiBloque(keys) {
+    if (!closed()) return 'Clôturez la consultation pour envoyer ses documents';
+    if (!DEST) return 'Aucune adresse e-mail pour ce client';
+    if (!docsOf(keys).length) {
+      if (keys.length === 1 && keys[0] === 'facture' && DOCS.invoice && !DOCS.invoice.sendable) return 'Facture avoirée ou annulée : elle ne part pas par e-mail';
+      return keys.some((k) => SENDABLE.includes(k)) ? 'Document pas encore signé ou émis' : 'Cochez le compte rendu, l\'ordonnance ou la facture';
+    }
+    return '';
+  }
+  async function envoyerDocs(keys, btn) {
+    if (envoiBloque(keys) || !SEND.url) return;
+    btn.disabled = true;
+    try {
+      const res = await send(SEND.url, { documents: docsOf(keys) });
+      if (res.payload?.success) showToast(res.payload.message);
+      else showToast(res.payload?.error || 'Envoi impossible — réessayez', 'danger');
+    } catch {
+      showToast('Connexion perdue — documents non envoyés', 'danger');
+    } finally {
+      btn.disabled = false;
+    }
+  }
   function rendreDocs(B, F, Sub) {
     Sub.textContent = 'Tous les documents de la consultation, à jour en direct.';
     const D = listeDocs();
@@ -1221,17 +1254,20 @@ export function init() {
     B.innerHTML = '<p class="dgrp">De cette consultation</p>' + D.map((d) => { const [bg, c, p] = DOC_IC[d.k]; return `<div class="drow${docSel.has(d.k) ? ' sel' : ''}" data-k="${d.k}">
         <span class="ck"></span><span class="dic" style="background:${bg};color:${c}">${SV(p)}</span>
         <span class="dt"><b>${esc(d.n)}</b><small>${esc(d.s)}</small></span>
-        <span class="da"><button type="button" data-ap="${d.k}" data-tip="Aperçu">${I_EYE}</button>${d.pdf ? `<button type="button" data-pdf="${esc(d.pdf)}" data-tip="Télécharger le PDF">${I_PDF}</button>` : ''}<button type="button" disabled data-tip="Envoi au client par e-mail — bientôt disponible">${I_SEND}</button></span></div>`; }).join('')
+        <span class="da"><button type="button" data-ap="${d.k}" data-tip="Aperçu">${I_EYE}</button>${d.pdf ? `<button type="button" data-pdf="${esc(d.pdf)}" data-tip="Télécharger le PDF">${I_PDF}</button>` : ''}${SENDABLE.includes(d.k) ? `<button type="button" data-env="${d.k}"${envoiBloque([d.k]) ? ` disabled data-tip="${esc(envoiBloque([d.k]))}"` : ' data-tip="Envoyer ce document par e-mail"'}>${I_SEND}</button>` : '<button type="button" disabled data-tip="Impression seule">' + I_SEND + '</button>'}</span></div>`; }).join('')
       + `<p class="dgrp" style="margin-top:8px">Générer un document</p><div class="gen">${['Certificat de bonne santé', 'Consentement éclairé (anesthésie)', 'Devis chirurgie', 'Lettre de référé', 'Certificat de vaccination'].map((g) => `<button type="button" disabled data-tip="${SOON}">＋ ${g}</button>`).join('')}</div>`;
     const n = docSel.size;
+    const nEnv = docsOf([...docSel]).length;
     F.innerHTML = `<p class="fhint">${n ? `${n} document${n > 1 ? 's' : ''} sélectionné${n > 1 ? 's' : ''}` : 'Sélectionnez des documents'}${O ? ` · ${esc(O.fullName)}${O.email ? ' · ' + esc(O.email) : ''}` : ''}</p>
-      <div class="fr"><button type="button" class="btn" id="docEnv" disabled data-tip="Envoi par e-mail — bientôt disponible">${I_SEND.replace('<svg', '<svg width="14" height="14"')}Envoyer par e-mail</button><button type="button" class="btn primaire" id="docPrint" ${n ? '' : 'disabled'} data-tip="${n > 1 || (n === 1 && !docSel.has('cr')) ? 'Dossier PDF : compte rendu, ordonnances signées et facture émise' : 'Compte rendu en PDF'}">${I_PRINT.replace('<svg', '<svg width="14" height="14"')}Imprimer${n ? ' (' + n + ')' : ''}</button></div>`;
+      <div class="fr"><button type="button" class="btn" id="docEnv"${envoiBloque([...docSel]) ? ` disabled data-tip="${esc(envoiBloque([...docSel]))}"` : ` data-tip="${esc(`Envoyer ${nEnv} document${nEnv > 1 ? 's' : ''} à ${DEST.email}`)}"`}>${I_SEND.replace('<svg', '<svg width="14" height="14"')}Envoyer par e-mail</button><button type="button" class="btn primaire" id="docPrint" ${n ? '' : 'disabled'} data-tip="${n > 1 || (n === 1 && !docSel.has('cr')) ? 'Dossier PDF : compte rendu, ordonnances signées et facture émise' : 'Compte rendu en PDF'}">${I_PRINT.replace('<svg', '<svg width="14" height="14"')}Imprimer${n ? ' (' + n + ')' : ''}</button></div>`;
     B.querySelectorAll('.drow').forEach((r) => r.addEventListener('click', (e) => {
       if (e.target.closest('.da')) return;
       const k = r.dataset.k; if (docSel.has(k)) docSel.delete(k); else docSel.add(k); rendreDrawer();
     }));
     B.querySelectorAll('[data-ap]').forEach((b) => b.addEventListener('click', () => apercuDoc(b.dataset.ap)));
     B.querySelectorAll('[data-pdf]').forEach((b) => b.addEventListener('click', () => window.open(b.dataset.pdf, '_blank', 'noopener')));
+    B.querySelectorAll('[data-env]').forEach((b) => b.addEventListener('click', () => envoyerDocs([b.dataset.env], b)));
+    $('docEnv').addEventListener('click', (e) => envoyerDocs([...docSel], e.currentTarget));
     $('docPrint').addEventListener('click', () => {
       const url = n === 1 && docSel.has('cr') ? DOCS.report : DOCS.bundle;
       if (url) window.open(url, '_blank', 'noopener');

@@ -21,6 +21,13 @@ final readonly class RequireClinicSelectionSubscriber implements EventSubscriber
         'clinic_no_access',
         'clinic_logout',
         'clinic_lock',
+        // Public account pages: reached without a session.
+        'clinic_forgot_password',
+        'clinic_forgot_password_submit',
+        'clinic_reset_password',
+        'clinic_reset_password_submit',
+        'clinic_invitation',
+        'clinic_invitation_submit',
     ];
 
     public function __construct(

@@ -36,6 +36,27 @@ final class DoctrineUserRepositoryTest extends TestCase
         $repo->save($user);
     }
 
+    public function testSaveUpdatesAKnownAccount(): void
+    {
+        $entity = $this->entity(UserType::CLINIC);
+        $mapper = new UserMapper(new DoctrineUserFactory());
+
+        $repoObj = $this->createStub(EntityRepository::class);
+        $repoObj->method('find')->willReturn($entity);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($repoObj);
+        $em->expects(self::never())->method('persist');
+        $em->expects(self::once())->method('flush');
+
+        $user = $mapper->toDomain($entity);
+        $user->changePassword('$changed', new \DateTimeImmutable());
+
+        new DoctrineUserRepository($em, $mapper)->save($user);
+
+        self::assertSame('$changed', $entity->getPasswordHash());
+    }
+
     public function testFindByIdReturnsDomainUser(): void
     {
         $entity = $this->entity(UserType::CLINIC);

@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\Controller\Document;
 
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\ClinicDto;
-use App\Context\Clinic\Application\Query\Clinic\GetClinic\GetClinic;
-use App\Presentation\Clinic\ViewModel\Document\ConsultationReportContext;
+use App\Context\Consultation\Application\Port\ConsultationReportPdfRendererInterface;
+use App\Context\Consultation\Application\Query\GetConsultationDetails\ConsultationDetailsDTO;
+use App\Context\Consultation\Application\Query\GetConsultationDetails\GetConsultationDetails;
 use App\Presentation\Clinic\ViewModel\Document\DocumentPdfFactory;
 use App\Shared\Application\Bus\QueryBusInterface;
 use App\Shared\Application\Context\CurrentClinicContextInterface;
+use App\Shared\Application\Document\DocumentRenderingFailed;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,7 +30,7 @@ final class ConsultationReportsSelectionPdfController extends AbstractController
     public function __construct(
         private readonly QueryBusInterface $queryBus,
         private readonly CurrentClinicContextInterface $currentClinicContext,
-        private readonly ConsultationReportContext $reportContext,
+        private readonly ConsultationReportPdfRendererInterface $reports,
         private readonly DocumentPdfFactory $documents,
     ) {
     }
@@ -40,28 +41,16 @@ final class ConsultationReportsSelectionPdfController extends AbstractController
         \assert(null !== $currentClinicId);
 
         $clinicId = $currentClinicId->toString();
-        $clinic   = $this->queryBus->ask(new GetClinic($clinicId));
-        $clinic   = $clinic instanceof ClinicDto ? $clinic : null;
         $parts    = [];
 
-        foreach (\array_slice($this->ids($request), 0, self::MAX_DOCUMENTS) as $id) {
-            try {
-                $report = $this->reportContext->build($id, $clinicId);
-            } catch (\DomainException) {
-                continue;
+        try {
+            foreach (\array_slice($this->ids($request), 0, self::MAX_DOCUMENTS) as $id) {
+                if ($this->isClosed($clinicId, $id)) {
+                    $parts[] = $this->reports->report($clinicId, $id)->content;
+                }
             }
-
-            if ('CLOSED' !== $report['consultation']->status) {
-                continue;
-            }
-
-            $parts[] = $this->documents->render(
-                'clinic/document/report.html.twig',
-                $report['context'],
-                $clinic,
-                'Compte rendu de consultation',
-                $report['subject'],
-            );
+        } catch (DocumentRenderingFailed $exception) {
+            throw DocumentPdfFactory::unavailable($exception);
         }
 
         if ([] === $parts) {
@@ -72,6 +61,17 @@ final class ConsultationReportsSelectionPdfController extends AbstractController
             1 === \count($parts) ? $parts[0] : $this->documents->merge($parts),
             \sprintf('comptes-rendus-%d', \count($parts)),
         );
+    }
+
+    private function isClosed(string $clinicId, string $consultationId): bool
+    {
+        try {
+            $consultation = $this->queryBus->ask(new GetConsultationDetails($consultationId, $clinicId));
+        } catch (\DomainException) {
+            return false;
+        }
+
+        return $consultation instanceof ConsultationDetailsDTO && 'CLOSED' === $consultation->status;
     }
 
     /**

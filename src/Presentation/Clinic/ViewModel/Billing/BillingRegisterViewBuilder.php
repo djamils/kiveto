@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presentation\Clinic\ViewModel\Billing;
 
+use App\Context\Billing\Application\Port\ClientContactInterface;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListItemView;
 use App\Context\Billing\Application\Query\SearchInvoices\InvoiceListRow;
 use App\Context\Billing\Application\Query\SearchInvoices\SearchInvoices;
@@ -29,6 +30,7 @@ final readonly class BillingRegisterViewBuilder
         private PrescriptionRegisterViewBuilder $prescriptions,
         private UrlGeneratorInterface $urls,
         private ClockInterface $clock,
+        private ClientContactInterface $contacts,
     ) {
     }
 
@@ -90,11 +92,15 @@ final readonly class BillingRegisterViewBuilder
         $visits     = $this->visits->visits($admissions);
         $team       = $this->team($clinicId);
         $now        = $this->clock->now();
+        // The payers of the page in one query: who can be sent an invoice, who can be reminded.
+        $payers   = array_values(array_unique(array_filter(array_map(static fn (InvoiceListRow $row): ?string => $row->payerClientId, $items))));
+        $contacts = [] !== $payers ? $this->contacts->contactsOf($clinicId, $payers) : [];
 
-        return array_map(function (InvoiceListRow $row) use ($visits, $team, $tz, $now): array {
-            $visit = null !== $row->admissionId ? ($visits[$row->admissionId] ?? null) : null;
-            $at    = ($row->issuedAt ?? $row->createdAt)->setTimezone($tz);
-            $note  = SearchInvoicesCriteria::KIND_CREDIT_NOTE === $row->kind;
+        return array_map(function (InvoiceListRow $row) use ($visits, $team, $tz, $now, $contacts): array {
+            $visit   = null !== $row->admissionId ? ($visits[$row->admissionId] ?? null) : null;
+            $at      = ($row->issuedAt ?? $row->createdAt)->setTimezone($tz);
+            $note    = SearchInvoicesCriteria::KIND_CREDIT_NOTE === $row->kind;
+            $contact = null !== $row->payerClientId ? ($contacts[$row->payerClientId] ?? null) : null;
 
             return [
                 'id'    => $row->id,
@@ -115,6 +121,8 @@ final readonly class BillingRegisterViewBuilder
                 'retard' => $note ? 0 : self::overdueDays($row, $now),
                 'tx'     => TransmissionBadge::of($row->transmission),
                 'url'    => $this->url($row),
+                'mail'   => null !== $contact && $contact->canReceiveInvoice(),
+                'rel'    => null !== $contact && [] !== $contact->reminderChannels(),
             ];
         }, $items);
     }

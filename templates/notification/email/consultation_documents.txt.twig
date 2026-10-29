@@ -1,0 +1,13 @@
+Bonjour {{ addressee }},
+
+Vous trouverez en pièces jointes les documents de la consultation de {{ animalName }}.
+
+Consultation : {{ consultationLabel }}
+{% for label in documentLabels %}{{ label }} : {{ documentValues[loop.index0] ?? '' }}
+{% endfor %}
+
+{% if 'Ordonnance' in documentLabels %}Conservez l'ordonnance : elle vous sera demandée pour la délivrance des médicaments. Une question sur le traitement ? {% else %}Une question ? {% endif %}{{ clinic.phone }}.
+
+--
+{{ clinic.footerLine }}
+Ce message contient des informations de santé de votre animal. Ne le transférez qu'à des personnes de confiance.

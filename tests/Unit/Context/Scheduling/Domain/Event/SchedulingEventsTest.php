@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Context\Scheduling\Domain\Event;
 use App\Context\Scheduling\Domain\Event\AppointmentCancelled;
 use App\Context\Scheduling\Domain\Event\AppointmentCompleted;
 use App\Context\Scheduling\Domain\Event\AppointmentMarkedNoShow;
+use App\Context\Scheduling\Domain\Event\AppointmentOwnerChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentPractitionerAssigneeChanged;
 use App\Context\Scheduling\Domain\Event\AppointmentRescheduled;
 use App\Context\Scheduling\Domain\Event\AppointmentScheduled;
@@ -36,10 +37,17 @@ final class SchedulingEventsTest extends TestCase
             30,
             'Routine checkup',
             'Anxious patient',
+            'owner-1',
+            'animal-1',
+            self::OTHER_USER_ID,
         );
 
         self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
         self::assertSame('scheduling.appointment.scheduled.v1', $event->name());
+        self::assertSame(
+            [self::APPOINTMENT_ID, self::CLINIC_ID, self::USER_ID, 'owner-1', 'animal-1', self::OTHER_USER_ID],
+            [$event->appointmentId(), $event->clinicId(), $event->practitionerUserId(), $event->ownerId(), $event->animalId(), $event->actorUserId()],
+        );
         self::assertSame([
             'appointmentId'      => self::APPOINTMENT_ID,
             'clinicId'           => self::CLINIC_ID,
@@ -49,6 +57,9 @@ final class SchedulingEventsTest extends TestCase
             'durationMinutes'    => 30,
             'reason'             => 'Routine checkup',
             'notes'              => 'Anxious patient',
+            'ownerId'            => 'owner-1',
+            'animalId'           => 'animal-1',
+            'actorUserId'        => self::OTHER_USER_ID,
         ], $event->payload());
     }
 
@@ -70,6 +81,8 @@ final class SchedulingEventsTest extends TestCase
         self::assertSame(self::USER_ID, $payload['practitionerUserId']);
         self::assertNull($payload['reason']);
         self::assertNull($payload['notes']);
+        self::assertNull($event->ownerId());
+        self::assertNull($event->actorUserId());
     }
 
     public function testAppointmentCancelled(): void
@@ -81,7 +94,10 @@ final class SchedulingEventsTest extends TestCase
         self::assertSame([
             'appointmentId' => self::APPOINTMENT_ID,
             'clinicId'      => self::CLINIC_ID,
+            'notifyClient'  => true,
         ], $event->payload());
+        self::assertSame([self::APPOINTMENT_ID, self::CLINIC_ID, true], [$event->appointmentId(), $event->clinicId(), $event->notifyClient()]);
+        self::assertFalse(new AppointmentCancelled(self::APPOINTMENT_ID, self::CLINIC_ID, notifyClient: false)->notifyClient());
     }
 
     public function testAppointmentCompleted(): void
@@ -118,6 +134,7 @@ final class SchedulingEventsTest extends TestCase
         );
 
         self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame(self::APPOINTMENT_ID, $event->appointmentId());
         self::assertSame([
             'appointmentId'         => self::APPOINTMENT_ID,
             'clinicId'              => self::CLINIC_ID,
@@ -138,6 +155,20 @@ final class SchedulingEventsTest extends TestCase
         self::assertNull($event->payload()['oldPractitionerUserId']);
     }
 
+    public function testAppointmentOwnerChanged(): void
+    {
+        $event = new AppointmentOwnerChanged(self::APPOINTMENT_ID, self::CLINIC_ID, null, 'owner-2');
+
+        self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame(self::APPOINTMENT_ID, $event->appointmentId());
+        self::assertSame([
+            'appointmentId' => self::APPOINTMENT_ID,
+            'clinicId'      => self::CLINIC_ID,
+            'oldOwnerId'    => null,
+            'newOwnerId'    => 'owner-2',
+        ], $event->payload());
+    }
+
     public function testAppointmentRescheduled(): void
     {
         $event = new AppointmentRescheduled(
@@ -150,6 +181,7 @@ final class SchedulingEventsTest extends TestCase
         );
 
         self::assertSame(self::APPOINTMENT_ID, $event->aggregateId());
+        self::assertSame(self::APPOINTMENT_ID, $event->appointmentId());
         self::assertSame([
             'appointmentId'      => self::APPOINTMENT_ID,
             'clinicId'           => self::CLINIC_ID,

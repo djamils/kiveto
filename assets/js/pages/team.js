@@ -13,8 +13,10 @@
  * token, then clinic_settings_team_data is asked again so the statuses the
  * server reads (window, last sign-in) stay true.
  *
- * What Kiveto does not do yet is drawn but disabled, never faked: e-mail
- * invitations (a provisional password is handed over instead), two-factor
+ * « Inviter un membre » sends an e-mail with a 72-hour link to choose a
+ * password (« Invité », « Invitation expirée » with « Renvoyer »).
+ *
+ * What Kiveto does not do yet is drawn but disabled, never faked: two-factor
  * authentication and session tracking, online booking, handwritten
  * signatures, editing the role map, and giving access to another clinic from
  * here.
@@ -180,7 +182,9 @@ export function init() {
   const seg = (f, o, v, dis) => `<div class="seg" data-seg="${f}">${o.map(([k, l]) => `<button type="button" data-v="${esc(k)}" class="${k === v ? 'on' : ''}"${dis ? ` aria-disabled="true" data-tip="${esc(dis)}"` : ''}>${l}</button>`).join('')}</div>`;
 
   function bandeaux(m) {
-    if (m.etat === 'jamais') return `<div class="bandeau info">${ICO.info}<div><b>Pas encore connecté</b>Son accès ${esc(m.mail)} est prêt : transmettez-lui son mot de passe provisoire. Il passe « Actif » à sa première connexion.</div></div>`;
+    if (m.etat === 'invite') return `<div class="bandeau info">${ICO.info}<div><b>Invitation envoyée</b>Un e-mail à ${esc(m.mail)} l'invite à choisir son mot de passe ; le lien est valable 72 heures.<div class="act"><button type="button" data-act="renvoyer">Renvoyer l'invitation</button></div></div></div>`;
+    if (m.etat === 'expire') return `<div class="bandeau warn">${ICO.warn}<div><b>Invitation expirée</b>Le lien envoyé à ${esc(m.mail)} n'est plus valable : envoyez-en un nouveau.<div class="act"><button type="button" data-act="renvoyer">Renvoyer</button></div></div></div>`;
+    if (m.etat === 'jamais') return `<div class="bandeau info">${ICO.info}<div><b>Pas encore connecté</b>Son compte ${esc(m.mail)} est prêt, mais il ne s'est pas encore connecté. Il passe « Actif » à sa première connexion.</div></div>`;
     if (m.etat === 'avenir') return `<div class="bandeau info">${ICO.info}<div><b>Arrive le ${fmtD(m.debut)}</b>Son accès s'ouvre de lui-même ce jour-là.<div class="act"><button type="button" data-act="ouvrir">Ouvrir l'accès dès aujourd'hui</button></div></div></div>`;
     if (m.etat === 'desactive') return `<div class="bandeau crit">${ICO.crit}<div><b>Accès désactivé</b>Ses actes restent signés de son nom.<div class="act"><button type="button" data-act="reactiver">Réactiver l'accès</button></div></div></div>`;
     if (m.etat === 'termine') return `<div class="bandeau crit">${ICO.crit}<div><b>Accès terminé le ${fmtD(m.fin)}</b>Ses actes restent signés de son nom.<div class="act"><button type="button" data-act="rouvrir">Rouvrir l'accès</button></div></div></div>`;
@@ -362,6 +366,7 @@ export function init() {
     if (k === 'reactiver') bascule(m, 'enable', {}, `Accès de ${m.p || nom(m)} réactivé`, () => bascule(m, 'disable', {}, `Accès de ${m.p || nom(m)} désactivé`));
     if (k === 'rouvrir') ecrire(m.id, 'fin', null, 'Accès rouvert');
     if (k === 'ouvrir') ecrire(m.id, 'debut', TODAY, 'Arrivée');
+    if (k === 'renvoyer') bascule(m, 'resend', {}, `Nouvelle invitation envoyée à ${m.mail}`);
   }
   on($('offOk'), 'click', () => {
     const m = mem(ST.fiche); if (!m) return;
@@ -432,7 +437,7 @@ export function init() {
   const plus30 = () => { const d = new Date(TODAY + 'T12:00:00'); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
   function ouvrirInv() {
     IV = { role: 'VETERINARY', tmp: false, adm: false };
-    ['ivP', 'ivN', 'ivE', 'ivO', 'ivM'].forEach(id => { $(id).value = ''; });
+    ['ivP', 'ivN', 'ivE', 'ivO'].forEach(id => { $(id).value = ''; });
     $('ivFin').value = plus30(); $('ivFin').min = TODAY;
     $('ivTmp').classList.remove('on'); $('ivAdm').classList.remove('on');
     rendreInv(); ouvrirModale('mInv');
@@ -447,17 +452,16 @@ export function init() {
     majInv();
   }
   function majInv() {
-    const mdp = $('ivM').value;
     const ok = $('ivP').value.trim() && $('ivN').value.trim() && /\S+@\S+\.\S+/.test($('ivE').value)
       && (IV.role !== 'VETERINARY' || $('ivO').value.trim())
-      && (!mdp || mdp.length >= 8) && (!IV.tmp || $('ivFin').value);
+      && (!IV.tmp || $('ivFin').value);
     $('ivOk').disabled = !ok;
   }
   on($('btnInv'), 'click', ouvrirInv);
   on($('ivR'), 'click', e => { const b = e.target.closest('[data-v]'); if (!b) return; IV.role = b.dataset.v; rendreInv(); });
   on($('ivTmp'), 'click', e => { IV.tmp = !IV.tmp; e.currentTarget.classList.toggle('on', IV.tmp); rendreInv(); });
   on($('ivAdm'), 'click', e => { IV.adm = !IV.adm; e.currentTarget.classList.toggle('on', IV.adm); rendreInv(); });
-  ['ivP', 'ivN', 'ivE', 'ivO', 'ivM', 'ivFin'].forEach(id => on($(id), 'input', majInv));
+  ['ivP', 'ivN', 'ivE', 'ivO', 'ivFin'].forEach(id => on($(id), 'input', majInv));
   on($('ivOk'), 'click', async () => {
     const b = $('ivOk'); b.disabled = true;
     const p = $('ivP').value.trim(), n = $('ivN').value.trim(), mail = $('ivE').value.trim();
@@ -467,14 +471,14 @@ export function init() {
         firstName: p, lastName: n, email: mail, role: IV.role,
         engagement: IV.tmp ? 'FIXED_TERM' : 'EMPLOYEE',
         registrationNumber: IV.role === 'VETERINARY' ? $('ivO').value.trim() : '',
-        password: $('ivM').value, isClinicAdministrator: IV.adm ? 1 : 0,
+        isClinicAdministrator: IV.adm ? 1 : 0,
         validUntil: IV.tmp ? $('ivFin').value : '', color: libre,
       });
       fermerModales();
       await recharger();
       ST.f.statut = 'actifs';
       ouvrirFiche(r.id);
-      toastUndo(`${p} ${n} a rejoint l'équipe · couleur attribuée automatiquement`, () => {
+      toastUndo(r.invited ? `Invitation envoyée à ${mail} · couleur attribuée automatiquement` : `${p} ${n} a rejoint l'équipe · couleur attribuée automatiquement`, () => {
         const m = mem(r.id); if (m) bascule(m, 'disable', {}, `Accès de ${p} ${n} désactivé`);
       });
     } catch (e) { echec(e); majInv(); }

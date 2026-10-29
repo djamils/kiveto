@@ -1,6 +1,7 @@
 /**
  * Page module — Paramètres (parametres-v-topbar_5 mock-up). Loaded by the
  * app.js dispatcher on clinic_settings, clinic_settings_hours,
+ * clinic_settings_notifications, clinic_settings_agenda,
  * clinic_settings_billing and clinic_settings_preferences.
  *
  * The mock-up renders its sections from a schema and a table of values; this
@@ -15,7 +16,7 @@
  * is rolled back on the page and its reason shown next to the field.
  *
  * The sections and settings Kiveto does not handle yet are drawn disabled,
- * never with made-up values: Agenda, Planning, Alertes de soins,
+ * never with made-up values: Planning, Alertes de soins,
  * Ordonnances, Stocks, Laboratoires, Reprise des données and Sécurité in the
  * navigation; the approved e-invoicing platform, instalments and the cash
  * desk settings in Facturation; the home page and notifications in Mes
@@ -48,6 +49,8 @@ const IC = {
   db: I('<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>'),
   lock: I('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
   user: I('<circle cx="12" cy="8" r="4"/><path d="M4 21c.9-3.6 3.8-6 8-6s7.1 2.4 8 6"/>'),
+  bell: I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
+  warn: I('<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>'),
   team: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><circle cx="17.5" cy="9" r="2.6"/><path d="M15.7 14.7c2.7.3 4.9 2.1 5.6 5.1"/>'),
   ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>',
   rm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
@@ -72,6 +75,9 @@ export function init() {
 
   /* ── Values (state of the settings) ── */
   const V = { ...(P.identite || {}), ...(P.facturation || {}), 'moi.clin': P.moi['moi.clin'] };
+  if (P.notifications) { V['no.exp'] = P.notifications['no.exp']; V['no.cap'] = P.notifications['no.cap']; }
+  if (P.agenda) V['ag.rappel'] = P.agenda['ag.rappel'];
+  const USAGE = P.notifications ? P.notifications.usage : null;
   let HORAIRES = P.horaires ? P.horaires.week : [];
   let FERMETURES = P.horaires ? P.horaires.closures : [];
   const NEXT = P.facturation ? { fa: P.facturation.nextInvoice, av: P.facturation.nextCredit } : {};
@@ -91,6 +97,8 @@ export function init() {
     // Not in the mock-up: the fields the clinic already had (APE, IBAN, BIC).
     ape: { ph: '7500Z', max: 5, f: v => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5), ok: v => /^\d{4}[A-Z]$/.test(v), err: '4 chiffres et une lettre.' },
     iban: { ph: 'FR76 3000 6000 0112 3456 7890 189', max: 42, f: v => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 34).replace(/(.{4})(?=.)/g, '$1 '), ok: v => /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(v.replace(/\s/g, '')), err: 'IBAN invalide.' },
+    // SMS sender: shown instead of a number on the client's phone (alphanumeric sender).
+    exp: { ph: 'Clinique', max: 20, f: v => v.replace(/\s+/g, ' ').trim(), ok: v => /^(?=.*[A-Za-z])[A-Za-z0-9 ]{1,11}$/.test(v), err: '11 caractères au plus : lettres sans accents, chiffres et espaces.' },
     bic: { ph: 'AGRIFRPP', max: 11, f: v => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11), ok: v => /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(v), err: '8 ou 11 caractères.' },
   };
 
@@ -115,7 +123,14 @@ export function init() {
       { t: 'Heures d\'ouverture', custom: 'horaires', aff: ['agenda'] },
       { t: 'Fermetures exceptionnelles', d: 'L\'agenda les grise.', custom: 'fermetures', aff: ['agenda'] },
     ] },
-    { id: 'agenda', g: 'Activité', l: 'Agenda', ico: IC.cal, off: true },
+    { id: 'notifications', g: 'Clinique', l: 'Notifications', ico: IC.bell, d: 'Les SMS envoyés aux clients au nom de la clinique : expéditeur, consommation du mois et plafond de dépassement.', blocks: [
+      { t: 'Consommation SMS du mois', d: 'En segments : un SMS de plus de 160 caractères (70 avec certains caractères spéciaux) en compte plusieurs. Le quota inclus dépend du nombre de vétérinaires actifs dans le mois.', custom: 'sms' },
+      { t: 'Expéditeur', rows: [R('no.exp', 'Nom d\'expéditeur des SMS', 'Affiché à la place d\'un numéro sur le téléphone du client. 11 caractères au plus : lettres sans accents, chiffres et espaces.', 'text', { m: 'exp', req: true, w: 200, cnt: 11 })] },
+      { t: 'Dépassement', rows: [R('no.cap', 'Plafond de dépassement', 'Segments envoyés au-delà du quota inclus, chaque mois. Une fois le plafond atteint, les rappels passent par l\'e-mail ; les confirmations, modifications et annulations de rendez-vous partent toujours.', 'num', { u: 'segments', max: 100000 })] },
+    ] },
+    { id: 'agenda', g: 'Activité', l: 'Agenda', ico: IC.cal, d: 'Les rappels envoyés aux clients avant leurs rendez-vous.', blocks: [
+      { t: 'Rappel de rendez-vous', d: 'Un seul rappel par RDV, par SMS, si le client l\'accepte.', rows: [R('ag.rappel', 'Envoi du rappel', 'Les rappels pas encore partis des rendez-vous à venir suivent aussitôt le nouveau réglage. Un rendez-vous pris trop tard pour ce délai n\'a pas de rappel : la confirmation suffit.', 'seg', { o: [['H24', '24 h avant'], ['H48', '48 h avant'], ['SAME_DAY_8', 'Le matin même à 8 h']], aff: ['agenda'] })] },
+    ] },
     { id: 'planning', g: 'Activité', l: 'Planning', ico: IC.plan, off: true },
     { id: 'alertes', g: 'Activité', l: 'Alertes de soins', ico: IC.steth, off: true },
     { id: 'ordonnances', g: 'Soins', l: 'Ordonnances', ico: IC.rx, off: true },
@@ -139,7 +154,7 @@ export function init() {
   const ouverte = s => !s.off && !!CAN[s.id];
   const ROWS = SECTIONS.filter(ouverte).flatMap(s => s.blocks.flatMap(b => (b.rows || []).map(r => ({ ...r, s }))));
   const secDe = k => ROWS.find(r => r.k === k || (r.type === 'adresse' && k.startsWith(r.pre + '.')))?.s.id
-    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : 'facturation');
+    ?? (k.startsWith('id.') ? 'identite' : k.startsWith('moi.') ? 'moi' : k.startsWith('no.') ? 'notifications' : k.startsWith('ag.') ? 'agenda' : 'facturation');
   const txt = d => typeof d === 'function' ? d() : (d || '');
 
   /* ═════════ State ═════════ */
@@ -152,7 +167,7 @@ export function init() {
   function valeurs(sec) {
     if (sec === 'horaires') return { week: HORAIRES.map(d => d[1]), closures: FERMETURES };
     if (sec === 'moi') return { 'moi.clin': V['moi.clin'] };
-    const pre = sec === 'identite' ? ['id.'] : ['fa.', 'fe.'];
+    const pre = sec === 'identite' ? ['id.'] : sec === 'notifications' ? ['no.'] : sec === 'agenda' ? ['ag.'] : ['fa.', 'fe.'];
     return Object.fromEntries(Object.entries(V).filter(([k]) => pre.some(p => k.startsWith(p))));
   }
   function poster(sec) {
@@ -260,7 +275,9 @@ export function init() {
   }
   function inp(k, v, o = {}) {
     const M = MASK[o.m] || {};
-    return `<span class="fld"><input class="finput" data-txt="${k}"${o.m ? ` data-m="${o.m}"` : ''}${o.req ? ' data-req="1"' : ''} value="${esc(v ?? '')}" placeholder="${esc(o.ph || M.ph || '')}"${o.max || M.max ? ` maxlength="${o.max || M.max}"` : ''}${M.im ? ` inputmode="${M.im}"` : ''} spellcheck="false" autocomplete="off"${o.w ? ` style="width:${o.w}px"` : ''}${o.off ? ' disabled' : ''}><small class="ferr" data-err="${k}"></small></span>`;
+    // `cnt`: a live « n / max » counter under the field (SMS sender).
+    const cnt = o.cnt ? `<small class="fcnt${String(v ?? '').length > o.cnt ? ' ko' : ''}" data-cnt="${k}" data-max="${o.cnt}" aria-live="polite">${String(v ?? '').length} / ${o.cnt}</small>` : '';
+    return `<span class="fld"><input class="finput" data-txt="${k}"${o.m ? ` data-m="${o.m}"` : ''}${o.req ? ' data-req="1"' : ''} value="${esc(v ?? '')}" placeholder="${esc(o.ph || M.ph || '')}"${o.max || M.max ? ` maxlength="${o.max || M.max}"` : ''}${M.im ? ` inputmode="${M.im}"` : ''} spellcheck="false" autocomplete="off"${o.w ? ` style="width:${o.w}px"` : ''}${o.off ? ' disabled' : ''}>${cnt}<small class="ferr" data-err="${k}"></small></span>`;
   }
   function rowHtml(r, q) {
     if (r.dep && (r.off || !V[r.dep]) && !q) return '';
@@ -306,6 +323,26 @@ export function init() {
     horaires: () => `<div class="hgrid">${HORAIRES.map(([j, PL], i) => `<div class="hday" data-j="${i}"><b>${j}</b><span class="sw${PL.length ? ' on' : ''}" data-hsw="${i}" role="switch" aria-checked="${!!PL.length}" tabindex="0" aria-label="${j} ouvert"></span>
     <div class="plages">${PL.length ? PL.map(([a, b], k) => `<span class="pl"><input type="time" data-h="${i}.${k}.0" value="${a}" aria-label="${j}, ouverture"><span>→</span><input type="time" data-h="${i}.${k}.1" value="${b}" aria-label="${j}, fermeture">${PL.length > 1 ? `<button type="button" class="rm" data-hrm="${i}.${k}" aria-label="Retirer">${IC.rm}</button>` : ''}</span>`).join('') + (PL.length < 3 ? `<button type="button" class="addp" data-hadd="${i}">+ plage</button>` : '') + `<span class="tot">${(dureePlages(PL) / 60).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} h</span>` : '<span class="ferme">Fermé</span>'}</div></div>`).join('')}</div>`,
     fermetures: () => `<div class="elist">${FERMETURES.length ? '<div class="eli fer-g hd"><span>Du</span><span>Au</span><span>Motif</span><span></span></div>' : ''}${FERMETURES.map((f, i) => `<div class="eli fer-g"><input class="finput" type="date" data-fe="${i}.du" value="${esc(f.du)}" aria-label="Du"><input class="finput" type="date" data-fe="${i}.au" value="${esc(f.au)}" aria-label="Au"><input class="finput" data-fe="${i}.motif" value="${esc(f.motif)}" maxlength="80" aria-label="Motif"><button type="button" class="rm" data-ferm="${i}" aria-label="Retirer">${IC.rm}</button></div>`).join('')}</div><button type="button" class="addl" data-add="fermeture">+ Ajouter une fermeture</button>`,
+  };
+  /* The month's SMS usage: billed segments against the quota, banners at 80 % and 100 %, the overage and the cap. */
+  CUSTOM.sms = () => {
+    const u = USAGE;
+    if (!u) return '';
+    const n = x => Number(x).toLocaleString('fr-FR');
+    const pct = u.percent;
+    const lvl = u.capReached || pct >= 100 ? 'crit' : pct >= 80 ? 'warn' : '';
+    const banner = u.capReached
+      ? ['crit', 'Plafond de dépassement atteint', 'Jusqu\'à la fin du mois, les rappels SMS (rendez-vous, impayés) passent par l\'e-mail quand c\'est possible, sinon ils ne partent pas ; les confirmations, modifications et annulations de rendez-vous partent toujours.']
+      : pct >= 100
+        ? ['crit', 'Quota SMS atteint', 'Les SMS continuent de partir : chaque segment supplémentaire est compté en dépassement.']
+        : pct >= 80 ? ['warn', 'Quota SMS à 80 %', `Il reste ${n(u.quota - u.used)} segments inclus ce mois-ci.`] : null;
+    return `<div class="smsu">
+      <div class="smsu-h"><b>${n(u.used)} / ${n(u.quota)}</b><span>segments · ${esc(u.month)}</span><em>${pct} %</em></div>
+      <div class="smsu-bar ${lvl}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(pct, 100)}" aria-label="Consommation SMS du mois"><i style="width:${Math.min(pct, 100)}%"></i></div>
+      ${u.queued ? `<small class="smsu-n">${n(u.queued)} segments en cours d'envoi, pas encore comptés.</small>` : ''}
+      ${u.overage > 0 ? `<div class="smsu-o">Dépassement : ${n(u.overage)} segments · ${esc(u.overageAmount)}</div>` : ''}
+      ${banner ? `<div class="bandeau ${banner[0]}">${IC.warn}<div><b>${banner[1]}</b>${banner[2]}</div></div>` : ''}
+    </div>`;
   };
   /* A day's slots are in order and do not overlap: what the agenda can draw. */
   const plagesOk = PL => PL.every(([a, b], k) => a && b && toMin(a) < toMin(b) && (k === 0 || toMin(PL[k - 1][1]) <= toMin(a)));
@@ -431,7 +468,9 @@ export function init() {
   function erreur(t, msg) { const e = t.parentElement.querySelector('.ferr'); t.classList.toggle('ko', !!msg); if (e) e.textContent = msg || ''; }
   on(pin, 'input', e => {
     const t = e.target;
-    if (t.dataset.m && MASK[t.dataset.m]) { const v = MASK[t.dataset.m].f(t.value); if (v !== t.value && t.dataset.m !== 'mail' && t.dataset.m !== 'web') t.value = v; erreur(t, ''); }
+    if (t.dataset.m && MASK[t.dataset.m]) { const v = MASK[t.dataset.m].f(t.value); if (v !== t.value && !['mail', 'web', 'exp'].includes(t.dataset.m)) t.value = v; erreur(t, ''); }
+    const c = t.dataset.txt && pin.querySelector(`[data-cnt="${t.dataset.txt}"]`);
+    if (c) { const len = t.value.length, max = +c.dataset.max; c.textContent = `${len} / ${max}`; c.classList.toggle('ko', len > max); }
     if (t.dataset.num != null) { const v = t.value.replace(/\D/g, '').slice(0, 5); if (v !== t.value) t.value = v; }
   });
   on(pin, 'change', e => {

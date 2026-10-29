@@ -56,6 +56,16 @@ final readonly class DoctrineStockAlertReadRepository implements StockAlertReadR
         return $this->rowToView($row);
     }
 
+    public function findById(string $alertId): ?StockAlertView
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT * FROM inventory__stock_alerts WHERE id = :id',
+            ['id' => Uuid::fromString($alertId)->toBinary()]
+        );
+
+        return false !== $row ? $this->rowToView($row) : null;
+    }
+
     public function save(StockAlertView $alert): void
     {
         $existing = $this->connection->fetchOne(

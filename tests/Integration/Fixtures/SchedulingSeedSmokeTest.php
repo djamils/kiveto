@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Fixtures;
 
 use App\Fixtures\Dataset\ClinicDataset;
+use App\Shared\Application\Document\DocumentPdfRendererInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\Tests\Shared\Time\FrozenClock;
+use App\Tests\Support\Document\CapturingDocumentPdfRenderer;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -14,6 +16,15 @@ use Zenstruck\Foundry\Test\Factories;
 final class SchedulingSeedSmokeTest extends KernelTestCase
 {
     use Factories;
+
+    /**
+     * The notifications demo renders invoice PDFs while draining its queues
+     * (and fails the load when a message fails): no Gotenberg in tests.
+     */
+    protected function setUp(): void
+    {
+        self::getContainer()->set(DocumentPdfRendererInterface::class, new CapturingDocumentPdfRenderer());
+    }
 
     public function testSeedProducesAtLeastOneAppointmentPerDayOfCurrentWeek(): void
     {

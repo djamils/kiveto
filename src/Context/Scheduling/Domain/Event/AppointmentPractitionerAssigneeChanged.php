@@ -24,6 +24,11 @@ readonly class AppointmentPractitionerAssigneeChanged extends AbstractDomainEven
         return $this->appointmentId;
     }
 
+    public function appointmentId(): string
+    {
+        return $this->appointmentId;
+    }
+
     public function payload(): array
     {
         return [

@@ -37,6 +37,29 @@ final readonly class LocalFileSystemStorage implements FileStorageInterface
         return $fileIdentifier;
     }
 
+    public function storeAt(string $key, string $content): void
+    {
+        $path = $this->path($key);
+        $dir  = \dirname($path);
+
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException(\sprintf('Cannot create the folder of "%s".', $key));
+        }
+
+        if (false === @file_put_contents($path, $content)) {
+            throw new \RuntimeException(\sprintf('Cannot write the stored file "%s".', $key));
+        }
+    }
+
+    public function delete(string $key): void
+    {
+        $path = $this->path($key);
+
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
     public function getUrl(string $fileIdentifier): string
     {
         return rtrim($this->baseUrl, '/') . '/storage/' . ltrim($fileIdentifier, '/');
@@ -44,12 +67,7 @@ final readonly class LocalFileSystemStorage implements FileStorageInterface
 
     public function read(string $fileIdentifier): string
     {
-        // An identifier names a file under the storage, never a way out of it.
-        if (str_contains($fileIdentifier, '..')) {
-            throw new \RuntimeException(\sprintf('Invalid file identifier "%s".', $fileIdentifier));
-        }
-
-        $path    = $this->storagePath . '/' . ltrim($fileIdentifier, '/');
+        $path    = $this->path($fileIdentifier);
         $content = is_file($path) ? file_get_contents($path) : false;
 
         if (false === $content) {
@@ -57,5 +75,18 @@ final readonly class LocalFileSystemStorage implements FileStorageInterface
         }
 
         return $content;
+    }
+
+    /**
+     * The file of an identifier. An identifier names a file under the storage,
+     * never a way out of it.
+     */
+    private function path(string $fileIdentifier): string
+    {
+        if (str_contains($fileIdentifier, '..') || '' === trim($fileIdentifier, '/')) {
+            throw new \RuntimeException(\sprintf('Invalid file identifier "%s".', $fileIdentifier));
+        }
+
+        return $this->storagePath . '/' . ltrim($fileIdentifier, '/');
     }
 }

@@ -25,7 +25,7 @@ Le Bounded Context **Client** gère les clients / propriétaires d'animaux dans 
 - **ConsentKind** : `APPOINTMENT_REMINDERS` | `VACCINATION_REMINDERS` | `CLINICAL_DOCUMENTS` | `BILLING` | `MARKETING`
 - **CommunicationPreferences** : Canal préféré pour les échanges ponctuels + liste des consentements actifs
 - **ClientNote** : Note interne sur un client (`INFORMATION` ou `ATTENTION`), jamais visible du client, jamais modifiée
-- **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe — une entrée de journal, pas un envoi
+- **ClientCommunication** : Échange avec le client (appel, SMS, e-mail, courrier) consigné par l'équipe, ou message envoyé automatiquement par Kiveto — une entrée de journal, pas un envoi
 - **ClientTaxProfile** (profil fiscal) : statut fiscal (`ClientTaxStatus`), raison sociale facultative, SIREN et n° de TVA
 - **ClientTaxStatus** : `INDIVIDUAL` (« Particulier ou structure non assujettie ») | `FRENCH_BUSINESS` (« Professionnel assujetti à la TVA »). **Assujetti** = soumis à la TVA en France ; avoir un SIREN ne suffit pas (une association non assujettie reste `INDIVIDUAL`)
 - **Raison sociale** (`legalName`) : nom de la structure. Quand elle existe, l'identité du client (civilité, nom, prénom) devient la **personne de contact**, et la facture est adressée à la raison sociale « à l'attention de » ce contact
@@ -165,11 +165,12 @@ src/Client/
 4. Réviser les préférences **conserve la date de recueil** d'un consentement tant qu'il ne couvre aucun canal nouveau ; accepter un canal supplémentaire est un nouveau consentement, daté du jour
 
 ### ClientNote et ClientCommunication
-1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression)
-2. Rattachés à un client **de la clinique** : le handler charge le client avant d'écrire
-3. Contenu d'une note : non vide, 2 000 caractères max ; objet d'un échange : non vide, 160 caractères max ; corps : 4 000 caractères max
-4. L'auteur est un **nom figé à l'écriture** (pas une référence utilisateur)
-5. Restent possibles sur un client archivé (ils ne modifient pas la fiche)
+1. Agrégats distincts du Client, en **ajout seul** (ni modification ni suppression) — **les échanges manuels restent en ajout seul ; les envois automatiques ne changent que de statut**
+2. Un échange porte son origine (`CommunicationOrigin`) : `MANUAL` (consigné par l'équipe) ou `AUTOMATED` (message envoyé par Kiveto, auteur « Envoi automatique », sens émis). Seule une entrée `AUTOMATED` porte un statut d'acheminement (`DeliveryStatus` : En cours, Envoyé, Différé, Délivré, Non délivré, Rejeté, Échec, Bloqué (plafond)), l'id du message Notification (`notificationMessageId`, unique — pas l'id Brevo), le numéro de séquence du dernier statut reçu et sa date ; `recordDeliveryStatus()` refuse une entrée `MANUAL` et ignore un statut de séquence inférieure ou égale (un statut arrivé en retard peut seulement dater l'entrée plus tôt)
+3. Rattachés à un client **de la clinique** : le handler charge le client avant d'écrire
+4. Contenu d'une note : non vide, 2 000 caractères max ; objet d'un échange : non vide, 160 caractères max ; corps : 4 000 caractères max
+5. L'auteur est un **nom figé à l'écriture** (pas une référence utilisateur)
+6. Restent possibles sur un client archivé (ils ne modifient pas la fiche)
 
 ### Scoping
 - Toutes les opérations sont scopées par `ClinicId`
@@ -362,6 +363,16 @@ Consigne un échange au journal du client. N'envoie rien.
 
 ---
 
+#### RecordAutomatedCommunication
+
+Journalise un message envoyé automatiquement au client, puis suit son statut. Envoyé par le consumer `Infrastructure/Messaging/Consumer/OutboundMessageStatusChangedConsumer` pour **chaque** `OutboundMessageStatusChangedIntegrationEvent` du contexte Notification portant un `clientId` (y compris l'état de création : En cours, Bloqué (plafond), Échec « profil absent »).
+
+**Input:** `notificationMessageId`, `clinicId`, `clientId`, `channel` (`EMAIL` | `SMS`), `subject` (objet de l'e-mail ou libellé de l'envoi pour un SMS), `recipientLabel`, `status`, `occurredAt` (ATOM), `sequence`
+
+**Comportement:** client inconnu de la clinique, ou statut / canal que ce miroir ne connaît pas encore → rien (journalisé en avertissement, sans nouvel essai) ; sinon insertion de l'entrée si absente (`INSERT … ON DUPLICATE KEY` sur `notification_message_id` unique : deux consumers concurrents ne se heurtent jamais), auteur « Envoi automatique », sens émis ; sinon lecture verrouillante (`SELECT … FOR UPDATE`) et mise à jour du statut seulement si la séquence est plus récente. Doublons et désordre sans effet.
+
+---
+
 ### Queries (Read Model)
 
 #### ListClientNotes / ListClientCommunications
@@ -372,6 +383,17 @@ Notes internes et échanges consignés d'un client, du plus récent au plus anci
 **Output:** `list<ClientNoteView>` (`id`, `kind`, `content`, `authorName`, `createdAt`) / `list<ClientCommunicationView>` (`id`, `channel`, `direction`, `subject`, `body`, `authorName`, `occurredAt`)
 
 `ClientView` (GetClientById) expose en plus `authorizedPerson`, `preferredChannel` et `consents` (consentements actifs uniquement).
+
+#### GetClientNotificationContact / GetClientsNotificationContacts
+
+Comment joindre un client par un envoi automatique (Scheduling, Billing, Consultation y accèdent par leur propre port + adapter QueryBus). `GetClientNotificationContact(clinicId, clientId)` → `?ClientNotificationContact` (null si le client n'est pas de la clinique) ; `GetClientsNotificationContacts(clinicId, clientIds[])` → `clientId => ClientNotificationContact`, en **une seule requête SQL** (écrans de liste).
+
+`ClientNotificationContact` (scalaires et tableaux uniquement) : `clientId`, `displayName` (raison sociale ou prénom + nom), `civility` (« Mme », « M. » ou vide), `firstName`, `lastName`, `email` (primaire, sinon le premier), `mobile` (E.164 : le téléphone primaire s'il reçoit les SMS, sinon le premier qui les reçoit), `preferredChannel`, `consents` (canaux par type de consentement), `archived`. Un téléphone reçoit les SMS si son préfixe est mobile (`MobileNumberPolicy` : +336, +337, +262 69, +262 639, +590 690/691, +594 694, +596 696/697, +508 55, +687 7/8/9, +689 87/88/89, +681), ou s'il est libellé « mobile » et que son préfixe n'est pas celui d'un fixe connu (+331 à +335, +339).
+
+Règles de consentement :
+- `channelsFor(kind)` : canaux consentis pour ce type d'envoi **et** dont l'adresse existe (le rappel SMS de RDV n'est envoyé que si `appointment_reminders` contient `sms`) ;
+- `transactionalChannel()` : confirmation / modification / annulation de RDV, jamais bloquées par un consentement — canal préféré si son adresse existe, sinon e-mail, sinon SMS, sinon aucun.
+- rappel SMS de RDV (D9) : le formulaire de création coche « Rappels SMS de rendez-vous » par défaut quand un mobile est saisi (`appointment_reminders` contient `sms`), et le serveur fait de même quand la requête ne dit rien (`rsms` absent) ; l'enregistrement rapide de l'accueil (`DeskRegistration`) et le nouveau client du comptoir (Billing) donnent ce consentement quand le téléphone est un mobile ; la fiche client permet de le couper (« Rappels de rendez-vous par SMS », `UpdateClientCommunicationPreferences`). Pas de reprise des clients existants.
 
 #### SearchCompanyRegistry
 
@@ -620,7 +642,7 @@ $result = $queryBus->ask($query);
 |---------------|---------------------------|-----------------------|---------------------------|
 | tests / CI | `fixture` | `fixture` | contact de test (`.env.test`) |
 | dev (défaut) | `fixture` | `fixture` | `Kiveto/0.5` (sans contact : suffisant en `fixture`) |
-| dev (opt-in) | `api` | `vies` | contact obligatoire, ex. `Kiveto/0.5 (+https://kiveto.fr/contact)` |
+| dev (opt-in) | `api` | `vies` | contact obligatoire, ex. `Kiveto/0.5 (+https://kiveto.app/contact)` |
 | staging / prod | `api` | `vies` | contact obligatoire |
 
 Les adaptateurs fixture (`FixtureCompanyRegistry`, `FixtureVatNumberVerifier`) reprennent les clients de démo ; déclencheurs : recherche « indisponible » (panne), « limite » (budget épuisé), SIREN `999999998` (panne), `900000019` (non diffusible).
@@ -630,7 +652,7 @@ Run manuel avec les vrais services : dans `.env.local` (lu par php-fpm et par le
 ```dotenv
 CLIENT_COMPANY_REGISTRY=api
 CLIENT_VAT_VERIFIER=vies
-EXTERNAL_API_USER_AGENT="Kiveto/0.5 (+https://kiveto.fr/contact)"
+EXTERNAL_API_USER_AGENT="Kiveto/0.5 (+https://kiveto.app/contact)"
 ```
 
 puis `make worker-stop worker-start`.
