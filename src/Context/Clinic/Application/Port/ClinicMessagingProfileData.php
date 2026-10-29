@@ -10,7 +10,7 @@ namespace App\Context\Clinic\Application\Port;
 final readonly class ClinicMessagingProfileData
 {
     /**
-     * @param string  $emailLocalPart the clinic slug (« clinique-montmartre »@mail.kiveto.fr)
+     * @param string  $emailLocalPart the clinic slug (« clinique-montmartre »@mail.kiveto.app)
      * @param ?string $replyTo        the letterhead e-mail
      * @param string  $addressLine    « 18 rue Lepic, 75018 Paris », empty when unknown
      * @param ?string $phone          the letterhead phone, E.164

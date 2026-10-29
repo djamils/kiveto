@@ -21,7 +21,7 @@ final class IcsWriterTest extends TestCase
             . "CALSCALE:GREGORIAN\r\n"
             . "METHOD:REQUEST\r\n"
             . "BEGIN:VEVENT\r\n"
-            . "UID:a-1@kiveto.fr\r\n"
+            . "UID:a-1@kiveto.app\r\n"
             . "SEQUENCE:0\r\n"
             . "DTSTAMP:20261013T084400Z\r\n"
             . "DTSTART:20261022T073000Z\r\n"
@@ -50,7 +50,7 @@ final class IcsWriterTest extends TestCase
         $ics = new IcsWriter()->write($this->invitation(cancelled: true, sequence: 2, location: null));
 
         self::assertStringContainsString("METHOD:CANCEL\r\n", $ics);
-        self::assertStringContainsString("UID:a-1@kiveto.fr\r\nSEQUENCE:2\r\n", $ics);
+        self::assertStringContainsString("UID:a-1@kiveto.app\r\nSEQUENCE:2\r\n", $ics);
         self::assertStringContainsString("STATUS:CANCELLED\r\n", $ics);
         self::assertStringNotContainsString('LOCATION', $ics);
         // iTIP: a CANCEL names its organizer.
@@ -60,7 +60,7 @@ final class IcsWriterTest extends TestCase
     private function invitation(bool $cancelled, int $sequence, ?string $location = '18 rue Lepic, 75018 Paris'): CalendarInvitation
     {
         return new CalendarInvitation(
-            uid: 'a-1@kiveto.fr',
+            uid: 'a-1@kiveto.app',
             sequence: $sequence,
             cancelled: $cancelled,
             startsAtUtc: new \DateTimeImmutable('2026-10-22 09:30', new \DateTimeZone('Europe/Paris')),

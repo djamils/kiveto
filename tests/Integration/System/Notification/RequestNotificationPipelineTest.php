@@ -78,7 +78,7 @@ final class RequestNotificationPipelineTest extends KernelTestCase
      */
     public function testTheExternalWorkerSendsTheQueuedMessage(): void
     {
-        $id = $this->commandBus()->dispatch(new RequestNotification('TEST', 'EMAIL', 'claire@kiveto.fr', 'Claire', self::CLINIC, null, 'clinic', self::CLINIC, 'test:pipeline:1', ['sentAtLabel' => '26/10/2026 à 10:42']));
+        $id = $this->commandBus()->dispatch(new RequestNotification('TEST', 'EMAIL', 'claire@kiveto.app', 'Claire', self::CLINIC, null, 'clinic', self::CLINIC, 'test:pipeline:1', ['sentAtLabel' => '26/10/2026 à 10:42']));
         \assert(\is_string($id));
 
         MessengerDrain::drain(self::getContainer(), ['async_external_notification']);
@@ -99,8 +99,8 @@ final class RequestNotificationPipelineTest extends KernelTestCase
         $bus     = $this->commandBus();
         $request = static fn (string $channel, string $to, string $key): RequestNotification => new RequestNotification('TEST', $channel, $to, '', self::CLINIC, null, 'clinic', self::CLINIC, $key, ['sentAtLabel' => '26/10/2026 à 10:42']);
         $ids     = [
-            'DELIVERED' => $bus->dispatch($request('EMAIL', 'claire@kiveto.fr', 'test:sim:1')),
-            'BOUNCED'   => $bus->dispatch($request('EMAIL', 'bounce@kiveto.fr', 'test:sim:2')),
+            'DELIVERED' => $bus->dispatch($request('EMAIL', 'claire@kiveto.app', 'test:sim:1')),
+            'BOUNCED'   => $bus->dispatch($request('EMAIL', 'bounce@kiveto.app', 'test:sim:2')),
             'REJECTED'  => $bus->dispatch($request('SMS', '+33612340000', 'test:sim:3')),
             'SMS'       => $bus->dispatch($request('SMS', '+33612345678', 'test:sim:4')),
         ];

@@ -34,7 +34,7 @@ final class OutboundMessageTest extends TestCase
         self::assertSame(Messages::CLINIC, $message->clinicId());
         self::assertSame(Messages::CLIENT, $message->clientId());
         self::assertSame('Thomas Lefebvre', $message->recipient()?->label());
-        self::assertSame('clinique-montmartre@mail.kiveto.fr', $message->sender()?->emailAddress);
+        self::assertSame('clinique-montmartre@mail.kiveto.app', $message->sender()?->emailAddress);
         self::assertSame('invoice', $message->subject()->type);
         self::assertSame('invoice:1:send:1', $message->idempotencyKey()->toString());
         self::assertSame('Votre facture FA-2026-0814 — Clinique Montmartre', $message->subjectLine());
@@ -78,7 +78,7 @@ final class OutboundMessageTest extends TestCase
             MessagePurpose::TEST,
             Channel::SMS,
             Recipient::for(Channel::SMS, '+33612345678', ''),
-            SenderIdentity::kiveto('no-reply@kiveto.fr'),
+            SenderIdentity::kiveto('no-reply@kiveto.app'),
             SubjectReference::of('test', 't1'),
             IdempotencyKey::fromString('test:1'),
             RenderedContent::email('S', '<p>x</p>', 'x'),
@@ -99,7 +99,7 @@ final class OutboundMessageTest extends TestCase
             MessagePurpose::TEST,
             Channel::SMS,
             Recipient::for(Channel::SMS, '+33612345678', ''),
-            SenderIdentity::kiveto('no-reply@kiveto.fr'),
+            SenderIdentity::kiveto('no-reply@kiveto.app'),
             SubjectReference::of('test', 't1'),
             IdempotencyKey::fromString('test:1'),
             RenderedContent::sms('x', SmsEncoding::GSM_7, 1),
@@ -116,7 +116,7 @@ final class OutboundMessageTest extends TestCase
             null,
             MessagePurpose::INVOICE_REMINDER,
             Recipient::for(Channel::SMS, '+33612345678', 'Claire Rey'),
-            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.fr', '', ''),
+            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.app', '', ''),
             SubjectReference::of('invoice', 'inv-2'),
             IdempotencyKey::fromString('invoice:2:reminder:1:SMS'),
             RenderedContent::sms('Rappel', SmsEncoding::GSM_7, 1),
@@ -149,7 +149,7 @@ final class OutboundMessageTest extends TestCase
             null,
             MessagePurpose::APPOINTMENT_CONFIRMATION,
             Recipient::for(Channel::SMS, '+33612345678', 'Claire Rey'),
-            SenderIdentity::kiveto('no-reply@kiveto.fr'),
+            SenderIdentity::kiveto('no-reply@kiveto.app'),
             SubjectReference::of('appointment', 'a'),
             IdempotencyKey::fromString('appointment:a:confirmation:1'),
             RenderedContent::sms('x', SmsEncoding::GSM_7, 1),
@@ -167,7 +167,7 @@ final class OutboundMessageTest extends TestCase
             null,
             MessagePurpose::INVOICE_REMINDER,
             Recipient::for(Channel::SMS, '+33612345678', 'Claire Rey'),
-            SenderIdentity::kiveto('no-reply@kiveto.fr'),
+            SenderIdentity::kiveto('no-reply@kiveto.app'),
             SubjectReference::of('invoice', 'a'),
             IdempotencyKey::fromString('invoice:a'),
             RenderedContent::email('s', 'h', 't'),

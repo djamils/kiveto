@@ -81,11 +81,11 @@ final class MessageValueObjectsTest extends TestCase
 
     public function testSenders(): void
     {
-        $kiveto = SenderIdentity::kiveto('no-reply@kiveto.fr');
-        self::assertSame(['Kiveto', 'no-reply@kiveto.fr', null, 'Kiveto'], [$kiveto->name, $kiveto->emailAddress, $kiveto->replyTo, $kiveto->smsSender]);
+        $kiveto = SenderIdentity::kiveto('no-reply@kiveto.app');
+        self::assertSame(['Kiveto', 'no-reply@kiveto.app', null, 'Kiveto'], [$kiveto->name, $kiveto->emailAddress, $kiveto->replyTo, $kiveto->smsSender]);
 
-        $clinic = SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.fr', ' accueil@montmartre.fr ', ' Lilas Vet ');
-        self::assertSame(['clinique-montmartre@mail.kiveto.fr', 'accueil@montmartre.fr', 'Lilas Vet'], [$clinic->emailAddress, $clinic->replyTo, $clinic->smsSender]);
+        $clinic = SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.app', ' accueil@montmartre.fr ', ' Lilas Vet ');
+        self::assertSame(['clinique-montmartre@mail.kiveto.app', 'accueil@montmartre.fr', 'Lilas Vet'], [$clinic->emailAddress, $clinic->replyTo, $clinic->smsSender]);
 
         $copy = SenderIdentity::reconstitute('A', 'a@b.fr', null, 'A');
         self::assertSame('a@b.fr', $copy->emailAddress);

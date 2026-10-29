@@ -17,10 +17,10 @@ final class ExternalApiUserAgentTest extends TestCase
      */
     public static function provideAUserAgentWithAContactIsReturnedAsIsCases(): iterable
     {
-        yield 'e-mail' => ['Kiveto/0.5 (contact@kiveto.fr)'];
+        yield 'e-mail' => ['Kiveto/0.5 (contact@kiveto.app)'];
         yield 'e-mail with a plus' => ['Kiveto-test (+tests@kiveto.invalid)'];
-        yield 'https URL' => ['Kiveto/0.5 (+https://kiveto.fr/contact)'];
-        yield 'http URL' => ['Kiveto/0.5 http://kiveto.fr'];
+        yield 'https URL' => ['Kiveto/0.5 (+https://kiveto.app/contact)'];
+        yield 'http URL' => ['Kiveto/0.5 http://kiveto.app'];
     }
 
     #[DataProvider('provideAUserAgentWithAContactIsReturnedAsIsCases')]

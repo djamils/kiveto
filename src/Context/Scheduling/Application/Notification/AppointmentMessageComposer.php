@@ -33,7 +33,7 @@ final readonly class AppointmentMessageComposer
 
     private const string DEFAULT_REASON = 'Consultation';
     private const string UNKNOWN_ANIMAL = 'votre animal';
-    private const string UID_DOMAIN     = 'kiveto.fr';
+    private const string UID_DOMAIN     = 'kiveto.app';
 
     public function __construct(
         private AnimalDirectoryInterface $animals,

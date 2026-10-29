@@ -64,14 +64,14 @@ final class SymfonyTransportSendersTest extends TestCase
     public static function provideAnAddressTheMimeLayerRefusesIsRefusedForGoodCases(): iterable
     {
         yield 'recipient' => ['a..b@example.com', null];
-        yield 'reply-to' => ['claire@kiveto.fr', 'accueil@@clinique.fr'];
+        yield 'reply-to' => ['claire@kiveto.app', 'accueil@@clinique.fr'];
     }
 
     #[DataProvider('provideAnAddressTheMimeLayerRefusesIsRefusedForGoodCases')]
     public function testAnAddressTheMimeLayerRefusesIsRefusedForGood(string $to, ?string $replyTo): void
     {
         try {
-            new SymfonyMailerEmailSender(new NullTransport(), $this->failures)->send(new OutgoingEmail('Kiveto', 'no-reply@kiveto.fr', $replyTo, $to, '', 'Sujet', '<p>x</p>', 'x', 'k'));
+            new SymfonyMailerEmailSender(new NullTransport(), $this->failures)->send(new OutgoingEmail('Kiveto', 'no-reply@kiveto.app', $replyTo, $to, '', 'Sujet', '<p>x</p>', 'x', 'k'));
             self::fail('Refused.');
         } catch (DeliveryRefusedException $e) {
             self::assertSame('Adresse e-mail invalide', $e->reason);
@@ -186,7 +186,7 @@ final class SymfonyTransportSendersTest extends TestCase
 
     private static function email(?string $replyTo = 'accueil@clinique-montmartre.fr'): OutgoingEmail
     {
-        return new OutgoingEmail('Clinique Montmartre', 'clinique-montmartre@mail.kiveto.fr', $replyTo, 't.lefebvre@orange.fr', 'Thomas Lefebvre', 'Sujet', '<p>Bonjour</p>', 'Bonjour', 'invoice:1:send:1');
+        return new OutgoingEmail('Clinique Montmartre', 'clinique-montmartre@mail.kiveto.app', $replyTo, 't.lefebvre@orange.fr', 'Thomas Lefebvre', 'Sujet', '<p>Bonjour</p>', 'Bonjour', 'invoice:1:send:1');
     }
 
     private static function sms(): OutgoingSms

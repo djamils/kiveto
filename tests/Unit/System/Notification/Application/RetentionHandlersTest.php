@@ -179,7 +179,7 @@ final class RetentionHandlersTest extends TestCase
             MessagePurpose::INVOICE_SENT,
             Channel::EMAIL,
             Recipient::for(Channel::EMAIL, 't.lefebvre@orange.fr', 'Thomas Lefebvre'),
-            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.fr', null, 'Montmartre'),
+            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.app', null, 'Montmartre'),
             SubjectReference::of('invoice', 'inv-1'),
             IdempotencyKey::fromString($key),
             RenderedContent::email('Votre facture', '<p>x</p>', 'x'),

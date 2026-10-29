@@ -170,7 +170,7 @@ final class OutboundMessagePersistenceTest extends KernelTestCase
                 null,
                 MessagePurpose::INVOICE_REMINDER,
                 Recipient::for(Channel::SMS, '+33612345678', ''),
-                SenderIdentity::kiveto('no-reply@kiveto.fr'),
+                SenderIdentity::kiveto('no-reply@kiveto.app'),
                 SubjectReference::of('invoice', 'i' . $i),
                 IdempotencyKey::fromString('k-blocked-' . $i),
                 RenderedContent::sms('x', SmsEncoding::GSM_7, 1),

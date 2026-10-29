@@ -18,7 +18,7 @@ framework:
         - '^clinic\.kiveto\.local(:\d+)?$'
         - '^portal\.kiveto\.local(:\d+)?$'
         - '^backoffice\.kiveto\.local(:\d+)?$'
-        # Host on which Brevo calls the webhooks (hooks.kiveto.fr, dev tunnel).
+        # Host on which Brevo calls the webhooks (hooks.kiveto.app, dev tunnel).
         - '%env(NOTIFICATION_WEBHOOK_HOST)%'
 
     # One scoped client per external service (see src/Shared/README.md, External APIs):

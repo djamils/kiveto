@@ -21,7 +21,7 @@ final class QueryBusClinicDirectoryTest extends TestCase
             GetClinic::class           => self::clinic(new LetterheadDto(null, null, null, null, null, null, null, null, null, ['18 rue Lepic', '75018 Paris'], 'Paris', '+33142641800', 'accueil@clinique-montmartre.fr', null)),
             GetStaffPrintedName::class => static fn (GetStaffPrintedName $q): ?string => 'user-1' === $q->userId ? 'Dr Claire Rousseau' : null,
         ]);
-        $directory = new QueryBusClinicDirectory($bus, 'mail.kiveto.fr');
+        $directory = new QueryBusClinicDirectory($bus, 'mail.kiveto.app');
 
         $card = $directory->clinic('clinic-1');
         self::assertSame(['Clinique Montmartre', 'America/Cayenne', 'accueil@clinique-montmartre.fr', '18 rue Lepic, 75018 Paris'], [$card->name, $card->timeZone->getName(), $card->email, $card->address]);
@@ -31,10 +31,10 @@ final class QueryBusClinicDirectoryTest extends TestCase
 
     public function testAClinicWithoutLetterheadIsTheOrganizerFromItsSendingAddress(): void
     {
-        $card = new QueryBusClinicDirectory(new AnsweringQueryBus([GetClinic::class => self::clinic(null)]), 'mail.kiveto.fr')->clinic('clinic-1');
+        $card = new QueryBusClinicDirectory(new AnsweringQueryBus([GetClinic::class => self::clinic(null)]), 'mail.kiveto.app')->clinic('clinic-1');
 
         // Its messages come from <slug>@<notification domain>: the calendar invitations name it as organizer.
-        self::assertSame('clinique-montmartre@mail.kiveto.fr', $card->email);
+        self::assertSame('clinique-montmartre@mail.kiveto.app', $card->email);
         self::assertNull($card->address);
     }
 
@@ -42,7 +42,7 @@ final class QueryBusClinicDirectoryTest extends TestCase
     {
         $this->expectException(\DomainException::class);
 
-        new QueryBusClinicDirectory(new AnsweringQueryBus(), 'mail.kiveto.fr')->clinic('clinic-1');
+        new QueryBusClinicDirectory(new AnsweringQueryBus(), 'mail.kiveto.app')->clinic('clinic-1');
     }
 
     private static function clinic(?LetterheadDto $letterhead): ClinicDto

@@ -66,7 +66,7 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 | `ResetPassword(token, plainPassword)` | Usable reset token of an ACTIVE account → `changePassword()`, token and every other reset token of the user used. |
 | `CheckAccountToken(token, purpose)` | `AccountTokenCheck{VALID (with the e-mail) | INVALID | ALREADY_ACTIVE}` for the public pages. |
 
-Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.fr> »).
+Unusable links throw `InvalidAccountTokenException` (« Ce lien n’est plus valide. »), refused passwords `UnacceptablePasswordException`. Ports: `PasswordHasherInterface` (Symfony hasher), `AccountLinkBuilderInterface` (`KIVETO_PUBLIC_BASE_URL`), `NotificationRequesterInterface` (`CommandBusNotificationRequester` → Notification's `RequestNotification`, sender « Kiveto <no-reply@kiveto.app> »).
 
 ## Public pages (clinic host)
 

@@ -642,7 +642,7 @@ $result = $queryBus->ask($query);
 |---------------|---------------------------|-----------------------|---------------------------|
 | tests / CI | `fixture` | `fixture` | contact de test (`.env.test`) |
 | dev (défaut) | `fixture` | `fixture` | `Kiveto/0.5` (sans contact : suffisant en `fixture`) |
-| dev (opt-in) | `api` | `vies` | contact obligatoire, ex. `Kiveto/0.5 (+https://kiveto.fr/contact)` |
+| dev (opt-in) | `api` | `vies` | contact obligatoire, ex. `Kiveto/0.5 (+https://kiveto.app/contact)` |
 | staging / prod | `api` | `vies` | contact obligatoire |
 
 Les adaptateurs fixture (`FixtureCompanyRegistry`, `FixtureVatNumberVerifier`) reprennent les clients de démo ; déclencheurs : recherche « indisponible » (panne), « limite » (budget épuisé), SIREN `999999998` (panne), `900000019` (non diffusible).
@@ -652,7 +652,7 @@ Run manuel avec les vrais services : dans `.env.local` (lu par php-fpm et par le
 ```dotenv
 CLIENT_COMPANY_REGISTRY=api
 CLIENT_VAT_VERIFIER=vies
-EXTERNAL_API_USER_AGENT="Kiveto/0.5 (+https://kiveto.fr/contact)"
+EXTERNAL_API_USER_AGENT="Kiveto/0.5 (+https://kiveto.app/contact)"
 ```
 
 puis `make worker-stop worker-start`.

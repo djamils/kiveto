@@ -11,9 +11,9 @@ final class PublicAccountLinkBuilderTest extends TestCase
 {
     public function testLinksPointToTheClinicHost(): void
     {
-        $links = new PublicAccountLinkBuilder('https://clinic.kiveto.fr/');
+        $links = new PublicAccountLinkBuilder('https://clinic.kiveto.app/');
 
-        self::assertSame('https://clinic.kiveto.fr/invitation/abc-_1', $links->invitationUrl('abc-_1'));
-        self::assertSame('https://clinic.kiveto.fr/reinitialiser/abc-_1', $links->passwordResetUrl('abc-_1'));
+        self::assertSame('https://clinic.kiveto.app/invitation/abc-_1', $links->invitationUrl('abc-_1'));
+        self::assertSame('https://clinic.kiveto.app/reinitialiser/abc-_1', $links->passwordResetUrl('abc-_1'));
     }
 }

@@ -30,14 +30,14 @@ final class WebhookTokenMaskingProcessorTest extends TestCase
             new \DateTimeImmutable('2026-10-26 10:42:00'),
             'request',
             Level::Error,
-            'Uncaught PHP Exception NotFoundHttpException: "No route found for "GET http://hooks.kiveto.fr/webhook/x?token=s3cr3t""',
+            'Uncaught PHP Exception NotFoundHttpException: "No route found for "GET http://hooks.kiveto.app/webhook/x?token=s3cr3t""',
             ['request_uri' => 'http://clinic.kiveto.local/invitation/Ab3dEf', 'route_parameters' => ['_route' => 'reset', 'path' => '/reinitialiser/Ab3dEf'], 'attempt' => 2],
             ['url'         => '/webhook/brevo_mailer?token=s3cr3t'],
         );
 
         $masked = new WebhookTokenMaskingProcessor()($record);
 
-        self::assertSame('Uncaught PHP Exception NotFoundHttpException: "No route found for "GET http://hooks.kiveto.fr/webhook/x?token=***""', $masked->message);
+        self::assertSame('Uncaught PHP Exception NotFoundHttpException: "No route found for "GET http://hooks.kiveto.app/webhook/x?token=***""', $masked->message);
         self::assertSame(['request_uri' => 'http://clinic.kiveto.local/invitation/***', 'route_parameters' => ['_route' => 'reset', 'path' => '/reinitialiser/***'], 'attempt' => 2], $masked->context);
         self::assertSame(['url' => '/webhook/brevo_mailer?token=***'], $masked->extra);
     }

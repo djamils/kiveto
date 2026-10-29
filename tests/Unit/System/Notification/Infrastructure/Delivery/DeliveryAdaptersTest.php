@@ -114,7 +114,7 @@ final class DeliveryAdaptersTest extends TestCase
             new SimulatedDeliveryScheduler($bus, 5000),
         );
 
-        $id = $sender->send(new OutgoingEmail('Kiveto', 'no-reply@kiveto.fr', null, 'bounce@example.com', '', 'Sujet', '<p>x</p>', 'x', 'test:1'));
+        $id = $sender->send(new OutgoingEmail('Kiveto', 'no-reply@kiveto.app', null, 'bounce@example.com', '', 'Sujet', '<p>x</p>', 'x', 'test:1'));
 
         self::assertCount(1, $bus->dispatched);
         [$command, $stamps] = $bus->dispatched[0];
@@ -187,7 +187,7 @@ final class DeliveryAdaptersTest extends TestCase
 
     private static function email(): OutgoingEmail
     {
-        return new OutgoingEmail('Kiveto', 'no-reply@kiveto.fr', null, 'claire@kiveto.fr', '', 'Sujet', '<p>x</p>', 'x', 'k');
+        return new OutgoingEmail('Kiveto', 'no-reply@kiveto.app', null, 'claire@kiveto.app', '', 'Sujet', '<p>x</p>', 'x', 'k');
     }
 
     private static function bus(): CapturingMessageBus

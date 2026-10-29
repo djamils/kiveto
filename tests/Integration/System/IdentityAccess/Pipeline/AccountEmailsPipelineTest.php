@@ -36,7 +36,7 @@ final class AccountEmailsPipelineTest extends KernelTestCase
         self::assertIsString($tokenId);
 
         $message = $this->message('invitation:' . $tokenId);
-        self::assertSame(['STAFF_INVITATION', 'QUEUED', 'Kiveto', 'no-reply@kiveto.fr', 'Dr Claire Lambert vous invite à rejoindre Clinique Montmartre sur Kiveto'], [
+        self::assertSame(['STAFF_INVITATION', 'QUEUED', 'Kiveto', 'no-reply@kiveto.app', 'Dr Claire Lambert vous invite à rejoindre Clinique Montmartre sur Kiveto'], [
             $message['purpose'], $message['status'], $message['sender_name'], $message['sender_email'], $message['subject'],
         ]);
         self::assertSame(['userId' => 'PENDING_VALID'], $this->invitationStatuses($registration->userId));
@@ -71,7 +71,7 @@ final class AccountEmailsPipelineTest extends KernelTestCase
 
         self::assertSame(1, $this->messagesOf('PASSWORD_RESET'));
         $message = $this->connection()->fetchAssociative("SELECT recipient_address, JSON_UNQUOTE(JSON_EXTRACT(sender, '$.email')) AS sender FROM notification__outbound_messages WHERE purpose = 'PASSWORD_RESET'");
-        self::assertSame(['recipient_address' => 'lea.pipeline@example.com', 'sender' => 'no-reply@kiveto.fr'], $message);
+        self::assertSame(['recipient_address' => 'lea.pipeline@example.com', 'sender' => 'no-reply@kiveto.app'], $message);
     }
 
     private function command(object $command): mixed

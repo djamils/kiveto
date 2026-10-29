@@ -40,7 +40,7 @@ official Symfony bridges (`symfony/brevo-mailer` API transport,
 | **Criticality** | Fixed per purpose. `NON_CRITICAL` (appointment reminder, unpaid reminder) SMS are subject to the overage cap; everything else is `CRITICAL`. |
 | **DeliveryStatus** | `QUEUED` (0) → `SENT` / `DEFERRED` (1) → `DELIVERED` / `BOUNCED` / `REJECTED` / `FAILED` / `BLOCKED_CAP` (2, final). A complaint (spam) is a flag, not a status. |
 | **IdempotencyKey** | Opaque string built by the requester (`appointment:<id>:confirmation:1`, `invoice:<id>:send:<dispatchId>`, `invitation:<tokenId>`…), unique across messages. |
-| **SenderIdentity** | Clinic purposes: `<Clinic name> <<slug>@mail.kiveto.fr>`, reply-to the letterhead e-mail, SMS sender = clinic short sender (fallback « Kiveto »). Account and test purposes: `Kiveto <no-reply@kiveto.fr>`. |
+| **SenderIdentity** | Clinic purposes: `<Clinic name> <<slug>@mail.kiveto.app>`, reply-to the letterhead e-mail, SMS sender = clinic short sender (fallback « Kiveto »). Account and test purposes: `Kiveto <no-reply@kiveto.app>`. |
 | **ClinicMessagingProfile** | Notification's copy of what it needs from a clinic (name, e-mail local part, reply-to, SMS sender, overage cap, address, phone, brand colour, logo), upserted by Clinic. |
 | **Segment** | The unit an SMS is billed in: GSM-7 160 characters (153 per part when split), UCS-2 70 (67); `€`, `[`, `]`, `{`, `}`, `^`, `~`, `\`, `|` count 2. |
 | **SMS quota** | 400 segments × the maximum number of active veterinarians of the month (Europe/Paris), pooled per clinic, never below 400. |
@@ -175,8 +175,8 @@ Production:
 MAILER_DSN=brevo+api://KEY@default
 NOTIFIER_SMS_DSN=brevo://KEY@default?sender=Kiveto
 NOTIFICATION_DELIVERY=brevo
-NOTIFICATION_EMAIL_DOMAIN=mail.kiveto.fr
-NOTIFICATION_ACCOUNT_SENDER=no-reply@kiveto.fr
+NOTIFICATION_EMAIL_DOMAIN=mail.kiveto.app
+NOTIFICATION_ACCOUNT_SENDER=no-reply@kiveto.app
 BREVO_WEBHOOK_TOKEN=<secret>
 ```
 
@@ -189,8 +189,8 @@ refuses every message (FAILED « Transport e-mail non configuré » /
 ### Brevo setup (production)
 
 1. **Sending domains** — authenticate in Brevo the sending sub-domain
-   `mail.kiveto.fr` (clinic e-mails, `<clinic-slug>@mail.kiveto.fr`) and
-   `kiveto.fr` (`no-reply@kiveto.fr`, account e-mails): SPF, DKIM and DMARC
+   `mail.kiveto.app` (clinic e-mails, `<clinic-slug>@mail.kiveto.app`) and
+   `kiveto.app` (`no-reply@kiveto.app`, account e-mails): SPF, DKIM and DMARC
    records in DNS, until Brevo shows both domains authenticated.
 2. **API key** — create a Brevo API key and put it in `MAILER_DSN` and
    `NOTIFIER_SMS_DSN` (values above); set `NOTIFICATION_DELIVERY=brevo`.
@@ -199,11 +199,11 @@ refuses every message (FAILED « Transport e-mail non configuré » /
    clinic name by default). Until a clinic's sender is registered, set it to
    « Kiveto ».
 4. **Webhooks** — in Brevo, transactional e-mail events →
-   `https://hooks.kiveto.fr/webhook/brevo_mailer`, SMS events →
-   `https://hooks.kiveto.fr/webhook/brevo_sms`, with the secret
+   `https://hooks.kiveto.app/webhook/brevo_mailer`, SMS events →
+   `https://hooks.kiveto.app/webhook/brevo_sms`, with the secret
    `BREVO_WEBHOOK_TOKEN` sent as `Authorization: Bearer <secret>` when Brevo
    allows a header, else appended to the URL as `?token=<secret>`.
-   `hooks.kiveto.fr` points to the application (`NOTIFICATION_WEBHOOK_HOST`).
+   `hooks.kiveto.app` points to the application (`NOTIFICATION_WEBHOOK_HOST`).
 5. **IP ranges** — check that Brevo's published webhook ranges still match
    `notification.brevo.webhook_ips` (`config/services.yaml`) and that
    `SYMFONY_TRUSTED_PROXIES` lists the reverse proxies, so the client IP is
@@ -236,7 +236,7 @@ the tunnel below so the delivery statuses come back.
 
 `POST /webhook/brevo_mailer` (transactional e-mail events) and
 `POST /webhook/brevo_sms` (SMS events), served by `symfony/webhook` on any host
-(production: `hooks.kiveto.fr`, allowed by `NOTIFICATION_WEBHOOK_HOST` in
+(production: `hooks.kiveto.app`, allowed by `NOTIFICATION_WEBHOOK_HOST` in
 `framework.trusted_hosts`), behind the stateless `webhook` firewall
 (`security: false`). Both parsers are Kiveto's (`Infrastructure/Webhook`):
 `BrevoRequestGuard` accepts a call only from Brevo's ranges

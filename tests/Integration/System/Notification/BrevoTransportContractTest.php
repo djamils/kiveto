@@ -86,7 +86,7 @@ final class BrevoTransportContractTest extends KernelTestCase
 
         $payload = json_decode(\is_string($options['body'] ?? null) ? $options['body'] : '', true, 512, \JSON_THROW_ON_ERROR);
         \assert(\is_array($payload));
-        self::assertSame(['email' => 'clinique-montmartre@mail.kiveto.fr', 'name' => 'Clinique Montmartre'], $payload['sender']);
+        self::assertSame(['email' => 'clinique-montmartre@mail.kiveto.app', 'name' => 'Clinique Montmartre'], $payload['sender']);
         self::assertSame(['email' => 'accueil@clinique-montmartre.fr'], $payload['replyTo']);
         self::assertSame([['email' => 't.lefebvre@orange.fr', 'name' => 'Thomas Lefebvre']], $payload['to']);
         self::assertSame('Votre facture FA-2026-0814 — Clinique Montmartre', $payload['subject']);

@@ -94,14 +94,14 @@ final class AutomatedMessageJournalPipelineTest extends WebTestCase
         $requests = [];
         $this->dispatcher(new MockResponse('{"messageId":"' . self::MESSAGE_ID . '"}', ['http_code' => 201]), $requests)(new DispatchOutboundMessage($id));
         self::assertCount(1, $requests);
-        self::assertStringContainsString('"sender":{"email":"clinique-montmartre@mail.kiveto.fr","name":"Clinique Montmartre"}', $requests[0]);
+        self::assertStringContainsString('"sender":{"email":"clinique-montmartre@mail.kiveto.app","name":"Clinique Montmartre"}', $requests[0]);
         self::assertStringContainsString('"replyTo":{"email":"accueil@clinique-montmartre.fr"}', $requests[0]);
 
         MessengerDrain::drain(self::getContainer(), ['async']);
         self::assertSame('Envoyé', $this->entry($id)->deliveryStatus()?->label());
 
         // AC 8: Brevo's « delivered » webhook through the real controller.
-        $this->browser->request('POST', 'http://hooks.kiveto.fr/webhook/brevo_mailer?token=change-me', server: [
+        $this->browser->request('POST', 'http://hooks.kiveto.app/webhook/brevo_mailer?token=change-me', server: [
             'REMOTE_ADDR'  => BrevoPayloads::BREVO_IP,
             'CONTENT_TYPE' => 'application/json',
         ], content: json_encode(BrevoPayloads::payload('email', 'delivered'), \JSON_THROW_ON_ERROR));

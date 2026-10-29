@@ -39,7 +39,7 @@ final class BrevoWebhookTest extends WebTestCase
         $message->markSent(self::MESSAGE_ID, new \DateTimeImmutable('2026-10-26 09:42:00'));
         $this->messages()->save($message);
 
-        $this->post('hooks.kiveto.fr', '/webhook/brevo_mailer?token=' . self::TOKEN, BrevoPayloads::payload('email', 'delivered'));
+        $this->post('hooks.kiveto.app', '/webhook/brevo_mailer?token=' . self::TOKEN, BrevoPayloads::payload('email', 'delivered'));
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(DeliveryStatus::SENT, $this->message($message)->status(), 'consumed asynchronously, not during the call');
@@ -60,10 +60,10 @@ final class BrevoWebhookTest extends WebTestCase
 
     public function testAWrongTokenOrAForeignIpChangesNothing(): void
     {
-        $this->post('hooks.kiveto.fr', '/webhook/brevo_mailer?token=guess', BrevoPayloads::payload('email', 'delivered'));
+        $this->post('hooks.kiveto.app', '/webhook/brevo_mailer?token=guess', BrevoPayloads::payload('email', 'delivered'));
         self::assertResponseStatusCodeSame(401);
 
-        $this->post('hooks.kiveto.fr', '/webhook/brevo_sms?token=' . self::TOKEN, BrevoPayloads::payload('sms', 'delivered'), ['REMOTE_ADDR' => '203.0.113.7']);
+        $this->post('hooks.kiveto.app', '/webhook/brevo_sms?token=' . self::TOKEN, BrevoPayloads::payload('sms', 'delivered'), ['REMOTE_ADDR' => '203.0.113.7']);
         self::assertResponseStatusCodeSame(403);
 
         self::assertSame([], $this->queued('ConsumeRemoteEventMessage'));
@@ -71,7 +71,7 @@ final class BrevoWebhookTest extends WebTestCase
 
     public function testAnSmsEventForAnUnknownIdIsKeptForLater(): void
     {
-        $this->post('hooks.kiveto.fr', '/webhook/brevo_sms?token=' . self::TOKEN, BrevoPayloads::payload('sms', 'delivered'));
+        $this->post('hooks.kiveto.app', '/webhook/brevo_sms?token=' . self::TOKEN, BrevoPayloads::payload('sms', 'delivered'));
         self::assertResponseStatusCodeSame(200);
 
         MessengerDrain::drain(self::getContainer(), ['async']);

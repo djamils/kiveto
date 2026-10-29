@@ -15,7 +15,7 @@ use App\Shared\Application\Bus\CommandInterface;
 final readonly class UpsertClinicMessagingProfile implements CommandInterface
 {
     /**
-     * @param string  $emailLocalPart the part before « @mail.kiveto.fr » (the clinic slug)
+     * @param string  $emailLocalPart the part before « @mail.kiveto.app » (the clinic slug)
      * @param ?string $replyTo        the letterhead e-mail
      * @param string  $smsSender      at most 11 letters, digits or spaces; empty → « Kiveto »
      * @param string  $addressLine    « 18 rue Lepic, 75018 Paris »

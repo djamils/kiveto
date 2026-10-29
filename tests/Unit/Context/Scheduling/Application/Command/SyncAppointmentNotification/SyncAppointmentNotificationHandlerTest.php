@@ -79,7 +79,7 @@ final class SyncAppointmentNotificationHandlerTest extends TestCase
         $ics = $this->ics($message);
         self::assertStringContainsString("METHOD:REQUEST\r\n", $ics);
         self::assertStringContainsString("SEQUENCE:0\r\n", $ics);
-        self::assertStringContainsString('UID:' . Appointments::ID . "@kiveto.fr\r\n", $ics);
+        self::assertStringContainsString('UID:' . Appointments::ID . "@kiveto.app\r\n", $ics);
         self::assertStringContainsString("DTSTART:20261022T073000Z\r\n", $ics);
         self::assertNotNull($message->attachment);
         self::assertSame(['rendez-vous.ics', 'text/calendar; method=REQUEST'], [$message->attachment->filename, $message->attachment->mime]);

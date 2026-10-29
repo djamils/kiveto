@@ -84,7 +84,7 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
 
         self::assertCount(1, $this->senders->emails);
         $email = $this->senders->emails[0];
-        self::assertSame(['Clinique Montmartre', 'clinique-montmartre@mail.kiveto.fr', 'accueil@clinique-montmartre.fr'], [$email->fromName, $email->fromAddress, $email->replyTo]);
+        self::assertSame(['Clinique Montmartre', 'clinique-montmartre@mail.kiveto.app', 'accueil@clinique-montmartre.fr'], [$email->fromName, $email->fromAddress, $email->replyTo]);
         self::assertSame(['t.lefebvre@orange.fr', 'Thomas Lefebvre'], [$email->toAddress, $email->toName]);
         self::assertSame('Votre facture FA-2026-0814 — Clinique Montmartre', $email->subject);
         self::assertSame('<p><img src="cid:logo.png" alt=""> Bonjour</p>', $email->html, 'the cid names the inline part with its extension');
@@ -274,8 +274,8 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
             null,
             MessagePurpose::TEST,
             Channel::EMAIL,
-            Recipient::for(Channel::EMAIL, 'claire@kiveto.fr', ''),
-            SenderIdentity::kiveto('no-reply@kiveto.fr'),
+            Recipient::for(Channel::EMAIL, 'claire@kiveto.app', ''),
+            SenderIdentity::kiveto('no-reply@kiveto.app'),
             SubjectReference::of('clinic', 'c-1'),
             IdempotencyKey::fromString('test:1'),
             RenderedContent::email('Message de test Kiveto', '<p>Test</p>', 'Test'),
@@ -286,7 +286,7 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
         ($this->handler)(new DispatchOutboundMessage(self::EMAIL_ID));
 
         $email = $this->senders->emails[0];
-        self::assertSame(['Kiveto', 'no-reply@kiveto.fr', null, null, []], [$email->fromName, $email->fromAddress, $email->replyTo, $email->inlineLogo, $email->attachments]);
+        self::assertSame(['Kiveto', 'no-reply@kiveto.app', null, null, []], [$email->fromName, $email->fromAddress, $email->replyTo, $email->inlineLogo, $email->attachments]);
     }
 
     public function testAQueuedMessageWithoutContentIsABug(): void
@@ -370,7 +370,7 @@ final class DispatchOutboundMessageHandlerTest extends TestCase
             MessagePurpose::INVOICE_SENT,
             Channel::EMAIL,
             Recipient::for(Channel::EMAIL, 't.lefebvre@orange.fr', 'Thomas Lefebvre'),
-            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.fr', 'accueil@clinique-montmartre.fr', 'Montmartre'),
+            SenderIdentity::clinic('Clinique Montmartre', 'clinique-montmartre', 'mail.kiveto.app', 'accueil@clinique-montmartre.fr', 'Montmartre'),
             SubjectReference::of('invoice', 'inv-1'),
             IdempotencyKey::fromString('invoice:1:send:1'),
             RenderedContent::email('Votre facture FA-2026-0814 — Clinique Montmartre', '<p><img src="cid:logo" alt=""> Bonjour</p>', 'Bonjour', $logoKey),

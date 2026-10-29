@@ -57,8 +57,8 @@ final class RequestNotificationHandlerTest extends TestCase
             new SequentialUuids(),
             new FrozenClock(new \DateTimeImmutable('2026-10-21T09:30:00+02:00')),
             $this->logger,
-            'no-reply@kiveto.fr',
-            'mail.kiveto.fr',
+            'no-reply@kiveto.app',
+            'mail.kiveto.app',
         );
         $this->profiles->save(InMemoryProfiles::montmartre(logo: 'clinic/logo.png'));
     }
@@ -75,7 +75,7 @@ final class RequestNotificationHandlerTest extends TestCase
         self::assertSame(DeliveryStatus::QUEUED, $message->status());
         $sender = $message->sender();
         self::assertNotNull($sender);
-        self::assertSame(['Clinique Montmartre', 'clinique-montmartre@mail.kiveto.fr', 'accueil@clinique-montmartre.fr'], [$sender->name, $sender->emailAddress, $sender->replyTo]);
+        self::assertSame(['Clinique Montmartre', 'clinique-montmartre@mail.kiveto.app', 'accueil@clinique-montmartre.fr'], [$sender->name, $sender->emailAddress, $sender->replyTo]);
         self::assertSame('clinic/logo.png', $message->content()?->inlineLogoKey);
         self::assertSame(Messages::CLIENT, $message->clientId());
         self::assertSame(['billing/sent/invoice/inv-1.pdf', 'FA-2026-0814.pdf', 'application/pdf', AttachmentOwner::REQUESTER], [
@@ -125,7 +125,7 @@ final class RequestNotificationHandlerTest extends TestCase
         ));
 
         $message = $this->messages->get(OutboundMessageId::fromString($id));
-        self::assertSame(['Kiveto', 'no-reply@kiveto.fr', null], [$message->sender()?->name, $message->sender()?->emailAddress, $message->sender()?->replyTo]);
+        self::assertSame(['Kiveto', 'no-reply@kiveto.app', null], [$message->sender()?->name, $message->sender()?->emailAddress, $message->sender()?->replyTo]);
         self::assertNull($this->renderer->calls[0][2], 'no clinic profile is rendered');
         self::assertCount(1, $this->buses->external);
     }
