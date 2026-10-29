@@ -12,6 +12,7 @@ use App\System\IdentityAccess\Application\Port\AccountLinkBuilderInterface;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordHasherInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 
@@ -26,6 +27,9 @@ final class AccountFakes implements PasswordHasherInterface, AccountLinkBuilderI
 
     /** @var list<PasswordResetRequest> */
     public array $resets = [];
+
+    /** @var list<PortalOtpRequest> */
+    public array $portalOtps = [];
 
     /** @var list<object> */
     public array $events = [];
@@ -55,6 +59,11 @@ final class AccountFakes implements PasswordHasherInterface, AccountLinkBuilderI
     public function requestPasswordReset(PasswordResetRequest $request): void
     {
         $this->resets[] = $request;
+    }
+
+    public function requestPortalOtp(PortalOtpRequest $request): void
+    {
+        $this->portalOtps[] = $request;
     }
 
     public function generate(): string

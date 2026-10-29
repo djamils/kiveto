@@ -38,11 +38,11 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
             ?? $request?->query->get('_locale')
             ?? $this->fromAcceptLanguage($request?->headers->get('Accept-Language'));
 
-        if (\is_string($candidate) && '' !== trim($candidate)) {
-            return Locale::fromString($this->normalizeCandidate($candidate));
-        }
+        $normalized = \is_string($candidate) ? $this->normalizeCandidate($candidate) : null;
 
-        return Locale::fromString($this->defaultLocale);
+        // A header the app does not serve (« de », « *», « en-us »…) falls
+        // back to the default instead of failing the request.
+        return Locale::fromString($normalized ?? $this->defaultLocale);
     }
 
     private function fromAcceptLanguage(?string $header): ?string
@@ -64,11 +64,19 @@ final readonly class DefaultLocaleResolver implements LocaleResolverInterface
         return $language;
     }
 
-    private function normalizeCandidate(string $candidate): string
+    /** « fr », « fr_fr » or « FR-fr » → « fr-FR »; null when it is no locale at all. */
+    private function normalizeCandidate(string $candidate): ?string
     {
-        $normalized = str_replace('_', '-', trim($candidate));
-        $short      = mb_strtolower($normalized);
+        $short = mb_strtolower(str_replace('_', '-', trim($candidate)));
 
-        return $this->shortLocaleMap[$short] ?? $normalized;
+        if (isset($this->shortLocaleMap[$short])) {
+            return $this->shortLocaleMap[$short];
+        }
+
+        if (1 !== preg_match('/^([a-z]{2})-([a-z]{2})$/', $short, $parts)) {
+            return null;
+        }
+
+        return $parts[1] . '-' . mb_strtoupper($parts[2]);
     }
 }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
+use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
@@ -106,57 +108,41 @@ final class DoctrineUserRepositoryTest extends TestCase
         self::assertNull($repo->findById(UserId::fromString('22222222-2222-2222-2222-222222222222')));
     }
 
-    public function testFindByEmailReturnsDomainUser(): void
+    public function testFindByPhoneAndTypeReturnsDomainUser(): void
     {
         $entity = $this->entity(UserType::PORTAL);
-        $user   = $this->user(UserType::PORTAL);
-
-        $em     = $this->createMock(EntityManagerInterface::class);
-        $mapper = new UserMapper(new DoctrineUserFactory());
+        $entity->setPhone('+33612345678');
+        $entity->setPhoneVerifiedAt(new \DateTimeImmutable('2026-10-29T10:00:00+00:00'));
 
         $repoObj = $this->createMock(EntityRepository::class);
         $repoObj->expects(self::once())
             ->method('findOneBy')
-            ->with(['email' => 'user@example.com'])
+            ->with(['phone' => '+33612345678'])
             ->willReturn($entity)
         ;
 
+        $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::once())
             ->method('getRepository')
-            ->with(UserEntity::class)
+            ->with(PortalUserEntity::class)
             ->willReturn($repoObj)
         ;
 
-        $repo = new DoctrineUserRepository($em, $mapper);
+        $found = new DoctrineUserRepository($em, new UserMapper(new DoctrineUserFactory()))->findByPhoneAndType(PhoneNumber::fromString('+33612345678'), UserType::PORTAL);
 
-        $found = $repo->findByEmail('user@example.com');
-
-        self::assertNotNull($found);
-        self::assertSame($user->id()->toString(), $found->id()->toString());
-        self::assertSame($user->email(), $found->email());
+        self::assertSame('+33612345678', $found?->phone()?->toString());
+        self::assertSame('2026-10-29', $found->phoneVerifiedAt()?->format('Y-m-d'));
     }
 
-    public function testFindByEmailReturnsNull(): void
+    public function testFindByPhoneAndTypeReturnsNull(): void
     {
-        $repoObj = $this->createMock(EntityRepository::class);
-        $repoObj->expects(self::once())
-            ->method('findOneBy')
-            ->with(['email' => 'missing@example.com'])
-            ->willReturn(null)
-        ;
+        $repoObj = $this->createStub(EntityRepository::class);
+        $repoObj->method('findOneBy')->willReturn(null);
 
-        $em     = $this->createMock(EntityManagerInterface::class);
-        $mapper = new UserMapper(new DoctrineUserFactory());
+        $em = $this->createStub(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($repoObj);
 
-        $em->expects(self::once())
-            ->method('getRepository')
-            ->with(UserEntity::class)
-            ->willReturn($repoObj)
-        ;
-
-        $repo = new DoctrineUserRepository($em, $mapper);
-
-        self::assertNull($repo->findByEmail('missing@example.com'));
+        self::assertNull(new DoctrineUserRepository($em, new UserMapper(new DoctrineUserFactory()))->findByPhoneAndType(PhoneNumber::fromString('+33612345678'), UserType::PORTAL));
     }
 
     #[DataProvider('provideFindByEmailAndTypeReturnsDomainUserCases')]
@@ -227,11 +213,13 @@ final class DoctrineUserRepositoryTest extends TestCase
 
     private function user(UserType $type): User
     {
-        return User::register(
+        return User::reconstitute(
             UserId::fromString('11111111-1111-1111-1111-111111111111'),
             'user@example.com',
             '$hash',
             new \DateTimeImmutable('2025-01-01T10:00:00+00:00'),
+            UserStatus::ACTIVE,
+            null,
             $type,
         );
     }
@@ -249,7 +237,7 @@ final class DoctrineUserRepositoryTest extends TestCase
         $entity->setEmail('user@example.com');
         $entity->setPasswordHash('$hash');
         $entity->setCreatedAt(new \DateTimeImmutable('2025-01-01T10:00:00+00:00'));
-        $entity->setStatus(\App\System\IdentityAccess\Domain\ValueObject\UserStatus::ACTIVE);
+        $entity->setStatus(UserStatus::ACTIVE);
         $entity->setEmailVerifiedAt(null);
 
         return $entity;

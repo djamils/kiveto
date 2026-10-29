@@ -23,6 +23,18 @@ final class TemplateCatalogTest extends TestCase
         self::assertSame('appointment_reminder', TemplateCatalog::templateName(MessagePurpose::APPOINTMENT_REMINDER));
     }
 
+    public function testThePortalCodeIsAnSmsAndThePortalInvitationGoesOnBothChannels(): void
+    {
+        self::assertSame([true, false], [TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::SMS), TemplateCatalog::supports(MessagePurpose::PORTAL_OTP, Channel::EMAIL)]);
+        self::assertSame(['code' => 'scalar', 'validityMinutes' => 'scalar'], TemplateCatalog::parameters(MessagePurpose::PORTAL_OTP, Channel::SMS));
+        self::assertSame('portal_otp', TemplateCatalog::templateName(MessagePurpose::PORTAL_OTP));
+
+        $invitation = ['clinicName' => 'scalar', 'ownerFirstName' => 'scalar', 'link' => 'scalar', 'expiresOn' => 'scalar'];
+        self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::SMS));
+        self::assertSame($invitation, TemplateCatalog::parameters(MessagePurpose::PORTAL_INVITATION, Channel::EMAIL));
+        self::assertSame('portal_invitation', TemplateCatalog::templateName(MessagePurpose::PORTAL_INVITATION));
+    }
+
     public function testTheDeclaredParametersAreAccepted(): void
     {
         $parameters = ['invoiceNumber' => 'FA-2026-0702', 'shortDate' => '04/09', 'balanceDue' => '64,50 €'];

@@ -9,6 +9,11 @@ doctrine:
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
 
+        # Raw DBAL tables created by migrations/Shared and owned by code outside
+        # the ORM (idempotency store, rate limiter cache pool): hidden from the
+        # schema tools so that diffs never try to drop them.
+        schema_filter: '~^(?!shared__(idempotency_keys|rate_limiter_cache)$)~'
+
         # Custom types for Value Objects
         types: {  }
     orm:

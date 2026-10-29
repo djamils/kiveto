@@ -65,7 +65,7 @@ final readonly class DoctrineUserReadRepository implements UserReadRepositoryInt
         $users = array_map(
             static function (array $row): UserListItem {
                 \assert(\is_string($row['id']));
-                \assert(\is_string($row['email']));
+                \assert(null === $row['email'] || \is_string($row['email']));
                 \assert(\is_string($row['type']));
                 \assert(\is_string($row['status']));
                 \assert(\is_string($row['created_at']));

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Application\Query\CheckAccountToken;
 
+use App\Shared\Infrastructure\Security\OpaqueTokenHasher;
 use App\System\IdentityAccess\Application\Query\CheckAccountToken\AccountTokenCheck;
 use App\System\IdentityAccess\Application\Query\CheckAccountToken\CheckAccountToken;
 use App\System\IdentityAccess\Application\Query\CheckAccountToken\CheckAccountTokenHandler;
@@ -45,10 +46,10 @@ final class CheckAccountTokenHandlerTest extends TestCase
         ];
 
         foreach ($links as $i => [$secret, $userId, $purpose]) {
-            $tokens->save(AccountToken::issue(AccountTokenId::fromString('t-' . $i), $userId, $purpose, 'clinic', $secret, $issued));
+            $tokens->save(AccountToken::issue(AccountTokenId::fromString('t-' . $i), $userId, $purpose, 'clinic', hash('sha256', $secret), $issued));
         }
 
-        $handler = new CheckAccountTokenHandler($tokens, $users, new FrozenClock(new \DateTimeImmutable('2026-10-26 10:10:00')));
+        $handler = new CheckAccountTokenHandler($tokens, $users, new FrozenClock(new \DateTimeImmutable('2026-10-26 10:10:00')), new OpaqueTokenHasher());
         $check   = static fn (string $secret, string $purpose): array => [($c = $handler(new CheckAccountToken($secret, $purpose)))->state, $c->email, $c->isValid()];
 
         self::assertSame(['VALID', 'a1@example.com', true], $check('inv-pending', CheckAccountToken::INVITATION));
@@ -60,7 +61,7 @@ final class CheckAccountTokenHandlerTest extends TestCase
         self::assertSame(['INVALID', null, false], $check('inv-pending', CheckAccountToken::PASSWORD_RESET), 'a link of another kind');
         self::assertSame(['INVALID', null, false], $check('unknown', CheckAccountToken::INVITATION));
 
-        $late = new CheckAccountTokenHandler($tokens, $users, new FrozenClock(new \DateTimeImmutable('2026-10-26 10:31:00')));
+        $late = new CheckAccountTokenHandler($tokens, $users, new FrozenClock(new \DateTimeImmutable('2026-10-26 10:31:00')), new OpaqueTokenHasher());
         self::assertSame(AccountTokenCheck::INVALID, $late(new CheckAccountToken('reset-active', CheckAccountToken::PASSWORD_RESET))->state, 'expired after 30 minutes');
     }
 

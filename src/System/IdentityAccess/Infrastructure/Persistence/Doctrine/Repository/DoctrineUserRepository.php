@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
@@ -48,23 +49,30 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
      */
     public function addIfEmailFree(User $user): bool
     {
-        $inserted = $this->em->getConnection()->executeStatement(
-            'INSERT INTO identity_access__users (id, email, password_hash, created_at, status, email_verified_at, type, version)'
-            . ' VALUES (:id, :email, :hash, :created, :status, :verified, :type, 1)'
-            . ' ON DUPLICATE KEY UPDATE id = id',
-            [
-                'id'       => Uuid::fromString($user->id()->toString())->toBinary(),
-                'email'    => $user->email(),
-                'hash'     => $user->passwordHash(),
-                'created'  => $user->createdAt(),
-                'status'   => $user->status()->value,
-                'verified' => $user->emailVerifiedAt(),
-                'type'     => $user->type()->value,
-            ],
-            ['created' => Types::DATETIME_IMMUTABLE, 'verified' => Types::DATETIME_IMMUTABLE],
-        );
+        return $this->insertUnlessDuplicate($user);
+    }
 
-        return 1 === (int) $inserted;
+    /**
+     * Same SQL insert: the (type, phone) and (type, email) unique keys turn a
+     * duplicate into a no-op. The connection does not report found rows, so
+     * the count is 1 on insert and 0 on a duplicate.
+     */
+    public function addPortalIfPhoneFree(User $user): bool
+    {
+        return $this->insertUnlessDuplicate($user);
+    }
+
+    /**
+     * An upsert on the lock table: the row lock it takes lasts until the
+     * outer transaction commits or rolls back (unlike a named lock, released
+     * before the commit).
+     */
+    public function lockPortalPhone(PhoneNumber $phone): void
+    {
+        $this->em->getConnection()->executeStatement(
+            'INSERT INTO identity_access__portal_phone_locks (phone) VALUES (:phone) ON DUPLICATE KEY UPDATE phone = phone',
+            ['phone' => $phone->toString()],
+        );
     }
 
     public function findById(UserId $id): ?User
@@ -83,38 +91,24 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         return $this->findLocked('u.id = :key', Uuid::fromString($id->toString()), 'uuid');
     }
 
-    public function findByEmailForUpdate(string $email): ?User
+    public function findByEmailAndTypeForUpdate(string $email, UserType $type): ?User
     {
-        return $this->findLocked('u.email = :key', $email, Types::STRING);
-    }
-
-    public function findByEmail(string $email): ?User
-    {
-        $entity = $this->em->getRepository(UserEntity::class)->findOneBy(['email' => $email]);
-
-        if (null === $entity) {
-            return null;
-        }
-
-        return $this->mapper->toDomain($entity);
+        return $this->findLocked('u.email = :key', $email, Types::STRING, $type);
     }
 
     public function findByEmailAndType(string $email, UserType $type): ?User
     {
-        $entityClass = match ($type) {
-            UserType::CLINIC     => ClinicUserEntity::class,
-            UserType::PORTAL     => PortalUserEntity::class,
-            UserType::BACKOFFICE => BackofficeUserEntity::class,
-        };
+        return $this->findOneOfType($type, ['email' => $email]);
+    }
 
-        /** @var UserEntity|null $entity */
-        $entity = $this->em->getRepository($entityClass)->findOneBy(['email' => $email]);
+    public function findByPhoneAndType(PhoneNumber $phone, UserType $type): ?User
+    {
+        return $this->findOneOfType($type, ['phone' => $phone->toString()]);
+    }
 
-        if (null === $entity) {
-            return null;
-        }
-
-        return $this->mapper->toDomain($entity);
+    public function findByPhoneAndTypeForUpdate(PhoneNumber $phone, UserType $type): ?User
+    {
+        return $this->findLocked('u.phone = :key', $phone->toString(), Types::STRING, $type);
     }
 
     public function recordLogin(UserId $id, \DateTimeImmutable $at): void
@@ -130,11 +124,11 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         ;
     }
 
-    private function findLocked(string $condition, mixed $key, string $type): ?User
+    private function findLocked(string $condition, mixed $key, string $type, ?UserType $userType = null): ?User
     {
         $entity = $this->em->createQueryBuilder()
             ->select('u')
-            ->from(UserEntity::class, 'u')
+            ->from(null === $userType ? UserEntity::class : self::entityClass($userType), 'u')
             ->where($condition)
             ->setParameter('key', $key, $type)
             ->getQuery()
@@ -144,5 +138,50 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
         ;
 
         return $entity instanceof UserEntity ? $this->mapper->toDomain($entity) : null;
+    }
+
+    /**
+     * @param array<string, string> $criteria
+     */
+    private function findOneOfType(UserType $type, array $criteria): ?User
+    {
+        $entity = $this->em->getRepository(self::entityClass($type))->findOneBy($criteria);
+
+        return $entity instanceof UserEntity ? $this->mapper->toDomain($entity) : null;
+    }
+
+    /**
+     * @return class-string<UserEntity>
+     */
+    private static function entityClass(UserType $type): string
+    {
+        return match ($type) {
+            UserType::CLINIC     => ClinicUserEntity::class,
+            UserType::PORTAL     => PortalUserEntity::class,
+            UserType::BACKOFFICE => BackofficeUserEntity::class,
+        };
+    }
+
+    private function insertUnlessDuplicate(User $user): bool
+    {
+        $inserted = $this->em->getConnection()->executeStatement(
+            'INSERT INTO identity_access__users (id, email, phone, password_hash, created_at, status, email_verified_at, phone_verified_at, type, version)'
+            . ' VALUES (:id, :email, :phone, :hash, :created, :status, :verified, :phoneVerified, :type, 1)'
+            . ' ON DUPLICATE KEY UPDATE id = id',
+            [
+                'id'            => Uuid::fromString($user->id()->toString())->toBinary(),
+                'email'         => $user->email(),
+                'phone'         => $user->phone()?->toString(),
+                'hash'          => $user->passwordHash(),
+                'created'       => $user->createdAt(),
+                'status'        => $user->status()->value,
+                'verified'      => $user->emailVerifiedAt(),
+                'phoneVerified' => $user->phoneVerifiedAt(),
+                'type'          => $user->type()->value,
+            ],
+            ['created' => Types::DATETIME_IMMUTABLE, 'verified' => Types::DATETIME_IMMUTABLE, 'phoneVerified' => Types::DATETIME_IMMUTABLE],
+        );
+
+        return 1 === (int) $inserted;
     }
 }

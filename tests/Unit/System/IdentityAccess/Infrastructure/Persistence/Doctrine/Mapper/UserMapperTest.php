@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Mapper;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
 use App\System\IdentityAccess\Domain\ValueObject\UserStatus;
@@ -68,5 +69,22 @@ final class UserMapperTest extends TestCase
         $mapper->applyTo($entity, $active);
 
         self::assertSame(['hugo@example.com', '$chosen', UserStatus::ACTIVE, '2026-10-27'], [$entity->getEmail(), $entity->getPasswordHash(), $entity->getStatus(), $entity->getEmailVerifiedAt()?->format('Y-m-d')]);
+    }
+
+    public function testAnOwnerKeepsItsPhoneBothWays(): void
+    {
+        $mapper = new UserMapper(new DoctrineUserFactory());
+        $owner  = User::registerPortal(UserId::fromString('11111111-1111-1111-1111-111111111111'), PhoneNumber::fromString('+33612345678'), null, new \DateTimeImmutable('2026-10-29 10:00:00'));
+        $entity = $mapper->toEntity($owner);
+
+        self::assertSame(['+33612345678', '2026-10-29 10:00:00', null], [$entity->getPhone(), $entity->getPhoneVerifiedAt()?->format('Y-m-d H:i:s'), $entity->getEmail()]);
+        self::assertSame('11111111-1111-1111-1111-111111111111', $entity->getUserIdentifier(), 'an entity without e-mail is identified by id');
+
+        $back = $mapper->toDomain($entity);
+        self::assertSame(['+33612345678', '2026-10-29 10:00:00', UserType::PORTAL], [$back->phone()?->toString(), $back->phoneVerifiedAt()?->format('Y-m-d H:i:s'), $back->type()]);
+
+        $entity->setPhone(null);
+        $mapper->applyTo($entity, $owner);
+        self::assertSame('+33612345678', $entity->getPhone());
     }
 }

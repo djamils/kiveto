@@ -79,6 +79,16 @@ final class TemplateCatalog
             'EMAIL' => ['sentAtLabel' => self::SCALAR],
             'SMS'   => ['sentAtLabel' => self::SCALAR],
         ],
+        'PORTAL_OTP' => [
+            // code « 123456 »; validityMinutes « 10 »; SMS only (no e-mail channel for the code)
+            'SMS' => ['code' => self::SCALAR, 'validityMinutes' => self::SCALAR],
+        ],
+        'PORTAL_INVITATION' => [
+            // ownerFirstName « Sophie » or ''; link absolute « …/invitation#t=<token> »; expiresOn « 05/11/2026 ».
+            // Both channels take the same parameters (the SMS does not print ownerFirstName).
+            'EMAIL' => ['clinicName' => self::SCALAR, 'ownerFirstName' => self::SCALAR, 'link' => self::SCALAR, 'expiresOn' => self::SCALAR],
+            'SMS'   => ['clinicName' => self::SCALAR, 'ownerFirstName' => self::SCALAR, 'link' => self::SCALAR, 'expiresOn' => self::SCALAR],
+        ],
     ];
 
     public static function supports(MessagePurpose $purpose, Channel $channel): bool

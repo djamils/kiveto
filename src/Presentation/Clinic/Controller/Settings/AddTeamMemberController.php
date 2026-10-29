@@ -17,7 +17,6 @@ use App\Shared\Application\Bus\QueryBusInterface;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\InvitedUserRegistration;
 use App\System\IdentityAccess\Application\Command\RegisterInvitedUser\RegisterInvitedUser;
 use App\System\IdentityAccess\Domain\Exception\AccountDisabledException;
-use App\System\IdentityAccess\Domain\Exception\EmailUsedByAnotherAccountException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -97,8 +96,6 @@ final readonly class AddTeamMemberController
                 professionalTitle: null !== $registrationNumber ? ProfessionalTitle::DR : null,
                 isClinicAdministrator: $request->request->getBoolean('isClinicAdministrator'),
             ));
-        } catch (EmailUsedByAnotherAccountException $exception) {
-            return $this->endpoint->refuse($exception->getMessage());
         } catch (AccountDisabledException $exception) {
             return $this->endpoint->refuse($exception->getMessage());
         } catch (\LogicException $exception) {

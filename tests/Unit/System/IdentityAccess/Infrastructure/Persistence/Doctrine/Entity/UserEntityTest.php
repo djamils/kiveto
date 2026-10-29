@@ -28,8 +28,11 @@ final class UserEntityTest extends TestCase
         $user->setCreatedAt($createdAt);
         $user->setStatus(UserStatus::ACTIVE);
         $user->setEmailVerifiedAt($emailVerifiedAt);
+        $user->setPhone('+33612345678');
+        $user->setPhoneVerifiedAt($emailVerifiedAt);
 
         self::assertSame($id, $user->getId());
+        self::assertSame(['+33612345678', $emailVerifiedAt], [$user->getPhone(), $user->getPhoneVerifiedAt()]);
         self::assertSame('clinic@example.com', $user->getEmail());
         self::assertSame('$hash', $user->getPasswordHash());
         self::assertSame(UserStatus::ACTIVE, $user->getStatus());

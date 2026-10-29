@@ -11,6 +11,7 @@ use App\Fixtures\System\IdentityAccess\Factory\ClinicUserFactory;
 use App\Fixtures\System\IdentityAccess\Factory\PortalUserFactory;
 use App\System\IdentityAccess\Application\Port\NotificationRequesterInterface;
 use App\System\IdentityAccess\Application\Port\PasswordResetRequest;
+use App\System\IdentityAccess\Application\Port\PortalOtpRequest;
 use App\System\IdentityAccess\Application\Port\StaffInvitationRequest;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -84,14 +85,24 @@ final class TeamInvitationTest extends WebTestCase
         self::assertSame([], $this->column('SELECT id FROM identity_access__account_tokens'));
     }
 
-    public function testOtherAccountsAreRefused(): void
+    public function testADisabledClinicAccountIsRefused(): void
     {
-        PortalUserFactory::new()->withEmail('proprietaire@example.com')->create();
         ClinicUserFactory::new()->withEmail('parti@example.com')->disabled()->create();
 
-        self::assertSame([422, 'Cette adresse est déjà utilisée par un autre compte Kiveto.'], $this->refusal($this->invite('proprietaire@example.com')));
         self::assertSame([422, 'Ce compte est désactivé. Contactez le support Kiveto.'], $this->refusal($this->invite('parti@example.com')));
         self::assertSame([], $this->column("SELECT id FROM notification__outbound_messages WHERE purpose = 'STAFF_INVITATION'"));
+    }
+
+    /** AC 67: a veterinarian who also owns a pet — their owner account does not stand in the way. */
+    public function testAnOwnerAccountOfTheSameAddressDoesNotStandInTheWay(): void
+    {
+        PortalUserFactory::new()->withEmail('proprietaire@example.com')->create();
+
+        $answer = $this->invite('proprietaire@example.com');
+
+        self::assertSame(200, $answer['status']);
+        self::assertTrue($answer['body']['invited'] ?? null);
+        self::assertSame(['CLINIC', 'PORTAL'], $this->column("SELECT type FROM identity_access__users WHERE email = 'proprietaire@example.com' ORDER BY type"));
     }
 
     public function testAMemberWhoActivatedCannotBeInvitedAgain(): void
@@ -156,6 +167,10 @@ final class TeamInvitationTest extends WebTestCase
             }
 
             public function requestPasswordReset(PasswordResetRequest $request): void
+            {
+            }
+
+            public function requestPortalOtp(PortalOtpRequest $request): void
             {
             }
         });

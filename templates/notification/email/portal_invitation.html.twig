@@ -1,0 +1,13 @@
+{% extends 'notification/email/_account_layout.html.twig' %}
+{% import 'notification/email/_macros.html.twig' as ui %}
+
+{% block subject %}{{ clinicName }} vous invite sur Kiveto{% endblock %}
+
+{% block body %}
+<p>Bonjour{{ ownerFirstName ? ' ' ~ ownerFirstName : '' }},</p>
+<p><strong>{{ clinicName }}</strong> vous invite sur Kiveto pour suivre vos animaux.</p>
+{{ ui.button("Accepter l'invitation", link, '#4338CA') }}
+<p class="muted">Ce lien est personnel et valable jusqu'au {{ expiresOn }}. Un code vous sera envoyé par SMS pour confirmer votre numéro.</p>
+{% endblock %}
+
+{% block footer_note %}Vous ne vous attendiez pas à cette invitation ? Ignorez ce message : aucun compte ne sera créé.{% endblock %}

@@ -61,6 +61,9 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+        exclude:
+            # Dev-only decorator, declared under when@dev: production has no such service.
+            - '../src/System/Notification/Infrastructure/Transport/DevLoggingSmsSender.php'
 
     App\Presentation\Clinic\Controller\:
         resource: '../src/Presentation/Clinic/Controller/'
@@ -205,6 +208,92 @@ services:
 
     App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface:
         class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalAccountTokenRepository
+
+    App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalOtpChallengeRepository
+
+    App\System\IdentityAccess\Domain\Session\RefreshTokenRepositoryInterface:
+        class: App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Repository\DbalRefreshTokenRepository
+
+    # ============================================================================
+    # PORTAL API — rate limiters (one-time codes, anti SMS-pumping)
+    # ============================================================================
+    # `framework.lock` is disabled, so these limiters are built by hand. Their
+    # state lives in the database (shared__rate_limiter_cache, created by
+    # migrations/Shared) and their lock in shared__lock_keys: every container
+    # counts against the same quotas. Not stubbed in the test env — tests use
+    # a distinct phone and client IP each.
+    portal.rate_limiter.cache:
+        class: Symfony\Component\Cache\Adapter\DoctrineDbalAdapter
+        arguments:
+            - '@doctrine.dbal.default_connection'
+            - 'portal'
+            - 0
+            - { db_table: 'shared__rate_limiter_cache' }
+
+    portal.rate_limiter.storage:
+        class: Symfony\Component\RateLimiter\Storage\CacheStorage
+        arguments: ['@portal.rate_limiter.cache']
+
+    limiter.portal_otp_phone:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_phone', policy: 'fixed_window', limit: 3, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    limiter.portal_otp_phone_daily:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_phone_daily', policy: 'sliding_window', limit: 10, interval: '24 hours' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    limiter.portal_otp_ip:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_ip', policy: 'fixed_window', limit: 30, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    limiter.portal_invitation_otp:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_invitation_otp', policy: 'fixed_window', limit: 3, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    limiter.portal_otp_resend:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_resend', policy: 'fixed_window', limit: 3, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    limiter.portal_otp_unknown_global:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_unknown_global', policy: 'fixed_window', limit: '%env(int:PORTAL_OTP_UNKNOWN_HOURLY_CAP)%', interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
+
+    # lexik's JWT authenticator, skipped on public routes (see
+    # PublicRouteAwareJwtAuthenticator); the firewall instantiates it as a
+    # child service.
+    app.portal_api.jwt_authenticator:
+        parent: lexik_jwt_authentication.security.jwt_authenticator
+        class: App\Presentation\Api\Portal\Security\PublicRouteAwareJwtAuthenticator
+        abstract: true
+        calls:
+            - [setAccessMap, ['@security.access_map']]
+
+    # One token an hour: the budget's alert is raised once per window.
+    limiter.portal_otp_unknown_alert:
+        class: Symfony\Component\RateLimiter\RateLimiterFactory
+        arguments:
+            - { id: 'portal_otp_unknown_alert', policy: 'fixed_window', limit: 1, interval: '1 hour' }
+            - '@portal.rate_limiter.storage'
+            - '@shared.lock.factory'
 
     # ============================================================================
     # BOUNDED CONTEXT: TRANSLATION
@@ -1187,6 +1276,13 @@ when@dev: &services_dev
             autowire: true
             autoconfigure: true
 
+        # Every SMS body (Portal one-time codes included) on the dev_sms channel, var/log/dev.log.
+        App\System\Notification\Infrastructure\Transport\DevLoggingSmsSender:
+            decorates: App\System\Notification\Application\Port\SmsSenderInterface
+            arguments:
+                $inner: '@.inner'
+                $logger: '@monolog.logger.dev_sms'
+
 when@test:
     parameters:
         electronic_invoicing.simulator.step_delay: 0
@@ -1239,6 +1335,10 @@ when@test:
         limiter.api_clinic_ip:
             alias: 'App\Tests\Fixtures\RateLimit\StubRateLimiterFactory.ip'
             public: true
+
+        # Processor of the test-only API resource (tests/Fixtures/Api)
+        App\Tests\Fixtures\Api\IdempotentEchoProcessor:
+            autoconfigure: true
 
         # ========================================================================
         # BOUNDED CONTEXT: TAXATION — public for integration tests

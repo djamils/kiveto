@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Application\Command;
 
+use App\Shared\Infrastructure\Security\OpaqueTokenHasher;
 use App\System\IdentityAccess\Application\Command\ActivateInvitedUser\ActivateInvitedUser;
 use App\System\IdentityAccess\Application\Command\ActivateInvitedUser\ActivateInvitedUserHandler;
 use App\System\IdentityAccess\Application\Command\ActivateInvitedUser\ActivationResult;
@@ -20,7 +21,6 @@ use App\System\IdentityAccess\Application\Command\SendInvitation\SendInvitationH
 use App\System\IdentityAccess\Application\Exception\InvalidAccountTokenException;
 use App\System\IdentityAccess\Application\Exception\UnacceptablePasswordException;
 use App\System\IdentityAccess\Domain\Exception\AccountDisabledException;
-use App\System\IdentityAccess\Domain\Exception\EmailUsedByAnotherAccountException;
 use App\System\IdentityAccess\Domain\Token\AccountToken;
 use App\System\IdentityAccess\Domain\Token\TokenPurpose;
 use App\System\IdentityAccess\Domain\User;
@@ -115,19 +115,17 @@ final class AccountUseCasesTest extends TestCase
         self::assertSame([false, true], array_map(fn (AccountToken $t): bool => $t->isUsable($this->clock->now()), $this->tokens->of($userId, TokenPurpose::INVITATION)));
     }
 
-    public function testAnActiveClinicAccountJoinsAndOtherAccountsAreRefused(): void
+    public function testAnActiveClinicAccountJoinsAndAnOwnerAccountDoesNotStandInTheWay(): void
     {
         $active       = $this->existing('claire@example.com', UserStatus::ACTIVE, UserType::CLINIC);
         $registration = $this->register('claire@example.com');
         self::assertSame([$active->id()->toString(), true], [$registration->userId, $registration->alreadyActive]);
 
-        $this->existing('owner@example.com', UserStatus::ACTIVE, UserType::PORTAL);
-        try {
-            $this->register('owner@example.com');
-            self::fail('A portal address was expected to be refused.');
-        } catch (EmailUsedByAnotherAccountException $exception) {
-            self::assertSame('Cette adresse est déjà utilisée par un autre compte Kiveto.', $exception->getMessage());
-        }
+        // A veterinarian who also owns a pet: the owner account is another account.
+        $owner = $this->existing('owner@example.com', UserStatus::ACTIVE, UserType::PORTAL);
+        $staff = $this->register('owner@example.com');
+        self::assertNotSame($owner->id()->toString(), $staff->userId);
+        self::assertSame(UserType::CLINIC, $this->users->findById(UserId::fromString($staff->userId))?->type());
 
         $this->existing('gone@example.com', UserStatus::DISABLED, UserType::CLINIC);
         $this->expectException(AccountDisabledException::class);
@@ -149,7 +147,7 @@ final class AccountUseCasesTest extends TestCase
         self::assertSame([$first, $userId, 'hugo@example.com', self::CLINIC_A, 'Hugo', 'Dr Claire Lambert', 'Clinique Montmartre', 'Paris', 'Vétérinaire'], [
             $request->tokenId, $request->userId, $request->email, $request->clinicId, $request->firstName, $request->inviterName, $request->clinicName, $request->clinicCity, $request->roleLabel,
         ]);
-        $token = $this->tokens->findByHash(AccountToken::hash(AccountFakes::secretOf($request->activationUrl)));
+        $token = $this->tokens->findByHash(hash('sha256', AccountFakes::secretOf($request->activationUrl)));
         self::assertNotNull($token);
         self::assertSame(['2026-10-29 07:14', self::CLINIC_A], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
 
@@ -195,7 +193,7 @@ final class AccountUseCasesTest extends TestCase
         self::assertSame(['identity-access.user.activated.v1'], $this->fakes->eventNames());
 
         self::assertSame(ActivationResult::ALREADY_ACTIVE, $this->activate($linkB, 'whatever'));
-        self::assertNotNull($this->tokens->findByHash(AccountToken::hash($linkB))?->usedAt(), "B's link is spent");
+        self::assertNotNull($this->tokens->findByHash(hash('sha256', $linkB))?->usedAt(), "B's link is spent");
 
         $this->expectException(InvalidAccountTokenException::class);
         $this->activate($linkA, 'un-autre-mot');
@@ -260,7 +258,7 @@ final class AccountUseCasesTest extends TestCase
         self::assertCount(1, $this->fakes->resets);
         $request = $this->fakes->resets[0];
         self::assertSame(['claire@example.com', '26/10/2026 à 08:14'], [$request->email, $request->requestedAtLabel]);
-        $token = $this->tokens->findByHash(AccountToken::hash(AccountFakes::secretOf($request->resetUrl)));
+        $token = $this->tokens->findByHash(hash('sha256', AccountFakes::secretOf($request->resetUrl)));
         self::assertNotNull($token);
         self::assertSame(['2026-10-26 07:44', null], [$token->expiresAt()->format('Y-m-d H:i'), $token->clinicId()]);
 
@@ -340,23 +338,23 @@ final class AccountUseCasesTest extends TestCase
 
     private function invite(string $userId, string $clinicId): ?string
     {
-        return new SendInvitationHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes)(
+        return new SendInvitationHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes, new OpaqueTokenHasher())(
             new SendInvitation($userId, $clinicId, 'Dr Claire Lambert', 'Clinique Montmartre', 'Paris', 'Hugo', 'Vétérinaire'),
         );
     }
 
     private function activate(string $secret, string $password): ActivationResult
     {
-        return new ActivateInvitedUserHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes->publisher())(new ActivateInvitedUser($secret, $password));
+        return new ActivateInvitedUserHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes->publisher(), new OpaqueTokenHasher())(new ActivateInvitedUser($secret, $password));
     }
 
     private function requestReset(string $email): void
     {
-        new RequestPasswordResetHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes)(new RequestPasswordReset($email));
+        new RequestPasswordResetHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes, $this->fakes, new OpaqueTokenHasher())(new RequestPasswordReset($email));
     }
 
     private function reset(string $secret, string $password): void
     {
-        new ResetPasswordHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes->publisher())(new ResetPassword($secret, $password));
+        new ResetPasswordHandler($this->users, $this->tokens, $this->fakes, $this->clock, $this->fakes->publisher(), new OpaqueTokenHasher())(new ResetPassword($secret, $password));
     }
 }

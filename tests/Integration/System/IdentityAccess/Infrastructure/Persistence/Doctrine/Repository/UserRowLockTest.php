@@ -85,7 +85,7 @@ final class UserRowLockTest extends KernelTestCase
     {
         // The second request looked first: its snapshot predates the other account.
         $this->second->beginTransaction();
-        self::assertNull($this->users($this->second)->findByEmail(self::EMAIL));
+        self::assertNull($this->users($this->second)->findByEmailAndType(self::EMAIL, UserType::CLINIC));
 
         self::assertTrue($this->users($this->first)->addIfEmailFree($this->invited(self::OTHER)));
 
@@ -103,13 +103,13 @@ final class UserRowLockTest extends KernelTestCase
     public function testTheAddressIsReadAgainPastTheSnapshotAndLocked(): void
     {
         $this->second->beginTransaction();
-        self::assertNull($this->users($this->second)->findByEmail(self::EMAIL));
+        self::assertNull($this->users($this->second)->findByEmailAndType(self::EMAIL, UserType::CLINIC));
 
         $this->users($this->first)->addIfEmailFree($this->invited(self::OTHER));
 
-        self::assertNull($this->users($this->second)->findByEmail(self::EMAIL), 'a plain read still sees the old snapshot');
-        self::assertSame(self::OTHER, $this->users($this->second)->findByEmailForUpdate(self::EMAIL)?->id()->toString());
-        self::assertNull($this->users($this->second)->findByEmailForUpdate('nobody@example.com'));
+        self::assertNull($this->users($this->second)->findByEmailAndType(self::EMAIL, UserType::CLINIC), 'a plain read still sees the old snapshot');
+        self::assertSame(self::OTHER, $this->users($this->second)->findByEmailAndTypeForUpdate(self::EMAIL, UserType::CLINIC)?->id()->toString());
+        self::assertNull($this->users($this->second)->findByEmailAndTypeForUpdate('nobody@example.com', UserType::CLINIC));
     }
 
     public function testANewAccountIsStoredAsTheEntityManagerWouldStoreIt(): void

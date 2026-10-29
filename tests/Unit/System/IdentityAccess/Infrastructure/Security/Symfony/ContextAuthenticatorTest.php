@@ -386,7 +386,7 @@ final class ContextAuthenticatorTest extends TestCase
     public function testAuthenticateThrowsOnAuthenticationDeniedWrapped(): void
     {
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn(null); // will trigger InvalidCredentialsException
+        $repo->method('findByEmailAndType')->willReturn(null); // will trigger InvalidCredentialsException
 
         $verifier = $this->createStub(PasswordHashVerifierInterface::class);
         $handler  = new AuthenticateUserHandler($repo, $verifier);
@@ -517,7 +517,7 @@ final class ContextAuthenticatorTest extends TestCase
         );
 
         $repo = $this->createStub(UserRepositoryInterface::class);
-        $repo->method('findByEmail')->willReturn($user);
+        $repo->method('findByEmailAndType')->willReturn($user);
 
         $verifier = new class implements PasswordHashVerifierInterface {
             public function verify(string $plainPassword, string $passwordHash): bool

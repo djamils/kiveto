@@ -1,0 +1,41 @@
+# Portal API only (/api/portal/v1 on the portal host, see config/routes/api.yaml).
+# Resources are DTOs under src/Presentation/Api/Portal/Resource, never Doctrine
+# entities; each operation has one State Provider or one State Processor.
+api_platform:
+    title: 'Kiveto Portal API'
+    version: '1.0.0'
+    formats:
+        json: ['application/json']
+    error_formats:
+        jsonproblem: ['application/problem+json']
+    docs_formats:
+        jsonopenapi: ['application/vnd.openapi+json']
+        html: ['text/html']
+    defaults:
+        stateless: true
+        pagination_enabled: false
+        cache_headers:
+            vary: ['Content-Type', 'Authorization']
+    mapping:
+        paths: ['%kernel.project_dir%/src/Presentation/Api/Portal/Resource']
+    doctrine:
+        enabled: false
+    swagger:
+        api_keys:
+            # Access token of /auth/otp/verify, /auth/refresh or an acceptance.
+            Bearer:
+                name: Authorization
+                type: header
+
+when@prod:
+    api_platform:
+        enable_docs: false
+        enable_swagger_ui: false
+        enable_re_doc: false
+
+# Test-only resources (tests/Fixtures/Api), never mapped in dev/prod so that the
+# OpenAPI export cannot contain them. Appended to the paths above.
+when@test:
+    api_platform:
+        mapping:
+            paths: ['%kernel.project_dir%/tests/Fixtures/Api']

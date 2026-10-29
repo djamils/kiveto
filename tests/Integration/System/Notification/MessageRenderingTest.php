@@ -25,6 +25,9 @@ final class MessageRenderingTest extends KernelTestCase
 {
     private const string LOGO_KEY = 'notification-test/clinic-logo.png';
 
+    /** A real-length invitation link: 43-character token of OpaqueTokenHasher. */
+    private const string PORTAL_LINK = 'https://portal.kiveto.app/invitation#t=Zm9vYmFyLWJhei1xdXV4LWNvcmdlLWdyYXVsdC1nYXJ';
+
     /**
      * The reference data of each sheet, per purpose and channel.
      *
@@ -69,6 +72,13 @@ final class MessageRenderingTest extends KernelTestCase
                 'EMAIL' => ['sentAtLabel' => '26/10/2026 à 10:42'],
                 'SMS'   => ['sentAtLabel' => '26/10/2026 à 10:42'],
             ],
+            'PORTAL_OTP' => [
+                'SMS' => ['code' => '123456', 'validityMinutes' => 10],
+            ],
+            'PORTAL_INVITATION' => [
+                'EMAIL' => ['clinicName' => 'Clinique Montmartre', 'ownerFirstName' => 'Sophie', 'link' => self::PORTAL_LINK, 'expiresOn' => '05/11/2026'],
+                'SMS'   => ['clinicName' => 'Clinique Montmartre', 'ownerFirstName' => 'Sophie', 'link' => self::PORTAL_LINK, 'expiresOn' => '05/11/2026'],
+            ],
         ];
     }
 
@@ -97,7 +107,8 @@ final class MessageRenderingTest extends KernelTestCase
 
             if (Channel::SMS === $channel) {
                 self::assertSame(SmsEncoding::GSM_7, $content->encoding, $purpose->value);
-                self::assertSame(1, $content->segments, $purpose->value . ': ' . $content->smsText);
+                // The Portal invitation carries a full link: it takes two segments.
+                self::assertSame(MessagePurpose::PORTAL_INVITATION === $purpose ? 2 : 1, $content->segments, $purpose->value . ': ' . $content->smsText);
                 self::assertTrue(Gsm7::isGsm7((string) $content->smsText));
 
                 continue;
@@ -121,6 +132,8 @@ final class MessageRenderingTest extends KernelTestCase
         self::assertSame('Clinique Montmartre : rappel du RDV de Milo demain à 9h30 avec le Dr Rousseau. En cas d\'absence, merci de nous prévenir au 01 42 64 18 00', $sms(MessagePurpose::APPOINTMENT_REMINDER));
         self::assertSame('Clinique Montmartre : la facture FA-2026-0702 du 04/09 (64,50 €) reste à régler. Vous pouvez la régler à la clinique. Infos : 01 42 64 18 00', $sms(MessagePurpose::INVOICE_REMINDER));
         self::assertSame('Kiveto : message de test envoyé le 26/10/2026 à 10:42. Aucune action n\'est nécessaire.', $sms(MessagePurpose::TEST));
+        self::assertSame('Kiveto : votre code est 123456. Il expire dans 10 minutes. Ne le communiquez à personne.', $sms(MessagePurpose::PORTAL_OTP));
+        self::assertSame('Clinique Montmartre vous invite sur Kiveto pour suivre vos animaux : ' . self::PORTAL_LINK . ' (valable jusqu\'au 05/11/2026)', $sms(MessagePurpose::PORTAL_INVITATION));
     }
 
     /**
@@ -206,6 +219,23 @@ final class MessageRenderingTest extends KernelTestCase
         $reset = $this->render(MessagePurpose::PASSWORD_RESET, Channel::EMAIL, self::reference()['PASSWORD_RESET']['EMAIL']);
         self::assertSame('Réinitialisation de votre mot de passe Kiveto', $reset->subject);
         self::assertStringContainsString('Demande reçue le 16/10/2026 à 08:14.', (string) $reset->html);
+    }
+
+    public function testThePortalInvitationEmailIsSignedKivetoAndNamesTheClinic(): void
+    {
+        $invitation = $this->render(MessagePurpose::PORTAL_INVITATION, Channel::EMAIL, self::reference()['PORTAL_INVITATION']['EMAIL']);
+
+        self::assertSame('Clinique Montmartre vous invite sur Kiveto', $invitation->subject);
+        self::assertNull($invitation->inlineLogoKey);
+        self::assertStringContainsString('Kiveto · logiciel de gestion vétérinaire', (string) $invitation->html);
+        self::assertStringContainsString('href="' . self::PORTAL_LINK . '"', (string) $invitation->html);
+        self::assertStringContainsString("valable jusqu'au 05/11/2026", (string) $invitation->html);
+        self::assertStringNotContainsString('18 rue Lepic', (string) $invitation->html, 'no clinic footer: Kiveto sends it');
+        self::assertStringContainsString('Bonjour Sophie,', (string) $invitation->text);
+        self::assertStringContainsString("Accepter l'invitation : " . self::PORTAL_LINK, (string) $invitation->text);
+
+        $anonymous = $this->render(MessagePurpose::PORTAL_INVITATION, Channel::EMAIL, ['ownerFirstName' => ''] + self::reference()['PORTAL_INVITATION']['EMAIL']);
+        self::assertStringContainsString('Bonjour,', (string) $anonymous->text);
     }
 
     public function testTheConsultationNoteDependsOnThePrescription(): void

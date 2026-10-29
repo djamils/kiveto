@@ -6,7 +6,6 @@ namespace App\System\IdentityAccess\Application\Query\AuthenticateUser;
 
 use App\System\IdentityAccess\Application\Port\Security\PasswordHashVerifierInterface;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\AccountStatusNotAllowedException;
-use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\AuthenticationContextMismatchException;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\EmailVerificationRequiredException;
 use App\System\IdentityAccess\Application\Query\AuthenticateUser\Exception\InvalidCredentialsException;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
@@ -24,14 +23,10 @@ final readonly class AuthenticateUserHandler
 
     public function __invoke(AuthenticateUserQuery $query): AuthenticatedUser
     {
-        $user = $this->userRepository->findByEmail($query->email);
+        // Addresses are unique per account type: each app only sees its own accounts.
+        $user = $this->userRepository->findByEmailAndType($query->email, $query->context->allowedUserType());
         if (null === $user) {
             throw new InvalidCredentialsException();
-        }
-
-        $expectedType = $query->context->allowedUserType();
-        if ($user->type() !== $expectedType) {
-            throw new AuthenticationContextMismatchException($query->context, $user->type());
         }
 
         if (UserStatus::ACTIVE !== $user->status()) {
@@ -48,7 +43,7 @@ final readonly class AuthenticateUserHandler
 
         return new AuthenticatedUser(
             id: $user->id()->toString(),
-            email: $user->email(),
+            email: $user->requireEmail(),
             type: $user->type(),
             roles: ['ROLE_USER'],
             passwordFingerprint: $user->passwordFingerprint(),

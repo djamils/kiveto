@@ -15,7 +15,6 @@ use App\System\IdentityAccess\Domain\User;
 use App\System\IdentityAccess\Domain\ValueObject\UserType;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\BackofficeUserEntity;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\ClinicUserEntity;
-use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Entity\PortalUserEntity;
 use App\System\IdentityAccess\Infrastructure\Persistence\Doctrine\Factory\DoctrineUserFactory;
 use App\Tests\Shared\Time\FrozenClock;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -165,7 +164,6 @@ final class RegisterUserHandlerTest extends TestCase
     {
         return [
             'clinic'     => [UserType::CLINIC, ClinicUserEntity::class],
-            'portal'     => [UserType::PORTAL, PortalUserEntity::class],
             'backoffice' => [UserType::BACKOFFICE, BackofficeUserEntity::class],
         ];
     }

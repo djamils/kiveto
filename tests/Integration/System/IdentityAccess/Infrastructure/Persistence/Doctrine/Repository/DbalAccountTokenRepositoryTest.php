@@ -25,9 +25,9 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         $tokens = $this->tokens();
         $token  = $this->issue('01960000-0000-7000-8000-00000000a001', self::USER, TokenPurpose::INVITATION, self::CLINIC_A, 'secret-1', '2026-10-26 10:00:00');
 
-        self::assertNull($tokens->findByHash(AccountToken::hash('unknown')));
+        self::assertNull($tokens->findByHash(hash('sha256', 'unknown')));
 
-        $found = $tokens->findByHashForUpdate(AccountToken::hash('secret-1'));
+        $found = $tokens->findByHashForUpdate(hash('sha256', 'secret-1'));
         self::assertNotNull($found);
         self::assertSame([$token->id()->toString(), self::USER, TokenPurpose::INVITATION, self::CLINIC_A, '2026-10-29 10:00:00', null, '2026-10-26 10:00:00'], [
             $found->id()->toString(), $found->userId(), $found->purpose(), $found->clinicId(), $found->expiresAt()->format('Y-m-d H:i:s'), $found->usedAt(), $found->createdAt()->format('Y-m-d H:i:s'),
@@ -36,7 +36,7 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         $found->markUsed(new \DateTimeImmutable('2026-10-27 08:00:00'));
         $tokens->save($found);
 
-        self::assertSame('2026-10-27 08:00:00', $tokens->findByHash(AccountToken::hash('secret-1'))?->usedAt()?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-10-27 08:00:00', $tokens->findByHash(hash('sha256', 'secret-1'))?->usedAt()?->format('Y-m-d H:i:s'));
     }
 
     public function testInvitationsAreScopedToTheClinicAndResetsToTheUser(): void
@@ -57,8 +57,8 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         self::assertSame([self::USER], $tokens->usersWithUsableInvitation(self::CLINIC_B, [self::USER], $now), "clinic B's link stays valid");
 
         self::assertSame(2, $tokens->invalidatePasswordResets(self::USER, $now));
-        self::assertNotNull($tokens->findByHash(AccountToken::hash('s-r2'))?->usedAt());
-        self::assertNull($tokens->findByHash(AccountToken::hash('s-b'))?->usedAt());
+        self::assertNotNull($tokens->findByHash(hash('sha256', 's-r2'))?->usedAt());
+        self::assertNull($tokens->findByHash(hash('sha256', 's-b'))?->usedAt());
     }
 
     public function testTheEntityDescribesTheTable(): void
@@ -70,7 +70,7 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
         $entity = $em->find(AccountTokenEntity::class, Uuid::fromString('01960000-0000-7000-8000-00000000a021'));
 
         self::assertInstanceOf(AccountTokenEntity::class, $entity);
-        self::assertSame(['PASSWORD_RESET', null, AccountToken::hash('s-e')], [$entity->purpose, $entity->clinicId, $entity->tokenHash]);
+        self::assertSame(['PASSWORD_RESET', null, hash('sha256', 's-e')], [$entity->purpose, $entity->clinicId, $entity->tokenHash]);
 
         $built = new AccountTokenEntity(Uuid::v7(), Uuid::v7(), 'INVITATION', Uuid::v7(), 'h', new \DateTimeImmutable(), null, new \DateTimeImmutable());
         self::assertSame('INVITATION', $built->purpose);
@@ -78,7 +78,7 @@ final class DbalAccountTokenRepositoryTest extends KernelTestCase
 
     private function issue(string $id, string $userId, TokenPurpose $purpose, ?string $clinicId, string $secret, string $at): AccountToken
     {
-        $token = AccountToken::issue(AccountTokenId::fromString($id), $userId, $purpose, $clinicId, $secret, new \DateTimeImmutable($at, new \DateTimeZone('UTC')));
+        $token = AccountToken::issue(AccountTokenId::fromString($id), $userId, $purpose, $clinicId, hash('sha256', $secret), new \DateTimeImmutable($at, new \DateTimeZone('UTC')));
         $this->tokens()->save($token);
 
         return $token;

@@ -11,7 +11,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * The signed-in user kept in the session. It carries a fingerprint of the
  * password hash: when the user reloaded at each request no longer has the
- * same one (password reset), the session is closed.
+ * same one (password reset), the session is closed. Staff users are
+ * identified by their e-mail; owner (PORTAL) users, who may have none, by
+ * their id (the `sub` of the Portal API's access tokens).
  */
 final readonly class SecurityUser implements UserInterface, EquatableInterface
 {
@@ -20,7 +22,7 @@ final readonly class SecurityUser implements UserInterface, EquatableInterface
      */
     public function __construct(
         private string $id,
-        private string $email,
+        private ?string $email,
         private UserType $type,
         private array $roles = ['ROLE_USER'],
         private string $passwordFingerprint = '',
@@ -42,9 +44,9 @@ final readonly class SecurityUser implements UserInterface, EquatableInterface
 
     public function getUserIdentifier(): string
     {
-        $identifier = $this->email;
+        $identifier = UserType::PORTAL === $this->type ? $this->id : $this->email;
 
-        if ('' === $identifier) {
+        if (null === $identifier || '' === $identifier) {
             throw new \LogicException('User identifier must not be empty.');
         }
 

@@ -94,7 +94,7 @@ final class DoctrineUserReadRepositoryTest extends KernelTestCase
         $result = $this->repository->listAll(search: 'JOHN');
 
         self::assertCount(1, $result->users);
-        self::assertStringContainsStringIgnoringCase('john', $result->users[0]->email);
+        self::assertStringContainsStringIgnoringCase('john', (string) $result->users[0]->email);
     }
 
     public function testListAllFiltersByTypeClinic(): void

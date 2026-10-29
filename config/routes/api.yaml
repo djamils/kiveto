@@ -3,3 +3,10 @@ api_clinic:
     type: attribute
     prefix: /api/clinic
     host: 'clinic.kiveto.local'
+
+# The only API Platform import: the Portal API, on the portal host.
+api_portal:
+    resource: .
+    type: api_platform
+    prefix: /api/portal/v1
+    host: 'portal.kiveto.local'

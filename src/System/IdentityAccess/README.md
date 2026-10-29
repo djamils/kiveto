@@ -7,8 +7,11 @@ The **IdentityAccess** system context manages user identities, authentication, a
 - **User** — the abstract aggregate root representing any authenticated principal in the system.
 - **BackofficeUser** — a platform-level administrator with no clinic affiliation.
 - **ClinicUser** — a practitioner or staff member affiliated with one or more clinics via the Clinic BC.
-- **PortalUser** — a pet owner accessing the client-facing portal.
-- **AuthenticationContext** — the application scope the login attempt is made against (`BACKOFFICE | CLINIC | PORTAL`). Mismatches between user type and context raise `AuthenticationContextMismatchException`.
+- **PortalUser** — a pet owner of the client Portal (mobile app). Identified by their **mobile phone** (E.164, required, verified by a one-time code), no password; the e-mail is optional and unverified (copied from a clinic's client file). Name and address live in ClientPortal's owner profile, not here.
+- **AuthenticationContext** — the application scope the login attempt is made against (`BACKOFFICE | CLINIC | PORTAL`). Addresses are looked up within the context's account type only: an account of another type is unknown here (`InvalidCredentialsException`).
+- **OtpChallenge** — a one-time code sent by SMS to prove a phone, for one purpose (`login` or `invitation` bound to an invitation id).
+- **Onboarding grant** — a 15-minute token carried by a login challenge whose phone has pending Portal invitations; it accepts them without a second code.
+- **Refresh token family** — the chain of refresh tokens born from one sign-in; any theft signal revokes the whole family.
 
 ## User Entity Sub-types
 
@@ -18,7 +21,11 @@ The **IdentityAccess** system context manages user identities, authentication, a
 |-----------|--------------|-------------|
 | `BackofficeUserEntity` | `backoffice` | Platform admins; no clinic FK |
 | `ClinicUserEntity` | `clinic` | Veterinary staff; holds clinic membership references |
-| `PortalUserEntity` | `portal` | Pet owners; may be linked to a `ClientEntity` |
+| `PortalUserEntity` | `portal` | Pet owners; phone-based, linked to clinic clients by ClientPortal |
+
+**Uniqueness is per account type** (D1): unique keys `(type, email)` and `(type, phone)` replace the former global e-mail key — a veterinarian may also own a pet with the same address. `User::email()` is nullable; staff paths use `requireEmail()` (`EmailRequiredException`). Creation rules live in the named constructors only (`register`/`invite` require an e-mail and refuse PORTAL; `registerPortal(id, phone, ?email, at)` creates an ACTIVE owner with `phoneVerifiedAt`, event `PortalUserRegistered`); `reconstitute()` checks nothing, so legacy rows load — the migration disabled the phone-less PORTAL rows of the e-mail era. `SecurityUser::getUserIdentifier()` is the e-mail for staff and the **id** for owners. The table of the discriminator still reads `PORTAL`, `CLINIC`, `BACKOFFICE` (upper case).
+
+New owner accounts are inserted with SQL (`addPortalIfPhoneFree`, `INSERT … ON DUPLICATE KEY UPDATE id = id`): a duplicate phone or owner e-mail is a no-op, never a closed EntityManager. Concurrent claims of one phone queue on `lockPortalPhone()`, an upsert in `identity_access__portal_phone_locks` whose row lock lasts until the transaction ends.
 
 ## Authentication Flow
 
@@ -31,6 +38,22 @@ The **IdentityAccess** system context manages user identities, authentication, a
 ## Sign-in trace
 
 Every successful sign-in (`LoginSuccessEvent`, any firewall) dispatches `RecordUserLogin`, which stamps the account's `last_login_at` through `UserRepositoryInterface::recordLogin()`. It is a trace of use kept out of the aggregate; the clinic team page reads it to tell who has started using their access and when they were last seen.
+
+## Portal sign-in (one-time codes)
+
+Table `identity_access__otp_challenges` (`OtpChallenge`, DBAL repository):
+
+- 6 digits, valid **10 min**, **5 attempts**, a resend after **30 s** (new code, attempts reset, `send_count++`), used once. The code is stored as `HMAC-SHA256(code, kernel.secret)` (`OtpCodeHasherInterface`): a plain digest of 10⁶ values would be reversible.
+- `verify()` never throws: a wrong code (or a code of another purpose / invitation) counts an attempt and is **committed** — the use cases return outcomes instead of throwing (`LoginOtpOutcome`, `RefreshResult`). A consumed challenge re-presented with the right code before its original expiry answers `already_verified` (honoured by invitation acceptances only, to make them retryable).
+- `RequestPortalOtp(phone, purpose, ?invitationRef)`: sign-in codes only go to numbers of Client's `MobileNumberPolicy` (`IsPortalMobileNumber`, `PhoneNotSupportedException`). For a phone without an active owner account, a code spends the **global hourly budget of unknown numbers** (`PORTAL_OTP_UNKNOWN_HOURLY_CAP`, default 200); beyond it the challenge is created with `sms_suppressed` — same answer, no SMS now or on any resend — and an `alert` is logged on channel `security` once per hour. Invitation codes never spend that budget. The SMS (`PORTAL_OTP`, key `otp:<challengeId>:<sendCount>`) is requested last in the transaction.
+- `ResendPortalOtp(challengeId, channel)` (`sms` only), `GetOtpChallengePhone(challengeId)` (lets the API answer 404 and key its quotas first), `VerifyPortalLoginOtp(challengeId, code)` → `authenticated` (active owner) | `registration_required` | `account_disabled` | `otp_invalid` | `otp_expired` | `otp_attempts_exceeded`. No answer tells whether a phone has an account before its code is proven.
+- The API's per-phone / per-IP quotas are database-backed rate limiters (`limiter.portal_*`, table `shared__rate_limiter_cache`), consumed by the Presentation layer before dispatching.
+
+## Portal sessions (Portal API)
+
+- **Access token**: JWT signed by lexik (`LexikAccessTokenIssuer`), `sub` = owner id, `typ` = `portal`, 15 min. Keys: `make jwt-keys` (`config/jwt/`, git-ignored); tests use the committed keypair of `tests/Fixtures/Jwt/`.
+- **Refresh token**: opaque 32-byte secret, only its sha256 in `identity_access__refresh_tokens`, 90 days of inactivity. `RefreshPortalSession` applies, in order: unknown / revoked / expired → refused; account no longer an ACTIVE owner → family revoked; unused → **rotated** (`rotated_at`, `rotated_to_id`); rotated < 30 s ago, successor unused, never re-issued → **one** extra pair of the same family (`grace_successor_id`); anything else → **family revoked** (`reuse_detected`). The presented row is read `FOR UPDATE`. The app must serialise its refreshes; the grace window is a safety net.
+- `IssuePortalSession(userId)` opens a family; `RevokePortalSession(refreshToken, userId)` revokes it only when it belongs to the caller; `GetPortalAccount(userId)` answers the active owner (`PortalApiUserProvider` of the API firewall).
 
 ## Account lifecycle
 
@@ -46,7 +69,7 @@ Every successful sign-in (`LoginSuccessEvent`, any firewall) dispatches `RecordU
 
 Single-use links sent by e-mail, table `identity_access__account_tokens` (`AccountToken`, `TokenPurpose`):
 
-- The secret is 32 random bytes in base64url; **only its sha256 is stored** (`token_hash`, unique).
+- The secret is 32 random bytes in base64url; **only its sha256 is stored** (`token_hash`, unique). Secret and digest come from Shared's `OpaqueTokenHasherInterface`, also used by refresh tokens and onboarding grants.
 - `INVITATION` — 72 h, scoped to **(clinic, user)**: a new invitation of a clinic invalidates only that clinic's previous one, so two clinics inviting the same person never cancel each other.
 - `PASSWORD_RESET` — 30 min; a new one, and a successful reset, invalidate the user's other reset tokens.
 - A token is used once (`used_at`); invalidated tokens are marked used too.
@@ -58,7 +81,7 @@ Query `GetInvitationStatuses(clinicId, userIds)` answers `PENDING_VALID`, `PENDI
 
 | Use case | What it does |
 |----------|--------------|
-| `RegisterInvitedUser(email)` | Creates the PENDING clinic account if absent and returns `InvitedUserRegistration{userId, alreadyActive}`; sends nothing. A portal / back-office address (`EmailUsedByAnotherAccountException`) or a disabled account (`AccountDisabledException`) is refused. Two invitations of the same address at once: the second joins the account the first created (no unique-key error). A membership refused afterwards leaves a PENDING account without link, reused by the next invitation. |
+| `RegisterInvitedUser(email)` | Creates the PENDING clinic account if absent and returns `InvitedUserRegistration{userId, alreadyActive}`; sends nothing. Only clinic accounts are looked up: an owner or back-office account of the same address is another account. A disabled clinic account (`AccountDisabledException`) is refused. Two invitations of the same address at once: the second joins the account the first created (no unique-key error). A membership refused afterwards leaves a PENDING account without link, reused by the next invitation. |
 | `SendInvitation(userId, clinicId, inviterPrintedName, clinicName, clinicCity, inviteeFirstName, roleLabel)` | PENDING accounts only: invalidates the clinic's previous invitation, issues a new one and requests `STAFF_INVITATION` (key `invitation:<tokenId>`, link `KIVETO_PUBLIC_BASE_URL/invitation/<secret>`). Display values are resolved by the caller through Clinic queries — IdentityAccess never reads a clinic. « Renvoyer » dispatches it again. |
 | `RevokeInvitation(userId, clinicId)` | The clinic disabled or ended the membership: its unused invitation links of that user stop working (Clinic's `InvitationRevokerInterface`). Returns how many. |
 | `ActivateInvitedUser(token, plainPassword)` | Usable invitation, password of 8 characters or more → `activate()`, token used, `ActivationResult::ACTIVATED`. An account already ACTIVE (link of another clinic) → token used, `ALREADY_ACTIVE`. |
@@ -84,6 +107,7 @@ The secret kept in the session is bound to its page (one key per page) and lives
 - `UserInvited` — a PENDING account was created for an invitation.
 - `UserActivated` — the invited user chose a password; bridged to `UserActivatedIntegrationEvent` (outbox), consumed by Clinic to recount its active veterinarians (SMS quota).
 - `UserPasswordChanged` — the password was replaced (reset).
+- `PortalUserRegistered` — an owner account was created from a proven phone.
 
 ## Known Security Debt
 

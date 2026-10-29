@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\System\IdentityAccess\Application\Command\ResetPassword;
 
 use App\Shared\Application\Event\DomainEventPublisher;
+use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Exception\InvalidAccountTokenException;
 use App\System\IdentityAccess\Application\Exception\UnacceptablePasswordException;
 use App\System\IdentityAccess\Application\Port\PasswordHasherInterface;
 use App\System\IdentityAccess\Domain\Repository\UserRepositoryInterface;
-use App\System\IdentityAccess\Domain\Token\AccountToken;
 use App\System\IdentityAccess\Domain\Token\AccountTokenRepositoryInterface;
 use App\System\IdentityAccess\Domain\Token\TokenPurpose;
 use App\System\IdentityAccess\Domain\ValueObject\UserId;
@@ -31,13 +31,14 @@ final readonly class ResetPasswordHandler
         private PasswordHasherInterface $hasher,
         private ClockInterface $clock,
         private DomainEventPublisher $domainEventPublisher,
+        private OpaqueTokenHasherInterface $tokenHasher,
     ) {
     }
 
     public function __invoke(ResetPassword $command): void
     {
         $now   = $this->clock->now();
-        $token = $this->tokens->findByHashForUpdate(AccountToken::hash($command->token));
+        $token = $this->tokens->findByHashForUpdate($this->tokenHasher->hash($command->token));
 
         if (null === $token || TokenPurpose::PASSWORD_RESET !== $token->purpose() || !$token->isUsable($now)) {
             throw new InvalidAccountTokenException();

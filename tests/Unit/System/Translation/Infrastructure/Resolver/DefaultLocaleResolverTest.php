@@ -110,6 +110,31 @@ final class DefaultLocaleResolverTest extends TestCase
         self::assertSame('en-US', $resolver->resolve()->toString());
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideAnyAcceptLanguageResolvesToALocaleCases(): iterable
+    {
+        yield 'lower-case region' => ['en-us,en;q=0.5', 'en-US'];
+        yield 'underscore and case' => ['FR_be', 'fr-BE'];
+        yield 'unserved language' => ['de', 'en-GB'];
+        yield 'wildcard' => ['*', 'en-GB'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('provideAnyAcceptLanguageResolvesToALocaleCases')]
+    public function testAnyAcceptLanguageResolvesToALocale(string $header, string $expected): void
+    {
+        $stack   = new RequestStack();
+        $request = Request::create('/');
+        $request->headers->set('Accept-Language', $header);
+        $stack->push($request);
+
+        $scopeResolver = $this->createStub(AppScopeResolverInterface::class);
+        $scopeResolver->method('resolve')->willReturn(AppScope::CLINIC);
+
+        self::assertSame($expected, $this->makeResolver($stack, $scopeResolver)->resolve()->toString());
+    }
+
     private function makeResolver(
         RequestStack $stack,
         AppScopeResolverInterface $scope,
