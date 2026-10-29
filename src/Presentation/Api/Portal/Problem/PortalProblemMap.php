@@ -24,6 +24,11 @@ final class PortalProblemMap
     public const string OTP_CHALLENGE_NOT_FOUND = 'otp_challenge_not_found';
     public const string PHONE_NOT_SUPPORTED     = 'phone_not_supported';
     public const string ACCOUNT_DISABLED        = 'account_disabled';
+    public const string INVITATION_INVALID      = 'invitation_invalid';
+    public const string INVITATION_EXPIRED      = 'invitation_expired';
+    public const string INVITATION_ALREADY_USED = 'invitation_already_used';
+    public const string ONBOARDING_INVALID      = 'onboarding_invalid';
+    public const string TERMS_OUTDATED          = 'terms_outdated';
     public const string VALIDATION_FAILED       = 'validation_failed';
 
     /** @var array<string, array{int, string}> */
@@ -38,6 +43,11 @@ final class PortalProblemMap
         self::OTP_CHALLENGE_NOT_FOUND => [404, 'Code de connexion introuvable.'],
         self::PHONE_NOT_SUPPORTED     => [422, 'Ce numéro de mobile n\'est pas encore pris en charge par le Portal.'],
         self::ACCOUNT_DISABLED        => [403, 'Ce compte est désactivé.'],
+        self::INVITATION_INVALID      => [404, 'Invitation introuvable.'],
+        self::INVITATION_EXPIRED      => [410, 'Invitation expirée : demandez à votre clinique de la renvoyer.'],
+        self::INVITATION_ALREADY_USED => [410, 'Invitation déjà utilisée.'],
+        self::ONBOARDING_INVALID      => [401, 'Jeton d\'invitation expiré : reconnectez-vous avec votre numéro.'],
+        self::TERMS_OUTDATED          => [422, 'Les conditions d\'utilisation ont changé : acceptez la nouvelle version.'],
         self::VALIDATION_FAILED       => [422, 'Données invalides.'],
     ];
 

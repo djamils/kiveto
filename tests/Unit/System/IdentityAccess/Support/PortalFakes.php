@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\System\IdentityAccess\Support;
 
+use App\Shared\Domain\ValueObject\PhoneNumber;
 use App\System\IdentityAccess\Application\Port\AccessTokenIssuerInterface;
 use App\System\IdentityAccess\Application\Port\IssuedAccessToken;
 use App\System\IdentityAccess\Application\Port\MobilePhonePolicyInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeGeneratorInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitation;
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
 use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
 
 /**
@@ -16,8 +19,11 @@ use App\System\IdentityAccess\Application\Port\UnknownNumberSmsBudgetInterface;
  * code digest, plain access tokens, a switchable mobile policy and a
  * countable unknown-number budget.
  */
-final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface
+final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInterface, AccessTokenIssuerInterface, MobilePhonePolicyInterface, UnknownNumberSmsBudgetInterface, PendingPortalInvitationsInterface
 {
+    /** @var array<string, list<PendingPortalInvitation>> pending invitations by phone */
+    public array $pending = [];
+
     /** @var list<string> codes handed out next; '123456' once exhausted */
     public array $nextCodes = [];
 
@@ -74,5 +80,10 @@ final class PortalFakes implements OtpCodeGeneratorInterface, OtpCodeHasherInter
         --$this->budget;
 
         return true;
+    }
+
+    public function listForPhone(PhoneNumber $phone): array
+    {
+        return $this->pending[$phone->toString()] ?? [];
     }
 }

@@ -14,6 +14,7 @@ use App\Fixtures\Context\Catalog\Story\CompanionClinicCatalogStory;
 use App\Fixtures\Context\Client\Story\ClientDataStory;
 use App\Fixtures\Context\Client\Story\ClientSheetStatesStory;
 use App\Fixtures\Context\Client\Story\DirectoryCrowdStory;
+use App\Fixtures\Context\ClientPortal\Story\ClientPortalStatesStory;
 use App\Fixtures\Context\Clinic\Story\ClinicDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicMembershipDataStory;
 use App\Fixtures\Context\Clinic\Story\ClinicStaffProfileDataStory;
@@ -138,6 +139,11 @@ final class ClinicDataset extends Story
         // switched off) and the sign-ins it reads: last, so that no story
         // above picks one of these members for its visits or its stock.
         TeamDemoStory::load();
+
+        // Every Portal state of the client sheet (non invité, invité, expirée,
+        // actif, accès retiré, not invitable) and the owner accounts behind
+        // them; needs Julien Girard of the consultation demo.
+        ClientPortalStatesStory::load();
 
         // The notifications: messaging profiles, the confirmations the
         // bookings above queued, SMS quotas, every delivery status, the bell,

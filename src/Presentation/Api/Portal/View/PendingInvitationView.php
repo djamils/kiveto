@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Presentation\Api\Portal\View;
 
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitation;
+
 /** An invitation waiting for the owner of the proven phone. */
 final readonly class PendingInvitationView
 {
@@ -25,5 +27,15 @@ final readonly class PendingInvitationView
         public string $invitationId,
         public ClinicSummaryView $clinic,
     ) {
+    }
+
+    /**
+     * @param list<PendingPortalInvitation> $invitations
+     *
+     * @return list<self>
+     */
+    public static function list(array $invitations): array
+    {
+        return array_map(static fn (PendingPortalInvitation $invitation): self => new self($invitation->invitationId, new ClinicSummaryView($invitation->clinicName, $invitation->clinicCity)), $invitations);
     }
 }

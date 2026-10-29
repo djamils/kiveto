@@ -7,17 +7,21 @@ namespace App\Presentation\Api\Portal\View;
 use ApiPlatform\Metadata\ApiProperty;
 
 /**
- * `status` = `authenticated` (token pair, pending invitations of the phone),
- * or `registration_required` (no account for this phone; `registrationToken`
- * stays null until free sign-up exists). Fields of the other status are null.
+ * `status` = `authenticated` (token pair; `pendingInvitations` and an
+ * `onboardingToken` when the phone has invitations waiting),
+ * `invitation_pending` (no account yet, `invitations` waiting: accept them
+ * with the `onboardingToken`), or `registration_required` (no account nor
+ * invitation; `registrationToken` stays null until free sign-up exists).
+ * Fields of the other statuses are null or empty.
  */
 final readonly class OtpVerificationView
 {
     /**
      * @param list<PendingInvitationView> $pendingInvitations
+     * @param list<PendingInvitationView> $invitations
      */
     public function __construct(
-        #[ApiProperty(schema: ['type' => 'string', 'enum' => ['authenticated', 'registration_required']])]
+        #[ApiProperty(schema: ['type' => 'string', 'enum' => ['authenticated', 'invitation_pending', 'registration_required']])]
         public string $status,
         public ?string $accessToken = null,
         #[ApiProperty(schema: ['type' => ['string', 'null'], 'format' => 'date-time'])]
@@ -31,6 +35,8 @@ final readonly class OtpVerificationView
         #[ApiProperty(schema: ['type' => ['string', 'null'], 'format' => 'date-time'])]
         public ?string $onboardingTokenExpiresAt = null,
         public ?string $registrationToken = null,
+        #[ApiProperty(schema: ['type' => 'array', 'items' => PendingInvitationView::SCHEMA])]
+        public array $invitations = [],
     ) {
     }
 }

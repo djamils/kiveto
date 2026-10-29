@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\System\IdentityAccess\Application\Command\VerifyPortalLoginOtp;
 
+use App\Shared\Domain\Security\OpaqueTokenHasherInterface;
 use App\Shared\Domain\Time\ClockInterface;
 use App\System\IdentityAccess\Application\Port\OtpCodeHasherInterface;
+use App\System\IdentityAccess\Application\Port\PendingPortalInvitationsInterface;
+use App\System\IdentityAccess\Domain\Otp\OtpChallenge;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeId;
 use App\System\IdentityAccess\Domain\Otp\OtpChallengeRepositoryInterface;
 use App\System\IdentityAccess\Domain\Otp\OtpPurpose;
@@ -20,7 +23,9 @@ use Symfony\Component\Uid\Uuid;
  * Decides, in the transaction that consumes the challenge, what a sign-in
  * code opens. Only the phone's owner reaches the account-specific answers,
  * after a right code. A login code re-presented after its use is invalid
- * here: replays are only honoured by invitation acceptances.
+ * here: replays are only honoured by invitation acceptances. When the phone
+ * has pending invitations (and its account is not disabled), the challenge
+ * is given its one onboarding grant, in this same transaction.
  */
 #[AsMessageHandler]
 final readonly class VerifyPortalLoginOtpHandler
@@ -29,6 +34,8 @@ final readonly class VerifyPortalLoginOtpHandler
         private OtpChallengeRepositoryInterface $challenges,
         private UserRepositoryInterface $users,
         private OtpCodeHasherInterface $codeHasher,
+        private OpaqueTokenHasherInterface $tokenHasher,
+        private PendingPortalInvitationsInterface $pendingInvitations,
         private ClockInterface $clock,
     ) {
     }
@@ -43,7 +50,8 @@ final readonly class VerifyPortalLoginOtpHandler
             return new LoginOtpOutcome(LoginOtpResult::OTP_INVALID);
         }
 
-        $verification = $challenge->verify($this->codeHasher->hash($command->code), $this->clock->now(), OtpPurpose::LOGIN);
+        $now          = $this->clock->now();
+        $verification = $challenge->verify($this->codeHasher->hash($command->code), $now, OtpPurpose::LOGIN);
         $this->challenges->save($challenge);
 
         $failure = match ($verification) {
@@ -59,10 +67,27 @@ final readonly class VerifyPortalLoginOtpHandler
 
         $user = $this->users->findByPhoneAndType($challenge->phone(), UserType::PORTAL);
 
+        if (null !== $user && UserStatus::ACTIVE !== $user->status()) {
+            return new LoginOtpOutcome(LoginOtpResult::ACCOUNT_DISABLED);
+        }
+
+        $pending = $this->pendingInvitations->listForPhone($challenge->phone());
+        $grant   = [] === $pending ? null : $this->grant($challenge, $now);
+
         return match (true) {
-            null === $user                         => new LoginOtpOutcome(LoginOtpResult::REGISTRATION_REQUIRED),
-            UserStatus::ACTIVE !== $user->status() => new LoginOtpOutcome(LoginOtpResult::ACCOUNT_DISABLED),
-            default                                => new LoginOtpOutcome(LoginOtpResult::AUTHENTICATED, $user->id()->toString()),
+            null !== $user  => new LoginOtpOutcome(LoginOtpResult::AUTHENTICATED, $user->id()->toString(), $grant, $challenge->onboardingExpiresAt(), $pending),
+            null !== $grant => new LoginOtpOutcome(LoginOtpResult::INVITATION_PENDING, null, $grant, $challenge->onboardingExpiresAt(), $pending),
+            default         => new LoginOtpOutcome(LoginOtpResult::REGISTRATION_REQUIRED),
         };
+    }
+
+    /** The clear onboarding token; only its digest is kept on the challenge. */
+    private function grant(OtpChallenge $challenge, \DateTimeImmutable $now): string
+    {
+        $token = $this->tokenHasher->newSecret();
+        $challenge->grantOnboarding($this->tokenHasher->hash($token), $now);
+        $this->challenges->save($challenge);
+
+        return $token;
     }
 }

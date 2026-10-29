@@ -70,7 +70,11 @@ final class OtpChallengeTest extends TestCase
         self::assertSame(OtpVerificationResult::INVALID, $challenge->verify($this->digest('111111'), $this->at('+10 minutes'), OtpPurpose::LOGIN), 'no replay past the original expiry');
         self::assertSame(OtpVerificationResult::INVALID, $challenge->verify($this->digest('222222'), $this->at('+2 minutes'), OtpPurpose::LOGIN), 'a wrong code on a used challenge');
         self::assertSame(OtpVerificationResult::INVALID, $challenge->verify($this->digest('111111'), $this->at('+2 minutes'), OtpPurpose::INVITATION, self::INVITATION), 'a replay for another purpose');
-        self::assertSame(0, $challenge->attempts(), 'a used challenge counts no attempt');
+        self::assertSame(3, $challenge->attempts(), 'every wrong guess on a used challenge counts');
+
+        $challenge->verify($this->digest('222222'), $this->at('+3 minutes'), OtpPurpose::LOGIN);
+        $challenge->verify($this->digest('222222'), $this->at('+3 minutes'), OtpPurpose::LOGIN);
+        self::assertSame(OtpVerificationResult::INVALID, $challenge->verify($this->digest('111111'), $this->at('+3 minutes'), OtpPurpose::LOGIN), 'no replay once the attempts are spent');
         self::assertSame('07:15:00', $challenge->consumedAt()->format('H:i:s'));
     }
 

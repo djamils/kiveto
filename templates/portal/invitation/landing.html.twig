@@ -1,0 +1,32 @@
+{#
+ # Kiveto -- templates/portal/invitation/landing.html.twig
+ # Landing page of an invitation link opened without the owner app. Static
+ # on purpose: the token sits in the URL fragment and is never read here.
+ #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
+  <title>Votre invitation Kiveto</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; background: #f5f6fb; color: #1e1b4b; }
+    main { max-width: 26rem; margin: 1.5rem; padding: 2rem; background: #fff; border-radius: 1rem; box-shadow: 0 10px 30px rgba(30, 27, 75, .08); text-align: center; }
+    h1 { font-size: 1.4rem; margin: 0 0 .75rem; }
+    p { line-height: 1.5; margin: 0 0 1.5rem; }
+    .stores { display: grid; gap: .75rem; }
+    .stores a { display: block; padding: .85rem 1rem; border-radius: .6rem; background: #4338ca; color: #fff; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Votre clinique vous invite sur Kiveto</h1>
+    <p>Installez l'app puis connectez-vous avec votre numéro : votre invitation vous y attendra.</p>
+    <div class="stores">
+      <a href="{{ appStoreUrl }}" rel="noreferrer">Télécharger sur l'App Store</a>
+      <a href="{{ playStoreUrl }}" rel="noreferrer">Disponible sur Google Play</a>
+    </div>
+  </main>
+</body>
+</html>

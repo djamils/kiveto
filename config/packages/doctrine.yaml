@@ -1,21 +1,32 @@
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
-
-        # IMPORTANT: You MUST configure your server version,
-        # either here or in the DATABASE_URL env var (see .env file)
-        #server_version: '16'
-
-        profiling_collect_backtrace: '%kernel.debug%'
-        use_savepoints: true
-
-        # Raw DBAL tables created by migrations/Shared and owned by code outside
-        # the ORM (idempotency store, rate limiter cache pool): hidden from the
-        # schema tools so that diffs never try to drop them.
-        schema_filter: '~^(?!shared__(idempotency_keys|rate_limiter_cache)$)~'
-
+        default_connection: default
         # Custom types for Value Objects
         types: {  }
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+
+                # IMPORTANT: You MUST configure your server version,
+                # either here or in the DATABASE_URL env var (see .env file)
+                #server_version: '16'
+
+                profiling_collect_backtrace: '%kernel.debug%'
+                use_savepoints: true
+
+                # Raw DBAL tables created by migrations/Shared and owned by code outside
+                # the ORM (idempotency store, rate limiter cache pool): hidden from the
+                # schema tools so that diffs never try to drop them.
+                schema_filter: '~^(?!shared__(idempotency_keys|rate_limiter_cache)$)~'
+
+            # Same database, its own session: the Portal rate limiters read and
+            # write their counters in autocommit, outside the transaction of the
+            # command being run — a quota is never computed on a stale snapshot,
+            # nor held locked until another transaction ends.
+            rate_limiter:
+                url: '%env(resolve:DATABASE_URL)%'
+                profiling_collect_backtrace: '%kernel.debug%'
+                schema_filter: '~^(?!shared__(idempotency_keys|rate_limiter_cache)$)~'
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
@@ -148,15 +159,25 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Context/Prescription/Infrastructure/Persistence/Doctrine/Entity'
                 prefix: 'App\Context\Prescription\Infrastructure\Persistence\Doctrine\Entity'
                 alias: Prescription
+            ClientPortal:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Context/ClientPortal/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Context\ClientPortal\Infrastructure\Persistence\Doctrine\Entity'
+                alias: ClientPortal
         controller_resolver:
             auto_mapping: false
 
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" is typically set by ParaTest
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
-            use_savepoints: true
+            connections:
+                default:
+                    # "TEST_TOKEN" is typically set by ParaTest
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+                    use_savepoints: true
+                rate_limiter:
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
 
 when@prod:
     doctrine:

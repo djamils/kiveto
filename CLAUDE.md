@@ -17,9 +17,12 @@ working on the repo behaves consistently across sessions and machines.
 - **Architecture:** DDD monolith organised by Bounded Contexts under
   `src/<BC>/{Domain,Application,Infrastructure}`. Presentation lives under
   `src/Presentation/<App>/`.
-- **Bounded Contexts:** AccessControl, Animal, Client, Clinic, Consultation,
-  IdentityAccess, Scheduling, Shared, Translation. Each has its canonical
-  description in `src/<BC>/README.md`.
+- **Bounded Contexts:** under `src/Context/` — Admission, Animal, Billing,
+  Catalog, Client, ClientPortal, Clinic, Consultation, Inventory, Patient,
+  Prescription, Procurement, Regulatory, Scheduling; under `src/System/` —
+  AccessControl, ElectronicInvoicing, IdentityAccess, Notification,
+  PharmaceuticalRegistry, Taxation, Translation; plus `src/Shared`. Each has
+  its canonical description in its `README.md`.
 - **Planning method:** BMAD (`_bmad/`), artefacts in `_bmad-output/`.
 - **Containerised dev:** everything goes through Docker via `make` targets.
 

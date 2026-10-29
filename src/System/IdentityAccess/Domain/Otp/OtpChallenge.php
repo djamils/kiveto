@@ -141,9 +141,19 @@ final class OtpChallenge
         $sameTarget = $expectedPurpose === $this->purpose && $expectedInvitationRef === $this->invitationRef;
 
         if (null !== $this->consumedAt) {
-            return $sameTarget && $now < $this->expiresAt && hash_equals($this->codeHash, $codeHash)
-                ? OtpVerificationResult::ALREADY_VERIFIED
-                : OtpVerificationResult::INVALID;
+            // A used code stays guarded: its replay is honoured within the
+            // validity and the attempt cap, and wrong guesses still count.
+            if ($this->attempts >= self::MAX_ATTEMPTS) {
+                return OtpVerificationResult::INVALID;
+            }
+
+            if ($sameTarget && $now < $this->expiresAt && hash_equals($this->codeHash, $codeHash)) {
+                return OtpVerificationResult::ALREADY_VERIFIED;
+            }
+
+            ++$this->attempts;
+
+            return OtpVerificationResult::INVALID;
         }
 
         if ($now >= $this->expiresAt) {
